@@ -1,0 +1,15 @@
+config_version: 3
+datasources: {}
+checkpoint_store_name: checkpoint_store
+stores:
+  checkpoint_store:
+    class_name: CheckpointStore
+    store_backend:
+      class_name: TupleFilesystemStoreBackend
+      base_directory: checkpoints/
+expectations_store_name: expectations_store
+expectations_store:
+  class_name: ExpectationsStore
+  store_backend:
+    class_name: TupleFilesystemStoreBackend
+    base_directory: expectations/

@@ -1,0 +1,30 @@
+name: cg_lakehouse
+version: 1.0.0
+config-version: 2
+
+profile: cg_lakehouse
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+
+models:
+  cg_lakehouse:
+    +materialized: table
+    staging:
+      +schema: staging
+      +materialized: view
+      +tags: ["stg"]
+      +quoting:
+        identifier: false
+    intermediate:
+      +schema: intermediate
+      +tags: ["int"]
+    curated:
+      +schema: curated
+      +tags: ["curated"]
+      +persist_docs: { relation: true, columns: true }
+    marts_postgres:
+      +schema: marts
+      +tags: ["mart"]
+      +materialized: table
