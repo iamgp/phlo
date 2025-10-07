@@ -1,5 +1,5 @@
 from dagster import job, op
-from ..resources.ge import GreatExpectationsCLI
+from resource.ge import GreatExpectationsCLI
 
 @op
 def ge_precheck(ge: GreatExpectationsCLI):
