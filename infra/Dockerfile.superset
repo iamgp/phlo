@@ -3,4 +3,8 @@ FROM apache/superset:latest
 USER root
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN uv pip install --system psycopg2-binary
+
+COPY superset_init.sh /app/docker/docker-init.sh
+RUN chmod +x /app/docker/docker-init.sh
+
 USER superset
