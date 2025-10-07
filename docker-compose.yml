@@ -97,16 +97,19 @@ services:
       dockerfile: Dockerfile.superset
     container_name: superset
     restart: unless-stopped
+    command: ["/bin/sh", "-c", "/app/docker/docker-init.sh && /usr/bin/run-server.sh"]
     environment:
       SUPERSET_SECRET_KEY: superset_secret_key_change_me
       SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin123}
+      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
     volumes:
       - ./volumes/superset:/app/superset_home
       - ./infra/superset_config.py:/app/pythonpath/superset_config.py
-      - ./infra/superset_bootstrap.sh:/docker-entrypoint-initdb.d/01_bootstrap.sh
     ports: ["${SUPERSET_PORT}:8088"]
     depends_on:
       postgres:
