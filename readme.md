@@ -5,6 +5,15 @@
 This platform provides a **modern, open-source data lakehouse** designed for **cell and gene therapy manufacturing and analytics**.
 It enables secure, automated, and governed handling of scientific and operational data — from instruments and lab systems through to analytics, dashboards, and machine learning.
 
+## 📚 Documentation
+
+**[Full Documentation →](./docs/README.md)**
+
+- **[Component Guides](./docs/components/)** - Individual tool documentation
+- **[Integration Guides](./docs/integrations/)** - How components work together
+- **[Asset-Based Architecture](./ASSET_BASED_ARCHITECTURE.md)** - Dagster asset details
+- **[Airbyte Setup](./AIRBYTE_SETUP.md)** - Optional data ingestion
+
 ---
 
 ## 1. Concept at a Glance
