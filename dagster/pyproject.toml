@@ -1,0 +1,35 @@
+[project]
+name = "lakehousekit-dagster"
+version = "0.1.0"
+description = "Data lakehouse orchestration with Dagster"
+requires-python = ">=3.11"
+dependencies = [
+    "dagster",
+    "dagster-webserver",
+    "dagster-dbt",
+    "duckdb==1.1.0",
+    "dbt-duckdb",
+    "dbt-postgres",
+    "great-expectations",
+    "psycopg2-binary",
+    "minio",
+    "boto3",
+    "pyyaml",
+    "openlineage-dagster",
+    "openlineage-dbt",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM"]
+
+[tool.basedpyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"

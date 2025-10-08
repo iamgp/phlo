@@ -128,6 +128,7 @@ It enables secure, automated, and governed handling of scientific and operationa
 
 - **Open Source, No Lock-In:**
   - All components are free, OSS tools with optional paid enterprise tiers for support or advanced scaling.
+  - Python dependencies managed with `uv` for fast, reliable package management.
 
 - **Scalable & Modular:**
   - Each layer can evolve independently (e.g., replace Superset with Power BI, scale storage to cloud, or add new pipelines).
