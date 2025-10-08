@@ -17,9 +17,9 @@ cg_lakehouse:
     postgres:
       type: postgres
       host: postgres
-      user: { { env_var('POSTGRES_USER') } }
-      password: { { env_var('POSTGRES_PASSWORD') } }
+      user: "{{ env_var('POSTGRES_USER') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
       port: 5432
-      dbname: { { env_var('POSTGRES_DB') } }
+      dbname: "{{ env_var('POSTGRES_DB') }}"
       schema: marts
       threads: 8
