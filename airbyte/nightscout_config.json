@@ -1,0 +1,32 @@
+{
+  "source": {
+    "sourceDefinitionId": "fd6f0b24-e9b1-44e6-a92d-1577adaf8f5e",
+    "name": "Nightscout CGM Data",
+    "sourceName": "http",
+    "connectionConfiguration": {
+      "url": "https://gwp-diabetes.fly.dev/api/v1/entries.json",
+      "http_method": "GET",
+      "request_parameters": {
+        "count": "10000"
+      }
+    }
+  },
+  "destination": {
+    "destinationDefinitionId": "8b746512-8c2e-6ac1-4adc-b59faafd473c",
+    "name": "Local Filesystem - Nightscout",
+    "destinationName": "local-json",
+    "connectionConfiguration": {
+      "destination_path": "/data/lake/raw/nightscout"
+    }
+  },
+  "connection": {
+    "name": "nightscout-to-raw",
+    "namespaceDefinition": "source",
+    "prefix": "",
+    "schedule": {
+      "units": 30,
+      "timeUnit": "minutes"
+    },
+    "status": "active"
+  }
+}

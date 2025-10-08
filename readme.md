@@ -14,6 +14,19 @@ It enables secure, automated, and governed handling of scientific and operationa
 - **[Asset-Based Architecture](./ASSET_BASED_ARCHITECTURE.md)** - Dagster asset details
 - **[Airbyte Setup](./AIRBYTE_SETUP.md)** - Optional data ingestion
 
+## 🎯 Example: Complete End-to-End Pipeline
+
+**[Nightscout Glucose Monitoring Pipeline](./NIGHTSCOUT_EXAMPLE.md)**
+
+A production-ready example demonstrating the full stack using real-world CGM data:
+- REST API ingestion with Dagster assets
+- 5-layer dbt transformations (staging → intermediate → curated → marts)
+- Data quality validation with Great Expectations
+- Lineage tracking with OpenLineage/Marquez
+- Superset dashboards for visualization
+
+Perfect for Python developers learning modern data engineering patterns.
+
 ---
 
 ## 1. Concept at a Glance

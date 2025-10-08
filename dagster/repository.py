@@ -16,6 +16,8 @@ from assets.dbt_assets import (
     DBT_PROFILES_DIR,
 )
 from assets.raw_data_assets import raw_bioreactor_data
+from assets.nightscout_assets import raw_nightscout_entries, processed_nightscout_entries
+from assets.nightscout_validations import validate_glucose_enriched
 from resource.openlineage import OpenLineageResource
 
 # Airbyte is optional - only load assets if configured
@@ -56,9 +58,12 @@ nightly_pipeline_schedule = ScheduleDefinition(
 defs = Definitions(
     assets=[
         raw_bioreactor_data,
+        raw_nightscout_entries,
+        processed_nightscout_entries,
         dbt_staging_models,
         dbt_curated_models,
         dbt_postgres_marts,
+        validate_glucose_enriched,
         *airbyte_assets,
     ],
     jobs=[

@@ -1,0 +1,140 @@
+{
+  "dashboard_title": "Continuous Glucose Monitoring Dashboard",
+  "description": "Real-time glucose monitoring and trend analysis from Nightscout CGM data",
+  "slug": "glucose-monitoring",
+  "position_json": {
+    "CHART-1": { "col": 0, "row": 0, "size_x": 6, "size_y": 4 },
+    "CHART-2": { "col": 6, "row": 0, "size_x": 6, "size_y": 4 },
+    "CHART-3": { "col": 0, "row": 4, "size_x": 12, "size_y": 6 },
+    "CHART-4": { "col": 0, "row": 10, "size_x": 6, "size_y": 5 },
+    "CHART-5": { "col": 6, "row": 10, "size_x": 6, "size_y": 5 }
+  },
+  "charts": [
+    {
+      "id": "CHART-1",
+      "viz_type": "big_number",
+      "slice_name": "Current Glucose Level",
+      "description": "Most recent glucose reading",
+      "params": {
+        "metric": "glucose_mg_dl",
+        "adhoc_filters": [],
+        "time_grain_sqla": "PT5M"
+      },
+      "query_context": {
+        "datasource": "mart_glucose_overview",
+        "queries": [
+          {
+            "columns": [],
+            "metrics": ["glucose_mg_dl"],
+            "orderby": [["reading_date", false]],
+            "row_limit": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-2",
+      "viz_type": "big_number",
+      "slice_name": "Time in Range (Today)",
+      "description": "Percentage of readings in target range (70-180 mg/dL)",
+      "params": {
+        "metric": "time_in_range_pct",
+        "adhoc_filters": [
+          {
+            "clause": "WHERE",
+            "expressionType": "SIMPLE",
+            "comparator": "today",
+            "operator": "=="
+          }
+        ]
+      },
+      "query_context": {
+        "datasource": "mart_glucose_overview",
+        "queries": [
+          {
+            "columns": [],
+            "metrics": ["time_in_range_pct"],
+            "filters": [{"col": "reading_date", "op": "==", "val": "today"}]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-3",
+      "viz_type": "line",
+      "slice_name": "Glucose Trend (7 Days)",
+      "description": "Time series of glucose readings with target range shading",
+      "params": {
+        "metrics": ["avg_glucose_mg_dl"],
+        "time_grain_sqla": "P1D",
+        "time_range": "7 days ago : now",
+        "x_axis_format": "%b %d",
+        "y_axis_bounds": [0, 400],
+        "y_axis_format": ".0f"
+      },
+      "query_context": {
+        "datasource": "mart_glucose_overview",
+        "queries": [
+          {
+            "columns": ["reading_date"],
+            "metrics": ["avg_glucose_mg_dl", "min_glucose_mg_dl", "max_glucose_mg_dl"],
+            "orderby": [["reading_date", true]],
+            "time_range": "7 days ago : now"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-4",
+      "viz_type": "heatmap",
+      "slice_name": "Glucose Patterns by Time of Day",
+      "description": "Heatmap showing average glucose by hour and day of week",
+      "params": {
+        "all_columns_x": "hour_of_day",
+        "all_columns_y": "day_name",
+        "metric": "avg_glucose_mg_dl",
+        "linear_color_scheme": "blue_white_yellow",
+        "xscale_interval": 1,
+        "yscale_interval": 1
+      },
+      "query_context": {
+        "datasource": "mart_glucose_hourly_patterns",
+        "queries": [
+          {
+            "columns": ["hour_of_day", "day_name"],
+            "metrics": ["avg_glucose_mg_dl"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "CHART-5",
+      "viz_type": "pie",
+      "slice_name": "Time Distribution",
+      "description": "Distribution of time in range vs. out of range",
+      "params": {
+        "metric": "reading_count",
+        "groupby": ["glucose_category"],
+        "donut": true,
+        "show_labels": true,
+        "labels_outside": true,
+        "color_scheme": "supersetColors"
+      },
+      "query_context": {
+        "datasource": "mart_glucose_overview",
+        "queries": [
+          {
+            "columns": [],
+            "metrics": ["time_in_range_pct", "time_below_range_pct", "time_above_range_pct"],
+            "time_range": "7 days ago : now"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "native_filter_configuration": [],
+    "color_scheme": "supersetColors",
+    "refresh_frequency": 300
+  }
+}
