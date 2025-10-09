@@ -47,8 +47,6 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       AWS_REGION: eu-west-1
       AWS_S3_ENDPOINT: http://minio:9000
-      OPENLINEAGE_URL: http://marquez:5000
-      OPENLINEAGE_NAMESPACE: lakehouse
     command:
       [
         "dagster-webserver",
@@ -83,8 +81,6 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       AWS_REGION: eu-west-1
       AWS_S3_ENDPOINT: http://minio:9000
-      OPENLINEAGE_URL: http://marquez:5000
-      OPENLINEAGE_NAMESPACE: lakehouse
     command: ["dagster-daemon", "run"]
     volumes:
       - ./dagster:/opt/dagster
@@ -119,46 +115,21 @@ services:
       postgres:
         condition: service_healthy
 
-  marquez:
-    image: marquezproject/marquez:latest
-    platform: linux/amd64
-    container_name: marquez
+  datahub:
+    image: acryldata/datahub-quickstart:0.13.0
+    container_name: datahub
     restart: unless-stopped
     environment:
-      MARQUEZ_PORT: 5000
-      MARQUEZ_ADMIN_PORT: 5001
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: marquez
-      POSTGRES_USER: marquez
-      POSTGRES_PASSWORD: marquez
+      DATAHUB_TELEMETRY_ENABLED: "false"
+      DATAHUB_ANALYTICS_ENABLED: "false"
     ports:
-      - "${MARQUEZ_PORT:-5555}:5000"
-      - "${MARQUEZ_ADMIN_PORT:-5556}:5001"
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - "9002:9002"
+      - "8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/namespaces"]
-      interval: 15s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 60s
-
-  marquez-web:
-    image: marquezproject/marquez-web:latest
-    platform: linux/amd64
-    container_name: marquez-web
-    restart: unless-stopped
-    environment:
-      MARQUEZ_HOST: marquez
-      MARQUEZ_PORT: 5000
-      WEB_PORT: 8080
-    ports:
-      - "${MARQUEZ_WEB_PORT:-3002}:8080"
-    depends_on:
-      marquez:
-        condition: service_healthy
 
   # Airbyte for data ingestion
   airbyte-temporal:

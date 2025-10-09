@@ -16,8 +16,7 @@ dependencies = [
     "minio",
     "boto3",
     "pyyaml",
-    "openlineage-dagster",
-    "openlineage-dbt",
+    "acryl-datahub",
     "requests",
     "pandas",
 ]

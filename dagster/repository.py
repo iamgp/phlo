@@ -1,17 +1,13 @@
 import os
-from dagster import Definitions, ScheduleDefinition, define_asset_job, AssetSelection
-from dagster_dbt import DbtCliResource
+
+from dagster import AssetSelection, Definitions, ScheduleDefinition, define_asset_job
 from dagster_airbyte import AirbyteResource
-from openlineage.dagster.sensor import openlineage_sensor
+from dagster_dbt import DbtCliResource
 
-from assets.dbt_assets import all_dbt_assets, DBT_PROJECT_DIR, DBT_PROFILES_DIR
-from assets.raw_data_assets import raw_bioreactor_data
-from assets.openlineage_airbyte import nightscout_airbyte_lineage
+from assets.datahub_assets import ingest_dbt_to_datahub
+from assets.dbt_assets import DBT_PROFILES_DIR, DBT_PROJECT_DIR, all_dbt_assets
 from assets.publish_assets import publish_glucose_marts_to_postgres
-from resource.openlineage import OpenLineageResource
-
-# Note: GE validation asset disabled due to pandas compatibility in Docker
-# Re-enable once pandas 2.x compatibility is resolved
+from assets.raw_data_assets import raw_bioreactor_data
 
 # Airbyte configuration
 airbyte_host = os.getenv("AIRBYTE_HOST", "airbyte-server")
@@ -61,7 +57,7 @@ all_assets = [
     raw_bioreactor_data,
     all_dbt_assets,
     publish_glucose_marts_to_postgres,
-    nightscout_airbyte_lineage,
+    ingest_dbt_to_datahub,
 ]
 if airbyte_assets is not None:
     all_assets.extend(airbyte_assets)
@@ -73,21 +69,11 @@ defs = Definitions(
         transform_job,
     ],
     schedules=[nightly_pipeline_schedule],
-    sensors=[
-        openlineage_sensor(
-            minimum_interval_seconds=30,
-            record_filter_limit=100,
-        )
-    ],
     resources={
         "dbt": DbtCliResource(
             project_dir=str(DBT_PROJECT_DIR),
             profiles_dir=str(DBT_PROFILES_DIR),
         ),
         "airbyte": airbyte_resource,
-        "openlineage": OpenLineageResource(
-            url="http://marquez:5000",
-            namespace="lakehouse",
-        ),
     },
 )
