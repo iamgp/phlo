@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from dagster import AssetExecutionContext, AssetKey
 from dagster_dbt import DbtCliResource, dbt_assets, DagsterDbtTranslator
@@ -12,8 +11,17 @@ class CustomDbtTranslator(DagsterDbtTranslator):
         return AssetKey(dbt_resource_props["name"])
 
     def get_group_name(self, dbt_resource_props):
-        """Assign all dbt models to TRANSFORM group"""
-        return "TRANSFORM"
+        """Assign dbt models to groups based on their layer"""
+        model_name = dbt_resource_props["name"]
+
+        if model_name.startswith("stg_"):
+            return "staging"
+        elif model_name.startswith("int_"):
+            return "intermediate"
+        elif model_name.startswith("fct_") or model_name.startswith("dim_"):
+            return "marts"
+        else:
+            return "transform"
 
     def get_source_asset_key(self, dbt_source_props):
         """Map dbt sources to Dagster asset keys"""
@@ -29,39 +37,8 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 
 @dbt_assets(
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
-    select="stg_nightscout_glucose",
     dagster_dbt_translator=CustomDbtTranslator(),
 )
-def dbt_nightscout_staging(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Nightscout staging models"""
-    yield from dbt.cli(["run", "--select", "stg_nightscout_glucose"], context=context).stream()
-
-
-@dbt_assets(
-    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
-    select="stg_bioreactor",
-    dagster_dbt_translator=CustomDbtTranslator(),
-)
-def dbt_bioreactor_staging(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Bioreactor staging models"""
-    yield from dbt.cli(["run", "--select", "stg_bioreactor"], context=context).stream()
-
-
-@dbt_assets(
-    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
-    select="tag:int tag:curated",
-    dagster_dbt_translator=CustomDbtTranslator(),
-)
-def dbt_curated(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Curated layer models"""
-    yield from dbt.cli(["run", "--select", "tag:int", "tag:curated"], context=context).stream()
-
-
-@dbt_assets(
-    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
-    select="tag:mart",
-    dagster_dbt_translator=CustomDbtTranslator(),
-)
-def dbt_postgres_marts(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Postgres marts"""
-    yield from dbt.cli(["run", "--select", "tag:mart", "--target", "postgres"], context=context).stream()
+def all_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+    """All dbt models - automatically discovers models from manifest"""
+    yield from dbt.cli(["build"], context=context).stream()
