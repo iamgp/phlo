@@ -36,6 +36,7 @@ Dagster is configured to emit OpenLineage events:
 - Environment variables set:
   - `OPENLINEAGE_URL=http://marquez:5000`
   - `OPENLINEAGE_NAMESPACE=lakehouse`
+- A Dagster sensor (`openlineage_sensor`) tails the event log and forwards run/step events to Marquez. The sensor is defined in `dagster/repository.py` and is picked up by the `dagster-daemon` process (restart the Dagster containers after changes with `docker compose restart dagster-web dagster-daemon`).
 
 ### dbt Integration
 dbt jobs are configured to emit OpenLineage events:
@@ -56,9 +57,10 @@ dbt jobs are configured to emit OpenLineage events:
 
 ## Accessing Lineage
 
-1. Run a dbt job in Dagster: http://localhost:3000
-2. View lineage in Marquez Web: http://localhost:3002
-3. Explore:
+1. Run any Dagster job or asset materialization (e.g. trigger the `transform_dbt_models` job from Dagit at http://localhost:3000).
+2. Confirm the OpenLineage sensor is running: in Dagit, open **Sensors** and ensure `openlineage_sensor` is ``On``. If it is off, toggle it on.
+3. View lineage in Marquez Web: http://localhost:3002
+4. Explore:
    - Datasets and their relationships
    - Job runs and history
    - Column-level lineage

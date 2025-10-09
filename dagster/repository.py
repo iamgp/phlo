@@ -1,12 +1,8 @@
 import os
-from dagster import (
-    Definitions,
-    ScheduleDefinition,
-    define_asset_job,
-    AssetSelection,
-)
+from dagster import Definitions, ScheduleDefinition, define_asset_job, AssetSelection
 from dagster_dbt import DbtCliResource
 from dagster_airbyte import AirbyteResource
+from openlineage.dagster.sensor import openlineage_sensor
 
 from assets.dbt_assets import all_dbt_assets, DBT_PROJECT_DIR, DBT_PROFILES_DIR
 from assets.raw_data_assets import raw_bioreactor_data
@@ -75,6 +71,12 @@ defs = Definitions(
         transform_job,
     ],
     schedules=[nightly_pipeline_schedule],
+    sensors=[
+        openlineage_sensor(
+            minimum_interval_seconds=30,
+            record_filter_limit=100,
+        )
+    ],
     resources={
         "dbt": DbtCliResource(
             project_dir=str(DBT_PROJECT_DIR),

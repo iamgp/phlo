@@ -10,7 +10,7 @@ run_storage:
 
 event_log_storage:
   module: dagster.core.storage.event_log
-  class: SqliteEventLogStorage
+  class: ConsolidatedSqliteEventLogStorage
   config:
     base_dir: /opt/dagster/history
 
