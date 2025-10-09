@@ -8,16 +8,8 @@ from dagster import (
 from dagster_dbt import DbtCliResource
 from dagster_airbyte import AirbyteResource
 
-from assets.dbt_assets import (
-    dbt_nightscout_staging,
-    dbt_bioreactor_staging,
-    dbt_curated,
-    dbt_postgres_marts,
-    DBT_PROJECT_DIR,
-    DBT_PROFILES_DIR,
-)
+from assets.dbt_assets import all_dbt_assets, DBT_PROJECT_DIR, DBT_PROFILES_DIR
 from assets.raw_data_assets import raw_bioreactor_data
-from assets.nightscout_assets import raw_nightscout_entries, processed_nightscout_entries
 from resource.openlineage import OpenLineageResource
 
 # Note: GE validation asset disabled due to pandas compatibility in Docker
@@ -34,11 +26,16 @@ airbyte_resource = AirbyteResource(
 
 # Build Airbyte assets from configured connections
 try:
-    from dagster_airbyte import load_assets_from_airbyte_instance
-    airbyte_assets = load_assets_from_airbyte_instance(airbyte_resource)
+    from dagster_airbyte import build_airbyte_assets
+
+    airbyte_assets = build_airbyte_assets(
+        connection_id="015ab542-1a18-4156-a44a-861b17f8d03c",
+        destination_tables=["nightscout_entries"],
+        asset_key_prefix=["airbyte"],
+    )
 except Exception as e:
     print(f"Could not load Airbyte assets: {e}")
-    airbyte_assets = []
+    airbyte_assets = None
 
 # Define asset jobs
 ingest_job = define_asset_job(
@@ -62,17 +59,15 @@ nightly_pipeline_schedule = ScheduleDefinition(
 )
 
 # Main definitions
+all_assets = [
+    raw_bioreactor_data,
+    all_dbt_assets,
+]
+if airbyte_assets is not None:
+    all_assets.extend(airbyte_assets)
+
 defs = Definitions(
-    assets=[
-        raw_bioreactor_data,
-        raw_nightscout_entries,
-        processed_nightscout_entries,
-        dbt_nightscout_staging,
-        dbt_bioreactor_staging,
-        dbt_curated,
-        dbt_postgres_marts,
-        *airbyte_assets,
-    ],
+    assets=all_assets,
     jobs=[
         ingest_job,
         transform_job,
