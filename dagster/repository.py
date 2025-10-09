@@ -31,7 +31,7 @@ try:
     airbyte_assets = build_airbyte_assets(
         connection_id="015ab542-1a18-4156-a44a-861b17f8d03c",
         destination_tables=["nightscout_entries"],
-        asset_key_prefix=["airbyte"],
+        group_name="raw_ingestion",
     )
 except Exception as e:
     print(f"Could not load Airbyte assets: {e}")
