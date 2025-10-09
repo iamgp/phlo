@@ -3,16 +3,14 @@
     tags=['nightscout', 'stg']
 ) }}
 
-/*
-Staging model for Nightscout glucose readings
+-- Staging model for Nightscout glucose readings
+-- This model reads raw Parquet files from the data lake and provides a clean,
+-- typed view of glucose data. It serves as the foundation for downstream
+-- transformations.
+-- Source: /data/lake/raw/nightscout/*.parquet
+-- Refresh: Every 30 minutes via Dagster
 
-This model reads raw Parquet files from the data lake and provides a clean,
-typed view of glucose data. It serves as the foundation for downstream
-transformations.
-
-Source: /data/lake/raw/nightscout/*.parquet
-Refresh: Every 30 minutes via Dagster
-*/
+{% set upstream = source('dagster_assets', 'processed_nightscout_entries') %}
 
 select
     entry_id,

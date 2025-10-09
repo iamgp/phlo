@@ -9,16 +9,19 @@ from dagster_dbt import DbtCliResource
 from dagster_airbyte import AirbyteResource
 
 from assets.dbt_assets import (
-    dbt_staging_models,
-    dbt_curated_models,
+    dbt_nightscout_staging,
+    dbt_bioreactor_staging,
+    dbt_curated,
     dbt_postgres_marts,
     DBT_PROJECT_DIR,
     DBT_PROFILES_DIR,
 )
 from assets.raw_data_assets import raw_bioreactor_data
 from assets.nightscout_assets import raw_nightscout_entries, processed_nightscout_entries
-from assets.nightscout_validations import validate_glucose_enriched
 from resource.openlineage import OpenLineageResource
+
+# Note: GE validation asset disabled due to pandas compatibility in Docker
+# Re-enable once pandas 2.x compatibility is resolved
 
 # Airbyte is optional - only load assets if configured
 airbyte_host = os.getenv("AIRBYTE_HOST", "localhost")
@@ -60,10 +63,10 @@ defs = Definitions(
         raw_bioreactor_data,
         raw_nightscout_entries,
         processed_nightscout_entries,
-        dbt_staging_models,
-        dbt_curated_models,
+        dbt_nightscout_staging,
+        dbt_bioreactor_staging,
+        dbt_curated,
         dbt_postgres_marts,
-        validate_glucose_enriched,
         *airbyte_assets,
     ],
     jobs=[

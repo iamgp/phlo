@@ -1,70 +1,63 @@
 import os
 from pathlib import Path
-from dagster import AssetExecutionContext, asset, Output
-from dagster_dbt import DbtCliResource
+from dagster import AssetExecutionContext, AssetKey
+from dagster_dbt import DbtCliResource, dbt_assets, DagsterDbtTranslator
 
 DBT_PROJECT_DIR = Path("/dbt")
 DBT_PROFILES_DIR = Path("/dbt/profiles")
 
-# Asset-based dbt models using op-based approach
-# This allows us to dynamically load dbt without requiring manifest.json at definition time
 
-@asset(
-    group_name="dbt_staging",
-    description="Staging layer - reads raw parquet files",
+class CustomDbtTranslator(DagsterDbtTranslator):
+    def get_asset_key(self, dbt_resource_props):
+        return AssetKey(dbt_resource_props["name"])
+
+    def get_source_asset_key(self, dbt_source_props):
+        """Map dbt sources to Dagster asset keys"""
+        source_name = dbt_source_props["source_name"]
+        table_name = dbt_source_props["name"]
+
+        # Map our dagster_assets source tables to actual asset keys
+        if source_name == "dagster_assets":
+            return AssetKey([table_name])
+
+        return super().get_source_asset_key(dbt_source_props)
+
+
+@dbt_assets(
+    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
+    select="stg_nightscout_glucose",
+    dagster_dbt_translator=CustomDbtTranslator(),
 )
-def dbt_staging_models(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Run dbt staging models (stg_*)"""
-    openlineage_env = {
-        "OPENLINEAGE_URL": os.getenv("OPENLINEAGE_URL", "http://marquez:5000"),
-        "OPENLINEAGE_NAMESPACE": os.getenv("OPENLINEAGE_NAMESPACE", "lakehouse"),
-        "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",
-    }
-
-    result = dbt.cli(["run", "--select", "tag:stg"], context=context, env=openlineage_env).wait()
-    context.log.info(f"dbt staging models completed: {result.success}")
-    return Output({"success": result.success})
+def dbt_nightscout_staging(context: AssetExecutionContext, dbt: DbtCliResource):
+    """Nightscout staging models"""
+    yield from dbt.cli(["run", "--select", "stg_nightscout_glucose"], context=context).stream()
 
 
-@asset(
-    group_name="dbt_curated",
-    description="Curated layer - cleaned and enriched data",
-    deps=[dbt_staging_models],
+@dbt_assets(
+    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
+    select="stg_bioreactor",
+    dagster_dbt_translator=CustomDbtTranslator(),
 )
-def dbt_curated_models(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Run dbt curated models (intermediate + curated)"""
-    openlineage_env = {
-        "OPENLINEAGE_URL": os.getenv("OPENLINEAGE_URL", "http://marquez:5000"),
-        "OPENLINEAGE_NAMESPACE": os.getenv("OPENLINEAGE_NAMESPACE", "lakehouse"),
-        "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",
-    }
-
-    result = dbt.cli(
-        ["run", "--select", "tag:int tag:curated"],
-        context=context,
-        env=openlineage_env
-    ).wait()
-    context.log.info(f"dbt curated models completed: {result.success}")
-    return Output({"success": result.success})
+def dbt_bioreactor_staging(context: AssetExecutionContext, dbt: DbtCliResource):
+    """Bioreactor staging models"""
+    yield from dbt.cli(["run", "--select", "stg_bioreactor"], context=context).stream()
 
 
-@asset(
-    group_name="dbt_marts",
-    description="Data marts in Postgres for analytics and BI",
-    deps=[dbt_curated_models],
+@dbt_assets(
+    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
+    select="tag:int tag:curated",
+    dagster_dbt_translator=CustomDbtTranslator(),
+)
+def dbt_curated(context: AssetExecutionContext, dbt: DbtCliResource):
+    """Curated layer models"""
+    yield from dbt.cli(["run", "--select", "tag:int", "tag:curated"], context=context).stream()
+
+
+@dbt_assets(
+    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
+    select="tag:mart",
+    dagster_dbt_translator=CustomDbtTranslator(),
 )
 def dbt_postgres_marts(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Run dbt mart models targeting Postgres"""
-    openlineage_env = {
-        "OPENLINEAGE_URL": os.getenv("OPENLINEAGE_URL", "http://marquez:5000"),
-        "OPENLINEAGE_NAMESPACE": os.getenv("OPENLINEAGE_NAMESPACE", "lakehouse"),
-        "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",
-    }
-
-    result = dbt.cli(
-        ["run", "--select", "tag:mart", "--target", "postgres"],
-        context=context,
-        env=openlineage_env
-    ).wait()
-    context.log.info(f"dbt postgres marts completed: {result.success}")
-    return Output({"success": result.success})
+    """Postgres marts"""
+    yield from dbt.cli(["run", "--select", "tag:mart", "--target", "postgres"], context=context).stream()

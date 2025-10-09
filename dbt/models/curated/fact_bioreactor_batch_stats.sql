@@ -11,4 +11,4 @@ with agg as (
   from {{ ref('int_bioreactor_downsample_5m') }}
   group by 1,2
 )
-select * from agg;
+select * from agg
