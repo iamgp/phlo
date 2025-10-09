@@ -1,6 +1,5 @@
 from dagster import ConfigurableResource
 from openlineage.client import OpenLineageClient
-from openlineage.client.transport.http import HttpTransport
 
 
 class OpenLineageResource(ConfigurableResource):
@@ -8,5 +7,4 @@ class OpenLineageResource(ConfigurableResource):
     namespace: str = "lakehouse"
 
     def get_client(self) -> OpenLineageClient:
-        transport = HttpTransport(url=self.url)
-        return OpenLineageClient(transport=transport)
+        return OpenLineageClient(url=self.url)

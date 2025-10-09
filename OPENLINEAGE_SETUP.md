@@ -37,12 +37,13 @@ Dagster is configured to emit OpenLineage events:
   - `OPENLINEAGE_URL=http://marquez:5000`
   - `OPENLINEAGE_NAMESPACE=lakehouse`
 - A Dagster sensor (`openlineage_sensor`) tails the event log and forwards run/step events to Marquez. The sensor is defined in `dagster/repository.py` and is picked up by the `dagster-daemon` process (restart the Dagster containers after changes with `docker compose restart dagster-web dagster-daemon`).
+- A lightweight lineage asset (`nightscout_airbyte_lineage`) emits ingestion lineage for the Nightscout Airbyte sync, linking the Nightscout API to the raw landing zone in Marquez.
 
 ### dbt Integration
 dbt jobs are configured to emit OpenLineage events:
 - Added `openlineage-dbt` to requirements
-- OpenLineage env vars passed to dbt CLI invocations
-- Metadata tracked for all dbt run/test operations
+- The `dbt_assets` executor now parses dbt artifacts and calls `openlineage-dbt` after each run, emitting dataset and column lineage into Marquez (namespace `duckdb:///data/duckdb/warehouse.duckdb`).
+- OpenLineage env vars are set before invoking dbt so that build/test operations are captured automatically.
 
 ## How It Works
 
