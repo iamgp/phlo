@@ -283,6 +283,8 @@ services:
       TRACKING_STRATEGY: logging
       AIRBYTE_INTERNAL_API_HOST: airbyte-server:8001
       INTERNAL_API_HOST: airbyte-server:8001
+      LOCAL_DOCKER_MOUNT: ${PWD}/data/airbyte/workspace
+      WORKSPACE_DOCKER_MOUNT: ${PWD}/data/airbyte/workspace
     volumes:
       - ./data/airbyte/workspace:/workspace
       - ./data/airbyte/configs:/configs
