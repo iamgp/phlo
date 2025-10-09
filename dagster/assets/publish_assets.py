@@ -17,7 +17,7 @@ from dagster import AssetKey, asset
 @asset(
     name="publish_glucose_marts_to_postgres",
     group_name="publish",
-    compute_kind="python",
+    compute_kind="postgres",
     deps=[
         AssetKey("mart_glucose_overview"),
         AssetKey("mart_glucose_hourly_patterns"),

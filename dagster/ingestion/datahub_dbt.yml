@@ -1,0 +1,14 @@
+source:
+  type: dbt
+  config:
+    manifest_path: /dbt/target/manifest.json
+    catalog_path: /dbt/target/catalog.json
+    target_platform: duckdb
+    environment: production
+    enable_meta_lineage: true
+sink:
+  type: datahub-rest
+  config:
+    server: http://datahub-gms:8080
+    retry_times: 3
+    timeout_sec: 30
