@@ -54,7 +54,7 @@ def raw_nightscout_entries(context: AssetExecutionContext) -> dict[str, Any]:
 
     # Extract metadata
     if entries:
-        latest = max(entries, key=lambda x: x.get("mills", 0))
+        latest = max(entries, key=lambda x: x.get("date", 0))
         context.log.info(f"Latest reading: {latest.get('sgv')} mg/dL at {latest.get('dateString')}")
 
     return {
@@ -68,7 +68,6 @@ def raw_nightscout_entries(context: AssetExecutionContext) -> dict[str, Any]:
     group_name="nightscout",
     compute_kind="duckdb",
     description="Processed glucose data stored as Parquet in the data lake",
-    deps=[raw_nightscout_entries],
 )
 def processed_nightscout_entries(
     context: AssetExecutionContext, raw_nightscout_entries: dict[str, Any]
@@ -96,7 +95,7 @@ def processed_nightscout_entries(
         context.log.warning("No entries to process")
         return ""
 
-    # Create output directory
+    # Create output directory (mounted in container at /data)
     output_dir = Path("/data/lake/raw/nightscout")
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -110,30 +109,40 @@ def processed_nightscout_entries(
     # This is more efficient than pandas for this use case
     con = duckdb.connect(":memory:")
 
-    # Create temp table from JSON
-    con.execute("CREATE TABLE temp_entries AS SELECT * FROM read_json_auto(?)", [json.dumps(entries)])
+    # Create temp table from JSON - write to temp file first
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        json.dump(entries, f)
+        temp_json_path = f.name
 
-    # Type and clean the data, then write to Parquet
-    query = """
-    COPY (
-        SELECT
-            _id as entry_id,
-            sgv as glucose_mg_dl,
-            epoch_ms(mills) as timestamp,
-            dateString as timestamp_iso,
-            direction,
-            trend,
-            device,
-            type,
-            utcOffset as utc_offset_minutes
-        FROM temp_entries
-        WHERE sgv IS NOT NULL  -- Filter out null readings
-        ORDER BY mills DESC
-    ) TO ? (FORMAT PARQUET, COMPRESSION ZSTD)
-    """
+    try:
+        con.execute(f"CREATE TABLE temp_entries AS SELECT * FROM read_json_auto('{temp_json_path}')")
 
-    con.execute(query, [str(output_path)])
-    con.close()
+        # Type and clean the data, then write to Parquet
+        query = f"""
+        COPY (
+            SELECT
+                _id as entry_id,
+                sgv as glucose_mg_dl,
+                epoch_ms(date) as timestamp,
+                dateString as timestamp_iso,
+                direction,
+                trend,
+                device,
+                type,
+                utcOffset as utc_offset_minutes
+            FROM temp_entries
+            WHERE sgv IS NOT NULL  -- Filter out null readings
+            ORDER BY date DESC
+        ) TO '{output_path}' (FORMAT PARQUET, COMPRESSION ZSTD)
+        """
+
+        con.execute(query)
+        con.close()
+    finally:
+        # Clean up temp file
+        import os
+        os.unlink(temp_json_path)
 
     context.log.info(f"Wrote Parquet file: {output_path}")
     context.log.info(f"File size: {output_path.stat().st_size / 1024:.2f} KB")

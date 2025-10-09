@@ -10,4 +10,4 @@ select
   s.max_value
 from {{ ref('dim_batch') }} d
 join {{ ref('fact_bioreactor_batch_stats') }} s
-  on d.batch_id = s.batch_id;
+  on d.batch_id = s.batch_id
