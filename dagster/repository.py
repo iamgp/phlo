@@ -23,8 +23,8 @@ from resource.openlineage import OpenLineageResource
 # Note: GE validation asset disabled due to pandas compatibility in Docker
 # Re-enable once pandas 2.x compatibility is resolved
 
-# Airbyte is optional - only load assets if configured
-airbyte_host = os.getenv("AIRBYTE_HOST", "localhost")
+# Airbyte configuration
+airbyte_host = os.getenv("AIRBYTE_HOST", "airbyte-server")
 airbyte_port = os.getenv("AIRBYTE_API_PORT", "8001")
 
 airbyte_resource = AirbyteResource(
@@ -32,9 +32,13 @@ airbyte_resource = AirbyteResource(
     port=airbyte_port,
 )
 
-# Build Airbyte assets if Airbyte is available
-# For now, we'll skip automatic loading since Airbyte isn't running
-airbyte_assets = []  # build_airbyte_assets(airbyte_resource) when Airbyte is configured
+# Build Airbyte assets from configured connections
+try:
+    from dagster_airbyte import load_assets_from_airbyte_instance
+    airbyte_assets = load_assets_from_airbyte_instance(airbyte_resource)
+except Exception as e:
+    print(f"Could not load Airbyte assets: {e}")
+    airbyte_assets = []
 
 # Define asset jobs
 ingest_job = define_asset_job(
