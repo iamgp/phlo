@@ -2,7 +2,7 @@ from dagster import asset, AssetExecutionContext, AssetIn
 import os
 
 @asset(
-    group_name="bioreactor",
+    group_name="raw_ingestion",
     description="Raw bioreactor parquet files from Airbyte ingestion",
 )
 def raw_bioreactor_data(context: AssetExecutionContext):

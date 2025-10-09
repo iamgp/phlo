@@ -18,7 +18,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return "staging"
         elif model_name.startswith("int_"):
             return "intermediate"
-        elif model_name.startswith("fct_") or model_name.startswith("dim_"):
+        elif model_name.startswith(("fct_", "fact_", "dim_", "mart_", "mar_")):
             return "marts"
         else:
             return "transform"

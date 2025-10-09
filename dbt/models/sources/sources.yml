@@ -4,11 +4,11 @@ sources:
   - name: dagster_assets
     description: Upstream Dagster assets that provide raw data
     tables:
-      - name: processed_nightscout_entries
-        description: Processed Nightscout glucose data in Parquet format
+      - name: nightscout_entries
+        description: Nightscout CGM data synced via Airbyte
         meta:
           dagster:
-            asset_key: ["processed_nightscout_entries"]
+            asset_key: ["nightscout_entries"]
 
       - name: raw_bioreactor_data
         description: Raw bioreactor data from Airbyte
