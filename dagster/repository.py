@@ -10,6 +10,7 @@ from dagster_airbyte import AirbyteResource
 
 from assets.dbt_assets import all_dbt_assets, DBT_PROJECT_DIR, DBT_PROFILES_DIR
 from assets.raw_data_assets import raw_bioreactor_data
+from assets.publish_assets import publish_glucose_marts_to_postgres
 from resource.openlineage import OpenLineageResource
 
 # Note: GE validation asset disabled due to pandas compatibility in Docker
@@ -62,6 +63,7 @@ nightly_pipeline_schedule = ScheduleDefinition(
 all_assets = [
     raw_bioreactor_data,
     all_dbt_assets,
+    publish_glucose_marts_to_postgres,
 ]
 if airbyte_assets is not None:
     all_assets.extend(airbyte_assets)
