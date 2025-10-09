@@ -6,6 +6,7 @@ from openlineage.dagster.sensor import openlineage_sensor
 
 from assets.dbt_assets import all_dbt_assets, DBT_PROJECT_DIR, DBT_PROFILES_DIR
 from assets.raw_data_assets import raw_bioreactor_data
+from assets.openlineage_airbyte import nightscout_airbyte_lineage
 from assets.publish_assets import publish_glucose_marts_to_postgres
 from resource.openlineage import OpenLineageResource
 
@@ -60,6 +61,7 @@ all_assets = [
     raw_bioreactor_data,
     all_dbt_assets,
     publish_glucose_marts_to_postgres,
+    nightscout_airbyte_lineage,
 ]
 if airbyte_assets is not None:
     all_assets.extend(airbyte_assets)
