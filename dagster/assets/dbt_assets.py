@@ -11,6 +11,10 @@ class CustomDbtTranslator(DagsterDbtTranslator):
     def get_asset_key(self, dbt_resource_props):
         return AssetKey(dbt_resource_props["name"])
 
+    def get_group_name(self, dbt_resource_props):
+        """Assign all dbt models to TRANSFORM group"""
+        return "TRANSFORM"
+
     def get_source_asset_key(self, dbt_source_props):
         """Map dbt sources to Dagster asset keys"""
         source_name = dbt_source_props["source_name"]
