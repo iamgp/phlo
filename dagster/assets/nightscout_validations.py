@@ -1,131 +1,89 @@
-"""
-Data Quality Validations for Nightscout Glucose Data
-
-This module uses Great Expectations to validate glucose data quality at
-multiple points in the pipeline:
-1. After raw ingestion (basic structure checks)
-2. After enrichment (derived fields validation)
-3. Before loading to marts (business logic validation)
-
-Why validate?
-- CGM sensors can malfunction or lose calibration
-- API data can be incomplete or corrupted
-- Catching bad data early prevents downstream analytics issues
-- Compliance and audit requirements for health data
-"""
+"""Great Expectations quality checks for Nightscout glucose data."""
 
 from pathlib import Path
-from typing import Any
 
-import duckdb
-from dagster import AssetExecutionContext, AssetIn, asset
-from great_expectations.core import ExpectationSuite
-from great_expectations.dataset import SqlAlchemyDataset
-
-
-@asset(
-    group_name="nightscout_quality",
-    compute_kind="great_expectations",
-    description="Validate raw glucose data meets basic quality standards",
-    deps=["processed_nightscout_entries"],
+import great_expectations as gx
+from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
+from great_expectations.checkpoint.types.checkpoint_result import CheckpointResult
+from great_expectations.core.expectation_validation_result import (
+    ExpectationSuiteValidationResult,
 )
-def validate_glucose_enriched(
-    context: AssetExecutionContext
-) -> dict[str, Any]:
-    """
-    Run Great Expectations validation suite on enriched glucose data.
 
-    Validates:
-    - Glucose values are in physiological range (20-600 mg/dL)
-    - No null values in critical fields
-    - Direction/trend values are valid
-    - Time-based fields are properly calculated
-    - Categorical fields match expected values
 
-    Returns validation results and raises warning if critical checks fail.
-    """
-    suite_path = Path(__file__).parent.parent.parent / "great_expectations" / "expectations" / "nightscout_suite.json"
+GE_PROJECT_DIR = Path(__file__).parent.parent.parent / "great_expectations"
+CHECKPOINT_NAME = "nightscout_glucose_checkpoint"
 
-    if not suite_path.exists():
-        context.log.warning(f"Expectation suite not found at {suite_path}, skipping validation")
-        return {"status": "skipped", "reason": "suite_not_found"}
 
-    # Load expectation suite
-    suite = ExpectationSuite.read_json(str(suite_path))
+@asset_check(
+    name="nightscout_glucose_quality",
+    asset=AssetKey("processed_nightscout_entries"),
+    blocking=True,
+    description="Validate processed Nightscout glucose data using Great Expectations.",
+)
+def nightscout_glucose_quality_check(context) -> AssetCheckResult:
+    if not GE_PROJECT_DIR.exists():
+        context.log.error("Great Expectations project directory missing; failing check.")
+        return AssetCheckResult(
+            success=False,
+            metadata={
+                "reason": MetadataValue.text("ge_project_not_found"),
+                "project_path": MetadataValue.path(str(GE_PROJECT_DIR)),
+            },
+        )
 
-    # Query raw glucose data for validation
-    con = duckdb.connect(":memory:")
-
-    # Check if parquet files exist
-    parquet_path = "/data/lake/raw/nightscout/*.parquet"
     try:
-        df = con.execute(f"""
-            SELECT
-                glucose_mg_dl,
-                timestamp as reading_timestamp,
-                direction,
-                extract(hour from timestamp) as hour_of_day,
-                extract(dow from timestamp) as day_of_week,
-                case
-                    when glucose_mg_dl < 70 then 'hypoglycemia'
-                    when glucose_mg_dl >= 70 and glucose_mg_dl <= 180 then 'in_range'
-                    when glucose_mg_dl > 180 then 'hyperglycemia_mild'
-                end as glucose_category,
-                case when glucose_mg_dl >= 70 and glucose_mg_dl <= 180 then 1 else 0 end as is_in_range
-            FROM read_parquet('{parquet_path}')
-        """).df()
-        con.close()
-    except Exception as e:
-        context.log.warning(f"No parquet files found for validation: {e}")
-        con.close()
-        return {"status": "skipped", "reason": "no_data"}
+        ge_context = gx.get_context(context_root_dir=str(GE_PROJECT_DIR))
+    except Exception as exc:  # pragma: no cover - configuration error
+        context.log.error(f"Failed to load Great Expectations context: {exc}")
+        return AssetCheckResult(
+            success=False,
+            metadata={"reason": MetadataValue.text("context_load_failed")},
+        )
 
-    # Run validation
-    context.log.info(f"Running {len(suite.expectations)} expectations on {len(df)} rows")
+    try:
+        checkpoint_result: CheckpointResult = ge_context.run_checkpoint(
+            checkpoint_name=CHECKPOINT_NAME
+        )
+    except Exception as exc:  # pragma: no cover - checkpoint misconfiguration
+        context.log.error(f"Checkpoint execution failed: {exc}")
+        return AssetCheckResult(
+            success=False,
+            metadata={"reason": MetadataValue.text("checkpoint_execution_failed")},
+        )
 
-    # Validate using GE
-    from great_expectations.dataset import PandasDataset
-    ge_df = PandasDataset(df)
+    expectation_results = []
+    evaluated_rows = 0
+    successful_expectations = 0
+    evaluated_expectations = 0
+    suite_names: set[str] = set()
 
-    results = []
-    success_count = 0
-    failure_count = 0
+    for run_result in checkpoint_result.run_results.values():
+        validation_result: ExpectationSuiteValidationResult = run_result["validation_result"]
+        suite_names.add(validation_result.meta.get("expectation_suite_name", "nightscout_glucose_suite"))
 
-    for expectation in suite.expectations:
-        exp_type = expectation.expectation_type
-        kwargs = expectation.kwargs
+        stats = validation_result.statistics or {}
+        evaluated_rows = max(evaluated_rows, stats.get("evaluated_row_count", 0))
+        successful_expectations += stats.get("successful_expectations", 0)
+        evaluated_expectations += stats.get("evaluated_expectations", 0)
 
-        try:
-            result = getattr(ge_df, exp_type)(**kwargs)
-            results.append({
-                "expectation": exp_type,
-                "success": result["success"],
-                "details": result
-            })
+        for result in validation_result.results:
+            expectation_results.append(result.to_json_dict())
 
-            if result["success"]:
-                success_count += 1
-            else:
-                failure_count += 1
-                context.log.warning(f"Expectation failed: {exp_type} - {result.get('result', {})}")
+    failed_expectations = max(evaluated_expectations - successful_expectations, 0)
+    success_rate = (
+        (successful_expectations / evaluated_expectations) * 100.0
+        if evaluated_expectations
+        else 0.0
+    )
 
-        except Exception as e:
-            context.log.error(f"Error running expectation {exp_type}: {e}")
-            failure_count += 1
-
-    # Summary
-    total = success_count + failure_count
-    success_rate = (success_count / total * 100) if total > 0 else 0
-
-    context.log.info(f"Validation complete: {success_count}/{total} passed ({success_rate:.1f}%)")
-
-    if failure_count > 0:
-        context.log.warning(f"{failure_count} expectations failed - review data quality")
-
-    return {
-        "status": "completed",
-        "success_count": success_count,
-        "failure_count": failure_count,
-        "success_rate": success_rate,
-        "results": results
+    metadata = {
+        "rows_evaluated": MetadataValue.int(evaluated_rows),
+        "expectations_passed": MetadataValue.int(successful_expectations),
+        "expectations_failed": MetadataValue.int(failed_expectations),
+        "success_rate_percent": MetadataValue.float(success_rate),
+        "checkpoint_succeeded": MetadataValue.bool(checkpoint_result.success),
+        "suite_names": MetadataValue.json(sorted(suite_names)),
+        "expectation_results": MetadataValue.json(expectation_results),
     }
+
+    return AssetCheckResult(success=checkpoint_result.success, metadata=metadata)
