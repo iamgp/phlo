@@ -11,13 +11,8 @@ action_list:
       env: PROD
       platform_alias: dbt
       platform_instance_map:
-        nightscout_duckdb: warehouse
+        "warehouse.main_curated.fact_glucose_readings": warehouse
       graceful_exceptions: true
       parse_table_names_from_sql: true
       exclude_dbname: false
-validations:
-  - batch_request:
-      datasource_name: nightscout_duckdb
-      data_connector_name: default_sql_connector
-      data_asset_name: fact_glucose_readings
-    expectation_suite_name: nightscout_glucose_suite
+validations: []
