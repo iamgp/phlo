@@ -16,7 +16,7 @@ dependencies = [
     "minio",
     "boto3",
     "pyyaml",
-    "acryl-datahub",
+    "acryl-datahub[dbt]",
     "requests",
     "pandas",
 ]

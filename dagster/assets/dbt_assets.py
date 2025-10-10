@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from dagster import AssetExecutionContext, AssetKey
@@ -62,4 +63,12 @@ def all_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
         "--target",
         target,
     ]
-    dbt.cli(docs_args, context=context).wait()
+    docs_invocation = dbt.cli(docs_args, context=context).wait()
+
+    default_target_dir = DBT_PROJECT_DIR / "target"
+    default_target_dir.mkdir(parents=True, exist_ok=True)
+
+    for artifact in ("manifest.json", "catalog.json", "run_results.json"):
+        artifact_path = docs_invocation.target_path / artifact
+        if artifact_path.exists():
+            shutil.copy(artifact_path, default_target_dir / artifact)
