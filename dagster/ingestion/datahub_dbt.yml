@@ -4,8 +4,7 @@ source:
     manifest_path: /dbt/target/manifest.json
     catalog_path: /dbt/target/catalog.json
     target_platform: duckdb
-    environment: production
-    enable_meta_lineage: true
+    env: PROD
 sink:
   type: datahub-rest
   config:
