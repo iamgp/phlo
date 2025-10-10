@@ -16,7 +16,7 @@ CHECKPOINT_NAME = "nightscout_glucose_checkpoint"
 
 @asset_check(
     name="nightscout_glucose_quality",
-    asset=AssetKey("processed_nightscout_entries"),
+    asset=AssetKey(["fact_glucose_readings"]),
     blocking=True,
     description="Validate processed Nightscout glucose data using Great Expectations.",
 )
