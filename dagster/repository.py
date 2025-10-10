@@ -8,6 +8,7 @@ from assets.datahub_assets import ingest_dbt_to_datahub
 from assets.dbt_assets import DBT_PROFILES_DIR, DBT_PROJECT_DIR, all_dbt_assets
 from assets.publish_assets import publish_glucose_marts_to_postgres
 from assets.raw_data_assets import raw_bioreactor_data
+from assets.nightscout_validations import nightscout_glucose_quality_check
 
 # Airbyte configuration
 airbyte_host = os.getenv("AIRBYTE_HOST", "airbyte-server")
@@ -64,6 +65,7 @@ if airbyte_assets is not None:
 
 defs = Definitions(
     assets=all_assets,
+    asset_checks=[nightscout_glucose_quality_check],
     jobs=[
         ingest_job,
         transform_job,

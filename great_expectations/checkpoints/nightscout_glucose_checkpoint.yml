@@ -1,0 +1,23 @@
+name: nightscout_glucose_checkpoint
+config_version: 1
+class_name: SimpleCheckpoint
+run_name_template: "%Y-%m-%dT%H:%M:%S-nightscout"
+action_list:
+  - name: datahub_validation_action
+    action:
+      module_name: datahub.integrations.great_expectations.action
+      class_name: DataHubValidationAction
+      server_url: http://datahub-gms:8080
+      env: PROD
+      platform_alias: dbt
+      platform_instance_map:
+        nightscout_duckdb: warehouse
+      graceful_exceptions: true
+      parse_table_names_from_sql: true
+      exclude_dbname: false
+validations:
+  - batch_request:
+      datasource_name: nightscout_duckdb
+      data_connector_name: default_sql_connector
+      data_asset_name: fact_glucose_readings
+    expectation_suite_name: nightscout_glucose_suite

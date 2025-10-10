@@ -75,6 +75,8 @@ volumes/
 # Great Expectations
 great_expectations/uncommitted/
 great_expectations/.ge_store_backend_id
+great_expectations/**/.ge_store_backend_id
+great_expectations/validations/
 
 # Docker
 docker-compose.override.yml

@@ -12,13 +12,14 @@ dependencies = [
     "dbt-duckdb",
     "dbt-postgres",
     "great-expectations",
+    "duckdb-engine",
     "psycopg2-binary",
     "minio",
     "boto3",
     "pyyaml",
-    "acryl-datahub[dbt]",
+    "acryl-datahub[dbt,great-expectations]",
     "requests",
-    "pandas",
+    "pandas<2.0",
 ]
 
 [build-system]
