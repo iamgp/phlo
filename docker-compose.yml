@@ -60,6 +60,7 @@ services:
     ports: ["${DAGSTER_PORT}:3000"]
     volumes:
       - ./dagster:/opt/dagster
+      - ./lakehousekit:/opt/dagster/lakehousekit
       - ./dbt:/dbt
       - ./data:/data
       - ./great_expectations:/great_expectations
@@ -84,6 +85,7 @@ services:
     command: ["dagster-daemon", "run"]
     volumes:
       - ./dagster:/opt/dagster
+      - ./lakehousekit:/opt/dagster/lakehousekit
       - ./dbt:/dbt
       - ./data:/data
       - ./great_expectations:/great_expectations
