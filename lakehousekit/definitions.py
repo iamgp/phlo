@@ -12,7 +12,7 @@ from lakehousekit.defs.transform import build_defs as build_transform_defs
 
 
 def _merged_definitions() -> dg.Definitions:
-    return dg.Definitions.merge(
+    merged = dg.Definitions.merge(
         build_resource_defs(),
         build_ingestion_defs(),
         build_transform_defs(),
@@ -20,6 +20,17 @@ def _merged_definitions() -> dg.Definitions:
         build_metadata_defs(),
         build_quality_defs(),
         build_schedule_defs(),
+    )
+
+    # Use in-process executor to avoid Great Expectations subprocess crashes
+    return dg.Definitions(
+        assets=merged.assets,
+        asset_checks=merged.asset_checks,
+        schedules=merged.schedules,
+        sensors=merged.sensors,
+        resources=merged.resources,
+        jobs=merged.jobs,
+        executor=dg.in_process_executor,
     )
 
 
