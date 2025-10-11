@@ -117,6 +117,33 @@ services:
       postgres:
         condition: service_healthy
 
+  hub:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: lakehouse-hub
+    restart: unless-stopped
+    environment:
+      APP_PORT: ${APP_PORT:-54321}
+      FLASK_DEBUG: ${FLASK_DEBUG:-false}
+      DAGSTER_PORT: ${DAGSTER_PORT:-3000}
+      SUPERSET_PORT: ${SUPERSET_PORT:-8088}
+      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin123}
+      MINIO_CONSOLE_PORT: ${MINIO_CONSOLE_PORT:-9001}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio999}
+      DATAHUB_FRONTEND_PORT: ${DATAHUB_FRONTEND_PORT:-9002}
+      AIRBYTE_WEB_PORT: ${AIRBYTE_WEB_PORT:-8000}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-lake}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lakepass}
+      POSTGRES_DB: ${POSTGRES_DB:-lakehouse}
+    ports:
+      - "${APP_PORT:-54321}:${APP_PORT:-54321}"
+    volumes:
+      - ./app.py:/app/app.py:ro
+
   datahub-gms:
     image: acryldata/datahub-gms:head
     container_name: datahub-gms
