@@ -10,12 +10,20 @@ from lakehousekit.defs.ingestion.raw import raw_bioreactor_data
 
 
 def _airbyte_assets() -> list[dg.AssetsDefinition]:
+    """
+    Build Airbyte assets from configured connections.
+
+    Connections are looked up by name at runtime, making them resilient
+    to Docker restarts and workspace recreation. Simply create connections
+    in Airbyte with the names specified below and they'll be automatically
+    discovered.
+    """
     configs = [
         AirbyteConnectionConfig(
-            connection_id="015ab542-1a18-4156-a44a-861b17f8d03c",
+            connection_name="Nightscout to Local JSON",
             destination_tables=["nightscout_entries"],
             group_name="raw_ingestion",
-        )
+        ),
     ]
 
     return build_airbyte_assets(configs)
