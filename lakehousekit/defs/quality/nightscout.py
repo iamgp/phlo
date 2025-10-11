@@ -1,11 +1,11 @@
-"""Great Expectations quality checks for Nightscout glucose data."""
+from __future__ import annotations
 
-from pathlib import Path
 import json
+from pathlib import Path
 
+import duckdb
 import numpy as np
 import great_expectations as gx
-import duckdb
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 from great_expectations.checkpoint.types.checkpoint_result import CheckpointResult
 from great_expectations.core.expectation_validation_result import (
@@ -29,7 +29,6 @@ SELECT
 FROM main_curated.fact_glucose_readings
 """
 
-
 @asset_check(
     name="nightscout_glucose_quality",
     asset=AssetKey(["fact_glucose_readings"]),
@@ -50,7 +49,7 @@ def nightscout_glucose_quality_check(context) -> AssetCheckResult:
 
         try:
             ge_context = gx.get_context(context_root_dir=str(GE_PROJECT_DIR))
-        except Exception as exc:  # pragma: no cover - configuration error
+        except Exception as exc:
             context.log.error(f"Failed to load Great Expectations context: {exc}")
             return AssetCheckResult(
                 passed=False,
@@ -60,7 +59,7 @@ def nightscout_glucose_quality_check(context) -> AssetCheckResult:
         try:
             with duckdb.connect(database=str(DUCKDB_PATH), read_only=True) as conn:
                 fact_df = conn.execute(FACT_QUERY).df()
-        except Exception as exc:  # pragma: no cover - data access error
+        except Exception as exc:
             context.log.error(f"Failed to load fact_glucose_readings from DuckDB: {exc}")
             return AssetCheckResult(
                 passed=False,
@@ -85,7 +84,7 @@ def nightscout_glucose_quality_check(context) -> AssetCheckResult:
                 checkpoint_name=CHECKPOINT_NAME,
                 validations=validations,
             )
-        except Exception as exc:  # pragma: no cover - checkpoint misconfiguration
+        except Exception as exc:
             context.log.error(f"Checkpoint execution failed: {exc}")
             return AssetCheckResult(
                 passed=False,
@@ -105,7 +104,9 @@ def nightscout_glucose_quality_check(context) -> AssetCheckResult:
             )
 
             stats = validation_result.statistics or {}
-            evaluated_rows = max(evaluated_rows, int(stats.get("evaluated_row_count", 0) or 0))
+            evaluated_rows = max(
+                evaluated_rows, int(stats.get("evaluated_row_count", 0) or 0)
+            )
             successful_expectations += int(stats.get("successful_expectations", 0) or 0)
             evaluated_expectations += int(stats.get("evaluated_expectations", 0) or 0)
 
@@ -131,14 +132,13 @@ def nightscout_glucose_quality_check(context) -> AssetCheckResult:
 
         return AssetCheckResult(passed=checkpoint_result.success, metadata=metadata)
 
-    except Exception:  # pragma: no cover - unexpected runtime failure
-        context.log.exception("nightscout_glucose_quality_check encountered an unexpected error")
+    except Exception:
+        context.log.exception(
+            "nightscout_glucose_quality_check encountered an unexpected error"
+        )
         raise
 
-
 def _sanitize_json(value):
-    """Convert numpy/scalar values to built-in Python types for JSON serialization."""
-
     if isinstance(value, dict):
         return {k: _sanitize_json(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -152,14 +152,14 @@ def _sanitize_json(value):
     if hasattr(value, "tolist") and not isinstance(value, (str, bytes)):
         try:
             return value.tolist()
-        except Exception:  # pragma: no cover - fallback for unexpected objects
+        except Exception:
             pass
     if isinstance(value, (float, int, bool)) or value is None:
         return value
     return json.loads(json.dumps(value, default=_numpy_default))
 
 
-def _numpy_default(obj):  # pragma: no cover - helper for json fallback
+def _numpy_default(obj):
     if isinstance(obj, np.generic):
         return obj.item()
     if isinstance(obj, np.ndarray):

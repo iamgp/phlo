@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import shutil
 from pathlib import Path
 
-from dagster import AssetExecutionContext, AssetKey
+from dagster import AssetKey
 from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
+
 
 DBT_PROJECT_DIR = Path("/dbt")
 DBT_PROFILES_DIR = Path("/dbt/profiles")
@@ -34,8 +37,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
     dagster_dbt_translator=CustomDbtTranslator(),
 )
-def all_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
-    """Materialise all dbt models and build docs artifacts."""
+def all_dbt_assets(context, dbt: DbtCliResource):
     target = context.op_config.get("target") if context.op_config else None
     target = target or "duckdb"
 
