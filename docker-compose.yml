@@ -63,7 +63,6 @@ services:
       - ./lakehousekit:/opt/dagster/lakehousekit
       - ./dbt:/dbt
       - ./data:/data
-      - ./great_expectations:/great_expectations
     depends_on:
       minio:
         condition: service_healthy
@@ -82,13 +81,12 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       AWS_REGION: eu-west-1
       AWS_S3_ENDPOINT: http://minio:9000
-    command: ["dagster-daemon", "run"]
+    command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
       - ./dagster:/opt/dagster
       - ./lakehousekit:/opt/dagster/lakehousekit
       - ./dbt:/dbt
       - ./data:/data
-      - ./great_expectations:/great_expectations
     depends_on:
       dagster-webserver:
         condition: service_started
