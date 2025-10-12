@@ -19,6 +19,7 @@ class AirbyteConnectionConfig:
     Use connection_name for resilient lookups that survive Docker restarts.
     Falls back to connection_id if name lookup fails.
     """
+
     connection_name: str
     destination_tables: Sequence[str] | None = None
     group_name: str | None = None
