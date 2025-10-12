@@ -17,7 +17,7 @@ with raw_data as (
         _airbyte_ab_id,
         _airbyte_emitted_at,
         _airbyte_data
-    from read_json_auto('/data/airbyte/workspace/data/lake/raw/nightscout/_airbyte_raw_nightscout_entries.jsonl')
+    from read_json_auto('/data/airbyte/workspace/data/airbyte/json_data/_airbyte_raw_nightscout_entries.jsonl')
 )
 
 select

@@ -6,7 +6,9 @@ from lakehousekit.defs.ingestion.airbyte import (
     AirbyteConnectionConfig,
     build_assets_from_configs as build_airbyte_assets,
 )
-from lakehousekit.defs.ingestion.raw import raw_bioreactor_data
+
+# Bioreactor assets disabled - focusing on Nightscout workflow
+# from lakehousekit.defs.ingestion.raw import raw_bioreactor_data
 
 
 def _airbyte_assets() -> list[dg.AssetsDefinition]:
@@ -31,6 +33,7 @@ def _airbyte_assets() -> list[dg.AssetsDefinition]:
 
 def build_defs() -> dg.Definitions:
     assets = list(_airbyte_assets())
-    assets.append(raw_bioreactor_data)
+    # Bioreactor assets disabled - focusing on Nightscout workflow
+    # assets.append(raw_bioreactor_data)
 
     return dg.Definitions(assets=assets)

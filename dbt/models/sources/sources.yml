@@ -10,8 +10,9 @@ sources:
           dagster:
             asset_key: ["nightscout_entries"]
 
-      - name: raw_bioreactor_data
-        description: Raw bioreactor data from Airbyte
-        meta:
-          dagster:
-            asset_key: ["raw_bioreactor_data"]
+      # Bioreactor source disabled - focusing on Nightscout workflow
+      # - name: raw_bioreactor_data
+      #   description: Raw bioreactor data from Airbyte
+      #   meta:
+      #     dagster:
+      #       asset_key: ["raw_bioreactor_data"]
