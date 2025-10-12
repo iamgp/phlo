@@ -8,18 +8,19 @@ dependencies = [
     "dagster-webserver",
     "dagster-dbt",
     "dagster-airbyte",
+    "dagster-pandera",
     "duckdb==1.1.0",
     "dbt-duckdb",
     "dbt-postgres",
-    "great-expectations",
+    "pandera>=0.18.0",
     "duckdb-engine",
     "psycopg2-binary",
     "minio",
     "boto3",
     "pyyaml",
-    "acryl-datahub[dbt,great-expectations]",
+    "acryl-datahub[dbt]",
     "requests",
-    "pandas<2.0",
+    "pandas>=2.0",
 ]
 
 [build-system]
@@ -39,3 +40,6 @@ select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM"]
 [tool.basedpyright]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
+
+[tool.dagster]
+module_name = "lakehousekit.definitions"
