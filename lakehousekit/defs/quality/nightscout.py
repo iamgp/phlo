@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import duckdb
@@ -9,7 +10,7 @@ from dagster import AssetCheckResult, AssetKey, MetadataValue, Out, asset_check
 
 from lakehousekit.schemas.glucose import FactGlucoseReadings, get_fact_glucose_dagster_type
 
-DUCKDB_PATH = Path("/data/duckdb/warehouse.duckdb")
+DUCKDB_PATH = Path(os.getenv("DUCKDB_WAREHOUSE_PATH", "/data/duckdb/warehouse.duckdb"))
 FACT_QUERY = """
 SELECT
     entry_id,
