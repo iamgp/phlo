@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Dict
 
 from dagster import AssetExecutionContext, AssetIn, AssetKey, asset
+
+from lakehousekit.schemas import DatahubIngestionOutput, PublishPostgresOutput
 
 
 @asset(
@@ -17,9 +18,12 @@ from dagster import AssetExecutionContext, AssetIn, AssetKey, asset
 )
 def ingest_dbt_to_datahub(
     context: AssetExecutionContext,
-    publish_glucose_marts_to_postgres: Dict[str, Dict[str, int]],
-) -> str:
-    del publish_glucose_marts_to_postgres
+    publish_glucose_marts_to_postgres: PublishPostgresOutput,
+) -> DatahubIngestionOutput:
+    context.log.info(
+        "Received publishing stats for %d tables",
+        len(publish_glucose_marts_to_postgres.tables),
+    )
 
     command = ["datahub", "ingest", "-c", "/opt/dagster/ingestion/datahub_dbt.yml"]
     context.log.info("Running DataHub ingestion CLI to publish dbt metadata")
@@ -48,4 +52,8 @@ def ingest_dbt_to_datahub(
             "See logs for details."
         )
 
-    return "dbt metadata ingested"
+    tables_processed = len(publish_glucose_marts_to_postgres.tables)
+    return DatahubIngestionOutput(
+        status="dbt metadata ingested successfully",
+        tables_processed=tables_processed,
+    )
