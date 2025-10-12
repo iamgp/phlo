@@ -164,13 +164,13 @@ def build_assets_from_configs(
     assets: list[AssetsDefinition] = []
     logger = get_dagster_logger()
 
-    for config in configs:
+    for conn_config in configs:
         # Resolve connection ID from name or fallback
-        connection_id = _resolve_connection_id(config)
+        connection_id = _resolve_connection_id(conn_config)
 
         if not connection_id:
             logger.warning(
-                f"Could not find Airbyte connection '{config.connection_name}'. "
+                f"Could not find Airbyte connection '{conn_config.connection_name}'. "
                 "Skipping asset creation."
             )
             continue
@@ -178,17 +178,17 @@ def build_assets_from_configs(
         try:
             connection_assets = build_airbyte_assets(
                 connection_id=connection_id,
-                destination_tables=list(config.destination_tables or []),
-                group_name=config.group_name,
+                destination_tables=list(conn_config.destination_tables or []),
+                group_name=conn_config.group_name,
             )
             assets.extend(connection_assets)
             logger.info(
-                f"Successfully created assets for Airbyte connection '{config.connection_name}'"
+                f"Successfully created assets for Airbyte connection '{conn_config.connection_name}'"
             )
         except Exception as exc:
             logger.exception(
                 "Failed to build assets for connection '%s': %s. Skipping this connection.",
-                config.connection_name,
+                conn_config.connection_name,
                 exc,
             )
 
