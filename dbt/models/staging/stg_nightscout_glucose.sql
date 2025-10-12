@@ -9,6 +9,7 @@
 -- transformations.
 -- Source: Airbyte sync from Nightscout API
 -- Refresh: On-demand via Dagster
+-- Partitioning: Supports daily partition filtering via partition_date_str variable
 
 {% set upstream = source('dagster_assets', 'nightscout_entries') %}
 
@@ -34,3 +35,7 @@ select
 from raw_data
 where _airbyte_data.sgv is not null
     and _airbyte_data.sgv between 20 and 600  -- Physiologically plausible range
+    {% if var('partition_date_str', None) is not none %}
+    -- Filter to partition date when processing partitioned data
+    and date_trunc('day', epoch_ms(_airbyte_data.date)) = '{{ var('partition_date_str') }}'::DATE
+    {% endif %}

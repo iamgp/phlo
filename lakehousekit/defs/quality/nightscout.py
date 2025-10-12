@@ -11,7 +11,7 @@ from lakehousekit.schemas.glucose import (
 )
 
 DUCKDB_PATH = config.duckdb_path
-FACT_QUERY = """
+FACT_QUERY_BASE = """
 SELECT
     entry_id,
     glucose_mg_dl,
@@ -30,6 +30,7 @@ FROM main_curated.fact_glucose_readings
     asset=AssetKey(["fact_glucose_readings"]),
     blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
+    additional_deps=[AssetKey(["fact_glucose_readings"])],
 )
 def nightscout_glucose_quality_check(
     context, duckdb: DuckDBResource
@@ -53,11 +54,18 @@ def nightscout_glucose_quality_check(
             },
         )
 
+    # Build query with partition filter if applicable
+    query = FACT_QUERY_BASE
+    if context.has_partition_key:
+        partition_date = context.partition_key
+        query = f"{FACT_QUERY_BASE}\nWHERE DATE(reading_timestamp) = '{partition_date}'"
+        context.log.info(f"Validating partition: {partition_date}")
+
     # Load data from DuckDB
     context.log.info("Loading data from DuckDB...")
     try:
         with duckdb.get_connection() as conn:
-            fact_df = conn.execute(FACT_QUERY).df()
+            fact_df = conn.execute(query).df()
         context.log.info(f"Loaded {len(fact_df)} rows from fact_glucose_readings")
     except Exception as exc:
         context.log.error(f"Failed to load data from DuckDB: {exc}")
@@ -82,10 +90,16 @@ def nightscout_glucose_quality_check(
             "entry_id": "str (unique, non-null)",
             "glucose_mg_dl": "int (20-600 mg/dL, non-null)",
             "reading_timestamp": "datetime (non-null)",
-            "direction": "str (Flat/FortyFiveUp/FortyFiveDown/SingleUp/SingleDown/DoubleUp/DoubleDown/NONE, nullable)",
+            "direction": (
+                "str (Flat/FortyFiveUp/FortyFiveDown/SingleUp/"
+                "SingleDown/DoubleUp/DoubleDown/NONE, nullable)"
+            ),
             "hour_of_day": "int (0-23, non-null)",
             "day_of_week": "int (0-6, non-null)",
-            "glucose_category": "str (hypoglycemia/in_range/hyperglycemia_mild/hyperglycemia_severe, non-null)",
+            "glucose_category": (
+                "str (hypoglycemia/in_range/hyperglycemia_mild/"
+                "hyperglycemia_severe, non-null)"
+            ),
             "is_in_range": "int (0 or 1, non-null)",
         }
 

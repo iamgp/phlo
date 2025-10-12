@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import dagster as dg
 
+from lakehousekit.defs.partitions import daily_partition
+
 
 def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
     """
@@ -22,6 +24,7 @@ def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
         name="transform_dbt_models",
         selection=dg.AssetSelection.all(),
         description="Run all dbt models: staging → intermediate → curated → marts",
+        partitions_def=daily_partition,
     )
 
     return [ingest_job, transform_job]

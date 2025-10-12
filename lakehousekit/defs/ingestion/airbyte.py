@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 import requests
 from dagster import AssetsDefinition, get_dagster_logger
@@ -184,7 +185,8 @@ def build_assets_from_configs(
             )
             assets.extend(connection_assets)
             logger.info(
-                f"Successfully created assets for Airbyte connection '{conn_config.connection_name}'"
+                "Successfully created assets for Airbyte connection '%s'",
+                conn_config.connection_name,
             )
         except Exception as exc:
             logger.exception(

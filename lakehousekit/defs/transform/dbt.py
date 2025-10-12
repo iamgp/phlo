@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import shutil
-from collections.abc import Generator
-from typing import Any, Mapping
+from collections.abc import Generator, Mapping
+from typing import Any
 
 from dagster import AssetExecutionContext, AssetKey
 from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
 
 from lakehousekit.config import config
+from lakehousekit.defs.partitions import daily_partition
 
 DBT_PROJECT_DIR = config.dbt_project_path
 DBT_PROFILES_DIR = config.dbt_profiles_path
@@ -38,6 +39,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 @dbt_assets(
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
     dagster_dbt_translator=CustomDbtTranslator(),
+    partitions_def=daily_partition,
 )
 def all_dbt_assets(
     context: AssetExecutionContext, dbt: DbtCliResource
@@ -54,6 +56,12 @@ def all_dbt_assets(
         "--target",
         target,
     ]
+
+    # Pass partition date to dbt as a variable for incremental processing
+    if context.has_partition_key:
+        partition_date = context.partition_key
+        build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
+        context.log.info(f"Running dbt for partition: {partition_date}")
 
     build_invocation = dbt.cli(build_args, context=context)
     yield from build_invocation.stream()
