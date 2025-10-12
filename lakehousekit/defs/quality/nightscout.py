@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import duckdb
-import pandas as pd
 import pandera.errors
-from dagster import AssetCheckResult, AssetKey, MetadataValue, Out, asset_check
+from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 
 from lakehousekit.config import config
+from lakehousekit.defs.resources import DuckDBResource
 from lakehousekit.schemas.glucose import FactGlucoseReadings, get_fact_glucose_dagster_type
 
 DUCKDB_PATH = config.duckdb_path
@@ -29,7 +28,7 @@ FROM main_curated.fact_glucose_readings
     blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
 )
-def nightscout_glucose_quality_check(context) -> AssetCheckResult:
+def nightscout_glucose_quality_check(context, duckdb: DuckDBResource) -> AssetCheckResult:
     """
     Quality check using Pandera for type-safe schema validation.
 
@@ -52,7 +51,7 @@ def nightscout_glucose_quality_check(context) -> AssetCheckResult:
     # Load data from DuckDB
     context.log.info("Loading data from DuckDB...")
     try:
-        with duckdb.connect(database=str(DUCKDB_PATH), read_only=True) as conn:
+        with duckdb.get_connection() as conn:
             fact_df = conn.execute(FACT_QUERY).df()
         context.log.info(f"Loaded {len(fact_df)} rows from fact_glucose_readings")
     except Exception as exc:
