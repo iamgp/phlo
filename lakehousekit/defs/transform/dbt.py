@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import os
 import shutil
 from collections.abc import Generator
-from pathlib import Path
 from typing import Any, Mapping
 
 from dagster import AssetExecutionContext, AssetKey
 from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
 
+from lakehousekit.config import config
 
-DBT_PROJECT_DIR = Path(os.getenv("DBT_PROJECT_DIR", "/dbt"))
-DBT_PROFILES_DIR = Path(os.getenv("DBT_PROFILES_DIR", "/dbt/profiles"))
+DBT_PROJECT_DIR = config.dbt_project_path
+DBT_PROFILES_DIR = config.dbt_profiles_path
 
 
 class CustomDbtTranslator(DagsterDbtTranslator):

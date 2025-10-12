@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import os
-from pathlib import Path
 from urllib.parse import quote_plus
 
 import duckdb
 from dagster import AssetKey, asset
+
+from lakehousekit.config import config
 
 
 @asset(
@@ -19,13 +19,13 @@ from dagster import AssetKey, asset
     ],
 )
 def publish_glucose_marts_to_postgres(context) -> dict[str, dict[str, int]]:
-    duckdb_path = Path(os.getenv("DUCKDB_WAREHOUSE_PATH", "/data/duckdb/warehouse.duckdb"))
-    postgres_host = os.getenv("POSTGRES_HOST", "postgres")
-    postgres_port = int(os.getenv("POSTGRES_PORT", "5432"))
-    postgres_user = os.getenv("POSTGRES_USER", "lake")
-    postgres_password = os.getenv("POSTGRES_PASSWORD", "lakepass")
-    postgres_db = os.getenv("POSTGRES_DB", "lakehouse")
-    target_schema = os.getenv("POSTGRES_MART_SCHEMA", "marts")
+    duckdb_path = config.duckdb_path
+    postgres_host = config.postgres_host
+    postgres_port = config.postgres_port
+    postgres_user = config.postgres_user
+    postgres_password = config.postgres_password
+    postgres_db = config.postgres_db
+    target_schema = config.postgres_mart_schema
 
     tables_to_publish = {
         "mart_glucose_overview": "main_marts.mart_glucose_overview",

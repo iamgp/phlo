@@ -5,6 +5,44 @@
 This platform provides a **modern, open-source data lakehouse** designed for **cell and gene therapy manufacturing and analytics**.
 It enables secure, automated, and governed handling of scientific and operational data — from instruments and lab systems through to analytics, dashboards, and machine learning.
 
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Docker and Docker Compose
+- `uv` for Python package management (optional, for local development)
+
+### Setup
+
+1. **Clone the repository and configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your passwords and configuration
+   ```
+
+2. **Start all services:**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Access the services:**
+   - **Hub:** http://localhost:54321 (service status dashboard)
+   - **Dagster:** http://localhost:3000 (orchestration UI)
+   - **Superset:** http://localhost:8088 (dashboards)
+   - **MinIO Console:** http://localhost:9001 (object storage)
+   - **DataHub:** http://localhost:9002 (metadata catalog)
+
+### Configuration
+
+All service configuration is managed through environment variables in `.env`. Key settings:
+
+- **Database:** `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+- **Storage:** `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
+- **Services:** `AIRBYTE_HOST`, `DAGSTER_PORT`, `SUPERSET_PORT`
+- **Paths:** `DBT_PROJECT_DIR`, `DUCKDB_WAREHOUSE_PATH`
+
+See `lakehousekit/config.py` for the complete centralized configuration schema.
+
 ## 📚 Documentation
 
 **[Full Documentation →](./docs/README.md)**
@@ -157,7 +195,120 @@ Perfect for Python developers learning modern data engineering patterns.
 
 ---
 
-## 6. Benefits to the Organization
+## 6. Development
+
+### Local Development Setup
+
+1. **Install Python dependencies:**
+   ```bash
+   cd dagster
+   uv pip install -e .
+   ```
+
+2. **Run type checking:**
+   ```bash
+   basedpyright lakehousekit/
+   ```
+
+3. **Run linting:**
+   ```bash
+   ruff check lakehousekit/
+   ruff format lakehousekit/
+   ```
+
+### Project Structure
+
+```
+lakehousekit/
+├── config.py              # Centralized configuration management
+├── definitions.py         # Main Dagster definitions entry point
+├── defs/
+│   ├── ingestion/        # Raw data ingestion assets (Airbyte, raw files)
+│   ├── transform/        # dbt transformation assets
+│   ├── publishing/       # Publishing to Postgres marts
+│   ├── quality/          # Data quality checks (Pandera)
+│   ├── metadata/         # Metadata ingestion (DataHub)
+│   ├── resources/        # Dagster resources (Airbyte, dbt)
+│   └── schedules/        # Job schedules
+└── schemas/              # Pandera data validation schemas
+```
+
+### Adding New Assets
+
+1. Create asset function in appropriate module under `lakehousekit/defs/`
+2. Import and include in the relevant `__init__.py`
+3. Asset will be automatically discovered by Dagster
+
+### Testing
+
+```bash
+# Run Dagster definitions validation
+dagster dev --workspace dagster/workspace.yaml
+
+# Load and validate assets
+dagster asset materialize --select my_asset_name
+```
+
+---
+
+## 7. Troubleshooting
+
+### Services Won't Start
+
+**Check Docker resources:**
+```bash
+docker-compose ps
+docker-compose logs <service-name>
+```
+
+**Common issues:**
+- MinIO needs at least 512MB memory
+- Dagster requires PostgreSQL to be healthy before starting
+
+### Dagster Assets Failing
+
+**Check environment variables:**
+```bash
+docker exec dagster-webserver env | grep POSTGRES
+```
+
+**View Dagster logs:**
+```bash
+docker logs dagster-webserver
+```
+
+### Database Connection Issues
+
+**Verify PostgreSQL is accessible:**
+```bash
+docker exec -it postgres psql -U lake -d lakehouse -c "\dt"
+```
+
+**Reset database if needed:**
+```bash
+docker-compose down -v  # WARNING: Destroys all data
+docker-compose up -d
+```
+
+### DuckDB File Locked
+
+DuckDB only allows one write connection at a time.
+
+**Solution:**
+- Ensure `LAKEHOUSEKIT_FORCE_IN_PROCESS_EXECUTOR=true` is set for single-threaded execution
+- Check no other processes have the DuckDB file open
+
+### Configuration Issues
+
+**Validate configuration loads correctly:**
+```python
+from lakehousekit.config import config
+print(config.model_dump())
+```
+
+---
+
+## 8. Benefits to the Organization
 
 - **Improved Decision-Making:** Rapid analytics from lab and manufacturing data within hours of batch completion.
 - **Data Integrity & Compliance:** Full audit trail, reproducible transformations, and version-controlled codebase.
@@ -166,7 +317,7 @@ Perfect for Python developers learning modern data engineering patterns.
 
 ---
 
-## 7. Summary Diagram (Conceptual)
+## 9. Summary Diagram (Conceptual)
 
 ```mermaid
 flowchart LR

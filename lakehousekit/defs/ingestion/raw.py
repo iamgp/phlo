@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import os
-
-from pathlib import Path
 from typing import Any, Dict
 
 from dagster import AssetExecutionContext, asset
 
-RAW_BIOREACTOR_PATH = Path(
-    os.getenv("RAW_BIOREACTOR_PATH", "/data/lake/raw/bioreactor")
-)
+from lakehousekit.config import config
+
+RAW_BIOREACTOR_PATH = config.raw_bioreactor_path_obj
 
 
 @asset(

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import os
 import platform
 
 import dagster as dg
 
+from lakehousekit.config import config
 from lakehousekit.defs.ingestion import build_defs as build_ingestion_defs
 from lakehousekit.defs.metadata import build_defs as build_metadata_defs
 from lakehousekit.defs.publishing import build_defs as build_publishing_defs
@@ -23,10 +23,10 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     macOS, and allow an override via `LAKEHOUSEKIT_FORCE_IN_PROCESS_EXECUTOR` if someone hits the
     same issue elsewhere.
     """
-    if os.getenv("LAKEHOUSEKIT_FORCE_IN_PROCESS_EXECUTOR"):
+    if config.lakehousekit_force_in_process_executor:
         return dg.in_process_executor
 
-    if os.getenv("LAKEHOUSEKIT_FORCE_MULTIPROCESS_EXECUTOR"):
+    if config.lakehousekit_force_multiprocess_executor:
         return None
 
     if platform.system() == "Darwin":
