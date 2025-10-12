@@ -44,9 +44,7 @@ def ingest_dbt_to_datahub(
         context.log.warning(proc.stderr)
 
     if proc.returncode != 0:
-        context.log.error(
-            "DataHub ingestion failed with exit code %s", proc.returncode
-        )
+        context.log.error("DataHub ingestion failed with exit code %s", proc.returncode)
         raise RuntimeError(
             f"DataHub ingestion failed with exit code {proc.returncode}. "
             "See logs for details."

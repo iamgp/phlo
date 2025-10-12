@@ -27,9 +27,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return "marts"
         return "transform"
 
-    def get_source_asset_key(
-        self, dbt_source_props: Mapping[str, Any]
-    ) -> AssetKey:
+    def get_source_asset_key(self, dbt_source_props: Mapping[str, Any]) -> AssetKey:
         source_name = dbt_source_props["source_name"]
         table_name = dbt_source_props["name"]
         if source_name == "dagster_assets":
