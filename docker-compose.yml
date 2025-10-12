@@ -59,10 +59,10 @@ services:
       ]
     ports: ["${DAGSTER_PORT}:3000"]
     volumes:
-      - ./dagster:/opt/dagster
-      - ./lakehousekit:/opt/dagster/lakehousekit
-      - ./dbt:/dbt
-      - ./data:/data
+      - ./dagster:/opt/dagster:ro
+      - ./lakehousekit:/opt/dagster/lakehousekit:ro
+      - ./dbt:/dbt  # Needs write for target/
+      - ./data:/data  # Needs write for DuckDB
     depends_on:
       minio:
         condition: service_healthy
@@ -83,10 +83,10 @@ services:
       AWS_S3_ENDPOINT: http://minio:9000
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
-      - ./dagster:/opt/dagster
-      - ./lakehousekit:/opt/dagster/lakehousekit
-      - ./dbt:/dbt
-      - ./data:/data
+      - ./dagster:/opt/dagster:ro
+      - ./lakehousekit:/opt/dagster/lakehousekit:ro
+      - ./dbt:/dbt  # Needs write for target/
+      - ./data:/data  # Needs write for DuckDB
     depends_on:
       dagster-webserver:
         condition: service_started
@@ -141,6 +141,12 @@ services:
       - "${APP_PORT:-54321}:${APP_PORT:-54321}"
     volumes:
       - ./app.py:/app/app.py:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${APP_PORT:-54321}/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   datahub-gms:
     image: acryldata/datahub-gms:head

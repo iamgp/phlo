@@ -9,7 +9,7 @@ dependencies = [
     "dagster-dbt",
     "dagster-airbyte",
     "dagster-pandera",
-    "duckdb==1.1.0",
+    "duckdb==1.1.0",  # Pinned to 1.1.0 for stability with dbt-duckdb and postgres extension
     "dbt-duckdb",
     "dbt-postgres",
     "pandera>=0.18.0",
@@ -20,7 +20,7 @@ dependencies = [
     "pyyaml",
     "acryl-datahub[dbt]",
     "requests",
-    "pandas>=2.0",
+    "pandas>=2.0",  # Updated from <2.0 after migrating from Great Expectations to Pandera
     "tenacity",
     "pydantic-settings>=2.0",
 ]
