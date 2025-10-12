@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import requests
 from dagster import AssetsDefinition, get_dagster_logger
 from dagster_airbyte import build_airbyte_assets
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 
 @dataclass(frozen=True)
@@ -30,21 +31,51 @@ def _get_airbyte_url(path: str) -> str:
     return f"http://{airbyte_host}:{airbyte_port}{path}"
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
+)
+def _post_airbyte(path: str, payload: Mapping[str, Any]) -> requests.Response:
+    """Call Airbyte API with retries and consistent settings."""
+    response = requests.post(
+        _get_airbyte_url(path),
+        json=payload,
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response
+
+
 def _get_workspace_id() -> str | None:
     """Get the first available workspace ID."""
+    logger = get_dagster_logger()
     try:
-        response = requests.post(
-            _get_airbyte_url("/api/v1/workspaces/list"),
-            json={},
-            timeout=5,
+        response = _post_airbyte("/api/v1/workspaces/list", {})
+        workspaces = response.json().get("workspaces", [])
+    except RetryError as exc:
+        logger.exception(
+            "Failed to retrieve Airbyte workspace list after multiple attempts: %s",
+            exc.last_attempt.exception() if exc.last_attempt else exc,
         )
-        if response.status_code == 200:
-            workspaces = response.json().get("workspaces", [])
-            if workspaces:
-                return workspaces[0]["workspaceId"]
-    except Exception:
-        pass
-    return None
+        return None
+    except requests.RequestException as exc:
+        logger.exception("Error calling Airbyte workspaces API: %s", exc)
+        return None
+    except ValueError as exc:
+        logger.exception("Invalid JSON response from Airbyte workspace API: %s", exc)
+        return None
+
+    if not workspaces:
+        logger.warning("Airbyte workspace list is empty")
+        return None
+
+    workspace_id = workspaces[0].get("workspaceId")
+    if not workspace_id:
+        logger.warning("Workspace payload missing 'workspaceId' field")
+        return None
+
+    return workspace_id
 
 
 def _lookup_connection_by_name(connection_name: str) -> str | None:
@@ -56,20 +87,17 @@ def _lookup_connection_by_name(connection_name: str) -> str | None:
     """
     logger = get_dagster_logger()
 
+    workspace_id: str | None = None
+
     try:
         workspace_id = _get_workspace_id()
         if not workspace_id:
             logger.warning("Could not get Airbyte workspace ID")
             return None
 
-        response = requests.post(
-            _get_airbyte_url("/api/v1/connections/list"),
-            json={"workspaceId": workspace_id},
-            timeout=5,
+        response = _post_airbyte(
+            "/api/v1/connections/list", {"workspaceId": workspace_id}
         )
-
-        if response.status_code != 200:
-            return None
 
         connections = response.json().get("connections", [])
         for conn in connections:
@@ -82,8 +110,18 @@ def _lookup_connection_by_name(connection_name: str) -> str | None:
         )
         return None
 
-    except Exception as e:
-        logger.warning(f"Error looking up Airbyte connection '{connection_name}': {e}")
+    except RetryError as exc:
+        logger.exception(
+            "Failed to list Airbyte connections for workspace %s after retries: %s",
+            workspace_id or "unknown",
+            exc.last_attempt.exception() if exc.last_attempt else exc,
+        )
+        return None
+    except requests.RequestException as exc:
+        logger.exception("Error calling Airbyte connections API: %s", exc)
+        return None
+    except ValueError as exc:
+        logger.exception("Invalid JSON response from Airbyte connections API: %s", exc)
         return None
 
 
@@ -148,10 +186,11 @@ def build_assets_from_configs(
             logger.info(
                 f"Successfully created assets for Airbyte connection '{config.connection_name}'"
             )
-        except Exception as e:
-            logger.warning(
-                f"Failed to build assets for connection '{config.connection_name}': {e}. "
-                "Skipping this connection."
+        except Exception as exc:
+            logger.exception(
+                "Failed to build assets for connection '%s': %s. Skipping this connection.",
+                config.connection_name,
+                exc,
             )
 
     return assets

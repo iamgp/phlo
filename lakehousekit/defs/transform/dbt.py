@@ -1,21 +1,24 @@
 from __future__ import annotations
 
+import os
 import shutil
+from collections.abc import Generator
 from pathlib import Path
+from typing import Any, Mapping
 
-from dagster import AssetKey
+from dagster import AssetExecutionContext, AssetKey
 from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
 
 
-DBT_PROJECT_DIR = Path("/dbt")
-DBT_PROFILES_DIR = Path("/dbt/profiles")
+DBT_PROJECT_DIR = Path(os.getenv("DBT_PROJECT_DIR", "/dbt"))
+DBT_PROFILES_DIR = Path(os.getenv("DBT_PROFILES_DIR", "/dbt/profiles"))
 
 
 class CustomDbtTranslator(DagsterDbtTranslator):
-    def get_asset_key(self, dbt_resource_props):
+    def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> AssetKey:
         return AssetKey(dbt_resource_props["name"])
 
-    def get_group_name(self, dbt_resource_props):
+    def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
         model_name = dbt_resource_props["name"]
         if model_name.startswith("stg_"):
             return "staging"
@@ -25,7 +28,9 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return "marts"
         return "transform"
 
-    def get_source_asset_key(self, dbt_source_props):
+    def get_source_asset_key(
+        self, dbt_source_props: Mapping[str, Any]
+    ) -> AssetKey:
         source_name = dbt_source_props["source_name"]
         table_name = dbt_source_props["name"]
         if source_name == "dagster_assets":
@@ -37,7 +42,9 @@ class CustomDbtTranslator(DagsterDbtTranslator):
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
     dagster_dbt_translator=CustomDbtTranslator(),
 )
-def all_dbt_assets(context, dbt: DbtCliResource):
+def all_dbt_assets(
+    context: AssetExecutionContext, dbt: DbtCliResource
+) -> Generator[object, None, None]:
     target = context.op_config.get("target") if context.op_config else None
     target = target or "duckdb"
 
