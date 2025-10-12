@@ -875,14 +875,14 @@ def _sanitize_json(value):
 - [ ] Remove hardcoded secrets from docker-compose.yml
 - [ ] Remove/protect password display in web UI
 - [ ] Generate strong default passwords
-- [ ] Remove requirements.txt or sync with pyproject.toml
+- [x] Remove requirements.txt or sync with pyproject.toml
 
 ### Short Term (This Sprint)
-- [ ] Add retry logic to API calls
-- [ ] Add proper exception logging
-- [ ] Add subprocess timeouts
-- [ ] Extract hardcoded paths to environment variables
-- [ ] Add comprehensive type hints
+- [x] Add retry logic to API calls
+- [x] Add proper exception logging
+- [x] Add subprocess timeouts
+- [x] Extract hardcoded paths to environment variables
+- [x] Add comprehensive type hints
 - [ ] Implement configuration management with Pydantic
 - [ ] Pin MinIO to specific version
 - [ ] Create README.md with setup instructions
