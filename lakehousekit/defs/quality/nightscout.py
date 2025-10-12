@@ -5,7 +5,10 @@ from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 
 from lakehousekit.config import config
 from lakehousekit.defs.resources import DuckDBResource
-from lakehousekit.schemas.glucose import FactGlucoseReadings, get_fact_glucose_dagster_type
+from lakehousekit.schemas.glucose import (
+    FactGlucoseReadings,
+    get_fact_glucose_dagster_type,
+)
 
 DUCKDB_PATH = config.duckdb_path
 FACT_QUERY = """
@@ -28,7 +31,9 @@ FROM main_curated.fact_glucose_readings
     blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
 )
-def nightscout_glucose_quality_check(context, duckdb: DuckDBResource) -> AssetCheckResult:
+def nightscout_glucose_quality_check(
+    context, duckdb: DuckDBResource
+) -> AssetCheckResult:
     """
     Quality check using Pandera for type-safe schema validation.
 
@@ -75,7 +80,7 @@ def nightscout_glucose_quality_check(context, duckdb: DuckDBResource) -> AssetCh
         # Build schema metadata for UI display
         schema_info = {
             "entry_id": "str (unique, non-null)",
-            "glucose_mg_dl": f"int (20-600 mg/dL, non-null)",
+            "glucose_mg_dl": "int (20-600 mg/dL, non-null)",
             "reading_timestamp": "datetime (non-null)",
             "direction": "str (Flat/FortyFiveUp/FortyFiveDown/SingleUp/SingleDown/DoubleUp/DoubleDown/NONE, nullable)",
             "hour_of_day": "int (0-23, non-null)",
@@ -91,10 +96,14 @@ def nightscout_glucose_quality_check(context, duckdb: DuckDBResource) -> AssetCh
                 "columns_validated": MetadataValue.int(len(fact_df.columns)),
                 "schema_version": MetadataValue.text("1.0.0"),
                 "pandera_schema": MetadataValue.md(
-                    "## Validated Schema\n\n" +
-                    "\n".join([f"- **{col}**: {dtype}" for col, dtype in schema_info.items()])
+                    "## Validated Schema\n\n"
+                    + "\n".join(
+                        [f"- **{col}**: {dtype}" for col, dtype in schema_info.items()]
+                    )
                 ),
-                "dagster_type": MetadataValue.text(str(get_fact_glucose_dagster_type())),
+                "dagster_type": MetadataValue.text(
+                    str(get_fact_glucose_dagster_type())
+                ),
             },
         )
 

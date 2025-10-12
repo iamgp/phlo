@@ -19,7 +19,9 @@ def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
     return [ingest_job, transform_job]
 
 
-def build_schedules(transform_job: dg.UnresolvedAssetJobDefinition) -> list[dg.ScheduleDefinition]:
+def build_schedules(
+    transform_job: dg.UnresolvedAssetJobDefinition,
+) -> list[dg.ScheduleDefinition]:
     nightly_pipeline_schedule = dg.ScheduleDefinition(
         name="nightly_pipeline",
         job=transform_job,

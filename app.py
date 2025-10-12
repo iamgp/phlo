@@ -173,7 +173,9 @@ def index():
         minio_console_port=os.getenv("MINIO_CONSOLE_PORT", "9001"),
         minio_user=os.getenv("MINIO_ROOT_USER", "minio"),
         minio_pass=os.getenv("MINIO_ROOT_PASSWORD", "minio999"),
-        datahub_port=os.getenv("DATAHUB_FRONTEND_PORT", os.getenv("DATAHUB_PORT", "9002")),
+        datahub_port=os.getenv(
+            "DATAHUB_FRONTEND_PORT", os.getenv("DATAHUB_PORT", "9002")
+        ),
         airbyte_port=os.getenv("AIRBYTE_WEB_PORT", "8000"),
         postgres_port=os.getenv("POSTGRES_PORT", "5432"),
         postgres_user=os.getenv("POSTGRES_USER", "lake"),

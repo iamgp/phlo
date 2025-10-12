@@ -19,14 +19,17 @@ class Settings(BaseSettings):
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
     postgres_user: str = Field(default="lake", description="PostgreSQL username")
     postgres_password: str = Field(description="PostgreSQL password")
-    postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
+    postgres_db: str = Field(
+        default="lakehouse", description="PostgreSQL database name"
+    )
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
     )
 
     # Storage - DuckDB
     duckdb_warehouse_path: str = Field(
-        default="/data/duckdb/warehouse.duckdb", description="Path to DuckDB warehouse file"
+        default="/data/duckdb/warehouse.duckdb",
+        description="Path to DuckDB warehouse file",
     )
 
     # Storage - MinIO
@@ -36,23 +39,31 @@ class Settings(BaseSettings):
     minio_console_port: int = Field(default=9001, description="MinIO console port")
 
     # Services - Airbyte
-    airbyte_host: str = Field(default="airbyte-server", description="Airbyte server host")
+    airbyte_host: str = Field(
+        default="airbyte-server", description="Airbyte server host"
+    )
     airbyte_api_port: int = Field(default=8001, description="Airbyte API port")
 
     # Services - Superset
     superset_port: int = Field(default=8088, description="Superset web port")
-    superset_admin_user: str = Field(default="admin", description="Superset admin username")
+    superset_admin_user: str = Field(
+        default="admin", description="Superset admin username"
+    )
     superset_admin_password: str = Field(description="Superset admin password")
     superset_admin_email: str = Field(
         default="admin@example.com", description="Superset admin email"
     )
 
     # Services - DataHub
-    datahub_frontend_port: int = Field(default=9002, description="DataHub frontend port")
+    datahub_frontend_port: int = Field(
+        default=9002, description="DataHub frontend port"
+    )
 
     # Paths
     dbt_project_dir: str = Field(default="/dbt", description="dbt project directory")
-    dbt_profiles_dir: str = Field(default="/dbt/profiles", description="dbt profiles directory")
+    dbt_profiles_dir: str = Field(
+        default="/dbt/profiles", description="dbt profiles directory"
+    )
     raw_bioreactor_path: str = Field(
         default="/data/lake/raw/bioreactor", description="Path for raw bioreactor data"
     )

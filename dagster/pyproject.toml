@@ -43,5 +43,8 @@ select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM"]
 pythonVersion = "3.11"
 typeCheckingMode = "standard"
 
+[tool.ty]
+environment.python-version = "3.11"
+
 [tool.dagster]
 module_name = "lakehousekit.definitions"

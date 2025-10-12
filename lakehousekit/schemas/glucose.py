@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pandera.pandas as pa
 from dagster_pandera import pandera_schema_to_dagster_type
 from pandera.pandas import DataFrameModel, Field
 

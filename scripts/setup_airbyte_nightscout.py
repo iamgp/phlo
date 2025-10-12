@@ -172,10 +172,11 @@ def create_custom_nightscout_source(
     print("Creating custom Nightscout connector...")
 
     # Load the manifest
-    import json
     from pathlib import Path
 
-    manifest_path = Path(__file__).parent.parent / "airbyte" / "nightscout-connector-manifest.yaml"
+    manifest_path = (
+        Path(__file__).parent.parent / "airbyte" / "nightscout-connector-manifest.yaml"
+    )
 
     if not manifest_path.exists():
         print(f"✗ Manifest not found at {manifest_path}")
@@ -301,9 +302,7 @@ def create_connection(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Setup Airbyte Nightscout connection"
-    )
+    parser = argparse.ArgumentParser(description="Setup Airbyte Nightscout connection")
     parser.add_argument(
         "--nightscout-url",
         required=True,
@@ -334,16 +333,19 @@ def main():
     workspace_id = get_workspace_id()
     if not workspace_id:
         sys.exit(1)
+    assert workspace_id is not None
 
     # Create source
     source_id = create_source(workspace_id, args.nightscout_url, args.api_secret)
     if not source_id:
         sys.exit(1)
+    assert source_id is not None
 
     # Create destination
     destination_id = create_destination(workspace_id)
     if not destination_id:
         sys.exit(1)
+    assert destination_id is not None
 
     # Create connection
     connection_id = create_connection(workspace_id, source_id, destination_id)
@@ -355,10 +357,10 @@ def main():
     print("=" * 60)
     print(f"\nConnection ID: {connection_id}")
     print(f"Nightscout URL: {args.nightscout_url}")
-    print(f"\nNext steps:")
-    print(f"1. Visit http://localhost:8000 to view the connection")
-    print(f"2. Run a sync manually to test")
-    print(f"3. View in Dagster at http://localhost:3000")
+    print("\nNext steps:")
+    print("1. Visit http://localhost:8000 to view the connection")
+    print("2. Run a sync manually to test")
+    print("3. View in Dagster at http://localhost:3000")
 
 
 if __name__ == "__main__":
