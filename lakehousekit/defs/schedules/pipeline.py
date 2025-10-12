@@ -4,6 +4,14 @@ import dagster as dg
 
 
 def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
+    """
+    Build Dagster job definitions for the lakehouse pipeline.
+
+    Returns:
+        List of job definitions:
+        - ingest_raw_data: Syncs data from external sources via Airbyte
+        - transform_dbt_models: Runs complete dbt transformation pipeline
+    """
     ingest_job = dg.define_asset_job(
         name="ingest_raw_data",
         selection=dg.AssetSelection.groups("raw_ingestion"),
@@ -22,6 +30,16 @@ def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
 def build_schedules(
     transform_job: dg.UnresolvedAssetJobDefinition,
 ) -> list[dg.ScheduleDefinition]:
+    """
+    Build schedule definitions for automated pipeline execution.
+
+    Args:
+        transform_job: The dbt transformation job to schedule
+
+    Returns:
+        List of schedule definitions:
+        - nightly_pipeline: Runs dbt transformations daily at 2am Europe/London
+    """
     nightly_pipeline_schedule = dg.ScheduleDefinition(
         name="nightly_pipeline",
         job=transform_job,
