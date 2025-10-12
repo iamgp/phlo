@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -8,6 +7,8 @@ import requests
 from dagster import AssetsDefinition, get_dagster_logger
 from dagster_airbyte import build_airbyte_assets
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
+
+from lakehousekit.config import config
 
 
 @dataclass(frozen=True)
@@ -26,9 +27,7 @@ class AirbyteConnectionConfig:
 
 def _get_airbyte_url(path: str) -> str:
     """Build Airbyte API URL."""
-    airbyte_host = os.getenv("AIRBYTE_HOST", "airbyte-server")
-    airbyte_port = os.getenv("AIRBYTE_API_PORT", "8001")
-    return f"http://{airbyte_host}:{airbyte_port}{path}"
+    return f"{config.get_airbyte_base_url()}{path}"
 
 
 @retry(
