@@ -19,7 +19,9 @@ from lakehousekit.schemas import PublishPostgresOutput, TablePublishStats
         AssetKey("fact_glucose_readings"),
     ],
 )
-def publish_glucose_marts_to_postgres(context, duckdb: DuckDBResource) -> PublishPostgresOutput:
+def publish_glucose_marts_to_postgres(
+    context, duckdb: DuckDBResource
+) -> PublishPostgresOutput:
     duckdb_path = config.duckdb_path
     postgres_host = config.postgres_host
     postgres_port = config.postgres_port
@@ -43,16 +45,16 @@ def publish_glucose_marts_to_postgres(context, duckdb: DuckDBResource) -> Publis
     password_escaped = quote_plus(postgres_password)
     user_escaped = quote_plus(postgres_user)
     host_escaped = quote_plus(postgres_host)
-    dsn = (
-        f"postgres://{user_escaped}:{password_escaped}@{host_escaped}:{postgres_port}/{postgres_db}"
-    )
+    dsn = f"postgres://{user_escaped}:{password_escaped}@{host_escaped}:{postgres_port}/{postgres_db}"
 
     table_stats: dict[str, TablePublishStats] = {}
     try:
         with duckdb.get_connection() as duck_con:
             duck_con.execute("INSTALL postgres")
             duck_con.execute("LOAD postgres")
-            duck_con.execute(f"ATTACH '{dsn}' AS pg_marts (TYPE POSTGRES, READ_ONLY FALSE)")
+            duck_con.execute(
+                f"ATTACH '{dsn}' AS pg_marts (TYPE POSTGRES, READ_ONLY FALSE)"
+            )
             duck_con.execute(f'CREATE SCHEMA IF NOT EXISTS pg_marts."{target_schema}"')
 
             for table_alias, duck_table in tables_to_publish.items():

@@ -22,28 +22,32 @@ ts = [datetime(2025, 10, 7, 8, 0) + timedelta(minutes=i) for i in range(n)]
 # --- Tags we’ll simulate ---
 tags = ["pH", "DO", "Temp", "Agitation", "Glucose"]
 
+
 def noisy_signal(base, noise=0.02, drift=0.0, size=n):
     arr = base * (1 + noise * np.random.randn(size))
     return arr + np.linspace(0, drift * size, size)
 
+
 # One series per tag (length n each)
 series_by_tag = {
-    "pH":        noisy_signal(7.2,  noise=0.01, drift=0.0),
-    "DO":        noisy_signal(60.0, noise=0.05, drift=-0.001),
-    "Temp":      noisy_signal(37.0, noise=0.005, drift=0.0),
-    "Agitation": noisy_signal(200.0,noise=0.10, drift=0.0),
-    "Glucose":   noisy_signal(4.5,  noise=0.20, drift=-0.002),
+    "pH": noisy_signal(7.2, noise=0.01, drift=0.0),
+    "DO": noisy_signal(60.0, noise=0.05, drift=-0.001),
+    "Temp": noisy_signal(37.0, noise=0.005, drift=0.0),
+    "Agitation": noisy_signal(200.0, noise=0.10, drift=0.0),
+    "Glucose": noisy_signal(4.5, noise=0.20, drift=-0.002),
 }
 
 # Build long-form table: 5 blocks of length n
-data = pd.DataFrame({
-    "batch_id":     np.repeat(batch_id, len(tags) * n),
-    "site":         np.repeat(site, len(tags) * n),
-    "equipment_id": np.repeat(equipment_id, len(tags) * n),
-    "ts":           np.tile(ts, len(tags)),
-    "tag":          np.repeat(tags, n),
-    "value":        np.concatenate([series_by_tag[t] for t in tags]),
-})
+data = pd.DataFrame(
+    {
+        "batch_id": np.repeat(batch_id, len(tags) * n),
+        "site": np.repeat(site, len(tags) * n),
+        "equipment_id": np.repeat(equipment_id, len(tags) * n),
+        "ts": np.tile(ts, len(tags)),
+        "tag": np.repeat(tags, n),
+        "value": np.concatenate([series_by_tag[t] for t in tags]),
+    }
+)
 
 # Ensure dtypes
 data["batch_id"] = data["batch_id"].astype("string")
