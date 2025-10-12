@@ -43,7 +43,10 @@ class FactGlucoseReadings(DataFrameModel):
         ge=MIN_GLUCOSE_MG_DL,
         le=MAX_GLUCOSE_MG_DL,
         nullable=False,
-        description=f"Blood glucose level in mg/dL (valid range: {MIN_GLUCOSE_MG_DL}-{MAX_GLUCOSE_MG_DL})",
+        description=(
+            f"Blood glucose level in mg/dL "
+            f"(valid range: {MIN_GLUCOSE_MG_DL}-{MAX_GLUCOSE_MG_DL})"
+        ),
     )
 
     reading_timestamp: datetime = Field(
