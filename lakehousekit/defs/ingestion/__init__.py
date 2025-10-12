@@ -4,6 +4,8 @@ import dagster as dg
 
 from lakehousekit.defs.ingestion.airbyte import (
     AirbyteConnectionConfig,
+)
+from lakehousekit.defs.ingestion.airbyte import (
     build_assets_from_configs as build_airbyte_assets,
 )
 

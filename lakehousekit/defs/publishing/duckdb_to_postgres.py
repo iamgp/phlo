@@ -66,9 +66,11 @@ def publish_glucose_marts_to_postgres(
                 duck_con.execute(
                     f'DROP TABLE IF EXISTS pg_marts."{target_schema}"."{table_alias}" CASCADE'
                 )
-                duck_con.execute(
-                    f'CREATE TABLE pg_marts."{target_schema}"."{table_alias}" AS SELECT * FROM {duck_table}'
+                create_table_sql = (
+                    f'CREATE TABLE pg_marts."{target_schema}"."{table_alias}" '
+                    f"AS SELECT * FROM {duck_table}"
                 )
+                duck_con.execute(create_table_sql)
 
                 row_count = duck_con.execute(
                     f'SELECT COUNT(*) FROM pg_marts."{target_schema}"."{table_alias}"'
