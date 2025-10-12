@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from urllib.parse import quote_plus
 
 import duckdb
@@ -18,7 +19,7 @@ from dagster import AssetKey, asset
     ],
 )
 def publish_glucose_marts_to_postgres(context) -> dict[str, dict[str, int]]:
-    duckdb_path = os.getenv("DUCKDB_WAREHOUSE_PATH", "/data/duckdb/warehouse.duckdb")
+    duckdb_path = Path(os.getenv("DUCKDB_WAREHOUSE_PATH", "/data/duckdb/warehouse.duckdb"))
     postgres_host = os.getenv("POSTGRES_HOST", "postgres")
     postgres_port = int(os.getenv("POSTGRES_PORT", "5432"))
     postgres_user = os.getenv("POSTGRES_USER", "lake")
@@ -46,7 +47,7 @@ def publish_glucose_marts_to_postgres(context) -> dict[str, dict[str, int]]:
     )
 
     success_counts: dict[str, dict[str, int]] = {}
-    with duckdb.connect(database=duckdb_path, read_only=False) as duck_con:
+    with duckdb.connect(database=str(duckdb_path), read_only=False) as duck_con:
         duck_con.execute("INSTALL postgres")
         duck_con.execute("LOAD postgres")
         duck_con.execute(f"ATTACH '{dsn}' AS pg_marts (TYPE POSTGRES, READ_ONLY FALSE)")

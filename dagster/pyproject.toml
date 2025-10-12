@@ -21,6 +21,7 @@ dependencies = [
     "acryl-datahub[dbt]",
     "requests",
     "pandas>=2.0",
+    "tenacity",
 ]
 
 [build-system]
