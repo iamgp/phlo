@@ -63,7 +63,6 @@ services:
       - ./lakehousekit:/opt/dagster/lakehousekit
       - ./dbt:/dbt
       - ./data:/data
-      - ./great_expectations:/great_expectations
     depends_on:
       minio:
         condition: service_healthy
@@ -88,7 +87,6 @@ services:
       - ./lakehousekit:/opt/dagster/lakehousekit
       - ./dbt:/dbt
       - ./data:/data
-      - ./great_expectations:/great_expectations
     depends_on:
       dagster-webserver:
         condition: service_started

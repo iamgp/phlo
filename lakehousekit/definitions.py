@@ -22,7 +22,7 @@ def _merged_definitions() -> dg.Definitions:
         build_schedule_defs(),
     )
 
-    # Use in-process executor to avoid Great Expectations subprocess crashes
+    # Parallel execution now enabled after migrating from Great Expectations to Pandera
     return dg.Definitions(
         assets=merged.assets,
         asset_checks=merged.asset_checks,
@@ -30,7 +30,6 @@ def _merged_definitions() -> dg.Definitions:
         sensors=merged.sensors,
         resources=merged.resources,
         jobs=merged.jobs,
-        executor=dg.in_process_executor,
     )
 
 
