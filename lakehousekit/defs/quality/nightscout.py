@@ -27,7 +27,7 @@ FROM main_curated.fact_glucose_readings
 @asset_check(
     name="nightscout_glucose_quality",
     asset=AssetKey(["fact_glucose_readings"]),
-    blocking=False,
+    blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
 )
 def nightscout_glucose_quality_check(context) -> AssetCheckResult:
