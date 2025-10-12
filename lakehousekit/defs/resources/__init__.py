@@ -5,6 +5,9 @@ from dagster_airbyte import AirbyteResource
 from dagster_dbt import DbtCliResource
 
 from lakehousekit.config import config
+from lakehousekit.defs.resources.duckdb import DuckDBResource
+
+__all__ = ["DuckDBResource"]
 
 
 def _build_airbyte_resource() -> AirbyteResource:
@@ -23,5 +26,6 @@ def build_defs() -> dg.Definitions:
         resources={
             "airbyte": _build_airbyte_resource(),
             "dbt": _build_dbt_resource(),
+            "duckdb": DuckDBResource(),
         }
     )
