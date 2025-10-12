@@ -6,6 +6,7 @@ import duckdb
 from dagster import AssetKey, asset
 
 from lakehousekit.config import config
+from lakehousekit.schemas import PublishPostgresOutput, TablePublishStats
 
 
 @asset(
@@ -18,7 +19,7 @@ from lakehousekit.config import config
         AssetKey("fact_glucose_readings"),
     ],
 )
-def publish_glucose_marts_to_postgres(context) -> dict[str, dict[str, int]]:
+def publish_glucose_marts_to_postgres(context) -> PublishPostgresOutput:
     duckdb_path = config.duckdb_path
     postgres_host = config.postgres_host
     postgres_port = config.postgres_port
@@ -46,7 +47,7 @@ def publish_glucose_marts_to_postgres(context) -> dict[str, dict[str, int]]:
         f"postgres://{user_escaped}:{password_escaped}@{host_escaped}:{postgres_port}/{postgres_db}"
     )
 
-    success_counts: dict[str, dict[str, int]] = {}
+    table_stats: dict[str, TablePublishStats] = {}
     with duckdb.connect(database=str(duckdb_path), read_only=False) as duck_con:
         duck_con.execute("INSTALL postgres")
         duck_con.execute("LOAD postgres")
@@ -79,10 +80,10 @@ def publish_glucose_marts_to_postgres(context) -> dict[str, dict[str, int]]:
                 [target_schema, table_alias],
             ).fetchone()[0]
 
-            success_counts[table_alias] = {
-                "row_count": row_count,
-                "column_count": column_count,
-            }
+            table_stats[table_alias] = TablePublishStats(
+                row_count=row_count,
+                column_count=column_count,
+            )
             context.log.info(
                 "Published table %s with %d rows",
                 f"{target_schema}.{table_alias}",
@@ -91,5 +92,6 @@ def publish_glucose_marts_to_postgres(context) -> dict[str, dict[str, int]]:
 
         duck_con.execute("DETACH pg_marts")
 
-    context.add_output_metadata(success_counts)
-    return success_counts
+    output = PublishPostgresOutput(tables=table_stats)
+    context.add_output_metadata(output.model_dump())
+    return output
