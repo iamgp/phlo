@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 
-from dagster import AssetExecutionContext, AssetIn, AssetKey, asset
+from dagster import AssetIn, AssetKey, asset
 
 from lakehousekit.schemas import DatahubIngestionOutput, PublishPostgresOutput
 
@@ -17,7 +17,7 @@ from lakehousekit.schemas import DatahubIngestionOutput, PublishPostgresOutput
     },
 )
 def ingest_dbt_to_datahub(
-    context: AssetExecutionContext,
+    context,
     publish_glucose_marts_to_postgres: PublishPostgresOutput,
 ) -> DatahubIngestionOutput:
     context.log.info(

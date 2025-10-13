@@ -4,7 +4,7 @@ import shutil
 from collections.abc import Generator, Mapping
 from typing import Any
 
-from dagster import AssetExecutionContext, AssetKey
+from dagster import AssetKey
 from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
 
 from lakehousekit.config import config
@@ -42,7 +42,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
     partitions_def=daily_partition,
 )
 def all_dbt_assets(
-    context: AssetExecutionContext, dbt: DbtCliResource
+    context, dbt: DbtCliResource
 ) -> Generator[object, None, None]:
     target = context.op_config.get("target") if context.op_config else None
     target = target or "duckdb"

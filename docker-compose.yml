@@ -59,10 +59,10 @@ services:
       ]
     ports: ["${DAGSTER_PORT}:3000"]
     volumes:
-      - ./dagster:/opt/dagster:ro
+      - ./dagster:/opt/dagster
       - ./lakehousekit:/opt/dagster/lakehousekit:ro
-      - ./dbt:/dbt  # Needs write for target/
-      - ./data:/data  # Needs write for DuckDB
+      - ./dbt:/dbt # Needs write for target/
+      - ./data:/data # Needs write for DuckDB
     depends_on:
       minio:
         condition: service_healthy
@@ -83,10 +83,10 @@ services:
       AWS_S3_ENDPOINT: http://minio:9000
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
-      - ./dagster:/opt/dagster:ro
+      - ./dagster:/opt/dagster
       - ./lakehousekit:/opt/dagster/lakehousekit:ro
-      - ./dbt:/dbt  # Needs write for target/
-      - ./data:/data  # Needs write for DuckDB
+      - ./dbt:/dbt # Needs write for target/
+      - ./data:/data # Needs write for DuckDB
     depends_on:
       dagster-webserver:
         condition: service_started
@@ -97,7 +97,8 @@ services:
       dockerfile: Dockerfile.superset
     container_name: superset
     restart: unless-stopped
-    command: ["/bin/sh", "-c", "/app/docker/docker-init.sh && /usr/bin/run-server.sh"]
+    command:
+      ["/bin/sh", "-c", "/app/docker/docker-init.sh && /usr/bin/run-server.sh"]
     environment:
       SUPERSET_SECRET_KEY: superset_secret_key_change_me
       SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
@@ -470,167 +471,6 @@ services:
         target: /etc/datahub/plugins
         bind:
           create_host_path: true
-
-  # Airbyte for data ingestion
-  airbyte-temporal:
-    image: airbyte/temporal:0.50.33
-    container_name: airbyte-temporal
-    restart: unless-stopped
-    environment:
-      DB: postgresql
-      DB_PORT: 5432
-      LOG_LEVEL: INFO
-      POSTGRES_PWD: airbyte
-      POSTGRES_SEEDS: airbyte-db
-      POSTGRES_USER: airbyte
-    depends_on:
-      airbyte-db:
-        condition: service_healthy
-
-  airbyte-db:
-    image: postgres:13-alpine
-    container_name: airbyte-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: airbyte
-      POSTGRES_PASSWORD: airbyte
-      POSTGRES_DB: airbyte
-    volumes:
-      - ./volumes/airbyte-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U airbyte"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  airbyte-bootloader:
-    image: airbyte/bootloader:0.50.33
-    container_name: airbyte-bootloader
-    environment:
-      DATABASE_USER: airbyte
-      DATABASE_PASSWORD: airbyte
-      DATABASE_HOST: airbyte-db
-      DATABASE_PORT: 5432
-      DATABASE_DB: airbyte
-      DATABASE_URL: jdbc:postgresql://airbyte-db:5432/airbyte
-      AIRBYTE_VERSION: 0.50.33
-    depends_on:
-      airbyte-db:
-        condition: service_healthy
-
-  airbyte-server:
-    image: airbyte/server:0.50.33
-    container_name: airbyte-server
-    restart: unless-stopped
-    environment:
-      MICRONAUT_ENVIRONMENTS: control-plane
-      DATABASE_USER: airbyte
-      DATABASE_PASSWORD: airbyte
-      DATABASE_HOST: airbyte-db
-      DATABASE_PORT: 5432
-      DATABASE_DB: airbyte
-      DATABASE_URL: jdbc:postgresql://airbyte-db:5432/airbyte
-      CONFIG_DATABASE_USER: airbyte
-      CONFIG_DATABASE_PASSWORD: airbyte
-      CONFIG_DATABASE_URL: jdbc:postgresql://airbyte-db:5432/airbyte
-      WORKSPACE_ROOT: /workspace
-      CONFIG_ROOT: /configs
-      TRACKING_STRATEGY: logging
-      LOCAL_ROOT: /tmp/airbyte_local
-      WEBAPP_URL: http://localhost:8000
-      TEMPORAL_HOST: airbyte-temporal:7233
-      AIRBYTE_VERSION: 0.50.33
-      CONFIGS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION: "0.35.15.001"
-      JOBS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION: "0.29.15.001"
-    ports:
-      - "${AIRBYTE_API_PORT:-8001}:8001"
-    volumes:
-      - ./data/airbyte/workspace:/workspace
-      - ./data/airbyte/configs:/configs
-      - /tmp/airbyte_local:/tmp/airbyte_local
-      - ./data:/data
-    depends_on:
-      airbyte-bootloader:
-        condition: service_completed_successfully
-      airbyte-db:
-        condition: service_healthy
-      airbyte-temporal:
-        condition: service_started
-
-  airbyte-webapp:
-    image: airbyte/webapp:0.50.33
-    container_name: airbyte-webapp
-    restart: unless-stopped
-    environment:
-      INTERNAL_API_HOST: airbyte-server:8001
-      CONNECTOR_BUILDER_API_HOST: airbyte-server:8003
-      TRACKING_STRATEGY: logging
-      KEYCLOAK_INTERNAL_HOST: localhost
-    ports:
-      - "${AIRBYTE_WEB_PORT:-8000}:80"
-    depends_on:
-      - airbyte-server
-
-  airbyte-worker:
-    image: airbyte/worker:0.50.33
-    container_name: airbyte-worker
-    restart: unless-stopped
-    environment:
-      MICRONAUT_ENVIRONMENTS: control-plane
-      DATABASE_USER: airbyte
-      DATABASE_PASSWORD: airbyte
-      DATABASE_HOST: airbyte-db
-      DATABASE_PORT: 5432
-      DATABASE_DB: airbyte
-      DATABASE_URL: jdbc:postgresql://airbyte-db:5432/airbyte
-      CONFIG_DATABASE_USER: airbyte
-      CONFIG_DATABASE_PASSWORD: airbyte
-      CONFIG_DATABASE_URL: jdbc:postgresql://airbyte-db:5432/airbyte
-      WORKSPACE_ROOT: /workspace
-      CONFIG_ROOT: /configs
-      LOCAL_ROOT: /tmp/airbyte_local
-      AIRBYTE_VERSION: 0.50.33
-      TEMPORAL_HOST: airbyte-temporal:7233
-      TRACKING_STRATEGY: logging
-      AIRBYTE_INTERNAL_API_HOST: airbyte-server:8001
-      INTERNAL_API_HOST: airbyte-server:8001
-      LOCAL_DOCKER_MOUNT: ${PWD}/data/airbyte/workspace
-      WORKSPACE_DOCKER_MOUNT: ${PWD}/data/airbyte/workspace
-    volumes:
-      - ./data/airbyte/workspace:/workspace
-      - ./data/airbyte/configs:/configs
-      - /tmp/airbyte_local:/tmp/airbyte_local
-      - ./data:/data
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      airbyte-bootloader:
-        condition: service_completed_successfully
-      airbyte-db:
-        condition: service_healthy
-      airbyte-temporal:
-        condition: service_started
-
-  airbyte-cron:
-    image: airbyte/cron:0.50.33
-    container_name: airbyte-cron
-    restart: unless-stopped
-    environment:
-      MICRONAUT_ENVIRONMENTS: control-plane
-      DATABASE_USER: airbyte
-      DATABASE_PASSWORD: airbyte
-      DATABASE_HOST: airbyte-db
-      DATABASE_PORT: 5432
-      DATABASE_DB: airbyte
-      DATABASE_URL: jdbc:postgresql://airbyte-db:5432/airbyte
-      WORKSPACE_ROOT: /workspace
-      AIRBYTE_VERSION: 0.50.33
-      CONFIGS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION: "0.35.15.001"
-      JOBS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION: "0.29.15.001"
-    volumes:
-      - ./data/airbyte/workspace:/workspace
-    depends_on:
-      airbyte-bootloader:
-        condition: service_completed_successfully
 
 volumes:
   datahub_kafka:

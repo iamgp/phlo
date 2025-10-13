@@ -3,7 +3,7 @@ cg_lakehouse:
   outputs:
     duckdb:
       type: duckdb
-      path: /data/duckdb/warehouse.duckdb
+      path: ../data/duckdb/warehouse.duckdb
       threads: 8
       # Optional: write external parquet by default via configs in models
       extensions: ["httpfs", "json", "parquet"]

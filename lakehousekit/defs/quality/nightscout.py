@@ -30,7 +30,6 @@ FROM main_curated.fact_glucose_readings
     asset=AssetKey(["fact_glucose_readings"]),
     blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
-    additional_deps=[AssetKey(["fact_glucose_readings"])],
 )
 def nightscout_glucose_quality_check(
     context, duckdb: DuckDBResource
