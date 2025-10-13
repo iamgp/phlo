@@ -9,7 +9,7 @@ dependencies = [
     "dagster-postgres",
     "dagster-dbt",
     "dagster-pandera",
-    "duckdb==1.1.0",  # Pinned to 1.1.0 for stability with dbt-duckdb and postgres extension
+    "duckdb>=1.3.0",  # DuckLake requires DuckDB 1.3.x for extension compatibility
     "dbt-duckdb",
     "dbt-postgres",
     "pandera>=0.18.0",

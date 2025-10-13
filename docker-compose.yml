@@ -62,7 +62,7 @@ services:
       - ./dagster:/opt/dagster
       - ./lakehousekit:/opt/dagster/lakehousekit:ro
       - ./dbt:/dbt # Needs write for target/
-      - ./data:/data # Needs write for DuckDB
+      - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
       minio:
         condition: service_healthy
@@ -86,7 +86,7 @@ services:
       - ./dagster:/opt/dagster
       - ./lakehousekit:/opt/dagster/lakehousekit:ro
       - ./dbt:/dbt # Needs write for target/
-      - ./data:/data # Needs write for DuckDB
+      - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
       dagster-webserver:
         condition: service_started

@@ -4,9 +4,9 @@ import dagster as dg
 from dagster_dbt import DbtCliResource
 
 from lakehousekit.config import config
-from lakehousekit.defs.resources.duckdb import DuckDBResource
+from lakehousekit.defs.resources.ducklake import DuckLakeResource
 
-__all__ = ["DuckDBResource"]
+__all__ = ["DuckLakeResource"]
 
 
 def _build_dbt_resource() -> DbtCliResource:
@@ -29,11 +29,13 @@ def build_defs() -> dg.Definitions:
     Returns:
         Definitions containing configured resources:
         - dbt: For SQL-based data transformations
-        - duckdb: For analytics database connections
+        - ducklake: For analytics database connections
     """
+    ducklake_resource = DuckLakeResource()
     return dg.Definitions(
         resources={
             "dbt": _build_dbt_resource(),
-            "duckdb": DuckDBResource(),
+            "duckdb": ducklake_resource,
+            "ducklake": ducklake_resource,
         }
     )

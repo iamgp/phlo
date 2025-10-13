@@ -7,6 +7,7 @@ import dlt
 import requests
 
 from lakehousekit.config import config
+from lakehousekit.dlt.ducklake_destination import build_destination as ducklake_destination
 from lakehousekit.defs.partitions import daily_partition
 
 
@@ -22,7 +23,7 @@ def nightscout_entries(context) -> dg.MaterializeResult:
     Ingest Nightscout data for specific partition using dlt with parameterized date filtering.
 
     Each partition fetches data for a specific day using the Nightscout API's date range filters.
-    Data is loaded into DuckDB raw schema.
+    Data is loaded into DuckLake via DuckDB with transactional catalog support.
     """
     partition_date = context.partition_key
 
@@ -32,12 +33,12 @@ def nightscout_entries(context) -> dg.MaterializeResult:
 
     context.log.info(f"Fetching Nightscout entries for partition {partition_date}")
 
-    # Create dlt pipeline targeting DuckDB
+    # Create dlt pipeline targeting DuckLake
     # Use partition-specific pipeline name to avoid lock conflicts in multiprocess execution
     pipeline = dlt.pipeline(
         pipeline_name=f"nightscout_{partition_date.replace('-', '_')}",
-        destination=dlt.destinations.duckdb(str(config.duckdb_path)),
-        dataset_name="raw",
+        destination=ducklake_destination(),
+        dataset_name=config.ducklake_default_dataset,
     )
 
     @dlt.resource(name="nightscout_entries", write_disposition="append")

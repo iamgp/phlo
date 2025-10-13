@@ -73,7 +73,7 @@ Perfect for Python developers learning modern data engineering patterns.
 | ------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------- |
 | **Data Sources**                | Lab instruments, LIMS/ELN, process equipment exports  | Generate raw batch and assay data                                |
 | **Landing / Data Lake**         | **MinIO (S3-compatible storage)** + **Parquet files** | Central repository for all raw and curated data in open formats  |
-| **Processing & Transformation** | **Dagster + Airbyte + dbt + DuckDB**                  | Orchestrates ingestion, validation, transformation, and loading  |
+| **Processing & Transformation** | **Dagster + DLT + dbt + DuckLake**               | Orchestrates ingestion, validation, transformation, and loading  |
 | **Metadata & Governance**       | **PostgreSQL + Great Expectations + Dagster lineage** | Maintains catalog, schema, data-quality checks, and audit trail  |
 | **Analytics & Reporting**       | **Postgres Marts + Superset Dashboarding**            | Presents trusted, near-real-time insights and KPIs               |
 | **Optional Extensions**         | **MotherDuck / OpenMetadata / MLflow**                | Cloud scalability, lineage catalog, and machine-learning support |
@@ -109,7 +109,7 @@ Perfect for Python developers learning modern data engineering patterns.
 
 ---
 
-### **C. DuckDB / DuckLake — Analytical Engine**
+### **C. DuckLake / DuckDB — Analytical Engine**
 
 - Performs **high-performance SQL analytics** directly on Parquet files.
 - Enables “warehouse-like” queries without needing large cloud clusters.
@@ -131,7 +131,7 @@ Perfect for Python developers learning modern data engineering patterns.
 - Manages all SQL-based transformations: cleaning, joining, aggregating, and enriching data.
 - Separates raw, staging, curated, and mart layers using versioned, auditable models.
 - Produces documentation and lineage for transparency.
-- Targets both DuckDB (curated Parquet) and PostgreSQL (marts).
+- Targets both DuckLake (curated Parquet) and PostgreSQL (marts).
 
 ---
 
@@ -173,7 +173,7 @@ Perfect for Python developers learning modern data engineering patterns.
 
 1. **Ingestion** – Airbyte automatically pulls new batch or assay files and stores them as Parquet in MinIO.
 2. **Validation** – Great Expectations verifies data completeness and quality.
-3. **Transformation** – dbt builds clean, structured “curated” datasets in DuckDB.
+3. **Transformation** – dbt builds clean, structured “curated” datasets in DuckLake.
 4. **Loading to Marts** – dbt materializes summarized and downsampled data into PostgreSQL for BI.
 5. **Orchestration & Scheduling** – Dagster coordinates all these steps, logs results, and provides visibility.
 6. **Analytics & Reporting** – Superset dashboards pull live metrics and trends from the Postgres marts.
@@ -290,13 +290,14 @@ docker-compose down -v  # WARNING: Destroys all data
 docker-compose up -d
 ```
 
-### DuckDB File Locked
+### DuckLake Transaction Conflicts
 
-DuckDB only allows one write connection at a time.
+DuckLake supports concurrent writers, but long-running jobs can still hold catalog locks.
 
 **Solution:**
-- Ensure `LAKEHOUSEKIT_FORCE_IN_PROCESS_EXECUTOR=true` is set for single-threaded execution
-- Check no other processes have the DuckDB file open
+- Keep partition tasks scoped to a single day to minimize transaction duration.
+- If a run crashes, rerun the failed partition—DuckLake retries now handle brief conflicts automatically.
+- For stuck locks, restart the Dagster worker to release the open DuckDB session.
 
 ### Configuration Issues
 
@@ -325,7 +326,7 @@ flowchart LR
     A[Lab Instruments] -->|CSV/API| B[LIMS / ELN]
   end
   subgraph Lakehouse
-    LZ[(MinIO / S3 Parquet)] --> DBT[dbt + DuckDB]
+    LZ[(MinIO / S3 Parquet)] --> DBT[dbt + DuckLake]
     DBT --> CUR[(Curated Parquet)]
     CUR --> PGS[(Postgres Marts)]
     DBT -->|Catalog| CAT[(Postgres Metadata)]
