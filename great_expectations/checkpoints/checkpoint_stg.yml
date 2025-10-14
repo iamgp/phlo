@@ -1,5 +1,0 @@
-name: checkpoint_stg
-config_version: 1
-class_name: SimpleCheckpoint
-validations:
-  - expectation_suite_name: stg_bioreactor_suite
