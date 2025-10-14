@@ -10,6 +10,7 @@ services:
     ports: ["${POSTGRES_PORT}:5432"]
     volumes:
       - ./volumes/postgres:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -23,7 +24,14 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    command: server --console-address ":${MINIO_CONSOLE_PORT}" /data
+    command: >
+      sh -c "
+      minio server --console-address :${MINIO_CONSOLE_PORT} /data &
+      sleep 5 &&
+      mc alias set myminio http://localhost:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing myminio/lake &&
+      wait
+      "
     ports:
       - "${MINIO_API_PORT}:9000"
       - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
