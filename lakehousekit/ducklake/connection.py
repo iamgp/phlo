@@ -91,7 +91,7 @@ def configure_ducklake_connection(
             REGION '{runtime.minio_region}',
             ENDPOINT '{runtime.minio_endpoint}',
             URL_STYLE '{runtime.s3_url_style}',
-            USE_SSL {'TRUE' if runtime.minio_use_ssl else 'FALSE'}
+            USE_SSL {"TRUE" if runtime.minio_use_ssl else "FALSE"}
         )
         """
     )

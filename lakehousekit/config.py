@@ -62,12 +62,6 @@ class Settings(BaseSettings):
         description="Whether DuckLake should use SSL when talking to object storage",
     )
 
-    # Services - Airbyte
-    airbyte_host: str = Field(
-        default="airbyte-server", description="Airbyte server host"
-    )
-    airbyte_api_port: int = Field(default=8001, description="Airbyte API port")
-
     # Services - Superset
     superset_port: int = Field(default=8088, description="Superset web port")
     superset_admin_user: str = Field(
@@ -76,11 +70,6 @@ class Settings(BaseSettings):
     superset_admin_password: str = Field(description="Superset admin password")
     superset_admin_email: str = Field(
         default="admin@example.com", description="Superset admin email"
-    )
-
-    # Services - DataHub
-    datahub_frontend_port: int = Field(
-        default=9002, description="DataHub frontend port"
     )
 
     # Paths
@@ -132,10 +121,6 @@ class Settings(BaseSettings):
     def raw_bioreactor_path_obj(self) -> Path:
         """Return raw bioreactor path as Path object."""
         return Path(self.raw_bioreactor_path)
-
-    def get_airbyte_base_url(self) -> str:
-        """Construct Airbyte base URL from host and port."""
-        return f"http://{self.airbyte_host}:{self.airbyte_api_port}"
 
     def get_postgres_connection_string(self, include_db: bool = True) -> str:
         """

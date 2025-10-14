@@ -51,7 +51,9 @@ def build_sensors() -> list[dg.SensorDefinition]:
         context.update_cursor(cursor)
 
         if partition_key:
-            yield RunRequest(run_key=f"{cursor}:{partition_key}", partition_key=partition_key)
+            yield RunRequest(
+                run_key=f"{cursor}:{partition_key}", partition_key=partition_key
+            )
         else:
             yield RunRequest(run_key=cursor)
 

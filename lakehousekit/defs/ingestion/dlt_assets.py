@@ -10,7 +10,9 @@ import dlt
 import requests
 
 from lakehousekit.config import config
-from lakehousekit.dlt.ducklake_destination import build_destination as ducklake_destination
+from lakehousekit.dlt.ducklake_destination import (
+    build_destination as ducklake_destination,
+)
 from lakehousekit.defs.partitions import daily_partition
 
 
@@ -41,15 +43,16 @@ def dlt_pipeline_context(
     try:
         yield pipeline
     finally:
-        # Explicit cleanup of DuckDB connections
         try:
-            if hasattr(pipeline, "_destination_client") and pipeline._destination_client:
+            if (
+                hasattr(pipeline, "_destination_client")
+                and pipeline._destination_client
+            ):
                 client = pipeline._destination_client
                 if hasattr(client, "sql_client") and client.sql_client:
                     if hasattr(client.sql_client, "_conn") and client.sql_client._conn:
                         client.sql_client._conn.close()
         except Exception:
-            # Silently ignore cleanup errors to avoid masking original exception
             pass
 
 
@@ -59,7 +62,8 @@ def dlt_pipeline_context(
     partitions_def=daily_partition,
     description="Nightscout CGM entries ingested via dlt with daily partitioning",
     compute_kind="dlt",
-    op_tags={"dagster/max_runtime": 300},  # 5-minute timeout at Dagster level
+    op_tags={"dagster/max_runtime": 30},  # 30-second timeout at Dagster level
+    retry_policy=dg.RetryPolicy(max_retries=3, delay=30),  # Retry 3x with 30s delay
 )
 def nightscout_entries(context) -> dg.MaterializeResult:
     """
@@ -77,11 +81,9 @@ def nightscout_entries(context) -> dg.MaterializeResult:
     partition_date = context.partition_key
     pipeline_name = f"nightscout_{partition_date.replace('-', '_')}"
 
-    # Define start and end times for this partition (full day in UTC)
     start_time = f"{partition_date}T00:00:00.000Z"
     end_time = f"{partition_date}T23:59:59.999Z"
 
-    # Create isolated pipeline working directory
     pipelines_base_dir = Path.home() / ".dlt" / "pipelines" / "partitioned"
     pipelines_base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -115,7 +117,6 @@ def nightscout_entries(context) -> dg.MaterializeResult:
             raise
 
     try:
-        # Use context manager for automatic cleanup
         context.log.info(f"Creating DLT pipeline '{pipeline_name}'")
         start_time_ts = time.time()
 
@@ -134,61 +135,73 @@ def nightscout_entries(context) -> dg.MaterializeResult:
                 f"Pipeline '{pipeline_name}' completed successfully in {elapsed:.2f}s"
             )
 
-            # Extract metrics - DLT load info structure
             context.log.debug(f"Load info structure: {info}")
             context.log.debug(f"Load info metrics: {info.metrics}")
 
-            # Extract row count from DLT LoadInfo properly
             rows_loaded = 0
-            
-            # Method 1: Check load packages for completed jobs
             if hasattr(info, "load_packages") and info.load_packages:
                 for package in info.load_packages:
                     if hasattr(package, "jobs") and package.jobs:
                         context.log.debug(f"Package jobs: {package.jobs}")
                         for job_id, job_info in package.jobs.items():
-                            # Count completed jobs that loaded actual data (not just pipeline state)
-                            if (hasattr(job_info, "state") and job_info.state == "completed_jobs" and
-                                hasattr(job_info, "job_file_info") and job_info.job_file_info and
-                                hasattr(job_info.job_file_info, "table_name") and
-                                job_info.job_file_info.table_name == "nightscout_entries"):
-                                # Estimate rows from file size (rough approximation)
-                                if hasattr(job_info, "file_size") and job_info.file_size:
-                                    # Rough estimate: ~50 bytes per row average for JSON CGM data
+                            if (
+                                hasattr(job_info, "state")
+                                and job_info.state == "completed_jobs"
+                                and hasattr(job_info, "job_file_info")
+                                and job_info.job_file_info
+                                and hasattr(job_info.job_file_info, "table_name")
+                                and job_info.job_file_info.table_name
+                                == "nightscout_entries"
+                            ):
+                                if (
+                                    hasattr(job_info, "file_size")
+                                    and job_info.file_size
+                                ):
                                     estimated_rows = max(1, job_info.file_size // 50)
                                     rows_loaded += estimated_rows
-                                    context.log.debug(f"Job {job_id}: file_size={job_info.file_size}, estimated_rows={estimated_rows}")
-
-            # Method 2: Check metrics from LoadInfo.metrics for job_metrics
+                                    context.log.debug(
+                                        f"Job {job_id}: file_size={job_info.file_size}, estimated_rows={estimated_rows}"
+                                    )
             if rows_loaded == 0 and hasattr(info, "metrics") and info.metrics:
                 for package_id, package_data in info.metrics.items():
                     if isinstance(package_data, list):
                         for load_step in package_data:
                             if "job_metrics" in load_step:
-                                for job_id, job_metrics in load_step["job_metrics"].items():
-                                    # Look for the main data table (not pipeline state)
-                                    if "nightscout_entries" in job_id and hasattr(job_metrics, "state") and job_metrics.state == "completed":
-                                        # If we have a successful load job, assume at least some data was loaded
-                                        rows_loaded += 1  # Conservative estimate
-                                        context.log.debug(f"Found completed job: {job_id}")
-
-            # Method 3: Conservative fallback - if we have any evidence of data loading, report at least 1 row
+                                for job_id, job_metrics in load_step[
+                                    "job_metrics"
+                                ].items():
+                                    if (
+                                        "nightscout_entries" in job_id
+                                        and hasattr(job_metrics, "state")
+                                        and job_metrics.state == "completed"
+                                    ):
+                                        rows_loaded += 1
+                                        context.log.debug(
+                                            f"Found completed job: {job_id}"
+                                        )
             if rows_loaded == 0:
-                # Check if we have any completed jobs at all
                 has_completed_jobs = False
                 if hasattr(info, "load_packages") and info.load_packages:
                     for package in info.load_packages:
                         if hasattr(package, "jobs") and package.jobs:
-                            completed_jobs = [j for j in package.jobs.values() if hasattr(j, "state") and j.state == "completed_jobs"]
+                            completed_jobs = [
+                                j
+                                for j in package.jobs.values()
+                                if hasattr(j, "state") and j.state == "completed_jobs"
+                            ]
                             if completed_jobs:
                                 has_completed_jobs = True
                                 break
-                
-                if has_completed_jobs:
-                    rows_loaded = 1  # Conservative: we know something was loaded
-                    context.log.info(f"Conservative estimate: detected completed jobs, assuming at least 1 row loaded")
 
-            context.log.info(f"Loaded {rows_loaded} rows for partition {partition_date}")
+                if has_completed_jobs:
+                    rows_loaded = 1
+                    context.log.info(
+                        "Conservative estimate: detected completed jobs, assuming at least 1 row loaded"
+                    )
+
+            context.log.info(
+                f"Loaded {rows_loaded} rows for partition {partition_date}"
+            )
 
             return dg.MaterializeResult(
                 metadata={
@@ -202,9 +215,7 @@ def nightscout_entries(context) -> dg.MaterializeResult:
             )
 
     except requests.RequestException as e:
-        context.log.error(
-            f"API request failed for partition {partition_date}: {e}"
-        )
+        context.log.error(f"API request failed for partition {partition_date}: {e}")
         raise RuntimeError(
             f"Failed to fetch data from Nightscout API for partition {partition_date}"
         ) from e

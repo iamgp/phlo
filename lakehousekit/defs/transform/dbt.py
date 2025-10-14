@@ -41,9 +41,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
     dagster_dbt_translator=CustomDbtTranslator(),
     partitions_def=daily_partition,
 )
-def all_dbt_assets(
-    context, dbt: DbtCliResource
-) -> Generator[object, None, None]:
+def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None]:
     target = context.op_config.get("target") if context.op_config else None
     target = target or "ducklake"
 

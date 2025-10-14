@@ -9,7 +9,7 @@ dependencies = [
     "dagster-postgres",
     "dagster-dbt",
     "dagster-pandera",
-    "duckdb>=1.3.0",  # DuckLake requires DuckDB 1.3.x for extension compatibility
+    "duckdb==1.4.1",  # Upgraded for better multiprocessing/fork safety
     "dbt-duckdb",
     "dbt-postgres",
     "pandera>=0.18.0",
@@ -18,7 +18,7 @@ dependencies = [
     "minio",
     "boto3",
     "pyyaml",
-    "acryl-datahub[dbt]",
+
     "requests",
     "pandas>=2.0",  # Updated from <2.0 after migrating from Great Expectations to Pandera
     "tenacity",
