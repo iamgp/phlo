@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import dagster as dg
 
-from lakehousekit.defs.schedules.pipeline import build_asset_jobs, build_schedules
+from lakehousekit.defs.schedules.pipeline import (
+    build_asset_jobs,
+    build_schedules,
+    build_sensors,
+)
 
 
 def build_defs() -> dg.Definitions:
     jobs = build_asset_jobs()
 
-    transform_job = next(job for job in jobs if job.name == "transform_dbt_models")
-    schedules = build_schedules(transform_job)
+    schedules = build_schedules()
+    sensors = build_sensors()
 
-    return dg.Definitions(jobs=jobs, schedules=schedules)
+    return dg.Definitions(jobs=jobs, schedules=schedules, sensors=sensors)
