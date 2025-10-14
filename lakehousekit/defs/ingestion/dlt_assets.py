@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import multiprocessing as mp
 import time
+import traceback
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -20,6 +22,169 @@ class PipelineTimeoutError(Exception):
     """Raised when a pipeline run exceeds its timeout."""
 
     pass
+
+
+PIPELINE_TIMEOUT_SECONDS = 30
+
+
+def _pipeline_worker(
+    result_queue: mp.Queue,
+    *,
+    pipeline_name: str,
+    dataset_name: str,
+    pipelines_dir: str,
+    entries: list[dict[str, Any]],
+) -> None:
+    """
+    Execute the DLT pipeline in a separate process and communicate the result back.
+    """
+    start_ts = time.time()
+    rows_attempted = len(entries)
+    logs: list[tuple[str, str]] = []
+
+    def record(level: str, message: str, *args: Any) -> None:
+        formatted = message % args if args else message
+        logs.append((level, formatted))
+
+    record("info", f"[worker] Starting DuckLake load for pipeline '{pipeline_name}'")
+    record("debug", f"[worker] Entries to load: {rows_attempted}")
+    try:
+        with dlt_pipeline_context(
+            pipeline_name=pipeline_name,
+            destination=ducklake_destination(),
+            dataset_name=dataset_name,
+            pipelines_dir=pipelines_dir,
+        ) as pipeline:
+            destination_client = getattr(pipeline, "_destination_client", None)
+            record(
+                "debug",
+                "[worker] DLT pipeline context created; destination=%s",
+                type(destination_client).__name__ if destination_client else "unknown",
+            )
+            runtime_config = getattr(destination_client, "runtime_config", None)
+            if runtime_config:
+                record(
+                    "debug",
+                    "[worker] DuckLake runtime: dataset=%s staging=%s retry_count=%s backoff=%s wait_ms=%s",
+                    getattr(runtime_config, "default_dataset", "unknown"),
+                    getattr(runtime_config, "staging_dataset", "unknown"),
+                    getattr(runtime_config, "ducklake_retry_count", "unknown"),
+                    getattr(runtime_config, "ducklake_retry_backoff", "unknown"),
+                    getattr(runtime_config, "ducklake_retry_wait_ms", "unknown"),
+                )
+
+            @dlt.resource(name="nightscout_entries", write_disposition="append")
+            def provide_entries() -> Any:
+                yield entries
+
+            record("debug", "[worker] Invoking pipeline.run for '%s'", pipeline_name)
+            pipeline.run(provide_entries())
+            record("info", f"[worker] pipeline.run completed for '{pipeline_name}'")
+
+        elapsed = time.time() - start_ts
+        record(
+            "info",
+            "[worker] DuckLake load finished in %.2fs (rows=%s)",
+            elapsed,
+            rows_attempted,
+        )
+        result_queue.put(
+            {
+                "status": "success",
+                "rows_loaded": rows_attempted,
+                "elapsed": elapsed,
+                "logs": logs,
+            }
+        )
+    except Exception as exc:  # noqa: BLE001
+        record("error", f"[worker] Pipeline failed: {exc}")
+        result_queue.put(
+            {
+                "status": "error",
+                "error": str(exc),
+                "traceback": traceback.format_exc(),
+                "logs": logs,
+            }
+        )
+
+
+def run_pipeline_with_timeout(
+    *,
+    pipeline_name: str,
+    dataset_name: str,
+    pipelines_dir: str,
+    entries: list[dict[str, Any]],
+    timeout_seconds: int,
+    context,
+    partition_key: str,
+) -> dict[str, Any]:
+    """
+    Spawn a process to run the DLT pipeline with a hard timeout.
+    """
+    ctx = mp.get_context("spawn")
+    result_queue: mp.Queue = ctx.Queue()
+
+    process = ctx.Process(
+        target=_pipeline_worker,
+        kwargs={
+            "result_queue": result_queue,
+            "pipeline_name": pipeline_name,
+            "dataset_name": dataset_name,
+            "pipelines_dir": pipelines_dir,
+            "entries": entries,
+        },
+        name=f"dlt-pipeline-{pipeline_name}",
+        daemon=True,
+    )
+    context.log.debug(
+        "Launching DuckLake worker process for pipeline '%s' (partition %s)",
+        pipeline_name,
+        partition_key,
+    )
+    process.start()
+
+    process.join(timeout_seconds)
+    if process.is_alive():
+        context.log.error(
+            "Pipeline '%s' for partition %s exceeded %ss timeout; terminating process",
+            pipeline_name,
+            partition_key,
+            timeout_seconds,
+        )
+        process.terminate()
+        process.join(5)
+        raise PipelineTimeoutError(
+            f"Pipeline '{pipeline_name}' timed out after {timeout_seconds}s"
+        )
+
+    if result_queue.empty():
+        raise RuntimeError(
+            f"Pipeline '{pipeline_name}' exited without returning a result"
+        )
+
+    result = result_queue.get()
+
+    for level, message in result.get("logs", []):
+        log_method = getattr(context.log, level, context.log.info)
+        try:
+            log_method(message)
+        except Exception:  # noqa: BLE001
+            context.log.info(message)
+
+    result.pop("logs", None)
+
+    if result.get("status") != "success":
+        error_message = result.get("error", "Unknown pipeline failure")
+        tb = result.get("traceback")
+        if tb:
+            context.log.error(
+                "Pipeline '%s' failed with traceback:\n%s", pipeline_name, tb
+            )
+        raise RuntimeError(
+            f"Pipeline execution failed for partition {partition_key}: {error_message}"
+        )
+
+    return result
 
 
 @contextmanager
@@ -62,7 +227,7 @@ def dlt_pipeline_context(
     partitions_def=daily_partition,
     description="Nightscout CGM entries ingested via dlt with daily partitioning",
     compute_kind="dlt",
-    op_tags={"dagster/max_runtime": 30},  # 30-second timeout at Dagster level
+    op_tags={"dagster/max_runtime": PIPELINE_TIMEOUT_SECONDS},
     retry_policy=dg.RetryPolicy(max_retries=3, delay=30),  # Retry 3x with 30s delay
 )
 def nightscout_entries(context) -> dg.MaterializeResult:
@@ -75,7 +240,7 @@ def nightscout_entries(context) -> dg.MaterializeResult:
     Features:
     - Isolated pipeline working directories per partition
     - Automatic connection cleanup
-    - 5-minute timeout protection
+    - 30-second timeout protection
     - Comprehensive error handling and logging
     """
     partition_date = context.partition_key
@@ -92,10 +257,7 @@ def nightscout_entries(context) -> dg.MaterializeResult:
     )
     context.log.info(f"Date range: {start_time} to {end_time}")
 
-    @dlt.resource(name="nightscout_entries", write_disposition="append")
-    def get_entries() -> Any:
-        """Fetch entries from Nightscout API with date range parameters."""
-        context.log.info(f"Fetching data from Nightscout API for {partition_date}")
+    try:
         try:
             response = requests.get(
                 "https://gwp-diabetes.fly.dev/api/v1/entries.json",
@@ -107,112 +269,46 @@ def nightscout_entries(context) -> dg.MaterializeResult:
                 timeout=30,
             )
             response.raise_for_status()
-            data = response.json()
+            entries: list[dict[str, Any]] = response.json()
             context.log.info(
-                f"Successfully fetched {len(data)} entries from Nightscout API"
+                f"Successfully fetched {len(entries)} entries from Nightscout API"
             )
-            yield data
         except requests.RequestException as e:
             context.log.error(f"Failed to fetch data from Nightscout API: {e}")
             raise
 
-    try:
-        context.log.info(f"Creating DLT pipeline '{pipeline_name}'")
-        start_time_ts = time.time()
+        context.log.info(
+            f"Launching DLT pipeline '{pipeline_name}' in isolated process"
+        )
 
-        with dlt_pipeline_context(
+        result = run_pipeline_with_timeout(
             pipeline_name=pipeline_name,
-            destination=ducklake_destination(),
             dataset_name=config.ducklake_default_dataset,
             pipelines_dir=str(pipelines_base_dir),
-        ) as pipeline:
-            context.log.info("Pipeline created. Beginning data extraction and load...")
+            entries=entries,
+            timeout_seconds=PIPELINE_TIMEOUT_SECONDS,
+            context=context,
+            partition_key=partition_date,
+        )
 
-            info = pipeline.run(get_entries())
+        elapsed = result["elapsed"]
+        rows_loaded = result["rows_loaded"]
 
-            elapsed = time.time() - start_time_ts
-            context.log.info(
-                f"Pipeline '{pipeline_name}' completed successfully in {elapsed:.2f}s"
-            )
+        context.log.info(
+            f"Pipeline '{pipeline_name}' completed successfully in {elapsed:.2f}s"
+        )
+        context.log.info(f"Loaded {rows_loaded} rows for partition {partition_date}")
 
-            context.log.debug(f"Load info structure: {info}")
-            context.log.debug(f"Load info metrics: {info.metrics}")
-
-            rows_loaded = 0
-            if hasattr(info, "load_packages") and info.load_packages:
-                for package in info.load_packages:
-                    if hasattr(package, "jobs") and package.jobs:
-                        context.log.debug(f"Package jobs: {package.jobs}")
-                        for job_id, job_info in package.jobs.items():
-                            if (
-                                hasattr(job_info, "state")
-                                and job_info.state == "completed_jobs"
-                                and hasattr(job_info, "job_file_info")
-                                and job_info.job_file_info
-                                and hasattr(job_info.job_file_info, "table_name")
-                                and job_info.job_file_info.table_name
-                                == "nightscout_entries"
-                            ):
-                                if (
-                                    hasattr(job_info, "file_size")
-                                    and job_info.file_size
-                                ):
-                                    estimated_rows = max(1, job_info.file_size // 50)
-                                    rows_loaded += estimated_rows
-                                    context.log.debug(
-                                        f"Job {job_id}: file_size={job_info.file_size}, estimated_rows={estimated_rows}"
-                                    )
-            if rows_loaded == 0 and hasattr(info, "metrics") and info.metrics:
-                for package_id, package_data in info.metrics.items():
-                    if isinstance(package_data, list):
-                        for load_step in package_data:
-                            if "job_metrics" in load_step:
-                                for job_id, job_metrics in load_step[
-                                    "job_metrics"
-                                ].items():
-                                    if (
-                                        "nightscout_entries" in job_id
-                                        and hasattr(job_metrics, "state")
-                                        and job_metrics.state == "completed"
-                                    ):
-                                        rows_loaded += 1
-                                        context.log.debug(
-                                            f"Found completed job: {job_id}"
-                                        )
-            if rows_loaded == 0:
-                has_completed_jobs = False
-                if hasattr(info, "load_packages") and info.load_packages:
-                    for package in info.load_packages:
-                        if hasattr(package, "jobs") and package.jobs:
-                            completed_jobs = [
-                                j
-                                for j in package.jobs.values()
-                                if hasattr(j, "state") and j.state == "completed_jobs"
-                            ]
-                            if completed_jobs:
-                                has_completed_jobs = True
-                                break
-
-                if has_completed_jobs:
-                    rows_loaded = 1
-                    context.log.info(
-                        "Conservative estimate: detected completed jobs, assuming at least 1 row loaded"
-                    )
-
-            context.log.info(
-                f"Loaded {rows_loaded} rows for partition {partition_date}"
-            )
-
-            return dg.MaterializeResult(
-                metadata={
-                    "partition_date": dg.MetadataValue.text(partition_date),
-                    "rows_loaded": dg.MetadataValue.int(rows_loaded),
-                    "start_time": dg.MetadataValue.text(start_time),
-                    "end_time": dg.MetadataValue.text(end_time),
-                    "pipeline_name": dg.MetadataValue.text(pipeline_name),
-                    "execution_time_seconds": dg.MetadataValue.float(elapsed),
-                }
-            )
+        return dg.MaterializeResult(
+            metadata={
+                "partition_date": dg.MetadataValue.text(partition_date),
+                "rows_loaded": dg.MetadataValue.int(rows_loaded),
+                "start_time": dg.MetadataValue.text(start_time),
+                "end_time": dg.MetadataValue.text(end_time),
+                "pipeline_name": dg.MetadataValue.text(pipeline_name),
+                "execution_time_seconds": dg.MetadataValue.float(elapsed),
+            }
+        )
 
     except requests.RequestException as e:
         context.log.error(f"API request failed for partition {partition_date}: {e}")

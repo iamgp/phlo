@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import platform
 
 import dagster as dg
 
@@ -27,9 +28,12 @@ def _default_executor() -> dg.ExecutorDefinition | None:
         return dg.in_process_executor
 
     if config.lakehousekit_force_multiprocess_executor:
-        return None
+        return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
-    return dg.in_process_executor
+    if platform.system() == "Darwin":
+        return dg.in_process_executor
+
+    return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
 
 def _merged_definitions() -> dg.Definitions:

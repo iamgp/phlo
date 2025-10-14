@@ -25,8 +25,8 @@ class DuckLakeRuntimeConfig:
     minio_use_ssl: bool
     s3_url_style: str = "path"
     ducklake_retry_count: int = 100
-    ducklake_retry_wait_ms: int = 200
-    ducklake_retry_backoff: float = 1.8
+    ducklake_retry_wait_ms: int = 100
+    ducklake_retry_backoff: float = 2.0
 
     @property
     def postgres_secret_name(self) -> str:
