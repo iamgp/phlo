@@ -3,14 +3,12 @@ from __future__ import annotations
 import pandera.errors
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 
-from lakehousekit.config import config
-from lakehousekit.defs.resources import DuckDBResource
+from lakehousekit.defs.resources import DuckLakeResource
 from lakehousekit.schemas.glucose import (
     FactGlucoseReadings,
     get_fact_glucose_dagster_type,
 )
 
-DUCKDB_PATH = config.duckdb_path
 FACT_QUERY_BASE = """
 SELECT
     entry_id,
@@ -30,10 +28,9 @@ FROM main_curated.fact_glucose_readings
     asset=AssetKey(["fact_glucose_readings"]),
     blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
-    additional_deps=[AssetKey(["fact_glucose_readings"])],
 )
 def nightscout_glucose_quality_check(
-    context, duckdb: DuckDBResource
+    context, duckdb: DuckLakeResource
 ) -> AssetCheckResult:
     """
     Quality check using Pandera for type-safe schema validation.
@@ -41,19 +38,6 @@ def nightscout_glucose_quality_check(
     Validates glucose readings against the FactGlucoseReadings schema,
     checking data types, ranges, and business rules.
     """
-    # Check if DuckDB file exists first
-    if not DUCKDB_PATH.exists():
-        context.log.warning("DuckDB file does not exist yet; skipping quality check.")
-        return AssetCheckResult(
-            passed=True,
-            metadata={
-                "reason": MetadataValue.text("duckdb_not_found_skipped"),
-                "note": MetadataValue.text(
-                    "This is expected on first run before data is loaded"
-                ),
-            },
-        )
-
     # Build query with partition filter if applicable
     query = FACT_QUERY_BASE
     if context.has_partition_key:
@@ -61,18 +45,41 @@ def nightscout_glucose_quality_check(
         query = f"{FACT_QUERY_BASE}\nWHERE DATE(reading_timestamp) = '{partition_date}'"
         context.log.info(f"Validating partition: {partition_date}")
 
-    # Load data from DuckDB
-    context.log.info("Loading data from DuckDB...")
     try:
         with duckdb.get_connection() as conn:
+            table_exists = conn.execute(
+                """
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'main_curated'
+                  AND table_name = 'fact_glucose_readings'
+                LIMIT 1
+                """
+            ).fetchone()
+
+            if not table_exists:
+                context.log.warning(
+                    "DuckLake table main_curated.fact_glucose_readings not found; skipping quality check."
+                )
+                return AssetCheckResult(
+                    passed=True,
+                    metadata={
+                        "reason": MetadataValue.text("ducklake_table_missing"),
+                        "note": MetadataValue.text(
+                            "Table is created after the first successful transform run."
+                        ),
+                    },
+                )
+
+            context.log.info("Loading data from DuckLake...")
             fact_df = conn.execute(query).df()
         context.log.info(f"Loaded {len(fact_df)} rows from fact_glucose_readings")
     except Exception as exc:
-        context.log.error(f"Failed to load data from DuckDB: {exc}")
+        context.log.error(f"Failed to load data from DuckLake: {exc}")
         return AssetCheckResult(
             passed=False,
             metadata={
-                "reason": MetadataValue.text("duckdb_query_failed"),
+                "reason": MetadataValue.text("ducklake_query_failed"),
                 "error": MetadataValue.text(str(exc)),
             },
         )

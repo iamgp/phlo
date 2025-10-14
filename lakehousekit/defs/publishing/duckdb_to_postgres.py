@@ -5,7 +5,7 @@ from urllib.parse import quote_plus
 from dagster import AssetKey, asset
 
 from lakehousekit.config import config
-from lakehousekit.defs.resources import DuckDBResource
+from lakehousekit.defs.resources import DuckLakeResource
 from lakehousekit.schemas import PublishPostgresOutput, TablePublishStats
 
 
@@ -20,9 +20,9 @@ from lakehousekit.schemas import PublishPostgresOutput, TablePublishStats
     ],
 )
 def publish_glucose_marts_to_postgres(
-    context, duckdb: DuckDBResource
+    context, duckdb: DuckLakeResource
 ) -> PublishPostgresOutput:
-    duckdb_path = config.duckdb_path
+    ducklake_path = config.ducklake_data_path
     postgres_host = config.postgres_host
     postgres_port = config.postgres_port
     postgres_user = config.postgres_user
@@ -37,8 +37,8 @@ def publish_glucose_marts_to_postgres(
     }
 
     context.log.info(
-        "Publishing DuckDB marts to Postgres. duckdb_path=%s target_schema=%s",
-        duckdb_path,
+        "Publishing DuckLake marts to Postgres. data_path=%s target_schema=%s",
+        ducklake_path,
         target_schema,
     )
 
@@ -98,7 +98,7 @@ def publish_glucose_marts_to_postgres(
             duck_con.execute("DETACH pg_marts")
     except Exception as exc:
         context.log.exception(
-            "Failed to publish DuckDB marts to Postgres: %s",
+            "Failed to publish DuckLake marts to Postgres: %s",
             exc,
         )
         raise RuntimeError(

@@ -1,5 +1,7 @@
 # DuckDB (Analytical Engine)
 
+> **Note:** Lakehousekit now mounts DuckDB through the DuckLake extension, using PostgreSQL for the catalog and MinIO for table storage. The settings below still apply because DuckLake is implemented as a DuckDB extension.
+
 ## Overview
 
 DuckDB is an in-process analytical database optimized for OLAP queries. It serves as the primary query engine for the lakehouse, executing SQL directly on Parquet files without requiring data loading.

@@ -26,23 +26,41 @@ class Settings(BaseSettings):
         default="marts", description="Schema for published mart tables"
     )
 
-    # Storage - DuckDB
-    duckdb_warehouse_path: str = Field(
-        default="/data/duckdb/warehouse.duckdb",
-        description="Path to DuckDB warehouse file",
-    )
-
     # Storage - MinIO
+    minio_host: str = Field(default="minio", description="MinIO service hostname")
     minio_root_user: str = Field(default="minio", description="MinIO root username")
     minio_root_password: str = Field(description="MinIO root password")
     minio_api_port: int = Field(default=9000, description="MinIO API port")
     minio_console_port: int = Field(default=9001, description="MinIO console port")
 
-    # Services - Airbyte
-    airbyte_host: str = Field(
-        default="airbyte-server", description="Airbyte server host"
+    # Storage - DuckLake
+    ducklake_catalog_database: str = Field(
+        default="ducklake_catalog",
+        description="PostgreSQL database storing DuckLake catalog metadata",
     )
-    airbyte_api_port: int = Field(default=8001, description="Airbyte API port")
+    ducklake_catalog_alias: str = Field(
+        default="ducklake",
+        description="Alias used when attaching the DuckLake catalog in DuckDB",
+    )
+    ducklake_data_bucket: str = Field(
+        default="lake", description="Object store bucket for DuckLake data files"
+    )
+    ducklake_data_prefix: str = Field(
+        default="ducklake",
+        description="Prefix within the DuckLake data bucket for managed tables",
+    )
+    ducklake_default_dataset: str = Field(
+        default="raw",
+        description="Default dataset/schema used by ingestion jobs inside DuckLake",
+    )
+    ducklake_region: str = Field(
+        default="eu-west-1",
+        description="Region identifier used for DuckLake S3/MinIO connections",
+    )
+    ducklake_use_ssl: bool = Field(
+        default=False,
+        description="Whether DuckLake should use SSL when talking to object storage",
+    )
 
     # Services - Superset
     superset_port: int = Field(default=8088, description="Superset web port")
@@ -52,11 +70,6 @@ class Settings(BaseSettings):
     superset_admin_password: str = Field(description="Superset admin password")
     superset_admin_email: str = Field(
         default="admin@example.com", description="Superset admin email"
-    )
-
-    # Services - DataHub
-    datahub_frontend_port: int = Field(
-        default=9002, description="DataHub frontend port"
     )
 
     # Paths
@@ -82,9 +95,17 @@ class Settings(BaseSettings):
     flask_debug: bool = Field(default=False, description="Flask debug mode")
 
     @property
-    def duckdb_path(self) -> Path:
-        """Return DuckDB warehouse path as Path object."""
-        return Path(self.duckdb_warehouse_path)
+    def minio_endpoint(self) -> str:
+        """Return MinIO endpoint in host:port form."""
+        return f"{self.minio_host}:{self.minio_api_port}"
+
+    @property
+    def ducklake_data_path(self) -> str:
+        """Return fully-qualified DuckLake data path."""
+        prefix = self.ducklake_data_prefix.strip("/")
+        if prefix:
+            return f"s3://{self.ducklake_data_bucket}/{prefix}"
+        return f"s3://{self.ducklake_data_bucket}"
 
     @property
     def dbt_project_path(self) -> Path:
@@ -100,10 +121,6 @@ class Settings(BaseSettings):
     def raw_bioreactor_path_obj(self) -> Path:
         """Return raw bioreactor path as Path object."""
         return Path(self.raw_bioreactor_path)
-
-    def get_airbyte_base_url(self) -> str:
-        """Construct Airbyte base URL from host and port."""
-        return f"http://{self.airbyte_host}:{self.airbyte_api_port}"
 
     def get_postgres_connection_string(self, include_db: bool = True) -> str:
         """

@@ -1,23 +1,12 @@
 from __future__ import annotations
 
 import dagster as dg
-from dagster_airbyte import AirbyteResource
 from dagster_dbt import DbtCliResource
 
 from lakehousekit.config import config
-from lakehousekit.defs.resources.duckdb import DuckDBResource
+from lakehousekit.defs.resources.ducklake import DuckLakeResource
 
-__all__ = ["DuckDBResource"]
-
-
-def _build_airbyte_resource() -> AirbyteResource:
-    """
-    Build the Airbyte resource for data ingestion.
-
-    Returns:
-        Configured AirbyteResource using host and port from config
-    """
-    return AirbyteResource(host=config.airbyte_host, port=str(config.airbyte_api_port))
+__all__ = ["DuckLakeResource"]
 
 
 def _build_dbt_resource() -> DbtCliResource:
@@ -39,14 +28,14 @@ def build_defs() -> dg.Definitions:
 
     Returns:
         Definitions containing configured resources:
-        - airbyte: For data ingestion from external sources
         - dbt: For SQL-based data transformations
-        - duckdb: For analytics database connections
+        - ducklake: For analytics database connections
     """
+    ducklake_resource = DuckLakeResource()
     return dg.Definitions(
         resources={
-            "airbyte": _build_airbyte_resource(),
             "dbt": _build_dbt_resource(),
-            "duckdb": DuckDBResource(),
+            "duckdb": ducklake_resource,
+            "ducklake": ducklake_resource,
         }
     )

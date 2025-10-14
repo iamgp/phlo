@@ -442,7 +442,7 @@ Each asset opens new DuckDB connection. For frequent executions, this is ineffic
 from dagster import ConfigurableResource
 import duckdb
 
-class DuckDBResource(ConfigurableResource):
+class DuckLakeResource(ConfigurableResource):
     database_path: str = "/data/duckdb/warehouse.duckdb"
 
     def get_connection(self):
@@ -453,7 +453,7 @@ def build_defs() -> dg.Definitions:
         resources={
             "airbyte": _build_airbyte_resource(),
             "dbt": _build_dbt_resource(),
-            "duckdb": DuckDBResource(),
+            "duckdb": DuckLakeResource(),
         }
     )
 ```
