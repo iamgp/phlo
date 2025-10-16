@@ -1,0 +1,25 @@
+cascade:
+  target: ducklake
+  outputs:
+    ducklake:
+      type: duckdb
+      database: "ducklake"
+      path: "/dbt/ducklake"
+      threads: 8
+      extensions: ["ducklake", "httpfs", "postgres", "json", "parquet"]
+      # S3-compatible (MinIO)
+      config:
+        s3_endpoint: "{{ env_var('MINIO_HOST', 'minio') }}:{{ env_var('MINIO_API_PORT', '9000') }}"
+        s3_use_ssl: false
+        s3_url_style: path
+        s3_access_key_id: "{{ env_var('MINIO_ROOT_USER') }}"
+        s3_secret_access_key: "{{ env_var('MINIO_ROOT_PASSWORD') }}"
+    postgres:
+      type: postgres
+      host: postgres
+      user: "{{ env_var('POSTGRES_USER') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
+      port: 5432
+      dbname: "{{ env_var('POSTGRES_DB') }}"
+      schema: marts
+      threads: 8
