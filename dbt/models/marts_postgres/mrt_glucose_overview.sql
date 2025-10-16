@@ -52,6 +52,6 @@ select
         else null
     end as coefficient_of_variation
 
-from {{ ref('dim_glucose_date') }}
+from {{ ref('dim_date') }}
 where reading_date >= current_date - interval '90 days'  -- Last 90 days for dashboard
 order by reading_date desc

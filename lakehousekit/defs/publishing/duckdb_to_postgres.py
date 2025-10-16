@@ -14,14 +14,11 @@ from lakehousekit.schemas import PublishPostgresOutput, TablePublishStats
     group_name="publish",
     compute_kind="postgres",
     deps=[
-        AssetKey("mart_glucose_overview"),
-        AssetKey("mart_glucose_hourly_patterns"),
-        AssetKey("fact_glucose_readings"),
+        AssetKey("mrt_glucose_overview"),
+        AssetKey("mrt_glucose_hourly_patterns"),
     ],
 )
-def publish_glucose_marts_to_postgres(
-    context, duckdb: DuckLakeResource
-) -> PublishPostgresOutput:
+def publish_glucose_marts_to_postgres(context, duckdb: DuckLakeResource) -> PublishPostgresOutput:
     ducklake_path = config.ducklake_data_path
     postgres_host = config.postgres_host
     postgres_port = config.postgres_port
@@ -31,9 +28,8 @@ def publish_glucose_marts_to_postgres(
     target_schema = config.postgres_mart_schema
 
     tables_to_publish = {
-        "mart_glucose_overview": "main_marts.mart_glucose_overview",
-        "mart_glucose_hourly_patterns": "main_marts.mart_glucose_hourly_patterns",
-        "fact_glucose_readings": "main_curated.fact_glucose_readings",
+        "mrt_glucose_overview": "dbt.main_marts.mrt_glucose_overview",
+        "mrt_glucose_hourly_patterns": "dbt.main_marts.mrt_glucose_hourly_patterns",
     }
 
     context.log.info(
@@ -45,16 +41,16 @@ def publish_glucose_marts_to_postgres(
     password_escaped = quote_plus(postgres_password)
     user_escaped = quote_plus(postgres_user)
     host_escaped = quote_plus(postgres_host)
-    dsn = f"postgres://{user_escaped}:{password_escaped}@{host_escaped}:{postgres_port}/{postgres_db}"
+    dsn = (
+        f"postgres://{user_escaped}:{password_escaped}@{host_escaped}:{postgres_port}/{postgres_db}"
+    )
 
     table_stats: dict[str, TablePublishStats] = {}
     try:
         with duckdb.get_connection() as duck_con:
             duck_con.execute("INSTALL postgres")
             duck_con.execute("LOAD postgres")
-            duck_con.execute(
-                f"ATTACH '{dsn}' AS pg_marts (TYPE POSTGRES, READ_ONLY FALSE)"
-            )
+            duck_con.execute(f"ATTACH '{dsn}' AS pg_marts (TYPE POSTGRES, READ_ONLY FALSE)")
             duck_con.execute(f'CREATE SCHEMA IF NOT EXISTS pg_marts."{target_schema}"')
 
             for table_alias, duck_table in tables_to_publish.items():
@@ -72,9 +68,10 @@ def publish_glucose_marts_to_postgres(
                 )
                 duck_con.execute(create_table_sql)
 
-                row_count = duck_con.execute(
-                    f'SELECT COUNT(*) FROM pg_marts."{target_schema}"."{table_alias}"'
-                ).fetchone()[0]
+                row_count_result = duck_con.execute(
+                f'SELECT COUNT(*) FROM pg_marts."{target_schema}"."{table_alias}"'
+                ).fetchone()
+                row_count = row_count_result[0] if row_count_result else 0
                 column_count = duck_con.execute(
                     """
                     SELECT COUNT(*)

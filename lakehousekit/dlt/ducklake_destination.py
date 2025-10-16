@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any, Dict
+from typing import Any
 
 import duckdb
-
 from dlt.common.destination import DestinationCapabilitiesContext
 from dlt.destinations.impl.duckdb.configuration import DuckDbClientConfiguration
 from dlt.destinations.impl.duckdb.duck import (
-    DuckDbClient,
     HINT_TO_POSTGRES_ATTR,
+    DuckDbClient,
 )
-from dlt.destinations.impl.duckdb.factory import duckdb as DuckDbDestination
+from dlt.destinations.impl.duckdb.factory import duckdb as DuckDbFactory
 from dlt.destinations.impl.duckdb.sql_client import DuckDbSqlClient
 
 from lakehousekit.ducklake import (
@@ -78,7 +77,7 @@ class DuckLakeClient(DuckDbClient):
         self.type_mapper = self.capabilities.get_type_mapper()
 
 
-class ducklake(DuckDbDestination):
+class DuckLake(DuckDbFactory):
     """DLT destination factory wiring DuckLake-specific client."""
 
     def __init__(
@@ -88,7 +87,7 @@ class ducklake(DuckDbDestination):
         destination_name: str | None = None,
         environment: str | None = None,
         runtime_config: DuckLakeRuntimeConfig | None = None,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         super().__init__(
             credentials=credentials,
@@ -110,10 +109,9 @@ def build_destination(
     *args: Any,
     runtime_config: DuckLakeRuntimeConfig | None = None,
     **kwargs: Any,
-) -> ducklake:
+) -> DuckLake:
     """
     Convenience helper returning a DuckLake destination for DLT pipelines.
     """
-    if "credentials" not in kwargs:
-        kwargs["credentials"] = duckdb.connect(database=":memory:")
-    return ducklake(*args, runtime_config=runtime_config, **kwargs)
+    kwargs["credentials"] = duckdb.connect(database="/tmp/dbt.duckdb")
+    return DuckLake(*args, runtime_config=runtime_config, **kwargs)

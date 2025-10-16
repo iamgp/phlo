@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 from duckdb import DuckDBPyConnection
 
@@ -102,7 +102,10 @@ def configure_ducklake_connection(
             TYPE ducklake,
             METADATA_PATH '',
             DATA_PATH '{runtime.data_path}',
-            METADATA_PARAMETERS MAP {{'TYPE': 'postgres','SECRET': '{runtime.postgres_secret_name}'}}
+            METADATA_PARAMETERS MAP {{
+                'TYPE': 'postgres',
+                'SECRET': '{runtime.postgres_secret_name}'
+            }}
         )
         """
     )
@@ -127,16 +130,16 @@ def configure_ducklake_connection(
 
     conn.execute(f"USE {runtime.catalog_alias}")
 
-    main_dataset_schema = f"main_{runtime.default_dataset}"
+    main_dataset_schema = runtime.default_dataset
 
-    # Ensure default and staging schemas exist
+    # Ensure bronze/silver/gold schemas exist
     bootstrap_schemas = {
         runtime.default_dataset,
         runtime.staging_dataset,
         main_dataset_schema,
-        "main_staging",
-        "main_intermediate",
-        "main_curated",
+        "bronze",
+        "silver",
+        "gold",
         "main_marts",
     }
 
@@ -152,6 +155,6 @@ def configure_ducklake_connection(
         except Exception:
             conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
 
-    conn.execute("SET search_path=?", [main_dataset_schema])
+    conn.execute("SET search_path=?", [runtime.default_dataset])
 
     return conn

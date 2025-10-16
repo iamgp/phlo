@@ -48,14 +48,14 @@ def _merged_definitions() -> dg.Definitions:
 
     executor = _default_executor()
 
-    defs_kwargs = dict(
-        assets=merged.assets,
-        asset_checks=merged.asset_checks,
-        schedules=merged.schedules,
-        sensors=merged.sensors,
-        resources=merged.resources,
-        jobs=merged.jobs,
-    )
+    defs_kwargs = {
+        "assets": merged.assets,
+        "asset_checks": merged.asset_checks,
+        "schedules": merged.schedules,
+        "sensors": merged.sensors,
+        "resources": merged.resources,
+        "jobs": merged.jobs,
+    }
 
     if executor is not None:
         defs_kwargs["executor"] = executor
