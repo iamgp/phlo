@@ -4,10 +4,12 @@ import multiprocessing as mp
 import time
 import traceback
 from contextlib import contextmanager
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import dagster as dg
+from dagster.preview.freshness import FreshnessPolicy
 import dlt
 import requests
 
@@ -228,6 +230,8 @@ def dlt_pipeline_context(
     compute_kind="dlt",
     op_tags={"dagster/max_runtime": PIPELINE_TIMEOUT_SECONDS},
     retry_policy=dg.RetryPolicy(max_retries=3, delay=30),  # Retry 3x with 30s delay
+    automation_condition=dg.AutomationCondition.on_cron("0 */1 * * *"),
+    freshness_policy=FreshnessPolicy.time_window(fail_window=timedelta(hours=1)),
 )
 def entries(context) -> dg.MaterializeResult:
     """
@@ -309,4 +313,7 @@ def entries(context) -> dg.MaterializeResult:
 
     except Exception as e:
         context.log.error(f"Pipeline '{pipeline_name}' failed for partition {partition_date}: {e}")
-        raise RuntimeError(f"Pipeline execution failed for partition {partition_date}: {e}") from e
+        raise RuntimeError(f"Pipeline execution failed for partition {partition_date}: {e}")
+
+
+
