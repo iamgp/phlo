@@ -38,7 +38,7 @@ def build_sensors() -> list[dg.SensorDefinition]:
     """
 
     @asset_sensor(
-        asset_key=AssetKey(["nightscout_entries"]),
+        asset_key=AssetKey(["entries"]),
         job_name=TRANSFORM_JOB.name,
         minimum_interval_seconds=300,  # Debounce: at most once every 5 minutes
     )
@@ -51,9 +51,7 @@ def build_sensors() -> list[dg.SensorDefinition]:
         context.update_cursor(cursor)
 
         if partition_key:
-            yield RunRequest(
-                run_key=f"{cursor}:{partition_key}", partition_key=partition_key
-            )
+            yield RunRequest(run_key=f"{cursor}:{partition_key}", partition_key=partition_key)
         else:
             yield RunRequest(run_key=cursor)
 

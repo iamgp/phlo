@@ -31,7 +31,7 @@ select
     trend,
     device
 
-from {{ ref('int_glucose_enriched') }}
+from {{ ref('fct_glucose_readings') }}
 
 {% if is_incremental() %}
     -- Only process new data on incremental runs

@@ -30,7 +30,7 @@ select
     -- Variability
     round(stddev(glucose_mg_dl), 1) as stddev_glucose_mg_dl
 
-from {{ ref('int_glucose_enriched') }}
+from {{ ref('mrt_glucose_readings') }}
 where reading_timestamp >= current_timestamp - interval '30 days'
 group by hour_of_day, day_of_week, day_name
 order by day_of_week, hour_of_day

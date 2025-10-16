@@ -12,10 +12,10 @@ import dlt
 import requests
 
 from lakehousekit.config import config
+from lakehousekit.defs.partitions import daily_partition
 from lakehousekit.dlt.ducklake_destination import (
     build_destination as ducklake_destination,
 )
-from lakehousekit.defs.partitions import daily_partition
 
 
 class PipelineTimeoutError(Exception):
@@ -65,7 +65,8 @@ def _pipeline_worker(
             if runtime_config:
                 record(
                     "debug",
-                    "[worker] DuckLake runtime: dataset=%s staging=%s retry_count=%s backoff=%s wait_ms=%s",
+                    "[worker] DuckLake runtime: dataset=%s staging=%s "
+                    "retry_count=%s backoff=%s wait_ms=%s",
                     getattr(runtime_config, "default_dataset", "unknown"),
                     getattr(runtime_config, "staging_dataset", "unknown"),
                     getattr(runtime_config, "ducklake_retry_count", "unknown"),
@@ -73,7 +74,7 @@ def _pipeline_worker(
                     getattr(runtime_config, "ducklake_retry_wait_ms", "unknown"),
                 )
 
-            @dlt.resource(name="nightscout_entries", write_disposition="append")
+            @dlt.resource(name="entries", write_disposition="append")
             def provide_entries() -> Any:
                 yield entries
 
@@ -153,14 +154,10 @@ def run_pipeline_with_timeout(
         )
         process.terminate()
         process.join(5)
-        raise PipelineTimeoutError(
-            f"Pipeline '{pipeline_name}' timed out after {timeout_seconds}s"
-        )
+        raise PipelineTimeoutError(f"Pipeline '{pipeline_name}' timed out after {timeout_seconds}s")
 
     if result_queue.empty():
-        raise RuntimeError(
-            f"Pipeline '{pipeline_name}' exited without returning a result"
-        )
+        raise RuntimeError(f"Pipeline '{pipeline_name}' exited without returning a result")
 
     result = result_queue.get()
 
@@ -177,9 +174,7 @@ def run_pipeline_with_timeout(
         error_message = result.get("error", "Unknown pipeline failure")
         tb = result.get("traceback")
         if tb:
-            context.log.error(
-                "Pipeline '%s' failed with traceback:\n%s", pipeline_name, tb
-            )
+            context.log.error("Pipeline '%s' failed with traceback:\n%s", pipeline_name, tb)
         raise RuntimeError(
             f"Pipeline execution failed for partition {partition_key}: {error_message}"
         )
@@ -212,25 +207,29 @@ def dlt_pipeline_context(
             if (
                 hasattr(pipeline, "_destination_client")
                 and pipeline._destination_client
+                and hasattr(pipeline._destination_client, "sql_client")
+                and pipeline._destination_client.sql_client
+                and hasattr(pipeline._destination_client.sql_client, "_conn")
+                and pipeline._destination_client.sql_client._conn
             ):
-                client = pipeline._destination_client
-                if hasattr(client, "sql_client") and client.sql_client:
-                    if hasattr(client.sql_client, "_conn") and client.sql_client._conn:
-                        client.sql_client._conn.close()
+                pipeline._destination_client.sql_client._conn.close()
         except Exception:
             pass
 
 
 @dg.asset(
-    name="nightscout_entries",
-    group_name="raw_ingestion",
+    name="entries",
+    group_name="ingestion",
     partitions_def=daily_partition,
-    description="Nightscout CGM entries ingested via dlt with daily partitioning",
+    description=(
+        "Nightscout CGM entries ingested via DLT into DuckLake bronze.entries "
+        "with daily partitioning"
+    ),
     compute_kind="dlt",
     op_tags={"dagster/max_runtime": PIPELINE_TIMEOUT_SECONDS},
     retry_policy=dg.RetryPolicy(max_retries=3, delay=30),  # Retry 3x with 30s delay
 )
-def nightscout_entries(context) -> dg.MaterializeResult:
+def entries(context) -> dg.MaterializeResult:
     """
     Ingest Nightscout data for specific partition using dlt with parameterized date filtering.
 
@@ -252,9 +251,7 @@ def nightscout_entries(context) -> dg.MaterializeResult:
     pipelines_base_dir = Path.home() / ".dlt" / "pipelines" / "partitioned"
     pipelines_base_dir.mkdir(parents=True, exist_ok=True)
 
-    context.log.info(
-        f"Starting pipeline '{pipeline_name}' for partition {partition_date}"
-    )
+    context.log.info(f"Starting pipeline '{pipeline_name}' for partition {partition_date}")
     context.log.info(f"Date range: {start_time} to {end_time}")
 
     try:
@@ -270,16 +267,12 @@ def nightscout_entries(context) -> dg.MaterializeResult:
             )
             response.raise_for_status()
             entries: list[dict[str, Any]] = response.json()
-            context.log.info(
-                f"Successfully fetched {len(entries)} entries from Nightscout API"
-            )
+            context.log.info(f"Successfully fetched {len(entries)} entries from Nightscout API")
         except requests.RequestException as e:
             context.log.error(f"Failed to fetch data from Nightscout API: {e}")
             raise
 
-        context.log.info(
-            f"Launching DLT pipeline '{pipeline_name}' in isolated process"
-        )
+        context.log.info(f"Launching DLT pipeline '{pipeline_name}' in isolated process")
 
         result = run_pipeline_with_timeout(
             pipeline_name=pipeline_name,
@@ -294,9 +287,7 @@ def nightscout_entries(context) -> dg.MaterializeResult:
         elapsed = result["elapsed"]
         rows_loaded = result["rows_loaded"]
 
-        context.log.info(
-            f"Pipeline '{pipeline_name}' completed successfully in {elapsed:.2f}s"
-        )
+        context.log.info(f"Pipeline '{pipeline_name}' completed successfully in {elapsed:.2f}s")
         context.log.info(f"Loaded {rows_loaded} rows for partition {partition_date}")
 
         return dg.MaterializeResult(
@@ -317,9 +308,5 @@ def nightscout_entries(context) -> dg.MaterializeResult:
         ) from e
 
     except Exception as e:
-        context.log.error(
-            f"Pipeline '{pipeline_name}' failed for partition {partition_date}: {e}"
-        )
-        raise RuntimeError(
-            f"Pipeline execution failed for partition {partition_date}: {e}"
-        ) from e
+        context.log.error(f"Pipeline '{pipeline_name}' failed for partition {partition_date}: {e}")
+        raise RuntimeError(f"Pipeline execution failed for partition {partition_date}: {e}") from e

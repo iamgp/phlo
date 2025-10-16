@@ -21,10 +21,23 @@ ENV POSTGRES_DB=lakehouse
 ENV MINIO_ROOT_USER=minio
 ENV MINIO_ROOT_PASSWORD=minio999
 
-# Generate dbt manifest for Dagster asset loading
-WORKDIR /dbt
-RUN if [ -f dbt_project.yml ]; then dbt deps --profiles-dir /dbt/profiles || true; fi
-RUN if [ -f dbt_project.yml ]; then dbt parse --profiles-dir /dbt/profiles || true; fi
+# Create dbt startup script
+RUN echo '#!/bin/bash\n\
+echo "Setting up dbt..."\n\
+cd /dbt\n\
+if [ -f dbt_project.yml ]; then\n\
+    echo "Installing dbt dependencies..."\n\
+    dbt deps --profiles-dir /dbt/profiles || echo "dbt deps failed, continuing..."\n\
+    echo "Compiling dbt project..."\n\
+    dbt compile --profiles-dir /dbt/profiles || echo "dbt compile failed, continuing..."\n\
+else\n\
+    echo "dbt_project.yml not found, skipping dbt setup"\n\
+fi\n\
+echo "Starting Dagster..."\n\
+cd /opt/dagster\n\
+exec "$@"' > /usr/local/bin/start-dagster.sh && chmod +x /usr/local/bin/start-dagster.sh
 
 WORKDIR /opt/dagster
 EXPOSE 3000
+
+ENTRYPOINT ["/usr/local/bin/start-dagster.sh"]

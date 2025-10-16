@@ -19,9 +19,7 @@ class Settings(BaseSettings):
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
     postgres_user: str = Field(default="lake", description="PostgreSQL username")
     postgres_password: str = Field(description="PostgreSQL password")
-    postgres_db: str = Field(
-        default="lakehouse", description="PostgreSQL database name"
-    )
+    postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
     )
@@ -50,7 +48,7 @@ class Settings(BaseSettings):
         description="Prefix within the DuckLake data bucket for managed tables",
     )
     ducklake_default_dataset: str = Field(
-        default="raw",
+        default="bronze",
         description="Default dataset/schema used by ingestion jobs inside DuckLake",
     )
     ducklake_region: str = Field(
@@ -64,9 +62,7 @@ class Settings(BaseSettings):
 
     # Services - Superset
     superset_port: int = Field(default=8088, description="Superset web port")
-    superset_admin_user: str = Field(
-        default="admin", description="Superset admin username"
-    )
+    superset_admin_user: str = Field(default="admin", description="Superset admin username")
     superset_admin_password: str = Field(description="Superset admin password")
     superset_admin_email: str = Field(
         default="admin@example.com", description="Superset admin email"
@@ -74,12 +70,7 @@ class Settings(BaseSettings):
 
     # Paths
     dbt_project_dir: str = Field(default="/dbt", description="dbt project directory")
-    dbt_profiles_dir: str = Field(
-        default="/dbt/profiles", description="dbt profiles directory"
-    )
-    raw_bioreactor_path: str = Field(
-        default="/data/lake/raw/bioreactor", description="Path for raw bioreactor data"
-    )
+    dbt_profiles_dir: str = Field(default="/dbt/profiles", description="dbt profiles directory")
 
     # Dagster
     dagster_port: int = Field(default=3000, description="Dagster webserver port")
@@ -116,11 +107,6 @@ class Settings(BaseSettings):
     def dbt_profiles_path(self) -> Path:
         """Return dbt profiles directory as Path object."""
         return Path(self.dbt_profiles_dir)
-
-    @property
-    def raw_bioreactor_path_obj(self) -> Path:
-        """Return raw bioreactor path as Path object."""
-        return Path(self.raw_bioreactor_path)
 
     def get_postgres_connection_string(self, include_db: bool = True) -> str:
         """

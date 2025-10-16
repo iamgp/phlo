@@ -34,6 +34,6 @@ select
     -- GMI = 3.31 + 0.02392 * avg_glucose_mg_dl
     round(3.31 + (0.02392 * avg(glucose_mg_dl)), 2) as estimated_a1c_pct
 
-from {{ ref('int_glucose_enriched') }}
+from {{ ref('fct_glucose_readings') }}
 group by reading_date
 order by reading_date desc

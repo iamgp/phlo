@@ -6,16 +6,16 @@
 - **Linting**: `ruff check lakehousekit/` and `ruff format lakehousekit/` (from dagster/ dir)
 - **Services**: `make up` (start all), `make down` (stop), `make rebuild` (rebuild Dagster)
 - **Asset validation**: `dagster dev --workspace dagster/workspace.yaml`
-- **Single asset test**: `dagster asset materialize --select my_asset_name`
+- **Single asset test**: `dagster asset materialize --select entries` (Nightscout data)
 - **dbt commands**: `docker compose exec dagster-web dbt run/test --select model_name`
 
 ## Architecture & Structure
 - **Data lakehouse** with MinIO (S3-compatible), PostgreSQL, DuckDB/DuckLake for analytics
 - **Core orchestrator**: Dagster with assets in `lakehousekit/defs/` (ingestion, transform, publishing, quality, metadata)
-- **Transform layer**: dbt models with 5-layer architecture (staging → intermediate → curated → marts)
-- **Databases**: PostgreSQL for marts/catalog, DuckDB for analytical queries on Parquet files
+- **Transform layer**: dbt models with 4-layer architecture (bronze → silver → gold → marts)
+- **Databases**: PostgreSQL for catalog/metadata, DuckDB for analytical queries and DuckLake managed tables
 - **Storage**: MinIO bucket `lake` with prefix `ducklake/` for managed tables
-- **Services**: Superset (dashboards), DataHub (metadata catalog), optional Airbyte (ingestion)
+- **Services**: Superset (dashboards), DataHub (metadata catalog)
 - **Configuration**: Centralized in `lakehousekit/config.py` using Pydantic settings from `.env`
 
 ## Code Style & Conventions

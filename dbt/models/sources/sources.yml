@@ -2,17 +2,12 @@ version: 2
 
 sources:
   - name: dagster_assets
-    description: Upstream Dagster assets that provide raw data
+    database: ducklake
+    schema: bronze
+    description: Upstream Dagster assets that provide raw data from DuckLake bronze layer
     tables:
-      - name: nightscout_entries
-        description: Nightscout CGM data synced via Airbyte
+      - name: entries
+        description: Nightscout CGM data ingested via DLT into DuckLake bronze.entries
         meta:
           dagster:
-            asset_key: ["nightscout_entries"]
-
-      # Bioreactor source disabled - focusing on Nightscout workflow
-      # - name: raw_bioreactor_data
-      #   description: Raw bioreactor data from Airbyte
-      #   meta:
-      #     dagster:
-      #       asset_key: ["raw_bioreactor_data"]
+            asset_key: ["entries"]
