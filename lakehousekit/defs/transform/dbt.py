@@ -21,11 +21,11 @@ class CustomDbtTranslator(DagsterDbtTranslator):
     def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
         model_name = dbt_resource_props["name"]
         if model_name.startswith("stg_"):
-            return "staging"
-        if model_name.startswith("int_"):
-            return "intermediate"
-        if model_name.startswith(("fct_", "fact_", "dim_", "mart_", "mar_")):
-            return "marts"
+            return "bronze"
+        if model_name.startswith(("dim_", "fct_")):
+            return "silver"
+        if model_name.startswith("mrt_"):
+            return "gold"
         return "transform"
 
     def get_source_asset_key(self, dbt_source_props: Mapping[str, Any]) -> AssetKey:
@@ -39,31 +39,19 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 @dbt_assets(
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
     dagster_dbt_translator=CustomDbtTranslator(),
-    partitions_def=daily_partition,
 )
 def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None]:
     target = context.op_config.get("target") if context.op_config else None
     target = target or "ducklake"
 
-    bootstrap_args = [
-        "run-operation",
-        "ducklake__bootstrap",
-        "--project-dir",
-        str(DBT_PROJECT_DIR),
-        "--profiles-dir",
-        str(DBT_PROFILES_DIR),
-        "--target",
-        target,
-    ]
-
     build_args = [
-        "build",
-        "--project-dir",
-        str(DBT_PROJECT_DIR),
-        "--profiles-dir",
-        str(DBT_PROFILES_DIR),
-        "--target",
-        target,
+    "build",
+    "--project-dir",
+    str(DBT_PROJECT_DIR),
+    "--profiles-dir",
+    str(DBT_PROFILES_DIR),
+    "--target",
+    target,
     ]
 
     # Pass partition date to dbt as a variable for incremental processing
@@ -71,9 +59,6 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
         partition_date = context.partition_key
         build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
         context.log.info(f"Running dbt for partition: {partition_date}")
-
-    # Ensure DuckLake secrets and catalog attachment before running transformations
-    dbt.cli(bootstrap_args, context=context).wait()
 
     build_invocation = dbt.cli(build_args, context=context)
     yield from build_invocation.stream()

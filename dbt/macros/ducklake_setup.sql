@@ -1,7 +1,7 @@
 {% macro ducklake__bootstrap() %}
   {# DuckLake bootstrap macro executed on dbt run start #}
   {% set catalog_alias = env_var('DUCKLAKE_CATALOG_ALIAS', 'ducklake') %}
-  {% set catalog_db = env_var('DUCKLAKE_CATALOG_DATABASE', 'lakehouse') %}
+  {% set catalog_db = env_var('DUCKLAKE_CATALOG_DATABASE', 'ducklake_catalog') %}
   {% set data_path = env_var('DUCKLAKE_DATA_PATH', 's3://lake/ducklake') %}
   {% set default_dataset = env_var('DUCKLAKE_DEFAULT_DATASET', 'raw') %}
   {% set staging_dataset = default_dataset ~ '_staging' %}

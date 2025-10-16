@@ -4,6 +4,9 @@ config-version: 2
 
 profile: cg_lakehouse
 
+on-run-start:
+  - "{{ ducklake__bootstrap() }}"
+
 model-paths: ["models"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
@@ -11,18 +14,18 @@ macro-paths: ["macros"]
 models:
   cg_lakehouse:
     +materialized: table
-    staging:
-      +schema: staging
+    bronze:
+      +schema: bronze
       +materialized: view
-      +tags: ["stg"]
+      +tags: ["bronze"]
       +quoting:
         identifier: false
-    intermediate:
-      +schema: intermediate
-      +tags: ["int"]
-    curated:
-      +schema: curated
-      +tags: ["curated"]
+    silver:
+      +schema: silver
+      +tags: ["silver"]
+    gold:
+      +schema: gold
+      +tags: ["gold"]
       +persist_docs: { relation: true, columns: true }
     marts_postgres:
       +schema: marts

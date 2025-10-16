@@ -29,9 +29,7 @@ FROM main_curated.fact_glucose_readings
     blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
 )
-def nightscout_glucose_quality_check(
-    context, duckdb: DuckLakeResource
-) -> AssetCheckResult:
+def nightscout_glucose_quality_check(context, duckdb: DuckLakeResource) -> AssetCheckResult:
     """
     Quality check using Pandera for type-safe schema validation.
 
@@ -59,7 +57,8 @@ def nightscout_glucose_quality_check(
 
             if not table_exists:
                 context.log.warning(
-                    "DuckLake table main_curated.fact_glucose_readings not found; skipping quality check."
+                    "DuckLake table main_curated.fact_glucose_readings not found; "
+                    "skipping quality check."
                 )
                 return AssetCheckResult(
                     passed=True,
@@ -104,8 +103,7 @@ def nightscout_glucose_quality_check(
             "hour_of_day": "int (0-23, non-null)",
             "day_of_week": "int (0-6, non-null)",
             "glucose_category": (
-                "str (hypoglycemia/in_range/hyperglycemia_mild/"
-                "hyperglycemia_severe, non-null)"
+                "str (hypoglycemia/in_range/hyperglycemia_mild/hyperglycemia_severe, non-null)"
             ),
             "is_in_range": "int (0 or 1, non-null)",
         }
@@ -118,13 +116,9 @@ def nightscout_glucose_quality_check(
                 "schema_version": MetadataValue.text("1.0.0"),
                 "pandera_schema": MetadataValue.md(
                     "## Validated Schema\n\n"
-                    + "\n".join(
-                        [f"- **{col}**: {dtype}" for col, dtype in schema_info.items()]
-                    )
+                    + "\n".join([f"- **{col}**: {dtype}" for col, dtype in schema_info.items()])
                 ),
-                "dagster_type": MetadataValue.text(
-                    str(get_fact_glucose_dagster_type())
-                ),
+                "dagster_type": MetadataValue.text(str(get_fact_glucose_dagster_type())),
             },
         )
 
@@ -132,9 +126,7 @@ def nightscout_glucose_quality_check(
         # Extract failure information
         failure_cases = err.failure_cases
 
-        context.log.warning(
-            f"Schema validation failed with {len(failure_cases)} check failures"
-        )
+        context.log.warning(f"Schema validation failed with {len(failure_cases)} check failures")
 
         # Group failures by column and check type for better reporting
         failures_by_column = failure_cases.groupby("column").size().to_dict()
