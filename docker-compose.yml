@@ -143,6 +143,17 @@ services:
       postgres:
         condition: service_healthy
 
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: pgweb
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    ports: ["${PGWEB_PORT}:8081"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   hub:
     build:
       context: .
@@ -156,6 +167,7 @@ services:
       SUPERSET_PORT: ${SUPERSET_PORT:-8088}
       SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
+      PGWEB_PORT: ${PGWEB_PORT:-8081}
       MINIO_CONSOLE_PORT: ${MINIO_CONSOLE_PORT:-9001}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
