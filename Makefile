@@ -4,7 +4,7 @@ REBUILD_SERVICES ?= dagster-webserver dagster-daemon
 DEFAULT_SERVICES ?= postgres minio pgweb dagster-webserver dagster-daemon superset hub
 DEFAULT_LOG_SERVICES ?= dagster-webserver dagster-daemon
 
-.PHONY: up down stop restart build rebuild pull ps logs exec clean \
+.PHONY: up down stop restart build rebuild pull ps logs exec clean setup install install-dagster \
 dagster superset hub minio pgweb dagster-shell superset-shell postgres-shell \
 minio-shell hub-shell
 
@@ -42,6 +42,17 @@ exec:
 
 clean:
 	$(COMPOSE) down --volumes --remove-orphans
+
+setup: venv install install-dagster
+
+venv:
+	uv venv
+
+install:
+	uv pip install -e .
+
+install-dagster:
+	cd services/dagster && uv venv && uv pip install -e .
 
 dagster:
 	open http://localhost:$${DAGSTER_PORT:-3000}

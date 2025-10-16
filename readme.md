@@ -10,20 +10,29 @@ It enables secure, automated, and governed handling of scientific and operationa
 ### Prerequisites
 
 - Docker and Docker Compose
-- `uv` for Python package management (optional, for local development)
+- `uv` for Python package management (for development and local testing)
 
 ### Setup
 
 1. **Clone the repository and configure environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your passwords and configuration
-   ```
+```bash
+cp .env.example .env
+# Edit .env with your passwords and configuration
+```
 
-2. **Start all services:**
-   ```bash
-   docker-compose up -d
-   ```
+2. **Install Python dependencies (for development):**
+```bash
+make setup
+```
+    This creates virtual environments and installs the main `cascade` package and Dagster service dependencies using `uv`.
+
+3. **Start all services:**
+    ```bash
+    make up
+    ```
+    Or for detached mode: `make up SERVICE=all` (though `make up` defaults to detached).
+
+    Alternative: `docker-compose up -d`
 
 3. **Access the services:**
    - **Hub:** http://localhost:54321 (service status dashboard)
@@ -41,7 +50,7 @@ All service configuration is managed through environment variables in `.env`. Ke
 - **Services:** `AIRBYTE_HOST`, `DAGSTER_PORT`, `SUPERSET_PORT`
 - **Paths:** `DBT_PROJECT_DIR`, `DUCKDB_WAREHOUSE_PATH`
 
-See `lakehousekit/config.py` for the complete centralized configuration schema.
+See `cascade/config.py` for the complete centralized configuration schema.
 
 ## 📚 Documentation
 
@@ -207,19 +216,19 @@ Perfect for Python developers learning modern data engineering patterns.
 
 2. **Run type checking:**
    ```bash
-   basedpyright lakehousekit/
+   basedpyright cascade/
    ```
 
 3. **Run linting:**
    ```bash
-   ruff check lakehousekit/
-   ruff format lakehousekit/
+   ruff check cascade/
+   ruff format cascade/
    ```
 
 ### Project Structure
 
 ```
-lakehousekit/
+cascade/
 ├── config.py              # Centralized configuration management
 ├── definitions.py         # Main Dagster definitions entry point
 ├── defs/
@@ -235,7 +244,7 @@ lakehousekit/
 
 ### Adding New Assets
 
-1. Create asset function in appropriate module under `lakehousekit/defs/`
+1. Create asset function in appropriate module under `cascade/defs/`
 2. Import and include in the relevant `__init__.py`
 3. Asset will be automatically discovered by Dagster
 
@@ -303,7 +312,7 @@ DuckLake supports concurrent writers, but long-running jobs can still hold catal
 
 **Validate configuration loads correctly:**
 ```python
-from lakehousekit.config import config
+from cascade.config import config
 print(config.model_dump())
 ```
 

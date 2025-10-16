@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.postgres
     container_name: pg
     restart: unless-stopped
     environment:
@@ -10,7 +12,6 @@ services:
     ports: ["${POSTGRES_PORT}:5432"]
     volumes:
       - ./volumes/postgres:/var/lib/postgresql/data
-      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -60,16 +61,36 @@ services:
 
   dagster-webserver:
     build:
-      context: ./dagster
+      context: ./services/dagster
+      dockerfile: ../../docker/Dockerfile.dagster
     container_name: dagster-web
     restart: unless-stopped
     environment:
       DAGSTER_HOME: /opt/dagster
       DBT_PROFILES_DIR: /dbt/profiles
+      PYTHONPATH: /opt/dagster
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-      AWS_REGION: eu-west-1
+      AWS_REGION: us-east-1
       AWS_S3_ENDPOINT: http://minio:9000
+      AWS_S3_USE_SSL: "false"
+      AWS_S3_URL_STYLE: "path"
+      # DuckLake configuration
+      DUCKLAKE_CATALOG_ALIAS: ${DUCKLAKE_CATALOG_ALIAS}
+      DUCKLAKE_CATALOG_DATABASE: ${DUCKLAKE_CATALOG_DATABASE}
+      DUCKLAKE_DATA_PATH: ${DUCKLAKE_DATA_PATH:-s3://lake/ducklake}
+      DUCKLAKE_DEFAULT_DATASET: ${DUCKLAKE_DEFAULT_DATASET:-raw}
+      DUCKLAKE_REGION: ${DUCKLAKE_REGION:-eu-west-1}
+      DUCKLAKE_USE_SSL: ${DUCKLAKE_USE_SSL:-false}
+      # MinIO/Postgres for dbt
+      MINIO_HOST: ${MINIO_HOST}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_API_PORT: ${MINIO_API_PORT}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     command:
       [
@@ -83,10 +104,10 @@ services:
       ]
     ports: ["${DAGSTER_PORT}:3000"]
     volumes:
-      - ./dagster:/opt/dagster
-      - ./lakehousekit:/opt/dagster/lakehousekit:ro
-      - ./dbt:/dbt # Needs write for target/
-      - ./data:/data # Legacy mount retained for local artifacts
+    - ./services/dagster:/opt/dagster
+    - ./src/cascade:/opt/dagster/cascade:ro
+    - ./transforms/dbt:/dbt # Needs write for target/
+    - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
       minio:
         condition: service_healthy
@@ -97,30 +118,50 @@ services:
 
   dagster-daemon:
     build:
-      context: ./dagster
+      context: ./services/dagster
+      dockerfile: ../../docker/Dockerfile.dagster
     container_name: dagster-daemon
     restart: unless-stopped
     environment:
       DAGSTER_HOME: /opt/dagster
       DBT_PROFILES_DIR: /dbt/profiles
+      PYTHONPATH: /opt/dagster
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
-      AWS_REGION: eu-west-1
+      AWS_REGION: us-east-1
       AWS_S3_ENDPOINT: http://minio:9000
+      AWS_S3_USE_SSL: "false"
+      AWS_S3_URL_STYLE: "path"
+      # DuckLake configuration
+      DUCKLAKE_CATALOG_ALIAS: ${DUCKLAKE_CATALOG_ALIAS}
+      DUCKLAKE_CATALOG_DATABASE: ${DUCKLAKE_CATALOG_DATABASE}
+      DUCKLAKE_DATA_PATH: ${DUCKLAKE_DATA_PATH:-s3://lake/ducklake}
+      DUCKLAKE_DEFAULT_DATASET: ${DUCKLAKE_DEFAULT_DATASET:-raw}
+      DUCKLAKE_REGION: ${DUCKLAKE_REGION:-eu-west-1}
+      DUCKLAKE_USE_SSL: ${DUCKLAKE_USE_SSL:-false}
+      # MinIO/Postgres for dbt
+      MINIO_HOST: ${MINIO_HOST}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_API_PORT: ${MINIO_API_PORT}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
-      - ./dagster:/opt/dagster
-      - ./lakehousekit:/opt/dagster/lakehousekit:ro
-      - ./dbt:/dbt # Needs write for target/
-      - ./data:/data # Legacy mount retained for local artifacts
+    - ./services/dagster:/opt/dagster
+    - ./src/cascade:/opt/dagster/cascade:ro
+    - ./transforms/dbt:/dbt # Needs write for target/
+    - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
       dagster-webserver:
         condition: service_started
 
   superset:
     build:
-      context: ./infra
+      context: ./docker
       dockerfile: Dockerfile.superset
     container_name: superset
     restart: unless-stopped
@@ -137,7 +178,7 @@ services:
       SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
     volumes:
       - ./volumes/superset:/app/superset_home
-      - ./infra/superset_config.py:/app/pythonpath/superset_config.py
+      - ./docker/superset_config.py:/app/pythonpath/superset_config.py
     ports: ["${SUPERSET_PORT}:8088"]
     depends_on:
       postgres:
@@ -157,7 +198,7 @@ services:
   hub:
     build:
       context: .
-      dockerfile: Dockerfile.app
+      dockerfile: docker/Dockerfile.app
     container_name: lakehouse-hub
     restart: unless-stopped
     environment:
@@ -177,8 +218,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-lakehouse}
     ports:
       - "${APP_PORT:-54321}:${APP_PORT:-54321}"
-    volumes:
-      - ./app.py:/app/app.py:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${APP_PORT:-54321}/"]
       interval: 10s
