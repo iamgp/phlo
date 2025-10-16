@@ -1,5 +1,6 @@
 {{ config(
-    materialized='table',
+    materialized='incremental',
+    unique_key='reading_date',
     tags=['nightscout', 'curated']
 ) }}
 
@@ -35,5 +36,11 @@ select
     round(3.31 + (0.02392 * avg(glucose_mg_dl)), 2) as estimated_a1c_pct
 
 from {{ ref('fct_glucose_readings') }}
+
+{% if is_incremental() %}
+    -- Only process new or updated dates on incremental runs
+    where reading_date >= (select coalesce(max(reading_date), '1900-01-01'::date) from {{ this }})
+{% endif %}
+
 group by reading_date
 order by reading_date desc
