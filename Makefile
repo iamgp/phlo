@@ -1,12 +1,12 @@
 SHELL := /bin/bash
 COMPOSE ?= docker compose
 REBUILD_SERVICES ?= dagster-webserver dagster-daemon
-DEFAULT_SERVICES ?= postgres minio dagster-webserver dagster-daemon superset hub
+DEFAULT_SERVICES ?= postgres minio pgweb dagster-webserver dagster-daemon superset hub
 DEFAULT_LOG_SERVICES ?= dagster-webserver dagster-daemon
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean \
-	dagster superset hub minio dagster-shell superset-shell postgres-shell \
-	minio-shell hub-shell
+dagster superset hub minio pgweb dagster-shell superset-shell postgres-shell \
+minio-shell hub-shell
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -54,6 +54,9 @@ hub:
 
 minio:
 	open http://localhost:$${MINIO_CONSOLE_PORT:-9001}
+
+pgweb:
+	open http://localhost:$${PGWEB_PORT:-8081}
 
 dagster-shell:
 	$(COMPOSE) exec dagster-webserver bash
