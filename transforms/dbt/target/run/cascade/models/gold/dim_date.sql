@@ -4,7 +4,7 @@
     
 
     create  table
-      "ducklake"."main_gold"."dim_date"
+      "dbt"."raw_gold"."dim_date"
   
     as (
       
@@ -40,7 +40,7 @@ select
     -- GMI = 3.31 + 0.02392 * avg_glucose_mg_dl
     round(3.31 + (0.02392 * avg(glucose_mg_dl)), 2) as estimated_a1c_pct
 
-from "ducklake"."main_silver"."fct_glucose_readings"
+from "dbt"."raw_silver"."fct_glucose_readings"
 
 
 

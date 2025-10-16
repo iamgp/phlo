@@ -112,6 +112,9 @@ def build_destination(
 ) -> DuckLake:
     """
     Convenience helper returning a DuckLake destination for DLT pipelines.
+    
+    Uses /dbt/dbt.db file so DLT and dbt share the same DuckDB connection
+    and both write to the attached DuckLake catalog.
     """
-    kwargs["credentials"] = duckdb.connect(database=":memory:")
+    kwargs["credentials"] = duckdb.connect(database="/dbt/dbt.db")
     return DuckLake(*args, runtime_config=runtime_config, **kwargs)

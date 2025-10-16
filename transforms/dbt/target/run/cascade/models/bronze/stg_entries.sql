@@ -1,6 +1,6 @@
 
   
-  create view "ducklake"."main_bronze"."stg_entries__dbt_tmp" as (
+  create view "dbt"."raw_bronze"."stg_entries__dbt_tmp" as (
     
 
 -- Staging model for Nightscout glucose readings
