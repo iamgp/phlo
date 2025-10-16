@@ -4,7 +4,7 @@
     
 
     create  table
-      "ducklake"."main_gold"."mrt_glucose_readings"
+      "dbt"."raw_gold"."mrt_glucose_readings"
   
     as (
       
@@ -36,7 +36,7 @@ select
     trend,
     device
 
-from "ducklake"."main_silver"."fct_glucose_readings"
+from "dbt"."raw_silver"."fct_glucose_readings"
 
 
     );

@@ -4,7 +4,7 @@
     
 
     create  table
-      "ducklake"."main_marts"."mrt_glucose_overview"
+      "dbt"."raw_marts"."mrt_glucose_overview"
   
     as (
       
@@ -58,7 +58,7 @@ select
         else null
     end as coefficient_of_variation
 
-from "ducklake"."main_gold"."dim_date"
+from "dbt"."raw_gold"."dim_date"
 where reading_date >= current_date - interval '90 days'  -- Last 90 days for dashboard
 
 

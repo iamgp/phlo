@@ -28,10 +28,10 @@ def publish_glucose_marts_to_postgres(context, duckdb: DuckLakeResource) -> Publ
     target_schema = config.postgres_mart_schema
     catalog_alias = config.ducklake_catalog_alias
 
-    # Tables are in the local ducklake database file, not the attached dbt catalog
+    # Tables are in DuckLake (attached as DUCKLAKE_CATALOG_ALIAS catalog)
     tables_to_publish = {
-        "mrt_glucose_overview": "ducklake.main_marts.mrt_glucose_overview",
-        "mrt_glucose_hourly_patterns": "ducklake.main_marts.mrt_glucose_hourly_patterns",
+        "mrt_glucose_overview": f"{catalog_alias}.raw_marts.mrt_glucose_overview",
+        "mrt_glucose_hourly_patterns": f"{catalog_alias}.raw_marts.mrt_glucose_hourly_patterns",
     }
 
     context.log.info(

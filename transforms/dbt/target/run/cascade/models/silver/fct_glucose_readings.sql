@@ -4,7 +4,7 @@
     
 
     create  table
-      "ducklake"."main_silver"."fct_glucose_readings__dbt_tmp"
+      "dbt"."raw_silver"."fct_glucose_readings__dbt_tmp"
   
     as (
       
@@ -22,7 +22,7 @@ These enrichments enable better analytics and visualization in downstream models
 */
 
 with glucose_data as (
-    select * from "ducklake"."main_bronze"."stg_entries"
+    select * from "dbt"."raw_bronze"."stg_entries"
 ),
 
 enriched as (
