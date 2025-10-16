@@ -19,6 +19,7 @@ TRANSFORM_JOB = dg.define_asset_job(
         "intermediate",
         "curated",
         "marts",
+        "publish",
     ),
     partitions_def=daily_partition,
 )
@@ -46,6 +47,12 @@ def build_sensors() -> list[dg.SensorDefinition]:
         context: SensorEvaluationContext,
         asset_event: dg.EventLogEntry,
     ):
+        # Check if new data exists
+        metadata = asset_event.dagster_event.event_specific_data.materialization.asset_materialization.metadata
+        rows_loaded = metadata.get("rows_loaded")
+        if rows_loaded is None or rows_loaded.value <= 0:
+            return  # No new data, skip
+
         partition_key = asset_event.partition
         cursor = str(asset_event.storage_id)
         context.update_cursor(cursor)
