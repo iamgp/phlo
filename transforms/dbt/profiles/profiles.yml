@@ -3,8 +3,9 @@ cascade:
   outputs:
     ducklake:
       type: duckdb
-      database: "ducklake"
-      path: "/dbt/ducklake"
+      path: "/dbt/dbt.db"
+      database: "{{ env_var('DUCKLAKE_CATALOG_ALIAS', 'dbt') }}"
+      schema: "raw"
       threads: 8
       extensions: ["ducklake", "httpfs", "postgres", "json", "parquet"]
       # S3-compatible (MinIO)
