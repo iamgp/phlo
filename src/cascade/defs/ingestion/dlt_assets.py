@@ -40,15 +40,29 @@ def dlt_pipeline_context(
         yield pipeline
     finally:
         try:
-            if (
-                hasattr(pipeline, "_destination_client")
-                and pipeline._destination_client
-                and hasattr(pipeline._destination_client, "sql_client")
-                and pipeline._destination_client.sql_client
-                and hasattr(pipeline._destination_client.sql_client, "_conn")
-                and pipeline._destination_client.sql_client._conn
-            ):
-                pipeline._destination_client.sql_client._conn.close()
+            # More comprehensive cleanup to prevent connection leaks
+            if hasattr(pipeline, "_destination_client") and pipeline._destination_client:
+                client = pipeline._destination_client
+
+                # Close SQL client connection
+                if hasattr(client, "sql_client") and client.sql_client:
+                    if hasattr(client.sql_client, "_conn") and client.sql_client._conn:
+                        try:
+                            # Explicitly rollback any pending transaction before closing
+                            client.sql_client._conn.execute("ROLLBACK")
+                        except Exception:
+                            pass
+                        try:
+                            client.sql_client._conn.close()
+                        except Exception:
+                            pass
+
+                # Close the destination client itself if it has a close method
+                if hasattr(client, "close"):
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
         except Exception:
             pass
 

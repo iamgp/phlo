@@ -31,7 +31,7 @@ select
     -- GMI = 3.31 + 0.02392 * avg_glucose_mg_dl
     round(3.31 + (0.02392 * avg(glucose_mg_dl)), 2) as estimated_a1c_pct
 
-from "dbt"."raw_silver"."fct_glucose_readings"
+from "ducklake"."main_silver"."fct_glucose_readings"
 
 
 

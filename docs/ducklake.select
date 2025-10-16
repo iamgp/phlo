@@ -1,0 +1,2878 @@
+### Install DuckLake Extension for DuckDB
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Installs the DuckLake extension, which requires DuckDB version 1.3.0 or later. This is the first step to enable DuckLake functionality.
+
+```sql
+INSTALL ducklake;
+
+```
+
+--------------------------------
+
+### PostgreSQL: Install and Attach DuckLake Extension
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/choosing_a_catalog_database
+
+This snippet demonstrates installing the ducklake and postgres extensions, then attaching to a DuckLake instance backed by a PostgreSQL database. Requires PostgreSQL 12 or newer.
+
+```sql
+INSTALL ducklake;
+INSTALL postgres;
+
+-- Make sure that the database `ducklake_catalog` exists in PostgreSQL.
+ATTACH 'ducklake:postgres:dbname=ducklake_catalog host=localhost' AS my_ducklake
+    (DATA_PATH 'data_files/');
+USE my_ducklake;
+```
+
+--------------------------------
+
+### DuckLake ATTACH Examples
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/connecting
+
+Provides examples of connecting to DuckLake using different configurations. This includes connecting to default or named secrets, using DuckDB or PostgreSQL as catalog databases, specifying data paths, enabling read-only mode, and overriding the data path.
+
+```sql
+ATTACH 'ducklake:';
+
+```
+
+```sql
+ATTACH 'ducklake:my_secret';
+
+```
+
+```sql
+ATTACH 'ducklake:duckdb_database.ducklake';
+
+```
+
+```sql
+ATTACH 'ducklake:duckdb_database.ducklake' (DATA_PATH 'my_files/');
+
+```
+
+```sql
+ATTACH 'ducklake:postgres:dbname=postgres' (DATA_PATH 's3://my-bucket/my-data/');
+
+```
+
+```sql
+ATTACH 'ducklake:postgres:dbname=postgres' (READ_ONLY);
+
+```
+
+```sql
+ATTACH 'ducklake:duckdb_database.ducklake' (DATA_PATH 'other_data_path/', OVERRIDE_DATA_PATH true);
+
+```
+
+--------------------------------
+
+### DuckDB: Install and Attach DuckLake Extension
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/choosing_a_catalog_database
+
+This snippet shows how to install the ducklake extension and attach to a DuckLake instance using a DuckDB metadata file. This is suitable for local data warehousing with a single client.
+
+```sql
+INSTALL ducklake;
+
+ATTACH 'ducklake:metadata.ducklake' AS my_ducklake;
+USE my_ducklake;
+```
+
+--------------------------------
+
+### SQLite: Install and Attach DuckLake Extension
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/choosing_a_catalog_database
+
+This snippet shows how to install the ducklake and sqlite extensions, and attach to a DuckLake instance using a SQLite database file. Suitable for local data warehousing with multiple local clients.
+
+```sql
+INSTALL ducklake;
+INSTALL sqlite;
+
+ATTACH 'ducklake:sqlite:metadata.sqlite' AS my_ducklake
+    (DATA_PATH 'data_files/');
+USE my_ducklake;
+```
+
+--------------------------------
+
+### Configure and Attach DuckDB and DuckLake Catalogs
+
+Source: https://ducklake.select/docs/stable/duckdb/migrations/duckdb_to_ducklake
+
+This Python code establishes a DuckDB connection and configures DuckLake secrets based on the provided arguments and catalog type. It then attaches both the DuckDB and DuckLake catalogs to the connection, preparing for data migration. For PostgreSQL sources, it also executes a command to get the PostgreSQL secret.
+
+```python
+import duckdb
+
+con = duckdb.connect(database=args.duckdb_file)
+
+if args.catalog_type == "postgresql":
+    con.execute(get_postgres_secret())
+
+secret = (
+    "CREATE SECRET ducklake_secret (TYPE ducklake"
+    + (
+        f"\n,METADATA_PATH '{args.ducklake_file if args.catalog_type == 'duckdb' else f'sqlite:{args.ducklake_file}'}'"
+        if args.catalog_type in ("duckdb", "sqlite")
+        else "\n,METADATA_PATH ''"
+    )
+    + f"\n,DATA_PATH '{args.ducklake_data_path}'"
+    + (
+        "\n,METADATA_PARAMETERS MAP {'TYPE': 'postgres', 'SECRET': 'postgres_secret'});"
+        if args.catalog_type == "postgresql"
+        else ");"
+    )
+con.execute(secret)
+
+con.execute(
+    f"ATTACH '{args.duckdb_file}' AS {args.duckdb_catalog};"
+    f"ATTACH 'ducklake:ducklake_secret' AS {args.ducklake_catalog}; USE {args.ducklake_catalog};"
+)
+```
+
+--------------------------------
+
+### MySQL: Install and Attach DuckLake Extension
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/choosing_a_catalog_database
+
+This snippet illustrates installing the ducklake and mysql extensions, and attaching to a DuckLake instance using a MySQL database. Requires MySQL 8 or newer. Note: MySQL is not recommended as a catalog for DuckLake due to known issues.
+
+```sql
+INSTALL ducklake;
+INSTALL mysql;
+
+-- Make sure that the database `ducklake_catalog` exists in MySQL
+ATTACH 'ducklake:mysql:db=ducklake_catalog host=localhost' AS my_ducklake
+    (DATA_PATH 'data_files/');
+USE my_ducklake;
+```
+
+--------------------------------
+
+### DuckLake Schema Setup and Data Manipulation
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_change_feed
+
+This snippet demonstrates setting up a DuckLake database instance and performing basic data manipulation operations like CREATE TABLE, INSERT, DELETE, and UPDATE across different snapshots.
+
+```sql
+ATTACH 'ducklake:changes.db' AS db (DATA_PATH 'change_files/');
+-- Snapshot 1
+CREATE TABLE db.tbl (id INTEGER, val VARCHAR);
+-- Snapshot 2
+INSERT INTO db.tbl VALUES (1, 'Hello'), (2, 'DuckLake');
+-- Snapshot 3
+DELETE FROM db.tbl WHERE id = 1;
+-- Snapshot 4
+UPDATE db.tbl SET val = concat(val, val, val);
+```
+
+--------------------------------
+
+### DuckLake Superuser Setup and Operations (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+Initializes DuckLake with Superuser credentials for both S3 and PostgreSQL, then attaches and uses the DuckLake instance to create a schema and a table, and insert data. This demonstrates the highest level of access.
+
+```sql
+-- Using the credentials for the AWS DuckLake Superuser (other providers such as STS or SSO can also be used)
+CREATE OR REPLACE SECRET s3_ducklake_superuser (
+  TYPE s3,
+  PROVIDER config,
+  KEY_ID '⟨key⟩',
+  SECRET '⟨secret⟩',
+  REGION 'eu-north-1'
+);
+
+-- Using the DuckLake Superuser credentials for Postgres
+CREATE OR REPLACE SECRET postgres_secret_superuser (
+  TYPE postgres,
+  HOST 'localhost',
+  DATABASE 'access_control',
+  USER 'ducklake_superuser',
+  PASSWORD 'simple'
+);
+
+-- DuckLake config secret
+CREATE OR REPLACE SECRET ducklake_superuser_secret (
+  TYPE ducklake,
+  METADATA_PATH '',
+  DATA_PATH 's3://ducklake-access-control/',
+  METADATA_PARAMETERS MAP {'TYPE': 'postgres','SECRET': 'postgres_secret_superuser'}
+);
+
+-- This initializes DuckLake
+ATTACH 'ducklake:ducklake_superuser_secret' AS ducklake_superuser;
+USE ducklake_superuser;
+
+-- Perform operations in DuckLake
+CREATE SCHEMA IF NOT EXISTS some_schema;
+CREATE TABLE IF NOT EXISTS some_schema.some_table (id INTEGER, name VARCHAR);
+INSERT INTO some_schema.some_table VALUES (1, 'test');
+
+```
+
+--------------------------------
+
+### Attach DuckDB and DuckLake, then Copy Data
+
+Source: https://ducklake.select/docs/stable/duckdb/migrations/duckdb_to_ducklake
+
+This SQL snippet demonstrates how to attach both a DuckDB database and a DuckLake catalog, and then efficiently copy all data from the DuckDB database to the DuckLake catalog. This is the primary method for migration when all DuckDB features are supported in DuckLake.
+
+```sql
+ATTACH 'ducklake:my_ducklake.ducklake' AS my_ducklake;
+ATTACH 'duckdb.db' AS my_duckdb;
+
+COPY FROM DATABASE my_duckdb TO my_ducklake;
+```
+
+--------------------------------
+
+### SQL: Default Unpartitioned File Path Example
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/paths
+
+Demonstrates the default SQL path for an unpartitioned file in DuckLake. This path is relative to the table path and follows a 'ducklake-⟨uuid⟩.parquet' format.
+
+```sql
+ducklake-⟨uuid⟩.parquet
+```
+
+--------------------------------
+
+### DuckDB S3 HTTP GET Error Example (Console Output)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+This console output displays a specific HTTP GET error when DuckDB attempts to retrieve data from an S3 object but is denied access due to a 403 Forbidden status. This error is indicative of permission issues.
+
+```console
+HTTP Error:
+HTTP GET error on 'https://ducklake-access-control.s3.amazonaws.com/some_schema/another_table/ducklake-019929c8-c9c9-77d7-91e6-bc3c6dc87605.parquet' (HTTP 403)
+
+```
+
+--------------------------------
+
+### DuckLake Metadata Table (`ducklake_metadata`)
+
+Source: https://ducklake.select/docs/stable/specification/tables/ducklake_metadata
+
+The `ducklake_metadata` table stores key/value pairs that define the configuration and setup of the DuckLake catalog. Settings can be applied globally or scoped to specific schemas or tables.
+
+```APIDOC
+## `ducklake_metadata` Table Overview
+
+### Description
+The `ducklake_metadata` table contains key/value pairs with information about the specific setup of the DuckLake catalog. These settings control various aspects of DuckLake's behavior.
+
+### Columns
+
+| Column name | Column type | Constraints |
+|---|---|---|
+| `key` | `VARCHAR` | Not `NULL` |
+| `value` | `VARCHAR` | Not `NULL` |
+| `scope` | `VARCHAR` | |
+| `scope_id` | `BIGINT` | |
+
+### Column Descriptions
+
+*   **`key`**: An arbitrary key string. The key cannot be `NULL`. See below for a list of pre-defined keys.
+*   **`value`**: The arbitrary value string associated with the key. The `value` cannot be `NULL`.
+*   **`scope`**: Defines the scope of the setting. Possible values include `NULL` (Global), `"schema"`, or `"table"`.
+*   **`scope_id`**: The ID of the item that the setting is scoped to. If the scope is Global, this will be `NULL`.
+
+### Scopes
+
+| Scope | `scope` Value | Description |
+|---|---|---|
+| Global | `NULL` | The setting applies globally to the entire catalog. |
+| Schema | `"schema"` | The setting is scoped to the schema referenced by `scope_id`. |
+| Table | `"table"` | The setting is scoped to the table referenced by `scope_id`. |
+
+### Pre-defined Keys
+
+| Name                        | Description                                                                   | Notes                                                                                                                            | Scope(s)             |
+|-----------------------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------------------|
+| `version`                   | DuckLake format version.                                                      |                                                                                                                                  | Global               |
+| `created_by`                | Tool used to write the DuckLake.                                              |                                                                                                                                  | Global               |
+| `table`                     | A string that identifies which program wrote the schema, e.g., `DuckDB v1.3.2`. |                                                                                                                                  | Global               |
+| `data_path`                 | Path to data files, e.g., `s3://mybucket/myprefix/`.                         | Has to end in `/`                                                                                                                | Global               |
+| `encrypted`                 | Whether or not to encrypt Parquet files written to the data path.             | `'true'` or `'false'`                                                                                                            | Global               |
+| `data_inlining_row_limit`   | Maximum amount of rows to inline in a single insert.                          |                                                                                                                                  | Global, Schema, Table |
+| `target_file_size`          | The target data file size for insertion and compaction operations.            |                                                                                                                                  | Global, Schema, Table |
+| `parquet_row_group_size_bytes` | Number of bytes per row group in Parquet files.                               |                                                                                                                                  | Global, Schema, Table |
+| `parquet_row_group_size`    | Number of rows per row group in Parquet files.                                |                                                                                                                                  | Global, Schema, Table |
+| `parquet_compression`       | Compression algorithm for Parquet files, e.g., `zstd`.                        | `uncompressed`, `snappy`, `gzip`, `zstd`, `brotli`, `lz4`, `lz4_raw`                                                             | Global, Schema, Table |
+| `parquet_compression_level` | Compression level for Parquet files.                                          |                                                                                                                                  | Global, Schema, Table |
+| `parquet_version`           | Parquet format version.                                                       | `1` or `2`                                                                                                                       | Global, Schema, Table |
+| `hive_file_pattern`         | If partitioned data should be written in a Hive-style folder structure.       | `'true'` or `'false'`                                                                                                            | Global               |
+| `require_commit_message`    | If an explicit commit message is required for a snapshot commit.              | `'true'` or `'false'`                                                                                                            | Global               |
+| `rewrite_delete_threshold`  | Minimum amount of data (0-1) that must be removed from a file before a rewrite is warranted. | Value between `0` and `1`                                                                                                        | Global               |
+| `delete_older_than`         | How old unused files must be to be removed by the `ducklake_delete_orphaned_files` and `ducklake_cleanup_old_files` functions. | Duration string (e.g., `7d`, `24h`)                                                                                              | Global               |
+| `expire_older_than`         | How old snapshots must be, by default, to be expired by `ducklake_expire_snapshots`. | Duration string (e.g., `30d`)                                                                                                    | Global               |
+| `compaction_schema`         | Pre-defined schema used as a default value for compaction functions.          | Used by `ducklake_flush_inlined_data`, `ducklake_merge_adjacent_files`, `ducklake_rewrite_data_files`, etc.                     | Global               |
+| `compaction_table`          | Pre-defined table used as a default value for compaction functions.           | Used by `ducklake_flush_inlined_data`, `ducklake_merge_adjacent_files`, `ducklake_rewrite_data_files`, etc.                     | Global               |
+| `per_thread_output`         | Whether to create separate output files per thread during parallel insertion. | `'true'` or `'false'`                                                                                                            | Global               |
+```
+
+--------------------------------
+
+### Parse Command-Line Arguments for Migration Script
+
+Source: https://ducklake.select/docs/stable/duckdb/migrations/duckdb_to_ducklake
+
+This Python code snippet uses the `argparse` module to define and parse command-line arguments required for the DuckDB to DuckLake migration script. It specifies required arguments like catalog names and file paths, as well as optional arguments and choices for catalog types.
+
+```python
+import argparse
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Migrate DuckDB catalog to DuckLake.")
+    parser.add_argument("--duckdb-catalog", required=True, help="DuckDB catalog name")
+    parser.add_argument("--duckdb-file", required=True, help="Path to DuckDB file")
+    parser.add_argument(
+        "--ducklake-catalog", required=True, help="DuckLake catalog name"
+    )
+    parser.add_argument(
+        "--catalog-type",
+        choices=["duckdb", "postgresql", "sqlite"],
+        required=True,
+        help="Choose one of: duckdb, postgresql, sqlite",
+    )
+    parser.add_argument("--ducklake-file", required=False, help="Path to DuckLake file")
+    parser.add_argument(
+        "--ducklake-data-path", required=True, help="Data path for DuckLake"
+    )
+
+    args = parser.parse_args()
+```
+
+--------------------------------
+
+### Manage Transactions with SQL
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/transactions
+
+This snippet demonstrates the basic SQL syntax for managing transactions in DuckDB, which is leveraged by DuckLake. It shows how to start a transaction, perform operations, and then either commit or roll back the changes. The ABORT command functions identically to ROLLBACK.
+
+```sql
+BEGIN TRANSACTION;
+-- Some operation
+-- Some other operation
+COMMIT;
+-- Or
+ROLLBACK; -- ABORT will have the same behavior
+```
+
+--------------------------------
+
+### DuckLake Writer Setup and Operations (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+Sets up DuckLake with Writer credentials, detaching the superuser secret first. It then configures S3 and PostgreSQL secrets for the writer role and attaches the DuckLake instance to perform table creations and data insertions. It also demonstrates an attempt at an unauthorized operation and the workaround using transactions.
+
+```sql
+-- Drop this to avoid the extension defaulting to this secret
+DROP SECRET s3_ducklake_superuser;
+
+-- Using the DuckLake Writer credentials for Postgres
+CREATE OR REPLACE SECRET postgres_secret_writer (
+  TYPE postgres,
+  HOST 'localhost',
+  DATABASE 'access_control',
+  USER 'ducklake_writer',
+  PASSWORD 'simple'
+);
+
+-- Using the credentials for the AWS DuckLake Writer
+CREATE OR REPLACE SECRET s3_ducklake_schema_reader_writer (
+  TYPE s3,
+  PROVIDER config,
+  KEY_ID '⟨key⟩',
+  SECRET '⟨secret⟩',
+  REGION 'eu-north-1'
+);
+
+-- DuckLake config secret
+CREATE OR REPLACE SECRET ducklake_writer_secret (
+  TYPE ducklake,
+  METADATA_PATH '',
+  DATA_PATH 's3://ducklake-access-control/',
+  METADATA_PARAMETERS MAP {'TYPE': 'postgres','SECRET': 'postgres_secret_writer'}
+);
+
+ATTACH 'ducklake:ducklake_writer_secret' AS ducklake_writer;
+USE ducklake_writer;
+
+-- Perform operations
+CREATE TABLE IF NOT EXISTS some_schema.another_table (id INTEGER, name VARCHAR);
+INSERT INTO some_schema.another_table VALUES (1, 'test'); -- Works
+INSERT INTO some_schema.some_table VALUES (2, 'test2'); -- Also works
+
+-- Try to perform an unauthorized operation
+CREATE TABLE other_table_in_main (id INTEGER, name VARCHAR); -- This unfortunately works
+INSERT INTO other_table_in_main VALUES (1, 'test'); -- This doesn't work
+
+```
+
+```sql
+BEGIN TRANSACTION;
+CREATE TABLE other_table_in_main (id INTEGER, name VARCHAR);
+INSERT INTO other_table_in_main VALUES (1, 'test');
+COMMIT;
+
+```
+
+--------------------------------
+
+### SQL: Default Schema Path Example
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/paths
+
+Illustrates the default SQL path generated when creating a schema in DuckLake. The path is relative to the root data path and defaults to the schema name or UUID.
+
+```sql
+⟨schema_name⟩/
+-- or --
+⟨schema_uuid⟩/
+```
+
+--------------------------------
+
+### Set Table Partitioning with Functions (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/partitioning
+
+This SQL command demonstrates how to partition a DuckLake table using functions applied to columns. For example, partitioning by the year and month of a timestamp column helps organize time-series data and improve query efficiency.
+
+```sql
+ALTER TABLE tbl SET PARTITIONED BY (year(ts), month(ts));
+```
+
+--------------------------------
+
+### SQL: Default Table Path Example
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/paths
+
+Shows the default SQL path for a table within a schema in DuckLake. This path is relative to the parent schema's path and defaults to the table name or UUID.
+
+```sql
+⟨table_name⟩
+-- or --
+⟨table_uuid⟩
+```
+
+--------------------------------
+
+### DuckLake SQL: Full Row Upsert Example
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/upserting
+
+An example of MERGE INTO in DuckLake to update an entire row if the 'id' matches or insert a new row if it does not. It uses unnest to create a temporary source table from arrays.
+
+```sql
+MERGE INTO people
+    USING (
+        SELECT
+            unnest([3, 1]) AS id,
+            unnest(['Sarah', 'Jhon']) AS name,
+            unnest([95000.0, 105000.0]) AS salary
+    ) AS upserts
+    ON (upserts.id = people.id)
+    WHEN MATCHED THEN UPDATE
+    WHEN NOT MATCHED THEN INSERT;
+
+FROM people;
+
+```
+
+--------------------------------
+
+### DuckLake Reader Setup and Operations (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+Configures DuckLake with Reader credentials by setting up S3 and PostgreSQL secrets. It then attaches the DuckLake instance and attempts to select data from tables created by other roles. This demonstrates read-only access and expected failures for unauthorized operations.
+
+```sql
+DROP SECRET s3_ducklake_schema_reader_writer;
+CREATE OR REPLACE SECRET s3_ducklake_table_reader (
+  TYPE s3,
+  PROVIDER config,
+  KEY_ID '⟨key_id⟩',
+  SECRET '⟨secret_key⟩',
+  REGION 'eu-north-1'
+);
+CREATE OR REPLACE SECRET postgres_secret_reader (
+  TYPE postgres,
+  HOST 'localhost',
+  DATABASE 'access_control',
+  USER 'ducklake_reader',
+  PASSWORD 'simple'
+);
+CREATE OR REPLACE SECRET ducklake_reader_secret (
+  TYPE ducklake,
+  METADATA_PATH '',
+  DATA_PATH 's3://ducklake-access-control/',
+  METADATA_PARAMETERS MAP {'TYPE': 'postgres','SECRET': 'postgres_secret_reader'}
+);
+ATTACH 'ducklake:ducklake_reader_secret' AS ducklake_reader;
+USE ducklake_reader;
+
+SELECT * FROM some_schema.some_table; -- Works
+SELECT * FROM some_schema.another_table; -- Fails
+
+```
+
+```sql
+CREATE TABLE yet_another_table (a INT);
+
+```
+
+--------------------------------
+
+### Select Data and Delete File Paths
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+Joins `ducklake_data_file` with `ducklake_delete_file` to get the paths for both data and delete files associated with a specific table and snapshot. This is crucial for reconstructing table rows.
+
+```sql
+SELECT data.path AS data_file_path, del.path AS delete_file_path
+FROM ducklake_data_file AS data
+LEFT JOIN (
+    SELECT *
+    FROM ducklake_delete_file
+    WHERE
+        SNAPSHOT_ID >= begin_snapshot AND
+        (SNAPSHOT_ID < end_snapshot OR end_snapshot IS NULL)
+    ) AS del
+USING (data_file_id)
+WHERE
+    data.table_id = TABLE_ID AND
+    SNAPSHOT_ID >= data.begin_snapshot AND
+    (SNAPSHOT_ID < data.end_snapshot OR data.end_snapshot IS NULL)
+ORDER BY file_order;
+
+```
+
+--------------------------------
+
+### Inlining Small Inserts
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_inlining
+
+This example shows how DuckLake automatically inlines small inserts. When the number of rows inserted is less than the `DATA_INLINING_ROW_LIMIT`, the data is written directly to the metadata catalog instead of creating Parquet files. The `glob` query confirms no Parquet files are created.
+
+```sql
+CREATE TABLE inlining.tbl (col INTEGER);
+-- Inserting 3 rows, data is inlined
+INSERT INTO inlining.tbl VALUES (1), (2), (3);
+-- No Parquet files exist
+SELECT count(*) FROM glob('inlining.db.files/**');
+
+```
+
+--------------------------------
+
+### Migrate DuckDB Macros to DuckLake Metadata
+
+Source: https://ducklake.select/docs/stable/duckdb/migrations/duckdb_to_ducklake
+
+This Python function iterates through DuckDB functions, extracting macro names, parameters, and definitions. It then creates or replaces these macros in the DuckLake metadata database. This requires a DuckDB connection object and the name of the DuckDB catalog to process.
+
+```python
+def migrate_macros(con: duckdb.DuckDBPyConnection, duckdb_catalog: str):
+    """
+    Migrate macros from the DuckDB catalog to DuckLake metadata database.
+    """
+    for row in con.execute(
+        f"SELECT function_name, parameters, macro_definition FROM duckdb_functions() "
+        f"WHERE database_name='{duckdb_catalog}'"
+    ).fetchall():
+        name, parameters, definition = row[0], row[1], row[2]
+        print(f"Migrating Macro: {name}")
+        con.execute(
+            f"CREATE OR REPLACE MACRO {name}({','.join(parameters)}) AS {definition}"
+        )
+```
+
+--------------------------------
+
+### Migrate DuckDB Tables and Views to DuckLake (Python)
+
+Source: https://ducklake.select/docs/stable/duckdb/migrations/duckdb_to_ducklake
+
+This Python script facilitates the migration of tables and views from a DuckDB catalog to DuckLake. It resolves data type incompatibilities and manages view definitions. The script uses a queue to handle dependencies and retries failed migrations, currently supporting local migrations only.
+
+```python
+import duckdb
+import argparse
+import re
+import os
+from collections import deque
+
+TYPE_MAPPING = {
+    "VARINT": "::VARCHAR::INT",
+    "UNION/ENUM": "::VARCHAR",
+    "BIT": "::VARCHAR",
+}
+
+
+def get_postgres_secret():
+    return f"""
+        CREATE SECRET postgres_secret(
+            TYPE postgres,
+            HOST '{os.getenv("POSTGRES_HOST", "localhost")}',
+            PORT {os.getenv("POSTGRES_PORT", "5432")},
+            DATABASE {os.getenv("POSTGRES_DB", "migration_test")},
+            USER '{os.getenv("POSTGRES_USER", "user")}',
+            PASSWORD '{os.getenv("POSTGRES_PASSWORD", "simple")}'
+        );"""
+
+
+def _resolve_data_types(
+    table: str, schema: str, catalog: str, conn: duckdb.DuckDBPyConnection
+):
+    excepts = []
+    casts = []
+    for col in conn.execute(
+        f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table}' AND table_schema = '{schema}' AND table_catalog = '{catalog}'"
+    ).fetchall():
+        col_name, col_type = col[0], col[1]
+        # Handle mapped types
+        if col_type in TYPE_MAPPING or re.match(r"(ENUM|UNION)", col_type):
+            cast = TYPE_MAPPING.get(col_type) or TYPE_MAPPING["UNION/ENUM"]
+            casts.append(f"{col_name}{cast} AS {col_name}")
+            excepts.append(col_name)
+        # Handle array types
+        elif re.fullmatch(r"(INTEGER|VARCHAR|FLOAT)[\d+]", col_type):
+            base_type = re.match(r"(INTEGER|VARCHAR|FLOAT)", col_type).group(1)
+            cast = f"::{base_type}[]"
+            casts.append(f"{col_name}{cast} AS {col_name}")
+            excepts.append(col_name)
+    return excepts, casts
+
+
+def migrate_tables_and_views(duckdb_catalog: str, con: duckdb.DuckDBPyConnection):
+    """
+    Migrate tables and views from the DuckDB catalog to DuckLake using a queue system.
+    If migration of a table or view fails, it will be re-added to the back of the queue.
+    """
+    rows = con.execute(
+        f"SELECT table_catalog, table_schema, table_name, table_type "
+        f"FROM information_schema.tables WHERE table_catalog = '{duckdb_catalog}'"
+    ).fetchall()
+
+    # The idea behind this queue is to retry failed migration of views due to missing dependencies.
+    # The failed item is re-added to the back of the queue and waits for the rest of the dependencies to be migrated.
+    # This avoids the need to generate a full dependency graph, which would make this script very complex.
+    queue = deque(rows)
+    failed_last_round = set()
+
+    while queue:
+        catalog, schema, table, table_type = queue.popleft()
+        con.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+        try:
+            if table_type == "VIEW":
+                view_definition = con.execute(
+                    f"SELECT view_definition FROM information_schema.views "
+                    f"WHERE table_name = '{table}' AND table_schema = '{schema}' AND table_catalog = '{catalog}'"
+                ).fetchone()[0]
+                con.execute(
+                    f"CREATE VIEW IF NOT EXISTS {view_definition.removeprefix('CREATE VIEW ')}"
+                )
+                print(f"Migrating Catalog: {catalog}, Schema: {schema}, View: {table}")
+            else:
+                excepts, casts = _resolve_data_types(table, schema, catalog, con)
+                if casts:
+                    select_clause = (
+                        "* EXCLUDE(" + ", ".join(excepts) + "),\n" + ",\n".join(casts)
+                    )
+                    con.execute(
+                        f"CREATE TABLE IF NOT EXISTS {schema}.{table} AS "
+                        f"SELECT {select_clause} FROM {catalog}.{schema}.{table}"
+                    )
+                else:
+                    con.execute(
+                        f"CREATE TABLE IF NOT EXISTS {schema}.{table} AS "
+                        f"SELECT * FROM {catalog}.{schema}.{table}"
+                    )
+                print(f"Migrating Catalog: {catalog}, Schema: {schema}, Table: {table}")
+        except Exception as e:
+            print(f"WARNING: Requeuing {table_type} {table}")
+            # Prevent infinite loop if no progress is possible
+            if (catalog, schema, table, table_type) in failed_last_round:
+                print(
+                    f"Skipping {table_type} {table} permanently due to repeated failure. {e}"
+                )
+                continue
+            else:
+                queue.append((catalog, schema, table, table_type))
+
+```
+
+--------------------------------
+
+### Forbidden Access Error Example (Console Output)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+This represents a console output error message encountered when DuckDB cannot access an S3 object, typically due to insufficient permissions or misconfigured credentials. It is a generic error message not specific to DuckLake.
+
+```console
+HTTP Error:
+Unable to connect to URL "https://ducklake-access-control.s3.amazonaws.com/main/other_table_in_main/ducklake-01992ec2-d9f7-745e-88e8-708e659a70be.parquet": 403 (Forbidden).
+
+Authentication Failure - this is usually caused by invalid or missing credentials.
+* No credentials are provided.
+* See https://duckdb.org/docs/stable/extensions/httpfs/s3api.html
+
+```
+
+--------------------------------
+
+### Get Current Snapshot ID from DuckLake
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+Retrieves the most recent snapshot ID from the `ducklake_snapshot` table. This is typically the first step before querying other metadata tables.
+
+```sql
+SELECT snapshot_id
+FROM ducklake_snapshot
+WHERE snapshot_id =
+    (SELECT max(snapshot_id) FROM ducklake_snapshot);
+
+```
+
+--------------------------------
+
+### DuckLake SQL: Row Deletion
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/upserting
+
+An example of using MERGE INTO to delete rows from the target table ('people') based on a provided set of 'id's. The WHEN MATCHED THEN DELETE clause handles the removal.
+
+```sql
+MERGE INTO people
+    USING (
+        SELECT
+            1 AS id,
+    ) AS deletes
+    ON (deletes.id = people.id)
+    WHEN MATCHED THEN DELETE;
+
+FROM people;
+
+```
+
+--------------------------------
+
+### Promote Column Type in DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Changes the data type of a column in a DuckLake table to a wider, compatible type (type promotion). This operation must be lossless, for example, promoting `int32` to `int64`. Invalid promotions are not allowed.
+
+```sql
+ALTER TABLE tbl ALTER col1 SET TYPE BIGINT;
+```
+
+```sql
+ALTER TABLE tbl ALTER nested_column.new_field SET TYPE BIGINT;
+```
+
+--------------------------------
+
+### Execute Table and View Migration and Conditional Macro Migration
+
+Source: https://ducklake.select/docs/stable/duckdb/migrations/duckdb_to_ducklake
+
+This Python code first calls `migrate_tables_and_views` to transfer tables and views between catalogs. If the source catalog type is 'duckdb', it detaches the DuckLake catalog, attaches the DuckDB metadata file, and then proceeds to migrate macros. Finally, it closes the DuckDB connection.
+
+```python
+con.execute(
+    f"ATTACH '{args.duckdb_file}' AS {args.duckdb_catalog};"
+    f"ATTACH 'ducklake:ducklake_secret' AS {args.ducklake_catalog}; USE {args.ducklake_catalog};"
+)
+
+migrate_tables_and_views(
+    duckdb_catalog=args.duckdb_catalog,
+    con=con,
+)
+
+if args.catalog_type == "duckdb":
+    # DETACH DuckLake to be able to attach to the metadata database in migrate_macros
+    con.execute(f"USE {args.duckdb_catalog}; DETACH {args.ducklake_catalog};")
+    con.execute(
+        f"ATTACH '{args.ducklake_file}' AS ducklake_metadata; USE ducklake_metadata;"
+    )
+    migrate_macros(
+        con=con,
+        duckdb_catalog=args.duckdb_catalog,
+    )
+con.close()
+```
+
+--------------------------------
+
+### Simulate Non-Literal Default Value in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/migrations/duckdb_to_ducklake
+
+This SQL snippet illustrates how to handle default values that are not literals in DuckLake, which differs from DuckDB. It shows creating a table without a default for the 'd' column and then inserting data with the current timestamp explicitly provided, simulating the behavior of DuckDB's `DEFAULT now()`.
+
+```sql
+-- Works in DuckDB, doesn't work in DuckLake
+-- CREATE TABLE t1 (id INTEGER, d DATE DEFAULT now());
+-- INSERT INTO t1 VALUES (2);
+
+-- Works in DuckLake and simulates the same behavior
+CREATE TABLE t1 (id INTEGER, d DATE);
+INSERT INTO t1 VALUES(2, now());
+```
+
+--------------------------------
+
+### Querying Changes in the Last Week in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_change_feed
+
+This SQL query retrieves all changes made to the 'tbl' table within the last week, using current timestamp as the end bound and one week prior as the start bound.
+
+```sql
+FROM changes.table_changes('tbl', now() - INTERVAL '1 week', now());
+```
+
+--------------------------------
+
+### Get Latest Snapshot ID in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/snapshots
+
+Retrieves the ID of the latest committed snapshot for the current connection. This function is helpful when you need to know the most recent state of the database. It assumes a DuckLake database is accessible.
+
+```sql
+FROM snapshot_test.current_snapshot();
+
+```
+
+--------------------------------
+
+### Get Last Committed Snapshot ID in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/snapshots
+
+Fetches the ID of the last committed snapshot for an existing open connection. This is particularly useful in scenarios with multiple connections updating the same target, ensuring operations are based on the most recent stable state. Returns NULL if no committed snapshot is found for the connection.
+
+```sql
+FROM snapshot_test.last_committed_snapshot();
+
+```
+
+--------------------------------
+
+### Create a Local DuckDB-Backed DuckLake Database
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Attaches a new DuckLake database using a local DuckDB file for metadata and a default local folder for data storage. The `USE` statement sets this as the active database.
+
+```sql
+ATTACH 'ducklake:my_ducklake.ducklake' AS my_ducklake;
+USE my_ducklake;
+
+```
+
+--------------------------------
+
+### DuckLake ATTACH Command Syntax
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/connecting
+
+This snippet shows the basic syntax for the ATTACH command in DuckLake, used to connect to a DuckLake instance. It requires specifying the catalog database and optionally the data storage location.
+
+```sql
+ATTACH 'ducklake:metadata_storage_location' (DATA_PATH 'data_storage_location');
+
+```
+
+```sql
+ATTACH 'ducklake:secret_name';
+
+```
+
+--------------------------------
+
+### Create Default and Named Duck Lake Secrets
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/connecting
+
+This snippet demonstrates how to create default (unnamed) and named secrets for Duck Lake connections. It also shows how to attach to these secrets to establish a connection. Secrets encapsulate connection parameters, simplifying configuration.
+
+```sql
+-- Default (unnamed) secret
+CREATE SECRET (
+    TYPE ducklake,
+    METADATA_PATH 'metadata.db',
+    DATA_PATH 'metadata_files/'
+);
+
+ATTACH 'ducklake:' AS my_ducklake;
+
+-- Named secrets
+CREATE SECRET my_secret (
+    TYPE ducklake,
+    METADATA_PATH '',
+    DATA_PATH 's3://my-s3-bucket/',
+    METADATA_PARAMETERS MAP {'TYPE': 'postgres', 'SECRET': 'postgres_secret'}
+);
+ATTACH 'ducklake:my_secret' AS my_ducklake;
+
+```
+
+--------------------------------
+
+### Create DuckLake Metadata Database Schema - SQL
+
+Source: https://ducklake.select/docs/stable/specification/tables/overview
+
+This SQL script defines the structure of the DuckLake metadata database. It includes tables for storing information about schemas, tables, views, data files, statistics, and deletion schedules. No external dependencies are required for execution.
+
+```sql
+CREATE TABLE ducklake_metadata (key VARCHAR NOT NULL, value VARCHAR NOT NULL, scope VARCHAR, scope_id BIGINT);
+CREATE TABLE ducklake_snapshot (snapshot_id BIGINT PRIMARY KEY, snapshot_time TIMESTAMPTZ, schema_version BIGINT, next_catalog_id BIGINT, next_file_id BIGINT);
+CREATE TABLE ducklake_snapshot_changes (snapshot_id BIGINT PRIMARY KEY, changes_made VARCHAR, author VARCHAR, commit_message VARCHAR, commit_extra_info VARCHAR);
+CREATE TABLE ducklake_schema (schema_id BIGINT PRIMARY KEY, schema_uuid UUID, begin_snapshot BIGINT, end_snapshot BIGINT, schema_name VARCHAR, path VARCHAR, path_is_relative BOOLEAN);
+CREATE TABLE ducklake_table (table_id BIGINT, table_uuid UUID, begin_snapshot BIGINT, end_snapshot BIGINT, schema_id BIGINT, table_name VARCHAR, path VARCHAR, path_is_relative BOOLEAN);
+CREATE TABLE ducklake_view (view_id BIGINT, view_uuid UUID, begin_snapshot BIGINT, end_snapshot BIGINT, schema_id BIGINT, view_name VARCHAR, dialect VARCHAR, sql VARCHAR, column_aliases VARCHAR);
+CREATE TABLE ducklake_tag (object_id BIGINT, begin_snapshot BIGINT, end_snapshot BIGINT, key VARCHAR, value VARCHAR);
+CREATE TABLE ducklake_column_tag (table_id BIGINT, column_id BIGINT, begin_snapshot BIGINT, end_snapshot BIGINT, key VARCHAR, value VARCHAR);
+CREATE TABLE ducklake_data_file (data_file_id BIGINT PRIMARY KEY, table_id BIGINT, begin_snapshot BIGINT, end_snapshot BIGINT, file_order BIGINT, path VARCHAR, path_is_relative BOOLEAN, file_format VARCHAR, record_count BIGINT, file_size_bytes BIGINT, footer_size BIGINT, row_id_start BIGINT, partition_id BIGINT, encryption_key VARCHAR, partial_file_info VARCHAR, mapping_id BIGINT);
+CREATE TABLE ducklake_file_column_stats (data_file_id BIGINT, table_id BIGINT, column_id BIGINT, column_size_bytes BIGINT, value_count BIGINT, null_count BIGINT, min_value VARCHAR, max_value VARCHAR, contains_nan BOOLEAN, extra_stats VARCHAR);
+CREATE TABLE ducklake_delete_file (delete_file_id BIGINT PRIMARY KEY, table_id BIGINT, begin_snapshot BIGINT, end_snapshot BIGINT, data_file_id BIGINT, path VARCHAR, path_is_relative BOOLEAN, format VARCHAR, delete_count BIGINT, file_size_bytes BIGINT, footer_size BIGINT, encryption_key VARCHAR);
+CREATE TABLE ducklake_column (column_id BIGINT, begin_snapshot BIGINT, end_snapshot BIGINT, table_id BIGINT, column_order BIGINT, column_name VARCHAR, column_type VARCHAR, initial_default VARCHAR, default_value VARCHAR, nulls_allowed BOOLEAN, parent_column BIGINT);
+CREATE TABLE ducklake_table_stats (table_id BIGINT, record_count BIGINT, next_row_id BIGINT, file_size_bytes BIGINT);
+CREATE TABLE ducklake_table_column_stats (table_id BIGINT, column_id BIGINT, contains_null BOOLEAN, contains_nan BOOLEAN, min_value VARCHAR, max_value VARCHAR, extra_stats VARCHAR);
+CREATE TABLE ducklake_partition_info (partition_id BIGINT, table_id BIGINT, begin_snapshot BIGINT, end_snapshot BIGINT);
+CREATE TABLE ducklake_partition_column (partition_id BIGINT, table_id BIGINT, partition_key_index BIGINT, column_id BIGINT, transform VARCHAR);
+CREATE TABLE ducklake_file_partition_value (data_file_id BIGINT, table_id BIGINT, partition_key_index BIGINT, partition_value VARCHAR);
+CREATE TABLE ducklake_files_scheduled_for_deletion (data_file_id BIGINT, path VARCHAR, path_is_relative BOOLEAN, schedule_start TIMESTAMPTZ);
+CREATE TABLE ducklake_inlined_data_tables (table_id BIGINT, table_name VARCHAR, schema_version BIGINT);
+CREATE TABLE ducklake_column_mapping (mapping_id BIGINT, table_id BIGINT, type VARCHAR);
+CREATE TABLE ducklake_name_mapping (mapping_id BIGINT, column_id BIGINT, source_name VARCHAR, target_field_id BIGINT, parent_column BIGINT, is_partition BOOLEAN);
+CREATE TABLE ducklake_schema_versions (begin_snapshot BIGINT, schema_version BIGINT);
+```
+
+--------------------------------
+
+### View DuckLake Options (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/configuration
+
+Retrieves all currently set options for an attached DuckLake instance. This function helps in verifying configuration settings.
+
+```sql
+FROM my_ducklake.options();
+```
+
+--------------------------------
+
+### Create DuckLake Table with Columns (SQL)
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+This snippet demonstrates how to create a new table in DuckLake by inserting records into the `ducklake_table` table and then adding columns by inserting into the `ducklake_column` table. It requires specific IDs for table, snapshot, and schema, along with column details.
+
+```sql
+INSERT INTO ducklake_table (
+    table_id,
+    table_uuid,
+    begin_snapshot,
+    end_snapshot,
+    schema_id,
+    table_name
+)
+VALUES (
+    TABLE_ID,
+    uuid(),
+    SNAPSHOT_ID,
+    NULL,
+    SCHEMA_ID,
+    TABLE_NAME
+);
+
+INSERT INTO ducklake_column (
+    column_id,
+    begin_snapshot,
+    end_snapshot,
+    table_id,
+    column_order,
+    column_name,
+    column_type,
+    nulls_allowed
+)
+VALUES (
+    COLUMN_ID,
+    SNAPSHOT_ID,
+    NULL,
+    TABLE_ID,
+    COLUMN_ORDER,
+    COLUMN_NAME,
+    COLUMN_TYPE,
+    NULLS_ALLOWED
+);
+```
+
+--------------------------------
+
+### Set Table Partitioning Keys (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/partitioning
+
+This SQL command sets the partitioning keys for a DuckLake table. New data added to the table will be split into files based on these keys, optimizing query performance by allowing file pruning.
+
+```sql
+ALTER TABLE tbl SET PARTITIONED BY (part_key);
+```
+
+--------------------------------
+
+### Create DuckLake with Custom Data Path
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Attaches a DuckLake database, specifying a custom directory for data storage using the `DATA_PATH` parameter. The database file itself is still a local DuckDB file.
+
+```sql
+ATTACH 'ducklake:my_other_ducklake.ducklake' AS my_other_ducklake (DATA_PATH 'some/other/path/');
+USE ...;
+
+```
+
+--------------------------------
+
+### Query DuckLake Snapshots
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Retrieves all available snapshots for the DuckLake database, showing the history of changes including creation, insertion, and updates.
+
+```sql
+FROM my_ducklake.snapshots();
+
+```
+
+--------------------------------
+
+### List Files at a Specific Point in Time
+
+Source: https://ducklake.select/docs/stable/duckdb/metadata/list_files
+
+This SQL snippet illustrates fetching file details for a DuckLake table at a particular timestamp using the `snapshot_time` parameter. This is useful for point-in-time recovery or analysis. The output includes file paths and metadata.
+
+```sql
+FROM ducklake_list_files('catalog', 'table_name', snapshot_time => '2025-06-16 15:24:30');
+```
+
+--------------------------------
+
+### ATTACH Command Usage
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/connecting
+
+The ATTACH command is used to connect to an existing DuckLake or create a new one. It requires specifying the catalog database and data storage location.
+
+```APIDOC
+## ATTACH Command
+
+### Description
+Connects to a DuckLake instance. If no DuckLake exists at the specified catalog database, a new one is created. Data storage location is required for new DuckLakes and optional for existing ones (loaded from metadata).
+
+### Method
+SQL Command
+
+### Endpoint
+N/A (SQL Command)
+
+### Parameters
+#### Path Parameters
+None
+
+#### Query Parameters
+None
+
+#### Request Body
+None
+
+### Request Example
+```sql
+ATTACH 'ducklake:metadata_storage_location' (DATA_PATH 'data_storage_location');
+ATTACH 'ducklake:secret_name';
+```
+
+### Response
+#### Success Response (200)
+Connection established or new DuckLake created.
+
+#### Response Example
+(Implicit success, no specific body)
+
+### Parameters Table
+
+Name | Description | Default
+---|---|---
+`CREATE_IF_NOT_EXISTS` | Creates a new DuckLake if the specified one does not already exist | `true`
+`DATA_INLINING_ROW_LIMIT` | The number of rows for which data inlining is used | `0`
+`DATA_PATH` | The storage location of the data files | `metadata_file.files` for DuckDB files, required otherwise
+`ENCRYPTED` | Whether or not data is stored encrypted | `false`
+`META_PARAMETER_NAME` | Pass `PARAMETER_NAME` to the catalog server |
+`METADATA_CATALOG` | The name of the attached catalog database | `__ducklake_metadata_ducklake_name`
+`METADATA_PARAMETERS` | Map of parameters to pass to the catalog server | `{}`
+`METADATA_PATH` | The connection string for connecting to the metadata catalog |
+`METADATA_SCHEMA` | The schema in the catalog server in which to store the DuckLake tables | `main`
+`MIGRATE_IF_REQUIRED` | Migrates the DuckLake schema if required | `true`
+`OVERRIDE_DATA_PATH` | If the path provided in `data_path` differs from the stored path and this option is set to true, the path is overridden | `true`
+`SNAPSHOT_TIME` | If provided, connect to DuckLake at a snapshot at a specified point in time |
+`SNAPSHOT_VERSION` | If provided, connect to DuckLake at a specified snapshot id |
+
+Any parameters prefixed with `META_` are passed to the catalog used to store the metadata. For example, `META_SECRET` can be used with PostgreSQL.
+```
+
+--------------------------------
+
+### DuckDB Catalog Backup with Timestamp (Python)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery
+
+Shows how to create a DuckDB catalog backup with a timestamp using Python. This is necessary because the ATTACH command in SQL does not support dynamic timestamp generation directly.
+
+```python
+import duckdb
+import datetime
+con = duckdb.connection(f"backup_{datetime.datetime.now().strftime('%Y-%m-%d__%I_%M_%S')}.db")
+```
+
+--------------------------------
+
+### DuckDB Catalog Backup and Recovery (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery
+
+Demonstrates how to back up and recover a DuckDB catalog used by DuckLake. This involves attaching the source and backup databases and using the COPY FROM DATABASE command. Transactions committed after the backup will not be recovered.
+
+```sql
+-- Backup
+ATTACH 'db.db' AS db (READ_ONLY);
+ATTACH 'backup.db' AS backup;
+COPY FROM DATABASE db TO backup;
+
+-- Recover
+ATTACH 'db.db' AS db;
+ATTACH 'backup.db' AS backup (READ_ONLY);
+COPY FROM DATABASE backup TO db;
+ATTACH 'ducklake:db.db' AS my_ducklake;
+```
+
+--------------------------------
+
+### Create DuckLake Snapshot and Log Changes
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+These SQL statements are used to create a new data snapshot in DuckLake and log the associated changes. The first statement inserts into `ducklake_snapshot` to record the snapshot metadata, while the second inserts into `ducklake_snapshot_changes` to record the details of the modifications. Ensure all placeholder values (`SNAPSHOT_ID`, `SCHEMA_VERSION`, `NEXT_CATALOG_ID`, `NEXT_FILE_ID`, `CHANGES`, `AUTHOR`, `COMMIT_MESSAGE`, `COMMIT_EXTRA_INFO`) are appropriately provided.
+
+```SQL
+INSERT INTO ducklake_snapshot (
+    snapshot_id,
+    snapshot_timestamp,
+    schema_version,
+    next_catalog_id,
+    next_file_id
+)
+VALUES (
+    SNAPSHOT_ID,
+    now(),
+    SCHEMA_VERSION,
+    NEXT_CATALOG_ID,
+    NEXT_FILE_ID
+);
+
+INSERT INTO ducklake_snapshot_changes (
+    snapshot_id,
+    snapshot_changes,
+    author,
+    commit_message,
+    commit_extra_info
+)
+VALUES (
+    SNAPSHOT_ID,
+    CHANGES,
+    AUTHOR,
+    COMMIT_MESSAGE,
+    COMMIT_EXTRA_INFO
+);
+```
+
+--------------------------------
+
+### Query Parquet Files in DuckLake Storage
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Demonstrates querying all Parquet files within the default data storage directory of the DuckLake database. The `LIMIT` clause restricts the output to the first 10 rows.
+
+```sql
+FROM 'my_ducklake.ducklake.files/**/*.parquet' LIMIT 10;
+
+```
+
+--------------------------------
+
+### DuckDB SQL: Create and Insert Data
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/upserting
+
+SQL statements to create a 'people' table with id, name, and salary columns and insert initial data. This is a prerequisite for demonstrating upsert operations.
+
+```sql
+CREATE TABLE people (id INTEGER, name VARCHAR, salary FLOAT);
+INSERT INTO people VALUES (1, 'John', 92000.0), (2, 'Anna', 100000.0);
+
+```
+
+--------------------------------
+
+### DuckDB Default Value Limitations
+
+Source: https://ducklake.select/docs/stable/duckdb/unsupported_features
+
+Illustrates the difference in default value support for table creation in DuckDB. Only literal values are supported for default column values; dynamic values like `now()` are not permitted in this context.
+
+```sql
+-- This is allowed
+CREATE TABLE t1 (id INTEGER, d DATE DEFAULT '2025-08-08');
+
+-- This is not allowed
+CREATE TABLE t1 (id INTEGER, d DATE DEFAULT now());
+
+```
+
+--------------------------------
+
+### PostgreSQL Catalog Backup and Recovery via DuckDB (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery
+
+Illustrates backing up a PostgreSQL catalog to a DuckDB file using DuckDB's postgres extension. This method allows for periodic backups similar to SQL dumps, with the limitation of recovering to a specific snapshot.
+
+```sql
+-- Backup
+ATTACH 'postgres:connection_string' AS db (READ_ONLY);
+ATTACH 'duckdb:backup.db' AS backup;
+COPY FROM DATABASE db TO backup;
+
+-- Recover
+ATTACH 'postgres:connection_string' AS db;
+ATTACH 'duckdb:backup.db' AS backup (READ_ONLY);
+COPY FROM DATABASE backup TO db;
+ATTACH 'ducklake:postgres:connection_string' AS my_ducklake;
+```
+
+--------------------------------
+
+### List All Files in a DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/metadata/list_files
+
+This SQL snippet demonstrates how to list all data and delete files for a given table using the `ducklake_list_files` function. It requires the catalog and table name as input. The output includes file paths, sizes, and encryption keys.
+
+```sql
+FROM ducklake_list_files('catalog', 'table_name');
+```
+
+--------------------------------
+
+### DuckDB Macro Creation and Usage in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/unsupported_features
+
+Demonstrates how to create and use macros within DuckDB when using DuckLake as a catalog. This workaround allows for the use of functions that are not directly supported by the DuckLake specification by defining them in the catalog first.
+
+```sql
+-- Using DuckDB as a catalog, create the macro in the catalog
+USE __ducklake_metadata_my_ducklake;
+CREATE MACRO add_and_multiply(a, b, c) AS (a + b) * c;
+
+-- Use the macro to create a table in DuckLake
+CREATE TABLE my_ducklake.table_w_macro AS
+    SELECT add_and_multiply(1, 2, 3) AS col;
+
+```
+
+--------------------------------
+
+### Attach DuckLake Database at Snapshot Version (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/time_travel
+
+This command attaches a DuckLake database located at 'ducklake:file.db' to the current session, specifically targeting the state represented by snapshot version 3. This is useful for analyzing historical data states.
+
+```sql
+ATTACH 'ducklake:file.db' (SNAPSHOT_VERSION 3);
+```
+
+--------------------------------
+
+### Set DuckLake Option (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/configuration
+
+Sets specific configuration options for DuckLake, such as Parquet compression, file format versions, and data path settings. Options can be scoped globally, per-schema, or per-table.
+
+```sql
+CALL my_ducklake.set_option('parquet_compression', 'zstd');
+CALL my_ducklake.set_option('parquet_compression', 'zstd', schema => 'my_schema');
+CALL my_ducklake.set_option('parquet_compression', 'zstd', table_name => 'my_table');
+```
+
+--------------------------------
+
+### Create a New Schema in DuckLake
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+This SQL statement demonstrates how to create a new schema in DuckLake by inserting a record into the `ducklake_schema` table. The `schema_id` should be derived from `next_catalog_id` of the latest snapshot, and `SNAPSHOT_ID` links the schema to a specific snapshot. `SCHEMA_NAME` defines the name of the new schema.
+
+```SQL
+INSERT INTO ducklake_schema (
+    schema_id,
+    schema_uuid,
+    begin_snapshot,
+    end_snapshot,
+    schema_name
+)
+VALUES (
+    SCHEMA_ID,
+    uuid(),
+    SNAPSHOT_ID,
+    NULL,
+    SCHEMA_NAME
+);
+```
+
+--------------------------------
+
+### SQLite Catalog Backup and Recovery (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery
+
+Provides SQL commands for backing up and recovering a SQLite catalog used by DuckLake. The process mirrors DuckDB's, involving database attachments and the COPY FROM DATABASE command.
+
+```sql
+-- Backup
+ATTACH 'sqlite:db.db' AS db (READ_ONLY);
+ATTACH 'sqlite:backup.db' AS backup;
+COPY FROM DATABASE db TO backup;
+
+-- Recover
+ATTACH 'sqlite:db.db' AS db;
+ATTACH 'sqlite:backup.db' AS backup (READ_ONLY);
+COPY FROM DATABASE backup TO db;
+ATTACH 'ducklake:sqlite:db.db' AS my_ducklake;
+```
+
+--------------------------------
+
+### SQL: Default Partitioned File Path Structure (Hive Style)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/paths
+
+Presents the default path structure for partitioned files in DuckLake, adhering to the Hive partitioning style. This structure organizes files into directories based on partition values.
+
+```sql
+main
+├── unpartitioned_table
+│   └── ducklake-⟨uuid⟩.parquet
+└── partitioned_table
+    └── year=2025
+        └── ducklake-⟨uuid⟩.parquet
+```
+
+--------------------------------
+
+### List Files for a Specific Snapshot Version
+
+Source: https://ducklake.select/docs/stable/duckdb/metadata/list_files
+
+This SQL snippet shows how to retrieve file information for a specific snapshot version of a DuckLake table. By providing the `snapshot_version` parameter, you can query historical file states. The function returns file paths and associated metadata.
+
+```sql
+FROM ducklake_list_files('catalog', 'table_name', snapshot_version => 2);
+```
+
+--------------------------------
+
+### Initialize DuckLake Catalog in Encrypted Mode
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/encryption
+
+Demonstrates how to attach a DuckLake catalog with the ENCRYPTED flag enabled. This ensures that all Parquet files written to the data directory are automatically encrypted using system-generated keys stored within the catalog.
+
+```sql
+ATTACH 'ducklake:encrypted.ducklake'
+    (DATA_PATH 'untrusted_location/', ENCRYPTED);
+```
+
+--------------------------------
+
+### Create Table from CSV in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Imports data from a remote CSV file into a new table named `nl_train_stations` within the currently active DuckLake database.
+
+```sql
+CREATE TABLE nl_train_stations AS
+    FROM 'https://blobs.duckdb.org/nl_stations.csv';
+
+```
+
+--------------------------------
+
+### List All Snapshots in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/snapshots
+
+Queries the 'snapshots' function to retrieve a list of all snapshots and their associated changesets. This is useful for understanding the history of changes made to the DuckLake database. It requires an active connection to the DuckLake database.
+
+```sql
+ATTACH 'ducklake:snapshot_test.db' AS snapshot_test;
+SELECT * FROM snapshot_test.snapshots();
+
+```
+
+--------------------------------
+
+### Register Data File in DuckLake
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+Inserts a new record into the ducklake_data_file table to register a newly written data file. This step is crucial for making the data queryable. It requires details about the data file such as its path, format, and record count.
+
+```sql
+INSERT INTO ducklake_data_file (
+    data_file_id,
+    table_id,
+    begin_snapshot,
+    end_snapshot,
+    path,
+    path_is_relative,
+    file_format,
+    record_count,
+    file_size_bytes,
+    footer_size,
+    row_id_start
+)
+VALUES (
+    DATA_FILE_ID,
+    TABLE_ID,
+    SNAPSHOT_ID,
+    NULL,
+    PATH,
+    true,
+    'parquet',
+    RECORD_COUNT,
+    FILE_SIZE_BYTES,
+    FOOTER_SIZE,
+    ROW_ID_START
+);
+
+```
+
+--------------------------------
+
+### List Schemas in DuckLake Catalog
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+Lists all available schemas within a specific snapshot of the DuckLake catalog from the `ducklake_schema` table. It filters based on `SNAPSHOT_ID` to ensure data consistency.
+
+```sql
+SELECT schema_id, schema_name
+FROM ducklake_schema
+WHERE
+    SNAPSHOT_ID >= begin_snapshot AND
+    (SNAPSHOT_ID < end_snapshot OR end_snapshot IS NULL);
+
+```
+
+--------------------------------
+
+### List Files in a Specific Schema
+
+Source: https://ducklake.select/docs/stable/duckdb/metadata/list_files
+
+This SQL snippet demonstrates how to list files for a DuckLake table within a specified schema using the `schema` parameter. This helps in organizing and querying tables across different schemas. The function returns file paths and metadata.
+
+```sql
+FROM ducklake_list_files('catalog', 'table_name', schema => 'main');
+```
+
+--------------------------------
+
+### Ducklake Delete File Schema
+
+Source: https://ducklake.select/docs/stable/specification/tables/ducklake_delete_file
+
+Details the schema for delete files, including their purpose and the meaning of each column.
+
+```APIDOC
+## Ducklake Delete File Schema
+
+### Description
+Represents a file containing records of deleted rows from data files. Each delete file corresponds to a specific data file and contains information about the rows that have been removed.
+
+### Method
+N/A (Schema Definition)
+
+### Endpoint
+N/A (Schema Definition)
+
+### Parameters
+N/A (Schema Definition)
+
+### Request Example
+N/A (Schema Definition)
+
+### Response
+#### Success Response (N/A)
+N/A
+
+#### Response Example
+N/A
+
+### Columns
+
+#### Path Parameters
+- **delete_file_id** (BIGINT) - Primary Key - Numeric identifier of the delete file. Incremented from `next_file_id` in the `ducklake_snapshot` table.
+- **table_id** (BIGINT) - Foreign Key to `ducklake_table`. Refers to the table this delete file is associated with.
+- **begin_snapshot** (BIGINT) - Foreign Key to `ducklake_snapshot`. The snapshot ID from which this delete file becomes effective.
+- **end_snapshot** (BIGINT) - Foreign Key to `ducklake_snapshot`. The snapshot ID up to which (exclusive) this delete file is effective. If NULL, the delete file is currently active.
+- **data_file_id** (BIGINT) - Foreign Key to `ducklake_data_file`. Refers to the data file affected by these deletions.
+- **path** (VARCHAR) - The file name of the delete file (e.g., `my_file-deletes.parquet`).
+- **path_is_relative** (BOOLEAN) - Indicates if the `path` is relative to the table's path (true) or an absolute path (false).
+- **format** (VARCHAR) - The storage format of the delete file. Currently, only `parquet` is supported.
+- **delete_count** (BIGINT) - The number of deletion records present in this file.
+- **file_size_bytes** (BIGINT) - The size of the delete file in bytes.
+- **footer_size** (BIGINT) - The size of the file metadata footer (e.g., Thrift data for Parquet), used for optimization.
+- **encryption_key** (VARCHAR) - The encryption key used for the file if encryption is enabled.
+```
+
+--------------------------------
+
+### Attach DuckLake Database at Specific Timestamp (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/time_travel
+
+This command attaches a DuckLake database from 'ducklake:file.db' to the current session, specifying the exact historical point in time '2025-05-26 00:00:00' as the desired snapshot. This allows for precise historical data analysis.
+
+```sql
+ATTACH 'ducklake:file.db' (SNAPSHOT_TIME '2025-05-26 00:00:00');
+```
+
+--------------------------------
+
+### Add Commit Message and Author to DuckLake Snapshot
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/snapshots
+
+Demonstrates how to add an author, commit message, and extra commit information within a transaction in DuckLake. This involves creating a table, inserting data, calling a procedure to set commit details, and then committing the transaction. The changes are reflected in the snapshots table.
+
+```sql
+CREATE TABLE ducklake.people (a INTEGER, b VARCHAR);
+
+-- Begin Transaction
+BEGIN;
+INSERT INTO ducklake.people VALUES (1, 'pedro');
+CALL ducklake.set_commit_message('Pedro', 'Inserting myself', extra_info => '{''foo'': 7, ''bar'': 10}');
+COMMIT;
+-- End transaction
+
+```
+
+--------------------------------
+
+### Query Updated Data in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Selects and displays the `name_long` for the station with `code` 'ASB' from the `nl_train_stations` table to confirm the update.
+
+```sql
+SELECT name_long
+FROM nl_train_stations
+WHERE code = 'ASB';
+
+```
+
+--------------------------------
+
+### List Files Function
+
+Source: https://ducklake.select/docs/stable/duckdb/metadata/list_files
+
+The ducklake_list_files function retrieves a list of data and delete files for a specified table. It supports filtering by catalog, table name, schema, and optionally by snapshot version or time.
+
+```APIDOC
+## List Files Function (ducklake_list_files)
+
+### Description
+This function lists the data files and corresponding delete files that belong to a given table, optionally for a given snapshot.
+
+### Method
+SQL Function
+
+### Endpoint
+N/A (SQL Function)
+
+### Parameters
+#### Path Parameters
+None
+
+#### Query Parameters
+None
+
+#### Request Body
+None
+
+### Parameters
+- **catalog** (VARCHAR) - Required - Name of attached DuckLake catalog
+- **table_name** (VARCHAR) - Required - Name of table to fetch files from
+- **schema** (VARCHAR) - Optional - Schema for the table (Default: `main`)
+- **snapshot_version** (INTEGER) - Optional - If provided, fetch files for a given snapshot id
+- **snapshot_time** (TIMESTAMP) - Optional - If provided, fetch files for a given timestamp
+
+### Request Example
+List all files:
+```sql
+FROM ducklake_list_files('catalog', 'table_name');
+```
+
+Get list of files at a specific snapshot version:
+```sql
+FROM ducklake_list_files('catalog', 'table_name', snapshot_version => 2);
+```
+
+Get list of files at a specific point in time:
+```sql
+FROM ducklake_list_files('catalog', 'table_name', snapshot_time => '2025-06-16 15:24:30');
+```
+
+Get list of files of a table in a specific schema:
+```sql
+FROM ducklake_list_files('catalog', 'table_name', schema => 'main');
+```
+
+### Response
+#### Success Response (200)
+- **data_file** (VARCHAR) - Path to the data file.
+- **data_file_size_bytes** (UBIGINT) - Size of the data file in bytes.
+- **data_file_footer_size** (UBIGINT) - Size of the Parquet footer for the data file (optional).
+- **data_file_encryption_key** (BLOB) - Encryption key for the data file if encrypted.
+- **delete_file** (VARCHAR) - Path to the delete file, if one exists, otherwise NULL.
+- **delete_file_size_bytes** (UBIGINT) - Size of the delete file in bytes, if one exists, otherwise NULL.
+- **delete_file_footer_size** (UBIGINT) - Size of the Parquet footer for the delete file (optional), if one exists, otherwise NULL.
+- **delete_file_encryption_key** (BLOB) - Encryption key for the delete file if encrypted, if one exists, otherwise NULL.
+
+#### Response Example
+```json
+{
+  "data_file": "s3://my-bucket/data/table/part-0000.parquet",
+  "data_file_size_bytes": 1024,
+  "data_file_footer_size": 128,
+  "data_file_encryption_key": null,
+  "delete_file": "s3://my-bucket/data/table/part-0000.del.parquet",
+  "delete_file_size_bytes": 512,
+  "delete_file_footer_size": 64,
+  "delete_file_encryption_key": null
+}
+```
+```
+
+--------------------------------
+
+### List Tables in a Schema
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+Retrieves a list of tables within a specified schema and snapshot from the `ducklake_table` table. It uses `schema_id` and `SNAPSHOT_ID` for filtering.
+
+```sql
+SELECT table_id, table_name
+FROM ducklake_table
+WHERE
+    schema_id = SCHEMA_ID AND
+    SNAPSHOT_ID >= begin_snapshot AND
+    (SNAPSHOT_ID < end_snapshot OR end_snapshot IS NULL);
+
+```
+
+--------------------------------
+
+### Prune Files with SELECT using DuckLake File Column Stats
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+This SQL query leverages `ducklake_file_column_stats` to prune files that are irrelevant to a given query. It filters files based on column statistics and a scalar comparison value. Ensure `TABLE_ID`, `COLUMN_ID`, and `SCALAR` are correctly substituted. Note that numeric columns require casting for accurate range filtering.
+
+```SQL
+SELECT data_file_id
+FROM ducklake_file_column_stats
+WHERE
+    table_id = TABLE_ID AND
+    column_id = COLUMN_ID AND
+    (SCALAR >= min_value OR min_value IS NULL) AND
+    (SCALAR <= max_value OR max_value IS NULL);
+```
+
+--------------------------------
+
+### PostgreSQL Role Creation for DuckLake Access Control
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+This SQL script sets up three distinct roles (superuser, writer, reader) in PostgreSQL for managing DuckLake access. It grants specific privileges on schemas and tables to each role, enabling fine-grained control over data operations.
+
+```sql
+-- Setup initialization user, migrations, and writing, assuming the database is already created
+CREATE USER ducklake_superuser WITH PASSWORD 'simple';
+GRANT CREATE ON DATABASE access_control TO ducklake_superuser;
+GRANT CREATE, USAGE ON SCHEMA public TO ducklake_superuser;
+GRANT CREATE, SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ducklake_superuser;
+
+-- Writer/reader
+CREATE USER ducklake_writer WITH PASSWORD 'simple';
+GRANT USAGE ON SCHEMA public TO ducklake_writer;
+GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ducklake_writer;
+
+-- Reader only
+CREATE USER ducklake_reader WITH PASSWORD 'simple';
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO ducklake_reader;
+```
+
+--------------------------------
+
+### DuckLake SQL: Unsupported MERGE INTO Behavior
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/upserting
+
+Illustrates an unsupported MERGE INTO pattern in DuckLake where multiple WHEN MATCHED clauses (for UPDATE and DELETE) are used. This will result in a 'Not implemented Error'.
+
+```sql
+MERGE INTO people
+    USING (
+        SELECT
+            unnest([3, 1]) AS id,
+            unnest(['Sarah', 'Jhon']) AS name,
+            unnest([95000.0, 105000.0]) AS salary
+    ) AS upserts
+    ON (upserts.id = people.id)
+    WHEN MATCHED AND people.salary < 100000.0 THEN UPDATE
+    -- Second update or delete condition
+    WHEN MATCHED AND people.salary > 100000.0 THEN DELETE
+    WHEN NOT MATCHED THEN INSERT;
+
+```
+
+--------------------------------
+
+### Query Table at Specific Snapshot Version (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/time_travel
+
+This SQL query allows you to retrieve all data from a table ('tbl') as it existed at a specific snapshot version. The version is identified by an integer value.
+
+```sql
+SELECT * FROM tbl AT (VERSION => 3);
+```
+
+--------------------------------
+
+### Enable Data Inlining with Row Limit
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_inlining
+
+This code snippet demonstrates how to enable data inlining in DuckLake by setting the `DATA_INLINING_ROW_LIMIT` attach parameter. When enabled, inserts writing fewer rows than the specified limit are automatically inlined into metadata tables.
+
+```sql
+ATTACH 'ducklake:inlining.db' (DATA_INLINING_ROW_LIMIT 10);
+
+```
+
+--------------------------------
+
+### DuckLake SQL: Partial Row Update with SET
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/upserting
+
+Demonstrates using the SET clause within MERGE INTO to update specific columns (e.g., salary) when a match is found based on the 'id'. The source provides only the 'id' and the new 'salary'.
+
+```sql
+MERGE INTO people
+    USING (
+        SELECT
+            1 AS id,
+            98000.0 AS salary
+    ) AS salary_updates
+    ON (salary_updates.id = people.id)
+    WHEN MATCHED THEN UPDATE SET salary = salary_updates.salary;
+
+FROM people;
+
+```
+
+--------------------------------
+
+### Time Travel Query - Version 1
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Queries the `nl_train_stations` table as it existed at `VERSION 1` (likely the initial data insertion), specifically retrieving the `name_long` for the station with `code` 'ASB'.
+
+```sql
+SELECT name_long
+FROM nl_train_stations AT (VERSION => 1)
+WHERE code = 'ASB';
+
+```
+
+--------------------------------
+
+### Set DuckLake Retry Configuration (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/configuration
+
+Configures the retry mechanism for DuckLake transactions, including maximum retry attempts, wait time between retries, and backoff factor. These settings help manage transaction conflicts.
+
+```sql
+SET ducklake_max_retry_count = 100;
+SET ducklake_retry_wait_ms = 100;
+SET ducklake_retry_backoff = 2;
+```
+
+--------------------------------
+
+### Update DuckLake Table and Column Statistics
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+Updates statistics in ducklake_table_stats and ducklake_table_column_stats tables after a new data file is added. This includes updating record counts, file sizes, and column-specific statistics like min/max values and null/NaN presence. It also shows how to insert new file-specific column statistics.
+
+```sql
+UPDATE ducklake_table_stats
+SET
+    record_count = record_count + RECORD_COUNT,
+    next_row_id = next_row_id + RECORD_COUNT,
+    file_size_bytes = file_size_bytes + FILE_SIZE_BYTES
+WHERE table_id = TABLE_ID;
+
+UPDATE ducklake_table_column_stats
+SET
+    contains_null = contains_null OR NULL_COUNT > 0,
+    contains_nan = contains_nan,
+    min_value = min(min_value, MIN_VALUE),
+    max_value = max(max_value, MAX_VALUE)
+WHERE
+    table_id = TABLE_ID AND
+    column_id = COLUMN_ID;
+
+INSERT INTO ducklake_file_column_stats (
+    data_file_id,
+    table_id,
+    column_id,
+    value_count,
+    null_count,
+    min_value,
+    max_value,
+    contains_nan
+)
+VALUES (
+    DATA_FILE_ID,
+    TABLE_ID,
+    COLUMN_ID,
+    RECORD_COUNT,
+    NULL_COUNT,
+    MIN_VALUE,
+    MAX_VALUE,
+    CONTAINS_NAN;
+);
+
+```
+
+--------------------------------
+
+### Add Data File to DuckLake Table (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/metadata/adding_files
+
+Registers an existing data file as a new file within a specified DuckLake table. The file is not copied, but made queryable. Supports transactional semantics. Ownership of the file is transferred to DuckLake, making it subject to compaction operations.
+
+```sql
+CALL ducklake_add_data_files('my_ducklake', 'people', 'people.parquet');
+```
+
+```sql
+CALL ducklake_add_data_files('my_ducklake', 'people', 'people.parquet', schema => 'some_schema');
+```
+
+```sql
+CALL ducklake_add_data_files('my_ducklake', 'people', 'people.parquet', allow_missing => true);
+```
+
+```sql
+CALL ducklake_add_data_files('my_ducklake', 'people', 'people.parquet', ignore_extra_columns => true);
+```
+
+--------------------------------
+
+### DuckLake MERGE INTO Syntax
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/upserting
+
+The general syntax for the MERGE INTO statement in DuckLake, used for upserting data. It specifies target and source tables, join conditions, and actions for matched and not matched rows.
+
+```sql
+MERGE INTO target_table [target_alias]
+    USING source_table [source_alias]
+    ON (target_table.field = source_table.field) -- USING (field)
+    WHEN MATCHED THEN UPDATE [SET] | DELETE
+    WHEN NOT MATCHED THEN INSERT;
+
+```
+
+--------------------------------
+
+### Create Table with NOT NULL Constraint (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/constraints
+
+Defines a table with a column that does not accept NULL values using the NOT NULL constraint. This is a standard SQL syntax.
+
+```sql
+CREATE TABLE tbl (col INTEGER NOT NULL);
+```
+
+--------------------------------
+
+### Query Table at Specific Timestamp (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/time_travel
+
+This SQL query enables querying a table ('tbl') to retrieve its state at a specific point in time, calculated as one week prior to the current moment. This utilizes DuckDB's interval and timestamp functions.
+
+```sql
+SELECT * FROM tbl AT (TIMESTAMP => now() - INTERVAL '1 week');
+```
+
+--------------------------------
+
+### Configure DuckLake S3 for Cross-Bucket Replication
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery
+
+This SQL snippet demonstrates how to modify the DuckLake ATTACH statement when using S3 cross-bucket replication. The DATA_PATH needs to be updated to point to the new replication bucket. No external dependencies are required beyond DuckLake and S3.
+
+```sql
+-- Before
+ATTACH 'ducklake:some.db' AS my_ducklake (DATA_PATH 's3://⟨og-bucket⟩/');
+
+-- After
+ATTACH 'ducklake:some.db' AS my_ducklake (DATA_PATH 's3://⟨replication-bucket⟩/');
+```
+
+--------------------------------
+
+### Time Travel Query - Version 2
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Queries the `nl_train_stations` table as it existed at `VERSION 2` (after the update operation), retrieving the `name_long` for the station with `code` 'ASB'.
+
+```sql
+SELECT name_long
+FROM nl_train_stations AT (VERSION => 2)
+WHERE code = 'ASB';
+
+```
+
+--------------------------------
+
+### Show Table Structure (Top-Level Columns)
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+Displays the top-level columns of a given table, including their IDs, names, and types, from the `ducklake_column` table. It filters for `parent_column IS NULL` to exclude nested columns and orders by `column_order`.
+
+```sql
+SELECT column_id, column_name, column_type
+FROM ducklake_column
+WHERE
+    table_id = TABLE_ID AND
+    parent_column IS NULL AND
+    SNAPSHOT_ID >= begin_snapshot AND
+    (SNAPSHOT_ID < end_snapshot OR end_snapshot IS NULL)
+ORDER BY column_order;
+
+```
+
+--------------------------------
+
+### Set Catalog-Wide Delete Threshold
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/rewrite_data_files
+
+Sets a specific delete threshold for the entire DuckLake catalog using the `set_option` function. This configuration will affect all subsequent operations, including `ducklake_rewrite_data_files`, within that catalog.
+
+```sql
+CALL my_ducklake.set_option('rewrite_delete_threshold', 0.5);
+
+```
+
+--------------------------------
+
+### Reset Table Partitioning Keys (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/partitioning
+
+This SQL command removes the partitioning keys from a DuckLake table. After executing this, new data added to the table will no longer be partitioned, simplifying the data layout.
+
+```sql
+ALTER TABLE tbl RESET PARTITIONED BY;
+```
+
+--------------------------------
+
+### Configure DuckLake GCS for Cross-Bucket Replication
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery
+
+This SQL snippet illustrates the necessary change in the DuckLake ATTACH statement for Google Cloud Storage (GCS) when cross-bucket replication is enabled. The DATA_PATH must be updated to reflect the new replication bucket. This configuration requires DuckLake and GCS access.
+
+```sql
+-- Before
+ATTACH 'ducklake:some.db' AS my_ducklake (DATA_PATH 'gs://⟨og-bucket⟩/');
+
+-- After
+ATTACH 'ducklake:some.db' AS my_ducklake (DATA_PATH 'gs://⟨replication-bucket⟩/');
+```
+
+--------------------------------
+
+### Detach from DuckLake Database
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Detaches from the currently active DuckLake database. This is done by first switching to a different database (e.g., `memory`) and then issuing the `DETACH` command.
+
+```sql
+USE memory;
+DETACH my_ducklake;
+
+```
+
+--------------------------------
+
+### Set Catalog Option for Deleting Old Files in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/cleanup_of_files
+
+Configures a catalog-level option within DuckLake to automatically manage file deletion based on age. This setting, 'delete_older_than', specifies a time interval after which files are considered for deletion. This is a convenient way to enforce a retention policy for old files across the catalog.
+
+```sql
+CALL ducklake.set_option('delete_older_than', '1 week');
+```
+
+--------------------------------
+
+### Register Delete File in DuckLake Metadata
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+This SQL statement registers a Parquet delete file in the DuckLake metadata. It requires the delete file's metadata, the target table, snapshot information, and details about the data file being deleted from. Some parameters like relative paths and encryption are omitted for simplicity.
+
+```sql
+INSERT INTO ducklake_delete_file (
+    delete_file_id,
+    table_id,
+    begin_snapshot,
+    end_snapshot,
+    data_file_id,
+    path,
+    path_is_relative,
+    format,
+    delete_count,
+    file_size_bytes,
+    footer_size
+)
+VALUES (
+    DELETE_FILE_ID,
+    TABLE_ID,
+    SNAPSHOT_ID,
+    NULL,
+    DATA_FILE_ID,
+    PATH,
+    true,
+    'parquet',
+    DELETE_COUNT,
+    FILE_SIZE_BYTES,
+    FOOTER_SIZE
+);
+
+```
+
+--------------------------------
+
+### Disable Hive Partitioning Style (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/partitioning
+
+This SQL command disables the default Hive-style partitioning for DuckLake. By setting 'hive_file_pattern' to false, you can opt out of this specific partitioning format.
+
+```sql
+CALL my_ducklake.set_option('hive_file_pattern', false);
+```
+
+--------------------------------
+
+### Flush All Inlined Data
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_inlining
+
+This SQL command flushes all inlined data across all schemas and tables within a specified DuckLake instance. This process converts the inlined data into persistent Parquet files.
+
+```sql
+CALL ducklake_flush_inlined_data('my_ducklake');
+
+```
+
+--------------------------------
+
+### Rewrite All Tables in Catalog
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/rewrite_data_files
+
+Applies the `ducklake_rewrite_data_files` function to all tables within a specified DuckLake catalog. This operation rewrites files that have a delete threshold greater than the default (0.95) to improve read performance.
+
+```sql
+CALL ducklake_rewrite_data_files('my_ducklake');
+
+```
+
+--------------------------------
+
+### Execute DuckLake CHECKPOINT Statement
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/checkpoint
+
+The CHECKPOINT statement in DuckLake executes a predefined sequence of maintenance functions. It can be run without any arguments to perform a full checkpoint using default options.
+
+```sql
+CHECKPOINT;
+```
+
+--------------------------------
+
+### Rewrite Table with Custom Delete Threshold
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/rewrite_data_files
+
+Applies the `ducklake_rewrite_data_files` function to a specific table with a user-defined delete threshold. This allows for finer control over when files are rewritten, based on the proportion of deleted records.
+
+```sql
+CALL ducklake_rewrite_data_files('my_ducklake', 't', delete_threshold => 0.5);
+
+```
+
+--------------------------------
+
+### Call DuckLake Cleanup Old Files Function
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/cleanup_of_files
+
+Executes the DuckLake function to remove files scheduled for deletion. Supports cleaning all scheduled files, or only those older than a specified duration. A dry run option is available to preview deletions without actually removing files. This function helps manage storage by removing data no longer associated with active snapshots.
+
+```sql
+CALL ducklake_cleanup_old_files(
+    'ducklake',
+    cleanup_all => true
+);
+```
+
+```sql
+CALL ducklake_cleanup_old_files(
+    'ducklake',
+    older_than => now() - INTERVAL '1 week'
+);
+```
+
+```sql
+CALL ducklake_cleanup_old_files(
+    'ducklake',
+    dry_run => true,
+    older_than => now() - INTERVAL '1 week'
+);
+```
+
+--------------------------------
+
+### DuckLake Superuser S3 Policy (JSON)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+This IAM policy grants full S3 access (ListBucket, GetObject, PutObject, DeleteObject) to the 'ducklake-access-control' S3 bucket and its contents. It is intended for administrative users who require comprehensive control over the data lake storage.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DuckLakeSuperuser",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ducklake-access-control",
+        "arn:aws:s3:::ducklake-access-control/*"
+      ]
+    }
+  ]
+}
+```
+
+--------------------------------
+
+### Automatic Parquet Write for Large Inserts
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_inlining
+
+This snippet illustrates what happens when an insert exceeds the `DATA_INLINING_ROW_LIMIT`. DuckLake automatically writes larger inserts to Parquet files. The `glob` query verifies that a Parquet file is created in this scenario.
+
+```sql
+INSERT INTO inlining.tbl FROM range(100);
+SELECT count(*) FROM glob('inlining.db.files/**');
+
+```
+
+--------------------------------
+
+### DuckLake Reader S3 Policy (JSON)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+This IAM policy grants read-only S3 access (GetObject) to a specific table within a specific schema in the 'ducklake-access-control' bucket. This policy is suitable for users who only need to retrieve data and should not have write or delete permissions.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DuckLakeReader",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ducklake-access-control",
+        "arn:aws:s3:::ducklake-access-control/some_schema/some_table/*"
+      ]
+    }
+  ]
+}
+```
+
+--------------------------------
+
+### Flush Inlined Data for Specific Table (Default Schema)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_inlining
+
+This SQL call flushes inlined data for a particular table within the default 'main' schema of a DuckLake instance. It converts the inlined data of the specified table into Parquet files.
+
+```sql
+CALL ducklake_flush_inlined_data(
+    'my_ducklake',
+    table_name => 'my_table'
+);
+
+```
+
+--------------------------------
+
+### DuckLake Writer/Reader S3 Policy (JSON)
+
+Source: https://ducklake.select/docs/stable/duckdb/guides/access_control
+
+This IAM policy grants S3 access (ListBucket, GetObject, PutObject, DeleteObject) to a specific schema within the 'ducklake-access-control' bucket. The inclusion of 's3:DeleteObject' allows for data compaction and cleanup operations.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DuckLakeWriter",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ducklake-access-control",
+        "arn:aws:s3:::ducklake-access-control/some_schema/*"
+      ]
+    }
+  ]
+}
+```
+
+--------------------------------
+
+### Drop DuckLake Schema (SQL)
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+This SQL statement is used to drop a schema in DuckLake. It requires that the schema be empty and updates the `end_snapshot` in the `ducklake_schema` table for the specified `SCHEMA_ID` to the current `SNAPSHOT_ID`.
+
+```sql
+UPDATE ducklake_schema
+SET
+    end_snapshot = SNAPSHOT_ID
+WHERE
+    schema_id = SCHEMA_ID AND
+    end_snapshot IS NULL;
+```
+
+--------------------------------
+
+### Flush Inlined Data for Specific Table and Schema
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_inlining
+
+This command flushes inlined data for a specific table located within a particular schema in a DuckLake instance. It targets and converts only the inlined data of that exact table and schema combination into Parquet files.
+
+```sql
+CALL ducklake_flush_inlined_data(
+    'my_ducklake',
+    schema_name => 'my_schema',
+    table_name => 'my_table'
+);
+
+```
+
+--------------------------------
+
+### Rewrite Specific Table in Catalog
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/rewrite_data_files
+
+Applies the `ducklake_rewrite_data_files` function to a specific table within a DuckLake catalog. This is useful for optimizing individual tables that exhibit performance degradation due to a high number of deletions.
+
+```sql
+CALL ducklake_rewrite_data_files('my_ducklake', 't');
+
+```
+
+--------------------------------
+
+### Call DuckLake Delete Orphaned Files Function
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/cleanup_of_files
+
+Utilizes the DuckLake function to remove orphaned files, which are untracked by the metadata catalog. This function can delete all orphaned files or those older than a specified time. A dry run mode is provided for previewing deletions. It's crucial for maintaining data integrity and freeing up space from unexpected file losses.
+
+```sql
+CALL ducklake_delete_orphaned_files(
+    'ducklake',
+    cleanup_all => true
+);
+```
+
+```sql
+CALL ducklake_delete_orphaned_files(
+    'ducklake',
+    older_than => now() - INTERVAL '1 week'
+);
+```
+
+```sql
+CALL ducklake_delete_orphaned_files(
+    'ducklake',
+    dry_run => true,
+    older_than => now() - INTERVAL '1 week'
+);
+```
+
+--------------------------------
+
+### Querying Changes Made by a Specific Snapshot in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_change_feed
+
+This SQL query retrieves all changes made within a specific snapshot (snapshot ID 2) for the 'tbl' table in the DuckLake database.
+
+```sql
+FROM db.table_changes('tbl', 2, 2);
+```
+
+--------------------------------
+
+### Expire Snapshots and Clean Up Files in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/recommended_maintenance
+
+This process involves expiring old snapshots that refer to a table, which is a prerequisite for deleting associated data files. This is necessary because DuckLake retains old data for time travel, and files are not automatically deleted when a table is dropped.
+
+```SQL
+CALL duckdb_extensions.duckdb_expire_snapshots('your_table_name');
+CALL duckdb_extensions.duckdb_clean_files('your_table_name');
+```
+
+--------------------------------
+
+### Drop DuckLake Table (SQL)
+
+Source: https://ducklake.select/docs/stable/specification/queries
+
+This SQL snippet shows how to drop a table in DuckLake by updating the `end_snapshot` field to the current `SNAPSHOT_ID` for all metadata entries associated with the specified `TABLE_ID`. This effectively invalidates the table's previous states.
+
+```sql
+UPDATE ducklake_table
+SET end_snapshot = SNAPSHOT_ID WHERE table_id = TABLE_ID AND end_snapshot IS NULL;
+
+UPDATE ducklake_partition_info
+SET end_snapshot = SNAPSHOT_ID WHERE table_id = TABLE_ID AND end_snapshot IS NULL;
+
+UPDATE ducklake_column
+SET end_snapshot = SNAPSHOT_ID WHERE table_id = TABLE_ID AND end_snapshot IS NULL;
+
+UPDATE ducklake_column_tag
+SET end_snapshot = SNAPSHOT_ID WHERE table_id = TABLE_ID AND end_snapshot IS NULL;
+
+UPDATE ducklake_data_file
+SET end_snapshot = SNAPSHOT_ID WHERE table_id = TABLE_ID AND end_snapshot IS NULL;
+
+UPDATE ducklake_delete_file
+SET end_snapshot = SNAPSHOT_ID WHERE table_id = TABLE_ID AND end_snapshot IS NULL;
+
+UPDATE ducklake_tag
+SET end_snapshot = SNAPSHOT_ID WHERE object_id  = TABLE_ID AND end_snapshot IS NULL;
+```
+
+--------------------------------
+
+### DuckLake SQL: Conditional Row Deletion
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/upserting
+
+Shows how to perform a conditional delete operation using MERGE INTO. Rows are deleted only if they match the 'id' and meet an additional condition (e.g., salary > 100,000.0).
+
+```sql
+MERGE INTO people
+    USING (
+        SELECT
+            unnest([3, 2]) AS id,
+    ) AS deletes
+    ON (deletes.id = people.id)
+    WHEN MATCHED AND people.salary > 100000.0 THEN DELETE;
+
+FROM people;
+
+```
+
+--------------------------------
+
+### Rewrite Deleted Files in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/recommended_maintenance
+
+When tables experience heavy deletions, a large number of delete files can accumulate, slowing down read performance. This function rewrites these deleted files to optimize read operations.
+
+```SQL
+CALL duckdb_extensions.duckdb_rewrite_deleted_files('your_table_name');
+```
+
+--------------------------------
+
+### Flush Inlined Data in Specific Schema
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_inlining
+
+This command flushes inlined data specifically for tables within a given schema in a DuckLake instance. It targets only the inlined data residing in the specified schema, converting it to Parquet files.
+
+```sql
+CALL ducklake_flush_inlined_data(
+    'my_ducklake',
+    schema_name => 'my_schema'
+);
+
+```
+
+--------------------------------
+
+### Query Table Changes API
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_change_feed
+
+This section details how to use the `table_changes` function to query data modifications within DuckLake. It covers querying changes within a specific snapshot, between multiple snapshots, and within a time range.
+
+```APIDOC
+## `table_changes` Function Documentation
+
+### Description
+The `table_changes` function allows querying the historical modifications made to a specific table within DuckLake between two defined points in time (snapshots or timestamps). It returns the changes along with metadata about the snapshot, row, and type of change.
+
+### Method
+N/A (This is a function within the DuckLake query language, not a traditional HTTP API endpoint)
+
+### Endpoint
+N/A
+
+### Parameters
+#### Function Parameters
+- **table_name** (string) - Required - The name of the table to query changes for.
+- **start_bound** (snapshot_id or timestamp) - Required - The starting point (inclusive) for the change feed query. Can be a snapshot ID or a timestamp.
+- **end_bound** (snapshot_id or timestamp) - Required - The ending point (inclusive) for the change feed query. Can be a snapshot ID or a timestamp.
+
+#### Query Parameters
+N/A
+
+#### Request Body
+N/A
+
+### Request Example
+```sql
+-- Example 1: Changes made by a specific snapshot (snapshot ID 2)
+SELECT * FROM db.table_changes('tbl', 2, 2);
+
+-- Example 2: Changes made between snapshot 3 and snapshot 4
+SELECT * FROM db.table_changes('tbl', 3, 4);
+
+-- Example 3: Changes made in the last week
+SELECT * FROM changes.table_changes('tbl', now() - INTERVAL '1 week', now());
+```
+
+### Response
+#### Success Response (Table Schema)
+- **snapshot_id** (integer) - The snapshot in which the change occurred.
+- **rowid** (integer) - The identifier of the row that was changed.
+- **change_type** (string) - The type of change: 'insert', 'update_preimage', 'update_postimage', or 'delete'.
+- **[column_name]** (type) - Columns from the table's schema as of the `end_bound`, representing the state of the row after the change (or before for `update_preimage`).
+
+#### Response Example
+```json
+-- Example 1 Response Snippet for Snapshot 2 Changes
+[
+  {
+    "snapshot_id": 2,
+    "rowid": 0,
+    "change_type": "insert",
+    "id": 1,
+    "val": "Hello"
+  },
+  {
+    "snapshot_id": 2,
+    "rowid": 1,
+    "change_type": "insert",
+    "id": 2,
+    "val": "DuckLake"
+  }
+]
+
+-- Example 2 Response Snippet for Changes between Snapshots 3 and 4
+[
+  {
+    "snapshot_id": 3,
+    "rowid": 0,
+    "change_type": "delete",
+    "id": 1,
+    "val": "Hello"
+  },
+  {
+    "snapshot_id": 4,
+    "rowid": 1,
+    "change_type": "update_postimage",
+    "id": 2,
+    "val": "DuckLakeDuckLakeDuckLake"
+  },
+  {
+    "snapshot_id": 4,
+    "rowid": 1,
+    "change_type": "update_preimage",
+    "id": 2,
+    "val": "DuckLake"
+  }
+]
+```
+
+### Error Handling
+- Compaction operations that remove expired snapshots may limit the available change feed data.
+- If a column is dropped between the bounds, it will be omitted from the result.
+- If a column is added, historical changes before its addition will have the column substituted with its default value.
+```
+
+--------------------------------
+
+### Querying Changes Between Multiple Snapshots in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/data_change_feed
+
+This SQL query retrieves changes that occurred between snapshot ID 3 and snapshot ID 4 for the 'tbl' table in the DuckLake database, showing both delete and update operations.
+
+```sql
+FROM db.table_changes('tbl', 3, 4);
+```
+
+--------------------------------
+
+### Query Deleted Rows in DuckLake Storage
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Queries a specific type of Parquet file (`ducklake-*-delete.parquet`) within the DuckLake storage, which contains records marked for deletion due to updates.
+
+```sql
+FROM 'my_ducklake.ducklake.files/**/ducklake-*-delete.parquet';
+
+```
+
+--------------------------------
+
+### Update Data in DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/introduction
+
+Updates a specific record in the `nl_train_stations` table where the `code` is 'ASB', changing the `name_long` to 'Johan Cruijff ArenA'. This operation is modeled as a delete followed by an insert.
+
+```sql
+UPDATE nl_train_stations
+SET name_long = 'Johan Cruijff ArenA'
+WHERE code = 'ASB';
+
+```
+
+--------------------------------
+
+### Add Column to DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Adds a new column to a DuckLake table. The column can be defined with a specific type and an optional default value. If no default value is specified, it defaults to NULL.
+
+```sql
+ALTER TABLE tbl ADD COLUMN new_column INTEGER;
+```
+
+```sql
+ALTER TABLE tbl ADD COLUMN new_column VARCHAR DEFAULT 'my_default';
+```
+
+--------------------------------
+
+### Set DuckLake Catalog-Wide Snapshot Expiration Option
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/expire_snapshots
+
+Sets a catalog-wide option in DuckLake to automatically expire snapshots older than a specified duration. This provides a global policy for data lifecycle management.
+
+```sql
+CALL ducklake.set_option('expire_older_than', '1 month');
+
+```
+
+--------------------------------
+
+### Dry Run DuckLake Snapshot Expiration
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/expire_snapshots
+
+Performs a dry run of the snapshot expiration process in DuckLake. This command lists the snapshots that would be deleted without actually removing any data, allowing for review before permanent action.
+
+```sql
+CALL ducklake_expire_snapshots('ducklake', dry_run => true, older_than => now() - INTERVAL '1 week');
+
+```
+
+--------------------------------
+
+### Rename DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Renames an entire DuckLake table. The current table name and the new table name are specified.
+
+```sql
+ALTER TABLE tbl RENAME TO tbl_new_name;
+```
+
+--------------------------------
+
+### Merge Adjacent Parquet Files with DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/recommended_maintenance
+
+This function is recommended for merging small Parquet files that are generated when DuckLake writes data in small batches without data inlining. It helps improve read performance by reducing the number of small files.
+
+```SQL
+SELECT merge_adjacent_files('your_table_name');
+```
+
+--------------------------------
+
+### Add Field to Struct Column in DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Adds a new field to an existing struct column within a DuckLake table. The path to the struct column, the new field name, and its type must be specified. Defaults to NULL if not specified.
+
+```sql
+-- Add a new field of type INTEGER, with default value NULL
+ALTER TABLE tbl ADD COLUMN nested_column.new_field INTEGER;
+```
+
+--------------------------------
+
+### Expire DuckLake Snapshots by Version
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/expire_snapshots
+
+Expires specific snapshots in DuckLake based on their version IDs. This function is essential for physically removing data that is no longer referenced by active snapshots.
+
+```sql
+CALL ducklake_expire_snapshots('ducklake', versions => [2]);
+
+```
+
+--------------------------------
+
+### Add NOT NULL Constraint to Existing Column (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/constraints
+
+Adds a NOT NULL constraint to an existing column in a table. This operation modifies the table schema to enforce non-nullability for the specified column.
+
+```sql
+ALTER TABLE tbl ALTER col SET NOT NULL;
+```
+
+--------------------------------
+
+### Merge Adjacent Files in DuckLake
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/merge_adjacent_files
+
+This SQL function merges adjacent Parquet files within a specified DuckLake instance to optimize file sizes for performance. It operates without expiring snapshots, preserving time travel and data change feeds. Old files are not immediately deleted and require a separate cleanup process.
+
+```sql
+CALL ducklake_merge_adjacent_files('my_ducklake');
+
+```
+
+```sql
+CALL ducklake_merge_adjacent_files('my_ducklake', 't', schema => 'some_schema');
+
+```
+
+--------------------------------
+
+### Drop Column from DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Removes a top-level column from a DuckLake table. Data files will still contain the dropped column, but it will be ignored during reconstruction if the field identifier is not present in the schema.
+
+```sql
+ALTER TABLE tbl DROP COLUMN new_column;
+```
+
+--------------------------------
+
+### Rename Column in DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Renames a top-level column in a DuckLake table. The original column name and the new desired name are specified.
+
+```sql
+ALTER TABLE tbl RENAME new_column TO new_name;
+```
+
+--------------------------------
+
+### Expire DuckLake Snapshots Older Than a Time Interval
+
+Source: https://ducklake.select/docs/stable/duckdb/maintenance/expire_snapshots
+
+Expires snapshots in DuckLake that are older than a specified time interval. This is useful for managing data retention policies and freeing up storage space.
+
+```sql
+CALL ducklake_expire_snapshots('ducklake', older_than => now() - INTERVAL '1 week');
+
+```
+
+--------------------------------
+
+### Drop Field from Struct Column in DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Removes a specific field from a struct column in a DuckLake table. The full path to the field within the struct must be provided.
+
+```sql
+ALTER TABLE tbl DROP COLUMN nested_column.new_field;
+```
+
+--------------------------------
+
+### Drop NOT NULL Constraint from Column (SQL)
+
+Source: https://ducklake.select/docs/stable/duckdb/advanced_features/constraints
+
+Removes a NOT NULL constraint from an existing column in a table, allowing NULL values to be inserted into that column. This operation reverts the non-nullability enforcement.
+
+```sql
+ALTER TABLE tbl ALTER col DROP NOT NULL;
+```
+
+--------------------------------
+
+### Rename Field in Struct Column in DuckLake Table
+
+Source: https://ducklake.select/docs/stable/duckdb/usage/schema_evolution
+
+Renames a field within a struct column in a DuckLake table. The full path to the field and the new name must be provided.
+
+```sql
+ALTER TABLE tbl RENAME nested_column.new_field TO new_name;
+```

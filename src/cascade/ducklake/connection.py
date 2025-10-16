@@ -82,7 +82,7 @@ def configure_ducklake_connection(
         """
     )
 
-    # S3 secret for DuckLake - use endpoint from environment
+    # S3 secret for DuckLake
     conn.execute(
     f"""
     CREATE OR REPLACE SECRET {runtime.s3_secret_name} (
@@ -91,7 +91,7 @@ def configure_ducklake_connection(
     KEY_ID '{runtime.minio_access_key}',
     SECRET '{runtime.minio_secret_key}',
     REGION '{runtime.minio_region}',
-    ENDPOINT 'minio:9000',
+    ENDPOINT '{runtime.minio_endpoint}',
     URL_STYLE '{runtime.s3_url_style}',
     USE_SSL {"TRUE" if runtime.minio_use_ssl else "FALSE"}
     )

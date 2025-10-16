@@ -14,7 +14,8 @@ macro-paths: ["macros"]
 models:
   cascade:
     +materialized: table
-    +database: "{{ env_var('DUCKLAKE_CATALOG_ALIAS', 'dbt') }}"
+    +pre-hook:
+      - "{{ ducklake__bootstrap() }}"
     bronze:
       +schema: bronze
       +materialized: view
