@@ -3,8 +3,8 @@ cg_lakehouse:
   outputs:
     ducklake:
       type: duckdb
-      database: "dbt"
-      path: "/tmp/dbt.duckdb"
+      database: "memory"
+      path: ":memory:"
       threads: 8
       extensions: ["ducklake", "httpfs", "postgres", "json", "parquet"]
       # S3-compatible (MinIO)

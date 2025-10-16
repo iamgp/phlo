@@ -113,5 +113,5 @@ def build_destination(
     """
     Convenience helper returning a DuckLake destination for DLT pipelines.
     """
-    kwargs["credentials"] = duckdb.connect(database="/tmp/dbt.duckdb")
+    kwargs["credentials"] = duckdb.connect(database=":memory:")
     return DuckLake(*args, runtime_config=runtime_config, **kwargs)

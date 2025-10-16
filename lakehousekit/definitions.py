@@ -6,6 +6,7 @@ import dagster as dg
 
 from lakehousekit.config import config
 from lakehousekit.defs.ingestion import build_defs as build_ingestion_defs
+from lakehousekit.defs.jobs import build_defs as build_job_defs
 from lakehousekit.defs.publishing import build_defs as build_publishing_defs
 from lakehousekit.defs.quality import build_defs as build_quality_defs
 from lakehousekit.defs.resources import build_defs as build_resource_defs
@@ -44,6 +45,7 @@ def _merged_definitions() -> dg.Definitions:
         build_publishing_defs(),
         build_quality_defs(),
         build_schedule_defs(),
+        build_job_defs(),
     )
 
     executor = _default_executor()
