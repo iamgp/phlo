@@ -27,5 +27,5 @@ select
     trend,
     device
 
-from "dbt"."raw_silver"."fct_glucose_readings"
+from "ducklake"."main_silver"."fct_glucose_readings"
 

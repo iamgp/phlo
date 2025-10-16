@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import replace
 from typing import Any
 
@@ -112,9 +113,21 @@ def build_destination(
 ) -> DuckLake:
     """
     Convenience helper returning a DuckLake destination for DLT pipelines.
-    
-    Uses /dbt/dbt.db file so DLT and dbt share the same DuckDB connection
-    and both write to the attached DuckLake catalog.
+
+    Each DLT pipeline gets its own ephemeral DuckDB connection that attaches
+    to the shared DuckLake catalog (PostgreSQL + MinIO). No shared files = no locking.
     """
-    kwargs["credentials"] = duckdb.connect(database="/dbt/dbt.db")
+    # Build or enhance runtime config with aggressive retry settings for concurrent writes
+    if runtime_config is None:
+        runtime_config = build_ducklake_runtime_config()
+
+    # Increase retries and backoff for concurrent DLT operations
+    runtime_config = dataclasses.replace(
+        runtime_config,
+        ducklake_retry_count=200,
+        ducklake_retry_wait_ms=150,
+        ducklake_retry_backoff=2.5,
+    )
+
+    kwargs["credentials"] = duckdb.connect(database=":memory:")
     return DuckLake(*args, runtime_config=runtime_config, **kwargs)

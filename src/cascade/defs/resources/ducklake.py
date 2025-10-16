@@ -20,8 +20,10 @@ class DuckLakeResource(ConfigurableResource):
 
         The connection installs required extensions, configures DuckLake retries,
         and ensures raw/curated schemas exist.
+        
+        Uses ephemeral :memory: connection for concurrency safety.
         """
-        conn = duckdb.connect(database="/dbt/dbt.db")
+        conn = duckdb.connect(database=":memory:")
         runtime = build_ducklake_runtime_config()
         configure_ducklake_connection(
             conn,

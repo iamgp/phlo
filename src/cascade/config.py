@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         description="PostgreSQL database storing DuckLake catalog metadata",
     )
     ducklake_catalog_alias: str = Field(
-        default="dbt",
+        default="ducklake",
         description="Alias used when attaching the DuckLake catalog in DuckDB",
     )
     ducklake_data_bucket: str = Field(
