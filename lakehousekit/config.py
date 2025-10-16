@@ -37,7 +37,7 @@ class Settings(BaseSettings):
         description="PostgreSQL database storing DuckLake catalog metadata",
     )
     ducklake_catalog_alias: str = Field(
-        default="ducklake",
+        default="dbt",
         description="Alias used when attaching the DuckLake catalog in DuckDB",
     )
     ducklake_data_bucket: str = Field(
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
         description="Prefix within the DuckLake data bucket for managed tables",
     )
     ducklake_default_dataset: str = Field(
-        default="bronze",
+        default="raw",
         description="Default dataset/schema used by ingestion jobs inside DuckLake",
     )
     ducklake_region: str = Field(

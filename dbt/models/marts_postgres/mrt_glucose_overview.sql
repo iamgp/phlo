@@ -1,17 +1,18 @@
 {{ config(
-    materialized='table',
+    materialized='incremental',
+    unique_key='reading_date',
     tags=['nightscout', 'mart']
 ) }}
 
 /*
 Glucose overview mart for BI dashboards
 
-This mart table is materialized in PostgreSQL for fast dashboard queries in
+This mart table is incrementally materialized in DuckDB for fast dashboard queries in
 Superset. It provides a denormalized, aggregated view optimized for
 visualization and reporting.
 
-Target: PostgreSQL (analytics database)
-Refresh: Every 30 minutes via Dagster schedule
+Target: DuckDB (incrementally updated), then published to PostgreSQL
+Refresh: Every 30 minutes via Dagster schedule, only new data
 */
 
 select
@@ -54,4 +55,10 @@ select
 
 from {{ ref('dim_date') }}
 where reading_date >= current_date - interval '90 days'  -- Last 90 days for dashboard
+
+{% if is_incremental() %}
+    -- Only process new dates on incremental runs
+    and reading_date >= (select coalesce(max(reading_date), '1900-01-01'::date) from {{ this }})
+{% endif %}
+
 order by reading_date desc

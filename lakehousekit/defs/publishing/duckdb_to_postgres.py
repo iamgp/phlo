@@ -26,10 +26,11 @@ def publish_glucose_marts_to_postgres(context, duckdb: DuckLakeResource) -> Publ
     postgres_password = config.postgres_password
     postgres_db = config.postgres_db
     target_schema = config.postgres_mart_schema
+    catalog_alias = config.ducklake_catalog_alias
 
     tables_to_publish = {
-        "mrt_glucose_overview": "dbt.main_marts.mrt_glucose_overview",
-        "mrt_glucose_hourly_patterns": "dbt.main_marts.mrt_glucose_hourly_patterns",
+        "mrt_glucose_overview": f"{catalog_alias}.main_marts.mrt_glucose_overview",
+        "mrt_glucose_hourly_patterns": f"{catalog_alias}.main_marts.mrt_glucose_hourly_patterns",
     }
 
     context.log.info(
