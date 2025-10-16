@@ -217,7 +217,7 @@ mc mirror local/lake /backup/lake-$(date +%Y%m%d)
 ### Snapshot Volumes
 ```bash
 # Backup Docker volume
-docker run --rm -v lakehousekit_minio:/data -v $(pwd):/backup \
+docker run --rm -v cascade_minio:/data -v $(pwd):/backup \
   alpine tar czf /backup/minio-backup.tar.gz /data
 ```
 

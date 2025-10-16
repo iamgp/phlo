@@ -1,6 +1,6 @@
 # DuckDB (Analytical Engine)
 
-> **Note:** Lakehousekit now mounts DuckDB through the DuckLake extension, using PostgreSQL for the catalog and MinIO for table storage. The settings below still apply because DuckLake is implemented as a DuckDB extension.
+> **Note:** Cascade now mounts DuckDB through the DuckLake extension, using PostgreSQL for the catalog and MinIO for table storage. The settings below still apply because DuckLake is implemented as a DuckDB extension.
 
 ## Overview
 

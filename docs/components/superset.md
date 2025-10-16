@@ -285,7 +285,7 @@ docker compose exec superset bash
 psql -h postgres -U lake -d lakehouse
 
 # Check network
-docker network inspect lakehousekit_default
+docker network inspect cascade_default
 ```
 
 ### Charts Not Loading

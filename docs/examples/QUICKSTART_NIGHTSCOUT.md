@@ -11,7 +11,7 @@
 ## Step 1: Start Infrastructure (2 minutes)
 
 ```bash
-cd /path/to/lakehousekit
+cd /path/to/cascade
 
 # Start all services
 docker-compose up -d postgres minio dagster-daemon marquez
