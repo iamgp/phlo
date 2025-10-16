@@ -137,9 +137,15 @@ HTML_TEMPLATE = """
             </a>
 
             <a href="http://localhost:{{ airbyte_port }}" class="service-card" target="_blank">
-                <h2><span class="status"></span>Airbyte</h2>
-                <p>Data ingestion and ELT connector platform</p>
-                <span class="port">Port {{ airbyte_port }}</span>
+            <h2><span class="status"></span>Airbyte</h2>
+            <p>Data ingestion and ELT connector platform</p>
+            <span class="port">Port {{ airbyte_port }}</span>
+            </a>
+
+            <a href="http://localhost:{{ pgweb_port }}" class="service-card" target="_blank">
+                <h2><span class="status"></span>Pgweb</h2>
+                <p>Web-based PostgreSQL database browser</p>
+                <span class="port">Port {{ pgweb_port }}</span>
             </a>
 
             <a href="http://localhost:{{ postgres_port }}" class="service-card" style="pointer-events: none; opacity: 0.7;">
@@ -177,6 +183,7 @@ def index():
             "DATAHUB_FRONTEND_PORT", os.getenv("DATAHUB_PORT", "9002")
         ),
         airbyte_port=os.getenv("AIRBYTE_WEB_PORT", "8000"),
+        pgweb_port=os.getenv("PGWEB_PORT", "8081"),
         postgres_port=os.getenv("POSTGRES_PORT", "5432"),
         postgres_user=os.getenv("POSTGRES_USER", "lake"),
         postgres_pass=os.getenv("POSTGRES_PASSWORD", "lakepass"),
