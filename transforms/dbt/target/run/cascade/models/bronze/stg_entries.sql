@@ -1,6 +1,6 @@
 
   
-  create view "dbt"."raw_bronze"."stg_entries__dbt_tmp" as (
+  create view "memory"."bronze"."stg_entries__dbt_tmp" as (
     
 
 -- Staging model for Nightscout glucose readings
@@ -12,7 +12,7 @@
 -- Partitioning: Supports daily partition filtering via partition_date_str variable
 
 with raw_data as (
-    select * from "dbt"."raw"."entries"
+    select * from "ducklake"."raw"."entries"
 )
 
 select

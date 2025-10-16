@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: dagster_assets
-    database: dbt
+    database: ducklake
     schema: raw
     description: Upstream Dagster assets that provide raw data from DuckLake raw layer
     tables:

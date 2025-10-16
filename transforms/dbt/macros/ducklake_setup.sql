@@ -97,11 +97,12 @@
   {% endif %}
 
   {% if catalog_alias not in aliases %}
-    {% set attach_sql = "ATTACH 'ducklake:" ~ ducklake_secret ~ "' AS " ~ catalog_alias %}
+    {% set attach_sql = "ATTACH 'ducklake:" ~ ducklake_secret ~ "' AS " ~ catalog_alias ~ " (CREATE_IF_NOT_EXISTS true, DATA_PATH '" ~ data_path ~ "')" %}
     {% do run_query(attach_sql) %}
   {% endif %}
 
   {% do run_query("USE " ~ catalog_alias) %}
+  {% do run_query("SET schema = '" ~ default_dataset ~ "'") %}
 
   {% set schemas = [
     default_dataset,

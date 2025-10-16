@@ -13,7 +13,7 @@ These enrichments enable better analytics and visualization in downstream models
 */
 
 with glucose_data as (
-    select * from "dbt"."raw_bronze"."stg_entries"
+    select * from "ducklake"."main_bronze"."stg_entries"
 ),
 
 enriched as (
