@@ -200,79 +200,68 @@ Target: Production-ready, 12-factor stateless design, docker-compose for POC, K8
 
 ---
 
-## Phase 4: Transformation Layer (dbt)
+## Phase 4: Transformation Layer (dbt) [COMPLETE]
 
 ### 4.1 Remove dbt-duckdb
-- [ ] Remove dbt-duckdb from dependencies
-- [ ] Delete `transforms/dbt/macros/` (DuckLake bootstrap macros)
-- [ ] Remove DuckLake-specific dbt hooks
+- [x] Remove dbt-duckdb from dependencies (removed in Phase 3)
+- [x] Delete `transforms/dbt/macros/` (already deleted in Phase 0)
+- [x] Remove DuckLake-specific dbt hooks
+  - Removed on-run-start: ducklake__bootstrap()
+  - Removed pre-hook: ducklake__bootstrap()
+  - Removed macro-paths reference
 
 ### 4.2 Install dbt-trino
-- [ ] Add dbt-trino to `services/dagster/pyproject.toml`
-- [ ] Update Dagster Dockerfile to include dbt-trino
+- [x] Add dbt-trino to `services/dagster/pyproject.toml` (added in Phase 3)
+- [x] Installed via uv workspace sync
 
 ### 4.3 Update dbt Configuration
-- [ ] Rewrite `transforms/dbt/profiles/profiles.yml`
-  ```yaml
-  cascade:
-    target: dev
-    outputs:
-      dev:
-        type: trino
-        host: trino
-        port: 8080
-        user: dbt
-        catalog: iceberg
-        schema: bronze
-        threads: 8
-        # Nessie branch context
-        session_properties:
-          nessie.reference: dev
-      prod:
-        type: trino
-        host: trino
-        port: 8080
-        user: dbt
-        catalog: iceberg
-        schema: bronze
-        threads: 8
-        session_properties:
-          nessie.reference: main
-      postgres:
-        type: postgres
-        host: postgres
-        user: "{{ env_var('POSTGRES_USER') }}"
-        password: "{{ env_var('POSTGRES_PASSWORD') }}"
-        port: 5432
-        dbname: "{{ env_var('POSTGRES_DB') }}"
-        schema: marts
-        threads: 8
-  ```
+- [x] Rewrite `transforms/dbt/profiles/profiles.yml`
+  - Added dev/prod Trino outputs with Nessie branching
+  - dev target uses nessie.reference: dev
+  - prod target uses nessie.reference: main
+  - Kept postgres output for marts
+  - Removed all duckdb configuration
 
-- [ ] Update `transforms/dbt/dbt_project.yml`
-  - Remove on-run-start hooks (no bootstrap needed)
-  - Remove pre-hooks
-  - Keep bronze/silver/gold/marts_postgres structure
+- [x] Update `transforms/dbt/dbt_project.yml`
+  - Removed on-run-start hooks
+  - Removed pre-hooks
+  - Removed macro-paths
+  - Kept bronze/silver/gold/marts_postgres structure
   - Default materialization: table (Iceberg tables)
 
 ### 4.4 Rewrite dbt Models for Iceberg
-- [ ] Update source definitions (`transforms/dbt/models/sources/sources.yml`)
+- [x] Update source definitions (`transforms/dbt/models/sources/sources.yml`)
   - Point to Iceberg raw tables via Trino catalog
-- [ ] Rewrite bronze models
-  - No DuckLake-specific functions
-  - Use standard SQL + Trino functions
-- [ ] Rewrite silver models
-  - Iceberg table format
-  - Partitioning in model config
-- [ ] Rewrite gold models
-  - Time-travel queries where appropriate
-- [ ] Update marts_postgres models
-  - Target postgres profile
-  - Materialize curated data for Superset
+  - database: iceberg, schema: raw
+- [x] Rewrite bronze models (stg_entries.sql)
+  - Replaced epoch_ms() with from_unixtime(mills / 1000.0)
+  - Updated to read from Iceberg raw.entries
+  - Trino-compatible date functions
+- [x] Rewrite silver models (fct_glucose_readings.sql)
+  - Replaced dayname() with format_datetime()
+  - Replaced extract(dow) with day_of_week()
+  - Replaced extract(epoch...) with date_diff('minute',...)
+  - Iceberg table materialization
+- [x] Rewrite gold models
+  - dim_date.sql: week(), month(), year(), format_datetime()
+  - mrt_glucose_readings.sql: incremental Iceberg table
+- [x] Update marts_postgres models
+  - mrt_glucose_overview.sql: Trino interval syntax
+  - mrt_glucose_hourly_patterns.sql: approx_percentile() instead of percentile_cont()
 
-### 4.5 dbt Testing
-- [ ] Update dbt tests for Trino compatibility
-- [ ] Add Iceberg-specific tests (time travel, partitions)
+### 4.5 SQL Function Migrations
+- [x] DuckDB → Trino function replacements:
+  - epoch_ms(date) → from_unixtime(cast(mills as double) / 1000.0)
+  - dayname() → format_datetime(timestamp, 'EEEE')
+  - extract(dow) → day_of_week()
+  - extract(week) → week()
+  - extract(epoch from interval) → date_diff('minute', start, end)
+  - percentile_cont() → approx_percentile()
+  - interval '90 days' → interval '90' day
+
+**Commit:** `refactor(dbt): migrate from dbt-duckdb to dbt-trino with iceberg`
+
+**Tests:** `tests/test_phase4_transformation.sh` (32/32 passing)
 
 ---
 

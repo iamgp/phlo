@@ -20,9 +20,9 @@ select
 
     count(*) as reading_count,
     round(avg(glucose_mg_dl), 1) as avg_glucose_mg_dl,
-    round(percentile_cont(0.5) within group (order by glucose_mg_dl), 1) as median_glucose_mg_dl,
-    round(percentile_cont(0.25) within group (order by glucose_mg_dl), 1) as p25_glucose_mg_dl,
-    round(percentile_cont(0.75) within group (order by glucose_mg_dl), 1) as p75_glucose_mg_dl,
+    round(approx_percentile(glucose_mg_dl, 0.5), 1) as median_glucose_mg_dl,
+    round(approx_percentile(glucose_mg_dl, 0.25), 1) as p25_glucose_mg_dl,
+    round(approx_percentile(glucose_mg_dl, 0.75), 1) as p75_glucose_mg_dl,
 
     -- Time in range for this hour/day combination
     round(100.0 * sum(is_in_range) / count(*), 1) as time_in_range_pct,
@@ -31,6 +31,6 @@ select
     round(stddev(glucose_mg_dl), 1) as stddev_glucose_mg_dl
 
 from {{ ref('mrt_glucose_readings') }}
-where reading_timestamp >= current_timestamp - interval '30 days'
+where reading_timestamp >= current_timestamp - interval '30' day
 group by hour_of_day, day_of_week, day_name
 order by day_of_week, hour_of_day

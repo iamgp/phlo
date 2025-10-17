@@ -1,25 +1,28 @@
 cascade:
-  target: ducklake
+  target: dev
   outputs:
-    ducklake:
-      type: duckdb
-      path: ":memory:"  # dbt runs sequentially, doesn't need separate instances like concurrent DLT
-      schema: "raw"
+    dev:
+      type: trino
+      host: "{{ env_var('TRINO_HOST', 'trino') }}"
+      port: "{{ env_var('TRINO_PORT', '8080') | int }}"
+      user: dbt
+      catalog: iceberg
+      schema: bronze
       threads: 8
-      extensions: ["ducklake", "httpfs", "postgres", "json", "parquet"]
-      # S3-compatible (MinIO)
-      settings:
-        s3_endpoint: "{{ env_var('MINIO_HOST', 'minio') }}:{{ env_var('MINIO_API_PORT', '9000') }}"
-        s3_use_ssl: false
-        s3_url_style: path
-        s3_access_key_id: "{{ env_var('MINIO_ROOT_USER') }}"
-        s3_secret_access_key: "{{ env_var('MINIO_ROOT_PASSWORD') }}"
-        s3_region: "{{ env_var('DUCKLAKE_REGION', 'us-east-1') }}"
-        ducklake_max_retry_count: 100
-        ducklake_retry_wait_ms: 100
-        ducklake_retry_backoff: 2.0
-      # Attach DuckLake catalog - secrets created in on-run-start hook
-      # Note: attach happens AFTER on-run-start, so secrets will be available
+      session_properties:
+        nessie.reference: dev
+
+    prod:
+      type: trino
+      host: "{{ env_var('TRINO_HOST', 'trino') }}"
+      port: "{{ env_var('TRINO_PORT', '8080') | int }}"
+      user: dbt
+      catalog: iceberg
+      schema: bronze
+      threads: 8
+      session_properties:
+        nessie.reference: main
+
     postgres:
       type: postgres
       host: postgres

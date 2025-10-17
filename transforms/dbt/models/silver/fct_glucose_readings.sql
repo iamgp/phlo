@@ -32,8 +32,8 @@ enriched as (
         -- Time-based dimensions for analysis
         date_trunc('day', reading_timestamp) as reading_date,
         extract(hour from reading_timestamp) as hour_of_day,
-        extract(dow from reading_timestamp) as day_of_week,
-        dayname(reading_timestamp) as day_name,
+        day_of_week(reading_timestamp) as day_of_week,
+        format_datetime(reading_timestamp, 'EEEE') as day_name,
 
         -- Blood sugar categories (based on ADA guidelines)
         case
@@ -56,12 +56,13 @@ enriched as (
         ) as glucose_change_mg_dl,
 
         -- Minutes since previous reading
-        extract(epoch from (
-            reading_timestamp - lag(reading_timestamp) over (
+        date_diff('minute',
+            lag(reading_timestamp) over (
                 partition by device
                 order by reading_timestamp
-            )
-        )) / 60 as minutes_since_last_reading
+            ),
+            reading_timestamp
+        ) as minutes_since_last_reading
 
     from glucose_data
 )

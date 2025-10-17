@@ -13,11 +13,11 @@ Useful for trend analysis and long-term glucose management tracking.
 
 select
     reading_date,
-    dayname(reading_date) as day_name,
-    extract(dow from reading_date) as day_of_week,
-    extract(week from reading_date) as week_of_year,
-    extract(month from reading_date) as month,
-    extract(year from reading_date) as year,
+    format_datetime(reading_date, 'EEEE') as day_name,
+    day_of_week(reading_date) as day_of_week,
+    week(reading_date) as week_of_year,
+    month(reading_date) as month,
+    year(reading_date) as year,
 
     -- Daily statistics
     count(*) as reading_count,
@@ -39,7 +39,7 @@ from {{ ref('fct_glucose_readings') }}
 
 {% if is_incremental() %}
     -- Only process new or updated dates on incremental runs
-    where reading_date >= (select coalesce(max(reading_date), '1900-01-01'::date) from {{ this }})
+    where reading_date >= (select coalesce(max(reading_date), date('1900-01-01')) from {{ this }})
 {% endif %}
 
 group by reading_date

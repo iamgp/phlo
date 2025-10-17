@@ -4,24 +4,16 @@ config-version: 2
 
 profile: cascade
 
-on-run-start:
-  - "{{ ducklake__bootstrap() }}"
-
 model-paths: ["models"]
 seed-paths: ["seeds"]
-macro-paths: ["macros"]
 
 models:
   cascade:
     +materialized: table
-    +pre-hook:
-      - "{{ ducklake__bootstrap() }}"
     bronze:
       +schema: bronze
       +materialized: view
       +tags: ["bronze"]
-      +quoting:
-        identifier: false
     silver:
       +schema: silver
       +tags: ["silver"]
