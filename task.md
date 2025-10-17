@@ -29,21 +29,21 @@ Target: Production-ready, 12-factor stateless design, docker-compose for POC, K8
 
 ---
 
-## Phase 0: Clean Slate
+## Phase 0: Clean Slate [COMPLETE]
 
 ### 0.1 Stop and Remove Everything
-- [ ] Stop all running services
-- [ ] Remove all containers
-- [ ] Remove all volumes (destroys all data)
-- [ ] Remove orphaned containers/networks
-- [ ] Clean Python virtual environments
+- [x] Stop all running services
+- [x] Remove all containers
+- [x] Remove all volumes (destroys all data)
+- [x] Remove orphaned containers/networks
+- [x] Clean Python virtual environments
 
 ### 0.2 Remove DuckLake Code
-- [ ] Delete `src/cascade/ducklake/` directory
-- [ ] Delete `src/cascade/dlt/ducklake_destination.py`
-- [ ] Delete DuckLake tests: `tests/test_ducklake_integration.py`, `tests/test_concurrent_*.py`
-- [ ] Delete DuckLake health check: `scripts/check_ducklake_health.py`
-- [ ] Delete DuckLake-related docs:
+- [x] Delete `src/cascade/ducklake/` directory
+- [x] Delete `src/cascade/dlt/ducklake_destination.py`
+- [x] Delete DuckLake tests: `tests/test_ducklake_integration.py`, `tests/test_concurrent_*.py`
+- [x] Delete DuckLake health check: `scripts/check_ducklake_health.py`
+- [x] Delete DuckLake-related docs:
   - CONCURRENT_WRITE_DIAGNOSIS.md
   - DIAGNOSIS_SUMMARY.md
   - FIXES.md
@@ -52,62 +52,66 @@ Target: Production-ready, 12-factor stateless design, docker-compose for POC, K8
   - old_spec.md
 
 ### 0.3 Clean dbt
-- [ ] Delete `transforms/dbt/macros/` (DuckLake bootstrap macros)
-- [ ] Delete `transforms/dbt/target/` (compiled artifacts)
-- [ ] Keep model structure (will rewrite in Phase 4)
+- [x] Delete `transforms/dbt/macros/` (DuckLake bootstrap macros)
+- [x] Delete `transforms/dbt/target/` (compiled artifacts)
+- [x] Keep model structure (will rewrite in Phase 4)
 
 ### 0.4 Update Makefile
-- [ ] Add `make clean-all` target (down -v + system prune)
-- [ ] Add `make fresh-start` target (clean-all + setup)
-- [ ] Add profile-specific targets (make up-core, make up-query, make up-all)
-- [ ] Add Trino/Nessie shell targets
-- [ ] Add health check target
+- [x] Add `make clean-all` target (down -v + system prune)
+- [x] Add `make fresh-start` target (clean-all + setup)
+- [x] Add profile-specific targets (make up-core, make up-query, make up-all)
+- [x] Add Trino/Nessie shell targets
+- [x] Add health check target
 
-**Commit:** `chore: clean slate - remove ducklake and all data`
+**Commit:** `chore: clean slate - remove ducklake and all data` (c762d8d)
 
 ---
 
-## Phase 1: Infrastructure & Services
+## Phase 1: Infrastructure & Services [COMPLETE]
 
 ### 1.1 Nessie Catalog Server
-- [ ] Add Nessie service to docker-compose.yml
+- [x] Add Nessie service to docker-compose.yml
   - Use official projectnessie/nessie Docker image
   - Configure Postgres backend for metadata storage
   - Expose REST API (port 19120)
   - Add healthcheck
   - Create default branches: `main`, `dev`
-- [ ] Add Nessie to optional profiles (keep core minimal)
-- [ ] Environment variables: NESSIE_VERSION, NESSIE_PORT
+- [x] Add Nessie to optional profiles (keep core minimal)
+- [x] Environment variables: NESSIE_VERSION, NESSIE_PORT
 
 ### 1.2 Trino Query Engine
-- [ ] Add Trino service to docker-compose.yml
+- [x] Add Trino service to docker-compose.yml
   - Use trinodb/trino official image
   - Configure coordinator + worker (single node for POC)
   - Expose port 8080
   - Add healthcheck
-- [ ] Create Trino catalog configuration directory
+- [x] Create Trino catalog configuration directory
   - `docker/trino/catalog/iceberg.properties`
   - Configure Iceberg connector with Nessie REST catalog
   - Configure S3 (MinIO) backend
-- [ ] Add Trino to optional profiles
-- [ ] Environment variables: TRINO_VERSION, TRINO_PORT
+- [x] Add Trino to optional profiles
+- [x] Environment variables: TRINO_VERSION, TRINO_PORT
 
 ### 1.3 MinIO Configuration
-- [ ] Verify existing MinIO setup
-- [ ] Ensure bucket structure:
+- [x] Verify existing MinIO setup
+- [x] Ensure bucket structure:
   - `lake/warehouse/` (Iceberg tables)
   - `lake/stage/` (raw ingestion landing)
-- [ ] Update minio-setup service for new buckets
+- [x] Update minio-setup service for new buckets
 
 ### 1.4 Docker Profiles & 12-Factor Design
-- [ ] Define docker-compose profiles:
+- [x] Define docker-compose profiles:
   - `core` (postgres, minio, dagster, hub)
   - `query` (trino, nessie)
   - `bi` (superset, pgweb)
   - `all` (everything)
-- [ ] Ensure all config via environment variables
-- [ ] Externalize secrets to .env
-- [ ] Make services stateless (state only in volumes)
+- [x] Ensure all config via environment variables
+- [x] Externalize secrets to .env
+- [x] Make services stateless (state only in volumes)
+
+**Commit:** `feat(infra): add nessie and trino services for iceberg architecture` (a16483b)
+
+**Tests:** `tests/test_phase1_infrastructure.sh`
 
 ---
 
@@ -472,10 +476,10 @@ Target: Production-ready, 12-factor stateless design, docker-compose for POC, K8
 ## Success Criteria
 
 ### POC Outcomes (from spec)
-1. ✅ End-to-end load: Nightscout → Iceberg on MinIO (daily partitions)
-2. ✅ dbt builds/updates Iceberg models via Trino
-3. ✅ Nessie branch workflow (dev → main) + time-travel query
-4. ✅ Curated marts published to Postgres for Superset
+1. [ ] End-to-end load: Nightscout → Iceberg on MinIO (daily partitions)
+2. [ ] dbt builds/updates Iceberg models via Trino
+3. [ ] Nessie branch workflow (dev → main) + time-travel query
+4. [ ] Curated marts published to Postgres for Superset
 
 ### Production Ready
 - [ ] All services run via docker-compose with profiles
