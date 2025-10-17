@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dagster as dg
 
-from cascade.defs.publishing.duckdb_to_postgres import (
+from cascade.defs.publishing.trino_to_postgres import (
     publish_glucose_marts_to_postgres,
 )
 

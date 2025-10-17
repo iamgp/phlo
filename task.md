@@ -265,23 +265,38 @@ Target: Production-ready, 12-factor stateless design, docker-compose for POC, K8
 
 ---
 
-## Phase 5: Publishing & BI
+## Phase 5: Publishing & BI [COMPLETE]
 
 ### 5.1 Postgres Marts Publishing
-- [ ] Verify dbt multi-target setup (Trino → Postgres)
-- [ ] Create dbt mart models that SELECT from Trino Iceberg, INSERT into Postgres
-- [ ] Alternative: Create Dagster asset using Trino COPY/CTAS to Postgres
-- [ ] Update `src/cascade/defs/publishing/` module
-  - Remove duckdb_to_postgres.py
-  - Create trino_to_postgres.py (if using Dagster approach)
+- [x] Strategy: Use Dagster asset approach (Trino → Postgres)
+- [x] Delete duckdb_to_postgres.py
+- [x] Create trino_to_postgres.py
+  - Queries mart tables from Iceberg via Trino
+  - Publishes to Postgres using psycopg2 for BI/Superset
+  - Handles iceberg.marts.mrt_glucose_overview
+  - Handles iceberg.marts.mrt_glucose_hourly_patterns
+- [x] Update publishing/__init__.py imports
 
-### 5.2 Superset Configuration
-- [ ] Add Trino connection to Superset
-  - Connection string: `trino://dbt@trino:8080/iceberg`
-  - Test connection to Iceberg catalog
-- [ ] Keep existing Postgres connection for marts
-- [ ] Update Superset init script in docker-compose
-- [ ] Document dual-source setup (Trino for lake, Postgres for marts)
+### 5.2 Docker Compose Configuration
+- [x] Add ICEBERG_STAGING_PATH to dagster-webserver environment
+- [x] Add ICEBERG_STAGING_PATH to dagster-daemon environment
+- [x] Verify all Trino/Iceberg env vars present
+
+### 5.3 Publishing Strategy
+Publishing follows a two-tier architecture:
+1. **Iceberg (via Trino)**: Analytical lakehouse layer
+   - Bronze/silver/gold schemas in Iceberg
+   - Queried via Trino for transformations
+2. **Postgres**: Fast query layer for BI
+   - Marts schema with curated tables
+   - Published from Iceberg via Dagster asset
+   - Superset queries Postgres for dashboards
+
+Note: Superset Trino configuration deferred to operational phase
+
+**Commit:** `refactor(publishing): migrate from duckdb to trino/postgres publishing`
+
+**Tests:** `tests/test_phase5_publishing.sh` (all passing)
 
 ---
 

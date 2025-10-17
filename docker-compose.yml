@@ -149,6 +149,7 @@ services:
       TRINO_CATALOG: iceberg
       # Iceberg configuration
       ICEBERG_WAREHOUSE_PATH: ${ICEBERG_WAREHOUSE_PATH}
+      ICEBERG_STAGING_PATH: ${ICEBERG_STAGING_PATH}
       ICEBERG_DEFAULT_NAMESPACE: raw
       # MinIO/Postgres for dbt
       MINIO_HOST: ${MINIO_HOST}
@@ -212,6 +213,7 @@ services:
       TRINO_CATALOG: iceberg
       # Iceberg configuration
       ICEBERG_WAREHOUSE_PATH: ${ICEBERG_WAREHOUSE_PATH}
+      ICEBERG_STAGING_PATH: ${ICEBERG_STAGING_PATH}
       ICEBERG_DEFAULT_NAMESPACE: raw
       # MinIO/Postgres for dbt
       MINIO_HOST: ${MINIO_HOST}

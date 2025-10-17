@@ -42,23 +42,9 @@ class TablePublishStats(BaseModel):
 
 
 class PublishPostgresOutput(BaseModel):
-    """Output model for DuckDB to Postgres publishing assets."""
+    """Output model for Trino to Postgres publishing assets."""
 
     tables: dict[str, TablePublishStats] = Field(
         ...,
         description="Publishing statistics for each table",
-    )
-
-
-class DatahubIngestionOutput(BaseModel):
-    """Output model for DataHub metadata ingestion assets."""
-
-    status: str = Field(
-        ...,
-        description="Status message from DataHub ingestion",
-    )
-    tables_processed: int = Field(
-        ...,
-        ge=0,
-        description="Number of tables processed in the ingestion",
     )
