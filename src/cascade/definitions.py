@@ -7,6 +7,7 @@ import dagster as dg
 from cascade.config import config
 from cascade.defs.ingestion import build_defs as build_ingestion_defs
 from cascade.defs.jobs import build_defs as build_job_defs
+from cascade.defs.nessie import build_defs as build_nessie_defs
 from cascade.defs.publishing import build_defs as build_publishing_defs
 from cascade.defs.quality import build_defs as build_quality_defs
 from cascade.defs.resources import build_defs as build_resource_defs
@@ -44,6 +45,7 @@ def _merged_definitions() -> dg.Definitions:
         build_transform_defs(),
         build_publishing_defs(),
         build_quality_defs(),
+        build_nessie_defs(),
         build_schedule_defs(),
         build_job_defs(),
     )
