@@ -117,17 +117,19 @@ def build_destination(
     Each DLT pipeline gets its own ephemeral DuckDB connection that attaches
     to the shared DuckLake catalog (PostgreSQL + MinIO). No shared files = no locking.
     """
-    # Build or enhance runtime config with aggressive retry settings for concurrent writes
+    # Build or enhance runtime config
     if runtime_config is None:
         runtime_config = build_ducklake_runtime_config()
 
-    # Increase retries and backoff for concurrent DLT operations
+    # Use conservative retry settings (100/100/2) - POC proves these work for concurrent writes
     runtime_config = dataclasses.replace(
         runtime_config,
-        ducklake_retry_count=200,
-        ducklake_retry_wait_ms=150,
-        ducklake_retry_backoff=2.5,
+        ducklake_retry_count=100,
+        ducklake_retry_wait_ms=100,
+        ducklake_retry_backoff=2.0,
     )
 
-    kwargs["credentials"] = duckdb.connect(database=":memory:")
+    # Use empty string for truly separate in-memory instances (not shared :memory:)
+    # This avoids potential catalog conflicts between concurrent connections
+    kwargs["credentials"] = duckdb.connect(database="")
     return DuckLake(*args, runtime_config=runtime_config, **kwargs)

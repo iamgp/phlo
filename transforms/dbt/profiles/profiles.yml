@@ -3,7 +3,7 @@ cascade:
   outputs:
     ducklake:
       type: duckdb
-      path: ":memory:"
+      path: ":memory:"  # dbt runs sequentially, doesn't need separate instances like concurrent DLT
       schema: "raw"
       threads: 8
       extensions: ["ducklake", "httpfs", "postgres", "json", "parquet"]
@@ -15,9 +15,9 @@ cascade:
         s3_access_key_id: "{{ env_var('MINIO_ROOT_USER') }}"
         s3_secret_access_key: "{{ env_var('MINIO_ROOT_PASSWORD') }}"
         s3_region: "{{ env_var('DUCKLAKE_REGION', 'us-east-1') }}"
-        ducklake_max_retry_count: 200
-        ducklake_retry_wait_ms: 150
-        ducklake_retry_backoff: 2.5
+        ducklake_max_retry_count: 100
+        ducklake_retry_wait_ms: 100
+        ducklake_retry_backoff: 2.0
       # Attach DuckLake catalog - secrets created in on-run-start hook
       # Note: attach happens AFTER on-run-start, so secrets will be available
     postgres:

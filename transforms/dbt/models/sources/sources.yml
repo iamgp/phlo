@@ -2,7 +2,8 @@ version: 2
 
 sources:
   - name: dagster_assets
-    database: ducklake
+    # Note: database not specified here - will be set to 'ducklake' at runtime via bootstrap macro
+    # This avoids dbt-duckdb trying to validate the database at compile time
     schema: raw
     description: Upstream Dagster assets that provide raw data from DuckLake raw layer
     tables:

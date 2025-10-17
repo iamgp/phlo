@@ -40,18 +40,14 @@ def dlt_pipeline_context(
         yield pipeline
     finally:
         try:
-            # More comprehensive cleanup to prevent connection leaks
+            # Clean up DLT pipeline resources
+            # Note: Do NOT interfere with transaction state - let DLT manage its own transactions
             if hasattr(pipeline, "_destination_client") and pipeline._destination_client:
                 client = pipeline._destination_client
 
-                # Close SQL client connection
+                # Close SQL client connection (no ROLLBACK - DLT handles transactions)
                 if hasattr(client, "sql_client") and client.sql_client:
                     if hasattr(client.sql_client, "_conn") and client.sql_client._conn:
-                        try:
-                            # Explicitly rollback any pending transaction before closing
-                            client.sql_client._conn.execute("ROLLBACK")
-                        except Exception:
-                            pass
                         try:
                             client.sql_client._conn.close()
                         except Exception:

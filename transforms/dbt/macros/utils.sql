@@ -10,7 +10,6 @@
     {%- endif -%}
 {%- endmacro %}
 
-{% macro generate_database_name(custom_database_name, node) -%}
-    {%- set catalog_alias = env_var('DUCKLAKE_CATALOG_ALIAS', 'ducklake') -%}
-    {{ catalog_alias }}
-{%- endmacro %}
+{# Removed generate_database_name macro - it causes dbt to validate 'ducklake' catalog
+   at compile time before bootstrap macro runs. Instead, rely on 'USE ducklake' command
+   in bootstrap macro to set the active database context. #}
