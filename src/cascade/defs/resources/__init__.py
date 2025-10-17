@@ -4,9 +4,10 @@ import dagster as dg
 from dagster_dbt import DbtCliResource
 
 from cascade.config import config
-from cascade.defs.resources.ducklake import DuckLakeResource
+from cascade.defs.resources.iceberg import IcebergResource
+from cascade.defs.resources.trino import TrinoResource
 
-__all__ = ["DuckLakeResource"]
+__all__ = ["IcebergResource", "TrinoResource"]
 
 
 def _build_dbt_resource() -> DbtCliResource:
@@ -29,13 +30,16 @@ def build_defs() -> dg.Definitions:
     Returns:
         Definitions containing configured resources:
         - dbt: For SQL-based data transformations
-        - ducklake: For analytics database connections
+        - trino: Query engine used for Iceberg reads/writes
+        - iceberg: PyIceberg/Nessie catalog helper
     """
-    ducklake_resource = DuckLakeResource()
+    iceberg_resource = IcebergResource()
+    trino_resource = TrinoResource()
+
     return dg.Definitions(
         resources={
             "dbt": _build_dbt_resource(),
-            "duckdb": ducklake_resource,
-            "ducklake": ducklake_resource,
+            "trino": trino_resource,
+            "iceberg": iceberg_resource,
         }
     )

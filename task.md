@@ -300,46 +300,53 @@ Note: Superset Trino configuration deferred to operational phase
 
 ---
 
-## Phase 6: Orchestration (Dagster)
+## Phase 6: Orchestration (Dagster) [COMPLETE]
 
 ### 6.1 Remove DuckLake Resources
-- [ ] Delete `src/cascade/defs/resources/ducklake.py`
-- [ ] Remove DuckLake resource from `src/cascade/defs/resources/__init__.py`
+- [x] Delete `src/cascade/defs/resources/ducklake.py`
+- [x] Remove DuckLake resource from `src/cascade/defs/resources/__init__.py`
 
 ### 6.2 Add Trino & PyIceberg Resources
-- [ ] Create `src/cascade/defs/resources/trino.py`
-  - Trino connection resource (using trino-python-client)
-- [ ] Create `src/cascade/defs/resources/iceberg.py`
-  - PyIceberg catalog resource
-  - Configure Nessie REST catalog URI
-  - S3/MinIO configuration
-- [ ] Update `src/cascade/defs/resources/__init__.py`
+- [x] Create `src/cascade/defs/resources/trino.py`
+- Trino connection resource (using trino-python-client)
+- [x] Create `src/cascade/defs/resources/iceberg.py`
+- PyIceberg catalog resource
+- Configure Nessie REST catalog URI
+- S3/MinIO configuration
+- [x] Update `src/cascade/defs/resources/__init__.py`
 
 ### 6.3 Update Dagster Assets
-- [ ] Rewrite ingestion assets (`src/cascade/defs/ingestion/`)
-  - nightscout_raw → nightscout_raw_iceberg
-  - Use PyIceberg for table registration/append
-- [ ] Update transform assets (`src/cascade/defs/transform/dbt.py`)
-  - Update dbt resource configuration for dbt-trino
-  - Ensure dbt runs target `dev` or `prod` profiles
-- [ ] Update publishing assets (`src/cascade/defs/publishing/`)
-  - Trino → Postgres mart publishing
-- [ ] Update quality checks (`src/cascade/defs/quality/`)
-  - Pandera validation on Iceberg tables (via Trino or PyIceberg)
+- [x] Rewrite ingestion assets (`src/cascade/defs/ingestion/`)
+- nightscout_raw → nightscout_raw_iceberg
+- Use PyIceberg for table registration/append
+- [x] Update transform assets (`src/cascade/defs/transform/dbt.py`)
+- Update dbt resource configuration for dbt-trino
+- Ensure dbt runs target `dev` or `prod` profiles
+- [x] Update publishing assets (`src/cascade/defs/publishing/`)
+- Trino → Postgres mart publishing
+- [x] Update quality checks (`src/cascade/defs/quality/`)
+- Pandera validation on Iceberg tables (via Trino or PyIceberg)
 
 ### 6.4 Asset Dependencies & Lineage
-- [ ] Update asset dependency graph
-  - nightscout_raw_iceberg → dbt bronze → dbt silver → dbt gold → postgres marts
-- [ ] Ensure partition-aware dependencies
-- [ ] Test full pipeline execution
+- [x] Update asset dependency graph
+- nightscout_raw_iceberg → dbt bronze → dbt silver → dbt gold → postgres marts
+- [x] Ensure partition-aware dependencies
+- [x] Test full pipeline execution
 
 ### 6.5 Schedules & Sensors
-- [ ] Update `src/cascade/defs/schedules/pipeline.py`
-  - Daily ingestion schedule
-  - dbt transformation schedule
-  - Mart publishing schedule
+- [x] Update `src/cascade/defs/schedules/pipeline.py`
+- Daily ingestion schedule
+- dbt transformation schedule
+- Mart publishing schedule
+
+**Commit:** `feat(orchestration): complete dagster migration to iceberg + trino` (df13da7)
+
+**Tests:** `tests/test_phase6_orchestration.sh` (all passing)
+
+**Features:** Includes modern FreshnessPolicy with 24-hour fail window and 1-hour warning window for asset health monitoring.
 
 ---
+
 
 ## Phase 7: Nessie Branching Workflow
 

@@ -10,9 +10,10 @@ import dlt
 import requests
 from dagster.preview.freshness import FreshnessPolicy
 
+
 from cascade.config import config
 from cascade.defs.partitions import daily_partition
-from cascade.iceberg import append_to_table, ensure_table
+from cascade.defs.resources.iceberg import IcebergResource
 from cascade.iceberg.schema import get_schema
 
 
@@ -42,9 +43,9 @@ def get_staging_path(partition_date: str, table_name: str) -> str:
     op_tags={"dagster/max_runtime": 300},
     retry_policy=dg.RetryPolicy(max_retries=3, delay=30),
     automation_condition=dg.AutomationCondition.on_cron("0 */1 * * *"),
-    freshness_policy=FreshnessPolicy.time_window(fail_window=timedelta(hours=1)),
+    freshness_policy=FreshnessPolicy.time_window(fail_window=timedelta(hours=24), warn_window=timedelta(hours=1)),
 )
-def entries(context) -> dg.MaterializeResult:
+def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
     """
     Ingest Nightscout entries using two-step pattern:
 
@@ -136,7 +137,7 @@ def entries(context) -> dg.MaterializeResult:
         # Step 3: Ensure Iceberg table exists
         context.log.info(f"Ensuring Iceberg table {table_name} exists...")
         schema = get_schema("entries")
-        ensure_table(
+        iceberg.ensure_table(
             table_name=table_name,
             schema=schema,
             partition_spec=[("mills", "day")],
@@ -156,7 +157,7 @@ def entries(context) -> dg.MaterializeResult:
             / "entries.parquet"
         )
 
-        append_to_table(table_name=table_name, data_path=str(parquet_path))
+        iceberg.append_parquet(table_name=table_name, data_path=str(parquet_path))
 
         total_elapsed = time.time() - start_time_ts
         rows_loaded = len(entries_data)

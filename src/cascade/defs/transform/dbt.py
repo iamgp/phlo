@@ -42,7 +42,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 )
 def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None]:
     target = context.op_config.get("target") if context.op_config else None
-    target = target or "ducklake"
+    target = target or "dev"
 
     build_args = [
     "build",
@@ -60,7 +60,12 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
         build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
         context.log.info(f"Running dbt for partition: {partition_date}")
 
-    build_invocation = dbt.cli(build_args, context=context)
+    env = {
+        "TRINO_HOST": config.trino_host,
+        "TRINO_PORT": str(config.trino_port),
+    }
+
+    build_invocation = dbt.cli(build_args, context=context, env=env)
     yield from build_invocation.stream()
     build_invocation.wait()
 
@@ -74,7 +79,7 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
         "--target",
         target,
     ]
-    docs_invocation = dbt.cli(docs_args, context=context).wait()
+    docs_invocation = dbt.cli(docs_args, context=context, env=env).wait()
 
     default_target_dir = DBT_PROJECT_DIR / "target"
     default_target_dir.mkdir(parents=True, exist_ok=True)

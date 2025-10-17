@@ -1,7 +1,8 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,9 +62,24 @@ class Settings(BaseSettings):
         default="admin@example.com", description="Superset admin email"
     )
 
-    # Paths
-    dbt_project_dir: str = Field(default="/dbt", description="dbt project directory")
-    dbt_profiles_dir: str = Field(default="/dbt/profiles", description="dbt profiles directory")
+    # Paths (computed based on environment)
+    @computed_field
+    @property
+    def dbt_project_dir(self) -> str:
+        """dbt project directory - /dbt in container, transforms/dbt locally."""
+        if os.path.exists("/dbt"):  # Container environment
+            return "/dbt"
+        else:  # Local development
+            return "transforms/dbt"
+
+    @computed_field
+    @property
+    def dbt_profiles_dir(self) -> str:
+        """dbt profiles directory - /dbt/profiles in container, transforms/dbt/profiles locally."""
+        if os.path.exists("/dbt"):  # Container environment
+            return "/dbt/profiles"
+        else:  # Local development
+            return "transforms/dbt/profiles"
 
     # Dagster
     dagster_port: int = Field(default=3000, description="Dagster webserver port")

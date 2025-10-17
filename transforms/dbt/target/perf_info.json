@@ -1,0 +1,51 @@
+{
+    "path_count": 133,
+    "parsed_path_count": 133,
+    "static_analysis_path_count": 6,
+    "static_analysis_parsed_path_count": 2,
+    "is_partial_parse_enabled": true,
+    "is_static_analysis_enabled": true,
+    "read_files_elapsed": 0.028455166844651103,
+    "load_macros_elapsed": 0.2947066251654178,
+    "parse_project_elapsed": 0.19129474996589124,
+    "patch_sources_elapsed": 0.010847375029698014,
+    "process_manifest_elapsed": 0.011198208900168538,
+    "load_all_elapsed": 0.5676826250273734,
+    "projects": [
+        {
+            "project_name": "cascade",
+            "elapsed": 0.18644208321347833,
+            "parsers": [
+                {
+                    "parser": "model",
+                    "elapsed": 0.1386921659577638,
+                    "parsed_path_count": 6
+                },
+                {
+                    "parser": "test",
+                    "elapsed": 0.04582012491300702,
+                    "parsed_path_count": 1
+                }
+            ],
+            "parsed_path_count": 7
+        },
+        {
+            "project_name": "dbt_trino",
+            "elapsed": 0.00270241592079401,
+            "parsers": [],
+            "parsed_path_count": 0
+        },
+        {
+            "project_name": "dbt",
+            "elapsed": 0.002072750125080347,
+            "parsers": [
+                {
+                    "parser": "doc",
+                    "elapsed": 0.0001480418723076582,
+                    "parsed_path_count": 1
+                }
+            ],
+            "parsed_path_count": 1
+        }
+    ]
+}

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import psycopg2
-import trino
 from dagster import AssetKey, asset
 
 from cascade.config import config
+from cascade.defs.resources.trino import TrinoResource
 from cascade.schemas import PublishPostgresOutput, TablePublishStats
 
 
@@ -17,7 +17,9 @@ from cascade.schemas import PublishPostgresOutput, TablePublishStats
         AssetKey("mrt_glucose_hourly_patterns"),
     ],
 )
-def publish_glucose_marts_to_postgres(context) -> PublishPostgresOutput:
+def publish_glucose_marts_to_postgres(
+    context, trino_resource: TrinoResource
+) -> PublishPostgresOutput:
     """
     Publish curated marts from Iceberg (via Trino) to Postgres for BI/Superset.
 
@@ -40,15 +42,6 @@ def publish_glucose_marts_to_postgres(context) -> PublishPostgresOutput:
     context.log.info(
         "Publishing Iceberg marts to Postgres via Trino. target_schema=%s",
         target_schema,
-    )
-
-    # Connect to Trino
-    trino_conn = trino.dbapi.connect(
-        host=config.trino_host,
-        port=config.trino_port,
-        user="dagster",
-        catalog="iceberg",
-        schema="marts",
     )
 
     # Connect to Postgres
@@ -84,15 +77,15 @@ def publish_glucose_marts_to_postgres(context) -> PublishPostgresOutput:
             pg_conn.commit()
 
             # Query Iceberg table via Trino
-            trino_cursor = trino_conn.cursor()
-            trino_cursor.execute(f"SELECT * FROM {iceberg_table}")
+            with trino_resource.cursor(schema="marts") as trino_cursor:
+                trino_cursor.execute(f"SELECT * FROM {iceberg_table}")
 
-            # Get column names
-            columns = [desc[0] for desc in trino_cursor.description]
-            column_list = ", ".join(f'"{col}"' for col in columns)
+                # Get column names
+                columns = [desc[0] for desc in trino_cursor.description]
+                column_list = ", ".join(f'"{col}"' for col in columns)
 
-            # Fetch all rows (for small mart tables this is fine)
-            rows = trino_cursor.fetchall()
+                # Fetch all rows (for small mart tables this is fine)
+                rows = trino_cursor.fetchall()
             row_count = len(rows)
 
             if row_count == 0:
@@ -149,7 +142,6 @@ def publish_glucose_marts_to_postgres(context) -> PublishPostgresOutput:
             "Check Trino/Postgres connectivity and source tables."
         ) from exc
     finally:
-        trino_conn.close()
         pg_conn.close()
 
     output = PublishPostgresOutput(tables=table_stats)
