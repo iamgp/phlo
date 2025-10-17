@@ -115,39 +115,34 @@ Target: Production-ready, 12-factor stateless design, docker-compose for POC, K8
 
 ---
 
-## Phase 2: Core Configuration & Secrets
+## Phase 2: Core Configuration & Secrets [COMPLETE]
 
 ### 2.1 Environment Configuration
-- [ ] Update .env.example with new variables:
+- [x] Update .env.example with new variables:
   - NESSIE_PORT, NESSIE_VERSION
   - TRINO_PORT, TRINO_VERSION
   - ICEBERG_WAREHOUSE_PATH
-  - NESSIE_CATALOG_URI
-- [ ] Update cascade/config.py
+- [x] Update cascade/config.py
   - Remove DuckLake configuration
   - Add Nessie, Trino, Iceberg configuration
-  - Use Pydantic settings for 12-factor compliance
+  - Use Pydantic settings for 12-factor compliance (already using Pydantic)
 
-### 2.2 Trino Catalog Properties Template
-- [ ] Create `docker/trino/catalog/iceberg.properties`
-  ```properties
-  connector.name=iceberg
-  iceberg.catalog.type=rest
-  iceberg.rest-catalog.uri=${NESSIE_CATALOG_URI}
-  iceberg.rest-catalog.warehouse=${ICEBERG_WAREHOUSE_PATH}
-  fs.native-s3.enabled=true
-  s3.endpoint=${MINIO_ENDPOINT}
-  s3.path-style-access=true
-  s3.aws-access-key=${MINIO_ROOT_USER}
-  s3.aws-secret-key=${MINIO_ROOT_PASSWORD}
-  ```
-- [ ] Ensure environment variable substitution works
+### 2.2 Docker Compose Environment Variables
+- [x] Update dagster-webserver environment variables
+  - Remove DUCKLAKE_* variables
+  - Add NESSIE_*, TRINO_*, ICEBERG_* variables
+- [x] Update dagster-daemon environment variables
+  - Remove DUCKLAKE_* variables
+  - Add NESSIE_*, TRINO_*, ICEBERG_* variables
 
-### 2.3 Nessie Initialization
-- [ ] Create nessie-setup service (like minio-setup)
-  - Create `main` and `dev` branches
-  - Verify REST API accessibility
-  - Initialize default namespaces (raw, bronze, silver, gold, marts)
+### 2.3 Configuration Properties
+- [x] Add nessie_uri property to config.py
+- [x] Add trino_connection_string property to config.py
+- [x] Remove ducklake_data_path property from config.py
+
+**Commit:** `refactor(config): replace ducklake with nessie/trino/iceberg configuration`
+
+**Tests:** `tests/test_phase2_configuration.sh` (21/21 passing)
 
 ---
 

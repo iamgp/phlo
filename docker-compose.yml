@@ -138,13 +138,18 @@ services:
       AWS_S3_ENDPOINT: http://minio:9000
       AWS_S3_USE_SSL: "false"
       AWS_S3_URL_STYLE: "path"
-      # DuckLake configuration
-      DUCKLAKE_CATALOG_ALIAS: ${DUCKLAKE_CATALOG_ALIAS}
-      DUCKLAKE_CATALOG_DATABASE: ${DUCKLAKE_CATALOG_DATABASE}
-      DUCKLAKE_DATA_PATH: ${DUCKLAKE_DATA_PATH:-s3://lake/ducklake}
-      DUCKLAKE_DEFAULT_DATASET: ${DUCKLAKE_DEFAULT_DATASET:-raw}
-      DUCKLAKE_REGION: ${DUCKLAKE_REGION:-eu-west-1}
-      DUCKLAKE_USE_SSL: ${DUCKLAKE_USE_SSL:-false}
+      # Nessie configuration
+      NESSIE_VERSION: ${NESSIE_VERSION}
+      NESSIE_PORT: ${NESSIE_PORT}
+      NESSIE_HOST: nessie
+      # Trino configuration
+      TRINO_VERSION: ${TRINO_VERSION}
+      TRINO_PORT: ${TRINO_PORT}
+      TRINO_HOST: trino
+      TRINO_CATALOG: iceberg
+      # Iceberg configuration
+      ICEBERG_WAREHOUSE_PATH: ${ICEBERG_WAREHOUSE_PATH}
+      ICEBERG_DEFAULT_NAMESPACE: raw
       # MinIO/Postgres for dbt
       MINIO_HOST: ${MINIO_HOST}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -154,6 +159,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     command:
       [
@@ -195,13 +201,18 @@ services:
       AWS_S3_ENDPOINT: http://minio:9000
       AWS_S3_USE_SSL: "false"
       AWS_S3_URL_STYLE: "path"
-      # DuckLake configuration
-      DUCKLAKE_CATALOG_ALIAS: ${DUCKLAKE_CATALOG_ALIAS}
-      DUCKLAKE_CATALOG_DATABASE: ${DUCKLAKE_CATALOG_DATABASE}
-      DUCKLAKE_DATA_PATH: ${DUCKLAKE_DATA_PATH:-s3://lake/ducklake}
-      DUCKLAKE_DEFAULT_DATASET: ${DUCKLAKE_DEFAULT_DATASET:-raw}
-      DUCKLAKE_REGION: ${DUCKLAKE_REGION:-eu-west-1}
-      DUCKLAKE_USE_SSL: ${DUCKLAKE_USE_SSL:-false}
+      # Nessie configuration
+      NESSIE_VERSION: ${NESSIE_VERSION}
+      NESSIE_PORT: ${NESSIE_PORT}
+      NESSIE_HOST: nessie
+      # Trino configuration
+      TRINO_VERSION: ${TRINO_VERSION}
+      TRINO_PORT: ${TRINO_PORT}
+      TRINO_HOST: trino
+      TRINO_CATALOG: iceberg
+      # Iceberg configuration
+      ICEBERG_WAREHOUSE_PATH: ${ICEBERG_WAREHOUSE_PATH}
+      ICEBERG_DEFAULT_NAMESPACE: raw
       # MinIO/Postgres for dbt
       MINIO_HOST: ${MINIO_HOST}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -211,6 +222,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:

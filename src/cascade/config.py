@@ -31,33 +31,23 @@ class Settings(BaseSettings):
     minio_api_port: int = Field(default=9000, description="MinIO API port")
     minio_console_port: int = Field(default=9001, description="MinIO console port")
 
-    # Storage - DuckLake
-    ducklake_catalog_database: str = Field(
-        default="ducklake_catalog",
-        description="PostgreSQL database storing DuckLake catalog metadata",
+    # Catalog - Nessie
+    nessie_version: str = Field(default="0.77.1", description="Nessie version")
+    nessie_port: int = Field(default=19120, description="Nessie REST API port")
+    nessie_host: str = Field(default="nessie", description="Nessie service hostname")
+
+    # Query Engine - Trino
+    trino_version: str = Field(default="458", description="Trino version")
+    trino_port: int = Field(default=8080, description="Trino HTTP port")
+    trino_host: str = Field(default="trino", description="Trino service hostname")
+    trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
+
+    # Data Lake - Iceberg
+    iceberg_warehouse_path: str = Field(
+        default="s3://lake/warehouse", description="S3 path for Iceberg warehouse"
     )
-    ducklake_catalog_alias: str = Field(
-        default="ducklake",
-        description="Alias used when attaching the DuckLake catalog in DuckDB",
-    )
-    ducklake_data_bucket: str = Field(
-        default="lake", description="Object store bucket for DuckLake data files"
-    )
-    ducklake_data_prefix: str = Field(
-        default="ducklake",
-        description="Prefix within the DuckLake data bucket for managed tables",
-    )
-    ducklake_default_dataset: str = Field(
-        default="raw",
-        description="Default dataset/schema used by ingestion jobs inside DuckLake",
-    )
-    ducklake_region: str = Field(
-        default="eu-west-1",
-        description="Region identifier used for DuckLake S3/MinIO connections",
-    )
-    ducklake_use_ssl: bool = Field(
-        default=False,
-        description="Whether DuckLake should use SSL when talking to object storage",
+    iceberg_default_namespace: str = Field(
+        default="raw", description="Default namespace/schema for Iceberg tables"
     )
 
     # Services - Superset
@@ -91,12 +81,14 @@ class Settings(BaseSettings):
         return f"{self.minio_host}:{self.minio_api_port}"
 
     @property
-    def ducklake_data_path(self) -> str:
-        """Return fully-qualified DuckLake data path."""
-        prefix = self.ducklake_data_prefix.strip("/")
-        if prefix:
-            return f"s3://{self.ducklake_data_bucket}/{prefix}"
-        return f"s3://{self.ducklake_data_bucket}"
+    def nessie_uri(self) -> str:
+        """Return Nessie REST API URI."""
+        return f"http://{self.nessie_host}:{self.nessie_port}/api/v1"
+
+    @property
+    def trino_connection_string(self) -> str:
+        """Return Trino connection string for SQLAlchemy/dbt."""
+        return f"trino://{self.trino_host}:{self.trino_port}/{self.trino_catalog}"
 
     @property
     def dbt_project_path(self) -> Path:
