@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     iceberg_warehouse_path: str = Field(
         default="s3://lake/warehouse", description="S3 path for Iceberg warehouse"
     )
+    iceberg_staging_path: str = Field(
+        default="s3://lake/stage", description="S3 path for staging parquet files"
+    )
     iceberg_default_namespace: str = Field(
         default="raw", description="Default namespace/schema for Iceberg tables"
     )
