@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -44,7 +42,7 @@ async def get_glucose_readings(
 async def get_daily_summary(
     current_user: CurrentUser,
     date: str = Query(..., description="Date (YYYY-MM-DD)"),
-) -> DailySummary:
+):
     """
     Get glucose summary for a specific day.
 
@@ -55,30 +53,30 @@ async def get_daily_summary(
     )
 
     if not readings:
-        return DailySummary(
-            date=datetime.strptime(date, "%Y-%m-%d").date(),
-            avg_glucose=None,
-            min_glucose=None,
-            max_glucose=None,
-            readings_count=0,
-        )
+        return {
+            "date": datetime.strptime(date, "%Y-%m-%d").date().isoformat(),
+            "avg_glucose": None,
+            "min_glucose": None,
+            "max_glucose": None,
+            "readings_count": 0,
+        }
 
     reading = readings[0]
-    return DailySummary(
-        date=reading.get("date"),
-        avg_glucose=reading.get("avg_glucose"),
-        min_glucose=reading.get("min_glucose"),
-        max_glucose=reading.get("max_glucose"),
-        readings_count=reading.get("readings_count"),
-        time_in_range_percent=reading.get("time_in_range_percent"),
-    )
+    return {
+        "date": reading.get("date"),
+        "avg_glucose": reading.get("avg_glucose"),
+        "min_glucose": reading.get("min_glucose"),
+        "max_glucose": reading.get("max_glucose"),
+        "readings_count": reading.get("readings_count"),
+        "time_in_range_percent": reading.get("time_in_range_percent"),
+    }
 
 
-@router.get("/hourly-patterns", response_model=list[HourlyPattern], summary="Get hourly patterns")
+@router.get("/hourly-patterns", summary="Get hourly patterns")
 @cached(ttl=settings.cache_hourly_patterns_ttl)
 async def get_hourly_patterns(
     current_user: CurrentUser,
-) -> list[HourlyPattern]:
+):
     """
     Get hourly glucose patterns across all data.
 
@@ -87,11 +85,11 @@ async def get_hourly_patterns(
     patterns = postgres_connector.get_hourly_patterns()
 
     return [
-        HourlyPattern(
-            hour_of_day=p["hour_of_day"],
-            avg_glucose=p.get("avg_glucose"),
-            readings_count=p.get("readings_count"),
-        )
+        {
+            "hour_of_day": p["hour_of_day"],
+            "avg_glucose": p.get("avg_glucose"),
+            "readings_count": p.get("readings_count"),
+        }
         for p in patterns
     ]
 
