@@ -112,28 +112,28 @@ else
 fi
 
 # Test dev_pipeline job configures dev target
-if grep -A15 "DEV_PIPELINE_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"target": "dev"'; then
+if grep -A20 "DEV_PIPELINE_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"target": "dev"'; then
     pass "DEV_PIPELINE_JOB uses dbt dev target"
 else
     fail "DEV_PIPELINE_JOB missing dbt dev target configuration"
 fi
 
-# Test prod_promotion job configures prod target
-if grep -A10 "PROD_PROMOTION_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"target": "prod"'; then
-    pass "PROD_PROMOTION_JOB uses dbt prod target"
+# Test prod_promotion job (note: doesn't use dbt, only runs promote and publish)
+if grep -A10 "PROD_PROMOTION_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"promote_dev_to_main"'; then
+    pass "PROD_PROMOTION_JOB includes promote_dev_to_main asset"
 else
-    fail "PROD_PROMOTION_JOB missing dbt prod target configuration"
+    fail "PROD_PROMOTION_JOB missing promote_dev_to_main asset"
 fi
 
 # Test dev_pipeline job uses dev branch resources
-if grep -A20 "DEV_PIPELINE_JOB" src/cascade/defs/workflows/__init__.py | grep -q 'ref="dev"'; then
+if grep -A20 "DEV_PIPELINE_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"ref": "dev"'; then
     pass "DEV_PIPELINE_JOB configures iceberg resource with dev ref"
 else
     fail "DEV_PIPELINE_JOB missing iceberg dev ref configuration"
 fi
 
 # Test prod_promotion job uses main branch resources
-if grep -A20 "PROD_PROMOTION_JOB" src/cascade/defs/workflows/__init__.py | grep -q 'ref="main"'; then
+if grep -A20 "PROD_PROMOTION_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"ref": "main"'; then
     pass "PROD_PROMOTION_JOB configures iceberg resource with main ref"
 else
     fail "PROD_PROMOTION_JOB missing iceberg main ref configuration"

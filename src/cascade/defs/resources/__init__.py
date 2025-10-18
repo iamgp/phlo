@@ -7,7 +7,15 @@ from cascade.config import config
 from cascade.defs.resources.iceberg import IcebergResource
 from cascade.defs.resources.trino import TrinoResource
 
-__all__ = ["IcebergResource", "TrinoResource"]
+__all__ = ["IcebergResource", "TrinoResource", "NessieResource"]
+
+
+# NessieResource is defined in cascade.defs.nessie but re-exported here for convenience
+def __getattr__(name: str):
+    if name == "NessieResource":
+        from cascade.defs.nessie import NessieResource
+        return NessieResource
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _build_dbt_resource() -> DbtCliResource:

@@ -144,10 +144,10 @@ def append_to_table(
 
     if data_path.is_dir():
         # Read all parquet files in directory
-        arrow_table = pq.read_table(str(data_path))
+        arrow_table = pq.ParquetDataset(str(data_path)).read()
     else:
         # Read single parquet file
-        arrow_table = pq.read_parquet(str(data_path))
+        arrow_table = pq.read_table(str(data_path))
 
     # Append to Iceberg table
     table.append(arrow_table)

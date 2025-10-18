@@ -10,37 +10,35 @@ from pyiceberg.types import (
     NestedField,
     StringType,
     TimestampType,
+    TimestamptzType,
 )
 
 # Nightscout Entries Schema
 # Based on Nightscout API: /api/v1/entries
 NIGHTSCOUT_ENTRIES_SCHEMA = Schema(
-    NestedField(1, "_id", StringType(), required=True, doc="Nightscout entry ID"),
+    NestedField(1, "_id", StringType(), required=False, doc="Nightscout entry ID"),
     NestedField(2, "sgv", LongType(), required=False, doc="Sensor glucose value (mg/dL)"),
-    NestedField(3, "date", LongType(), required=True, doc="Unix timestamp (ms)"),
-    NestedField(
-        4, "dateString", StringType(), required=False, doc="ISO 8601 date string"
-    ),
+    NestedField(3, "date", LongType(), required=False, doc="Unix timestamp (ms)"),
+    NestedField(4, "date_string", TimestamptzType(), required=False, doc="ISO timestamp"),
     NestedField(5, "trend", LongType(), required=False, doc="Trend arrow value"),
     NestedField(6, "direction", StringType(), required=False, doc="Trend direction"),
     NestedField(7, "device", StringType(), required=False, doc="Device name"),
     NestedField(8, "type", StringType(), required=False, doc="Entry type"),
-    NestedField(9, "utcOffset", LongType(), required=False, doc="UTC offset (minutes)"),
-    NestedField(10, "sysTime", StringType(), required=False, doc="System time"),
-    NestedField(11, "mills", LongType(), required=False, doc="Milliseconds timestamp"),
+    NestedField(9, "utc_offset", LongType(), required=False, doc="UTC offset (minutes)"),
+    NestedField(10, "sys_time", TimestamptzType(), required=False, doc="System time"),
+    NestedField(
+        11,
+        "_cascade_ingested_at",
+        TimestamptzType(),
+        required=False,
+        doc="Cascade ingestion timestamp",
+    ),
     # DLT metadata fields
     NestedField(
         100, "_dlt_load_id", StringType(), required=True, doc="DLT load identifier"
     ),
     NestedField(
         101, "_dlt_id", StringType(), required=True, doc="DLT record identifier"
-    ),
-    NestedField(
-        102,
-        "_cascade_ingested_at",
-        TimestampType(),
-        required=True,
-        doc="Cascade ingestion timestamp",
     ),
 )
 

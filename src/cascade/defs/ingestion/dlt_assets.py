@@ -108,15 +108,21 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
             entry["_cascade_ingested_at"] = ingestion_timestamp
 
         # Step 2: Stage to S3 parquet using DLT
-        context.log.info("Staging data to S3 parquet...")
+        context.log.info("Staging data to parquet via DLT...")
         start_time_ts = time.time()
 
         staging_path = get_staging_path(partition_date, "entries")
+        local_staging_root = (pipelines_base_dir / pipeline_name / "stage").resolve()
+        local_staging_root.mkdir(parents=True, exist_ok=True)
 
-        # Create DLT pipeline with filesystem destination
+        # Create DLT pipeline with filesystem destination targeting local staging
+        filesystem_destination = dlt.destinations.filesystem(
+            bucket_url=local_staging_root.as_uri(),
+        )
+
         pipeline = dlt.pipeline(
             pipeline_name=pipeline_name,
-            destination="filesystem",
+            destination=filesystem_destination,
             dataset_name="nightscout",
             pipelines_dir=str(pipelines_base_dir),
         )
@@ -131,6 +137,24 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
             loader_file_format="parquet",
         )
 
+        if not info.load_packages:
+            raise RuntimeError("DLT pipeline produced no load packages")
+
+        load_package = info.load_packages[0]
+        completed_jobs = load_package.jobs.get("completed_jobs") or []
+        if not completed_jobs:
+            raise RuntimeError("DLT pipeline completed without producing parquet output")
+
+        parquet_path = Path(completed_jobs[0].file_path)
+        if not parquet_path.is_absolute():
+            parquet_path = (local_staging_root / parquet_path).resolve()
+
+        context.log.debug(
+            "DLT staged parquet to %s (logical %s)",
+            parquet_path,
+            staging_path,
+        )
+
         dlt_elapsed = time.time() - start_time_ts
         context.log.info(f"DLT staging completed in {dlt_elapsed:.2f}s")
 
@@ -140,23 +164,11 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
         iceberg.ensure_table(
             table_name=table_name,
             schema=schema,
-            partition_spec=[("mills", "day")],
+            partition_spec=None,
         )
 
         # Step 4: Append to Iceberg table
         context.log.info("Appending data to Iceberg table...")
-        # Get the parquet files from DLT output
-        load_id = info.loads_ids[0]
-        parquet_path = (
-            pipelines_base_dir
-            / pipeline_name
-            / ".dlt"
-            / "destinations"
-            / "filesystem"
-            / load_id
-            / "entries.parquet"
-        )
-
         iceberg.append_parquet(table_name=table_name, data_path=str(parquet_path))
 
         total_elapsed = time.time() - start_time_ts
