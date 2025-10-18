@@ -4,12 +4,8 @@ version = "0.1.0"
 description = "Service hub for Cascade data platform"
 requires-python = ">=3.11"
 dependencies = [
-    "cascade",
     "flask>=3.0.0",
 ]
-
-[tool.uv.sources]
-cascade = { workspace = true }
 
 [tool.ty]
 environment.python-version = "3.11"

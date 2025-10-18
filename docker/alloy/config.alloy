@@ -104,11 +104,6 @@ loki.process "parse_logs" {
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
-
-    // Retry configuration
-    max_backoff_period = "5s"
-    min_backoff_period = "1s"
-    max_backoff_retries = 10
   }
 }
 
@@ -124,10 +119,5 @@ prometheus.scrape "alloy" {
 prometheus.remote_write "local" {
   endpoint {
     url = "http://prometheus:9090/api/v1/write"
-
-    // Retry configuration
-    max_backoff_period = "5s"
-    min_backoff_period = "1s"
-    max_backoff_retries = 10
   }
 }
