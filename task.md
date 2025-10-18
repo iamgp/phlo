@@ -407,9 +407,55 @@ Note: Superset Trino configuration deferred to operational phase
 
 ---
 
-## Phase 9: DuckDB Iceberg Extension (Ad-hoc Analysis)
+## Phase 9: Integrated Branching Workflows
 
-### 9.1 DuckDB Setup Instructions
+### 9.1 Asset Dependencies for Branch Orchestration
+- [ ] Add nessie_dev_branch as dependency for dbt assets
+- [ ] Configure dbt resource to support branch-specific targets
+- [ ] Update ingestion assets to be branch-aware
+- [ ] Ensure quality checks run on correct branch
+
+### 9.2 Multi-Job Pipeline Definition
+- [ ] Create dev_pipeline job (runs on dev branch)
+  - Sequence: nessie_dev_branch → entries → dbt → quality checks
+  - Configure resources for dev branch (ref='dev')
+- [ ] Create prod_promotion job
+  - Sequence: promote_dev_to_main → publish to postgres
+  - Configure resources for main branch (ref='main')
+- [ ] Add job metadata and descriptions
+
+### 9.3 Schedules for Automated Workflows
+- [ ] Create daily dev pipeline schedule (runs on dev branch)
+  - Cron schedule for development runs
+  - Automatic testing and validation
+- [ ] Create manual promotion trigger
+  - Sensor or manual job trigger for prod promotion
+  - Optional: auto-promote on quality pass
+
+### 9.4 Branch-Aware Resource Configuration
+- [ ] Update dbt resource to accept branch/ref parameter
+- [ ] Update PyIceberg catalog to accept branch/ref parameter
+- [ ] Ensure Trino queries use correct Nessie reference
+- [ ] Document branch configuration in profiles.yml
+
+### 9.5 Testing & Validation
+- [ ] Test dev pipeline runs on dev branch
+- [ ] Verify data isolation between dev and main
+- [ ] Test promotion workflow (dev → main merge)
+- [ ] Validate atomic commits via Nessie
+- [ ] Test rollback scenarios
+
+**Commit:** `feat(workflows): integrate nessie branching into pipeline orchestration`
+
+**Tests:** End-to-end dev/prod workflow validation
+
+**Features:** Automated dev/prod isolation, scheduled pipelines, integrated promotion workflow
+
+---
+
+## Phase 10: DuckDB Iceberg Extension (Ad-hoc Analysis)
+
+### 10.1 DuckDB Setup Instructions
 - [ ] Create documentation: `docs/duckdb-iceberg-queries.md`
 - [ ] Install DuckDB locally
 - [ ] Install iceberg extension
@@ -430,16 +476,16 @@ Note: Superset Trino configuration deferred to operational phase
   SELECT * FROM iceberg_scan('s3://lake/warehouse/raw/entries');
   ```
 
-### 9.2 DuckDB Integration in Hub (Optional)
+### 10.2 DuckDB Integration in Hub (Optional)
 - [ ] Add DuckDB query interface to Hub app
 - [ ] Pre-configured connection to Iceberg tables
 - [ ] Read-only access for analysts
 
 ---
 
-## Phase 10: Documentation & Cleanup
+## Phase 11: Documentation & Cleanup
 
-### 10.1 Architecture Documentation
+### 11.1 Architecture Documentation
 - [ ] Update README.md
   - Replace DuckLake with Iceberg+Nessie architecture
   - Update architecture diagram (Mermaid)
@@ -449,7 +495,7 @@ Note: Superset Trino configuration deferred to operational phase
   - Data flow diagrams
   - Service dependencies
 
-### 10.2 Setup & Operations
+### 11.2 Setup & Operations
 - [ ] Update QUICK_START.md
   - New service startup instructions
   - Docker profile usage
@@ -459,14 +505,14 @@ Note: Superset Trino configuration deferred to operational phase
   - Dev → main promotion
   - Time travel queries
 
-### 10.3 Migration Notes
+### 11.3 Migration Notes
 - [ ] Create MIGRATION_FROM_DUCKLAKE.md
   - Why we migrated
   - Key differences
   - What was removed
   - Breaking changes
 
-### 10.4 Cleanup Old Files
+### 11.4 Cleanup Old Files
 - [ ] Delete DuckLake-related documentation
   - CONCURRENT_WRITE_DIAGNOSIS.md
   - DIAGNOSIS_SUMMARY.md
@@ -478,26 +524,26 @@ Note: Superset Trino configuration deferred to operational phase
 
 ---
 
-## Phase 11: Production Hardening
+## Phase 12: Production Hardening
 
-### 11.1 Observability
+### 12.1 Observability
 - [ ] Add Trino metrics endpoint
 - [ ] Add Nessie health checks
 - [ ] Dagster sensor for pipeline failures
 - [ ] Logging configuration (structured logs)
 
-### 11.2 Security
+### 12.2 Security
 - [ ] Secure Nessie API (authentication)
 - [ ] Secure Trino (LDAP/Kerberos for production)
 - [ ] MinIO bucket policies
 - [ ] Secret management (Docker secrets / K8s secrets)
 
-### 11.3 Backup & Recovery
+### 12.3 Backup & Recovery
 - [ ] Nessie metadata backup strategy (Postgres dumps)
 - [ ] Iceberg snapshot retention policies
 - [ ] MinIO versioning/replication
 
-### 11.4 K8s Readiness
+### 12.4 K8s Readiness
 - [ ] Helm chart structure planning
 - [ ] StatefulSets for Nessie/Trino
 - [ ] PersistentVolumeClaims for volumes
@@ -553,10 +599,11 @@ Note: Superset Trino configuration deferred to operational phase
 - **Phase 4 (dbt):** 1 day
 - **Phase 5-6 (Publishing/Dagster):** 1 day
 - **Phase 7-8 (Nessie/Testing):** 0.5 day
-- **Phase 9-10 (Docs/Cleanup):** 0.5 day
-- **Phase 11 (Hardening):** 1 day
+- **Phase 9 (Integrated Workflows):** 0.5 day
+- **Phase 10-11 (DuckDB/Docs):** 0.5 day
+- **Phase 12 (Hardening):** 1 day
 
-**Total: ~6 days** (focused work, as per spec's 2-3 day POC + production hardening)
+**Total: ~6.5 days** (focused work, as per spec's 2-3 day POC + production hardening)
 
 ---
 
