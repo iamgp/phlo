@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import dagster as dg
 
+from cascade.defs.nessie import NessieResource
 from cascade.defs.nessie.operations import create_branch, list_branches, merge_branch
 
 
@@ -19,7 +20,7 @@ from cascade.defs.nessie.operations import create_branch, list_branches, merge_b
     description="Ensure dev branch exists for development work",
     compute_kind="nessie",
 )
-def nessie_dev_branch(context, nessie) -> dg.MaterializeResult:
+def nessie_dev_branch(context, nessie: NessieResource) -> dg.MaterializeResult:
     """
     Ensure the 'dev' branch exists.
 
@@ -67,7 +68,7 @@ def nessie_dev_branch(context, nessie) -> dg.MaterializeResult:
     compute_kind="nessie",
     deps=[dg.AssetKey("nessie_dev_branch")],
 )
-def promote_dev_to_main(context, nessie) -> dg.MaterializeResult:
+def promote_dev_to_main(context, nessie: NessieResource) -> dg.MaterializeResult:
     """
     Promote changes from dev branch to main branch.
 
@@ -126,7 +127,7 @@ def promote_dev_to_main(context, nessie) -> dg.MaterializeResult:
     description="Report current branch status and health",
     compute_kind="nessie",
 )
-def nessie_branch_status(context, nessie) -> dg.MaterializeResult:
+def nessie_branch_status(context, nessie: NessieResource) -> dg.MaterializeResult:
     """
     Report the current status of branches and tags.
 
