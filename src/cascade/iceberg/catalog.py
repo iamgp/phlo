@@ -28,8 +28,8 @@ def get_catalog(ref: str = "main"):
         name="nessie",
         **{
             "type": "rest",
-            "uri": config.nessie_uri,
-            "warehouse": config.iceberg_warehouse_path,
+            "uri": f"http://{config.nessie_host}:{config.nessie_port}/iceberg",
+            "warehouse": "warehouse",  # Nessie warehouse name
             "ref": ref,
             # S3/MinIO configuration
             "s3.endpoint": f"http://{config.minio_host}:{config.minio_api_port}",

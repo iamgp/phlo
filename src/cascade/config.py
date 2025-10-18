@@ -33,12 +33,12 @@ class Settings(BaseSettings):
     minio_console_port: int = Field(default=9001, description="MinIO console port")
 
     # Catalog - Nessie
-    nessie_version: str = Field(default="0.77.1", description="Nessie version")
+    nessie_version: str = Field(default="0.105.5", description="Nessie version")
     nessie_port: int = Field(default=19120, description="Nessie REST API port")
     nessie_host: str = Field(default="nessie", description="Nessie service hostname")
 
     # Query Engine - Trino
-    trino_version: str = Field(default="458", description="Trino version")
+    trino_version: str = Field(default="477", description="Trino version")
     trino_port: int = Field(default=8080, description="Trino HTTP port")
     trino_host: str = Field(default="trino", description="Trino service hostname")
     trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
