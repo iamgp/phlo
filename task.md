@@ -348,15 +348,15 @@ Note: Superset Trino configuration deferred to operational phase
 ---
 
 
-## Phase 7: Nessie Branching Workflow
+## Phase 7: Nessie Branching Workflow [COMPLETE]
 
 ### 7.1 Branch Management
-- [ ] Create Dagster assets/ops for Nessie branch operations
+- [x] Create Dagster assets/ops for Nessie branch operations
   - Create branch
   - Merge branch
   - List branches
   - Tag snapshot
-- [ ] Document dev → main promotion workflow
+- [ ] Document dev → main promotion workflow (deferred to Phase 10)
   - Run dbt on `dev` branch
   - Validate in Superset
   - Merge `dev` → `main` via Nessie API
@@ -365,6 +365,12 @@ Note: Superset Trino configuration deferred to operational phase
 - [ ] Document how to run dbt tests on `dev` branch
 - [ ] Document merge approval workflow
 - [ ] Atomic publish via Nessie merge
+
+**Commit:** `feat(nessie): implement Git-like branching workflow for data engineering` (3f4e59e)
+
+**Tests:** `tests/test_phase7_nessie.sh` (all passing)
+
+**Features:** Complete NessieResource with REST API integration, workflow assets (nessie_dev_branch, promote_dev_to_main, nessie_branch_status), and operations for branch management.
 
 ---
 

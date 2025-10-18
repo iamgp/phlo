@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     iceberg_default_namespace: str = Field(
         default="raw", description="Default namespace/schema for Iceberg tables"
     )
+    iceberg_nessie_ref: str = Field(
+        default="main", description="Default Nessie branch/tag for Iceberg operations"
+    )
 
     # Services - Superset
     superset_port: int = Field(default=8088, description="Superset web port")

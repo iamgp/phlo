@@ -18,16 +18,17 @@ from cascade.config import config
 
 class NessieResource(dg.ConfigurableResource):
     """
-    Dagster resource for interacting with Nessie REST API.
+    Dagster resource for interacting with Nessie REST API v2.
 
     Provides convenient methods for branch management operations.
+    Uses Nessie API v2 for forward compatibility.
     """
 
     def get_branches(self) -> list[dict[str, Any]]:
         """Get all branches and tags."""
         response = requests.get(f"{config.nessie_uri}/trees")
         response.raise_for_status()
-        return response.json()
+        return response.json().get("references", [])
 
     def create_branch(self, branch_name: str, source_ref: str = "main") -> dict[str, Any]:
         """Create a new branch from source reference."""

@@ -7,6 +7,7 @@ from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
+from cascade.config import config
 from cascade.iceberg import append_to_table, ensure_table, get_catalog
 
 
@@ -16,9 +17,12 @@ class IcebergResource(ConfigurableResource):
 
     Provides convenience helpers for the common table operations the pipeline
     performs (ensuring tables exist and appending new parquet data).
+
+    The default Nessie ref can be configured via ICEBERG_NESSIE_REF env var,
+    or overridden per-resource instance.
     """
 
-    ref: str = "main"
+    ref: str = config.iceberg_nessie_ref
 
     def get_catalog(self) -> Catalog:
         """Return the configured PyIceberg catalog."""
