@@ -46,13 +46,6 @@ PROD_PROMOTION_JOB = dg.define_asset_job(
             "iceberg": {"config": {"ref": "main"}},
             "trino": {"config": {"nessie_ref": "main"}},
         },
-        "ops": {
-            "all_dbt_assets": {
-                "config": {
-                    "target": "prod",
-                }
-            }
-        }
     },
 )
 
