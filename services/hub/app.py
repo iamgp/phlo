@@ -10,7 +10,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lakehouse Services Hub</title>
+    <title>Cascade Lakehouse Hub</title>
     <style>
         * {
             margin: 0;
@@ -24,19 +24,35 @@ HTML_TEMPLATE = """
             padding: 20px;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         h1 {
             color: white;
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 10px;
             font-size: 2.5em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         }
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: white;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            padding-left: 5px;
+            border-left: 4px solid rgba(255,255,255,0.5);
+        }
         .services-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
         }
         .service-card {
@@ -52,6 +68,10 @@ HTML_TEMPLATE = """
         .service-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+        }
+        .service-card.disabled {
+            pointer-events: none;
+            opacity: 0.6;
         }
         .service-card h2 {
             color: #667eea;
@@ -92,6 +112,16 @@ HTML_TEMPLATE = """
             background: #10b981;
             margin-right: 8px;
         }
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
         .footer {
             text-align: center;
             color: white;
@@ -102,61 +132,129 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <h1>Data Lakehouse Services Hub</h1>
-        <div class="services-grid">
-            <a href="http://localhost:{{ dagster_port }}" class="service-card" target="_blank">
-                <h2><span class="status"></span>Dagster</h2>
-                <p>Orchestration platform for data pipelines, asset management, and scheduling</p>
-                <span class="port">Port {{ dagster_port }}</span>
-            </a>
+        <h1>Cascade Lakehouse Hub</h1>
+        <div class="subtitle">Apache Iceberg + Nessie + Trino Architecture</div>
 
-            <a href="http://localhost:{{ superset_port }}" class="service-card" target="_blank">
-                <h2><span class="status"></span>Superset</h2>
-                <p>Business intelligence and data visualization dashboards</p>
-                <span class="port">Port {{ superset_port }}</span>
-                <div class="credentials">
-                    <div>User: {{ superset_user }}</div>
-                    <div>Pass: {{ superset_pass }}</div>
-                </div>
-            </a>
-
-            <a href="http://localhost:{{ minio_console_port }}" class="service-card" target="_blank">
-                <h2><span class="status"></span>MinIO Console</h2>
-                <p>Object storage browser for data lake files (S3-compatible)</p>
-                <span class="port">Port {{ minio_console_port }}</span>
-                <div class="credentials">
-                    <div>User: {{ minio_user }}</div>
-                    <div>Pass: {{ minio_pass }}</div>
-                </div>
-            </a>
-
-            <a href="http://localhost:{{ datahub_port }}" class="service-card" target="_blank">
-                <h2><span class="status"></span>DataHub</h2>
-                <p>Metadata catalog and data lineage tracking</p>
-                <span class="port">Port {{ datahub_port }}</span>
-            </a>
-
-            
-
-            <a href="http://localhost:{{ pgweb_port }}" class="service-card" target="_blank">
-                <h2><span class="status"></span>Pgweb</h2>
-                <p>Web-based PostgreSQL database browser</p>
-                <span class="port">Port {{ pgweb_port }}</span>
-            </a>
-
-            <a href="http://localhost:{{ postgres_port }}" class="service-card" style="pointer-events: none; opacity: 0.7;">
-                <h2><span class="status"></span>PostgreSQL</h2>
-                <p>Database for metadata and analytics marts</p>
-                <span class="port">Port {{ postgres_port }}</span>
-                <div class="credentials">
-                    <div>User: {{ postgres_user }}</div>
-                    <div>Pass: {{ postgres_pass }}</div>
-                    <div>DB: {{ postgres_db }}</div>
-                </div>
-            </a>
+        <div class="section">
+            <h3 class="section-title">Orchestration & Pipeline</h3>
+            <div class="services-grid">
+                <a href="http://localhost:{{ dagster_port }}" class="service-card" target="_blank">
+                    <h2><span class="status"></span>Dagster</h2>
+                    <p>Data pipeline orchestration with asset-based lineage and scheduling</p>
+                    <span class="port">Port {{ dagster_port }}</span>
+                </a>
+            </div>
         </div>
+
+        <div class="section">
+            <h3 class="section-title">Query Engine & Catalog</h3>
+            <div class="services-grid">
+                <a href="http://localhost:{{ trino_port }}" class="service-card" target="_blank">
+                    <h2><span class="status"></span>Trino<span class="badge">NEW</span></h2>
+                    <p>Distributed SQL query engine for Iceberg tables and transformations</p>
+                    <span class="port">Port {{ trino_port }}</span>
+                </a>
+
+                <a href="http://localhost:{{ nessie_port }}/api/v1" class="service-card" target="_blank">
+                    <h2><span class="status"></span>Nessie<span class="badge">NEW</span></h2>
+                    <p>Git-like catalog for Apache Iceberg with branching and versioning</p>
+                    <span class="port">Port {{ nessie_port }}</span>
+                </a>
+
+                <a href="http://localhost:{{ minio_console_port }}" class="service-card" target="_blank">
+                    <h2><span class="status"></span>MinIO Console</h2>
+                    <p>S3-compatible object storage for Iceberg data files</p>
+                    <span class="port">Port {{ minio_console_port }}</span>
+                    <div class="credentials">
+                        <div>User: {{ minio_user }}</div>
+                        <div>Pass: {{ minio_pass }}</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:{{ pgweb_port }}" class="service-card" target="_blank">
+                    <h2><span class="status"></span>PGWeb</h2>
+                    <p>Web-based PostgreSQL browser for marts and metadata</p>
+                    <span class="port">Port {{ pgweb_port }}</span>
+                </a>
+
+                <a class="service-card disabled">
+                    <h2><span class="status"></span>PostgreSQL</h2>
+                    <p>Database for Nessie metadata and analytics marts</p>
+                    <span class="port">Port {{ postgres_port }}</span>
+                    <div class="credentials">
+                        <div>User: {{ postgres_user }}</div>
+                        <div>Pass: {{ postgres_pass }}</div>
+                        <div>DB: {{ postgres_db }}</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">API Layer</h3>
+            <div class="services-grid">
+                <a href="http://localhost:{{ api_port }}/docs" class="service-card" target="_blank">
+                    <h2><span class="status"></span>FastAPI<span class="badge">NEW</span></h2>
+                    <p>REST API for glucose analytics and Iceberg data access</p>
+                    <span class="port">Port {{ api_port }}</span>
+                    <div class="credentials">
+                        <div>Admin: admin / admin123</div>
+                        <div>Analyst: analyst / analyst123</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:{{ hasura_port }}/console" class="service-card" target="_blank">
+                    <h2><span class="status"></span>Hasura GraphQL<span class="badge">NEW</span></h2>
+                    <p>Auto-generated GraphQL API from Postgres marts with real-time subscriptions</p>
+                    <span class="port">Port {{ hasura_port }}</span>
+                    <div class="credentials">
+                        <div>Use JWT tokens from FastAPI</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">Analytics & Visualization</h3>
+            <div class="services-grid">
+                <a href="http://localhost:{{ superset_port }}" class="service-card" target="_blank">
+                    <h2><span class="status"></span>Superset</h2>
+                    <p>Business intelligence dashboards and data exploration</p>
+                    <span class="port">Port {{ superset_port }}</span>
+                    <div class="credentials">
+                        <div>User: {{ superset_user }}</div>
+                        <div>Pass: {{ superset_pass }}</div>
+                    </div>
+                </a>
+
+                <a href="http://localhost:{{ grafana_port }}" class="service-card" target="_blank">
+                    <h2><span class="status"></span>Grafana<span class="badge">NEW</span></h2>
+                    <p>Observability dashboards with metrics and logs visualization</p>
+                    <span class="port">Port {{ grafana_port }}</span>
+                    <div class="credentials">
+                        <div>User: admin</div>
+                        <div>Pass: admin</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3 class="section-title">Monitoring</h3>
+            <div class="services-grid">
+                <a href="http://localhost:{{ prometheus_port }}" class="service-card" target="_blank">
+                    <h2><span class="status"></span>Prometheus<span class="badge">NEW</span></h2>
+                    <p>Metrics collection and time-series database for service monitoring</p>
+                    <span class="port">Port {{ prometheus_port }}</span>
+                </a>
+            </div>
+        </div>
+
         <div class="footer">
-            <p>Data Lakehouse Platform</p>
+            <p>Cascade Lakehouse Platform - Iceberg + Nessie + Trino</p>
+            <p style="font-size: 0.9em; margin-top: 8px; opacity: 0.7;">
+                Quick Start: make up-all &nbsp;|&nbsp; Docs: /docs &nbsp;|&nbsp; GitHub: /cascade
+            </p>
         </div>
     </div>
 </body>
@@ -169,21 +267,23 @@ def index():
     return render_template_string(
         HTML_TEMPLATE,
         dagster_port=os.getenv("DAGSTER_PORT", "3000"),
-        superset_port=os.getenv("SUPERSET_PORT", "8088"),
-        superset_user=os.getenv("SUPERSET_ADMIN_USER", "admin"),
-        superset_pass=os.getenv("SUPERSET_ADMIN_PASSWORD", "admin123"),
+        trino_port=os.getenv("TRINO_PORT", "8080"),
+        nessie_port=os.getenv("NESSIE_PORT", "19120"),
         minio_console_port=os.getenv("MINIO_CONSOLE_PORT", "9001"),
         minio_user=os.getenv("MINIO_ROOT_USER", "minio"),
         minio_pass=os.getenv("MINIO_ROOT_PASSWORD", "minio999"),
-        datahub_port=os.getenv(
-            "DATAHUB_FRONTEND_PORT", os.getenv("DATAHUB_PORT", "9002")
-        ),
-        
-        pgweb_port=os.getenv("PGWEB_PORT", "8081"),
+        pgweb_port=os.getenv("PGWEB_PORT", "8082"),
         postgres_port=os.getenv("POSTGRES_PORT", "5432"),
         postgres_user=os.getenv("POSTGRES_USER", "lake"),
         postgres_pass=os.getenv("POSTGRES_PASSWORD", "lakepass"),
         postgres_db=os.getenv("POSTGRES_DB", "lakehouse"),
+        api_port=os.getenv("API_PORT", "8000"),
+        hasura_port=os.getenv("HASURA_PORT", "8081"),
+        superset_port=os.getenv("SUPERSET_PORT", "8088"),
+        superset_user=os.getenv("SUPERSET_ADMIN_USER", "admin"),
+        superset_pass=os.getenv("SUPERSET_ADMIN_PASSWORD", "admin123"),
+        grafana_port=os.getenv("GRAFANA_PORT", "3001"),
+        prometheus_port=os.getenv("PROMETHEUS_PORT", "9090"),
     )
 
 

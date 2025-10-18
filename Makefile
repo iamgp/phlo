@@ -88,7 +88,7 @@ minio:
 	open http://localhost:$${MINIO_CONSOLE_PORT:-9001}
 
 pgweb:
-	open http://localhost:$${PGWEB_PORT:-8081}
+	open http://localhost:$${PGWEB_PORT:-8082}
 
 trino:
 	open http://localhost:$${TRINO_PORT:-8080}
