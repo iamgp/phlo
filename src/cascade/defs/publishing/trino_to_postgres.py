@@ -18,7 +18,7 @@ from cascade.schemas import PublishPostgresOutput, TablePublishStats
     ],
 )
 def publish_glucose_marts_to_postgres(
-    context, trino_resource: TrinoResource
+    context, trino: TrinoResource
 ) -> PublishPostgresOutput:
     """
     Publish curated marts from Iceberg (via Trino) to Postgres for BI/Superset.
@@ -77,7 +77,7 @@ def publish_glucose_marts_to_postgres(
             pg_conn.commit()
 
             # Query Iceberg table via Trino
-            with trino_resource.cursor(schema="marts") as trino_cursor:
+            with trino.cursor(schema="marts") as trino_cursor:
                 trino_cursor.execute(f"SELECT * FROM {iceberg_table}")
 
                 # Get column names
