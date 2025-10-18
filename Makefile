@@ -9,14 +9,15 @@ PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
 PROFILE_QUERY ?= nessie nessie-setup trino
 PROFILE_BI ?= superset pgweb
 PROFILE_OBSERVABILITY ?= prometheus loki alloy grafana postgres-exporter
+PROFILE_API ?= api hasura
 PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI)
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
 setup install install-dagster health \
-up-core up-query up-bi up-observability up-all \
-dagster superset hub minio pgweb trino nessie grafana prometheus \
+up-core up-query up-bi up-observability up-api up-all \
+dagster superset hub minio pgweb trino nessie grafana prometheus api hasura \
 dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
-health-observability
+health-observability health-api
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -101,6 +102,12 @@ grafana:
 prometheus:
 	open http://localhost:$${PROMETHEUS_PORT:-9090}
 
+api:
+	open http://localhost:$${API_PORT:-8000}/docs
+
+hasura:
+	open http://localhost:$${HASURA_PORT:-8081}/console
+
 # Profile-specific startup targets
 up-core:
 	$(COMPOSE) up -d $(PROFILE_CORE)
@@ -113,6 +120,9 @@ up-bi:
 
 up-observability:
 	$(COMPOSE) --profile observability up -d $(PROFILE_OBSERVABILITY)
+
+up-api:
+	$(COMPOSE) --profile api up -d $(PROFILE_API)
 
 up-all:
 	$(COMPOSE) up -d $(PROFILE_ALL)
@@ -167,6 +177,24 @@ health-observability:
 		curl -sf http://localhost:$${POSTGRES_EXPORTER_PORT:-9187}/ > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	else \
 		echo "Postgres Exporter: Not running (use 'make up-observability')"; \
+	fi
+
+# API health check
+health-api:
+	@echo "=== API Stack Health Check ==="
+	@if docker ps --format '{{.Names}}' | grep -q cascade-api; then \
+		echo "FastAPI:"; \
+		curl -sf http://localhost:$${API_PORT:-8000}/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		echo "  Docs: http://localhost:$${API_PORT:-8000}/docs"; \
+	else \
+		echo "FastAPI: Not running (use 'make up-api')"; \
+	fi
+	@if docker ps --format '{{.Names}}' | grep -q hasura; then \
+		echo "Hasura:"; \
+		curl -sf http://localhost:$${HASURA_PORT:-8081}/healthz > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		echo "  Console: http://localhost:$${HASURA_PORT:-8081}/console"; \
+	else \
+		echo "Hasura: Not running (use 'make up-api')"; \
 	fi
 
 # Shell access targets

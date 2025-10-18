@@ -428,3 +428,68 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # API Layer
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: cascade-api
+    restart: unless-stopped
+    profiles: ["api", "all"]
+    environment:
+      # API Configuration
+      JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      # Hasura shared JWT secret
+      HASURA_GRAPHQL_JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      # Trino connection
+      TRINO_HOST: ${TRINO_HOST:-trino}
+      TRINO_PORT: ${TRINO_PORT:-8080}
+      TRINO_CATALOG: ${TRINO_CATALOG:-iceberg}
+      TRINO_USER: ${TRINO_USER:-cascade}
+      # Postgres connection
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-lakehouse}
+      POSTGRES_USER: ${POSTGRES_USER:-lake}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lakepass}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      trino:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hasura:
+    image: hasura/graphql-engine:${HASURA_VERSION:-v2.45.0}
+    container_name: hasura
+    restart: unless-stopped
+    profiles: ["api", "all"]
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      # JWT Authentication (shared with FastAPI)
+      HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256","key":"${JWT_SECRET:-cascade-jwt-secret-change-in-production}"}'
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-cascade-admin-secret-change-me}
+      # CORS
+      HASURA_GRAPHQL_CORS_DOMAIN: "*"
+    ports:
+      - "${HASURA_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

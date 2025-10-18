@@ -593,6 +593,44 @@ Note: Superset Trino configuration deferred to operational phase
 - Health check command: `make health-observability`
 - Quick start: `make up-observability && make grafana`
 
+### 12.1.1 API Layer [COMPLETE]
+- [x] Add FastAPI REST service for data access
+  - JWT authentication with admin/analyst roles
+  - Glucose analytics endpoints (Postgres marts)
+  - Iceberg data access endpoints (Trino)
+  - Admin SQL execution endpoint
+  - In-memory response caching with configurable TTL
+  - Role-based rate limiting
+  - Prometheus metrics integration
+  - OpenAPI/Swagger documentation
+- [x] Add Hasura GraphQL service
+  - Auto-generated GraphQL from Postgres marts schema
+  - Shared JWT authentication with FastAPI
+  - GraphQL playground/explorer
+  - Real-time subscriptions support
+- [x] Docker compose API profile
+- [x] Makefile targets for API services
+- [x] Environment variables configuration
+
+**Commit:** `feat(api): add fastapi rest and hasura graphql services with shared jwt auth` (pending)
+
+**Tests:** `tests/test_api.sh` (25 API tests)
+
+**Documentation:**
+- `docs/API.md` - Complete REST + GraphQL API guide
+- `docs/HASURA_SETUP.md` - Hasura configuration guide
+
+**Features:**
+- FastAPI on port 8000 with `/docs` Swagger UI
+- Hasura on port 8081 with `/console`
+- Hardcoded admin/analyst users (admin123/analyst123)
+- Shared JWT tokens (60min expiry)
+- Cached responses (glucose: 1h, patterns: 6h, iceberg: 30min)
+- Rate limits (admin: 1000/min, analyst: 100/min)
+- SQL injection protection
+- Query limits (10K rows, 30s timeout)
+- Quick start: `make up-api && make api`
+
 ### 12.2 Security
 - [ ] Secure Nessie API (authentication)
 - [ ] Secure Trino (LDAP/Kerberos for production)
