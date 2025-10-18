@@ -27,11 +27,16 @@ def build_defs() -> dg.Definitions:
     """
     Build Dagster resource definitions for the lakehouse platform.
 
+    Resources are configured with default branch (main) but can be overridden
+    at the job level for dev/prod workflows via config.
+
     Returns:
         Definitions containing configured resources:
         - dbt: For SQL-based data transformations
-        - trino: Query engine used for Iceberg reads/writes
-        - iceberg: PyIceberg/Nessie catalog helper
+        - trino: Query engine used for Iceberg reads/writes (branch-aware)
+        - iceberg: PyIceberg/Nessie catalog helper (branch-aware)
+
+    Note: nessie resource is provided by cascade.defs.nessie module
     """
     iceberg_resource = IcebergResource()
     trino_resource = TrinoResource()

@@ -13,6 +13,7 @@ from cascade.defs.quality import build_defs as build_quality_defs
 from cascade.defs.resources import build_defs as build_resource_defs
 from cascade.defs.schedules import build_defs as build_schedule_defs
 from cascade.defs.transform import build_defs as build_transform_defs
+from cascade.defs.workflows import build_defs as build_workflow_defs
 
 
 def _default_executor() -> dg.ExecutorDefinition | None:
@@ -48,6 +49,7 @@ def _merged_definitions() -> dg.Definitions:
         build_nessie_defs(),
         build_schedule_defs(),
         build_job_defs(),
+        build_workflow_defs(),
     )
 
     executor = _default_executor()

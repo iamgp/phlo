@@ -22,15 +22,21 @@ class TrinoResource(ConfigurableResource):
     user: str = "dagster"
     catalog: str = config.trino_catalog
     trino_schema: str | None = None
+    nessie_ref: str = config.iceberg_nessie_ref
 
     def get_connection(self, schema: str | None = None) -> Connection:
-        """Open a Trino DB-API connection."""
+        """Open a Trino DB-API connection with Nessie branch/tag session property."""
+        session_properties = {}
+        if self.nessie_ref:
+            session_properties["nessie.reference"] = self.nessie_ref
+
         return connect(
             host=self.host,
             port=self.port,
             user=self.user,
             catalog=self.catalog,
             schema=schema or self.trino_schema,
+            session_properties=session_properties,
         )
 
     @contextmanager
