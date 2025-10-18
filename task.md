@@ -461,33 +461,53 @@ Note: Superset Trino configuration deferred to operational phase
 
 ---
 
-## Phase 10: DuckDB Iceberg Extension (Ad-hoc Analysis)
+## Phase 10: DuckDB Iceberg Extension (Ad-hoc Analysis) [COMPLETE]
 
 ### 10.1 DuckDB Setup Instructions
-- [ ] Create documentation: `docs/duckdb-iceberg-queries.md`
-- [ ] Install DuckDB locally
-- [ ] Install iceberg extension
-- [ ] Configure S3 credentials
-- [ ] Example queries:
-  ```sql
-  INSTALL iceberg;
-  LOAD iceberg;
-
-  -- Configure S3 (MinIO)
-  SET s3_endpoint = 'localhost:9000';
-  SET s3_use_ssl = false;
-  SET s3_url_style = 'path';
-  SET s3_access_key_id = 'your-key';
-  SET s3_secret_access_key = 'your-secret';
-
-  -- Query Iceberg table
-  SELECT * FROM iceberg_scan('s3://lake/warehouse/raw/entries');
-  ```
+- [x] Create documentation: `docs/duckdb-iceberg-queries.md`
+  - Comprehensive guide for querying Iceberg tables with DuckDB
+  - Installation and configuration instructions
+  - S3/MinIO connection setup (3 methods)
+  - Query examples for all pipeline layers (raw/bronze/silver/gold)
+- [x] Installation instructions for DuckDB CLI and extension
+- [x] S3/MinIO credential configuration examples
+- [x] Example queries for common use cases:
+  - Data exploration
+  - Quality checks
+  - Aggregations and analysis
+  - Time-based filtering
+  - CSV export
+- [x] Python integration examples
+  - Pandas integration
+  - Jupyter notebook workflows
+  - Plotly visualization
+- [x] Performance tips and best practices
+- [x] Troubleshooting guide
+- [x] DuckDB vs Trino comparison table
 
 ### 10.2 DuckDB Integration in Hub (Optional)
-- [ ] Add DuckDB query interface to Hub app
-- [ ] Pre-configured connection to Iceberg tables
-- [ ] Read-only access for analysts
+- [ ] Add DuckDB query interface to Hub app (deferred to future enhancement)
+- [ ] Pre-configured connection to Iceberg tables (deferred)
+- [ ] Read-only access for analysts (deferred)
+
+**Commit:** `docs(duckdb): add comprehensive guide and analyst demo for querying iceberg tables` (pending)
+
+**Documentation:** `docs/duckdb-iceberg-queries.md`
+**Demo:** `examples/analyst_duckdb_demo.py`
+**Tests:** `tests/test_phase10_duckdb.sh` (6/6 passing)
+
+**Features:**
+- Full DuckDB Iceberg extension setup guide
+- Multiple configuration methods (CLI, Python, env vars)
+- Extensive query examples for all pipeline layers
+- Python/Pandas/Jupyter integration examples
+- **Working analyst demo script** (queries from outside Docker)
+  - Auto-discovers table metadata location
+  - Queries 1,156 rows successfully
+  - Shows sample data and daily statistics
+- Performance optimization tips
+- Troubleshooting guide
+- Test suite with integration tests
 
 ---
 

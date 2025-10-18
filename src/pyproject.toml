@@ -9,6 +9,7 @@ dependencies = [
     "pyiceberg[s3fs,pyarrow]>=0.7.0",
     "requests",
     "pyarrow>=21.0.0",
+    "duckdb>=1.4.1",
 ]
 
 [build-system]
