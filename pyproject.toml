@@ -1,6 +1,11 @@
 [tool.uv.workspace]
 members = ["src", "services/dagster", "services/hub"]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
+
 [tool.uv]
 dev-dependencies = [
     "ruff",
