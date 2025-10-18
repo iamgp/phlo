@@ -1,283 +1,442 @@
-# Data Lakehouse Documentation
+# Cascade Documentation
 
-## Overview
+Welcome to the Cascade documentation. This guide will help you understand, deploy, and use the Cascade data lakehouse platform.
 
-Comprehensive documentation for the Cell & Gene Therapy Data Lakehouse platform.
+## Getting Started
 
-## Quick Links
+### For New Users
 
-### Getting Started
-- [Architecture Overview](../readme.md)
-- [Setup Guide](../ASSET_BASED_ARCHITECTURE.md)
-- [Airbyte Setup](../AIRBYTE_SETUP.md)
+Start here if you're new to Cascade:
 
-### Component Documentation
-- [PostgreSQL](./components/postgres.md) - Metadata & marts database
-- [MinIO](./components/minio.md) - S3-compatible object storage
-- [DuckDB](./components/duckdb.md) - Analytical query engine
-- [dbt](./components/dbt.md) - Data transformation tool
-- [Dagster](./components/dagster.md) - Orchestration & asset management
-- [Superset](./components/superset.md) - BI & dashboards
-- [Marquez](./components/marquez.md) - Data lineage tracking
+1. **[Quick Start Guide](../QUICK_START.md)** - Get Cascade running in 10 minutes
+   - Prerequisites and setup
+   - Service startup
+   - First pipeline run
+   - Common tasks and troubleshooting
 
-### Integration Guides
-- [End-to-End Data Flow](./integrations/data-flow.md) - Complete pipeline walkthrough
-- [Dagster + dbt](./integrations/dagster-dbt.md) - Asset-based dbt orchestration
+2. **[Architecture Overview](../ARCHITECTURE.md)** - Understand the system design
+   - Component architecture
+   - Data flow diagrams
+   - Service dependencies
+   - Performance optimization
 
-### Platform URLs
-- **Dagster UI**: http://localhost:3000
-- **Superset**: http://localhost:8088 (admin/admin123)
-- **Marquez API**: http://localhost:5555
-- **Marquez Web**: http://localhost:3002
-- **MinIO Console**: http://localhost:9001 (minio/minio999)
-- **PostgreSQL**: localhost:5432 (lake/lakepass)
+### For Developers
 
-## Architecture
+If you're developing on Cascade:
 
-### Component Stack
-```
-┌─────────────────────────────────────────┐
-│           Superset (BI Layer)            │
-└────────────────┬────────────────────────┘
-                 │
-┌────────────────▼────────────────────────┐
-│    PostgreSQL (Analytics Marts)         │
-└────────────────▲────────────────────────┘
-                 │
-┌────────────────┴────────────────────────┐
-│  dbt + DuckDB (Transformation Layer)    │
-│  • Staging (views)                      │
-│  • Curated (tables)                     │
-└────────────────▲────────────────────────┘
-                 │
-┌────────────────┴────────────────────────┐
-│     MinIO (Data Lake Storage)           │
-│     • Raw parquet files                 │
-│     • S3-compatible API                 │
-└────────────────▲────────────────────────┘
-                 │
-┌────────────────┴────────────────────────┐
-│  Airbyte (Optional - Data Ingestion)    │
-└─────────────────────────────────────────┘
+1. **[Project README](../README.md)** - Overview and features
+   - Architecture summary
+   - Key features
+   - Development setup
+   - Project structure
 
-         All orchestrated by Dagster
-         All lineage tracked in Marquez
-```
+2. **[Architecture Deep Dive](../ARCHITECTURE.md)** - Technical details
+   - Component design
+   - Integration patterns
+   - Resource management
+   - Testing strategy
 
-### Data Flow Layers
+### For Data Engineers
 
-1. **Ingestion**: Airbyte → MinIO (`/raw/`)
-2. **Staging**: DuckDB views over raw parquet
-3. **Curated**: DuckDB tables with business logic
-4. **Marts**: Postgres tables for BI
-5. **Visualization**: Superset dashboards
-6. **Lineage**: Marquez tracking
+If you're building pipelines on Cascade:
+
+1. **[Nessie Workflow Guide](../NESSIE_WORKFLOW.md)** - Branching and promotion
+   - Branch management (dev/main)
+   - Merge workflows
+   - Time travel queries
+   - Best practices
+
+2. **[DuckDB Query Guide](./duckdb-iceberg-queries.md)** - Ad-hoc analysis
+   - DuckDB setup
+   - Query examples
+   - Python integration
+   - Performance tips
+
+## Documentation Structure
+
+### Root-Level Guides
+
+- **[README.md](../README.md)** - Main project overview
+  - Architecture summary
+  - Quick start instructions
+  - Key features
+  - Troubleshooting
+
+- **[QUICK_START.md](../QUICK_START.md)** - Setup and first steps
+  - Installation
+  - Service startup
+  - First pipeline run
+  - Common tasks
+
+- **[ARCHITECTURE.md](../ARCHITECTURE.md)** - Detailed system design
+  - Component architecture
+  - Data flow
+  - Service dependencies
+  - Performance and security
+
+- **[NESSIE_WORKFLOW.md](../NESSIE_WORKFLOW.md)** - Branching guide
+  - Branch management
+  - Dev → main promotion
+  - Time travel
+  - Advanced workflows
+
+### docs/ Directory
+
+- **[duckdb-iceberg-queries.md](./duckdb-iceberg-queries.md)** - DuckDB analysis guide
+  - Installation and setup
+  - Query examples
+  - Python integration
+  - Troubleshooting
 
 ## Core Concepts
 
-### Asset-Based Orchestration
-Instead of running jobs, we materialize **assets** - discrete data objects with dependencies.
+### Apache Iceberg
 
-**Assets**:
-- `raw_bioreactor_data` - Raw file validation
-- `dbt_staging_models` - Cleaned data views
-- `dbt_curated_models` - Business logic tables
-- `dbt_postgres_marts` - Analytics marts
+Iceberg is an open table format for large analytic datasets. Key features:
 
-**Benefits**:
-- Visual lineage graph
-- Selective execution
-- Better observability
-- Automatic dependency resolution
+- **ACID Transactions**: Atomic commits prevent data corruption
+- **Schema Evolution**: Add/remove columns without rewrites
+- **Hidden Partitioning**: Partition pruning without manual filtering
+- **Time Travel**: Query data as it existed at any point
+- **Snapshot Isolation**: Readers never block writers
 
-### Dual-Database Pattern
-- **DuckDB**: Fast analytical transformations on parquet
-- **Postgres**: Persistent marts for concurrent BI access
+**Learn more**: [ARCHITECTURE.md - Apache Iceberg](../ARCHITECTURE.md#1-apache-iceberg-table-format)
 
-Why both?
-- DuckDB excels at parquet queries and aggregations
-- Postgres excels at serving dashboards and concurrent users
-- dbt bridges them seamlessly
+### Project Nessie
 
-### OpenLineage Integration
-Every component emits lineage events to Marquez:
-- Track data origin to dashboard
-- Impact analysis for changes
-- Compliance and audit trails
+Nessie provides Git-like version control for data tables. Key features:
+
+- **Branching**: Isolate dev/staging/prod environments
+- **Atomic Commits**: Update multiple tables together
+- **Merge Operations**: Promote changes atomically
+- **Time Travel**: Query any historical state
+- **Tags**: Mark releases for reproducibility
+
+**Learn more**: [NESSIE_WORKFLOW.md](../NESSIE_WORKFLOW.md)
+
+### Trino
+
+Trino is a distributed SQL query engine. Key features:
+
+- **Native Iceberg Support**: First-class connector
+- **Distributed Execution**: Scale to large datasets
+- **Push-down Optimization**: Leverage Iceberg metadata
+- **Session Properties**: Control branch selection
+
+**Learn more**: [ARCHITECTURE.md - Trino](../ARCHITECTURE.md#3-trino-query-engine)
+
+### dbt
+
+dbt is a SQL-based transformation framework. Key features:
+
+- **Layered Transformations**: Bronze → Silver → Gold
+- **Dependency Management**: Automatic DAG resolution
+- **Testing**: Data quality assertions
+- **Documentation**: Auto-generated lineage
+
+**Learn more**: [ARCHITECTURE.md - dbt](../ARCHITECTURE.md#4-dbt-transformations)
+
+### Dagster
+
+Dagster is an asset-based orchestration platform. Key features:
+
+- **Software-Defined Assets**: Declarative data pipeline
+- **Lineage Tracking**: Automatic dependency graph
+- **Partitioning**: Daily/hourly partition support
+- **Freshness Policies**: Monitor asset health
+
+**Learn more**: [ARCHITECTURE.md - Dagster](../ARCHITECTURE.md#5-dagster-orchestration)
 
 ## Common Workflows
 
-### 1. Daily Pipeline (Automated)
-```
-02:00 AM - Dagster `nightly_pipeline` schedule triggers
-02:01 AM - dbt staging models run (DuckDB views)
-02:05 AM - dbt curated models build (DuckDB tables)
-02:10 AM - dbt postgres marts materialize
-02:15 AM - Pipeline complete, dashboards show fresh data
-```
+### 1. Daily Ingestion
 
-### 2. Manual Refresh
 ```bash
-# Full pipeline
-docker compose exec dagster-web dagster asset materialize --select '*'
-
-# Specific layer
-docker compose exec dagster-web dagster asset materialize --select dbt_curated_models
+# Ingest raw data to dev branch
+docker exec dagster-webserver dagster asset materialize --select entries
 ```
 
-### 3. Add New Data Source
-1. Configure Airbyte connection (optional)
-2. Land parquet in `/data/lake/raw/{source}/`
-3. Create dbt staging model `stg_{source}.sql`
-4. Add Dagster asset in `dagster/assets/`
-5. Join in curated layer
+This fetches data from the Nightscout API, stages it to S3, and registers it as an Iceberg table on the `dev` branch.
 
-### 4. Create Dashboard
-1. dbt: Build mart in `marts_postgres/`
-2. Dagster: Materialize `dbt_postgres_marts`
-3. Superset: Add dataset from `marts.{mart_name}`
-4. Build charts and dashboard
+**Learn more**: [QUICK_START.md - First Pipeline Run](../QUICK_START.md#step-6-run-your-first-pipeline)
 
-## Development
+### 2. Transformation
 
-### Local Setup
 ```bash
-# Start all services
-docker compose up -d
-
-# View logs
-docker compose logs -f dagster-webserver
-
-# Access containers
-docker compose exec dagster-web bash
-docker compose exec postgres psql -U lake -d lakehouse
+# Run dbt transformations (bronze → silver → gold)
+docker exec dagster-webserver dagster asset materialize --select "dbt:*"
 ```
 
-### Making Changes
+This executes dbt models to transform raw data into curated analytics tables.
 
-**dbt Models**:
-1. Edit model in `dbt/models/`
-2. Run locally: `dbt run --select {model}`
-3. Commit changes
-4. Dagster auto-reloads
+**Learn more**: [ARCHITECTURE.md - Transformation Pipeline](../ARCHITECTURE.md#transformation-pipeline)
 
-**Dagster Assets**:
-1. Edit asset in `dagster/assets/`
-2. Restart: `docker compose restart dagster-webserver`
-3. View in UI: http://localhost:3000
+### 3. Promotion
 
-**Superset Dashboards**:
-1. Create in UI at http://localhost:8088
-2. Export dashboard JSON
-3. Commit to repo (optional)
-
-### Testing
 ```bash
-# dbt tests
-docker compose exec dagster-web dbt test
-
-# Dagster asset dry-run
-docker compose exec dagster-web dagster asset materialize --select {asset} --dry-run
-
-# Query validation
-docker compose exec postgres psql -U lake -d lakehouse -c "SELECT count(*) FROM marts.mart_bioreactor_overview"
+# Merge dev branch to main (production)
+docker exec dagster-webserver dagster asset materialize --select promote_dev_to_main
 ```
 
-## Monitoring
+This atomically promotes all validated data from dev to main.
 
-### Dagster UI (http://localhost:3000)
-- **Assets**: View all assets and lineage
-- **Runs**: Execution history and logs
-- **Schedules**: Manage automated runs
+**Learn more**: [NESSIE_WORKFLOW.md - Merging Dev to Main](../NESSIE_WORKFLOW.md#merging-dev-to-main)
 
-### Marquez UI (http://localhost:3002)
-- **Lineage Graph**: Visual data flow
-- **Datasets**: All tables and files
-- **Jobs**: Transformation history
+### 4. Publishing
 
-### Logs
 ```bash
-# All services
-docker compose logs -f
-
-# Specific service
-docker compose logs dagster-webserver -f
-docker compose logs postgres -f
+# Publish curated marts to Postgres for BI
+docker exec dagster-webserver dagster asset materialize --select "postgres_*"
 ```
+
+This materializes business metrics tables in Postgres for fast dashboard queries.
+
+**Learn more**: [ARCHITECTURE.md - Publishing Pipeline](../ARCHITECTURE.md#publishing-pipeline)
+
+### 5. Ad-hoc Analysis
+
+```python
+# Query Iceberg tables with DuckDB
+import duckdb
+
+conn = duckdb.connect()
+conn.execute("INSTALL iceberg; LOAD iceberg;")
+
+# Configure S3
+conn.execute("""
+    SET s3_endpoint='localhost:9000';
+    SET s3_access_key_id='minioadmin';
+    SET s3_secret_access_key='password123';
+""")
+
+# Query
+df = conn.execute("""
+    SELECT * FROM iceberg_scan('s3://lake/warehouse/raw/entries/metadata/v1.metadata.json')
+    LIMIT 10;
+""").df()
+
+print(df)
+```
+
+**Learn more**: [duckdb-iceberg-queries.md](./duckdb-iceberg-queries.md)
+
+## Service URLs
+
+When Cascade is running, access these web interfaces:
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| **Hub** | http://localhost:54321 | Service status dashboard |
+| **Dagster** | http://localhost:3000 | Orchestration UI |
+| **Nessie** | http://localhost:19120/api/v2/config | Catalog API |
+| **Trino** | http://localhost:8080 | Query engine UI |
+| **MinIO Console** | http://localhost:9001 | Object storage admin |
+| **Superset** | http://localhost:8088 | BI dashboards |
+| **pgweb** | http://localhost:8081 | PostgreSQL admin |
+
+**Learn more**: [QUICK_START.md - Verify Services](../QUICK_START.md#step-4-verify-services)
+
+## Configuration
+
+All configuration is managed via environment variables in `.env`:
+
+```bash
+# Copy template
+cp .env.example .env
+
+# Edit configuration
+nano .env
+```
+
+**Key settings**:
+- `NESSIE_PORT`, `NESSIE_VERSION` - Nessie catalog
+- `TRINO_PORT`, `TRINO_VERSION` - Trino query engine
+- `ICEBERG_WAREHOUSE_PATH` - Iceberg table storage
+- `POSTGRES_*` - Database credentials
+- `MINIO_*` - Object storage credentials
+
+**Learn more**: [README.md - Configuration](../README.md#configuration)
 
 ## Troubleshooting
 
 ### Services Won't Start
+
 ```bash
-docker compose ps                    # Check status
-docker compose logs {service} -f     # View logs
-docker compose down && docker compose up -d  # Restart
+# Check service health
+docker compose ps
+
+# View logs
+docker compose logs <service-name>
+
+# Restart service
+docker compose restart <service-name>
 ```
 
-### Assets Not Materializing
-1. Check Dagster logs
-2. Verify dbt can connect: `dbt debug`
-3. Test dbt directly: `dbt run --select {model}`
+**Learn more**: [QUICK_START.md - Troubleshooting](../QUICK_START.md#troubleshooting)
 
-### Dashboards Show Old Data
-1. Check dbt marts: `SELECT max(batch_start) FROM marts.mart_bioreactor_overview`
-2. Re-materialize marts: Dagster UI → `dbt_postgres_marts` → Materialize
-3. Clear Superset cache: Dashboard → Force Refresh
+### Asset Failures
 
-### Lineage Not Showing
-1. Verify Marquez running: `docker compose ps marquez`
-2. Check OpenLineage URL in Dagster: `docker compose exec dagster-web env | grep OPENLINEAGE`
-3. Re-run pipeline to emit events
+```bash
+# View asset details
+open http://localhost:3000
 
-## Best Practices
+# Check logs
+docker logs dagster-daemon
 
-1. **Data Quality**: Add dbt tests for all critical models
-2. **Naming**: Use prefixes (stg_, int_, dim_, fact_, mart_)
-3. **Documentation**: Document all models and columns in dbt
-4. **Lineage**: Always emit OpenLineage events
-5. **Monitoring**: Set up alerts for pipeline failures
-6. **Performance**: Partition large tables by date/batch
-7. **Security**: Use RLS in Superset for multi-tenant data
+# Verify configuration
+docker exec dagster-webserver python -c "from cascade.config import config; print(config.model_dump_json(indent=2))"
+```
 
-## Support
+**Learn more**: [QUICK_START.md - Dagster Assets Failing](../QUICK_START.md#dagster-assets-failing)
+
+### Catalog Issues
+
+```bash
+# Test Nessie API
+curl http://localhost:19120/api/v2/config
+
+# Test Trino connection
+docker exec trino trino --execute "SHOW CATALOGS;"
+
+# Verify PyIceberg
+docker exec dagster-webserver python -c "from cascade.iceberg.catalog import get_catalog; print(get_catalog().list_namespaces())"
+```
+
+**Learn more**: [QUICK_START.md - Catalog Connection Issues](../QUICK_START.md#catalog-connection-issues)
+
+### Fresh Start
+
+```bash
+# WARNING: Destroys all data
+make clean-all
+make fresh-start
+```
+
+**Learn more**: [QUICK_START.md - Fresh Start](../QUICK_START.md#fresh-start-nuclear-option)
+
+## Development
+
+### Local Setup
+
+```bash
+# Install dependencies
+cd services/dagster
+uv pip install -e .
+
+# Run type checking
+basedpyright src/cascade/
+
+# Run linting
+ruff check src/cascade/
+ruff format src/cascade/
+```
+
+**Learn more**: [README.md - Development](../README.md#development)
+
+### Adding Assets
+
+1. Create asset function in `src/cascade/defs/`
+2. Import in `__init__.py`
+3. Asset auto-discovered by Dagster
+
+**Learn more**: [README.md - Adding New Assets](../README.md#adding-new-assets)
+
+### Testing
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run phase-specific tests
+./tests/test_phase3_ingestion.sh
+./tests/test_phase4_transformation.sh
+```
+
+**Learn more**: [README.md - Testing](../README.md#testing)
+
+## Architecture Diagrams
+
+### Data Flow
+
+```
+Nightscout API
+  ↓
+DLT (Python ingestion)
+  ↓
+S3 Staging (Parquet files)
+  ↓
+PyIceberg (register/append)
+  ↓
+Iceberg Tables (on Nessie catalog)
+  ↓
+Trino (query engine)
+  ↓
+dbt (transformations: bronze → silver → gold)
+  ↓
+PostgreSQL Marts (business metrics)
+  ↓
+Superset (dashboards)
+```
+
+**Learn more**: [ARCHITECTURE.md - Data Flow](../ARCHITECTURE.md#data-flow)
+
+### Service Dependencies
+
+```
+Nessie → PostgreSQL (metadata storage)
+Trino → Nessie (catalog queries)
+Trino → MinIO (table data)
+Dagster → Trino (orchestration)
+Dagster → Nessie (branch management)
+Superset → PostgreSQL (marts)
+Superset → Trino (Iceberg queries)
+```
+
+**Learn more**: [ARCHITECTURE.md - Service Dependencies](../ARCHITECTURE.md#service-dependencies)
+
+## Resources
 
 ### Documentation
-- [Component Docs](./components/) - Individual tool documentation
-- [Integration Guides](./integrations/) - How components work together
-- [Guides](./guides/) - Best practices and patterns
 
-### Common Issues
-- [Troubleshooting Guide](./guides/troubleshooting.md) (coming soon)
-- [FAQ](./guides/faq.md) (coming soon)
+- [Apache Iceberg](https://iceberg.apache.org/docs/latest/)
+- [Project Nessie](https://projectnessie.org/docs/)
+- [Trino](https://trino.io/docs/current/)
+- [dbt](https://docs.getdbt.com/)
+- [Dagster](https://docs.dagster.io/)
+- [DuckDB](https://duckdb.org/docs/)
 
-### External Resources
-- [Dagster Docs](https://docs.dagster.io)
-- [dbt Docs](https://docs.getdbt.com)
-- [DuckDB Docs](https://duckdb.org/docs)
-- [Superset Docs](https://superset.apache.org/docs)
-- [OpenLineage Spec](https://openlineage.io/docs)
+### External Links
+
+- [Iceberg Spec](https://iceberg.apache.org/spec/)
+- [Nessie REST API](https://projectnessie.org/develop/rest/)
+- [Trino Iceberg Connector](https://trino.io/docs/current/connector/iceberg.html)
+- [dbt-trino Adapter](https://github.com/starburstdata/dbt-trino)
+- [PyIceberg](https://py.iceberg.apache.org/)
 
 ## Contributing
 
-### Adding Documentation
-1. Create markdown file in appropriate folder:
-   - `docs/components/` - Individual tools
-   - `docs/integrations/` - How tools work together
-   - `docs/guides/` - How-to guides
-2. Add link to this README
-3. Submit PR
+Cascade is a personal project demonstrating modern data lakehouse patterns. Feel free to:
 
-### Improving Platform
-1. Fork repository
-2. Create feature branch
-3. Make changes
-4. Test thoroughly
-5. Submit PR with description
+- Fork and adapt for your needs
+- Open issues for bugs or questions
+- Submit pull requests for improvements
 
 ## License
 
-[Add your license here]
+MIT License - See LICENSE file for details.
 
-## Contact
+## Support
 
-[Add contact information]
+For questions or issues:
+
+1. Check the troubleshooting sections in relevant guides
+2. Review [ARCHITECTURE.md](../ARCHITECTURE.md) for technical details
+3. Open an issue on GitHub
+
+---
+
+**Quick Links**:
+- [Quick Start](../QUICK_START.md)
+- [Architecture](../ARCHITECTURE.md)
+- [Nessie Workflow](../NESSIE_WORKFLOW.md)
+- [DuckDB Queries](./duckdb-iceberg-queries.md)
