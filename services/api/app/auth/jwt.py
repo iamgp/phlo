@@ -17,14 +17,14 @@ USERS = {
         "user_id": "admin_001",
         "username": "admin",
         "email": "admin@cascade.local",
-        "hashed_password": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqVr3u7jGy",  # admin123
+        "hashed_password": "$2b$12$hVzXLFlbMnbAN2Krtk88JOUxLWN6WGNxXASvb5fpzoN/tt/GGNriy",  # admin123
         "role": "admin",
     },
     "analyst": {
         "user_id": "analyst_001",
         "username": "analyst",
         "email": "analyst@cascade.local",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # analyst123
+        "hashed_password": "$2b$12$rVI0z2.putUx/6/qRMbhZucUMhr7bI.6ykbyqwBOWMlV1eryipJci",  # analyst123
         "role": "analyst",
     },
 }
