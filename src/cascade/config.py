@@ -104,7 +104,12 @@ class Settings(BaseSettings):
 
     @property
     def nessie_uri(self) -> str:
-        """Return Nessie REST API URI."""
+        """Return Nessie REST API URI for Iceberg catalog (base URL)."""
+        return f"http://{self.nessie_host}:{self.nessie_port}/api"
+
+    @property
+    def nessie_api_v1_uri(self) -> str:
+        """Return Nessie API v1 URI for direct API calls."""
         return f"http://{self.nessie_host}:{self.nessie_port}/api/v1"
 
     @property
