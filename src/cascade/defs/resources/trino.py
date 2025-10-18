@@ -27,8 +27,8 @@ class TrinoResource(ConfigurableResource):
     def get_connection(self, schema: str | None = None) -> Connection:
         """Open a Trino DB-API connection with Nessie branch/tag session property."""
         session_properties = {}
-        if self.nessie_ref:
-            session_properties["nessie.reference"] = self.nessie_ref
+        # Trino 477 + Iceberg REST does not expose a `nessie.reference` session property unless a
+        # dedicated Nessie catalog is configured. Skip setting it to avoid `Catalog 'nessie' not found`.
 
         return connect(
             host=self.host,

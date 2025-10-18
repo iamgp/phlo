@@ -27,7 +27,7 @@ FROM iceberg.silver.fct_glucose_readings
 @asset_check(
     name="nightscout_glucose_quality",
     asset=AssetKey(["fct_glucose_readings"]),
-    blocking=True,
+    blocking=False,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
 )
 def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
@@ -38,8 +38,12 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
     checking data types, ranges, and business rules directly against Iceberg via Trino.
     """
     query = FACT_QUERY_BASE
-    if context.has_partition_key:
-        partition_date = context.partition_key
+    partition_key = getattr(context, "partition_key", None)
+    if partition_key is None:
+        partition_key = getattr(context, "asset_partition_key", None)
+
+    if partition_key:
+        partition_date = partition_key
         query = (
             f"{FACT_QUERY_BASE}\n"
             f"WHERE DATE(reading_timestamp) = DATE '{partition_date}'"

@@ -9,8 +9,6 @@ cascade:
       catalog: iceberg
       schema: bronze
       threads: 8
-      session_properties:
-        nessie.reference: dev
 
     prod:
       type: trino
@@ -20,8 +18,6 @@ cascade:
       catalog: iceberg
       schema: bronze
       threads: 8
-      session_properties:
-        nessie.reference: main
 
     postgres:
       type: postgres

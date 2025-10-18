@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import os
 from collections.abc import Generator, Mapping
 from typing import Any
 
@@ -60,12 +61,10 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
         build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
         context.log.info(f"Running dbt for partition: {partition_date}")
 
-    env = {
-        "TRINO_HOST": config.trino_host,
-        "TRINO_PORT": str(config.trino_port),
-    }
+    os.environ.setdefault("TRINO_HOST", config.trino_host)
+    os.environ.setdefault("TRINO_PORT", str(config.trino_port))
 
-    build_invocation = dbt.cli(build_args, context=context, env=env)
+    build_invocation = dbt.cli(build_args, context=context)
     yield from build_invocation.stream()
     build_invocation.wait()
 
@@ -79,7 +78,7 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
         "--target",
         target,
     ]
-    docs_invocation = dbt.cli(docs_args, context=context, env=env).wait()
+    docs_invocation = dbt.cli(docs_args, context=context).wait()
 
     default_target_dir = DBT_PROJECT_DIR / "target"
     default_target_dir.mkdir(parents=True, exist_ok=True)
