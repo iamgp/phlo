@@ -12,6 +12,7 @@ from cascade.defs.publishing import build_defs as build_publishing_defs
 from cascade.defs.quality import build_defs as build_quality_defs
 from cascade.defs.resources import build_defs as build_resource_defs
 from cascade.defs.schedules import build_defs as build_schedule_defs
+from cascade.defs.sensors import build_defs as build_sensor_defs
 from cascade.defs.transform import build_defs as build_transform_defs
 from cascade.defs.workflows import build_defs as build_workflow_defs
 
@@ -48,6 +49,7 @@ def _merged_definitions() -> dg.Definitions:
         build_quality_defs(),
         build_nessie_defs(),
         build_schedule_defs(),
+        build_sensor_defs(),
         build_job_defs(),
         build_workflow_defs(),
     )

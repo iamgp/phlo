@@ -562,13 +562,36 @@ Note: Superset Trino configuration deferred to operational phase
 
 ---
 
-## Phase 12: Production Hardening
+## Phase 12: Production Hardening [IN PROGRESS]
 
-### 12.1 Observability
-- [ ] Add Trino metrics endpoint
-- [ ] Add Nessie health checks
-- [ ] Dagster sensor for pipeline failures
-- [ ] Logging configuration (structured logs)
+### 12.1 Observability [COMPLETE]
+- [x] Add full observability stack (Prometheus, Loki, Alloy, Grafana)
+- [x] Configure Trino JMX metrics endpoint for Prometheus
+- [x] Configure Nessie Quarkus metrics endpoint
+- [x] Add postgres-exporter for database metrics
+- [x] Add MinIO S3 metrics collection
+- [x] Create Grafana Alloy configuration for log/metric collection
+- [x] Create pre-built Grafana dashboards (Overview + Infrastructure)
+- [x] Add Dagster failure/success/freshness sensors
+- [x] Configure structured logging for all services
+- [x] Update Makefile with observability targets
+- [x] Create observability profile in docker-compose
+
+**Commit:** `feat(observability): add production-ready monitoring stack with prometheus/loki/grafana` (pending)
+
+**Tests:** `tests/test_phase12_observability.sh` (26/26 passing)
+
+**Documentation:** `docs/OBSERVABILITY.md`
+
+**Features:**
+- Optional `observability` docker-compose profile
+- Prometheus scraping 7 services (Trino, Nessie, MinIO, Postgres, Dagster, Alloy, Prometheus)
+- Loki aggregating logs from all Docker containers
+- Grafana with auto-provisioned datasources and dashboards
+- 30-day retention for metrics and logs
+- Structured logging in Dagster sensors for alert integration
+- Health check command: `make health-observability`
+- Quick start: `make up-observability && make grafana`
 
 ### 12.2 Security
 - [ ] Secure Nessie API (authentication)
