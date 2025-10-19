@@ -47,13 +47,45 @@ class NessieResource(dg.ConfigurableResource):
         # Get the hash of the source branch
         source_hash = self._get_ref_hash(source_branch)
 
+        # Get the hash of the target branch (for optimistic locking)
+        target_hash = self._get_ref_hash(target_branch)
+
         response = requests.post(
-            f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}/merge",
+            f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}/merge?expectedHash={target_hash}",
             json={"fromRefName": source_branch, "fromHash": source_hash},
             headers={"Content-Type": "application/json"}
         )
         response.raise_for_status()
         return response.json()
+
+    def assign_branch(self, target_branch: str, source_branch: str) -> dict[str, Any]:
+        """
+        Assign target branch to point to the same commit as source branch.
+
+        This is a fast-forward operation that makes target_branch point to the
+        exact same commit as source_branch, essentially "promoting" the source
+        to target without merging. This avoids merge conflicts.
+        """
+        # Get the hash of the source branch
+        source_hash = self._get_ref_hash(source_branch)
+
+        # Get current hash of target for optimistic locking
+        target_hash = self._get_ref_hash(target_branch)
+
+        response = requests.put(
+            f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}?expectedHash={target_hash}",
+            json={"type": "BRANCH", "name": target_branch, "hash": source_hash},
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+
+        # API returns 204 No Content on success
+        return {
+            "status": "success",
+            "source_branch": source_branch,
+            "target_branch": target_branch,
+            "new_hash": source_hash
+        }
 
     def delete_branch(self, branch_name: str) -> None:
         """Delete a branch."""

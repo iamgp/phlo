@@ -87,12 +87,13 @@ def promote_dev_to_main(context, nessie: NessieResource) -> dg.MaterializeResult
         if "dev" not in branch_names:
             raise ValueError("Dev branch does not exist - cannot promote")
 
-        context.log.info("Dev branch exists, proceeding with merge")
+        context.log.info("Dev branch exists, proceeding with promotion")
 
-        # Merge dev into main
-        merge_result = nessie.merge_branch("dev", "main")
+        # Promote dev to main by assigning main to dev's commit
+        # This is a fast-forward operation that avoids merge conflicts
+        merge_result = nessie.assign_branch("main", "dev")
 
-        context.log.info("Successfully merged dev into main")
+        context.log.info("Successfully promoted dev to main")
 
         # Create a version tag for this production release
         import datetime
