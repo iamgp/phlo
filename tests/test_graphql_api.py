@@ -206,6 +206,47 @@ class TestGraphQLQueries:
         # Either successful data or error about missing table
         assert "data" in data or "errors" in data
 
+    def test_mart_glucose_overview_query(self, admin_token):
+        """Test querying glucose overview mart table."""
+        query = """
+        query {
+            mrt_glucose_overview(limit: 10) {
+                date
+                avg_glucose
+                min_glucose
+                max_glucose
+            }
+        }
+        """
+        response = requests.post(
+            GRAPHQL_ENDPOINT,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"query": query},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data or "errors" in data
+
+    def test_mart_hourly_patterns_query(self, admin_token):
+        """Test querying hourly patterns mart table."""
+        query = """
+        query {
+            mrt_glucose_hourly_patterns(limit: 24) {
+                hour_of_day
+                avg_glucose
+                readings_count
+            }
+        }
+        """
+        response = requests.post(
+            GRAPHQL_ENDPOINT,
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"query": query},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data or "errors" in data
+
     def test_query_with_variables(self, admin_token):
         """Test GraphQL query with variables."""
         query = """

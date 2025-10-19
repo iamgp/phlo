@@ -70,6 +70,22 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
             columns = [desc[0] for desc in cursor.description]
 
         fact_df = pd.DataFrame(rows, columns=columns)
+
+        # Explicitly cast columns to correct types (Trino client may return some as strings)
+        type_conversions = {
+            "glucose_mg_dl": "int64",
+            "hour_of_day": "int64",
+            "day_of_week": "int64",
+            "is_in_range": "int64",
+        }
+        for col, dtype in type_conversions.items():
+            if col in fact_df.columns:
+                fact_df[col] = fact_df[col].astype(dtype)
+
+        # Convert timestamp if it's not already datetime
+        if "reading_timestamp" in fact_df.columns:
+            fact_df["reading_timestamp"] = pd.to_datetime(fact_df["reading_timestamp"])
+
         context.log.info(
             "Loaded %d rows from iceberg.silver.fct_glucose_readings", len(fact_df)
         )

@@ -6,7 +6,7 @@ cascade:
       host: "{{ env_var('TRINO_HOST', 'trino') }}"
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: dbt
-      catalog: iceberg
+      catalog: iceberg_dev
       schema: bronze
       threads: 8
 
