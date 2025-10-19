@@ -1,3 +1,7 @@
+# schema.py - PyIceberg schema definitions for Nightscout glucose monitoring data
+# Defines structured schemas for entries and treatments tables used in the Iceberg catalog
+# These schemas ensure data consistency and type safety for the raw data layer
+
 """
 PyIceberg schema definitions for Nightscout data.
 """
@@ -13,6 +17,8 @@ from pyiceberg.types import (
     TimestamptzType,
 )
 
+# --- Schema Definitions ---
+# Predefined PyIceberg schemas for different data types
 # Nightscout Entries Schema
 # Based on Nightscout API: /api/v1/entries
 NIGHTSCOUT_ENTRIES_SCHEMA = Schema(
@@ -86,6 +92,8 @@ NIGHTSCOUT_TREATMENTS_SCHEMA = Schema(
 )
 
 
+# --- Helper Functions ---
+# Utility functions for working with schemas
 def get_schema(table_type: str) -> Schema:
     """
     Get schema by table type name.

@@ -1,16 +1,21 @@
+-- dim_date.sql - Gold layer date dimension for glucose analytics
+-- Creates an incrementally updated date dimension with daily glucose metrics
+-- enabling time-based analysis and trend tracking for diabetes management
+
 {{ config(
     materialized='incremental',
-    unique_key='reading_date',
+   unique_key='reading_date',
     tags=['nightscout', 'curated']
 ) }}
 
-/*
+ /*
 Date dimension for glucose analytics
 
 Provides a daily grain view with key metrics aggregated by day.
 Useful for trend analysis and long-term glucose management tracking.
 */
 
+-- Select statement: Aggregate daily glucose metrics and time dimensions
 select
     reading_date,
     format_datetime(reading_date, 'EEEE') as day_name,

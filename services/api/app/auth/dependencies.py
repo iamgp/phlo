@@ -1,3 +1,6 @@
+# dependencies.py - FastAPI authentication dependencies for JWT-based access control
+# Defines dependency injection functions for user authentication and role-based authorization
+# Provides type-annotated dependencies for route handlers
 
 from typing import Annotated
 
@@ -6,9 +9,13 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.jwt import decode_access_token
 
+# --- Security Scheme ---
+# HTTP Bearer token authentication scheme
 security = HTTPBearer()
 
 
+# --- Authentication Dependencies ---
+# FastAPI dependency functions for user authentication and authorization
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> dict:
@@ -43,5 +50,7 @@ async def get_admin_user(current_user: Annotated[dict, Depends(get_current_user)
     return current_user
 
 
+# --- Type Aliases ---
+# Convenient type aliases for dependency injection in route handlers
 CurrentUser = Annotated[dict, Depends(get_current_user)]
 AdminUser = Annotated[dict, Depends(get_admin_user)]

@@ -1,3 +1,6 @@
+# main.py - Main FastAPI application entry point for the Cascade Lakehouse REST API
+# Configures the web service with authentication, routing, middleware, and monitoring
+# Provides programmatic access to Iceberg tables and Postgres marts
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -9,6 +12,8 @@ from app.config import settings
 from app.middleware.rate_limit import limiter
 from app.routers import auth, glucose, iceberg, metadata, query
 
+# --- Application Configuration ---
+# FastAPI app setup with metadata, middleware, and routing
 # Create FastAPI app
 app = FastAPI(
     title=settings.api_title,
@@ -37,6 +42,8 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+# --- Middleware Setup ---
+# Configure middleware for security, monitoring, and performance
 # Add rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -44,6 +51,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Add Prometheus metrics
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
+# --- Router Registration ---
+# Register API route handlers for different endpoints
 # Include routers
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(glucose.router, prefix=settings.api_prefix)
@@ -52,6 +61,8 @@ app.include_router(query.router, prefix=settings.api_prefix)
 app.include_router(metadata.router, prefix=settings.api_prefix)
 
 
+# --- API Endpoints ---
+# Core API endpoints for service discovery and health checks
 @app.get("/")
 async def root():
     """Root endpoint."""
@@ -69,6 +80,8 @@ async def health():
     return {"status": "healthy"}
 
 
+# --- Exception Handlers ---
+# Global error handling for consistent API responses
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler for better error responses."""

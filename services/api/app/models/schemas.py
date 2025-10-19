@@ -1,10 +1,15 @@
+# schemas.py - Pydantic models for API request/response validation
+# Defines structured data models for all API endpoints
+# ensuring type safety and automatic validation
+
 from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-# Auth Models
+# --- Authentication Models ---
+# Pydantic models for user authentication and JWT tokens
 class LoginRequest(BaseModel):
     """Login request."""
 
@@ -21,7 +26,8 @@ class TokenResponse(BaseModel):
     user: dict[str, Any]
 
 
-# Glucose Models
+# --- Glucose Data Models ---
+# Pydantic models for diabetes glucose readings and analytics
 class GlucoseReading(BaseModel):
     """Individual glucose reading."""
 
@@ -50,7 +56,8 @@ class HourlyPattern(BaseModel):
     readings_count: int | None = None
 
 
-# Iceberg Models
+# --- Iceberg Table Models ---
+# Pydantic models for Iceberg table metadata and queries
 class IcebergTable(BaseModel):
     """Iceberg table metadata."""
 
@@ -59,6 +66,8 @@ class IcebergTable(BaseModel):
     location: str | None = None
 
 
+# --- SQL Query Models ---
+# Pydantic models for SQL query requests and responses
 class QueryRequest(BaseModel):
     """SQL query request."""
 
@@ -76,7 +85,8 @@ class QueryResponse(BaseModel):
     execution_time_ms: float
 
 
-# Metadata Models
+# --- Metadata Models ---
+# Pydantic models for system metadata and monitoring
 class TableFreshness(BaseModel):
     """Table freshness information."""
 

@@ -1,3 +1,6 @@
+# cache.py - In-memory caching utilities for FastAPI application
+# Provides decorator-based caching for expensive operations like database queries
+# and computations to improve API performance and reduce load
 
 import functools
 import hashlib
@@ -7,10 +10,14 @@ from typing import Any, Callable
 
 from app.config import settings
 
+# --- Cache Storage ---
+# Global in-memory cache dictionary storing (value, expiry_time) tuples
 # In-memory cache store
 _cache_store: dict[str, tuple[Any, float]] = {}
 
 
+# --- Cache Key Generation ---
+# Functions for creating deterministic cache keys from function calls
 def _generate_cache_key(func_name: str, args: tuple, kwargs: dict) -> str:
     """Generate a cache key from function name and arguments."""
     # Convert args and kwargs to a stable string representation
@@ -23,6 +30,8 @@ def _generate_cache_key(func_name: str, args: tuple, kwargs: dict) -> str:
     return hashlib.md5(key_string.encode()).hexdigest()
 
 
+# --- Caching Decorator ---
+# Decorator functions for adding caching behavior to async functions
 def cached(ttl: int | None = None):
     """
     Decorator to cache function results in memory.
@@ -59,6 +68,8 @@ def cached(ttl: int | None = None):
     return decorator
 
 
+# --- Cache Management ---
+# Functions for cache inspection and maintenance
 def clear_cache():
     """Clear all cached entries."""
     _cache_store.clear()

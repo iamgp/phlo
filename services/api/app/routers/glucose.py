@@ -1,3 +1,7 @@
+# glucose.py - FastAPI router for glucose analytics endpoints
+# Provides REST API access to diabetes glucose data from PostgreSQL marts
+# with caching, authentication, and query optimization
+
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -9,9 +13,13 @@ from app.connectors.postgres import postgres_connector
 from app.middleware.cache import cached
 from app.models.schemas import DailySummary, HourlyPattern
 
+# --- Router Configuration ---
+# API router for glucose-related endpoints
 router = APIRouter(prefix="/glucose", tags=["Glucose Analytics"])
 
 
+# --- Glucose Analytics Endpoints ---
+# REST API endpoints for diabetes data analysis
 @router.get("/readings", summary="Get glucose readings")
 @cached(ttl=settings.cache_glucose_readings_ttl)
 async def get_glucose_readings(

@@ -1,3 +1,6 @@
+# postgres.py - PostgreSQL database connector for the FastAPI application
+# Provides safe query execution against the marts layer with row limits
+# and connection management for diabetes analytics data access
 
 import time
 from typing import Any
@@ -8,6 +11,8 @@ import psycopg2.extras
 from app.config import settings
 
 
+# --- Database Connector Class ---
+# Handles PostgreSQL connections and query execution with safety limits
 class PostgresConnector:
     """PostgreSQL database connector for marts queries."""
 
@@ -87,5 +92,7 @@ class PostgresConnector:
         return [dict(zip(columns, row)) for row in rows]
 
 
+# --- Global Instance ---
+# Singleton instance for application-wide use
 # Singleton instance
 postgres_connector = PostgresConnector()

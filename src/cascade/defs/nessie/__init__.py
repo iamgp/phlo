@@ -1,3 +1,7 @@
+# __init__.py - Nessie resource and branch management for Git-like data versioning
+# Provides the NessieResource class and aggregates workflow definitions
+# for managing Iceberg catalog branches and tags
+
 """
 Nessie branch management operations for Git-like data versioning.
 
@@ -16,6 +20,8 @@ import requests
 from cascade.config import config
 
 
+# --- Nessie Resource ---
+# Dagster resource for Nessie REST API interactions
 class NessieResource(dg.ConfigurableResource):
     """
     Dagster resource for interacting with Nessie REST API v2.
@@ -111,6 +117,8 @@ class NessieResource(dg.ConfigurableResource):
         return response.json()["hash"]
 
 
+# --- Aggregation Function ---
+# Builds complete Nessie definitions with resource and workflow assets
 def build_defs() -> dg.Definitions:
     """Build Nessie branch management definitions."""
     from cascade.defs.nessie.workflow import build_defs as build_workflow_defs

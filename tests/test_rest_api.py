@@ -1,3 +1,7 @@
+# test_rest_api.py - Automated tests for Cascade REST API endpoints
+# Tests authentication, glucose analytics, Iceberg queries, and error handling
+# ensuring API reliability and security
+
 """
 Automated tests for Cascade REST API.
 
@@ -8,10 +12,14 @@ import requests
 import pytest
 from typing import Dict, Any
 
+# --- Test Configuration ---
+# Base URLs and constants for API testing
 BASE_URL = "http://localhost:8000"
 API_PREFIX = "/api/v1"
 
 
+# --- Authentication Tests ---
+# Test user login and JWT token functionality
 class TestAuthentication:
     """Test authentication endpoints."""
 

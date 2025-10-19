@@ -1,3 +1,7 @@
+# trino_to_postgres.py - Publishing asset to move curated marts from Iceberg to PostgreSQL
+# Implements the final publishing step of the lakehouse pipeline
+# transferring processed analytics data to Postgres for fast BI queries
+
 from __future__ import annotations
 
 import psycopg2
@@ -8,6 +12,8 @@ from cascade.defs.resources.trino import TrinoResource
 from cascade.schemas import PublishPostgresOutput, TablePublishStats
 
 
+# --- Publishing Asset ---
+# Dagster asset that publishes Iceberg marts to PostgreSQL for BI access
 @asset(
     name="publish_glucose_marts_to_postgres",
     group_name="publish",
@@ -17,6 +23,7 @@ from cascade.schemas import PublishPostgresOutput, TablePublishStats
         AssetKey("mrt_glucose_hourly_patterns"),
     ],
 )
+# Publishing function implementation
 def publish_glucose_marts_to_postgres(
     context, trino: TrinoResource
 ) -> PublishPostgresOutput:
@@ -31,8 +38,10 @@ def publish_glucose_marts_to_postgres(
     Source: Iceberg bronze/silver/gold/marts schemas
     Target: Postgres marts schema
     """
+    # Configuration setup
     target_schema = config.postgres_mart_schema
 
+    # --- Table Configuration ---
     # Tables to publish from Iceberg to Postgres
     tables_to_publish = {
         "mrt_glucose_overview": "iceberg.marts.mrt_glucose_overview",
@@ -44,6 +53,7 @@ def publish_glucose_marts_to_postgres(
         target_schema,
     )
 
+    # --- Database Connection ---
     # Connect to Postgres
     pg_conn = psycopg2.connect(
         host=config.postgres_host,

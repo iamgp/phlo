@@ -1,3 +1,7 @@
+# operations.py - Dagster operations for Nessie branch management and versioning
+# Provides reusable ops for Git-like operations on the Iceberg catalog
+# enabling data versioning workflows and branch management
+
 """
 Dagster operations for Nessie branch management.
 
@@ -13,6 +17,8 @@ import dagster as dg
 from cascade.defs.nessie import NessieResource
 
 
+# --- Nessie Operations ---
+# Dagster ops for branch management operations
 @dg.op(
     name="list_branches",
     description="List all branches and tags in Nessie catalog",
@@ -187,6 +193,8 @@ def tag_snapshot(
         raise
 
 
+# --- Aggregation Function ---
+# Builds operation job definitions
 def build_defs() -> dg.Definitions:
     """Build Nessie operations definitions."""
     return dg.Definitions(

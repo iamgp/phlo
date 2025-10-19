@@ -1,3 +1,7 @@
+# analyst_duckdb_demo.py - Example script demonstrating analyst workflow with DuckDB
+# Shows how data analysts can query Iceberg tables directly from laptops
+# using DuckDB, bypassing the need for Docker access to the full platform
+
 #!/usr/bin/env python3
 """
 Analyst DuckDB Demo - Query Iceberg tables from your laptop
@@ -18,6 +22,8 @@ import os
 import sys
 
 
+# --- Main Demonstration Function ---
+# Walks through the complete analyst workflow step by step
 def main():
     """Demonstrate querying Iceberg tables with DuckDB from your laptop."""
 

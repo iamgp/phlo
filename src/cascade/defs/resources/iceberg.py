@@ -1,3 +1,7 @@
+# iceberg.py - Dagster resource for Iceberg table operations with Nessie catalog integration
+# Provides a configurable resource that wraps PyIceberg catalog operations
+# for table management and data appending in the lakehouse pipeline
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -11,6 +15,8 @@ from cascade.config import config
 from cascade.iceberg import append_to_table, ensure_table, get_catalog
 
 
+# --- Resource Classes ---
+# Dagster resources for external service integration
 class IcebergResource(ConfigurableResource):
     """
     Dagster resource wrapping access to the Nessie-backed Iceberg catalog.

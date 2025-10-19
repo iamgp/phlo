@@ -1,3 +1,7 @@
+# dlt_assets.py - Dagster assets for ingesting Nightscout glucose data using DLT (Data Load Tool)
+# Implements the raw data ingestion layer of the lakehouse, fetching from Nightscout API
+# and staging data to S3 parquet files, then registering in Iceberg tables
+
 from __future__ import annotations
 
 import time
@@ -17,6 +21,8 @@ from cascade.defs.resources.iceberg import IcebergResource
 from cascade.iceberg.schema import get_schema
 
 
+# --- Helper Functions ---
+# Utility functions for staging path generation and data processing
 def get_staging_path(partition_date: str, table_name: str) -> str:
     """
     Get S3 staging path for a partition.
@@ -31,6 +37,8 @@ def get_staging_path(partition_date: str, table_name: str) -> str:
     return f"{config.iceberg_staging_path}/{table_name}/{partition_date}"
 
 
+# --- Dagster Assets ---
+# Data ingestion assets that materialize raw data into the lakehouse
 @dg.asset(
     name="entries",
     group_name="ingestion",

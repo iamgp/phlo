@@ -1,8 +1,14 @@
+# asset_outputs.py - Pydantic models for Dagster asset output structures
+# Defines the expected output schemas for various pipeline stages, used for
+# validation and metadata tracking of asset materialization results
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
 
+# --- Asset Output Models ---
+# Pydantic models defining the structure of outputs from different pipeline assets
 class RawDataOutput(BaseModel):
     """Output model for raw data ingestion assets."""
 

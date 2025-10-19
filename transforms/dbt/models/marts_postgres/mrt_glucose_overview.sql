@@ -1,10 +1,14 @@
+-- mrt_glucose_overview.sql - Glucose overview mart for BI dashboards in PostgreSQL
+-- Incrementally materialized mart providing denormalized daily glucose metrics
+-- Optimized for fast dashboard queries and visualization in Superset
+
 {{ config(
     materialized='incremental',
-    unique_key='reading_date',
+   unique_key='reading_date',
     tags=['nightscout', 'mart']
 ) }}
 
-/*
+ /*
 Glucose overview mart for BI dashboards
 
 This mart table is incrementally materialized in Iceberg for fast dashboard queries in
@@ -15,6 +19,7 @@ Target: Iceberg (incrementally updated), then published to PostgreSQL
 Refresh: Every 30 minutes via Dagster schedule, only new data
 */
 
+-- Select statement: Enrich daily glucose data with rolling averages and trend indicators
 select
     reading_date,
     day_name,

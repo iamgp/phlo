@@ -1,8 +1,14 @@
+# failure_monitoring.py - Sensors for pipeline health monitoring and alerting
+# Defines sensors that monitor pipeline failures, successes, and data freshness
+# enabling observability and incident response in the data platform
+
 from __future__ import annotations
 
 import dagster as dg
 
 
+# --- Failure and Status Sensors ---
+# Sensors that monitor pipeline execution and log events for observability
 @dg.run_failure_sensor(
     name="pipeline_failure_alert",
     description="Monitors for pipeline failures and logs alerts for observability integration",
@@ -57,6 +63,7 @@ def pipeline_failure_sensor(context: dg.RunFailureSensorContext):
     # pagerduty_client.create_incident(...)
 
 
+# Success status sensor
 @dg.run_status_sensor(
     name="pipeline_status_logger",
     description="Logs all pipeline status changes for observability tracking",
@@ -90,6 +97,7 @@ def pipeline_success_sensor(context: dg.RunStatusSensorContext):
     )
 
 
+# Data freshness sensor
 @dg.asset_sensor(
     name="iceberg_table_freshness_monitor",
     asset_key=dg.AssetKey(["entries"]),

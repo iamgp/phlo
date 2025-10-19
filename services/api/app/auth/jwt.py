@@ -1,3 +1,6 @@
+# jwt.py - JWT authentication utilities for the FastAPI application
+# Handles password hashing, user authentication, JWT token creation/validation
+# and Hasura GraphQL integration for role-based access control
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -7,9 +10,13 @@ from passlib.context import CryptContext
 
 from app.config import settings
 
+# --- Password Hashing ---
+# CryptContext for secure password hashing using bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+# --- User Database ---
+# Demo user store with hashed passwords (in production, use proper database)
 # Hardcoded users (admin and analyst)
 # Passwords: admin123 and analyst123
 USERS = {
@@ -30,6 +37,8 @@ USERS = {
 }
 
 
+# --- Authentication Functions ---
+# Core functions for password verification and user authentication
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
     return pwd_context.verify(plain_password, hashed_password)
@@ -50,6 +59,8 @@ def authenticate_user(username: str, password: str) -> dict[str, Any] | None:
     return user
 
 
+# --- JWT Token Functions ---
+# Functions for creating and validating JWT access tokens
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()

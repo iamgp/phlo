@@ -1,3 +1,6 @@
+# auth.py - FastAPI router for user authentication and JWT token issuance
+# Handles login requests and returns JWT access tokens for API access
+# with role-based permissions for admin and analyst users
 
 from datetime import timedelta
 
@@ -7,9 +10,13 @@ from app.auth.jwt import authenticate_user, create_access_token
 from app.config import settings
 from app.models.schemas import LoginRequest, TokenResponse
 
+# --- Router Configuration ---
+# Authentication router for login and token management
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+# --- Authentication Endpoints ---
+# User login and token generation endpoints
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest):
     """

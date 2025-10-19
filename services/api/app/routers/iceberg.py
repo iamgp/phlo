@@ -1,3 +1,6 @@
+# iceberg.py - FastAPI router for Iceberg table access via Trino
+# Provides REST endpoints to query and explore Iceberg tables
+# with caching and security controls
 
 from typing import Any
 
@@ -9,9 +12,13 @@ from app.connectors.trino import trino_connector
 from app.middleware.cache import cached
 from app.models.schemas import IcebergTable
 
+# --- Router Configuration ---
+# Iceberg data access router
 router = APIRouter(prefix="/iceberg", tags=["Iceberg Data Access"])
 
 
+# --- Iceberg Data Endpoints ---
+# REST API endpoints for Iceberg table exploration
 @router.get("/tables", response_model=list[IcebergTable], summary="List all Iceberg tables")
 @cached(ttl=settings.cache_iceberg_queries_ttl)
 async def list_tables(

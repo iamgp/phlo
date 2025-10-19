@@ -1,9 +1,14 @@
+# app.py - Flask dashboard hub for the Cascade Lakehouse platform
+# Provides a web interface displaying all services, ports, and credentials
+# in the data platform for easy navigation and monitoring
+
 import os
 
 from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
+# HTML dashboard template embedded as string for simplicity
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">

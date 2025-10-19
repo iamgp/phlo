@@ -1,3 +1,7 @@
+# config.py - Centralized configuration management for the Cascade lakehouse platform
+# This module defines all configurable settings using Pydantic, loaded from environment variables
+# and .env file. It provides computed properties for connection strings and catalog configs.
+
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -6,6 +10,8 @@ from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Settings class: Main configuration class extending Pydantic BaseSettings
+# Loads from .env file and environment variables, provides validation and type safety
 class Settings(BaseSettings):
     """Centralized configuration for cascade using environment variables."""
 
@@ -15,6 +21,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # --- Database Configuration ---
+    # Settings for PostgreSQL database connection and schema configuration
     # Database - Postgres
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
     postgres_port: int = Field(default=5432, description="PostgreSQL port")
@@ -25,6 +33,8 @@ class Settings(BaseSettings):
         default="marts", description="Schema for published mart tables"
     )
 
+    # --- Storage Configuration ---
+    # Settings for MinIO S3-compatible object storage
     # Storage - MinIO
     minio_host: str = Field(default="minio", description="MinIO service hostname")
     minio_root_user: str = Field(default="minio", description="MinIO root username")
@@ -32,17 +42,23 @@ class Settings(BaseSettings):
     minio_api_port: int = Field(default=9000, description="MinIO API port")
     minio_console_port: int = Field(default=9001, description="MinIO console port")
 
+    # --- Catalog Configuration ---
+    # Settings for Nessie Git-like catalog for Iceberg table management
     # Catalog - Nessie
     nessie_version: str = Field(default="0.105.5", description="Nessie version")
     nessie_port: int = Field(default=19120, description="Nessie REST API port")
     nessie_host: str = Field(default="nessie", description="Nessie service hostname")
 
+    # --- Query Engine Configuration ---
+    # Settings for Trino distributed SQL query engine
     # Query Engine - Trino
     trino_version: str = Field(default="477", description="Trino version")
     trino_port: int = Field(default=8080, description="Trino HTTP port")
     trino_host: str = Field(default="trino", description="Trino service hostname")
     trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
 
+    # --- Data Lake Configuration ---
+    # Settings for Iceberg table format and warehouse paths
     # Data Lake - Iceberg
     iceberg_warehouse_path: str = Field(
         default="s3://lake/warehouse", description="S3 path for Iceberg warehouse"
@@ -57,6 +73,8 @@ class Settings(BaseSettings):
         default="main", description="Default Nessie branch/tag for Iceberg operations"
     )
 
+    # --- BI Services Configuration ---
+    # Settings for Apache Superset business intelligence dashboard
     # Services - Superset
     superset_port: int = Field(default=8088, description="Superset web port")
     superset_admin_user: str = Field(default="admin", description="Superset admin username")
@@ -65,6 +83,8 @@ class Settings(BaseSettings):
         default="admin@example.com", description="Superset admin email"
     )
 
+    # --- Computed Paths ---
+    # Dynamically determined paths based on container vs local environment
     # Paths (computed based on environment)
     @computed_field
     @property
@@ -84,6 +104,8 @@ class Settings(BaseSettings):
         else:  # Local development
             return "transforms/dbt/profiles"
 
+            # --- Orchestration Configuration ---
+    # Settings for Dagster data orchestration platform
     # Dagster
     dagster_port: int = Field(default=3000, description="Dagster webserver port")
     cascade_force_in_process_executor: bool = Field(
@@ -93,10 +115,14 @@ class Settings(BaseSettings):
         default=False, description="Force use of multiprocess executor"
     )
 
+    # --- Hub Service Configuration ---
+    # Settings for the Flask-based hub service
     # Hub
     app_port: int = Field(default=54321, description="Hub application port")
     flask_debug: bool = Field(default=False, description="Flask debug mode")
 
+    # --- Computed Properties ---
+    # Additional properties computed from the base settings
     @property
     def minio_endpoint(self) -> str:
         """Return MinIO endpoint in host:port form."""
@@ -122,6 +148,8 @@ class Settings(BaseSettings):
         """
         return f"http://{self.nessie_host}:{self.nessie_port}/iceberg"
 
+        # --- Helper Methods ---
+    # Methods to generate connection strings and catalog configurations
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
         """
         Get the S3 warehouse path for a specific Nessie branch.
@@ -206,6 +234,8 @@ class Settings(BaseSettings):
         )
 
 
+# --- Global Configuration Instance ---
+# Cached configuration instance for application-wide use
 @lru_cache
 def _get_config() -> Settings:
     """

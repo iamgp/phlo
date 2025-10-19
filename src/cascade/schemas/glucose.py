@@ -1,3 +1,7 @@
+# glucose.py - Pandera schemas for validating glucose monitoring data in the data pipeline
+# Defines data quality checks and type validation for processed glucose readings
+# Used by Dagster asset checks to ensure data integrity across transformations
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -5,6 +9,8 @@ from datetime import datetime
 from dagster_pandera import pandera_schema_to_dagster_type
 from pandera.pandas import DataFrameModel, Field
 
+# --- Validation Constants ---
+# Constants used for glucose data validation rules
 # Constants for validation
 MIN_GLUCOSE_MG_DL = 20  # Minimum physiologically possible glucose reading
 MAX_GLUCOSE_MG_DL = 600  # Maximum CGM meter reading
@@ -21,6 +27,8 @@ VALID_DIRECTIONS = [
 ]
 
 
+# --- Pandera Schemas ---
+# DataFrame schemas for validating structured data in the pipeline
 class FactGlucoseReadings(DataFrameModel):
     """
     Schema for the fact_glucose_readings table.
@@ -90,10 +98,14 @@ class FactGlucoseReadings(DataFrameModel):
         coerce = True  # Auto type coercion where possible
 
 
+# --- Dagster Type Conversion ---
+# Caching and conversion utilities for Dagster integration
 # Lazy-load Dagster type to avoid import-time overhead
 _dagster_type_cache = None
 
 
+# --- Helper Functions ---
+# Utility functions for schema integration
 def get_fact_glucose_dagster_type():
     """Get or create the Dagster type from Pandera schema."""
     global _dagster_type_cache

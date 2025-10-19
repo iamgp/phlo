@@ -1,9 +1,13 @@
+-- fct_glucose_readings.sql - Silver layer fact table for enriched glucose readings
+-- Creates a comprehensive fact table with calculated metrics for diabetes analytics
+-- Transforms raw staging data into analysis-ready format with business logic
+
 {{ config(
-    materialized='table',
+   materialized='table',
     tags=['nightscout', 'int']
 ) }}
 
-/*
+ /*
 Enriched glucose data with calculated metrics
 
 This model adds useful calculated fields:
@@ -15,11 +19,14 @@ This model adds useful calculated fields:
 These enrichments enable better analytics and visualization in downstream models.
 */
 
+-- CTE for source data from bronze layer staging
 with glucose_data as (
     select * from {{ ref('stg_entries') }}
 ),
 
+-- CTE for enriched data with calculated fields and business logic
 enriched as (
+    -- Select statement with field mappings and calculated metrics
     select
         entry_id,
         glucose_mg_dl,

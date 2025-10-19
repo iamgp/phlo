@@ -1,9 +1,13 @@
+-- mrt_glucose_hourly_patterns.sql - Mart for hourly glucose pattern analysis in PostgreSQL
+-- Aggregates glucose readings by hour and day of week for time-of-day trend analysis
+-- Enables identification of patterns like dawn phenomenon and post-meal spikes
+
 {{ config(
-    materialized='table',
+   materialized='table',
     tags=['nightscout', 'mart']
 ) }}
 
-/*
+ /*
 Hourly glucose patterns for time-of-day analysis
 
 This mart aggregates glucose readings by hour of day to identify patterns
@@ -13,6 +17,7 @@ Target: PostgreSQL
 Use case: Heatmaps and time-of-day pattern analysis in Superset
 */
 
+-- Select statement: Aggregate glucose metrics by hour and day of week
 select
     hour_of_day,
     day_of_week,

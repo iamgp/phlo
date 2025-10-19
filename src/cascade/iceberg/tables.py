@@ -1,3 +1,7 @@
+# tables.py - Iceberg table management utilities for creating, modifying, and querying tables
+# Provides high-level functions for table operations in the lakehouse, including partitioning
+# and data appending, built on top of PyIceberg and Nessie catalog
+
 """
 Iceberg table management and data operations.
 """
@@ -12,6 +16,8 @@ from pyiceberg.table import Table
 from cascade.iceberg.catalog import create_namespace, get_catalog
 
 
+# --- Table Management Functions ---
+# Core functions for creating and managing Iceberg tables
 def ensure_table(
     table_name: str,
     schema: Schema,
@@ -116,6 +122,8 @@ def ensure_table(
     )
 
 
+# --- Data Operations ---
+# Functions for reading and writing data to/from Iceberg tables
 def append_to_table(
     table_name: str,
     data_path: str | Path,
@@ -153,6 +161,8 @@ def append_to_table(
     table.append(arrow_table)
 
 
+# --- Utility Functions ---
+# Helper functions for inspecting and managing table metadata
 def get_table_schema(table_name: str, ref: str = "main") -> Schema:
     """
     Get the schema of an existing table.

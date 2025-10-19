@@ -1,3 +1,6 @@
+# query.py - FastAPI router for advanced SQL query execution (admin only)
+# Provides secure SQL execution endpoints for both Trino and PostgreSQL
+# with strict security controls and admin-only access
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -6,9 +9,13 @@ from app.connectors.postgres import postgres_connector
 from app.connectors.trino import trino_connector
 from app.models.schemas import QueryRequest, QueryResponse
 
+# --- Router Configuration ---
+# Admin-only query execution router
 router = APIRouter(prefix="/query", tags=["Advanced Queries"])
 
 
+# --- Query Execution Endpoints ---
+# Secure SQL execution with admin access controls
 @router.post("/sql", response_model=QueryResponse, summary="Execute SQL query (admin only)")
 async def execute_sql(
     admin_user: AdminUser,

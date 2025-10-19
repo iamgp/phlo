@@ -1,3 +1,7 @@
+# trino.py - Dagster resource for Trino SQL query execution with Iceberg integration
+# Provides convenient helpers for executing SQL queries against Iceberg tables
+# via Trino, with branch-aware catalog selection for dev/prod isolation
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -9,6 +13,8 @@ from trino.dbapi import Connection, Cursor, connect
 from cascade.config import config
 
 
+# --- Resource Classes ---
+# Dagster resources for query engine integration
 class TrinoResource(ConfigurableResource):
     """
     Dagster resource that exposes convenient helpers for working with Trino.

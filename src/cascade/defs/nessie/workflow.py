@@ -1,3 +1,7 @@
+# workflow.py - Nessie branching workflow assets for Git-like data versioning
+# Defines Dagster assets that manage development and production workflows
+# using Nessie branches for isolated data development and controlled promotion
+
 """
 Nessie branching workflows for data engineering.
 
@@ -14,6 +18,8 @@ from cascade.defs.nessie import NessieResource
 from cascade.defs.nessie.operations import create_branch, list_branches, merge_branch
 
 
+# --- Workflow Assets ---
+# Dagster assets that implement Nessie branching operations
 @dg.asset(
     name="nessie_dev_branch",
     group_name="nessie",
@@ -61,6 +67,7 @@ def nessie_dev_branch(context, nessie: NessieResource) -> dg.MaterializeResult:
         raise
 
 
+# Production promotion asset
 @dg.asset(
     name="promote_dev_to_main",
     group_name="nessie",
@@ -122,6 +129,7 @@ def promote_dev_to_main(context, nessie: NessieResource) -> dg.MaterializeResult
         raise
 
 
+# Branch status reporting asset
 @dg.asset(
     name="nessie_branch_status",
     group_name="nessie",
@@ -182,6 +190,8 @@ def nessie_branch_status(context, nessie: NessieResource) -> dg.MaterializeResul
         )
 
 
+# --- Aggregation Function ---
+# Builds workflow asset definitions
 def build_defs() -> dg.Definitions:
     """Build Nessie workflow definitions."""
     return dg.Definitions(

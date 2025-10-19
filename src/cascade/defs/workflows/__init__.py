@@ -1,3 +1,7 @@
+# __init__.py - Branch-aware workflow orchestration for development and production pipelines
+# Defines jobs and schedules that use Nessie branching for isolated development
+# and controlled production promotion workflows
+
 """
 Branch-aware workflow orchestration for dev/prod isolation.
 
@@ -12,6 +16,8 @@ import dagster as dg
 from cascade.defs.partitions import daily_partition
 
 
+# --- Job Definitions ---
+# Branch-aware jobs for development and production workflows
 DEV_PIPELINE_JOB = dg.define_asset_job(
     name="dev_pipeline",
     description="Development pipeline: runs on dev branch with branch isolation",
@@ -35,6 +41,7 @@ DEV_PIPELINE_JOB = dg.define_asset_job(
     },
 )
 
+# Production promotion job - manual merge and publish
 PROD_PROMOTION_JOB = dg.define_asset_job(
     name="prod_promotion",
     description="Production promotion: merge dev to main and publish marts to postgres",
@@ -50,6 +57,8 @@ PROD_PROMOTION_JOB = dg.define_asset_job(
 )
 
 
+# --- Builder Functions ---
+# Functions for constructing workflow definitions
 def build_schedules() -> list[dg.ScheduleDefinition]:
     """
     Build schedules for automated dev pipeline execution.

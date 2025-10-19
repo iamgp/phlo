@@ -1,3 +1,6 @@
+# trino.py - Trino database connector for Iceberg table queries
+# Enables SQL execution against Iceberg tables via Trino distributed engine
+# with connection management and query safety limits
 
 import time
 from typing import Any
@@ -7,6 +10,8 @@ import trino
 from app.config import settings
 
 
+# --- Query Engine Connector ---
+# Handles Trino connections for distributed SQL queries on Iceberg
 class TrinoConnector:
     """Trino database connector for Iceberg queries."""
 
@@ -84,5 +89,7 @@ class TrinoConnector:
         return [row[0] for row in rows]
 
 
+# --- Global Instance ---
+# Singleton connector instance for application use
 # Singleton instance
 trino_connector = TrinoConnector()

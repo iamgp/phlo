@@ -1,3 +1,7 @@
+# nightscout.py - Quality checks for Nightscout glucose data using Pandera schema validation
+# Implements data quality assurance for the silver layer, ensuring processed glucose readings
+# conform to business rules, data types, and expected ranges
+
 from __future__ import annotations
 
 import pandas as pd
@@ -6,10 +10,12 @@ from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 
 from cascade.defs.resources.trino import TrinoResource
 from cascade.schemas.glucose import (
-    FactGlucoseReadings,
-    get_fact_glucose_dagster_type,
+FactGlucoseReadings,
+get_fact_glucose_dagster_type,
 )
 
+# --- Query Templates ---
+# SQL query templates for data validation
 FACT_QUERY_BASE = """
 SELECT
     entry_id,
@@ -24,6 +30,8 @@ FROM iceberg.silver.fct_glucose_readings
 """
 
 
+# --- Asset Checks ---
+# Dagster asset checks for data quality validation
 @asset_check(
     name="nightscout_glucose_quality",
     asset=AssetKey(["fct_glucose_readings"]),

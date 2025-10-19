@@ -1,3 +1,7 @@
+# definitions.py - Main entry point for Dagster definitions in the Cascade lakehouse platform
+# This module aggregates all Dagster components (assets, jobs, schedules, sensors, resources, checks)
+# from various submodules and configures the executor based on the environment.
+
 from __future__ import annotations
 
 import platform
@@ -17,6 +21,8 @@ from cascade.defs.transform import build_defs as build_transform_defs
 from cascade.defs.workflows import build_defs as build_workflow_defs
 
 
+# Executor selection function: Chooses between in-process and multiprocess executors
+# based on platform and configuration to handle multiprocessing issues on macOS
 def _default_executor() -> dg.ExecutorDefinition | None:
     """
     Choose an executor suited to the current environment.
@@ -40,6 +46,8 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
 
+# Merge definitions function: Combines all Dagster components from submodules
+# into a single Definitions object with the selected executor
 def _merged_definitions() -> dg.Definitions:
     merged = dg.Definitions.merge(
         build_resource_defs(),
@@ -71,4 +79,6 @@ def _merged_definitions() -> dg.Definitions:
     return dg.Definitions(**defs_kwargs)
 
 
+# Global defs object: The main Dagster Definitions instance used by the application
+# This is imported by dagster.workspace.yaml and provides all assets, jobs, etc.
 defs = _merged_definitions()

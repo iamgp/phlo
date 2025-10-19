@@ -1,3 +1,7 @@
+# catalog.py - Iceberg catalog management utilities using Nessie as the REST catalog backend
+# Provides functions to connect to the catalog, list tables, and manage namespaces
+# Handles branch-aware operations for Git-like versioning of data schemas
+
 """
 Iceberg catalog management using Nessie REST catalog.
 """
@@ -9,6 +13,8 @@ from pyiceberg.catalog import load_catalog
 from cascade.config import config
 
 
+# --- Catalog Connection Functions ---
+# Functions for connecting to and interacting with the Iceberg catalog
 @lru_cache
 def get_catalog(ref: str = "main"):
     """
@@ -32,6 +38,8 @@ def get_catalog(ref: str = "main"):
     return load_catalog(name=f"nessie_{ref}", **catalog_config)
 
 
+# --- Table Listing Functions ---
+# Functions for discovering tables and namespaces in the catalog
 def list_tables(namespace: str | None = None, ref: str = "main") -> list[str]:
     """
     List all tables in a namespace or all namespaces.
@@ -59,6 +67,8 @@ def list_tables(namespace: str | None = None, ref: str = "main") -> list[str]:
         return all_tables
 
 
+# --- Namespace Management ---
+# Functions for creating and managing Iceberg namespaces (databases/schemas)
 def create_namespace(namespace: str, ref: str = "main") -> None:
     """
     Create a namespace if it doesn't exist.
