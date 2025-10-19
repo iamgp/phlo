@@ -44,9 +44,12 @@ class NessieResource(dg.ConfigurableResource):
 
     def merge_branch(self, source_branch: str, target_branch: str) -> dict[str, Any]:
         """Merge source branch into target branch."""
+        # Get the hash of the source branch
+        source_hash = self._get_ref_hash(source_branch)
+
         response = requests.post(
             f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}/merge",
-            json={"fromRefName": source_branch},
+            json={"fromRefName": source_branch, "fromHash": source_hash},
             headers={"Content-Type": "application/json"}
         )
         response.raise_for_status()
