@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: dagster_assets
-    database: iceberg
+    database: "{{ target.catalog }}"
     schema: raw
     description: Upstream Dagster assets providing raw data from Iceberg via Nessie catalog
     tables:

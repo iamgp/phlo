@@ -100,7 +100,7 @@ log_info "Ingested $ingestion_count partitions"
 log_info "Verifying raw data..."
 RAW_COUNT=$(docker exec trino trino --catalog iceberg_dev --execute "
     SELECT COUNT(*) FROM iceberg_dev.raw.entries
-" 2>&1 | grep -E "^[0-9]+" | head -1 | tr -d '"' || echo "0")
+" 2>&1 | grep -v "WARNING" | grep -E '^"[0-9]+"$' | head -1 | tr -d '"' || echo "0")
 
 log_info "Raw entries ingested: $RAW_COUNT"
 
@@ -123,19 +123,19 @@ log_info "Verifying transformed data in dev branch..."
 
 BRONZE_COUNT=$(docker exec trino trino --catalog iceberg_dev --execute "
     SELECT COUNT(*) FROM iceberg_dev.bronze.stg_entries
-" 2>&1 | grep -E "^[0-9]+" | head -1 | tr -d '"' || echo "0")
+" 2>&1 | grep -v "WARNING" | grep -E '^"[0-9]+"$' | head -1 | tr -d '"' || echo "0")
 
 SILVER_COUNT=$(docker exec trino trino --catalog iceberg_dev --execute "
     SELECT COUNT(*) FROM iceberg_dev.silver.fct_glucose_readings
-" 2>&1 | grep -E "^[0-9]+" | head -1 | tr -d '"' || echo "0")
+" 2>&1 | grep -v "WARNING" | grep -E '^"[0-9]+"$' | head -1 | tr -d '"' || echo "0")
 
 GOLD_OVERVIEW_COUNT=$(docker exec trino trino --catalog iceberg_dev --execute "
     SELECT COUNT(*) FROM iceberg_dev.gold.mrt_glucose_overview
-" 2>&1 | grep -E "^[0-9]+" | head -1 | tr -d '"' || echo "0")
+" 2>&1 | grep -v "WARNING" | grep -E '^"[0-9]+"$' | head -1 | tr -d '"' || echo "0")
 
 GOLD_HOURLY_COUNT=$(docker exec trino trino --catalog iceberg_dev --execute "
     SELECT COUNT(*) FROM iceberg_dev.gold.mrt_glucose_hourly_patterns
-" 2>&1 | grep -E "^[0-9]+" | head -1 | tr -d '"' || echo "0")
+" 2>&1 | grep -v "WARNING" | grep -E '^"[0-9]+"$' | head -1 | tr -d '"' || echo "0")
 
 log_info "Bronze (stg_entries): $BRONZE_COUNT rows"
 log_info "Silver (fct_glucose_readings): $SILVER_COUNT rows"
