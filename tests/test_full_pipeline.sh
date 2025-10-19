@@ -79,22 +79,14 @@ log_info "Data cleared successfully"
 # Step 2: Run ingestion for last 10 days
 log_section "STEP 2: INGEST DATA (Last 10 Days)"
 
-current_date="$START_DATE"
-ingestion_count=0
+log_info "Ingesting partition range: $START_DATE...$END_DATE"
 
-while [[ "$current_date" < "$END_DATE" ]] || [[ "$current_date" == "$END_DATE" ]]; do
-    log_info "Ingesting partition: $current_date"
+docker compose exec -T dagster-webserver dagster asset materialize \
+    -m "$DAGSTER_MODULE" \
+    --select entries \
+    --partition-range "$START_DATE...$END_DATE" 2>&1 | grep -E "Successfully|Error|FAILURE|entries" || true
 
-    docker compose exec -T dagster-webserver dagster asset materialize \
-        -m "$DAGSTER_MODULE" \
-        --select entries \
-        --partition "$current_date" 2>&1 | grep -E "Successfully|Error|FAILURE" || true
-
-    ingestion_count=$((ingestion_count + 1))
-    current_date=$(date -u -j -v+1d -f "%Y-%m-%d" "$current_date" +%Y-%m-%d)
-done
-
-log_info "Ingested $ingestion_count partitions"
+log_info "Ingestion completed for date range"
 
 # Verify ingestion
 log_info "Verifying raw data..."
