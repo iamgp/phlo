@@ -29,8 +29,7 @@ class TrinoResource(ConfigurableResource):
         Open a Trino DB-API connection using branch-specific catalogs.
 
         Uses 'iceberg_dev' catalog for dev branch, 'iceberg' catalog for main branch.
-        This approach works with Iceberg REST catalog + Nessie by having separate
-        catalog configurations with different prefix settings.
+        Each catalog has iceberg.nessie-catalog.ref set to point to the correct branch.
         """
         # Select catalog based on Nessie reference
         catalog = self.catalog

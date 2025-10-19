@@ -22,7 +22,7 @@ class IcebergResource(ConfigurableResource):
     or overridden per-resource instance.
     """
 
-    ref: str = config.iceberg_nessie_ref
+    ref: str = config.iceberg_nessie_ref  # Default from config (typically "dev" for ingestion)
 
     def get_catalog(self) -> Catalog:
         """Return the configured PyIceberg catalog."""

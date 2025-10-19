@@ -157,9 +157,10 @@ class Settings(BaseSettings):
             # Returns config dict that can be passed to load_catalog(**config)
 
         Note:
-            For Nessie REST catalog, the branch is specified in the URI path
-            as /iceberg/{branch}. This is different from Trino's approach which
-            uses the static rest-catalog.prefix configuration parameter.
+            The Nessie REST catalog uses the branch name in the URI path.
+            When PyIceberg calls http://nessie:19120/iceberg/{ref}/v1/config,
+            Nessie returns a configuration with prefix set to the branch name,
+            and all subsequent API calls use /v1/{prefix}/ endpoints.
         """
         return {
             "type": "rest",
