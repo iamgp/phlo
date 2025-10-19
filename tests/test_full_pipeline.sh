@@ -115,7 +115,7 @@ log_section "STEP 3: RUN DBT TRANSFORMATIONS"
 log_info "Running dbt models (bronze -> silver -> gold)..."
 docker compose exec -T dagster-webserver dagster asset materialize \
     -m "$DAGSTER_MODULE" \
-    --select "stg_entries,fct_glucose_readings,dim_date,mrt_glucose_overview,mrt_glucose_hourly_patterns" \
+    --select "stg_entries,fct_glucose_readings,dim_date,mrt_glucose_readings,mrt_glucose_overview,mrt_glucose_hourly_patterns" \
     2>&1 | grep -E "Successfully|Error|FAILURE" || true
 
 # Verify transformations
