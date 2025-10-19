@@ -113,6 +113,67 @@ class Settings(BaseSettings):
         return f"http://{self.nessie_host}:{self.nessie_port}/api/v1"
 
     @property
+    def nessie_iceberg_rest_uri(self) -> str:
+        """
+        Return Nessie REST catalog URI for Iceberg (without branch).
+
+        The branch/tag is specified via the 'prefix' parameter when configuring
+        the catalog, matching how Trino's iceberg.rest-catalog.prefix works.
+        """
+        return f"http://{self.nessie_host}:{self.nessie_port}/iceberg"
+
+    def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
+        """
+        Get the S3 warehouse path for a specific Nessie branch.
+
+        Args:
+            branch: Nessie branch name (default: main)
+
+        Returns:
+            S3 warehouse path for the branch
+
+        Example:
+            config.get_iceberg_warehouse_for_branch("dev")
+            # Returns: "s3://lake/warehouse"
+
+        Note:
+            Nessie manages branch isolation internally via the prefix parameter.
+            All branches share the same physical warehouse location.
+        """
+        return self.iceberg_warehouse_path
+
+    def get_pyiceberg_catalog_config(self, ref: str = "main") -> dict:
+        """
+        Get PyIceberg catalog configuration for a specific Nessie branch/tag.
+
+        Args:
+            ref: Nessie branch or tag name (default: main)
+
+        Returns:
+            Dictionary of catalog configuration parameters for PyIceberg
+
+        Example:
+            config.get_pyiceberg_catalog_config("dev")
+            # Returns config dict that can be passed to load_catalog(**config)
+
+        Note:
+            For Nessie REST catalog, the branch is specified in the URI path
+            as /iceberg/{branch}. This is different from Trino's approach which
+            uses the static rest-catalog.prefix configuration parameter.
+        """
+        return {
+            "type": "rest",
+            "uri": f"{self.nessie_iceberg_rest_uri}/{ref}",  # Branch in URI path
+            "warehouse": self.iceberg_warehouse_path,  # S3 warehouse location
+            # S3/MinIO configuration
+            "s3.endpoint": f"http://{self.minio_host}:{self.minio_api_port}",
+            "s3.access-key-id": self.minio_root_user,
+            "s3.secret-access-key": self.minio_root_password,
+            "s3.path-style-access": "true",
+            "s3.region": "us-east-1",
+        }
+
+    @property
     def trino_connection_string(self) -> str:
         """Return Trino connection string for SQLAlchemy/dbt."""
         return f"trino://{self.trino_host}:{self.trino_port}/{self.trino_catalog}"

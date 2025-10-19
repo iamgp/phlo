@@ -23,21 +23,13 @@ def get_catalog(ref: str = "main"):
     Example:
         catalog = get_catalog()
         catalog.load_table("raw.nightscout_entries")
+
+        # Use dev branch
+        dev_catalog = get_catalog("dev")
+        dev_catalog.load_table("raw.entries")
     """
-    return load_catalog(
-        name="nessie",
-        **{
-            "type": "rest",
-            "uri": f"http://{config.nessie_host}:{config.nessie_port}/iceberg/{ref}",
-            "warehouse": "warehouse",
-            # S3/MinIO configuration
-            "s3.endpoint": f"http://{config.minio_host}:{config.minio_api_port}",
-            "s3.access-key-id": config.minio_root_user,
-            "s3.secret-access-key": config.minio_root_password,
-            "s3.path-style-access": "true",
-            "s3.region": "us-east-1",
-        },
-    )
+    catalog_config = config.get_pyiceberg_catalog_config(ref=ref)
+    return load_catalog(name=f"nessie_{ref}", **catalog_config)
 
 
 def list_tables(namespace: str | None = None, ref: str = "main") -> list[str]:
