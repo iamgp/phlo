@@ -11,7 +11,7 @@ directly using DuckDB, without needing access to Docker or the pipeline.
 
 Prerequisites:
 1. Install DuckDB: pip install duckdb
-2. Ensure MinIO is accessible (default: localhost:9000)
+2. Ensure MinIO is accessible (default: localhost:10001)
 3. Know your MinIO credentials from .env file
 
 Usage:
@@ -70,7 +70,7 @@ def main():
     print("  Reading credentials from environment...")
 
     minio_host = os.getenv("MINIO_HOST", "localhost")
-    minio_port = os.getenv("MINIO_API_PORT", "9000")
+    minio_port = os.getenv("MINIO_API_PORT", "10001")
     minio_user = os.getenv("MINIO_ROOT_USER", "minio")
     minio_password = os.getenv("MINIO_ROOT_PASSWORD", "minio123")
 
@@ -150,7 +150,7 @@ def main():
   import duckdb
   conn = duckdb.connect()
   conn.execute("INSTALL iceberg; LOAD iceberg")
-  conn.execute("SET s3_endpoint = 'localhost:9000'")
+  conn.execute("SET s3_endpoint = 'localhost:10001'")
   conn.execute("SET s3_use_ssl = false")
   conn.execute("SET s3_url_style = 'path'")
   conn.execute("SET s3_access_key_id = 'minio'")

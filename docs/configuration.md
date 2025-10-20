@@ -13,7 +13,7 @@ Copy `.env.example` to `.env` and configure the following variables:
 POSTGRES_USER=lake
 POSTGRES_PASSWORD=your_secure_password
 POSTGRES_DB=lakehouse
-POSTGRES_PORT=5432
+POSTGRES_PORT=10000
 ```
 
 ### Object Storage (MinIO)
@@ -22,8 +22,8 @@ POSTGRES_PORT=5432
 # MinIO settings
 MINIO_ROOT_USER=minio
 MINIO_ROOT_PASSWORD=your_secure_password
-MINIO_API_PORT=9000
-MINIO_CONSOLE_PORT=9001
+MINIO_API_PORT=10001
+MINIO_CONSOLE_PORT=10002
 ```
 
 ### Data Catalog (Nessie)
@@ -31,7 +31,7 @@ MINIO_CONSOLE_PORT=9001
 ```bash
 # Nessie settings
 NESSIE_VERSION=0.105.5
-NESSIE_PORT=19120
+NESSIE_PORT=10003
 ```
 
 ### Query Engine (Trino)
@@ -39,21 +39,21 @@ NESSIE_PORT=19120
 ```bash
 # Trino settings
 TRINO_VERSION=477
-TRINO_PORT=8080
+TRINO_PORT=10005
 ```
 
 ### Orchestration (Dagster)
 
 ```bash
 # Dagster settings
-DAGSTER_PORT=3000
+DAGSTER_PORT=10006
 ```
 
 ### Business Intelligence (Superset)
 
 ```bash
 # Superset settings
-SUPERSET_PORT=8088
+SUPERSET_PORT=10007
 SUPERSET_ADMIN_USER=admin
 SUPERSET_ADMIN_PASSWORD=your_secure_password
 SUPERSET_ADMIN_EMAIL=admin@example.com
@@ -63,20 +63,20 @@ SUPERSET_ADMIN_EMAIL=admin@example.com
 
 ```bash
 # MkDocs settings
-MKDOCS_PORT=8001
+MKDOCS_PORT=10012
 ```
 
 ### API Layer
 
 ```bash
 # FastAPI settings
-API_PORT=8000
+API_PORT=10010
 JWT_SECRET=your_jwt_secret
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # Hasura GraphQL settings
-HASURA_PORT=8081
+HASURA_PORT=10011
 HASURA_ADMIN_SECRET=your_admin_secret
 ```
 

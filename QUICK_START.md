@@ -90,14 +90,17 @@ docker compose ps
 # Should see all services as "healthy" or "running"
 ```
 
-Access the web interfaces:
+Access the web interfaces using the provided make targets:
 
-- **Hub**: http://localhost:54321 - Service status dashboard
-- **Dagster**: http://localhost:3000 - Orchestration UI
-- **Nessie**: http://localhost:19120/api/v2/config - Catalog API
-- **Trino**: http://localhost:8080 - Query engine (UI)
-- **MinIO Console**: http://localhost:9001 - Object storage (admin/password123)
-- **Superset**: http://localhost:8088 - Dashboards (admin/admin)
+- **Hub**: `make hub` - Service status dashboard (localhost:10009)
+- **Dagster**: `make dagster` - Orchestration UI (localhost:10006)
+- **Documentation**: `make docs` - MkDocs documentation (localhost:10012)
+- **Superset**: `make superset` - BI dashboards (localhost:10007)
+- **MinIO Console**: `make minio` - Object storage (localhost:10002)
+- **API Docs**: `make api` - REST API documentation (localhost:10010/docs)
+- **Grafana**: `make grafana` - Observability dashboards (localhost:10016)
+
+No additional setup required - all services use sequential ports (10000-10017).
 
 ## Step 5: Initialize Nessie Branches
 
@@ -125,7 +128,7 @@ docker exec dagster-webserver dagster asset materialize \
   --select entries
 
 # Check logs in Dagster UI
-open http://localhost:3000
+open http://localhost:10006
 ```
 
 This will:
@@ -173,7 +176,7 @@ This creates:
 
 ### 6.5 View in Superset
 
-1. Open http://localhost:8088
+1. Open http://localhost:10007
 2. Login: `admin` / `admin`
 3. Navigate to **Charts** or **Dashboards**
 4. Create new chart from `marts.mrt_glucose_overview`
@@ -214,7 +217,7 @@ INSTALL iceberg;
 LOAD iceberg;
 INSTALL httpfs;
 LOAD httpfs;
-SET s3_endpoint='localhost:9000';
+SET s3_endpoint='localhost:10001';
 SET s3_use_ssl=false;
 SET s3_access_key_id='minioadmin';
 SET s3_secret_access_key='password123';
@@ -245,7 +248,7 @@ print(df.head())
 
 Cascade includes pre-configured schedules:
 
-1. Open Dagster UI: http://localhost:3000
+1. Open Dagster UI: http://localhost:10006
 2. Navigate to **Automation** → **Schedules**
 3. Enable **"dev_pipeline_schedule"** (runs daily at 02:00)
 4. Enable **"manual_promotion_trigger"** (run manually)
@@ -416,7 +419,7 @@ print(cat.list_namespaces())
 
 ```bash
 # View asset details in Dagster UI
-open http://localhost:3000
+open http://localhost:10006
 
 # Check environment variables
 docker exec dagster-webserver env | grep -E 'NESSIE|TRINO|MINIO'
