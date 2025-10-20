@@ -9,7 +9,10 @@ bypassing Trino for fast ad-hoc analysis.
 import os
 import sys
 
+import pytest
 
+
+@pytest.mark.skip(reason="Requires external services (Nessie, MinIO) to be running")
 def test_duckdb_iceberg():
     """Test DuckDB can query Iceberg tables from MinIO."""
     try:
