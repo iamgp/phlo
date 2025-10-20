@@ -16,6 +16,13 @@ dependencies = [\n\
     "mkdocs>=1.6.0",\n\
     "mkdocs-material>=9.5.0",\n\
     "mkdocstrings[python]>=0.25.0",\n\
+    "mkdocs-mermaid2-plugin>=1.2.0",\n\
+    "pydantic>=2.0",\n\
+    "pydantic-settings>=2.0",\n\
+    "pyiceberg[s3fs,pyarrow]>=0.7.0",\n\
+    "requests",\n\
+    "pyarrow>=21.0.0",\n\
+    "duckdb>=1.4.1",\n\
 ]\n\
 requires-python = ">=3.11"' > pyproject.toml
 
@@ -23,6 +30,10 @@ RUN uv sync
 
 COPY mkdocs.yml /docs/
 COPY docs/ /docs/docs/
+COPY src/ /docs/src/
+
+# Install cascade package for mkdocstrings
+RUN uv pip install -e src
 
 ENV PATH="/docs/.venv/bin:${PATH}"
 
