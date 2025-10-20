@@ -1,9 +1,13 @@
+-- fct_glucose_readings.sql - Silver layer fact table for enriched glucose readings
+-- Creates a comprehensive fact table with calculated metrics for diabetes analytics
+-- Transforms raw staging data into analysis-ready format with business logic
+
 {{ config(
-    materialized='table',
+   materialized='table',
     tags=['nightscout', 'int']
 ) }}
 
-/*
+ /*
 Enriched glucose data with calculated metrics
 
 This model adds useful calculated fields:
@@ -15,11 +19,14 @@ This model adds useful calculated fields:
 These enrichments enable better analytics and visualization in downstream models.
 */
 
+-- CTE for source data from bronze layer staging
 with glucose_data as (
     select * from {{ ref('stg_entries') }}
 ),
 
+-- CTE for enriched data with calculated fields and business logic
 enriched as (
+    -- Select statement with field mappings and calculated metrics
     select
         entry_id,
         glucose_mg_dl,
@@ -32,8 +39,8 @@ enriched as (
         -- Time-based dimensions for analysis
         date_trunc('day', reading_timestamp) as reading_date,
         extract(hour from reading_timestamp) as hour_of_day,
-        extract(dow from reading_timestamp) as day_of_week,
-        dayname(reading_timestamp) as day_name,
+        day_of_week(reading_timestamp) as day_of_week,
+        format_datetime(reading_timestamp, 'EEEE') as day_name,
 
         -- Blood sugar categories (based on ADA guidelines)
         case
@@ -56,12 +63,13 @@ enriched as (
         ) as glucose_change_mg_dl,
 
         -- Minutes since previous reading
-        extract(epoch from (
-            reading_timestamp - lag(reading_timestamp) over (
+        date_diff('minute',
+            lag(reading_timestamp) over (
                 partition by device
                 order by reading_timestamp
-            )
-        )) / 60 as minutes_since_last_reading
+            ),
+            reading_timestamp
+        ) as minutes_since_last_reading
 
     from glucose_data
 )

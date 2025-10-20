@@ -1,4 +1,9 @@
+# docker-compose.yml - Multi-service Docker Compose configuration for Cascade lakehouse platform
+# Defines all services: databases, query engines, orchestration, BI, monitoring
+# Provides complete development and production environment setup
+
 services:
+  # --- Database Services ---
   postgres:
     build:
       context: ./docker
@@ -18,6 +23,7 @@ services:
       timeout: 5s
       retries: 10
 
+  # MinIO object storage service
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: minio
@@ -52,12 +58,86 @@ services:
       sleep 10 &&
       ./mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
       ./mc mb --ignore-existing myminio/lake &&
-      echo 'Bucket lake created successfully'
+      ./mc mb --ignore-existing myminio/lake/warehouse &&
+      ./mc mb --ignore-existing myminio/lake/stage &&
+      echo 'Buckets created successfully'
       "
     depends_on:
       minio:
         condition: service_healthy
     restart: "no"
+
+  nessie:
+    image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION}
+    container_name: nessie
+    restart: unless-stopped
+    environment:
+      NESSIE_VERSION_STORE_TYPE: JDBC
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Iceberg REST catalog configuration
+      nessie.catalog.default-warehouse: warehouse
+      nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse
+      nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/
+      nessie.catalog.service.s3.default-options.path-style-access: "true"
+      nessie.catalog.service.s3.default-options.region: us-east-1
+      nessie.catalog.service.s3.default-options.access-key: urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
+      nessie.catalog.secrets.access-key.name: ${MINIO_ROOT_USER}
+      nessie.catalog.secrets.access-key.secret: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${NESSIE_PORT}:19120"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19120/api/v1/config"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nessie-setup:
+    image: curlimages/curl:latest
+    container_name: nessie-setup
+    command: >
+      sh -c "
+      sleep 5 &&
+      echo 'Creating Nessie branches...' &&
+      curl -X POST http://nessie:19120/api/v1/trees/branch/dev -H 'Content-Type: application/json' -d '{\"name\":\"dev\",\"hash\":null}' || echo 'dev branch may already exist' &&
+      echo 'Nessie setup complete'
+      "
+    depends_on:
+      nessie:
+        condition: service_healthy
+    restart: "no"
+
+  trino:
+    image: trinodb/trino:${TRINO_VERSION}
+    container_name: trino
+    restart: unless-stopped
+    ports:
+      - "${TRINO_PORT}:8080"
+    volumes:
+      - ./docker/trino/catalog:/etc/trino/catalog
+    environment:
+      # S3/MinIO credentials for Iceberg
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_REGION: us-east-1
+      S3_ENDPOINT: http://minio:9000
+      S3_PATH_STYLE_ACCESS: "true"
+    depends_on:
+      nessie:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   dagster-webserver:
     build:
@@ -75,13 +155,20 @@ services:
       AWS_S3_ENDPOINT: http://minio:9000
       AWS_S3_USE_SSL: "false"
       AWS_S3_URL_STYLE: "path"
-      # DuckLake configuration
-      DUCKLAKE_CATALOG_ALIAS: ${DUCKLAKE_CATALOG_ALIAS}
-      DUCKLAKE_CATALOG_DATABASE: ${DUCKLAKE_CATALOG_DATABASE}
-      DUCKLAKE_DATA_PATH: ${DUCKLAKE_DATA_PATH:-s3://lake/ducklake}
-      DUCKLAKE_DEFAULT_DATASET: ${DUCKLAKE_DEFAULT_DATASET:-raw}
-      DUCKLAKE_REGION: ${DUCKLAKE_REGION:-eu-west-1}
-      DUCKLAKE_USE_SSL: ${DUCKLAKE_USE_SSL:-false}
+      # Nessie configuration
+      NESSIE_VERSION: ${NESSIE_VERSION}
+      NESSIE_PORT: ${NESSIE_PORT}
+      NESSIE_HOST: nessie
+      # Trino configuration
+      TRINO_VERSION: ${TRINO_VERSION}
+      TRINO_PORT: ${TRINO_PORT}
+      TRINO_HOST: trino
+      TRINO_CATALOG: iceberg
+      # Iceberg configuration
+      ICEBERG_WAREHOUSE_PATH: ${ICEBERG_WAREHOUSE_PATH}
+      ICEBERG_STAGING_PATH: ${ICEBERG_STAGING_PATH}
+      ICEBERG_DEFAULT_NAMESPACE: raw
+      ICEBERG_NESSIE_REF: ${ICEBERG_NESSIE_REF:-dev}
       # MinIO/Postgres for dbt
       MINIO_HOST: ${MINIO_HOST}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -91,6 +178,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     command:
       [
@@ -132,13 +220,20 @@ services:
       AWS_S3_ENDPOINT: http://minio:9000
       AWS_S3_USE_SSL: "false"
       AWS_S3_URL_STYLE: "path"
-      # DuckLake configuration
-      DUCKLAKE_CATALOG_ALIAS: ${DUCKLAKE_CATALOG_ALIAS}
-      DUCKLAKE_CATALOG_DATABASE: ${DUCKLAKE_CATALOG_DATABASE}
-      DUCKLAKE_DATA_PATH: ${DUCKLAKE_DATA_PATH:-s3://lake/ducklake}
-      DUCKLAKE_DEFAULT_DATASET: ${DUCKLAKE_DEFAULT_DATASET:-raw}
-      DUCKLAKE_REGION: ${DUCKLAKE_REGION:-eu-west-1}
-      DUCKLAKE_USE_SSL: ${DUCKLAKE_USE_SSL:-false}
+      # Nessie configuration
+      NESSIE_VERSION: ${NESSIE_VERSION}
+      NESSIE_PORT: ${NESSIE_PORT}
+      NESSIE_HOST: nessie
+      # Trino configuration
+      TRINO_VERSION: ${TRINO_VERSION}
+      TRINO_PORT: ${TRINO_PORT}
+      TRINO_HOST: trino
+      TRINO_CATALOG: iceberg
+      # Iceberg configuration
+      ICEBERG_WAREHOUSE_PATH: ${ICEBERG_WAREHOUSE_PATH}
+      ICEBERG_STAGING_PATH: ${ICEBERG_STAGING_PATH}
+      ICEBERG_DEFAULT_NAMESPACE: raw
+      ICEBERG_NESSIE_REF: ${ICEBERG_NESSIE_REF:-dev}
       # MinIO/Postgres for dbt
       MINIO_HOST: ${MINIO_HOST}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -148,6 +243,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
@@ -224,3 +320,184 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # Observability Stack
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
+    container_name: prometheus
+    restart: unless-stopped
+    profiles: ["observability", "all"]
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=30d'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus:/etc/prometheus
+      - ./volumes/prometheus:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  loki:
+    image: grafana/loki:${LOKI_VERSION:-3.2.1}
+    container_name: loki
+    restart: unless-stopped
+    profiles: ["observability", "all"]
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./docker/loki:/etc/loki
+      - ./volumes/loki:/loki
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  alloy:
+    image: grafana/alloy:${ALLOY_VERSION:-v1.5.1}
+    container_name: alloy
+    restart: unless-stopped
+    profiles: ["observability", "all"]
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "${ALLOY_PORT:-12345}:12345"
+    volumes:
+      - ./docker/alloy:/etc/alloy
+      - ./volumes/alloy:/var/lib/alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      HOSTNAME: alloy
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:12345/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-11.3.1}
+    container_name: grafana
+    restart: unless-stopped
+    profiles: ["observability", "all"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_INSTALL_PLUGINS: ""
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./volumes/grafana:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:${POSTGRES_EXPORTER_VERSION:-v0.16.0}
+    container_name: postgres-exporter
+    restart: unless-stopped
+    profiles: ["observability", "all"]
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9187/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Layer
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    container_name: cascade-api
+    restart: unless-stopped
+    profiles: ["api", "all"]
+    environment:
+      # API Configuration
+      JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      # Hasura shared JWT secret
+      HASURA_GRAPHQL_JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      # Trino connection
+      TRINO_HOST: ${TRINO_HOST:-trino}
+      TRINO_PORT: ${TRINO_PORT:-8080}
+      TRINO_CATALOG: ${TRINO_CATALOG:-iceberg}
+      TRINO_USER: ${TRINO_USER:-cascade}
+      # Postgres connection
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-lakehouse}
+      POSTGRES_USER: ${POSTGRES_USER:-lake}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lakepass}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      trino:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hasura:
+    image: hasura/graphql-engine:${HASURA_VERSION:-v2.45.0}
+    container_name: hasura
+    restart: unless-stopped
+    profiles: ["api", "all"]
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      # JWT Authentication (shared with FastAPI)
+      HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256","key":"${JWT_SECRET:-cascade-jwt-secret-change-in-production}"}'
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-cascade-admin-secret-change-me}
+      # CORS
+      HASURA_GRAPHQL_CORS_DOMAIN: "*"
+    ports:
+      - "${HASURA_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

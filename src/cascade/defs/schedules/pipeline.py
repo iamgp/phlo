@@ -1,3 +1,7 @@
+# pipeline.py - Pipeline orchestration definitions for the Nightscout data processing workflow
+# Defines asset jobs, sensors, and schedules that coordinate the ingestion and transformation
+# pipeline, enabling automated data flow from raw to processed analytics
+
 from __future__ import annotations
 
 import dagster as dg
@@ -5,26 +9,30 @@ from dagster import AssetKey, RunRequest, SensorEvaluationContext, asset_sensor
 
 from cascade.defs.partitions import daily_partition
 
+# --- Job Definitions ---
+# Asset jobs that orchestrate different stages of the pipeline
 # Define jobs once so schedules and other consumers share the same definitions.
 INGEST_JOB = dg.define_asset_job(
     name="ingest_raw_data",
-    selection=dg.AssetSelection.groups("raw_ingestion"),
+    selection=dg.AssetSelection.groups("ingestion"),
     partitions_def=daily_partition,
 )
 
+# Transform job for dbt models across all layers
 TRANSFORM_JOB = dg.define_asset_job(
     name="transform_dbt_models",
     selection=dg.AssetSelection.groups(
-        "staging",
-        "intermediate",
-        "curated",
-        "marts",
+        "bronze",
+        "silver",
+        "gold",
         "publish",
     ),
     partitions_def=daily_partition,
 )
 
 
+# --- Builder Functions ---
+# Functions that construct and return Dagster definitions
 def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
     """Expose asset-driven jobs for manual and sensor-triggered execution."""
     return [INGEST_JOB, TRANSFORM_JOB]
@@ -32,9 +40,9 @@ def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
 
 def build_sensors() -> list[dg.SensorDefinition]:
     """
-    Trigger downstream transformations whenever fresh Nightscout data lands in the raw layer.
+    Trigger downstream transformations whenever fresh Nightscout data lands in Iceberg raw layer.
 
-    We monitor the partitioned Airbyte asset and fan out matching partition keys to the dbt job
+    We monitor the partitioned entries asset and fan out matching partition keys to the dbt job
     so every ingestion run immediately promotes the corresponding day through the warehouse.
     """
 

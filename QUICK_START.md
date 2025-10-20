@@ -1,242 +1,463 @@
-# Quick Start - Post-Fix Verification
+# Quick Start Guide
 
-## Immediate Actions
+This guide will get you up and running with Cascade in under 10 minutes.
 
-### 1. Restart Services
+## Prerequisites
+
+- **Docker Desktop** (or Docker Engine + Docker Compose)
+  - Minimum 8GB RAM allocated to Docker
+  - 20GB free disk space
+- **`uv`** (for Python development): `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Git** (to clone the repository)
+
+## Step 1: Clone and Configure
+
 ```bash
-docker compose down
-docker compose up -d postgres minio dagster-webserver dagster-daemon
+# Clone the repository
+git clone https://github.com/your-username/cascade.git
+cd cascade
+
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your configuration
+# At minimum, set passwords for security:
+# - POSTGRES_PASSWORD
+# - MINIO_ROOT_PASSWORD
+nano .env  # or use your preferred editor
 ```
 
-### 2. Wait for Services to be Healthy
-```bash
-# Wait 30 seconds for services to start
-sleep 30
+## Step 2: Install Python Dependencies (Optional)
 
-# Check health
-docker ps --filter "name=pg|minio|dagster" --format "table {{.Names}}\t{{.Status}}"
+This step is only needed for local development outside Docker.
+
+```bash
+# Install main package
+cd services/dagster
+uv pip install -e .
+cd ../..
+
+# Verify installation
+uv run python -c "from cascade import config; print('Installation successful!')"
 ```
 
-### 3. Run Health Check
+## Step 3: Start Services
+
+Cascade uses Docker Compose profiles to start services in groups.
+
+### Option A: Start All Services (Recommended for First Run)
+
 ```bash
-python scripts/check_ducklake_health.py
+make up-all
 ```
 
-Expected output: All ✓ marks, no ✗ marks
+This starts:
+- **Core**: PostgreSQL, MinIO, Dagster, Hub
+- **Query**: Trino, Nessie
+- **BI**: Superset, pgweb
 
-## Testing the Fixes
+### Option B: Start Service Groups Individually
 
-### Test 1: Single DLT Partition (Basic Test)
 ```bash
-# Materialize a single partition
-docker exec -it dagster-web dagster asset materialize --select entries --partition 2024-01-15
+# Core services (required)
+make up-core
 
-# Check logs - should complete in < 60s without hanging
-# Expected: "Loaded X rows for partition 2024-01-15"
+# Query services (Trino + Nessie)
+make up-query
+
+# BI services (optional)
+make up-bi
 ```
 
-### Test 2: Concurrent DLT Partitions (Stress Test)
+### Option C: Use Docker Compose Directly
+
 ```bash
-# Try 3 concurrent partitions - this should NOT hang anymore
-docker exec -it dagster-web sh -c "
-dagster asset materialize --select entries --partition 2024-01-13 &
-dagster asset materialize --select entries --partition 2024-01-14 &
-dagster asset materialize --select entries --partition 2024-01-15 &
-wait
+# Start all services
+docker compose --profile all up -d
+
+# Or start specific profiles
+docker compose --profile core --profile query up -d
+```
+
+## Step 4: Verify Services
+
+Wait about 30 seconds for all services to start, then check:
+
+```bash
+# Check service health
+docker compose ps
+
+# Should see all services as "healthy" or "running"
+```
+
+Access the web interfaces:
+
+- **Hub**: http://localhost:54321 - Service status dashboard
+- **Dagster**: http://localhost:3000 - Orchestration UI
+- **Nessie**: http://localhost:19120/api/v2/config - Catalog API
+- **Trino**: http://localhost:8080 - Query engine (UI)
+- **MinIO Console**: http://localhost:9001 - Object storage (admin/password123)
+- **Superset**: http://localhost:8088 - Dashboards (admin/admin)
+
+## Step 5: Initialize Nessie Branches
+
+Nessie branches are automatically created on first startup. Verify:
+
+```bash
+# Check branches
+docker exec dagster-webserver python -c "
+from cascade.defs.resources.nessie import NessieClient
+nessie = NessieClient()
+branches = nessie.list_branches()
+print('Branches:', [b.name for b in branches])
 "
 
-# All three should complete successfully
+# Should output: Branches: ['main', 'dev']
 ```
 
-### Test 3: dbt Model Creation (Schema Location Test)
+## Step 6: Run Your First Pipeline
+
+### 6.1 Ingest Raw Data
+
 ```bash
-# Run dbt to create bronze layer
-docker exec -it dagster-web dbt run \
+# Materialize the Nightscout entries asset
+docker exec dagster-webserver dagster asset materialize \
+  --select entries
+
+# Check logs in Dagster UI
+open http://localhost:3000
+```
+
+This will:
+1. Fetch data from Nightscout API
+2. Stage as Parquet files in MinIO
+3. Register Iceberg table via PyIceberg
+4. Append data to `iceberg.raw.entries`
+
+### 6.2 Run dbt Transformations
+
+```bash
+# Run all dbt models (bronze → silver → gold)
+docker exec dagster-webserver dagster asset materialize \
+  --select "dbt:*"
+```
+
+This will:
+1. Create `bronze.stg_entries` (staging layer)
+2. Create `silver.fct_glucose_readings` (fact table)
+3. Create `gold.dim_date` (dimension table)
+
+All tables are Iceberg tables on the `dev` branch by default.
+
+### 6.3 Promote to Main (Production)
+
+```bash
+# Merge dev branch to main
+docker exec dagster-webserver dagster asset materialize \
+  --select promote_dev_to_main
+```
+
+This atomically promotes all validated data from `dev` to `main`.
+
+### 6.4 Publish to PostgreSQL Marts
+
+```bash
+# Publish curated marts to Postgres for BI
+docker exec dagster-webserver dagster asset materialize \
+  --select "postgres_*"
+```
+
+This creates:
+- `marts.mrt_glucose_overview` (7-day summary)
+- `marts.mrt_glucose_hourly_patterns` (hourly patterns)
+
+### 6.5 View in Superset
+
+1. Open http://localhost:8088
+2. Login: `admin` / `admin`
+3. Navigate to **Charts** or **Dashboards**
+4. Create new chart from `marts.mrt_glucose_overview`
+
+## Step 7: Query Your Data
+
+### Query via Trino CLI
+
+```bash
+# Connect to Trino
+docker exec -it trino trino
+
+# List catalogs
+SHOW CATALOGS;
+
+# List schemas
+SHOW SCHEMAS FROM iceberg;
+
+# Query raw data
+SELECT * FROM iceberg.raw.entries LIMIT 10;
+
+# Query transformed data
+SELECT * FROM iceberg.silver.fct_glucose_readings LIMIT 10;
+```
+
+### Query via DuckDB (Ad-hoc Analysis)
+
+See [docs/duckdb-iceberg-queries.md](./docs/duckdb-iceberg-queries.md) for detailed instructions.
+
+```bash
+# Install DuckDB CLI
+brew install duckdb  # macOS
+# or download from https://duckdb.org/
+
+# Query Iceberg table
+duckdb -c "
+INSTALL iceberg;
+LOAD iceberg;
+INSTALL httpfs;
+LOAD httpfs;
+SET s3_endpoint='localhost:9000';
+SET s3_use_ssl=false;
+SET s3_access_key_id='minioadmin';
+SET s3_secret_access_key='password123';
+SELECT * FROM iceberg_scan('s3://lake/warehouse/raw/entries/metadata/v1.metadata.json') LIMIT 10;
+"
+```
+
+### Query via Python
+
+```python
+from cascade.iceberg.catalog import get_catalog
+
+# Get catalog
+cat = get_catalog(ref='main')
+
+# List tables
+print(cat.list_tables('raw'))
+
+# Load table
+table = cat.load_table('raw.entries')
+
+# Scan to DataFrame
+df = table.scan().to_pandas()
+print(df.head())
+```
+
+## Step 8: Schedule Automated Runs
+
+Cascade includes pre-configured schedules:
+
+1. Open Dagster UI: http://localhost:3000
+2. Navigate to **Automation** → **Schedules**
+3. Enable **"dev_pipeline_schedule"** (runs daily at 02:00)
+4. Enable **"manual_promotion_trigger"** (run manually)
+
+Or use the CLI:
+
+```bash
+# Enable schedule
+docker exec dagster-webserver dagster schedule start dev_pipeline_schedule
+
+# Trigger manual run
+docker exec dagster-webserver dagster schedule trigger dev_pipeline_schedule
+```
+
+## Common Tasks
+
+### View Logs
+
+```bash
+# Dagster daemon (runs assets)
+docker logs -f dagster-daemon
+
+# Dagster webserver (UI)
+docker logs -f dagster-webserver
+
+# Trino (queries)
+docker logs -f trino
+
+# Nessie (catalog operations)
+docker logs -f nessie
+```
+
+### Restart Services
+
+```bash
+# Restart single service
+docker compose restart dagster-webserver
+
+# Restart all services
+docker compose restart
+
+# Restart with fresh state (destroys data)
+make clean-all
+make fresh-start
+```
+
+### Access MinIO Files
+
+```bash
+# List buckets
+docker exec minio mc ls local/
+
+# List warehouse
+docker exec minio mc ls local/lake/warehouse/ --recursive
+
+# Download metadata file
+docker exec minio mc cp local/lake/warehouse/raw/entries/metadata/v1.metadata.json /tmp/
+```
+
+### Run dbt Manually
+
+```bash
+# Run specific model
+docker exec dagster-webserver dbt run \
   --project-dir /dbt \
   --profiles-dir /dbt/profiles \
   --select stg_entries \
-  --target ducklake
+  --target dev
 
-# Check the logs for THIS EXACT LINE:
-# Should see: "OK created sql view model ducklake.bronze.stg_entries"
-# NOT: "OK created sql view model memory.raw_bronze.stg_entries"
+# Run tests
+docker exec dagster-webserver dbt test \
+  --project-dir /dbt \
+  --profiles-dir /dbt/profiles \
+  --target dev
+
+# Debug connection
+docker exec dagster-webserver dbt debug \
+  --project-dir /dbt \
+  --profiles-dir /dbt/profiles
 ```
 
-### Test 4: Verify Data Location
+### Inspect PostgreSQL
+
 ```bash
-# Query DuckLake directly to confirm data location
-docker exec -it dagster-web python3 <<'PYTHON'
-import duckdb
-from cascade.ducklake import build_ducklake_runtime_config, configure_ducklake_connection
+# Connect to Postgres
+docker exec -it postgres psql -U lake -d lakehouse
 
-conn = duckdb.connect(":memory:")
-runtime = build_ducklake_runtime_config()
-configure_ducklake_connection(conn, runtime, read_only=True)
+# List schemas
+\dn
 
-# Check what schemas exist
-print("\nSchemas in catalog:")
-schemas = conn.execute(f"SELECT schema_name FROM {runtime.catalog_alias}.information_schema.schemata").fetchall()
-for (s,) in schemas:
-    print(f"  - {s}")
+# List tables in marts
+\dt marts.*
 
-# Check tables in each layer
-for schema in ['raw', 'bronze', 'silver', 'gold']:
-    try:
-        tables = conn.execute(f"SELECT table_name FROM {runtime.catalog_alias}.information_schema.tables WHERE table_schema = '{schema}'").fetchall()
-        print(f"\n{schema} tables:")
-        for (t,) in tables:
-            print(f"  - {t}")
-    except:
-        print(f"\n{schema}: No tables yet")
-
-# Check row counts
-try:
-    raw_count = conn.execute(f"SELECT count(*) FROM {runtime.catalog_alias}.raw.entries").fetchone()[0]
-    print(f"\nRaw entries: {raw_count:,} rows")
-except Exception as e:
-    print(f"\nRaw entries: ERROR - {e}")
-
-try:
-    bronze_count = conn.execute(f"SELECT count(*) FROM {runtime.catalog_alias}.bronze.stg_entries").fetchone()[0]
-    print(f"Bronze entries: {bronze_count:,} rows")
-except Exception as e:
-    print(f"Bronze entries: ERROR - {e}")
-
-conn.close()
-PYTHON
+# Query marts
+SELECT * FROM marts.mrt_glucose_overview LIMIT 10;
 ```
 
-## Success Indicators
+## Troubleshooting
 
-After running all tests above, you should see:
+### Services Won't Start
 
-1. Health check: All ✓ marks
-2. Single partition: Completes in < 60 seconds
-3. Concurrent partitions: All complete without timeouts
-4. dbt logs show: `ducklake.bronze.stg_entries` (not `memory.raw_bronze`)
-5. Data verification: Row counts > 0 in both raw and bronze
-
-## If Tests Fail
-
-### DLT Still Hangs
+**Check Docker resources:**
 ```bash
-# Check Postgres for locks
-docker exec -it pg psql -U lake -d ducklake_catalog -c "
-SELECT
-    pid,
-    state,
-    wait_event_type,
-    wait_event,
-    now() - query_start as duration,
-    substring(query, 1, 50) as query_start
-FROM pg_stat_activity
-WHERE datname = 'ducklake_catalog'
-    AND state != 'idle'
-ORDER BY duration DESC;
+docker stats
+
+# If memory usage is high, increase Docker memory limit
+# Docker Desktop → Settings → Resources → Memory → 8GB+
+```
+
+**Check ports:**
+```bash
+# Ensure no conflicts with ports 3000, 8080, 8088, 9000, 9001, 19120
+lsof -i :3000
+lsof -i :8080
+```
+
+### Nessie API Not Responding
+
+```bash
+# Check Nessie logs
+docker logs nessie
+
+# Test API
+curl http://localhost:19120/api/v2/config
+
+# If 404, wait 30 seconds for Nessie to start
+# If still failing, restart Nessie
+docker compose restart nessie
+```
+
+### Trino Can't Connect to Nessie
+
+```bash
+# Check Trino catalog config
+docker exec trino cat /etc/trino/catalog/iceberg.properties
+
+# Should include:
+# iceberg.rest-catalog.uri=http://nessie:19120/iceberg
+
+# Test from Trino container
+docker exec trino curl http://nessie:19120/iceberg/v1/config
+```
+
+### PyIceberg Can't Write Tables
+
+```bash
+# Check MinIO access
+docker exec dagster-webserver python -c "
+import boto3
+s3 = boto3.client(
+    's3',
+    endpoint_url='http://minio:9000',
+    aws_access_key_id='minioadmin',
+    aws_secret_access_key='password123'
+)
+print(s3.list_buckets())
 "
 
-# If you see long-running queries, kill them:
-# docker exec -it pg psql -U lake -d ducklake_catalog -c "SELECT pg_terminate_backend(<pid>);"
+# Check Nessie connection
+docker exec dagster-webserver python -c "
+from cascade.iceberg.catalog import get_catalog
+cat = get_catalog()
+print(cat.list_namespaces())
+"
 ```
 
-### dbt Models in Wrong Place
-```bash
-# Check dbt is using correct target
-docker exec -it dagster-web dbt debug --project-dir /dbt --profiles-dir /dbt/profiles
-
-# Should show:
-# - Connection test: OK
-# - Database: :memory: (this is normal)
-# - Schema: main (NOT raw)
-```
-
-### No Data in Tables
-```bash
-# Check MinIO bucket exists
-docker exec -it minio mc ls local/lake/
-
-# Check Postgres catalog initialized
-docker exec -it pg psql -U lake -d ducklake_catalog -c "\dt ducklake_*" | head -20
-
-# If catalog empty, DuckLake hasn't been initialized
-# Run a simple write to initialize:
-docker exec -it dagster-web python3 <<'PYTHON'
-import duckdb
-from cascade.ducklake import build_ducklake_runtime_config, configure_ducklake_connection
-
-conn = duckdb.connect(":memory:")
-runtime = build_ducklake_runtime_config()
-configure_ducklake_connection(conn, runtime, read_only=False)
-
-# Create a test table to initialize catalog
-conn.execute(f"CREATE TABLE IF NOT EXISTS {runtime.catalog_alias}.raw.test (id INTEGER)")
-conn.execute(f"INSERT INTO {runtime.catalog_alias}.raw.test VALUES (1)")
-print("Catalog initialized")
-conn.close()
-PYTHON
-```
-
-## Detailed Logs
-
-If you need more diagnostics:
+### Dagster Assets Failing
 
 ```bash
-# Dagster logs
-docker logs dagster-daemon --tail=100
+# View asset details in Dagster UI
+open http://localhost:3000
 
-# dbt logs
-docker exec -it dagster-web tail -50 /dbt/logs/dbt.log
+# Check environment variables
+docker exec dagster-webserver env | grep -E 'NESSIE|TRINO|MINIO'
 
-# Postgres logs
-docker logs pg --tail=50
+# Verify configuration
+docker exec dagster-webserver python -c "
+from cascade.config import config
+print(config.model_dump_json(indent=2))
+"
 ```
 
-## Integration Test Run
-
-For comprehensive verification:
+### Fresh Start (Nuclear Option)
 
 ```bash
-# Install pytest in container (if not already)
-docker exec -it dagster-web pip install pytest pytest-xdist
+# WARNING: This destroys all data, containers, and volumes
+make clean-all
 
-# Run integration tests
-docker exec -it dagster-web pytest \
-  /opt/dagster/cascade/../tests/test_ducklake_integration.py \
-  -v -s --tb=short
+# Start fresh
+make fresh-start
 
-# Expected: Most tests pass (some may fail if data not populated yet)
+# Or manually:
+docker compose down -v
+docker system prune -af --volumes
+make up-all
 ```
 
-## Quick Reference: Fixed Files
+## Next Steps
 
-Configuration changes:
-- `src/cascade/config.py:40` - catalog_alias default
-- `transforms/dbt/profiles/profiles.yml:7` - schema changed to "main"
-- `transforms/dbt/dbt_project.yml:17` - added +database: ducklake
-- `transforms/dbt/macros/ducklake_setup.sql:100,105` - ATTACH params + SET schema
+Now that you have Cascade running:
 
-Code changes:
-- `src/cascade/dlt/ducklake_destination.py:3,125-130` - retry settings
-- `src/cascade/defs/ingestion/dlt_assets.py:42-67` - cleanup enhancement
+1. **Read the Architecture Guide**: [ARCHITECTURE.md](./ARCHITECTURE.md)
+2. **Learn Nessie Workflows**: [NESSIE_WORKFLOW.md](./NESSIE_WORKFLOW.md)
+3. **Explore DuckDB Queries**: [docs/duckdb-iceberg-queries.md](./docs/duckdb-iceberg-queries.md)
+4. **Add Your Own Data Sources**: See `src/cascade/defs/ingestion/`
+5. **Create New dbt Models**: See `transforms/dbt/models/`
+6. **Build Superset Dashboards**: http://localhost:8088
 
-## Next Steps After Verification
+## Getting Help
 
-Once all tests pass:
+- **Architecture Questions**: See [ARCHITECTURE.md](./ARCHITECTURE.md)
+- **Branching Workflow**: See [NESSIE_WORKFLOW.md](./NESSIE_WORKFLOW.md)
+- **Issues**: Open an issue on GitHub
 
-1. Delete old dbt target artifacts:
-   ```bash
-   rm -rf transforms/dbt/target/all_dbt_assets-*
-   ```
-
-2. Run full pipeline:
-   ```bash
-   docker exec -it dagster-web dagster asset materialize --select "*"
-   ```
-
-3. Set up monitoring (see DIAGNOSIS_SUMMARY.md)
-
-4. Consider partitioning optimization for production
-
----
-
-**Need help?** Check `DIAGNOSIS_SUMMARY.md` for detailed troubleshooting or `FIXES.md` for technical details.
+Happy data engineering!
