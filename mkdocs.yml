@@ -1,0 +1,44 @@
+site_name: Cascade Lakehouse Platform
+site_description: Documentation for the Cascade data lakehouse platform
+site_author: Cascade Team
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - navigation.prune
+    - navigation.indexes
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+    - content.code.select
+    - search.suggest
+    - search.highlight
+    - search.share
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_symbol_type_toc: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: quick-start.md
+      - Architecture: architecture.md
+      - Configuration: configuration.md
+  - Guides:
+      - API: api.md
+      - DuckDB Iceberg Queries: duckdb-iceberg-queries.md
+      - Hasura Setup: hasura-setup.md
+      - Observability: observability.md
+  - Reference:
+      - API Reference: api/
+      - Code Reference: reference/
