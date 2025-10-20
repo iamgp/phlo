@@ -2,12 +2,12 @@ version: 2
 
 sources:
   - name: dagster_assets
-    database: ducklake
+    database: "{{ target.catalog }}"
     schema: raw
-    description: Upstream Dagster assets that provide raw data from DuckLake raw layer
+    description: Upstream Dagster assets providing raw data from Iceberg via Nessie catalog
     tables:
       - name: entries
-        description: Nightscout CGM data ingested via DLT into DuckLake raw.entries
+        description: Nightscout CGM data ingested via DLT/PyIceberg into Iceberg raw.entries
         meta:
           dagster:
             asset_key: ["entries"]

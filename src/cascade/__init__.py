@@ -1,3 +1,7 @@
+# __init__.py - Cascade package initialization and error handling conventions
+# This file serves as the package entry point and documents the error handling patterns
+# used throughout the lakehouse platform codebase
+
 """
 Lakehouse Kit - Data Lakehouse Platform
 

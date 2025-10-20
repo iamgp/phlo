@@ -4,34 +4,28 @@ version = "0.1.0"
 description = "Data lakehouse orchestration with Dagster"
 requires-python = ">=3.11"
 dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
     "dagster",
     "dagster-webserver",
     "dagster-postgres",
     "dagster-dbt",
     "dagster-pandera",
-    "duckdb==1.4.1",  # Upgraded for better multiprocessing/fork safety
-    "dbt-duckdb",
+    "dbt-trino",
     "dbt-postgres",
     "pandera>=0.18.0",
-    "duckdb-engine",
     "psycopg2-binary",
     "minio",
     "boto3",
     "pyyaml",
-
-    "requests",
-    "pandas>=2.0",  # Updated from <2.0 after migrating from Great Expectations to Pandera
+    "trino",
+    "pandas>=2.0",
     "tenacity",
-    "pydantic-settings>=2.0",
-    "dlt[duckdb]>=0.5.0",
+    "dlt[parquet]>=0.5.0",
+    "pyiceberg[s3fs,pyarrow]>=0.7.0",
+    "pyarrow>=21.0.0",
+    "requests",
 ]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["cascade"]
 
 [tool.ruff]
 line-length = 100

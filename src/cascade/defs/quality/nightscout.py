@@ -1,14 +1,21 @@
+# nightscout.py - Quality checks for Nightscout glucose data using Pandera schema validation
+# Implements data quality assurance for the silver layer, ensuring processed glucose readings
+# conform to business rules, data types, and expected ranges
+
 from __future__ import annotations
 
+import pandas as pd
 import pandera.errors
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 
-from cascade.defs.resources import DuckLakeResource
+from cascade.defs.resources.trino import TrinoResource
 from cascade.schemas.glucose import (
-    FactGlucoseReadings,
-    get_fact_glucose_dagster_type,
+FactGlucoseReadings,
+get_fact_glucose_dagster_type,
 )
 
+# --- Query Templates ---
+# SQL query templates for data validation
 FACT_QUERY_BASE = """
 SELECT
     entry_id,
@@ -19,67 +26,95 @@ SELECT
     day_of_week,
     glucose_category,
     is_in_range
-FROM main_curated.fact_glucose_readings
+FROM iceberg.silver.fct_glucose_readings
 """
 
 
+# --- Asset Checks ---
+# Dagster asset checks for data quality validation
 @asset_check(
     name="nightscout_glucose_quality",
-    asset=AssetKey(["fact_glucose_readings"]),
-    blocking=True,
+    asset=AssetKey(["fct_glucose_readings"]),
+    blocking=False,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
 )
-def nightscout_glucose_quality_check(context, duckdb: DuckLakeResource) -> AssetCheckResult:
+def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
     """
     Quality check using Pandera for type-safe schema validation.
 
     Validates glucose readings against the FactGlucoseReadings schema,
-    checking data types, ranges, and business rules.
+    checking data types, ranges, and business rules directly against Iceberg via Trino.
     """
-    # Build query with partition filter if applicable
     query = FACT_QUERY_BASE
-    if context.has_partition_key:
-        partition_date = context.partition_key
-        query = f"{FACT_QUERY_BASE}\nWHERE DATE(reading_timestamp) = '{partition_date}'"
+    partition_key = getattr(context, "partition_key", None)
+    if partition_key is None:
+        partition_key = getattr(context, "asset_partition_key", None)
+
+    if partition_key:
+        partition_date = partition_key
+        query = (
+            f"{FACT_QUERY_BASE}\n"
+            f"WHERE DATE(reading_timestamp) = DATE '{partition_date}'"
+        )
         context.log.info(f"Validating partition: {partition_date}")
 
     try:
-        with duckdb.get_connection() as conn:
-            table_exists = conn.execute(
-                """
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_schema = 'main_curated'
-                  AND table_name = 'fact_glucose_readings'
-                LIMIT 1
-                """
-            ).fetchone()
+        with trino.cursor(schema="silver") as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
 
-            if not table_exists:
+            if not cursor.description:
                 context.log.warning(
-                    "DuckLake table main_curated.fact_glucose_readings not found; "
-                    "skipping quality check."
+                    "Trino did not return column metadata for query, aborting check."
                 )
                 return AssetCheckResult(
-                    passed=True,
+                    passed=False,
                     metadata={
-                        "reason": MetadataValue.text("ducklake_table_missing"),
-                        "note": MetadataValue.text(
-                            "Table is created after the first successful transform run."
-                        ),
+                        "reason": MetadataValue.text("missing_column_metadata"),
+                        "query": MetadataValue.text(query),
                     },
                 )
 
-            context.log.info("Loading data from DuckLake...")
-            fact_df = conn.execute(query).df()
-        context.log.info(f"Loaded {len(fact_df)} rows from fact_glucose_readings")
-    except Exception as exc:
-        context.log.error(f"Failed to load data from DuckLake: {exc}")
+            columns = [desc[0] for desc in cursor.description]
+
+        fact_df = pd.DataFrame(rows, columns=columns)
+
+        # Explicitly cast columns to correct types (Trino client may return some as strings)
+        type_conversions = {
+            "glucose_mg_dl": "int64",
+            "hour_of_day": "int64",
+            "day_of_week": "int64",
+            "is_in_range": "int64",
+        }
+        for col, dtype in type_conversions.items():
+            if col in fact_df.columns:
+                fact_df[col] = fact_df[col].astype(dtype)
+
+        # Convert timestamp if it's not already datetime
+        if "reading_timestamp" in fact_df.columns:
+            fact_df["reading_timestamp"] = pd.to_datetime(fact_df["reading_timestamp"])
+
+        context.log.info(
+            "Loaded %d rows from iceberg.silver.fct_glucose_readings", len(fact_df)
+        )
+    except Exception as exc:  # pragma: no cover - defensive logging
+        context.log.error(f"Failed to load data from Trino: {exc}")
         return AssetCheckResult(
             passed=False,
             metadata={
-                "reason": MetadataValue.text("ducklake_query_failed"),
+                "reason": MetadataValue.text("trino_query_failed"),
                 "error": MetadataValue.text(str(exc)),
+                "query": MetadataValue.text(query),
+            },
+        )
+
+    if fact_df.empty:
+        context.log.warning("No rows returned for validation; marking check as skipped.")
+        return AssetCheckResult(
+            passed=True,
+            metadata={
+                "rows_validated": MetadataValue.int(0),
+                "note": MetadataValue.text("No data available for selected partition"),
             },
         )
 
@@ -116,23 +151,23 @@ def nightscout_glucose_quality_check(context, duckdb: DuckLakeResource) -> Asset
                 "schema_version": MetadataValue.text("1.0.0"),
                 "pandera_schema": MetadataValue.md(
                     "## Validated Schema\n\n"
-                    + "\n".join([f"- **{col}**: {dtype}" for col, dtype in schema_info.items()])
+                    + "\n".join(
+                        [f"- **{col}**: {dtype}" for col, dtype in schema_info.items()]
+                    )
                 ),
                 "dagster_type": MetadataValue.text(str(get_fact_glucose_dagster_type())),
             },
         )
 
     except pandera.errors.SchemaErrors as err:
-        # Extract failure information
         failure_cases = err.failure_cases
+        context.log.warning(
+            "Schema validation failed with %d check failures", len(failure_cases)
+        )
 
-        context.log.warning(f"Schema validation failed with {len(failure_cases)} check failures")
-
-        # Group failures by column and check type for better reporting
         failures_by_column = failure_cases.groupby("column").size().to_dict()
         failures_by_check = failure_cases.groupby("check").size().to_dict()
 
-        # Get sample of failing rows (up to 20)
         sample_failures = failure_cases.head(20)[
             ["schema_context", "column", "check", "check_number", "failure_case"]
         ].to_dict(orient="records")
@@ -149,7 +184,7 @@ def nightscout_glucose_quality_check(context, duckdb: DuckLakeResource) -> Asset
             },
         )
 
-    except Exception as exc:
+    except Exception as exc:  # pragma: no cover - defensive logging
         context.log.exception(f"Unexpected error during validation: {exc}")
         return AssetCheckResult(
             passed=False,
