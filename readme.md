@@ -16,6 +16,9 @@ Cascade uses modern, enterprise-grade components in a fully open-source stack:
 - **MinIO**: S3-compatible object storage for data and metadata
 - **PostgreSQL**: Relational database for BI marts and service metadata
 - **Superset**: Business intelligence and dashboards
+- **Grafana + Prometheus + Loki**: Complete observability stack with metrics, logs, and dashboards
+- **FastAPI REST API**: Programmatic data access with JWT authentication
+- **Hasura GraphQL API**: GraphQL interface for flexible queries
 
 ## Quick Start
 
@@ -44,18 +47,25 @@ make up-all
 
 Or start specific profiles:
 ```bash
-make up-core    # postgres, minio, dagster, hub
-make up-query   # trino, nessie
-make up-bi      # superset, pgweb
+make up-core       # postgres, minio, dagster, hub
+make up-query      # trino, nessie
+make up-bi         # superset, pgweb
+make up-api        # rest api, graphql api
+make up-observability  # grafana, prometheus, loki, alloy
 ```
 
 4. Access the services:
-   - **Hub:** http://localhost:54321 (service status dashboard)
-   - **Dagster:** http://localhost:3000 (orchestration UI)
-   - **Nessie:** http://localhost:19120 (catalog API)
-   - **Trino:** http://localhost:8080 (query engine)
-   - **Superset:** http://localhost:8088 (dashboards)
-   - **MinIO Console:** http://localhost:9001 (object storage)
+- **Hub:** http://localhost:54321 (service status dashboard)
+- **Dagster:** http://localhost:3000 (orchestration UI)
+- **REST API:** http://localhost:8000 (FastAPI with Swagger docs)
+- **GraphQL API:** http://localhost:8081 (Hasura GraphQL explorer)
+- **Nessie:** http://localhost:19120 (catalog API)
+- **Trino:** http://localhost:8080 (query engine)
+    - **Superset:** http://localhost:8088 (dashboards)
+    - **MinIO Console:** http://localhost:9001 (object storage)
+    - **Grafana:** http://localhost:3001 (observability dashboards)
+    - **Prometheus:** http://localhost:9090 (metrics)
+    - **Loki:** http://localhost:3100 (logs)
 
 ### First Pipeline Run
 
@@ -126,6 +136,68 @@ nightscout_api
             → superset_dashboards
 ```
 
+### APIs for Data Access
+
+Cascade provides multiple APIs for programmatic data access:
+
+#### REST API (FastAPI)
+- **Endpoint:** http://localhost:8000
+- **Authentication:** JWT tokens (admin/analyst roles)
+- **Features:**
+  - Query Iceberg tables via Trino
+  - Access Postgres marts
+  - Rate limiting and caching
+  - OpenAPI/Swagger documentation
+
+#### GraphQL API (Hasura)
+- **Endpoint:** http://localhost:8081
+- **Features:**
+  - Flexible GraphQL queries
+  - Real-time subscriptions
+  - Schema introspection
+  - Auto-generated documentation
+
+#### Hub Dashboard
+- **Endpoint:** http://localhost:54321
+- **Features:**
+  - Service status overview
+  - Quick links to all services
+  - Health checks
+  - Configuration display
+
+### Observability Stack
+
+Complete monitoring and observability with industry-standard tools:
+
+#### Grafana (Dashboards)
+- **Endpoint:** http://localhost:3001
+- **Features:**
+  - Custom dashboards for metrics
+  - Service health visualization
+  - Alerting and notifications
+
+#### Prometheus (Metrics)
+- **Endpoint:** http://localhost:9090
+- **Metrics collected:**
+  - Service health and performance
+  - Database query performance
+  - API response times
+  - Resource utilization
+
+#### Loki (Logs)
+- **Endpoint:** http://localhost:3100
+- **Features:**
+  - Centralized log aggregation
+  - Structured logging queries
+  - Integration with Grafana
+
+#### Alloy (Telemetry Collector)
+- **Endpoint:** http://localhost:12345
+- **Features:**
+  - Collects metrics from Docker containers
+  - Forwards logs to Loki
+  - Service discovery and auto-configuration
+
 ## Data Flow
 
 ```mermaid
@@ -186,6 +258,15 @@ cascade/
 │   │   ├── resources/         # Dagster resources (Trino, Nessie, etc)
 │   │   └── schedules/         # Pipeline schedules
 │   └── schemas/               # Pandera validation schemas
+├── services/
+│   ├── api/                   # FastAPI REST service
+│   │   ├── app/
+│   │   │   ├── main.py        # API entry point
+│   │   │   ├── routers/       # API endpoints
+│   │   │   └── middleware/    # Auth, rate limiting
+│   │   └── Dockerfile
+│   └── hub/                   # Flask status dashboard
+│       └── app.py
 ├── transforms/dbt/
 │   ├── models/
 │   │   ├── bronze/           # Staging layer
@@ -196,7 +277,11 @@ cascade/
 │       └── profiles.yml      # Trino connection config
 ├── docker/
 │   ├── trino/catalog/        # Trino catalog configurations
-│   └── nessie/               # Nessie configuration
+│   ├── nessie/               # Nessie configuration
+│   ├── prometheus/           # Prometheus configuration
+│   ├── loki/                 # Loki configuration
+│   ├── alloy/                # Grafana Alloy configuration
+│   └── grafana/              # Grafana dashboards
 └── docs/
     ├── ARCHITECTURE.md       # Detailed architecture guide
     ├── QUICK_START.md        # Setup instructions
@@ -389,3 +474,8 @@ Built with excellent open-source tools:
 - [Dagster](https://dagster.io/)
 - [MinIO](https://min.io/)
 - [Superset](https://superset.apache.org/)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Hasura](https://hasura.io/)
+- [Grafana](https://grafana.com/)
+- [Prometheus](https://prometheus.io/)
+- [Loki](https://grafana.com/oss/loki/)
