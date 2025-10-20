@@ -501,3 +501,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mkdocs:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mkdocs
+    container_name: mkdocs
+    restart: unless-stopped
+    profiles: ["docs", "all"]
+    ports:
+      - "${MKDOCS_PORT:-8001}:8000"
+    volumes:
+      - ./docs:/docs/docs:ro
+      - ./mkdocs.yml:/docs/mkdocs.yml:ro
+      - ./src:/docs/src:ro  # For mkdocstrings to access source code
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

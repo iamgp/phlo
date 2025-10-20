@@ -8,14 +8,15 @@ DEFAULT_LOG_SERVICES ?= dagster-webserver dagster-daemon
 PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
 PROFILE_QUERY ?= nessie nessie-setup trino
 PROFILE_BI ?= superset pgweb
+PROFILE_DOCS ?= mkdocs
 PROFILE_OBSERVABILITY ?= prometheus loki alloy grafana postgres-exporter
 PROFILE_API ?= api hasura
-PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI)
+PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS)
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
 setup install install-dagster health \
-up-core up-query up-bi up-observability up-api up-all \
-dagster superset hub minio pgweb trino nessie grafana prometheus api hasura \
+up-core up-query up-bi up-docs up-observability up-api up-all \
+dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs \
 dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 health-observability health-api
 
@@ -108,6 +109,9 @@ api:
 hasura:
 	open http://localhost:$${HASURA_PORT:-8081}/console
 
+mkdocs:
+	open http://localhost:$${MKDOCS_PORT:-8001}
+
 # Profile-specific startup targets
 up-core:
 	$(COMPOSE) up -d $(PROFILE_CORE)
@@ -117,6 +121,9 @@ up-query:
 
 up-bi:
 	$(COMPOSE) up -d $(PROFILE_BI)
+
+up-docs:
+	$(COMPOSE) --profile docs up -d $(PROFILE_DOCS)
 
 up-observability:
 	$(COMPOSE) --profile observability up -d $(PROFILE_OBSERVABILITY)
