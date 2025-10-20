@@ -9,16 +9,13 @@ bypassing Trino for fast ad-hoc analysis.
 import os
 import sys
 
-
+# Set environment variables for localhost (when running from host)
+# Must be set before any cascade imports to affect config loading
+os.environ.setdefault('NESSIE_HOST', 'localhost')
+os.environ.setdefault('MINIO_HOST', 'localhost')
 
 
 def test_duckdb_iceberg():
-    """Test DuckDB can query Iceberg tables from MinIO."""
-
-    # Set environment variables for localhost (when running from host)
-    os.environ.setdefault('NESSIE_HOST', 'localhost')
-    os.environ.setdefault('MINIO_HOST', 'localhost')
-
     try:
         import duckdb
     except ImportError:
