@@ -11,7 +11,7 @@ PROFILE_BI ?= superset pgweb
 PROFILE_DOCS ?= mkdocs
 PROFILE_OBSERVABILITY ?= prometheus loki alloy grafana postgres-exporter
 PROFILE_API ?= api hasura
-PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS)
+PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(PROFILE_OBSERVABILITY) $(PROFILE_API)
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
 setup install install-dagster health \
@@ -71,10 +71,10 @@ venv:
 	uv venv
 
 install:
-	uv pip install -e .
+	uv pip install -e src
 
 install-dagster:
-	cd services/dagster && uv venv && uv pip install -e .
+	cd services/dagster && uv venv && uv pip install -e ../../src && uv pip install dagster dagster-webserver dagster-postgres dagster-dbt dagster-pandera dbt-trino dbt-postgres pandera psycopg2-binary minio boto3 pyyaml trino pandas tenacity "dlt[parquet]" "pyiceberg[s3fs,pyarrow]" pyarrow requests
 
 dagster:
 	@open http://localhost:$${DAGSTER_PORT:-10006}
@@ -109,7 +109,7 @@ api:
 hasura:
 	@open http://localhost:$${HASURA_PORT:-10011}/console
 
-mkdocs:
+docs:
 	@open http://localhost:$${MKDOCS_PORT:-10012}
 
 # Profile-specific startup targets
