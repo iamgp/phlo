@@ -9,12 +9,16 @@ bypassing Trino for fast ad-hoc analysis.
 import os
 import sys
 
-import pytest
 
 
-@pytest.mark.skip(reason="Requires external services (Nessie, MinIO) to be running")
+
 def test_duckdb_iceberg():
     """Test DuckDB can query Iceberg tables from MinIO."""
+
+    # Set environment variables for localhost (when running from host)
+    os.environ.setdefault('NESSIE_HOST', 'localhost')
+    os.environ.setdefault('MINIO_HOST', 'localhost')
+
     try:
         import duckdb
     except ImportError:
@@ -22,7 +26,7 @@ def test_duckdb_iceberg():
         print("  Skipping integration test...")
         return True  # Skip, don't fail
 
-    print("=== Testing DuckDB Iceberg Extension ===\n")
+        print("=== Testing DuckDB Iceberg Extension ===")
 
     # Create DuckDB connection
     conn = duckdb.connect(":memory:")
@@ -97,7 +101,7 @@ def test_duckdb_iceberg():
         """).fetchone()
 
         row_count = result[0] if result else 0
-        print(f"   ✓ Successfully queried Iceberg table")
+        print("   ✓ Successfully queried Iceberg table")
         print(f"   ✓ Found {row_count} rows in raw.entries\n")
 
         if row_count == 0:
@@ -127,7 +131,7 @@ def test_duckdb_iceberg():
                 LIMIT 10
             """).fetchone()
 
-            print(f"   ✓ Partition filtering works")
+            print("   ✓ Partition filtering works")
             print(f"     Total rows: {result[0]}")
             print(f"     Date range: {result[1]} to {result[2]}\n")
 
@@ -147,7 +151,7 @@ def test_duckdb_iceberg():
                 LIMIT 5
             """).fetchall()
 
-            print(f"   ✓ Field selection works")
+            print("   ✓ Field selection works")
             print(f"     Retrieved {len(result)} sample rows\n")
 
             # Display sample data
