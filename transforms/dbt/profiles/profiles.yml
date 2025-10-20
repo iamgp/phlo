@@ -4,7 +4,7 @@ cascade:
     dev:
       type: trino
       host: "{{ env_var('TRINO_HOST', 'trino') }}"
-      port: "{{ env_var('TRINO_PORT', '8080') | int }}"
+      port: "{{ env_var('TRINO_PORT', '10005') | int }}"
       user: dbt
       catalog: iceberg_dev
       schema: bronze
@@ -13,7 +13,7 @@ cascade:
     prod:
       type: trino
       host: "{{ env_var('TRINO_HOST', 'trino') }}"
-      port: "{{ env_var('TRINO_PORT', '8080') | int }}"
+      port: "{{ env_var('TRINO_PORT', '10005') | int }}"
       user: dbt
       catalog: iceberg
       schema: bronze
@@ -24,7 +24,7 @@ cascade:
       host: postgres
       user: "{{ env_var('POSTGRES_USER') }}"
       password: "{{ env_var('POSTGRES_PASSWORD') }}"
-      port: 5432
+      port: "{{ env_var('POSTGRES_PORT', '10000') | int }}"
       dbname: "{{ env_var('POSTGRES_DB') }}"
       schema: marts
       threads: 8

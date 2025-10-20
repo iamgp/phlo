@@ -77,40 +77,40 @@ install-dagster:
 	cd services/dagster && uv venv && uv pip install -e .
 
 dagster:
-	open http://localhost:$${DAGSTER_PORT:-3000}
+	@open http://localhost:$${DAGSTER_PORT:-10006}
 
 superset:
-	open http://localhost:$${SUPERSET_PORT:-8088}
+	@open http://localhost:$${SUPERSET_PORT:-10007}
 
 hub:
-	open http://localhost:$${APP_PORT:-54321}
+	@open http://localhost:$${APP_PORT:-10009}
 
 minio:
-	open http://localhost:$${MINIO_CONSOLE_PORT:-9001}
+	@open http://localhost:$${MINIO_CONSOLE_PORT:-10002}
 
 pgweb:
-	open http://localhost:$${PGWEB_PORT:-8082}
+	@open http://localhost:$${PGWEB_PORT:-10008}
 
 trino:
-	open http://localhost:$${TRINO_PORT:-8080}
+	@open http://localhost:$${TRINO_PORT:-10005}
 
 nessie:
-	@echo "Nessie REST API: http://localhost:$${NESSIE_PORT:-19120}/api/v1"
+	@echo "Nessie REST API: http://localhost:$${NESSIE_PORT:-10003}/api/v1"
 
 grafana:
-	open http://localhost:$${GRAFANA_PORT:-3001}
+	@open http://localhost:$${GRAFANA_PORT:-10016}
 
 prometheus:
-	open http://localhost:$${PROMETHEUS_PORT:-9090}
+	@open http://localhost:$${PROMETHEUS_PORT:-10013}
 
 api:
-	open http://localhost:$${API_PORT:-8000}/docs
+	@open http://localhost:$${API_PORT:-10010}/docs
 
 hasura:
-	open http://localhost:$${HASURA_PORT:-8081}/console
+	@open http://localhost:$${HASURA_PORT:-10011}/console
 
 mkdocs:
-	open http://localhost:$${MKDOCS_PORT:-8001}
+	@open http://localhost:$${MKDOCS_PORT:-10012}
 
 # Profile-specific startup targets
 up-core:
@@ -140,16 +140,16 @@ health:
 	@echo "Postgres:"
 	@$(COMPOSE) exec -T postgres pg_isready -U $${POSTGRES_USER:-lake} || echo "  Not ready"
 	@echo "MinIO:"
-	@curl -sf http://localhost:$${MINIO_API_PORT:-9000}/minio/health/ready > /dev/null && echo "  Ready" || echo "  Not ready"
+	@curl -sf http://localhost:$${MINIO_API_PORT:-10001}/minio/health/ready > /dev/null && echo "  Ready" || echo "  Not ready"
 	@echo "Dagster:"
-	@curl -sf http://localhost:$${DAGSTER_PORT:-3000}/server_info > /dev/null && echo "  Ready" || echo "  Not ready"
+	@curl -sf http://localhost:$${DAGSTER_PORT:-10006}/server_info > /dev/null && echo "  Ready" || echo "  Not ready"
 	@if docker ps --format '{{.Names}}' | grep -q nessie; then \
 		echo "Nessie:"; \
-		curl -sf http://localhost:$${NESSIE_PORT:-19120}/api/v1/config > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		curl -sf http://localhost:$${NESSIE_PORT:-10003}/api/v1/config > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	fi
 	@if docker ps --format '{{.Names}}' | grep -q trino; then \
 		echo "Trino:"; \
-		curl -sf http://localhost:$${TRINO_PORT:-8080}/v1/info > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		curl -sf http://localhost:$${TRINO_PORT:-10005}/v1/info > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	fi
 
 # Observability health check
@@ -157,31 +157,31 @@ health-observability:
 	@echo "=== Observability Stack Health Check ==="
 	@if docker ps --format '{{.Names}}' | grep -q prometheus; then \
 		echo "Prometheus:"; \
-		curl -sf http://localhost:$${PROMETHEUS_PORT:-9090}/-/healthy > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		curl -sf http://localhost:$${PROMETHEUS_PORT:-10013}/-/healthy > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	else \
 		echo "Prometheus: Not running (use 'make up-observability')"; \
 	fi
 	@if docker ps --format '{{.Names}}' | grep -q loki; then \
 		echo "Loki:"; \
-		curl -sf http://localhost:$${LOKI_PORT:-3100}/ready > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		curl -sf http://localhost:$${LOKI_PORT:-10014}/ready > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	else \
 		echo "Loki: Not running (use 'make up-observability')"; \
 	fi
 	@if docker ps --format '{{.Names}}' | grep -q alloy; then \
 		echo "Alloy:"; \
-		curl -sf http://localhost:$${ALLOY_PORT:-12345}/-/healthy > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		curl -sf http://localhost:$${ALLOY_PORT:-10015}/-/healthy > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	else \
 		echo "Alloy: Not running (use 'make up-observability')"; \
 	fi
 	@if docker ps --format '{{.Names}}' | grep -q grafana; then \
 		echo "Grafana:"; \
-		curl -sf http://localhost:$${GRAFANA_PORT:-3001}/api/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		curl -sf http://localhost:$${GRAFANA_PORT:-10016}/api/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	else \
 		echo "Grafana: Not running (use 'make up-observability')"; \
 	fi
 	@if docker ps --format '{{.Names}}' | grep -q postgres-exporter; then \
 		echo "Postgres Exporter:"; \
-		curl -sf http://localhost:$${POSTGRES_EXPORTER_PORT:-9187}/ > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		curl -sf http://localhost:$${POSTGRES_EXPORTER_PORT:-10017}/ > /dev/null && echo "  Ready" || echo "  Not ready"; \
 	else \
 		echo "Postgres Exporter: Not running (use 'make up-observability')"; \
 	fi
@@ -191,15 +191,15 @@ health-api:
 	@echo "=== API Stack Health Check ==="
 	@if docker ps --format '{{.Names}}' | grep -q cascade-api; then \
 		echo "FastAPI:"; \
-		curl -sf http://localhost:$${API_PORT:-8000}/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
-		echo "  Docs: http://localhost:$${API_PORT:-8000}/docs"; \
+		curl -sf http://localhost:$${API_PORT:-10010}/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		echo "  Docs: http://localhost:$${API_PORT:-10010}/docs"; \
 	else \
 		echo "FastAPI: Not running (use 'make up-api')"; \
 	fi
 	@if docker ps --format '{{.Names}}' | grep -q hasura; then \
 		echo "Hasura:"; \
-		curl -sf http://localhost:$${HASURA_PORT:-8081}/healthz > /dev/null && echo "  Ready" || echo "  Not ready"; \
-		echo "  Console: http://localhost:$${HASURA_PORT:-8081}/console"; \
+		curl -sf http://localhost:$${HASURA_PORT:-10011}/healthz > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		echo "  Console: http://localhost:$${HASURA_PORT:-10011}/console"; \
 	else \
 		echo "Hasura: Not running (use 'make up-api')"; \
 	fi

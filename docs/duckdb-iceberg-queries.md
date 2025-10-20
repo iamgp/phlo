@@ -13,7 +13,7 @@ This guide explains how to query Cascade's Iceberg tables directly using DuckDB'
 ## Prerequisites
 
 - DuckDB v1.1.0 or later (supports Iceberg extension)
-- Access to MinIO endpoint (default: `localhost:9000`)
+- Access to MinIO endpoint (default: `localhost:10001`)
 - MinIO credentials from `.env` file
 
 ## Installation
@@ -53,7 +53,7 @@ $ duckdb
 D LOAD iceberg;
 
 -- Configure S3/MinIO connection
-D SET s3_endpoint = 'localhost:9000';
+D SET s3_endpoint = 'localhost:10001';
 D SET s3_use_ssl = false;
 D SET s3_url_style = 'path';
 D SET s3_access_key_id = 'minio';
@@ -73,7 +73,7 @@ conn.execute("INSTALL iceberg")
 conn.execute("LOAD iceberg")
 
 # Configure S3/MinIO
-conn.execute("SET s3_endpoint = 'localhost:9000'")
+conn.execute("SET s3_endpoint = 'localhost:10001'")
 conn.execute("SET s3_use_ssl = false")
 conn.execute("SET s3_url_style = 'path'")
 conn.execute("SET s3_access_key_id = 'minio'")
@@ -84,7 +84,7 @@ conn.execute("SET s3_secret_access_key = 'minio123'")
 
 ```bash
 # Set environment variables
-export S3_ENDPOINT=localhost:9000
+export S3_ENDPOINT=localhost:10001
 export S3_USE_SSL=false
 export S3_URL_STYLE=path
 export AWS_ACCESS_KEY_ID=minio
@@ -229,7 +229,7 @@ import pandas as pd
 conn = duckdb.connect()
 conn.execute("INSTALL iceberg")
 conn.execute("LOAD iceberg")
-conn.execute("SET s3_endpoint = 'localhost:9000'")
+conn.execute("SET s3_endpoint = 'localhost:10001'")
 conn.execute("SET s3_use_ssl = false")
 conn.execute("SET s3_url_style = 'path'")
 conn.execute("SET s3_access_key_id = 'minio'")
@@ -257,7 +257,7 @@ import plotly.express as px
 conn = duckdb.connect()
 conn.execute("INSTALL iceberg")
 conn.execute("LOAD iceberg")
-conn.execute("SET s3_endpoint = 'localhost:9000'")
+conn.execute("SET s3_endpoint = 'localhost:10001'")
 conn.execute("SET s3_use_ssl = false")
 conn.execute("SET s3_url_style = 'path'")
 conn.execute("SET s3_access_key_id = 'minio'")
@@ -341,7 +341,7 @@ Query these Iceberg tables based on your pipeline layer:
 ### Issue: Cannot connect to MinIO
 
 ```
-Error: Connection failed to localhost:9000
+Error: Connection failed to localhost:10001
 ```
 
 **Solution**: Ensure MinIO is running and accessible:
@@ -350,7 +350,7 @@ Error: Connection failed to localhost:9000
 docker compose ps minio
 
 # Verify MinIO endpoint
-curl http://localhost:9000/minio/health/ready
+curl http://localhost:10001/minio/health/ready
 ```
 
 ### Issue: Authentication failed

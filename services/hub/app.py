@@ -270,29 +270,29 @@ HTML_TEMPLATE = """
 @app.route("/")
 def index():
     return render_template_string(
-        HTML_TEMPLATE,
-        dagster_port=os.getenv("DAGSTER_PORT", "3000"),
-        trino_port=os.getenv("TRINO_PORT", "8080"),
-        nessie_port=os.getenv("NESSIE_PORT", "19120"),
-        minio_console_port=os.getenv("MINIO_CONSOLE_PORT", "9001"),
-        minio_user=os.getenv("MINIO_ROOT_USER", "minio"),
-        minio_pass=os.getenv("MINIO_ROOT_PASSWORD", "minio999"),
-        pgweb_port=os.getenv("PGWEB_PORT", "8082"),
-        postgres_port=os.getenv("POSTGRES_PORT", "5432"),
-        postgres_user=os.getenv("POSTGRES_USER", "lake"),
-        postgres_pass=os.getenv("POSTGRES_PASSWORD", "lakepass"),
-        postgres_db=os.getenv("POSTGRES_DB", "lakehouse"),
-        api_port=os.getenv("API_PORT", "8000"),
-        hasura_port=os.getenv("HASURA_PORT", "8081"),
-        superset_port=os.getenv("SUPERSET_PORT", "8088"),
-        superset_user=os.getenv("SUPERSET_ADMIN_USER", "admin"),
-        superset_pass=os.getenv("SUPERSET_ADMIN_PASSWORD", "admin123"),
-        grafana_port=os.getenv("GRAFANA_PORT", "3001"),
-        prometheus_port=os.getenv("PROMETHEUS_PORT", "9090"),
+    HTML_TEMPLATE,
+    dagster_port=os.getenv("DAGSTER_PORT", "10006"),
+    trino_port=os.getenv("TRINO_PORT", "10005"),
+    nessie_port=os.getenv("NESSIE_PORT", "10003"),
+    minio_console_port=os.getenv("MINIO_CONSOLE_PORT", "10002"),
+    minio_user=os.getenv("MINIO_ROOT_USER", "minio"),
+    minio_pass=os.getenv("MINIO_ROOT_PASSWORD", "minio999"),
+    pgweb_port=os.getenv("PGWEB_PORT", "10008"),
+    postgres_port=os.getenv("POSTGRES_PORT", "10000"),
+    postgres_user=os.getenv("POSTGRES_USER", "lake"),
+    postgres_pass=os.getenv("POSTGRES_PASSWORD", "lakepass"),
+    postgres_db=os.getenv("POSTGRES_DB", "lakehouse"),
+    api_port=os.getenv("API_PORT", "10010"),
+    hasura_port=os.getenv("HASURA_PORT", "10011"),
+    superset_port=os.getenv("SUPERSET_PORT", "10007"),
+    superset_user=os.getenv("SUPERSET_ADMIN_USER", "admin"),
+    superset_pass=os.getenv("SUPERSET_ADMIN_PASSWORD", "admin123"),
+    grafana_port=os.getenv("GRAFANA_PORT", "10016"),
+    prometheus_port=os.getenv("PROMETHEUS_PORT", "10013"),
     )
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("APP_PORT", "54321"))
-    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+port = int(os.getenv("APP_PORT", "10009"))
+debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+app.run(host="0.0.0.0", port=port, debug=debug)

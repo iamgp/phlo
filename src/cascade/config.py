@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Settings for PostgreSQL database connection and schema configuration
     # Database - Postgres
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
-    postgres_port: int = Field(default=5432, description="PostgreSQL port")
+    postgres_port: int = Field(default=10000, description="PostgreSQL port")
     postgres_user: str = Field(default="lake", description="PostgreSQL username")
     postgres_password: str = Field(description="PostgreSQL password")
     postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
@@ -39,21 +39,21 @@ class Settings(BaseSettings):
     minio_host: str = Field(default="minio", description="MinIO service hostname")
     minio_root_user: str = Field(default="minio", description="MinIO root username")
     minio_root_password: str = Field(description="MinIO root password")
-    minio_api_port: int = Field(default=9000, description="MinIO API port")
-    minio_console_port: int = Field(default=9001, description="MinIO console port")
+    minio_api_port: int = Field(default=10001, description="MinIO API port")
+    minio_console_port: int = Field(default=10002, description="MinIO console port")
 
     # --- Catalog Configuration ---
     # Settings for Nessie Git-like catalog for Iceberg table management
     # Catalog - Nessie
     nessie_version: str = Field(default="0.105.5", description="Nessie version")
-    nessie_port: int = Field(default=19120, description="Nessie REST API port")
+    nessie_port: int = Field(default=10003, description="Nessie REST API port")
     nessie_host: str = Field(default="nessie", description="Nessie service hostname")
 
     # --- Query Engine Configuration ---
     # Settings for Trino distributed SQL query engine
     # Query Engine - Trino
     trino_version: str = Field(default="477", description="Trino version")
-    trino_port: int = Field(default=8080, description="Trino HTTP port")
+    trino_port: int = Field(default=10005, description="Trino HTTP port")
     trino_host: str = Field(default="trino", description="Trino service hostname")
     trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
 
@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     # --- BI Services Configuration ---
     # Settings for Apache Superset business intelligence dashboard
     # Services - Superset
-    superset_port: int = Field(default=8088, description="Superset web port")
+    superset_port: int = Field(default=10007, description="Superset web port")
     superset_admin_user: str = Field(default="admin", description="Superset admin username")
     superset_admin_password: str = Field(description="Superset admin password")
     superset_admin_email: str = Field(
@@ -107,7 +107,7 @@ class Settings(BaseSettings):
             # --- Orchestration Configuration ---
     # Settings for Dagster data orchestration platform
     # Dagster
-    dagster_port: int = Field(default=3000, description="Dagster webserver port")
+    dagster_port: int = Field(default=10006, description="Dagster webserver port")
     cascade_force_in_process_executor: bool = Field(
         default=False, description="Force use of in-process executor"
     )
@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     # --- Hub Service Configuration ---
     # Settings for the Flask-based hub service
     # Hub
-    app_port: int = Field(default=54321, description="Hub application port")
+    app_port: int = Field(default=10009, description="Hub application port")
     flask_debug: bool = Field(default=False, description="Flask debug mode")
 
     # --- Computed Properties ---
