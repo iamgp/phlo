@@ -1,14 +1,13 @@
-[project]
-name = "cascade"
-version = "0.1.0"
-description = "Lakehouse data engineering toolkit"
-requires-python = ">=3.11"
-dependencies = []
+[tool.uv.workspace]
+members = ["src", "services/dagster", "services/hub"]
 
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["cascade*"]
+[tool.uv]
+dev-dependencies = [
+    "ruff",
+    "basedpyright",
+]

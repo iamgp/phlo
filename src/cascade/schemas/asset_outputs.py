@@ -1,8 +1,14 @@
+# asset_outputs.py - Pydantic models for Dagster asset output structures
+# Defines the expected output schemas for various pipeline stages, used for
+# validation and metadata tracking of asset materialization results
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
 
+# --- Asset Output Models ---
+# Pydantic models defining the structure of outputs from different pipeline assets
 class RawDataOutput(BaseModel):
     """Output model for raw data ingestion assets."""
 
@@ -42,23 +48,9 @@ class TablePublishStats(BaseModel):
 
 
 class PublishPostgresOutput(BaseModel):
-    """Output model for DuckDB to Postgres publishing assets."""
+    """Output model for Trino to Postgres publishing assets."""
 
     tables: dict[str, TablePublishStats] = Field(
         ...,
         description="Publishing statistics for each table",
-    )
-
-
-class DatahubIngestionOutput(BaseModel):
-    """Output model for DataHub metadata ingestion assets."""
-
-    status: str = Field(
-        ...,
-        description="Status message from DataHub ingestion",
-    )
-    tables_processed: int = Field(
-        ...,
-        ge=0,
-        description="Number of tables processed in the ingestion",
     )

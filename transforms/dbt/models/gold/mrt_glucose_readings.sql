@@ -1,10 +1,14 @@
+-- mrt_glucose_readings.sql - Gold layer curated fact table for glucose readings
+-- Provides clean, deduplicated, production-ready glucose data for analytics
+-- Incrementally updated to efficiently handle new readings
+
 {{ config(
     materialized='incremental',
-    unique_key='entry_id',
+   unique_key='entry_id',
     tags=['nightscout', 'curated']
 ) }}
 
-/*
+ /*
 Curated fact table for glucose readings
 
 This model provides a clean, deduplicated, production-ready dataset for
@@ -16,6 +20,7 @@ Incremental Strategy:
 - On subsequent runs: only processes new entries based on reading_timestamp
 */
 
+-- Select statement: Retrieve all enriched glucose reading fields from silver layer
 select
     entry_id,
     glucose_mg_dl,
