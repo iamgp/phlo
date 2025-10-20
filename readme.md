@@ -1,354 +1,481 @@
-# 🧬 Data Lakehouse Architecture Overview
+# Cascade: Modern Data Lakehouse
 
-## Purpose
+## Overview
 
-This platform provides a **modern, open-source data lakehouse** designed for **cell and gene therapy manufacturing and analytics**.
-It enables secure, automated, and governed handling of scientific and operational data — from instruments and lab systems through to analytics, dashboards, and machine learning.
+Cascade is a production-ready, open-source data lakehouse platform built on Apache Iceberg and Project Nessie. It provides Git-like version control for data, ACID transactions, time travel, and a complete transformation pipeline from raw data to analytics-ready marts.
 
-## 🚀 Quick Start
+## Architecture
+
+Cascade uses modern, enterprise-grade components in a fully open-source stack:
+
+- **Apache Iceberg**: Open table format with ACID, schema evolution, and time travel
+- **Project Nessie**: Git-like catalog with branching, tagging, and cross-table transactions
+- **Trino**: Distributed SQL query engine for Iceberg tables
+- **dbt**: SQL-based transformations and data modeling
+- **Dagster**: Asset-based orchestration with lineage tracking
+- **MinIO**: S3-compatible object storage for data and metadata
+- **PostgreSQL**: Relational database for BI marts and service metadata
+- **Superset**: Business intelligence and dashboards
+- **Grafana + Prometheus + Loki**: Complete observability stack with metrics, logs, and dashboards
+- **FastAPI REST API**: Programmatic data access with JWT authentication
+- **Hasura GraphQL API**: GraphQL interface for flexible queries
+
+## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose
-- `uv` for Python package management (for development and local testing)
+- `uv` for Python package management (for development)
 
 ### Setup
 
-1. **Clone the repository and configure environment:**
+1. Clone the repository and configure environment:
 ```bash
 cp .env.example .env
 # Edit .env with your passwords and configuration
 ```
 
-2. **Install Python dependencies (for development):**
+2. Install Python dependencies (for development):
 ```bash
 make setup
 ```
-    This creates virtual environments and installs the main `cascade` package and Dagster service dependencies using `uv`.
 
-3. **Start all services:**
-    ```bash
-    make up
-    ```
-    Or for detached mode: `make up SERVICE=all` (though `make up` defaults to detached).
+3. Start all services:
+```bash
+make up-all
+```
 
-    Alternative: `docker-compose up -d`
+Or start specific profiles:
+```bash
+make up-core       # postgres, minio, dagster, hub
+make up-query      # trino, nessie
+make up-bi         # superset, pgweb
+make up-api        # rest api, graphql api
+make up-observability  # grafana, prometheus, loki, alloy
+```
 
-3. **Access the services:**
-   - **Hub:** http://localhost:54321 (service status dashboard)
-   - **Dagster:** http://localhost:3000 (orchestration UI)
-   - **Superset:** http://localhost:8088 (dashboards)
-   - **MinIO Console:** http://localhost:9001 (object storage)
-   - **DataHub:** http://localhost:9002 (metadata catalog)
+4. Access the services:
+- **Hub:** http://localhost:54321 (service status dashboard)
+- **Dagster:** http://localhost:3000 (orchestration UI)
+- **REST API:** http://localhost:8000 (FastAPI with Swagger docs)
+- **GraphQL API:** http://localhost:8081 (Hasura GraphQL explorer)
+- **Nessie:** http://localhost:19120 (catalog API)
+- **Trino:** http://localhost:8080 (query engine)
+    - **Superset:** http://localhost:8088 (dashboards)
+    - **MinIO Console:** http://localhost:9001 (object storage)
+    - **Grafana:** http://localhost:3001 (observability dashboards)
+    - **Prometheus:** http://localhost:9090 (metrics)
+    - **Loki:** http://localhost:3100 (logs)
 
-### Configuration
+### First Pipeline Run
 
-All service configuration is managed through environment variables in `.env`. Key settings:
+1. Materialize the Nightscout ingestion asset:
+```bash
+docker exec dagster-webserver dagster asset materialize --select entries
+```
 
-- **Database:** `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- **Storage:** `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
-- **Services:** `AIRBYTE_HOST`, `DAGSTER_PORT`, `SUPERSET_PORT`
-- **Paths:** `DBT_PROJECT_DIR`, `DUCKDB_WAREHOUSE_PATH`
+2. Run dbt transformations:
+```bash
+docker exec dagster-webserver dagster asset materialize --select "dbt:*"
+```
 
-See `cascade/config.py` for the complete centralized configuration schema.
+3. Publish to PostgreSQL marts:
+```bash
+docker exec dagster-webserver dagster asset materialize --select "postgres_*"
+```
 
-## 📚 Documentation
+4. View dashboards in Superset at http://localhost:8088
 
-**[Full Documentation →](./docs/README.md)**
+## Key Features
 
-- **[Component Guides](./docs/components/)** - Individual tool documentation
-- **[Integration Guides](./docs/integrations/)** - How components work together
-- **[Asset-Based Architecture](./ASSET_BASED_ARCHITECTURE.md)** - Dagster asset details
-- **[Airbyte Setup](./AIRBYTE_SETUP.md)** - Optional data ingestion
+### Git-Like Branching for Data
 
-## 🎯 Example: Complete End-to-End Pipeline
+Nessie provides branch isolation and atomic commits:
 
-**[Nightscout Glucose Monitoring Pipeline](./NIGHTSCOUT_EXAMPLE.md)**
+```sql
+-- Work on dev branch
+SELECT * FROM iceberg.bronze.stg_entries;
 
-A production-ready example demonstrating the full stack using real-world CGM data:
-- REST API ingestion with Dagster assets
-- 5-layer dbt transformations (staging → intermediate → curated → marts)
-- Data quality validation with Great Expectations
-- Lineage tracking with OpenLineage/Marquez
-- Superset dashboards for visualization
+-- Promote to main via merge
+-- (automated via Dagster assets)
+```
 
-Perfect for Python developers learning modern data engineering patterns.
+### Time Travel Queries
 
----
+Query data as it existed at any point in history:
 
-## 1. Concept at a Glance
+```sql
+-- Query as of specific timestamp
+SELECT * FROM iceberg.silver.fct_glucose_readings
+FOR TIMESTAMP AS OF '2024-10-15 12:00:00';
 
-| Layer                           | Primary Tools                                         | Purpose                                                          |
-| ------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------- |
-| **Data Sources**                | Lab instruments, LIMS/ELN, process equipment exports  | Generate raw batch and assay data                                |
-| **Landing / Data Lake**         | **MinIO (S3-compatible storage)** + **Parquet files** | Central repository for all raw and curated data in open formats  |
-| **Processing & Transformation** | **Dagster + DLT + dbt + DuckLake**               | Orchestrates ingestion, validation, transformation, and loading  |
-| **Metadata & Governance**       | **PostgreSQL + Great Expectations + Dagster lineage** | Maintains catalog, schema, data-quality checks, and audit trail  |
-| **Analytics & Reporting**       | **Postgres Marts + Superset Dashboarding**            | Presents trusted, near-real-time insights and KPIs               |
-| **Optional Extensions**         | **MotherDuck / OpenMetadata / MLflow**                | Cloud scalability, lineage catalog, and machine-learning support |
+-- Query specific snapshot
+SELECT * FROM iceberg.silver.fct_glucose_readings
+FOR VERSION AS OF <snapshot-id>;
+```
 
----
+### Multi-Engine Analytics
 
-## 2. Why This Matters
+Query Iceberg tables with multiple engines:
 
-- **Single Source of Truth** – All assay and manufacturing data are consolidated in one governed store.
-- **Traceable & Compliant** – Each pipeline is version-controlled, validated, and logged for audit readiness.
-- **Flexible Growth Path** – Starts small on-prem, scales to cloud or hybrid as data and user needs grow.
-- **Vendor Independence** – Entirely open-source; no lock-in or recurring license fees.
-- **Empowers Teams** – Scientists, analysts, and engineers can access clean, structured data safely and efficiently.
+- **Trino**: Production queries and dbt transformations
+- **DuckDB**: Fast ad-hoc analysis (via iceberg extension)
+- **Spark**: Large-scale batch processing (future)
 
----
+### Asset-Based Orchestration
 
-## 3. Components Explained
+Dagster manages the full pipeline as declarative assets:
 
-### **A. MinIO — Data Lake Storage**
+```
+nightscout_api
+  → entries (Iceberg raw)
+    → dbt:bronze.stg_entries
+      → dbt:silver.fct_glucose_readings
+        → dbt:gold.dim_date
+          → postgres_marts
+            → superset_dashboards
+```
 
-- Acts as an **S3-compatible object store** for all raw and processed data files.
-- Stores Parquet and CSV outputs from instruments, assays, and batch exports.
-- Versioned buckets provide immutability and rollback capability (useful for GMP data integrity).
+### APIs for Data Access
 
----
+Cascade provides multiple APIs for programmatic data access:
 
-### **B. PostgreSQL — Metadata and Analytics Marts**
+#### REST API (FastAPI)
+- **Endpoint:** http://localhost:8000
+- **Authentication:** JWT tokens (admin/analyst roles)
+- **Features:**
+  - Query Iceberg tables via Trino
+  - Access Postgres marts
+  - Rate limiting and caching
+  - OpenAPI/Swagger documentation
 
-- Dual role:
-  1. **Metadata catalog** for DuckDB (DuckLake) ensuring transactional consistency and schema management.
-  2. **Analytics marts** – optimized relational tables (summaries, KPIs) for dashboards and external tools.
-- Provides ACID compliance, user management, and straightforward backup/restore.
+#### GraphQL API (Hasura)
+- **Endpoint:** http://localhost:8081
+- **Features:**
+  - Flexible GraphQL queries
+  - Real-time subscriptions
+  - Schema introspection
+  - Auto-generated documentation
 
----
+#### Hub Dashboard
+- **Endpoint:** http://localhost:54321
+- **Features:**
+  - Service status overview
+  - Quick links to all services
+  - Health checks
+  - Configuration display
 
-### **C. DuckLake / DuckDB — Analytical Engine**
+### Observability Stack
 
-- Performs **high-performance SQL analytics** directly on Parquet files.
-- Enables “warehouse-like” queries without needing large cloud clusters.
-- Supports batch-level processing ideal for manufacturing and QC data.
-- Open, local, and fast – ideal starting point before scaling to cloud (MotherDuck).
+Complete monitoring and observability with industry-standard tools:
 
----
+#### Grafana (Dashboards)
+- **Endpoint:** http://localhost:3001
+- **Features:**
+  - Custom dashboards for metrics
+  - Service health visualization
+  - Alerting and notifications
 
-### **D. Airbyte — Data Ingestion**
+#### Prometheus (Metrics)
+- **Endpoint:** http://localhost:9090
+- **Metrics collected:**
+  - Service health and performance
+  - Database query performance
+  - API response times
+  - Resource utilization
 
-- Connects to multiple data sources (files, APIs, databases).
-- Extracts and loads data automatically into MinIO (raw zone) or PostgreSQL (reference data).
-- OSS with enterprise option – minimizes custom code while keeping control over data movement.
+#### Loki (Logs)
+- **Endpoint:** http://localhost:3100
+- **Features:**
+  - Centralized log aggregation
+  - Structured logging queries
+  - Integration with Grafana
 
----
+#### Alloy (Telemetry Collector)
+- **Endpoint:** http://localhost:12345
+- **Features:**
+  - Collects metrics from Docker containers
+  - Forwards logs to Loki
+  - Service discovery and auto-configuration
 
-### **E. dbt — Data Transformation & Modeling**
+## Data Flow
 
-- Manages all SQL-based transformations: cleaning, joining, aggregating, and enriching data.
-- Separates raw, staging, curated, and mart layers using versioned, auditable models.
-- Produces documentation and lineage for transparency.
-- Targets both DuckLake (curated Parquet) and PostgreSQL (marts).
+```mermaid
+flowchart LR
+  subgraph Sources
+    NS[Nightscout API]
+  end
 
----
+  subgraph Ingestion
+    DLT[DLT Python]
+    PYI[PyIceberg]
+  end
 
-### **F. Dagster — Orchestration & Monitoring**
+  subgraph Lake[Lakehouse on MinIO]
+    ICE[Apache Iceberg Tables]
+    META[Nessie Catalog]
+  end
 
-- Central orchestrator coordinating **Airbyte**, **dbt**, and **Great Expectations** runs.
-- Provides a visual UI for pipeline runs, schedules, alerts, and asset lineage.
-- Ensures each batch’s data follows the same controlled and validated process from ingestion to reporting.
-- Can scale from a single node to distributed or cloud deployment as workloads increase.
+  subgraph Transform
+    DBT[dbt-trino]
+    TR[Trino Engine]
+  end
 
----
+  subgraph BI
+    PG[PostgreSQL Marts]
+    SS[Superset]
+  end
 
-### **G. Great Expectations — Data Quality & Validation**
+  NS --> DLT --> PYI --> ICE
+  META <--> ICE
+  TR <--> ICE
+  DBT --> TR
+  TR --> PG
+  PG --> SS
 
-- Enforces schema, range, and completeness checks at every stage of the pipeline.
-- Automatically halts or flags failed loads, maintaining trust in reported data.
-- Generates human-readable “data docs” for audits and internal quality reviews.
+  style ICE fill:#e1f5ff
+  style META fill:#e1f5ff
+  style TR fill:#fff4e1
+  style DBT fill:#fff4e1
+```
 
----
-
-### **H. Superset — Business Intelligence & Dashboards**
-
-- Provides browser-based dashboards and visual analytics.
-- Connects directly to PostgreSQL marts for fast query performance.
-- Supports secure access controls and shareable dashboards for management reporting.
-- Easily extended with custom KPI dashboards for manufacturing, QC, or assay analytics.
-
----
-
-### **I. Optional Extensions**
-
-- **MotherDuck** – cloud-hosted DuckDB service enabling collaboration and larger compute.
-- **OpenMetadata or DataHub** – enterprise metadata catalogs with full lineage and data discovery.
-- **MLflow or JupyterHub** – add-on layer for model training, experiment tracking, and ML deployment.
-
----
-
-## 4. Typical Data Flow
-
-1. **Ingestion** – Airbyte automatically pulls new batch or assay files and stores them as Parquet in MinIO.
-2. **Validation** – Great Expectations verifies data completeness and quality.
-3. **Transformation** – dbt builds clean, structured “curated” datasets in DuckLake.
-4. **Loading to Marts** – dbt materializes summarized and downsampled data into PostgreSQL for BI.
-5. **Orchestration & Scheduling** – Dagster coordinates all these steps, logs results, and provides visibility.
-6. **Analytics & Reporting** – Superset dashboards pull live metrics and trends from the Postgres marts.
-
----
-
-## 5. Deployment Approach
-
-- **On-Premise or Hybrid:**
-  - Core stack (MinIO, Postgres, Dagster, dbt, Superset) runs on local or virtual infrastructure.
-  - Cloud options (MotherDuck, S3) can be introduced incrementally as scale demands.
-
-- **Open Source, No Lock-In:**
-  - All components are free, OSS tools with optional paid enterprise tiers for support or advanced scaling.
-  - Python dependencies managed with `uv` for fast, reliable package management.
-
-- **Scalable & Modular:**
-  - Each layer can evolve independently (e.g., replace Superset with Power BI, scale storage to cloud, or add new pipelines).
-
----
-
-## 6. Development
-
-### Local Development Setup
-
-1. **Install Python dependencies:**
-   ```bash
-   cd dagster
-   uv pip install -e .
-   ```
-
-2. **Run type checking:**
-   ```bash
-   basedpyright cascade/
-   ```
-
-3. **Run linting:**
-   ```bash
-   ruff check cascade/
-   ruff format cascade/
-   ```
-
-### Project Structure
+## Project Structure
 
 ```
 cascade/
-├── config.py              # Centralized configuration management
-├── definitions.py         # Main Dagster definitions entry point
-├── defs/
-│   ├── ingestion/        # Raw data ingestion assets (Airbyte, raw files)
-│   ├── transform/        # dbt transformation assets
-│   ├── publishing/       # Publishing to Postgres marts
-│   ├── quality/          # Data quality checks (Pandera)
-│   ├── metadata/         # Metadata ingestion (DataHub)
-│   ├── resources/        # Dagster resources (Airbyte, dbt)
-│   └── schedules/        # Job schedules
-└── schemas/              # Pandera data validation schemas
+├── src/cascade/
+│   ├── config.py              # Centralized configuration
+│   ├── definitions.py         # Dagster definitions entry point
+│   ├── iceberg/               # PyIceberg catalog and tables
+│   │   ├── catalog.py
+│   │   ├── tables.py
+│   │   └── schema.py
+│   ├── defs/
+│   │   ├── ingestion/         # DLT → Iceberg assets
+│   │   ├── transform/         # dbt transformation assets
+│   │   ├── publishing/        # Trino → Postgres publishing
+│   │   ├── quality/           # Data quality checks
+│   │   ├── resources/         # Dagster resources (Trino, Nessie, etc)
+│   │   └── schedules/         # Pipeline schedules
+│   └── schemas/               # Pandera validation schemas
+├── services/
+│   ├── api/                   # FastAPI REST service
+│   │   ├── app/
+│   │   │   ├── main.py        # API entry point
+│   │   │   ├── routers/       # API endpoints
+│   │   │   └── middleware/    # Auth, rate limiting
+│   │   └── Dockerfile
+│   └── hub/                   # Flask status dashboard
+│       └── app.py
+├── transforms/dbt/
+│   ├── models/
+│   │   ├── bronze/           # Staging layer
+│   │   ├── silver/           # Fact tables
+│   │   ├── gold/             # Dimensions
+│   │   └── marts/            # Business metrics
+│   └── profiles/
+│       └── profiles.yml      # Trino connection config
+├── docker/
+│   ├── trino/catalog/        # Trino catalog configurations
+│   ├── nessie/               # Nessie configuration
+│   ├── prometheus/           # Prometheus configuration
+│   ├── loki/                 # Loki configuration
+│   ├── alloy/                # Grafana Alloy configuration
+│   └── grafana/              # Grafana dashboards
+└── docs/
+    ├── ARCHITECTURE.md       # Detailed architecture guide
+    ├── QUICK_START.md        # Setup instructions
+    ├── NESSIE_WORKFLOW.md    # Branching workflow
+    └── duckdb-iceberg-queries.md  # DuckDB analysis guide
 ```
+
+## Development
+
+### Local Development Setup
+
+1. Install Python dependencies:
+```bash
+cd services/dagster
+uv pip install -e .
+```
+
+2. Run type checking:
+```bash
+basedpyright src/cascade/
+```
+
+3. Run linting:
+```bash
+ruff check src/cascade/
+ruff format src/cascade/
+```
+
+### Configuration
+
+All service configuration is managed through environment variables in `.env`:
+
+- **Nessie:** `NESSIE_PORT`, `NESSIE_VERSION`
+- **Trino:** `TRINO_PORT`, `TRINO_VERSION`
+- **Iceberg:** `ICEBERG_WAREHOUSE_PATH`, `ICEBERG_STAGING_PATH`
+- **Database:** `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+- **Storage:** `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
+
+See `src/cascade/config.py` for the complete configuration schema.
 
 ### Adding New Assets
 
-1. Create asset function in appropriate module under `cascade/defs/`
+1. Create asset function in appropriate module under `src/cascade/defs/`
 2. Import and include in the relevant `__init__.py`
 3. Asset will be automatically discovered by Dagster
 
 ### Testing
 
 ```bash
-# Run Dagster definitions validation
-dagster dev --workspace dagster/workspace.yaml
+# Run integration tests
+pytest tests/
 
-# Load and validate assets
-dagster asset materialize --select my_asset_name
+# Test specific phase
+./tests/test_phase3_ingestion.sh
+./tests/test_phase4_transformation.sh
 ```
 
----
+## Documentation
 
-## 7. Troubleshooting
+- **[Architecture Guide](./ARCHITECTURE.md)** - Detailed system design
+- **[Quick Start](./QUICK_START.md)** - Step-by-step setup
+- **[Nessie Workflow](./NESSIE_WORKFLOW.md)** - Branching and promotion
+- **[DuckDB Queries](./docs/duckdb-iceberg-queries.md)** - Ad-hoc analysis
+
+## Why This Architecture?
+
+### Standardization
+- Apache Iceberg is the industry-standard open table format
+- Used by Snowflake, Databricks, AWS, Google Cloud, and more
+- No vendor lock-in
+
+### Git-Like Workflows
+- Branch isolation for dev/test/prod
+- Atomic commits across multiple tables
+- Time travel to any historical state
+- Tag releases for reproducibility
+
+### Multi-Engine Flexibility
+- Trino for production queries
+- DuckDB for fast local analysis
+- Easy to add Spark, Flink, or cloud engines
+
+### Production Ready
+- ACID transactions prevent data corruption
+- Schema evolution without breaking changes
+- Partition pruning for query performance
+- Concurrent read/write support
+
+### 12-Factor Compliance
+- Stateless services
+- Configuration via environment
+- Logs to stdout
+- Ready for Kubernetes deployment
+
+## Troubleshooting
 
 ### Services Won't Start
 
-**Check Docker resources:**
 ```bash
-docker-compose ps
-docker-compose logs <service-name>
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs nessie
+docker compose logs trino
+docker compose logs dagster-webserver
 ```
 
-**Common issues:**
-- MinIO needs at least 512MB memory
-- Dagster requires PostgreSQL to be healthy before starting
+### Catalog Connection Issues
 
-### Dagster Assets Failing
-
-**Check environment variables:**
 ```bash
-docker exec dagster-webserver env | grep POSTGRES
+# Test Nessie API
+curl http://localhost:19120/api/v2/config
+
+# Test Trino connection
+docker exec trino trino --execute "SHOW CATALOGS;"
+
+# Verify Iceberg catalog
+docker exec dagster-webserver python -c "
+from cascade.iceberg.catalog import get_catalog
+cat = get_catalog()
+print(cat.list_namespaces())
+"
 ```
 
-**View Dagster logs:**
+### Asset Materialization Failures
+
 ```bash
-docker logs dagster-webserver
+# View Dagster logs
+docker logs dagster-daemon
+
+# Check asset details in Dagster UI
+open http://localhost:3000
+
+# Test dbt manually
+docker exec dagster-webserver dbt run \
+  --project-dir /dbt \
+  --profiles-dir /dbt/profiles \
+  --target dev
 ```
 
-### Database Connection Issues
+### Reset Everything
 
-**Verify PostgreSQL is accessible:**
 ```bash
-docker exec -it postgres psql -U lake -d lakehouse -c "\dt"
+# WARNING: Destroys all data
+make clean-all
+make fresh-start
 ```
 
-**Reset database if needed:**
-```bash
-docker-compose down -v  # WARNING: Destroys all data
-docker-compose up -d
-```
+## Example Use Case: Nightscout Glucose Monitoring
 
-### DuckLake Transaction Conflicts
+Cascade includes a complete example pipeline ingesting Nightscout CGM data:
 
-DuckLake supports concurrent writers, but long-running jobs can still hold catalog locks.
+1. **Ingestion**: DLT fetches from Nightscout API → PyIceberg writes to raw.entries
+2. **Bronze**: dbt stages data with type conversions → bronze.stg_entries
+3. **Silver**: dbt creates fact table with metrics → silver.fct_glucose_readings
+4. **Gold**: dbt builds dimension tables → gold.dim_date
+5. **Marts**: Postgres marts for fast BI queries → marts.mrt_glucose_overview
+6. **Dashboards**: Superset visualizations
 
-**Solution:**
-- Keep partition tasks scoped to a single day to minimize transaction duration.
-- If a run crashes, rerun the failed partition—DuckLake retries now handle brief conflicts automatically.
-- For stuck locks, restart the Dagster worker to release the open DuckDB session.
+Perfect for learning modern data engineering patterns with real-world data.
 
-### Configuration Issues
+## Production Deployment
 
-**Validate configuration loads correctly:**
-```python
-from cascade.config import config
-print(config.model_dump())
-```
+Cascade is designed for production use:
 
----
+- **Docker Compose**: POC and small deployments
+- **Kubernetes**: Enterprise scale (Helm charts planned)
+- **Cloud**: Works with AWS S3, GCS, Azure Blob Storage
+- **Hybrid**: Mix on-prem storage with cloud compute
 
-## 8. Benefits to the Organization
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for production hardening guidance.
 
-- **Improved Decision-Making:** Rapid analytics from lab and manufacturing data within hours of batch completion.
-- **Data Integrity & Compliance:** Full audit trail, reproducible transformations, and version-controlled codebase.
-- **Operational Efficiency:** Automated ingestion and transformation remove manual spreadsheet work.
-- **Future-Ready:** Easily extended for machine learning, digital twins, and advanced process optimization.
+## Contributing
 
----
+This is a personal project demonstrating modern data lakehouse patterns. Feel free to fork and adapt for your needs.
 
-## 9. Summary Diagram (Conceptual)
+## License
 
-```mermaid
-flowchart LR
-  subgraph Sources
-    A[Lab Instruments] -->|CSV/API| B[LIMS / ELN]
-  end
-  subgraph Lakehouse
-    LZ[(MinIO / S3 Parquet)] --> DBT[dbt + DuckLake]
-    DBT --> CUR[(Curated Parquet)]
-    CUR --> PGS[(Postgres Marts)]
-    DBT -->|Catalog| CAT[(Postgres Metadata)]
-  end
-  subgraph Governance
-    GE[Great Expectations] -->|Validate| DBT
-    DGS[Dagster] -->|Schedule + Lineage| GE
-    DGS --> DBT
-    DGS --> AB[Airbyte]
-  end
-  subgraph Analytics
-    SUP[Superset Dashboards] -->|SQL| PGS
-  end
-  Sources --> AB
-  AB --> LZ
-```
+MIT License - See LICENSE file for details.
+
+## Acknowledgments
+
+Built with excellent open-source tools:
+
+- [Apache Iceberg](https://iceberg.apache.org/)
+- [Project Nessie](https://projectnessie.org/)
+- [Trino](https://trino.io/)
+- [dbt](https://www.getdbt.com/)
+- [Dagster](https://dagster.io/)
+- [MinIO](https://min.io/)
+- [Superset](https://superset.apache.org/)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [Hasura](https://hasura.io/)
+- [Grafana](https://grafana.com/)
+- [Prometheus](https://prometheus.io/)
+- [Loki](https://grafana.com/oss/loki/)
