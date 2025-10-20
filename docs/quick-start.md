@@ -63,13 +63,13 @@ docker compose --profile docs up -d mkdocs
 
 Wait about 30 seconds for all services to start, then access:
 
-- **Hub**: http://localhost:54321 - Service status dashboard
-- **Dagster**: http://localhost:3000 - Orchestration UI
-- **Documentation**: http://localhost:8001 - MkDocs documentation
-- **Nessie**: http://localhost:19120/api/v2/config - Catalog API
-- **Trino**: http://localhost:8080 - Query engine (UI)
-- **MinIO Console**: http://localhost:9001 - Object storage
-- **Superset**: http://localhost:8088 - Dashboards (admin/admin)
+- **Hub**: http://localhost:10009 - Service status dashboard
+- **Dagster**: http://localhost:10006 - Orchestration UI
+- **Documentation**: http://localhost:10012 - MkDocs documentation
+- **Nessie**: http://localhost:10003/api/v2/config - Catalog API
+- **Trino**: http://localhost:10005 - Query engine (UI)
+- **MinIO Console**: http://localhost:10002 - Object storage
+- **Superset**: http://localhost:10007 - Dashboards (admin/admin)
 
 ## Step 4: Run Your First Pipeline
 

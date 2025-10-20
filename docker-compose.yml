@@ -321,6 +321,8 @@ services:
       retries: 5
       start_period: 10s
 
+
+
   # Observability Stack
   prometheus:
     image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
@@ -520,3 +522,4 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
