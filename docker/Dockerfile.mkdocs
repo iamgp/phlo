@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+WORKDIR /docs
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_PYTHON_DOWNLOADS=never
+
+RUN pip install --no-cache-dir --upgrade pip uv
+
+# Create pyproject.toml for MkDocs dependencies
+RUN echo '[project]\n\
+name = "cascade-docs"\n\
+version = "0.1.0"\n\
+dependencies = [\n\
+    "mkdocs>=1.6.0",\n\
+    "mkdocs-material>=9.5.0",\n\
+    "mkdocstrings[python]>=0.25.0",\n\
+]\n\
+requires-python = ">=3.11"' > pyproject.toml
+
+RUN uv sync
+
+COPY mkdocs.yml /docs/
+COPY docs/ /docs/docs/
+
+ENV PATH="/docs/.venv/bin:${PATH}"
+
+EXPOSE 8000
+
+CMD ["mkdocs", "serve", "-a", "0.0.0.0:8000"]
