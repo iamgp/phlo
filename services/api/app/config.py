@@ -37,13 +37,13 @@ class Settings(BaseSettings):
 
     # Trino Connection
     trino_host: str = "trino"
-    trino_port: int = 8080
+    trino_port: int = 10005
     trino_catalog: str = "iceberg"
     trino_user: str = "cascade"
 
     # Postgres Connection
     postgres_host: str = "postgres"
-    postgres_port: int = 5432
+    postgres_port: int = 10000
     postgres_db: str = "lakehouse"
     postgres_user: str = "lake"
     postgres_password: str = "lakepass"

@@ -54,17 +54,24 @@ make up-api        # rest api, graphql api
 make up-observability  # grafana, prometheus, loki, alloy
 ```
 
-4. Access the services:
-- **Hub:** http://localhost:54321 (service status dashboard)
-- **Dagster:** http://localhost:3000 (orchestration UI)
-- **REST API:** http://localhost:8000 (FastAPI with Swagger docs)
-- **GraphQL API:** http://localhost:8081 (Hasura GraphQL explorer)
-- **Nessie:** http://localhost:19120 (catalog API)
-- **Trino:** http://localhost:8080 (query engine)
-    - **Superset:** http://localhost:8088 (dashboards)
-    - **MinIO Console:** http://localhost:9001 (object storage)
-    - **Grafana:** http://localhost:3001 (observability dashboards)
-    - **Prometheus:** http://localhost:9090 (metrics)
+4. Access the services using the provided make targets:
+
+   ```bash
+   # Core services
+   make hub          # Service dashboard (localhost:10009)
+   make dagster      # Pipeline orchestration (localhost:10006)
+   make docs         # Documentation (localhost:10012)
+
+   # Additional services
+   make superset     # BI dashboards (localhost:10007)
+   make api          # REST API docs (localhost:10010/docs)
+   make hasura       # GraphQL API (localhost:10011/console)
+   make minio        # Object storage (localhost:10002)
+   make grafana      # Observability (localhost:10016)
+   make pgweb        # Database UI (localhost:10008)
+   ```
+
+   All services are accessible via **sequential ports (10000-10017)** with no additional setup required.
     - **Loki:** http://localhost:3100 (logs)
 
 ### First Pipeline Run
