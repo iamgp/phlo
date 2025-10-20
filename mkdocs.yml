@@ -17,9 +17,28 @@ theme:
     - search.suggest
     - search.highlight
     - search.share
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
 
 plugins:
   - search
+  - mermaid2
   - mkdocstrings:
       handlers:
         python:
@@ -35,10 +54,9 @@ nav:
       - Architecture: architecture.md
       - Configuration: configuration.md
   - Guides:
-      - API: api.md
-      - DuckDB Iceberg Queries: duckdb-iceberg-queries.md
-      - Hasura Setup: hasura-setup.md
-      - Observability: observability.md
-  - Reference:
-      - API Reference: api/
-      - Code Reference: reference/
+       - API: API.md
+       - DuckDB Iceberg Queries: duckdb-iceberg-queries.md
+       - Hasura Setup: HASURA_SETUP.md
+       - Observability: OBSERVABILITY.md
+  - API Reference: api/
+  - Code Reference: reference/

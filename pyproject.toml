@@ -3,7 +3,7 @@ requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [tool.uv.workspace]
-members = ["src", "services/dagster", "services/hub"]
+members = ["src", "services/hub"]
 
 [dependency-groups]
 dev = [
