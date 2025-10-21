@@ -11,9 +11,11 @@ services:
     container_name: pg
     restart: unless-stopped
     environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+       POSTGRES_DB: ${POSTGRES_DB}
     ports: ["${POSTGRES_PORT}:5432"]
     volumes:
       - ./volumes/postgres:/var/lib/postgresql/data
@@ -158,11 +160,11 @@ services:
       AWS_S3_URL_STYLE: "path"
       # Nessie configuration
       NESSIE_VERSION: ${NESSIE_VERSION}
-      NESSIE_PORT: ${NESSIE_PORT}
+      NESSIE_PORT: 19120
       NESSIE_HOST: nessie
       # Trino configuration
       TRINO_VERSION: ${TRINO_VERSION}
-      TRINO_PORT: ${TRINO_PORT}
+      TRINO_PORT: 8080
       TRINO_HOST: trino
       TRINO_CATALOG: iceberg
       # Iceberg configuration
@@ -171,12 +173,12 @@ services:
       ICEBERG_DEFAULT_NAMESPACE: raw
       ICEBERG_NESSIE_REF: ${ICEBERG_NESSIE_REF:-dev}
       # MinIO/Postgres for dbt
-      MINIO_HOST: ${MINIO_HOST}
+      MINIO_HOST: ${MINIO_HOST:-minio}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_API_PORT: ${MINIO_API_PORT}
+      MINIO_API_PORT: 9000
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -223,11 +225,11 @@ services:
       AWS_S3_URL_STYLE: "path"
       # Nessie configuration
       NESSIE_VERSION: ${NESSIE_VERSION}
-      NESSIE_PORT: ${NESSIE_PORT}
+      NESSIE_PORT: 19120
       NESSIE_HOST: nessie
       # Trino configuration
       TRINO_VERSION: ${TRINO_VERSION}
-      TRINO_PORT: ${TRINO_PORT}
+      TRINO_PORT: 8080
       TRINO_HOST: trino
       TRINO_CATALOG: iceberg
       # Iceberg configuration
@@ -236,12 +238,12 @@ services:
       ICEBERG_DEFAULT_NAMESPACE: raw
       ICEBERG_NESSIE_REF: ${ICEBERG_NESSIE_REF:-dev}
       # MinIO/Postgres for dbt
-      MINIO_HOST: ${MINIO_HOST}
+      MINIO_HOST: ${MINIO_HOST:-minio}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_API_PORT: ${MINIO_API_PORT}
+      MINIO_API_PORT: 9000
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -267,10 +269,12 @@ services:
     environment:
       SUPERSET_SECRET_KEY: superset_secret_key_change_me
       SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
+       POSTGRES_DB: ${POSTGRES_DB}
+       SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
       SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
     volumes:
@@ -506,7 +510,7 @@ services:
       TRINO_USER: ${TRINO_USER:-cascade}
       # Postgres connection
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-lakehouse}
       POSTGRES_USER: ${POSTGRES_USER:-lake}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lakepass}
