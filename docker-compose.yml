@@ -121,6 +121,7 @@ services:
       - "${TRINO_PORT}:8080"
     volumes:
       - ./docker/trino/catalog:/etc/trino/catalog
+      - ./docker/trino/config.properties:/etc/trino/config.properties
     environment:
       # S3/MinIO credentials for Iceberg
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
@@ -192,10 +193,10 @@ services:
       ]
     ports: ["${DAGSTER_PORT}:3000"]
     volumes:
-    - ./services/dagster:/opt/dagster
-    - ./src/cascade:/opt/dagster/cascade:ro
-    - ./transforms/dbt:/dbt # Needs write for target/
-    - ./data:/data # Legacy mount retained for local artifacts
+      - ./services/dagster:/opt/dagster
+      - ./src/cascade:/opt/dagster/cascade:ro
+      - ./transforms/dbt:/dbt # Needs write for target/
+      - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
       minio:
         condition: service_healthy
@@ -247,10 +248,10 @@ services:
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
-    - ./services/dagster:/opt/dagster
-    - ./src/cascade:/opt/dagster/cascade:ro
-    - ./transforms/dbt:/dbt # Needs write for target/
-    - ./data:/data # Legacy mount retained for local artifacts
+      - ./services/dagster:/opt/dagster
+      - ./src/cascade:/opt/dagster/cascade:ro
+      - ./transforms/dbt:/dbt # Needs write for target/
+      - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
       dagster-webserver:
         condition: service_started
@@ -298,30 +299,34 @@ services:
     container_name: lakehouse-hub
     restart: unless-stopped
     environment:
-      APP_PORT: ${APP_PORT:-54321}
+      APP_PORT: ${APP_PORT:-10009}
       FLASK_DEBUG: ${FLASK_DEBUG:-false}
-      DAGSTER_PORT: ${DAGSTER_PORT:-3000}
-      SUPERSET_PORT: ${SUPERSET_PORT:-8088}
+      DAGSTER_PORT: ${DAGSTER_PORT:-10006}
+      TRINO_PORT: ${TRINO_PORT:-10005}
+      NESSIE_PORT: ${NESSIE_PORT:-10003}
+      SUPERSET_PORT: ${SUPERSET_PORT:-10007}
       SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD}
-      PGWEB_PORT: ${PGWEB_PORT:-8081}
-      MINIO_CONSOLE_PORT: ${MINIO_CONSOLE_PORT:-9001}
+      PGWEB_PORT: ${PGWEB_PORT:-10008}
+      MINIO_CONSOLE_PORT: ${MINIO_CONSOLE_PORT:-10002}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_PORT: ${POSTGRES_PORT:-10000}
       POSTGRES_USER: ${POSTGRES_USER:-lake}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lakepass}
       POSTGRES_DB: ${POSTGRES_DB:-lakehouse}
+      API_PORT: ${API_PORT:-10010}
+      HASURA_PORT: ${HASURA_PORT:-10011}
+      GRAFANA_PORT: ${GRAFANA_PORT:-10016}
+      PROMETHEUS_PORT: ${PROMETHEUS_PORT:-10013}
     ports:
-      - "${APP_PORT:-54321}:${APP_PORT:-54321}"
+      - "${APP_PORT:-10009}:${APP_PORT:-10009}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${APP_PORT:-54321}/"]
+      test: ["CMD", "curl", "-f", "http://localhost:${APP_PORT:-10009}/"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-
-
 
   # Observability Stack
   prometheus:
@@ -330,19 +335,27 @@ services:
     restart: unless-stopped
     profiles: ["observability", "all"]
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle'
-      - '--storage.tsdb.retention.time=30d'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+      - "--storage.tsdb.retention.time=30d"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ./docker/prometheus:/etc/prometheus
       - ./volumes/prometheus:/prometheus
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9090/-/healthy",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -359,7 +372,15 @@ services:
       - ./docker/loki:/etc/loki
       - ./volumes/loki:/loki
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3100/ready",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -388,7 +409,15 @@ services:
       loki:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:12345/-/healthy"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:12345/-/healthy",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -416,7 +445,15 @@ services:
       loki:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -434,7 +471,15 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9187/"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9187/",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -516,10 +561,9 @@ services:
     volumes:
       - ./docs:/docs/docs:ro
       - ./mkdocs.yml:/docs/mkdocs.yml:ro
-      - ./src:/docs/src:ro  # For mkdocstrings to access source code
+      - ./src:/docs/src:ro # For mkdocstrings to access source code
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 30s
       timeout: 10s
       retries: 3
-
