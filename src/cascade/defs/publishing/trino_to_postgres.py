@@ -21,6 +21,8 @@ from cascade.schemas import PublishPostgresOutput, TablePublishStats
     deps=[
         AssetKey("mrt_glucose_overview"),
         AssetKey("mrt_glucose_hourly_patterns"),
+        AssetKey("mrt_github_activity_overview"),
+        AssetKey("mrt_github_repo_insights"),
     ],
 )
 # Publishing function implementation
@@ -46,6 +48,8 @@ def publish_glucose_marts_to_postgres(
     tables_to_publish = {
         "mrt_glucose_overview": "iceberg.marts.mrt_glucose_overview",
         "mrt_glucose_hourly_patterns": "iceberg.marts.mrt_glucose_hourly_patterns",
+        "mrt_github_activity_overview": "iceberg.marts.mrt_github_activity_overview",
+        "mrt_github_repo_insights": "iceberg.marts.mrt_github_repo_insights",
     }
 
     context.log.info(

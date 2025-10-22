@@ -1,4 +1,4 @@
--- stg_entries.sql - Bronze layer staging model for raw Nightscout glucose entries
+-- stg_glucose_entries.sql - Bronze layer staging model for raw Nightscout glucose entries
 -- Creates a clean, typed view of raw glucose data from Iceberg raw layer
 -- Applies basic filtering and type conversions for downstream silver layer transformations
 
