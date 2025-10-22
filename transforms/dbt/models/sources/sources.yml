@@ -7,7 +7,8 @@ sources:
     description: Upstream Dagster assets providing raw data from Iceberg via Nessie catalog
     tables:
       - name: entries
-        description: Nightscout CGM data ingested via DLT/PyIceberg into Iceberg raw.entries
-        meta:
-          dagster:
-            asset_key: ["entries"]
+        description: Nightscout CGM glucose data ingested via DLT/PyIceberg into Iceberg raw.glucose_entries
+      - name: user_events
+        description: GitHub user events ingested via DLT/PyIceberg into Iceberg raw.github_user_events
+      - name: repo_stats
+        description: GitHub repository statistics ingested via DLT/PyIceberg into Iceberg raw.github_repo_stats

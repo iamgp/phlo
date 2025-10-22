@@ -19,6 +19,60 @@ from pyiceberg.types import (
 
 # --- Schema Definitions ---
 # Predefined PyIceberg schemas for different data types
+# GitHub User Events Schema
+# Based on GitHub API: /users/{username}/events
+GITHUB_USER_EVENTS_SCHEMA = Schema(
+    NestedField(1, "id", StringType(), required=False, doc="Event ID"),
+    NestedField(2, "type", StringType(), required=False, doc="Event type"),
+    NestedField(3, "actor", StringType(), required=False, doc="Actor information (JSON)"),
+    NestedField(4, "repo", StringType(), required=False, doc="Repository information (JSON)"),
+    NestedField(5, "payload", StringType(), required=False, doc="Event payload (JSON)"),
+    NestedField(6, "public", BooleanType(), required=False, doc="Is event public"),
+    NestedField(7, "created_at", TimestamptzType(), required=False, doc="Event creation timestamp"),
+    NestedField(8, "org", StringType(), required=False, doc="Organization information (JSON)"),
+    NestedField(
+        9,
+        "_cascade_ingested_at",
+        TimestamptzType(),
+        required=False,
+        doc="Cascade ingestion timestamp",
+    ),
+    # DLT metadata fields
+    NestedField(
+        100, "_dlt_load_id", StringType(), required=True, doc="DLT load identifier"
+    ),
+    NestedField(
+        101, "_dlt_id", StringType(), required=True, doc="DLT record identifier"
+    ),
+)
+
+# GitHub Repository Statistics Schema
+# Based on GitHub API: /repos/{owner}/{repo}/stats/*
+GITHUB_REPO_STATS_SCHEMA = Schema(
+    NestedField(1, "repo_name", StringType(), required=False, doc="Repository name"),
+    NestedField(2, "repo_full_name", StringType(), required=False, doc="Full repository name"),
+    NestedField(3, "repo_id", LongType(), required=False, doc="Repository ID"),
+    NestedField(4, "collection_date", StringType(), required=False, doc="Data collection date"),
+    NestedField(5, "contributors_data", StringType(), required=False, doc="Contributors statistics (JSON)"),
+    NestedField(6, "commit_activity_data", StringType(), required=False, doc="Commit activity statistics (JSON)"),
+    NestedField(7, "code_frequency_data", StringType(), required=False, doc="Code frequency statistics (JSON)"),
+    NestedField(8, "participation_data", StringType(), required=False, doc="Participation statistics (JSON)"),
+    NestedField(
+        9,
+        "_cascade_ingested_at",
+        TimestamptzType(),
+        required=False,
+        doc="Cascade ingestion timestamp",
+    ),
+    # DLT metadata fields
+    NestedField(
+        100, "_dlt_load_id", StringType(), required=True, doc="DLT load identifier"
+    ),
+    NestedField(
+        101, "_dlt_id", StringType(), required=True, doc="DLT record identifier"
+    ),
+)
+
 # Nightscout Entries Schema
 # Based on Nightscout API: /api/v1/entries
 NIGHTSCOUT_ENTRIES_SCHEMA = Schema(
@@ -99,17 +153,19 @@ def get_schema(table_type: str) -> Schema:
     Get schema by table type name.
 
     Args:
-        table_type: Table type ("entries" or "treatments")
+        table_type: Table type ("entries", "treatments", "user_events", "repo_stats")
 
     Returns:
         PyIceberg Schema
 
     Example:
-        schema = get_schema("entries")
+        schema = get_schema("user_events")
     """
     schemas = {
         "entries": NIGHTSCOUT_ENTRIES_SCHEMA,
         "treatments": NIGHTSCOUT_TREATMENTS_SCHEMA,
+    "user_events": GITHUB_USER_EVENTS_SCHEMA,
+"repo_stats": GITHUB_REPO_STATS_SCHEMA,
     }
 
     schema = schemas.get(table_type)

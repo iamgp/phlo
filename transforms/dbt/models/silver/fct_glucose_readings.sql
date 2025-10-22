@@ -21,7 +21,7 @@ These enrichments enable better analytics and visualization in downstream models
 
 -- CTE for source data from bronze layer staging
 with glucose_data as (
-    select * from {{ ref('stg_entries') }}
+    select * from {{ ref('stg_glucose_entries') }}
 ),
 
 -- CTE for enriched data with calculated fields and business logic

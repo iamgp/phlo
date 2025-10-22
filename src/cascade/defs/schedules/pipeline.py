@@ -12,9 +12,11 @@ from cascade.defs.partitions import daily_partition
 # --- Job Definitions ---
 # Asset jobs that orchestrate different stages of the pipeline
 # Define jobs once so schedules and other consumers share the same definitions.
+
+# Ingest job for all raw data ingestion assets
 INGEST_JOB = dg.define_asset_job(
     name="ingest_raw_data",
-    selection=dg.AssetSelection.groups("ingestion"),
+    selection=dg.AssetSelection.groups("github", "nightscout"),
     partitions_def=daily_partition,
 )
 
@@ -22,10 +24,9 @@ INGEST_JOB = dg.define_asset_job(
 TRANSFORM_JOB = dg.define_asset_job(
     name="transform_dbt_models",
     selection=dg.AssetSelection.groups(
-        "bronze",
-        "silver",
-        "gold",
-        "publish",
+        "github",
+        "nightscout",
+        "transform",
     ),
     partitions_def=daily_partition,
 )
@@ -40,14 +41,14 @@ def build_asset_jobs() -> list[dg.UnresolvedAssetJobDefinition]:
 
 def build_sensors() -> list[dg.SensorDefinition]:
     """
-    Trigger downstream transformations whenever fresh Nightscout data lands in Iceberg raw layer.
+    Trigger downstream transformations whenever fresh data lands in Iceberg raw layer.
 
-    We monitor the partitioned entries asset and fan out matching partition keys to the dbt job
+    We monitor the partitioned ingestion assets and fan out matching partition keys to the dbt job
     so every ingestion run immediately promotes the corresponding day through the warehouse.
     """
 
     @asset_sensor(
-        asset_key=AssetKey(["entries"]),
+        asset_key=AssetKey(["dlt_glucose_entries"]),
         job_name=TRANSFORM_JOB.name,
         minimum_interval_seconds=300,  # Debounce: at most once every 5 minutes
     )
@@ -70,7 +71,55 @@ def build_sensors() -> list[dg.SensorDefinition]:
         else:
             yield RunRequest(run_key=cursor)
 
-    return [transform_on_new_nightscout_data]
+    @asset_sensor(
+        asset_key=AssetKey(["dlt_github_user_events"]),
+        job_name=TRANSFORM_JOB.name,
+        minimum_interval_seconds=300,  # Debounce: at most once every 5 minutes
+    )
+    def transform_on_new_github_user_events(
+        context: SensorEvaluationContext,
+        asset_event: dg.EventLogEntry,
+    ):
+        # Check if new data exists
+        metadata = asset_event.dagster_event.event_specific_data.materialization.asset_materialization.metadata
+        rows_loaded = metadata.get("rows_loaded")
+        if rows_loaded is None or rows_loaded.value <= 0:
+            return  # No new data, skip
+
+        partition_key = asset_event.partition
+        cursor = str(asset_event.storage_id)
+        context.update_cursor(cursor)
+
+        if partition_key:
+            yield RunRequest(run_key=f"{cursor}:{partition_key}", partition_key=partition_key)
+        else:
+            yield RunRequest(run_key=cursor)
+
+    @asset_sensor(
+        asset_key=AssetKey(["dlt_github_repo_stats"]),
+        job_name=TRANSFORM_JOB.name,
+        minimum_interval_seconds=300,  # Debounce: at most once every 5 minutes
+    )
+    def transform_on_new_github_repo_stats(
+        context: SensorEvaluationContext,
+        asset_event: dg.EventLogEntry,
+    ):
+        # Check if new data exists
+        metadata = asset_event.dagster_event.event_specific_data.materialization.asset_materialization.metadata
+        rows_loaded = metadata.get("rows_loaded")
+        if rows_loaded is None or rows_loaded.value <= 0:
+            return  # No new data, skip
+
+        partition_key = asset_event.partition
+        cursor = str(asset_event.storage_id)
+        context.update_cursor(cursor)
+
+        if partition_key:
+            yield RunRequest(run_key=f"{cursor}:{partition_key}", partition_key=partition_key)
+        else:
+            yield RunRequest(run_key=cursor)
+
+    return [transform_on_new_nightscout_data, transform_on_new_github_user_events, transform_on_new_github_repo_stats]
 
 
 def build_schedules() -> list[dg.ScheduleDefinition]:

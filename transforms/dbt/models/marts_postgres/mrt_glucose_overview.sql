@@ -58,7 +58,7 @@ select
         else null
     end as coefficient_of_variation
 
-from {{ ref('dim_date') }}
+from {{ ref('fct_daily_glucose_metrics') }}
 where reading_date >= current_date - interval '90' day  -- Last 90 days for dashboard
 
 {% if is_incremental() %}

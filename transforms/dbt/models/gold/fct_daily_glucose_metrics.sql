@@ -1,5 +1,5 @@
--- dim_date.sql - Gold layer date dimension for glucose analytics
--- Creates an incrementally updated date dimension with daily glucose metrics
+-- fct_daily_glucose_metrics.sql - Gold layer daily glucose metrics fact table
+-- Creates an incrementally updated fact table with daily glucose metrics
 -- enabling time-based analysis and trend tracking for diabetes management
 
 {{ config(
@@ -9,7 +9,7 @@
 ) }}
 
  /*
-Date dimension for glucose analytics
+Daily glucose metrics fact table
 
 Provides a daily grain view with key metrics aggregated by day.
 Useful for trend analysis and long-term glucose management tracking.
