@@ -70,7 +70,7 @@ class Settings(BaseSettings):
         default="raw", description="Default namespace/schema for Iceberg tables"
     )
     iceberg_nessie_ref: str = Field(
-        default="main", description="Default Nessie branch/tag for Iceberg operations"
+        default="dev", description="Default Nessie branch/tag for Iceberg operations"
     )
 
     # --- BI Services Configuration ---
@@ -120,6 +120,15 @@ class Settings(BaseSettings):
     # Hub
     app_port: int = Field(default=10009, description="Hub application port")
     flask_debug: bool = Field(default=False, description="Flask debug mode")
+
+    # --- GitHub API Configuration ---
+    # Settings for GitHub API integration
+    # GitHub API
+    github_token: str | None = Field(default=None, description="GitHub personal access token")
+    github_username: str | None = Field(default=None, description="GitHub username for API requests")
+    github_base_url: str = Field(
+        default="https://api.github.com", description="GitHub API base URL"
+    )
 
     # --- Computed Properties ---
     # Additional properties computed from the base settings

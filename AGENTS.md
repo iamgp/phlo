@@ -8,6 +8,7 @@
 - **Asset validation**: `dagster dev --workspace dagster/workspace.yaml`
 - **Single asset test**: `dagster asset materialize --select entries` (Nightscout data)
 - **dbt commands**: `docker compose exec dagster-web dbt run/test --select model_name`
+- **dbt testing**: `dbt test --select tag:dataset_name` (comprehensive schema + business logic tests)
 
 ## Architecture & Structure
 - **Data lakehouse** with MinIO (S3-compatible), PostgreSQL, DuckDB/DuckLake for analytics
@@ -17,6 +18,36 @@
 - **Storage**: MinIO bucket `lake` with prefix `ducklake/` for managed tables
 - **Services**: Superset (dashboards), DataHub (metadata catalog)
 - **Configuration**: Centralized in `cascade/config.py` using Pydantic settings from `.env`
+
+## Testing Strategy
+
+### Data Quality Testing
+- **Pandera schemas**: Type-safe validation in `cascade/schemas/` with Dagster integration
+- **Dagster asset checks**: Runtime quality validation with detailed error reporting
+- **dbt tests**: Comprehensive testing across bronze/silver/gold/mart layers
+
+### dbt Test Patterns
+- **Schema tests**: YAML-based column validation (not_null, unique, accepted_values, relationships)
+- **Business logic tests**: Custom SQL tests for complex rules and cross-table validation
+- **Data integrity tests**: Referential integrity, range validation, statistical checks
+- **Incremental logic tests**: Proper handling of incremental updates and deduplication
+
+### Test Organization
+- **Bronze layer**: Basic schema validation and data type checks
+- **Silver layer**: Business logic validation and enrichment accuracy
+- **Gold layer**: Curated data integrity and incremental processing
+- **Mart layer**: Dashboard-ready data validation and aggregation accuracy
+
+### Required dbt Packages
+```yaml
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.1.1
+  - package: calogica/dbt_expectations
+    version: 0.10.0
+  - package: dbt-labs/dbt_date
+    version: 0.10.0
+```
 
 ## Code Style & Conventions
 - **Python 3.11+**, line length 100, ruff + basedpyright for linting/typing

@@ -19,41 +19,34 @@ from cascade.defs.partitions import daily_partition
 # --- Job Definitions ---
 # Branch-aware jobs for development and production workflows
 DEV_PIPELINE_JOB = dg.define_asset_job(
-    name="dev_pipeline",
-    description="Development pipeline: runs on dev branch with branch isolation",
-    selection=(
-        dg.AssetSelection.keys("nessie_dev_branch")
-        | dg.AssetSelection.groups("ingestion", "bronze", "silver", "gold")
-    ),
-    partitions_def=daily_partition,
-    config={
-        "resources": {
-            "iceberg": {"config": {"ref": "dev"}},
-            "trino": {"config": {"nessie_ref": "dev"}},
-        },
-        "ops": {
-            "all_dbt_assets": {
-                "config": {
-                    "target": "dev",
-                }
-            }
-        }
-    },
+name="dev_pipeline",
+description="Development pipeline: runs on dev branch with branch isolation",
+selection=(
+dg.AssetSelection.keys("nessie_dev_branch")
+| dg.AssetSelection.groups("nightscout", "github")
+),
+partitions_def=daily_partition,
+config={
+"resources": {
+"iceberg": {"config": {"ref": "dev"}},
+"trino": {"config": {"nessie_ref": "dev"}},
+},
+},
 )
 
 # Production promotion job - manual merge and publish
 PROD_PROMOTION_JOB = dg.define_asset_job(
-    name="prod_promotion",
-    description="Production promotion: merge dev to main and publish marts to postgres",
-    selection=(
-        dg.AssetSelection.keys("promote_dev_to_main") | dg.AssetSelection.groups("publish")
-    ),
-    config={
-        "resources": {
-            "iceberg": {"config": {"ref": "main"}},
-            "trino": {"config": {"nessie_ref": "main"}},
-        },
-    },
+name="prod_promotion",
+description="Production promotion: merge dev to main and publish marts to postgres",
+selection=(
+dg.AssetSelection.keys("promote_dev_to_main") | dg.AssetSelection.keys("publish_glucose_marts_to_postgres")
+),
+config={
+"resources": {
+"iceberg": {"config": {"ref": "main"}},
+"trino": {"config": {"nessie_ref": "main"}},
+},
+},
 )
 
 

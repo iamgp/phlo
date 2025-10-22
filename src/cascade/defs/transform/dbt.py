@@ -25,10 +25,43 @@ DBT_PROFILES_DIR = config.dbt_profiles_path
 # Custom translator for mapping dbt models to Dagster assets with proper grouping
 class CustomDbtTranslator(DagsterDbtTranslator):
     def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> AssetKey:
+        resource_type = dbt_resource_props.get("resource_type")
+        if resource_type == "source":
+            source_name = dbt_resource_props["source_name"]
+            table_name = dbt_resource_props["name"]
+            if source_name == "dagster_assets":
+                # Map dbt source table names to Dagster asset keys
+                if table_name == "user_events":
+                    return AssetKey(["dlt_github_user_events"])
+                elif table_name == "repo_stats":
+                    return AssetKey(["dlt_github_repo_stats"])
+                elif table_name == "entries":
+                    return AssetKey(["dlt_glucose_entries"])
+                else:
+                    return AssetKey([table_name])
+            return super().get_asset_key(dbt_resource_props)
         return AssetKey(dbt_resource_props["name"])
 
     def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
         model_name = dbt_resource_props["name"]
+
+        # Group by workflow instead of level
+        if "_github_" in model_name or model_name in [
+            "stg_github_user_events", "stg_github_repo_stats",
+            "fct_github_user_events", "fct_github_repo_stats",
+            "mrt_github_user_activity", "mrt_github_repo_metrics",
+            "mrt_github_activity_overview", "mrt_github_repo_insights"
+        ]:
+            return "github"
+        elif "_glucose_" in model_name or "_entries" in model_name or model_name in [
+            "stg_entries", "fct_glucose_readings", "mrt_glucose_readings",
+            "mrt_glucose_overview", "mrt_glucose_hourly_patterns"
+        ]:
+            return "nightscout"
+        elif model_name == "fct_daily_glucose_metrics":
+            return "nightscout"
+
+        # Fallback grouping by level for any unmatched models
         if model_name.startswith("stg_"):
             return "bronze"
         if model_name.startswith(("dim_", "fct_")):
@@ -37,12 +70,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return "gold"
         return "transform"
 
-    def get_source_asset_key(self, dbt_source_props: Mapping[str, Any]) -> AssetKey:
-        source_name = dbt_source_props["source_name"]
-        table_name = dbt_source_props["name"]
-        if source_name == "dagster_assets":
-            return AssetKey([table_name])
-        return super().get_source_asset_key(dbt_source_props)
+
 
 
 # --- DBT Assets Definition ---
@@ -50,6 +78,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
 @dbt_assets(
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
     dagster_dbt_translator=CustomDbtTranslator(),
+    partitions_def=daily_partition,
 )
 def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None]:
     target = context.op_config.get("target") if context.op_config else None
