@@ -1,0 +1,154 @@
+# mrt_github_repo_insights.yml - Schema and integrity tests for GitHub repository insights mart
+
+version: 2
+
+models:
+  - name: mrt_github_repo_insights
+    description: "PostgreSQL mart providing repository performance and health metrics"
+    meta:
+      dagster:
+        asset_key: ["mrt_github_repo_insights"]
+    columns:
+      - name: repo_full_name
+        description: "Full repository name"
+        tests:
+          - not_null
+
+      - name: repo_name
+        description: "Repository name"
+        tests:
+          - not_null
+
+      - name: repo_owner
+        description: "Repository owner"
+        tests:
+          - not_null
+
+      - name: collection_date
+        description: "Date when statistics were collected"
+        tests:
+          - not_null
+
+      - name: contributor_count
+        description: "Number of contributors"
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: integer
+
+      - name: total_commits_last_52_weeks
+        description: "Total commits in last 52 weeks"
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: integer
+
+      - name: net_code_changes
+        description: "Net code changes"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: integer
+
+      - name: weeks_with_activity
+        description: "Number of weeks with activity"
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: integer
+
+      - name: activity_score
+        description: "Calculated activity score"
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: numeric
+
+      - name: contribution_level
+        description: "Contribution level classification"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['high_contribution', 'medium_contribution', 'low_contribution', 'no_contribution']
+
+      - name: activity_level
+        description: "Activity level classification"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['very_active', 'active', 'moderate', 'inactive']
+
+      - name: repository_health
+        description: "Repository health status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['healthy', 'stable', 'developing', 'dormant']
+
+      - name: avg_commits_per_week
+        description: "Average commits per week"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: numeric
+
+      - name: contributor_count_7d_avg
+        description: "7-day rolling average contributor count"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: numeric
+
+      - name: activity_score_7d_avg
+        description: "7-day rolling average activity score"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: numeric
+
+      - name: contributor_change
+        description: "Change in contributor count"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: integer
+
+      - name: activity_change
+        description: "Change in activity score"
+        tests:
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: numeric
+
+# Custom business logic tests
+  - name: test_github_repo_positive_metrics
+    description: "Test that key metrics are non-negative"
+    columns:
+      - name: contributor_count
+        tests:
+          - dbt_expectations.expect_column_values_to_be_greater_than_or_equal_to:
+              value: 0
+      - name: total_commits_last_52_weeks
+        tests:
+          - dbt_expectations.expect_column_values_to_be_greater_than_or_equal_to:
+              value: 0
+      - name: weeks_with_activity
+        tests:
+          - dbt_expectations.expect_column_values_to_be_greater_than_or_equal_to:
+              value: 0
+      - name: activity_score
+        tests:
+          - dbt_expectations.expect_column_values_to_be_greater_than_or_equal_to:
+              value: 0
+
+  - name: test_github_repo_activity_score_calculation
+    description: "Test activity score calculation logic"
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "activity_score >= 0"
+
+  - name: test_github_repo_no_future_collection
+    description: "Test that collection dates are not in the future"
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "collection_date <= current_date"
+
+  - name: test_github_repo_avg_commits_calculation
+    description: "Test average commits per week calculation"
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "avg_commits_per_week >= 0 OR avg_commits_per_week IS NULL"

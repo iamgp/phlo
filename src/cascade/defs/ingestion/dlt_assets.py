@@ -40,11 +40,11 @@ def get_staging_path(partition_date: str, table_name: str) -> str:
 # --- Dagster Assets ---
 # Data ingestion assets that materialize raw data into the lakehouse
 @dg.asset(
-    name="entries",
-    group_name="ingestion",
+    name="dlt_glucose_entries",
+    group_name="nightscout",
     partitions_def=daily_partition,
     description=(
-        "Nightscout CGM entries ingested via DLT to S3 parquet, "
+        "Nightscout CGM glucose entries ingested via DLT to S3 parquet, "
         "then registered in Iceberg raw.entries with daily partitioning"
     ),
     compute_kind="dlt+pyiceberg",
@@ -68,7 +68,7 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
     """
     partition_date = context.partition_key
     pipeline_name = f"nightscout_entries_{partition_date.replace('-', '_')}"
-    table_name = f"{config.iceberg_default_namespace}.entries"
+    table_name = f"{config.iceberg_default_namespace}.glucose_entries"
 
     start_time_iso = f"{partition_date}T00:00:00.000Z"
     end_time_iso = f"{partition_date}T23:59:59.999Z"

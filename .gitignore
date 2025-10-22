@@ -33,6 +33,8 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .pytype/
+*.pyc
+.cache/
 
 # Virtual environments
 venv/
@@ -61,10 +63,11 @@ dagster/tmpfiles/
 dagster_home/
 
 # dbt
-dbt/target/
-dbt/dbt_packages/
-dbt/logs/
-dbt/profiles/profiles.yml.bak
+transforms/dbt/target/
+transforms/dbt/dbt_packages/
+transforms/dbt/logs/
+transforms/dbt/profiles/profiles.yml.bak
+transforms/dbt/package-lock.yml
 
 # Data directories
 data/
@@ -90,8 +93,51 @@ logs/
 *.temp
 .cache/
 
-# Parquet and data files (uncomment if you don't want to commit data)
-# *.parquet
-# *.csv
-# *.json
+# Data files and formats
+*.parquet
+*.csv
+*.json
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.feather
+
+# Cloud and infrastructure
+.aws/
+.gcp/
+.azure/
+.terraform/
+*.tfstate
+*.tfvars
+
+# Jupyter notebooks (if not wanted)
+# *.ipynb
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Logs and temporary files
+*.log
+logs/
+*.tmp
+*.temp
+.cache/
+
 transforms/dbt/target
