@@ -7,30 +7,10 @@ from __future__ import annotations
 import dagster as dg
 
 from cascade.defs.partitions import daily_partition
-
-
-# --- Job Definitions ---
-# Asset jobs that orchestrate the complete data pipeline
-nightscout_job = dg.define_asset_job(
-    name="nightscout_pipeline",
-    selection=["group:nightscout"],
-    partitions_def=daily_partition,
-)
-
-github_job = dg.define_asset_job(
-name="github_pipeline",
-selection=["group:github"],
-partitions_def=daily_partition,
-)
-
-# Publishing job for all marts
-publish_job = dg.define_asset_job(
-    name="publish_pipeline",
-    selection=["publish_glucose_marts_to_postgres"],
-)
+from . import JOBS, nightscout_job, github_job, publish_job, DEV_PIPELINE_JOB, PROD_PROMOTION_JOB
 
 
 # --- Helper Functions ---
 # Functions for building Dagster definitions
 def build_defs() -> dg.Definitions:
-    return dg.Definitions(jobs=[nightscout_job, github_job])
+    return dg.Definitions(jobs=[nightscout_job, github_job, publish_job, DEV_PIPELINE_JOB, PROD_PROMOTION_JOB])

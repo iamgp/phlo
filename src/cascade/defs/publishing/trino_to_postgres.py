@@ -1,59 +1,44 @@
-# trino_to_postgres.py - Publishing asset to move curated marts from Iceberg to PostgreSQL
+# trino_to_postgres.py - Publishing asset factory to move curated marts from Iceberg to PostgreSQL
 # Implements the final publishing step of the lakehouse pipeline
 # transferring processed analytics data to Postgres for fast BI queries
 
 from __future__ import annotations
 
 import psycopg2
+import yaml
 from dagster import AssetKey, asset
+from pathlib import Path
 
 from cascade.config import config
 from cascade.defs.resources.trino import TrinoResource
 from cascade.schemas import PublishPostgresOutput, TablePublishStats
 
 
-# --- Publishing Asset ---
-# Dagster asset that publishes Iceberg marts to PostgreSQL for BI access
-@asset(
-    name="publish_glucose_marts_to_postgres",
-    group_name="publish",
-    compute_kind="trino+postgres",
-    deps=[
-        AssetKey("mrt_glucose_overview"),
-        AssetKey("mrt_glucose_hourly_patterns"),
-        AssetKey("mrt_github_activity_overview"),
-        AssetKey("mrt_github_repo_insights"),
-    ],
-)
-# Publishing function implementation
-def publish_glucose_marts_to_postgres(
-    context, trino: TrinoResource
+# --- Shared Publishing Logic ---
+# Generic function for publishing Iceberg marts to PostgreSQL
+def _publish_marts_to_postgres(
+    context,
+    trino: TrinoResource,
+    tables_to_publish: dict[str, str],
+    data_source: str,
 ) -> PublishPostgresOutput:
     """
-    Publish curated marts from Iceberg (via Trino) to Postgres for BI/Superset.
+    Generic function to publish curated marts from Iceberg (via Trino) to Postgres.
 
-    Strategy:
-    1. Query mart tables from Iceberg via Trino
-    2. Write results to Postgres using COPY for performance
-    3. Postgres tables serve as fast query layer for Superset dashboards
+    Args:
+        context: Dagster asset execution context
+        trino: Trino resource for querying Iceberg
+        tables_to_publish: Dict mapping Postgres table names to Iceberg table paths
+        data_source: Description of data source for logging (e.g., "glucose", "GitHub")
 
-    Source: Iceberg bronze/silver/gold/marts schemas
-    Target: Postgres marts schema
+    Returns:
+        PublishPostgresOutput with table statistics
     """
     # Configuration setup
     target_schema = config.postgres_mart_schema
 
-    # --- Table Configuration ---
-    # Tables to publish from Iceberg to Postgres
-    tables_to_publish = {
-        "mrt_glucose_overview": "iceberg.marts.mrt_glucose_overview",
-        "mrt_glucose_hourly_patterns": "iceberg.marts.mrt_glucose_hourly_patterns",
-        "mrt_github_activity_overview": "iceberg.marts.mrt_github_activity_overview",
-        "mrt_github_repo_insights": "iceberg.marts.mrt_github_repo_insights",
-    }
-
     context.log.info(
-        "Publishing Iceberg marts to Postgres via Trino. target_schema=%s",
+        f"Publishing {data_source} Iceberg marts to Postgres via Trino. target_schema=%s",
         target_schema,
     )
 
@@ -79,7 +64,7 @@ def publish_glucose_marts_to_postgres(
 
         for table_alias, iceberg_table in tables_to_publish.items():
             context.log.info(
-                "Publishing table %s from Iceberg source %s",
+                f"Publishing {data_source} table %s from Iceberg source %s",
                 f"{target_schema}.{table_alias}",
                 iceberg_table,
             )
@@ -139,7 +124,7 @@ def publish_glucose_marts_to_postgres(
             )
 
             context.log.info(
-                "Published table %s with %d rows, %d columns",
+                f"Published {data_source} table %s with %d rows, %d columns",
                 f"{target_schema}.{table_alias}",
                 row_count,
                 len(columns),
@@ -148,11 +133,11 @@ def publish_glucose_marts_to_postgres(
     except Exception as exc:
         pg_conn.rollback()
         context.log.exception(
-            "Failed to publish Iceberg marts to Postgres: %s",
+            f"Failed to publish {data_source} Iceberg marts to Postgres: %s",
             exc,
         )
         raise RuntimeError(
-            f"Failed to publish marts to Postgres schema '{target_schema}'. "
+            f"Failed to publish {data_source} marts to Postgres schema '{target_schema}'. "
             "Check Trino/Postgres connectivity and source tables."
         ) from exc
     finally:
@@ -161,3 +146,64 @@ def publish_glucose_marts_to_postgres(
     output = PublishPostgresOutput(tables=table_stats)
     context.add_output_metadata(output.model_dump())
     return output
+
+
+# --- Asset Factory ---
+# Dynamically create publishing assets from YAML configuration
+
+def create_publishing_assets():
+    """
+    Factory function that reads publishing config from YAML and creates assets dynamically.
+
+    Returns:
+        List of dynamically created Dagster assets
+    """
+    # Load configuration from YAML
+    config_path = Path(__file__).parent / "config.yaml"
+    with open(config_path, 'r') as f:
+        config_data = yaml.safe_load(f)
+
+    assets = []
+
+    for data_source, config_item in config_data['publishing'].items():
+        # Create asset dynamically
+        asset_name = config_item['name']
+        group_name = config_item['group']
+        description = config_item['description']
+        dependencies = [AssetKey(dep) for dep in config_item['dependencies']]
+        tables_to_publish = config_item['tables']
+
+        @asset(
+            name=asset_name,
+            group_name=group_name,
+            compute_kind="trino+postgres",
+            deps=dependencies,
+        )
+        def publishing_asset(context, trino: TrinoResource) -> PublishPostgresOutput:
+            return _publish_marts_to_postgres(
+                context=context,
+                trino=trino,
+                tables_to_publish=tables_to_publish,
+                data_source=data_source.capitalize()
+            )
+
+        # Set the docstring dynamically
+        publishing_asset.__doc__ = f"""
+        {description}
+
+        Source: Iceberg marts schema ({data_source} data)
+        Target: Postgres marts schema
+
+        Tables: {', '.join(tables_to_publish.keys())}
+        """
+
+        # Rename the function to avoid conflicts
+        publishing_asset.__name__ = asset_name
+
+        assets.append(publishing_asset)
+
+    return assets
+
+
+# Create the assets
+PUBLISHING_ASSETS = create_publishing_assets()
