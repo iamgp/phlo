@@ -10,7 +10,6 @@ import dagster as dg
 
 from cascade.config import config
 from cascade.defs.ingestion import build_defs as build_ingestion_defs
-from cascade.defs.jobs import build_defs as build_job_defs
 from cascade.defs.nessie import build_defs as build_nessie_defs
 from cascade.defs.publishing import build_defs as build_publishing_defs
 from cascade.defs.quality import build_defs as build_quality_defs
@@ -18,7 +17,6 @@ from cascade.defs.resources import build_defs as build_resource_defs
 from cascade.defs.schedules import build_defs as build_schedule_defs
 from cascade.defs.sensors import build_defs as build_sensor_defs
 from cascade.defs.transform import build_defs as build_transform_defs
-from cascade.defs.workflows import build_defs as build_workflow_defs
 
 
 # Executor selection function: Chooses between in-process and multiprocess executors
@@ -58,8 +56,6 @@ def _merged_definitions() -> dg.Definitions:
         build_nessie_defs(),
         build_schedule_defs(),
         build_sensor_defs(),
-        build_job_defs(),
-        build_workflow_defs(),
     )
 
     executor = _default_executor()

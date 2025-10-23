@@ -6,12 +6,10 @@ from __future__ import annotations
 
 import dagster as dg
 
-from cascade.defs.publishing.trino_to_postgres import (
-    publish_glucose_marts_to_postgres,
-)
+from cascade.defs.publishing.trino_to_postgres import PUBLISHING_ASSETS
 
 
 # --- Aggregation Function ---
 # Builds publishing asset definitions
 def build_defs() -> dg.Definitions:
-    return dg.Definitions(assets=[publish_glucose_marts_to_postgres])
+    return dg.Definitions(assets=PUBLISHING_ASSETS)
