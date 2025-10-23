@@ -1,0 +1,58 @@
+jobs:
+  # Job definitions - what assets run together
+  # Each job defines a collection of assets that should be executed as a unit
+
+  nightscout:
+    name: "nightscout_pipeline"
+    description: "Nightscout data ingestion and processing pipeline"
+    selection:
+      type: "group"
+      groups: ["nightscout"]
+    partitions: "daily"
+
+  github:
+    name: "github_pipeline"
+    description: "GitHub data ingestion and processing pipeline"
+    selection:
+      type: "group"
+      groups: ["github"]
+    partitions: "daily"
+
+  publish:
+    name: "publish_pipeline"
+    description: "Publishing pipeline for all marts"
+    selection:
+      type: "keys"
+      keys: ["publish_glucose_marts_to_postgres", "publish_github_marts_to_postgres"]
+    partitions: null
+
+  dev_pipeline:
+    name: "dev_pipeline"
+    description: "Development pipeline: runs on dev branch with branch isolation"
+    selection:
+      type: "mixed"
+      keys: ["nessie_dev_branch"]
+      groups: ["nightscout", "github"]
+    partitions: "daily"
+    resources:
+      iceberg:
+        config:
+          ref: "dev"
+      trino:
+        config:
+          nessie_ref: "dev"
+
+  prod_promotion:
+    name: "prod_promotion"
+    description: "Production promotion: merge dev to main and publish marts to postgres"
+    selection:
+      type: "keys"
+      keys: ["promote_dev_to_main", "publish_glucose_marts_to_postgres", "publish_github_marts_to_postgres"]
+    partitions: null
+    resources:
+      iceberg:
+        config:
+          ref: "main"
+      trino:
+        config:
+          nessie_ref: "main"
