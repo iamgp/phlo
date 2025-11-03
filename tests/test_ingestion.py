@@ -224,11 +224,11 @@ class TestIngestionIntegrationTests:
         # Verify data belongs to the partition
         for entry in test_data:
             date_string = entry["dateString"]
-            assert date_string.startswith("2024-01-15")
+            assert isinstance(date_string, str) and date_string.startswith("2024-01-15")
 
         # Verify data integrity
         assert len(test_data) == 2
-        assert all(entry["sgv"] > 0 for entry in test_data)
+        assert all(isinstance(entry["sgv"], (int, float)) and entry["sgv"] > 0 for entry in test_data)
 
 
 class TestIngestionDataQualityTests:

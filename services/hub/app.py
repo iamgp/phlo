@@ -155,13 +155,13 @@ HTML_TEMPLATE = """
             <h3 class="section-title">Query Engine & Catalog</h3>
             <div class="services-grid">
                 <a href="http://localhost:{{ trino_port }}" class="service-card" target="_blank">
-                    <h2><span class="status"></span>Trino<span class="badge">NEW</span></h2>
+                    <h2><span class="status"></span>Trino</h2>
                     <p>Distributed SQL query engine for Iceberg tables and transformations</p>
                     <span class="port">Port {{ trino_port }}</span>
                 </a>
 
                 <a href="http://localhost:{{ nessie_port }}/api/v1" class="service-card" target="_blank">
-                    <h2><span class="status"></span>Nessie<span class="badge">NEW</span></h2>
+                    <h2><span class="status"></span>Nessie</h2>
                     <p>Git-like catalog for Apache Iceberg with branching and versioning</p>
                     <span class="port">Port {{ nessie_port }}</span>
                 </a>
@@ -199,7 +199,7 @@ HTML_TEMPLATE = """
             <h3 class="section-title">API Layer</h3>
             <div class="services-grid">
                 <a href="http://localhost:{{ api_port }}/docs" class="service-card" target="_blank">
-                    <h2><span class="status"></span>FastAPI<span class="badge">NEW</span></h2>
+                    <h2><span class="status"></span>FastAPI</h2>
                     <p>REST API for glucose analytics and Iceberg data access</p>
                     <span class="port">Port {{ api_port }}</span>
                     <div class="credentials">
@@ -209,7 +209,7 @@ HTML_TEMPLATE = """
                 </a>
 
                 <a href="http://localhost:{{ hasura_port }}/console" class="service-card" target="_blank">
-                    <h2><span class="status"></span>Hasura GraphQL<span class="badge">NEW</span></h2>
+                    <h2><span class="status"></span>Hasura GraphQL</h2>
                     <p>Auto-generated GraphQL API from Postgres marts with real-time subscriptions</p>
                     <span class="port">Port {{ hasura_port }}</span>
                     <div class="credentials">
@@ -233,7 +233,7 @@ HTML_TEMPLATE = """
                 </a>
 
                 <a href="http://localhost:{{ grafana_port }}" class="service-card" target="_blank">
-                    <h2><span class="status"></span>Grafana<span class="badge">NEW</span></h2>
+                    <h2><span class="status"></span>Grafana</h2>
                     <p>Observability dashboards with metrics and logs visualization</p>
                     <span class="port">Port {{ grafana_port }}</span>
                     <div class="credentials">
@@ -248,7 +248,7 @@ HTML_TEMPLATE = """
             <h3 class="section-title">Monitoring</h3>
             <div class="services-grid">
                 <a href="http://localhost:{{ prometheus_port }}" class="service-card" target="_blank">
-                    <h2><span class="status"></span>Prometheus<span class="badge">NEW</span></h2>
+                    <h2><span class="status"></span>Prometheus</h2>
                     <p>Metrics collection and time-series database for service monitoring</p>
                     <span class="port">Port {{ prometheus_port }}</span>
                 </a>
@@ -293,6 +293,6 @@ def index():
 
 
 if __name__ == "__main__":
-port = int(os.getenv("APP_PORT", "10009"))
-debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-app.run(host="0.0.0.0", port=port, debug=debug)
+    port = int(os.getenv("APP_PORT", "10009"))
+    debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=debug)

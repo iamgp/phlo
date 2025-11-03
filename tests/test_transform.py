@@ -5,6 +5,7 @@ cascade.defs.transform.dbt module, focusing on the CustomDbtTranslator and dbt a
 """
 
 from unittest.mock import MagicMock, patch
+from typing import cast
 
 import pytest
 from dagster import AssetKey
@@ -95,7 +96,7 @@ class TestTransformUnitTests:
             "name": "entries"
         }
 
-        asset_key = translator.get_source_asset_key(dbt_source_props)
+        asset_key = translator.get_asset_key(dbt_source_props)
         assert asset_key == AssetKey(["entries"])
 
     @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
@@ -110,7 +111,7 @@ class TestTransformUnitTests:
         mock_profiles_dir.__str__ = MagicMock(return_value="/path/to/dbt/profiles")
 
         # Create proper context
-        mock_context = build_op_context()
+        mock_context = MagicMock()
         mock_context.op_config = {"target": "dev"}
         mock_context.has_partition_key = False
 
@@ -123,7 +124,7 @@ class TestTransformUnitTests:
         mock_invocation.target_path = MagicMock()
 
         # Execute the asset function
-        assets = list(all_dbt_assets(mock_context, mock_dbt))
+        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify dbt build was called
         mock_dbt.cli.assert_called()
@@ -149,7 +150,7 @@ class TestTransformUnitTests:
         mock_profiles_dir.__str__ = MagicMock(return_value="/path/to/dbt/profiles")
 
         # Create proper context
-        mock_context = build_op_context()
+        mock_context = MagicMock()
         mock_context.op_config = {"target": "dev"}
         mock_context.has_partition_key = False
 
@@ -164,7 +165,7 @@ class TestTransformUnitTests:
         mock_docs_invocation.target_path = MagicMock()
 
         # Execute the asset function
-        assets = list(all_dbt_assets(mock_context, mock_dbt))
+        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify dbt docs generate was called
         assert mock_dbt.cli.call_count == 2
@@ -199,7 +200,7 @@ class TestTransformUnitTests:
         mock_invocation.target_path = MagicMock()
 
         # Execute the asset function
-        assets = list(all_dbt_assets(mock_context, mock_dbt))
+        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify partition variable was passed
         call_args = mock_dbt.cli.call_args_list[0][0][0]  # First call
@@ -222,7 +223,7 @@ class TestTransformIntegrationTests:
         mock_profiles_dir.__str__ = MagicMock(return_value="/path/to/dbt/profiles")
 
         # Create proper context
-        mock_context = build_op_context()
+        mock_context = MagicMock()
         mock_context.op_config = {"target": "dev"}
         mock_context.has_partition_key = False
 
@@ -235,7 +236,7 @@ class TestTransformIntegrationTests:
         mock_invocation.target_path = MagicMock()
 
         # Execute
-        assets = list(all_dbt_assets(mock_context, mock_dbt))
+        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify integration points
         assert mock_dbt.cli.called
@@ -284,7 +285,7 @@ class TestTransformDataQualityTests:
             "name": "entries"
         }
 
-        asset_key = translator.get_source_asset_key(dbt_source_props)
+        asset_key = translator.get_asset_key(dbt_source_props)
         assert asset_key == AssetKey(["entries"])
 
     def test_dbt_lineage_and_dependencies_are_preserved(self):
@@ -318,7 +319,7 @@ class TestTransformE2ETests:
         mock_profiles_dir.__str__ = MagicMock(return_value="/path/to/dbt/profiles")
 
         # Create proper context
-        mock_context = build_op_context()
+        mock_context = MagicMock()
         mock_context.op_config = {"target": "dev"}
         mock_context.has_partition_key = False
 
@@ -331,7 +332,7 @@ class TestTransformE2ETests:
         mock_invocation.target_path = MagicMock()
 
         # Execute full pipeline
-        assets = list(all_dbt_assets(mock_context, mock_dbt))
+        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify both build and docs phases completed
         assert mock_dbt.cli.call_count == 2
@@ -364,6 +365,7 @@ class TestTransformE2ETests:
         # For this test, we verify the build_defs function works
 
         # Verify resources are configured
+        assert defs.resources is not None
         assert 'dbt' in defs.resources
 
     @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
@@ -380,7 +382,7 @@ class TestTransformE2ETests:
         mock_profiles_dir.__str__ = MagicMock(return_value="/path/to/dbt/profiles")
 
         # Create proper context
-        mock_context = build_op_context()
+        mock_context = MagicMock()
         mock_context.op_config = {"target": "dev"}
         mock_context.has_partition_key = False
 
@@ -400,7 +402,7 @@ class TestTransformE2ETests:
         mock_docs_invocation.target_path.__truediv__.return_value = mock_artifact_path
 
         # Execute
-        assets = list(all_dbt_assets(mock_context, mock_dbt))
+        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify artifacts were copied
         assert mock_copy.call_count == 3  # manifest.json, catalog.json, run_results.json
