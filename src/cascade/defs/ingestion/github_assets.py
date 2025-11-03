@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -142,7 +142,7 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
             )
 
         # Add cascade ingestion timestamp
-        ingestion_timestamp = datetime.utcnow()
+        ingestion_timestamp = datetime.now(timezone.utc)
         for event in all_events:
             event["_cascade_ingested_at"] = ingestion_timestamp
 
@@ -317,7 +317,7 @@ def github_repo_stats(context, iceberg: IcebergResource) -> dg.MaterializeResult
                 "repo_full_name": repo_full_name,
                 "repo_id": repo["id"],
                 "collection_date": partition_date,
-                "_cascade_ingested_at": datetime.utcnow(),
+                "_cascade_ingested_at": datetime.now(timezone.utc),
             }
 
             for stat_type, endpoint in stat_types:

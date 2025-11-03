@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -111,7 +111,7 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
             )
 
         # Add cascade ingestion timestamp
-        ingestion_timestamp = datetime.utcnow()
+        ingestion_timestamp = datetime.now(timezone.utc)
         for entry in entries_data:
             entry["_cascade_ingested_at"] = ingestion_timestamp
 

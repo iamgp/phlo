@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import platform
+from typing import cast
 
 import dagster as dg
 
@@ -70,7 +71,7 @@ def _merged_definitions() -> dg.Definitions:
     }
 
     if executor is not None:
-        defs_kwargs["executor"] = executor
+        defs_kwargs["executor"] = cast(dg.ExecutorDefinition, executor)
 
     return dg.Definitions(**defs_kwargs)
 
