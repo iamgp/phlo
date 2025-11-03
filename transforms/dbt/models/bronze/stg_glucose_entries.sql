@@ -17,7 +17,7 @@
 
 -- CTE for raw data source
 with raw_data as (
-    select * from {{ source('dagster_assets', 'entries') }}
+    select * from {{ source('dagster_assets', 'glucose_entries') }}
 )
 
 -- Final select: Apply field mapping, type conversions, and basic validations
@@ -30,7 +30,12 @@ select
     trend,
     device,
     type as reading_type,
-    utc_offset as utc_offset_minutes
+    utc_offset as utc_offset_minutes,
+    -- Metadata columns
+    sys_time,
+    _cascade_ingested_at,
+    _dlt_load_id,
+    _dlt_id
 from raw_data
 -- Apply data quality filters
 where sgv is not null
