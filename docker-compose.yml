@@ -99,6 +99,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
 
   nessie-setup:
     image: curlimages/curl:latest
@@ -107,7 +108,8 @@ services:
       sh -c "
       sleep 5 &&
       echo 'Creating Nessie branches...' &&
-      curl -X POST http://nessie:19120/api/v1/trees/branch/dev -H 'Content-Type: application/json' -d '{\"name\":\"dev\",\"hash\":null}' || echo 'dev branch may already exist' &&
+      MAIN_HASH=$$(curl -s http://nessie:19120/api/v2/trees/main | grep -o '\"hash\":\"[^\"]*\"' | cut -d'\"' -f4) &&
+      curl -X POST 'http://nessie:19120/api/v2/trees?name=dev&type=BRANCH' -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{\"name\":\"main\",\"hash\":\"'$$MAIN_HASH'\",\"type\":\"BRANCH\"}' || echo 'dev branch may already exist' &&
       echo 'Nessie setup complete'
       "
     depends_on:
@@ -141,6 +143,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 45s
 
   dagster-webserver:
     build:
@@ -205,6 +208,10 @@ services:
       minio-setup:
         condition: service_completed_successfully
       postgres:
+        condition: service_healthy
+      nessie:
+        condition: service_healthy
+      trino:
         condition: service_healthy
 
   dagster-daemon:
