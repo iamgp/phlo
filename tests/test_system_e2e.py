@@ -77,6 +77,7 @@ class TestSystemE2ETests:
         # and that operations on different refs don't interfere
 
         # Verify resources support refs
+        assert defs.resources is not None
         trino_resource = defs.resources.get('trino')
         iceberg_resource = defs.resources.get('iceberg')
 
@@ -116,6 +117,7 @@ class TestSystemE2ETests:
         # This prevents conflicts in multi-developer/CI environments
 
         # Verify multiple refs can be used simultaneously
+        assert defs.resources is not None
         trino_resource = defs.resources.get('trino')
         iceberg_resource = defs.resources.get('iceberg')
 
@@ -240,6 +242,7 @@ class TestSystemDataQualityTests:
         # Check that connections use appropriate credentials
 
         # Verify resource configurations include security settings
+        assert defs.resources is not None
         trino_resource = defs.resources.get('trino')
         assert trino_resource is not None
         assert hasattr(trino_resource, 'user')  # Has user configuration

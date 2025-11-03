@@ -5,6 +5,7 @@ cascade.defs.quality.nightscout module.
 """
 
 from unittest.mock import MagicMock, patch
+from typing import cast
 
 import pandas as pd
 import pytest
@@ -32,7 +33,7 @@ class TestQualityUnitTests:
         mock_cursor.fetchall.return_value = [("entry1", 120), ("entry2", 130)]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify Trino query was executed
         mock_cursor.execute.assert_called_once()
@@ -64,7 +65,7 @@ class TestQualityUnitTests:
         ]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify validation passed
         assert result.passed is True
@@ -87,7 +88,7 @@ class TestQualityUnitTests:
         mock_cursor.fetchall.return_value = []
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify empty result handling
         assert result.passed is True
@@ -116,7 +117,7 @@ class TestQualityUnitTests:
         ]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify failure reporting
         assert result.passed is False
@@ -143,7 +144,7 @@ class TestQualityIntegrationTests:
         mock_cursor.fetchall.return_value = [("entry1", 120)]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify integration
         assert mock_trino.cursor.called
@@ -172,7 +173,7 @@ class TestQualityIntegrationTests:
         ]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify schema violations are caught
         assert result.passed is False
@@ -210,7 +211,7 @@ class TestQualityDataQualityTests:
         ]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify business rules are enforced
         assert result.passed is True
@@ -219,7 +220,7 @@ class TestQualityDataQualityTests:
     def test_quality_checks_run_on_partitioned_data(self):
         """Test that quality checks run on partitioned data."""
         # Create proper asset check context for testing
-        mock_context = build_asset_check_context()
+        mock_context = MagicMock()
         mock_context.partition_key = "2024-01-15"
 
         # Mock Trino resource
@@ -233,7 +234,7 @@ class TestQualityDataQualityTests:
         mock_cursor.fetchall.return_value = [("entry1", 120)]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify partition filtering
         query_arg = mock_cursor.execute.call_args[0][0]
@@ -270,7 +271,7 @@ class TestQualityDataQualityTests:
         )]
 
         # Execute
-        result = nightscout_glucose_quality_check(mock_context, mock_trino)
+        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify the check runs and produces results
         assert isinstance(result, AssetCheckResult)

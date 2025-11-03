@@ -144,8 +144,8 @@ services:
 
   dagster-webserver:
     build:
-      context: ./services/dagster
-      dockerfile: ../../docker/Dockerfile.dagster
+      context: .
+      dockerfile: docker/Dockerfile.dagster
     container_name: dagster-web
     restart: unless-stopped
     environment:
@@ -209,8 +209,8 @@ services:
 
   dagster-daemon:
     build:
-      context: ./services/dagster
-      dockerfile: ../../docker/Dockerfile.dagster
+      context: .
+      dockerfile: docker/Dockerfile.dagster
     container_name: dagster-daemon
     restart: unless-stopped
     environment:

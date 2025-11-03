@@ -42,7 +42,7 @@ def pipeline_failure_sensor(context: dg.RunFailureSensorContext):
             "run_id": run_id,
             "job_name": job_name,
             "failure_message": failure_message,
-            "pipeline_name": context.dagster_run.pipeline_name,
+            "pipeline_name": context.dagster_run.job_name,
             "run_config": str(context.dagster_run.run_config),
         },
     )
@@ -90,7 +90,7 @@ def pipeline_success_sensor(context: dg.RunStatusSensorContext):
             "event_type": "pipeline_success",
             "run_id": run_id,
             "job_name": job_name,
-            "pipeline_name": context.dagster_run.pipeline_name,
+            "pipeline_name": context.dagster_run.job_name,
             "start_time": str(context.dagster_run.start_time),
             "end_time": str(context.dagster_run.end_time),
         },

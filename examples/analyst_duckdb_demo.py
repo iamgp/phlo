@@ -177,11 +177,14 @@ def main():
     try:
         # Count total rows
         result = conn.execute(f"""
-            SELECT COUNT(*) as total_rows
-            FROM iceberg_scan('{metadata_location}')
+        SELECT COUNT(*) as total_rows
+        FROM iceberg_scan('{metadata_location}')
         """).fetchone()
 
-        total_rows = result[0]
+        if result:
+            total_rows = result[0]
+        else:
+            total_rows = 0
         print(f"✓ Total rows in raw.entries: {total_rows:,}")
 
         if total_rows == 0:
@@ -191,15 +194,18 @@ def main():
 
         # Get date range
         result = conn.execute(f"""
-            SELECT
-                MIN(date) as min_date,
-                MAX(date) as max_date,
-                COUNT(DISTINCT date_string::DATE) as distinct_days
-            FROM iceberg_scan('{metadata_location}')
+        SELECT
+        MIN(date) as min_date,
+        MAX(date) as max_date,
+        COUNT(DISTINCT date_string::DATE) as distinct_days
+        FROM iceberg_scan('{metadata_location}')
         """).fetchone()
 
-        print(f"✓ Date range: {result[0]} to {result[1]}")
-        print(f"✓ Distinct days: {result[2]}")
+        if result:
+            print(f"✓ Date range: {result[0]} to {result[1]}")
+            print(f"✓ Distinct days: {result[2]}")
+        else:
+            print("✓ No date range available")
 
         # Sample data
         print()

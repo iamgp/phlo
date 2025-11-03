@@ -12,6 +12,7 @@ from cascade.defs.resources.trino import TrinoResource
 from cascade.schemas.github import (
     GitHubRepoStats,
     GitHubUserEvents,
+    VALID_EVENT_TYPES,
     get_github_repo_stats_dagster_type,
     get_github_user_events_dagster_type,
 )
@@ -142,7 +143,7 @@ def github_user_events_quality_check(context, trino: TrinoResource) -> AssetChec
         # Build schema metadata for UI display
         schema_info = {
             "id": "str (unique, non-null)",
-            "type": f"str ({', '.join(GitHubUserEvents.type.isin)}, non-null)",
+            "type": f"str ({', '.join(VALID_EVENT_TYPES)}, non-null)",
             "actor": "str (JSON, non-null)",
             "repo": "str (JSON, non-null)",
             "payload": "str (JSON, non-null)",

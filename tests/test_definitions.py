@@ -23,16 +23,19 @@ class TestDefinitionsUnitTests:
         # Test macOS (Darwin) - should use in-process
         with patch('platform.system', return_value='Darwin'):
             executor = _default_executor()
+            assert executor is not None
             assert executor.name == 'in_process'
 
         # Test Linux - should use multiprocess
         with patch('platform.system', return_value='Linux'):
             executor = _default_executor()
+            assert executor is not None
             assert executor.name == 'multiprocess'
 
         # Test Windows - should use multiprocess
         with patch('platform.system', return_value='Windows'):
             executor = _default_executor()
+            assert executor is not None
             assert executor.name == 'multiprocess'
 
     @patch('cascade.definitions.config')
@@ -43,6 +46,7 @@ class TestDefinitionsUnitTests:
         mock_config.cascade_force_multiprocess_executor = False
 
         executor = _default_executor()
+        assert executor is not None
         assert executor.name == 'in_process'
 
         # Test force multiprocess
@@ -50,6 +54,7 @@ class TestDefinitionsUnitTests:
         mock_config.cascade_force_multiprocess_executor = True
 
         executor = _default_executor()
+        assert executor is not None
         assert executor.name == 'multiprocess'
 
     @patch('cascade.definitions.build_resource_defs')
@@ -148,6 +153,7 @@ class TestDefinitionsIntegrationTests:
         assert any('entries' in str(key) for key in asset_keys)
 
         # Verify resources exist
+        assert defs.resources is not None
         assert 'trino' in defs.resources
         assert 'iceberg' in defs.resources
         assert 'dbt' in defs.resources
