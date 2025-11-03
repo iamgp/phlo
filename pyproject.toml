@@ -2,6 +2,31 @@
 requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
+[project]
+name = "cascade"
+version = "0.1.0"
+description = "Lakehouse platform"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dagster",
+    "dagster-webserver",
+    "dagster-postgres",
+    "dagster-aws",
+    "dagster-dbt",
+    "dagster-pandera",
+    "dbt-core",
+    "dbt-postgres",
+    "pydantic-settings",
+    "dlt",
+    "pyiceberg[s3fs,pyarrow]",
+    "pandas",
+    "pandera",
+    "trino",
+    "requests",
+    "psycopg2-binary",
+]
+
 [tool.uv.workspace]
 members = ["src", "services/hub"]
 
@@ -14,7 +39,13 @@ dev = [
 dev-dependencies = [
     "ruff",
     "basedpyright",
+    "ty",
 ]
+
+[tool.ty.environment]
+root = ["./services/api"]
+extra-paths = ["src"]
+python = "/Users/garethprice/Developer/cascade/.venv/bin/python"
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
