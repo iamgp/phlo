@@ -4,7 +4,8 @@
 
 {{ config(
     materialized='incremental',
-   unique_key='reading_date',
+    unique_key='reading_date',
+    incremental_strategy='merge',
     tags=['nightscout', 'mart']
 ) }}
 
