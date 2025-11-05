@@ -26,7 +26,7 @@ SELECT
     day_of_week,
     glucose_category,
     is_in_range
-FROM iceberg.silver.fct_glucose_readings
+FROM iceberg_dev.silver.fct_glucose_readings
 """
 
 
@@ -95,7 +95,7 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
             fact_df["reading_timestamp"] = pd.to_datetime(fact_df["reading_timestamp"])
 
         context.log.info(
-            "Loaded %d rows from iceberg.silver.fct_glucose_readings", len(fact_df)
+            "Loaded %d rows from iceberg_dev.silver.fct_glucose_readings", len(fact_df)
         )
     except Exception as exc:  # pragma: no cover - defensive logging
         context.log.error(f"Failed to load data from Trino: {exc}")
