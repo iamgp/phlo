@@ -153,7 +153,12 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
         if not completed_jobs:
             raise RuntimeError("DLT pipeline completed without producing parquet output")
 
-        parquet_path = Path(completed_jobs[0].file_path)
+        # Filter for actual parquet files (exclude pipeline state and other files)
+        parquet_files = [job for job in completed_jobs if job.file_path.endswith('.parquet')]
+        if not parquet_files:
+            raise RuntimeError("DLT pipeline completed without producing parquet files")
+
+        parquet_path = Path(parquet_files[0].file_path)
         if not parquet_path.is_absolute():
             parquet_path = (local_staging_root / parquet_path).resolve()
 

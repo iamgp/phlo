@@ -17,6 +17,7 @@ dependencies = [
     "dagster-pandera",
     "dbt-core",
     "dbt-postgres",
+    "dbt-trino",
     "pydantic-settings",
     "dlt",
     "pyiceberg[s3fs,pyarrow]",

@@ -7,11 +7,9 @@ publishing:
     group: "nightscout"
     description: "Publish glucose curated marts from Iceberg to Postgres for BI/Superset"
     dependencies:
-      - "mrt_glucose_overview"
       - "mrt_glucose_hourly_patterns"
     tables:
-      mrt_glucose_overview: "iceberg.marts.mrt_glucose_overview"
-      mrt_glucose_hourly_patterns: "iceberg.marts.mrt_glucose_hourly_patterns"
+      mrt_glucose_hourly_patterns: "iceberg_dev.marts.mrt_glucose_hourly_patterns"
 
   github:
     name: "publish_github_marts_to_postgres"
@@ -21,8 +19,8 @@ publishing:
       - "mrt_github_activity_overview"
       - "mrt_github_repo_insights"
     tables:
-      mrt_github_activity_overview: "iceberg.marts.mrt_github_activity_overview"
-      mrt_github_repo_insights: "iceberg.marts.mrt_github_repo_insights"
+      mrt_github_activity_overview: "iceberg_dev.marts.mrt_github_activity_overview"
+      mrt_github_repo_insights: "iceberg_dev.marts.mrt_github_repo_insights"
 
   # Example: Adding a new data source is as simple as adding a new entry here
   # test:
