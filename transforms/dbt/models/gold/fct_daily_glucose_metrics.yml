@@ -25,6 +25,7 @@ models:
           - not_null
           - accepted_values:
               values: [1, 2, 3, 4, 5, 6, 7]
+              quote: false
 
       - name: week_of_year
         description: "Week of year"
@@ -37,6 +38,7 @@ models:
           - not_null
           - accepted_values:
               values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+              quote: false
 
       - name: year
         description: "Year"
@@ -48,34 +50,34 @@ models:
         tests:
           - not_null
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: integer
+              column_type: bigint
 
       - name: avg_glucose_mg_dl
         description: "Average glucose level"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: numeric
+              column_type: double
 
       - name: min_glucose_mg_dl
         description: "Minimum glucose level"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: integer
+              column_type: bigint
 
       - name: max_glucose_mg_dl
         description: "Maximum glucose level"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: integer
+              column_type: bigint
 
       - name: time_in_range_pct
         description: "Percentage of time in range"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: numeric
+              column_type: double
 
       - name: estimated_a1c_pct
         description: "Estimated A1C percentage"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: numeric
+              column_type: double

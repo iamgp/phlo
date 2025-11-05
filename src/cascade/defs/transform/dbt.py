@@ -35,7 +35,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
                     return AssetKey(["dlt_github_user_events"])
                 elif table_name == "repo_stats":
                     return AssetKey(["dlt_github_repo_stats"])
-                elif table_name == "entries":
+                elif table_name == "entries" or table_name == "glucose_entries":
                     return AssetKey(["dlt_glucose_entries"])
                 else:
                     return AssetKey([table_name])
