@@ -173,19 +173,24 @@ def create_publishing_assets():
         dependencies = [AssetKey(dep) for dep in config_item['dependencies']]
         tables_to_publish = config_item['tables']
 
-        @asset(
-            name=asset_name,
-            group_name=group_name,
-            compute_kind="trino+postgres",
-            deps=dependencies,
-        )
-        def publishing_asset(context, trino: TrinoResource) -> PublishPostgresOutput:
-            return _publish_marts_to_postgres(
-                context=context,
-                trino=trino,
-                tables_to_publish=tables_to_publish,
-                data_source=data_source.capitalize()
+        # Use a factory function to properly capture variables in closure
+        def make_publishing_asset(tables, source_name):
+            @asset(
+                name=asset_name,
+                group_name=group_name,
+                compute_kind="trino+postgres",
+                deps=dependencies,
             )
+            def publishing_asset(context, trino: TrinoResource) -> PublishPostgresOutput:
+                return _publish_marts_to_postgres(
+                    context=context,
+                    trino=trino,
+                    tables_to_publish=tables,
+                    data_source=source_name.capitalize()
+                )
+            return publishing_asset
+
+        publishing_asset = make_publishing_asset(tables_to_publish, data_source)
 
         # Set the docstring dynamically
         publishing_asset.__doc__ = f"""

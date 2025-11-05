@@ -43,8 +43,8 @@ select
 from {{ ref('fct_glucose_readings') }}
 
 {% if is_incremental() %}
-    -- Only process new or updated dates on incremental runs
-    where reading_date >= (select coalesce(max(reading_date), date('1900-01-01')) from {{ this }})
+    -- Only process new dates on incremental runs
+    where reading_date > (select coalesce(max(reading_date), date('1900-01-01')) from {{ this }})
 {% endif %}
 
 group by reading_date
