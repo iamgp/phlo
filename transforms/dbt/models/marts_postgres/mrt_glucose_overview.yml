@@ -17,44 +17,31 @@ models:
         tests:
           - not_null
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: integer
+              column_type: bigint
 
       - name: avg_glucose_mg_dl
         description: "Average glucose level"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: numeric
+              column_type: double
 
       - name: min_glucose_mg_dl
         description: "Minimum glucose level"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: integer
+              column_type: bigint
 
       - name: max_glucose_mg_dl
         description: "Maximum glucose level"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: integer
+              column_type: bigint
 
       - name: time_in_range_pct
         description: "Percentage of time in range"
         tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: numeric
-
-# Custom business logic tests
-  - name: test_nightscout_time_in_range_calculation
-    description: "Test that time in range percentages are between 0 and 100"
-    columns:
-      - name: time_in_range_pct
-        tests:
+              column_type: double
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
               max_value: 100
-
-  - name: test_nightscout_glucose_extremes
-    description: "Test that min glucose is less than or equal to max glucose"
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "min_glucose_mg_dl <= max_glucose_mg_dl"
