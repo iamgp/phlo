@@ -29,7 +29,7 @@ SELECT
     public,
     created_at,
     org
-FROM iceberg.silver.fct_github_user_events
+FROM iceberg_dev.silver.fct_github_user_events
 """
 
 REPO_STATS_QUERY_BASE = """
@@ -42,7 +42,7 @@ SELECT
     commit_activity_data,
     code_frequency_data,
     participation_data
-FROM iceberg.silver.fct_github_repo_stats
+FROM iceberg_dev.silver.fct_github_repo_stats
 """
 
 
@@ -109,7 +109,7 @@ def github_user_events_quality_check(context, trino: TrinoResource) -> AssetChec
             events_df["created_at"] = pd.to_datetime(events_df["created_at"])
 
         context.log.info(
-            "Loaded %d rows from iceberg.silver.fct_github_user_events", len(events_df)
+            "Loaded %d rows from iceberg_dev.silver.fct_github_user_events", len(events_df)
         )
     except Exception as exc:  # pragma: no cover - defensive logging
         context.log.error(f"Failed to load data from Trino: {exc}")
@@ -260,7 +260,7 @@ def github_repo_stats_quality_check(context, trino: TrinoResource) -> AssetCheck
                 stats_df[col] = stats_df[col].astype(dtype)
 
         context.log.info(
-            "Loaded %d rows from iceberg.silver.fct_github_repo_stats", len(stats_df)
+            "Loaded %d rows from iceberg_dev.silver.fct_github_repo_stats", len(stats_df)
         )
     except Exception as exc:  # pragma: no cover - defensive logging
         context.log.error(f"Failed to load data from Trino: {exc}")
