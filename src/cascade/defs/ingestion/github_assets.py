@@ -11,6 +11,8 @@ from typing import Any
 
 import dagster as dg
 import dlt
+import pandas as pd
+import pandera.errors
 import requests
 from dagster.preview.freshness import FreshnessPolicy
 
@@ -18,6 +20,7 @@ from cascade.config import config
 from cascade.defs.partitions import daily_partition
 from cascade.defs.resources.iceberg import IcebergResource
 from cascade.iceberg.schema import get_unique_key
+from cascade.schemas.github import RawGitHubRepoStats, RawGitHubUserEvents
 
 
 # --- Helper Functions ---
@@ -149,6 +152,37 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
         ingestion_timestamp = datetime.now(timezone.utc)
         for event in all_events:
             event["_cascade_ingested_at"] = ingestion_timestamp
+
+        # Step 1.5: Validate raw data using Pandera
+        context.log.info("Validating raw GitHub user events with Pandera schema...")
+        try:
+            # Convert to DataFrame for validation
+            raw_df = pd.DataFrame(all_events)
+
+            # Convert fields to proper types for validation
+            raw_df["created_at"] = pd.to_datetime(raw_df["created_at"])
+            raw_df["_cascade_ingested_at"] = pd.to_datetime(raw_df["_cascade_ingested_at"])
+
+            # Convert JSON fields to strings (GitHub API returns them as dicts)
+            for json_field in ["actor", "repo", "payload", "org"]:
+                if json_field in raw_df.columns:
+                    raw_df[json_field] = raw_df[json_field].astype(str)
+
+            # Validate with Pandera (lazy=True to collect all errors)
+            RawGitHubUserEvents.validate(raw_df, lazy=True)
+            context.log.info(f"Raw data validation passed for {len(raw_df)} events")
+
+        except pandera.errors.SchemaErrors as err:
+            failure_cases = err.failure_cases
+            context.log.error(
+                f"Raw data validation failed with {len(failure_cases)} errors"
+            )
+            context.log.error(f"Validation errors: {failure_cases.head(10)}")
+            # Log but don't fail - allow data through with warning
+            context.log.warning("Proceeding with ingestion despite validation errors")
+        except Exception as e:
+            context.log.warning(f"Validation check failed with exception: {e}")
+            context.log.warning("Proceeding with ingestion despite validation failure")
 
         # Step 2: Stage to S3 parquet using DLT
         context.log.info("Staging data to parquet via DLT...")
@@ -377,6 +411,39 @@ def github_repo_stats(context, iceberg: IcebergResource) -> dg.MaterializeResult
                     "status": dg.MetadataValue.text("no_data"),
                 }
             )
+
+        # Step 1.5: Validate raw data using Pandera
+        context.log.info("Validating raw GitHub repo stats with Pandera schema...")
+        try:
+            # Convert to DataFrame for validation
+            raw_df = pd.DataFrame(all_stats)
+
+            # Convert timestamp fields to datetime for validation
+            raw_df["_cascade_ingested_at"] = pd.to_datetime(raw_df["_cascade_ingested_at"])
+
+            # Convert JSON fields to strings (GitHub API returns them as lists/dicts)
+            for json_field in ["contributors_data", "commit_activity_data", "code_frequency_data", "participation_data"]:
+                if json_field in raw_df.columns:
+                    # Fill NaN with None, then convert to string where present
+                    raw_df[json_field] = raw_df[json_field].apply(
+                        lambda x: str(x) if pd.notna(x) else None
+                    )
+
+            # Validate with Pandera (lazy=True to collect all errors)
+            RawGitHubRepoStats.validate(raw_df, lazy=True)
+            context.log.info(f"Raw data validation passed for {len(raw_df)} repositories")
+
+        except pandera.errors.SchemaErrors as err:
+            failure_cases = err.failure_cases
+            context.log.error(
+                f"Raw data validation failed with {len(failure_cases)} errors"
+            )
+            context.log.error(f"Validation errors: {failure_cases.head(10)}")
+            # Log but don't fail - allow data through with warning
+            context.log.warning("Proceeding with ingestion despite validation errors")
+        except Exception as e:
+            context.log.warning(f"Validation check failed with exception: {e}")
+            context.log.warning("Proceeding with ingestion despite validation failure")
 
         # Step 2: Stage to S3 parquet using DLT
         context.log.info("Staging data to parquet via DLT...")
