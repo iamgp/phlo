@@ -578,3 +578,96 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # Data Catalog - OpenMetadata
+  openmetadata-mysql:
+    image: mysql:${OPENMETADATA_MYSQL_VERSION:-8.3.0}
+    container_name: openmetadata-mysql
+    restart: unless-stopped
+    profiles: ["catalog", "all"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${OPENMETADATA_MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_USER: ${OPENMETADATA_MYSQL_USER:-openmetadata_user}
+      MYSQL_PASSWORD: ${OPENMETADATA_MYSQL_PASSWORD:-openmetadata_password}
+      MYSQL_DATABASE: ${OPENMETADATA_MYSQL_DATABASE:-openmetadata_db}
+    command:
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+      - "--default-authentication-plugin=mysql_native_password"
+    volumes:
+      - ./volumes/openmetadata-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${OPENMETADATA_MYSQL_ROOT_PASSWORD:-password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  openmetadata-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${OPENMETADATA_ES_VERSION:-8.10.2}
+    container_name: openmetadata-elasticsearch
+    restart: unless-stopped
+    profiles: ["catalog", "all"]
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.security.transport.ssl.enabled: "false"
+    volumes:
+      - ./volumes/openmetadata-elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  openmetadata-server:
+    image: openmetadata/server:${OPENMETADATA_VERSION:-1.6.1}
+    container_name: openmetadata-server
+    restart: unless-stopped
+    profiles: ["catalog", "all"]
+    environment:
+      # Database configuration
+      DB_DRIVER_CLASS: com.mysql.cj.jdbc.Driver
+      DB_SCHEME: mysql
+      DB_USE_SSL: "false"
+      DB_HOST: openmetadata-mysql
+      DB_PORT: 3306
+      DB_USER: ${OPENMETADATA_MYSQL_USER:-openmetadata_user}
+      DB_USER_PASSWORD: ${OPENMETADATA_MYSQL_PASSWORD:-openmetadata_password}
+      OM_DATABASE: ${OPENMETADATA_MYSQL_DATABASE:-openmetadata_db}
+      # Elasticsearch configuration
+      ELASTICSEARCH_HOST: openmetadata-elasticsearch
+      ELASTICSEARCH_PORT: 9200
+      ELASTICSEARCH_SCHEME: http
+      ELASTICSEARCH_USER: ""
+      ELASTICSEARCH_PASSWORD: ""
+      # OpenMetadata configuration
+      OPENMETADATA_ADMIN_USERNAME: ${OPENMETADATA_ADMIN_USERNAME:-admin}
+      OPENMETADATA_ADMIN_PASSWORD: ${OPENMETADATA_ADMIN_PASSWORD:-admin}
+      SERVER_PORT: 8585
+      # JWT configuration
+      AUTHORIZER_CLASS_NAME: org.openmetadata.service.security.DefaultAuthorizer
+      AUTHORIZER_REQUEST_FILTER: org.openmetadata.service.security.JwtFilter
+      AUTHORIZER_ADMIN_PRINCIPALS: '[admin]'
+      AUTHORIZER_PRINCIPAL_DOMAIN: open-metadata.org
+      AUTHENTICATION_PROVIDER: basic
+      AUTHENTICATION_PUBLIC_KEYS: '[http://openmetadata-server:8585/api/v1/system/config/jwks]'
+      AUTHENTICATION_AUTHORITY: https://accounts.google.com
+      AUTHENTICATION_CLIENT_ID: ""
+      AUTHENTICATION_CALLBACK_URL: ""
+    ports:
+      - "${OPENMETADATA_PORT:-10020}:8585"
+    volumes:
+      - ./volumes/openmetadata-server:/opt/openmetadata
+    depends_on:
+      openmetadata-mysql:
+        condition: service_healthy
+      openmetadata-elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8585/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s

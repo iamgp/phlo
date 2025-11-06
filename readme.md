@@ -19,6 +19,7 @@ Cascade uses modern, enterprise-grade components in a fully open-source stack:
 - **Grafana + Prometheus + Loki**: Complete observability stack with metrics, logs, and dashboards
 - **FastAPI REST API**: Programmatic data access with JWT authentication
 - **Hasura GraphQL API**: GraphQL interface for flexible queries
+- **OpenMetadata**: Data catalog for discovery, lineage, and metadata management
 
 ## Quick Start
 
@@ -51,6 +52,7 @@ make up-core       # postgres, minio, dagster, hub
 make up-query      # trino, nessie
 make up-bi         # superset, pgweb
 make up-api        # rest api, graphql api
+make up-catalog    # openmetadata data catalog
 make up-observability  # grafana, prometheus, loki, alloy
 ```
 
@@ -64,6 +66,7 @@ make up-observability  # grafana, prometheus, loki, alloy
 
    # Additional services
    make superset     # BI dashboards (localhost:10007)
+   make catalog      # Data catalog (localhost:10020)
    make api          # REST API docs (localhost:10010/docs)
    make hasura       # GraphQL API (localhost:10011/console)
    make minio        # Object storage (localhost:10002)
@@ -71,7 +74,7 @@ make up-observability  # grafana, prometheus, loki, alloy
    make pgweb        # Database UI (localhost:10008)
    ```
 
-   All services are accessible via **sequential ports (10000-10017)** with no additional setup required.
+   All services are accessible via **sequential ports (10000-10020)** with no additional setup required.
     - **Loki:** http://localhost:3100 (logs)
 
 ### First Pipeline Run
