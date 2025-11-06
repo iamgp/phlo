@@ -17,6 +17,7 @@ from dagster.preview.freshness import FreshnessPolicy
 from cascade.config import config
 from cascade.defs.partitions import daily_partition
 from cascade.defs.resources.iceberg import IcebergResource
+from cascade.iceberg.schema import get_unique_key
 
 
 # --- Helper Functions ---
@@ -43,7 +44,8 @@ def get_staging_path(partition_date: str, table_name: str) -> str:
     partitions_def=daily_partition,
     description=(
         "GitHub user events ingested via DLT to S3 parquet, "
-        "then registered in Iceberg raw.user_events with daily partitioning"
+        "then merged to Iceberg raw.user_events with idempotent deduplication. "
+        "Safe to run multiple times - uses id as unique key."
     ),
     compute_kind="dlt+pyiceberg",
     op_tags={"dagster/max_runtime": 300},
@@ -53,12 +55,14 @@ def get_staging_path(partition_date: str, table_name: str) -> str:
 )
 def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResult:
     """
-    Ingest GitHub user events using two-step pattern:
+    Ingest GitHub user events using two-step pattern with idempotent merge:
 
     1. DLT stages data to S3 as parquet files
-    2. PyIceberg registers/appends to Iceberg table
+    2. PyIceberg merges to Iceberg table with deduplication
 
     Features:
+    - Idempotent ingestion: safe to run multiple times without duplicates
+    - Deduplication based on id field (GitHub's unique event ID)
     - Daily partitioning by event date
     - S3 parquet staging with filesystem destination
     - Iceberg table management with schema enforcement
@@ -208,19 +212,30 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
             partition_spec=None,
         )
 
-        # Step 4: Append to Iceberg table
-        context.log.info("Appending data to Iceberg table...")
-        iceberg.append_parquet(table_name=table_name, data_path=str(parquet_path))
+        # Step 4: Merge to Iceberg table (idempotent ingestion)
+        context.log.info("Merging data to Iceberg table (idempotent upsert)...")
+        unique_key = get_unique_key("user_events")
+        merge_metrics = iceberg.merge_parquet(
+            table_name=table_name,
+            data_path=str(parquet_path),
+            unique_key=unique_key,
+        )
 
         total_elapsed = time.time() - start_time_ts
         rows_loaded = len(all_events)
         context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
-        context.log.info(f"Loaded {rows_loaded} rows to {table_name}")
+        context.log.info(
+            f"Merged {merge_metrics['rows_inserted']} rows to {table_name} "
+            f"(deleted {merge_metrics['rows_deleted']} existing duplicates)"
+        )
 
         return dg.MaterializeResult(
             metadata={
                 "partition_date": dg.MetadataValue.text(partition_date),
                 "rows_loaded": dg.MetadataValue.int(rows_loaded),
+                "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
+                "rows_deleted": dg.MetadataValue.int(merge_metrics["rows_deleted"]),
+                "unique_key": dg.MetadataValue.text(unique_key),
                 "start_date": dg.MetadataValue.text(start_date.isoformat()),
                 "end_date": dg.MetadataValue.text(end_date.isoformat()),
                 "table_name": dg.MetadataValue.text(table_name),
@@ -246,7 +261,8 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
     partitions_def=daily_partition,
     description=(
         "GitHub repository statistics ingested via DLT to S3 parquet, "
-        "then registered in Iceberg raw.repo_stats with daily partitioning"
+        "then merged to Iceberg raw.repo_stats with idempotent deduplication. "
+        "Safe to run multiple times - uses _dlt_id as unique key."
     ),
     compute_kind="dlt+pyiceberg",
     op_tags={"dagster/max_runtime": 600},  # Longer timeout for stats computation
@@ -256,12 +272,14 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
 )
 def github_repo_stats(context, iceberg: IcebergResource) -> dg.MaterializeResult:
     """
-    Ingest GitHub repository statistics using two-step pattern:
+    Ingest GitHub repository statistics using two-step pattern with idempotent merge:
 
     1. DLT stages data to S3 as parquet files
-    2. PyIceberg registers/appends to Iceberg table
+    2. PyIceberg merges to Iceberg table with deduplication
 
     Features:
+    - Idempotent ingestion: safe to run multiple times without duplicates
+    - Deduplication based on _dlt_id field (DLT-generated unique ID)
     - Daily partitioning by collection date
     - Multiple stat types: contributors, commit_activity, code_frequency
     - S3 parquet staging with filesystem destination
@@ -421,19 +439,30 @@ def github_repo_stats(context, iceberg: IcebergResource) -> dg.MaterializeResult
             partition_spec=None,
         )
 
-        # Step 4: Append to Iceberg table
-        context.log.info("Appending data to Iceberg table...")
-        iceberg.append_parquet(table_name=table_name, data_path=str(parquet_path))
+        # Step 4: Merge to Iceberg table (idempotent ingestion)
+        context.log.info("Merging data to Iceberg table (idempotent upsert)...")
+        unique_key = get_unique_key("repo_stats")
+        merge_metrics = iceberg.merge_parquet(
+            table_name=table_name,
+            data_path=str(parquet_path),
+            unique_key=unique_key,
+        )
 
         total_elapsed = time.time() - start_time_ts
         rows_loaded = len(all_stats)
         context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
-        context.log.info(f"Loaded {rows_loaded} rows to {table_name}")
+        context.log.info(
+            f"Merged {merge_metrics['rows_inserted']} rows to {table_name} "
+            f"(deleted {merge_metrics['rows_deleted']} existing duplicates)"
+        )
 
         return dg.MaterializeResult(
             metadata={
                 "partition_date": dg.MetadataValue.text(partition_date),
                 "rows_loaded": dg.MetadataValue.int(rows_loaded),
+                "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
+                "rows_deleted": dg.MetadataValue.int(merge_metrics["rows_deleted"]),
+                "unique_key": dg.MetadataValue.text(unique_key),
                 "table_name": dg.MetadataValue.text(table_name),
                 "dlt_elapsed_seconds": dg.MetadataValue.float(dlt_elapsed),
                 "total_elapsed_seconds": dg.MetadataValue.float(total_elapsed),
