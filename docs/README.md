@@ -2,55 +2,78 @@
 
 Welcome to the Cascade documentation. This guide will help you understand, deploy, and use the Cascade data lakehouse platform.
 
-## Getting Started
+## 📖 **START HERE: [Documentation Index](INDEX.md)**
 
-### For New Users
+**New to Cascade?** Check out the **[INDEX.md](INDEX.md)** for a complete guide to all documentation, organized by experience level and topic.
 
-Start here if you're new to Cascade:
+---
 
-1. **[Quick Start Guide](../QUICK_START.md)** - Get Cascade running in 10 minutes
+## Quick Navigation
+
+### 🚀 Complete Beginners
+
+**Start with these comprehensive guides:**
+
+1. **[BEGINNERS_GUIDE.md](BEGINNERS_GUIDE.md)** - **Start here!**
+   - What is a data lakehouse?
+   - All concepts explained from scratch
+   - How Cascade works end-to-end
+   - Understanding the technologies
+   - Your first look at the platform
+
+2. **[WORKFLOW_DEVELOPMENT_GUIDE.md](WORKFLOW_DEVELOPMENT_GUIDE.md)**
+   - Complete tutorial: Build a weather pipeline
+   - Step-by-step from zero to production
+   - Uses DLT, dbt, Bronze/Silver/Gold layers
+   - 10-step guided walkthrough
+
+3. **[Quick Start Guide](../QUICK_START.md)** - Get Cascade running
    - Prerequisites and setup
    - Service startup
    - First pipeline run
-   - Common tasks and troubleshooting
 
-2. **[Architecture Overview](../ARCHITECTURE.md)** - Understand the system design
-   - Component architecture
-   - Data flow diagrams
-   - Service dependencies
-   - Performance optimization
-
-### For Developers
+### 👨‍💻 For Developers
 
 If you're developing on Cascade:
 
-1. **[Project README](../README.md)** - Overview and features
-   - Architecture summary
-   - Key features
-   - Development setup
-   - Project structure
+1. **[DATA_MODELING_GUIDE.md](DATA_MODELING_GUIDE.md)** - Architecture patterns
+   - Bronze/Silver/Gold explained
+   - Fact vs dimension tables
+   - Real-world examples
 
-2. **[Architecture Deep Dive](../ARCHITECTURE.md)** - Technical details
-   - Component design
-   - Integration patterns
-   - Resource management
-   - Testing strategy
+2. **[DAGSTER_ASSETS_TUTORIAL.md](DAGSTER_ASSETS_TUTORIAL.md)** - Orchestration
+   - Complete assets guide
+   - Dependencies, resources, partitions
+   - Schedules and sensors
 
-### For Data Engineers
+3. **[DBT_DEVELOPMENT_GUIDE.md](DBT_DEVELOPMENT_GUIDE.md)** - Transformations
+   - dbt fundamentals
+   - Models, tests, documentation
+   - Incremental models
+
+### 🔧 For Data Engineers
 
 If you're building pipelines on Cascade:
 
-1. **[Nessie Workflow Guide](../NESSIE_WORKFLOW.md)** - Branching and promotion
+1. **[BEST_PRACTICES_GUIDE.md](BEST_PRACTICES_GUIDE.md)** - Production patterns
+   - Code organization
+   - Data quality
+   - Performance & security
+
+2. **[TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)** - Fix issues
+   - Services won't start
+   - Dagster/dbt problems
+   - Debugging techniques
+
+3. **[Nessie Workflow Guide](../NESSIE_WORKFLOW.md)** - Branching and promotion
    - Branch management (dev/main)
    - Merge workflows
    - Time travel queries
-   - Best practices
 
-2. **[DuckDB Query Guide](./duckdb-iceberg-queries.md)** - Ad-hoc analysis
+4. **[DuckDB Query Guide](./duckdb-iceberg-queries.md)** - Ad-hoc analysis
    - DuckDB setup
    - Query examples
    - Python integration
-   - Performance tips
 
 ## Documentation Structure
 
