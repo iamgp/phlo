@@ -11,14 +11,15 @@ PROFILE_BI ?= superset pgweb
 PROFILE_DOCS ?= mkdocs
 PROFILE_OBSERVABILITY ?= prometheus loki alloy grafana postgres-exporter
 PROFILE_API ?= api hasura
-PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(PROFILE_OBSERVABILITY) $(PROFILE_API)
+PROFILE_CATALOG ?= openmetadata-mysql openmetadata-elasticsearch openmetadata-server
+PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(PROFILE_OBSERVABILITY) $(PROFILE_API) $(PROFILE_CATALOG)
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
 setup install install-dagster health \
-up-core up-query up-bi up-docs up-observability up-api up-all \
-dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs \
+up-core up-query up-bi up-docs up-observability up-api up-catalog up-all \
+dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog \
 dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
-health-observability health-api
+health-observability health-api health-catalog
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -112,6 +113,11 @@ hasura:
 docs:
 	@open http://localhost:$${MKDOCS_PORT:-10012}
 
+openmetadata:
+	@open http://localhost:$${OPENMETADATA_PORT:-10020}
+
+catalog: openmetadata
+
 # Profile-specific startup targets
 up-core:
 	$(COMPOSE) up -d $(PROFILE_CORE)
@@ -130,6 +136,9 @@ up-observability:
 
 up-api:
 	$(COMPOSE) --profile api up -d $(PROFILE_API)
+
+up-catalog:
+	$(COMPOSE) --profile catalog up -d $(PROFILE_CATALOG)
 
 up-all:
 	$(COMPOSE) up -d $(PROFILE_ALL)
@@ -202,6 +211,30 @@ health-api:
 		echo "  Console: http://localhost:$${HASURA_PORT:-10011}/console"; \
 	else \
 		echo "Hasura: Not running (use 'make up-api')"; \
+	fi
+
+# Catalog health check
+health-catalog:
+	@echo "=== Data Catalog Health Check ==="
+	@if docker ps --format '{{.Names}}' | grep -q openmetadata-server; then \
+		echo "OpenMetadata:"; \
+		curl -sf http://localhost:$${OPENMETADATA_PORT:-10020}/api/v1/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
+		echo "  UI: http://localhost:$${OPENMETADATA_PORT:-10020}"; \
+		echo "  Default credentials: admin / admin"; \
+	else \
+		echo "OpenMetadata: Not running (use 'make up-catalog')"; \
+	fi
+	@if docker ps --format '{{.Names}}' | grep -q openmetadata-mysql; then \
+		echo "MySQL:"; \
+		docker exec openmetadata-mysql mysqladmin ping -h localhost -u root -p$${OPENMETADATA_MYSQL_ROOT_PASSWORD:-password} 2>/dev/null && echo "  Ready" || echo "  Not ready"; \
+	else \
+		echo "MySQL: Not running (use 'make up-catalog')"; \
+	fi
+	@if docker ps --format '{{.Names}}' | grep -q openmetadata-elasticsearch; then \
+		echo "Elasticsearch:"; \
+		curl -sf http://localhost:9200/_cluster/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
+	else \
+		echo "Elasticsearch: Not running (use 'make up-catalog')"; \
 	fi
 
 # Shell access targets

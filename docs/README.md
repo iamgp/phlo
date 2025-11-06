@@ -75,6 +75,12 @@ If you're building pipelines on Cascade:
    - Query examples
    - Python integration
 
+5. **[OpenMetadata Setup](./OPENMETADATA_SETUP.md)** - Data catalog and discovery
+   - Self-service data discovery
+   - Metadata management
+   - Data lineage visualization
+   - Search and documentation
+
 ## Documentation Structure
 
 ### Root-Level Guides
@@ -249,13 +255,17 @@ When Cascade is running, access these web interfaces:
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Hub** | http://localhost:54321 | Service status dashboard |
-| **Dagster** | http://localhost:3000 | Orchestration UI |
-| **Nessie** | http://localhost:19120/api/v2/config | Catalog API |
-| **Trino** | http://localhost:8080 | Query engine UI |
-| **MinIO Console** | http://localhost:9001 | Object storage admin |
-| **Superset** | http://localhost:8088 | BI dashboards |
-| **pgweb** | http://localhost:8081 | PostgreSQL admin |
+| **Hub** | http://localhost:10009 | Service status dashboard |
+| **Dagster** | http://localhost:10006 | Orchestration UI |
+| **Nessie** | http://localhost:10003/api/v2/config | Catalog API |
+| **Trino** | http://localhost:10005 | Query engine UI |
+| **MinIO Console** | http://localhost:10002 | Object storage admin |
+| **Superset** | http://localhost:10007 | BI dashboards |
+| **pgweb** | http://localhost:10008 | PostgreSQL admin |
+| **OpenMetadata** | http://localhost:10020 | Data catalog and discovery |
+| **FastAPI** | http://localhost:10010 | REST API (docs) |
+| **Hasura** | http://localhost:10011 | GraphQL API |
+| **Grafana** | http://localhost:10016 | Monitoring dashboards |
 
 **Learn more**: [QUICK_START.md - Verify Services](../QUICK_START.md#step-4-verify-services)
 
