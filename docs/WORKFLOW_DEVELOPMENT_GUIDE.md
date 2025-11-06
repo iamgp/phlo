@@ -216,11 +216,11 @@ class CascadeConfig(BaseSettings):
     # ... existing config ...
 
     # Weather API
-    OPENWEATHER_API_KEY: str = Field(
+    openweather_api_key: str = Field(
         default="",
         description="OpenWeather API key"
     )
-    OPENWEATHER_CITIES: str = Field(
+    openweather_cities: str = Field(
         default="London,GB;New York,US;Tokyo,JP",
         description="Semicolon-separated list of city,country pairs"
     )
@@ -247,15 +247,19 @@ Create: `src/cascade/defs/ingestion/weather_assets.py`
 ```python
 """Weather data ingestion assets using DLT."""
 
-import dagster as dg
-import dlt
-import requests
+from __future__ import annotations
+
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from cascade.config import get_config
-from cascade.defs.resources import IcebergResource
+import dagster as dg
+import dlt
+import requests
+
+from cascade.config import config
+from cascade.defs.resources.iceberg import IcebergResource
 from cascade.schemas.weather import WeatherObservationSchema
 from cascade.iceberg.schemas.weather import WEATHER_OBSERVATION_SCHEMA
 
@@ -284,8 +288,7 @@ def weather_data(
     - Consistent with other ingestion assets (dlt_glucose_entries)
     - State management for incremental loads
     """
-    config = get_config()
-    table_name = f"{config.ICEBERG_DEFAULT_NAMESPACE}.weather_observations"
+    table_name = f"{config.iceberg_default_namespace}.weather_observations"
     pipeline_name = "weather_openweathermap"
 
     # Setup DLT directories
@@ -295,137 +298,159 @@ def weather_data(
     context.log.info(f"Starting weather data ingestion")
     context.log.info(f"Target table: {table_name}")
 
-    # Step 1: Fetch data from OpenWeather API
-    context.log.info("Fetching data from OpenWeather API...")
+    try:
+        # Step 1: Fetch data from OpenWeather API
+        context.log.info("Fetching data from OpenWeather API...")
 
-    cities = [
-        city.strip().split(",")
-        for city in config.OPENWEATHER_CITIES.split(";")
-    ]
+        cities = [
+            city.strip().split(",")
+            for city in config.openweather_cities.split(";")
+        ]
 
-    weather_records = []
-    ingestion_timestamp = datetime.now(timezone.utc)
+        weather_records = []
 
-    for city_name, country in cities:
-        context.log.info(f"Fetching weather for {city_name}, {country}")
+        for city_name, country in cities:
+            context.log.info(f"Fetching weather for {city_name}, {country}")
 
-        url = "https://api.openweathermap.org/data/2.5/weather"
-        params = {
-            "q": f"{city_name},{country}",
-            "appid": config.OPENWEATHER_API_KEY,
-            "units": "metric",  # Celsius
-        }
-
-        try:
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
-            # Extract and structure data
-            record = {
-                "city_name": data["name"],
-                "country": data["sys"]["country"],
-                "latitude": data["coord"]["lat"],
-                "longitude": data["coord"]["lon"],
-                "temperature": data["main"]["temp"],
-                "feels_like": data["main"]["feels_like"],
-                "humidity": data["main"]["humidity"],
-                "pressure": data["main"]["pressure"],
-                "wind_speed": data["wind"]["speed"],
-                "weather_main": data["weather"][0]["main"],
-                "weather_description": data["weather"][0]["description"],
-                "observation_time": datetime.fromtimestamp(data["dt"]),
-                "sunrise_time": datetime.fromtimestamp(data["sys"]["sunrise"]),
-                "sunset_time": datetime.fromtimestamp(data["sys"]["sunset"]),
-                "_cascade_ingested_at": ingestion_timestamp,  # Add ingestion timestamp
+            url = "https://api.openweathermap.org/data/2.5/weather"
+            params = {
+                "q": f"{city_name},{country}",
+                "appid": config.openweather_api_key,
+                "units": "metric",  # Celsius
             }
 
-            weather_records.append(record)
+            try:
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
 
-        except Exception as e:
-            context.log.error(f"Failed to fetch {city_name}: {e}")
-            continue
+                # Extract and structure data
+                record = {
+                    "city_name": data["name"],
+                    "country": data["sys"]["country"],
+                    "latitude": data["coord"]["lat"],
+                    "longitude": data["coord"]["lon"],
+                    "temperature": data["main"]["temp"],
+                    "feels_like": data["main"]["feels_like"],
+                    "humidity": data["main"]["humidity"],
+                    "pressure": data["main"]["pressure"],
+                    "wind_speed": data["wind"]["speed"],
+                    "weather_main": data["weather"][0]["main"],
+                    "weather_description": data["weather"][0]["description"],
+                    "observation_time": datetime.fromtimestamp(data["dt"], tz=timezone.utc),
+                    "sunrise_time": datetime.fromtimestamp(data["sys"]["sunrise"], tz=timezone.utc),
+                    "sunset_time": datetime.fromtimestamp(data["sys"]["sunset"], tz=timezone.utc),
+                }
 
-    if not weather_records:
-        context.log.info("No weather data fetched, skipping")
+                weather_records.append(record)
+
+            except requests.RequestException as e:
+                context.log.error(f"Failed to fetch {city_name}: {e}")
+                continue
+
+        if not weather_records:
+            context.log.info("No weather data fetched, skipping")
+            return dg.MaterializeResult(
+                metadata={
+                    "rows_loaded": dg.MetadataValue.int(0),
+                    "status": dg.MetadataValue.text("no_data"),
+                }
+            )
+
+        context.log.info(f"Successfully fetched {len(weather_records)} weather observations")
+
+        # Add cascade ingestion timestamp
+        ingestion_timestamp = datetime.now(timezone.utc)
+        for record in weather_records:
+            record["_cascade_ingested_at"] = ingestion_timestamp
+
+        # Step 2: Stage to parquet using DLT
+        context.log.info("Staging data to parquet via DLT...")
+        start_time_ts = time.time()
+
+        local_staging_root = (pipelines_base_dir / pipeline_name / "stage").resolve()
+        local_staging_root.mkdir(parents=True, exist_ok=True)
+
+        # Create DLT pipeline with filesystem destination targeting local staging
+        filesystem_destination = dlt.destinations.filesystem(
+            bucket_url=local_staging_root.as_uri(),
+        )
+
+        pipeline = dlt.pipeline(
+            pipeline_name=pipeline_name,
+            destination=filesystem_destination,
+            dataset_name="weather",
+            pipelines_dir=str(pipelines_base_dir),
+        )
+
+        # Define DLT resource
+        @dlt.resource(name="weather_observations", write_disposition="replace")
+        def provide_weather() -> Any:
+            yield weather_records
+
+        # Run DLT pipeline to stage parquet files
+        info = pipeline.run(
+            provide_weather(),
+            loader_file_format="parquet",
+        )
+
+        if not info.load_packages:
+            raise RuntimeError("DLT pipeline produced no load packages")
+
+        # Get parquet file path
+        load_package = info.load_packages[0]
+        completed_jobs = load_package.jobs.get("completed_jobs") or []
+
+        # Filter for actual parquet files (exclude pipeline state and other files)
+        parquet_files = [job for job in completed_jobs if job.file_path.endswith('.parquet')]
+
+        if not parquet_files:
+            raise RuntimeError("DLT pipeline completed without producing parquet files")
+
+        parquet_path = Path(parquet_files[0].file_path)
+        if not parquet_path.is_absolute():
+            parquet_path = (local_staging_root / parquet_path).resolve()
+
+        dlt_elapsed = time.time() - start_time_ts
+        context.log.info(f"DLT staging completed in {dlt_elapsed:.2f}s")
+
+        # Step 3: Ensure Iceberg table exists
+        context.log.info(f"Ensuring Iceberg table {table_name} exists...")
+        iceberg.ensure_table(
+            table_name=table_name,
+            schema=WEATHER_OBSERVATION_SCHEMA,
+            partition_spec=None,
+        )
+
+        # Step 4: Append to Iceberg table
+        context.log.info("Appending data to Iceberg table...")
+        iceberg.append_parquet(
+            table_name=table_name,
+            data_path=str(parquet_path),
+        )
+
+        total_elapsed = time.time() - start_time_ts
+        rows_loaded = len(weather_records)
+        context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
+        context.log.info(f"Loaded {rows_loaded} rows to {table_name}")
+
         return dg.MaterializeResult(
             metadata={
-                "rows_loaded": dg.MetadataValue.int(0),
-                "status": dg.MetadataValue.text("no_data"),
+                "rows_loaded": dg.MetadataValue.int(rows_loaded),
+                "cities": dg.MetadataValue.text(", ".join([r["city_name"] for r in weather_records])),
+                "table_name": dg.MetadataValue.text(table_name),
+                "dlt_elapsed_seconds": dg.MetadataValue.float(dlt_elapsed),
+                "total_elapsed_seconds": dg.MetadataValue.float(total_elapsed),
             }
         )
 
-    context.log.info(f"Successfully fetched {len(weather_records)} weather observations")
+    except requests.RequestException as e:
+        context.log.error(f"API request failed: {e}")
+        raise RuntimeError(f"Failed to fetch data from OpenWeather API") from e
 
-    # Step 2: Stage to parquet using DLT
-    context.log.info("Staging data to parquet via DLT...")
-
-    local_staging_root = (pipelines_base_dir / pipeline_name / "stage").resolve()
-    local_staging_root.mkdir(parents=True, exist_ok=True)
-
-    # Create DLT pipeline with filesystem destination
-    filesystem_destination = dlt.destinations.filesystem(
-        bucket_url=local_staging_root.as_uri(),
-    )
-
-    pipeline = dlt.pipeline(
-        pipeline_name=pipeline_name,
-        destination=filesystem_destination,
-        dataset_name="weather",
-        pipelines_dir=str(pipelines_base_dir),
-    )
-
-    # Define DLT resource
-    @dlt.resource(name="weather_observations", write_disposition="replace")
-    def provide_weather() -> Any:
-        yield weather_records
-
-    # Run DLT pipeline to create parquet files
-    info = pipeline.run(
-        provide_weather(),
-        loader_file_format="parquet",
-    )
-
-    if not info.load_packages:
-        raise RuntimeError("DLT pipeline produced no load packages")
-
-    # Get parquet file path
-    load_package = info.load_packages[0]
-    completed_jobs = load_package.jobs.get("completed_jobs") or []
-    parquet_files = [job for job in completed_jobs if job.file_path.endswith('.parquet')]
-
-    if not parquet_files:
-        raise RuntimeError("DLT pipeline completed without producing parquet files")
-
-    parquet_path = Path(parquet_files[0].file_path)
-    if not parquet_path.is_absolute():
-        parquet_path = (local_staging_root / parquet_path).resolve()
-
-    context.log.info(f"DLT staging completed: {parquet_path}")
-
-    # Step 3: Ensure Iceberg table exists
-    context.log.info(f"Ensuring Iceberg table {table_name} exists...")
-    iceberg.ensure_table(
-        table_name=table_name,
-        schema=WEATHER_OBSERVATION_SCHEMA,
-    )
-
-    # Step 4: Append to Iceberg table
-    context.log.info("Appending data to Iceberg table...")
-    iceberg.append_parquet(
-        table_name=table_name,
-        data_path=str(parquet_path),
-    )
-
-    context.log.info(f"✓ Successfully loaded {len(weather_records)} rows to {table_name}")
-
-    return dg.MaterializeResult(
-        metadata={
-            "rows_loaded": dg.MetadataValue.int(len(weather_records)),
-            "cities": dg.MetadataValue.text(", ".join([r["city_name"] for r in weather_records])),
-            "table_name": dg.MetadataValue.text(table_name),
-        }
-    )
+    except Exception as e:
+        context.log.error(f"Ingestion failed: {e}")
+        raise RuntimeError(f"Weather data ingestion failed: {e}") from e
 
 
 def build_weather_ingestion_defs() -> dg.Definitions:
@@ -472,17 +497,18 @@ dagster asset materialize -m cascade.definitions -a dlt_weather_data
 ```
 
 **What just happened?**
-1. DLT fetched weather data from the API
-2. DLT staged the data to local parquet files
+1. Fetched weather data from the OpenWeather API
+2. DLT staged the data to local parquet files with schema validation
 3. PyIceberg appended the parquet to the Iceberg table
 4. Nessie catalog updated with the new snapshot
 
 **Why DLT?**
 - Consistent with the glucose example pattern (`dlt_glucose_entries`)
-- Handles retries and errors automatically
-- Schema inference and evolution
+- Handles schema evolution automatically
+- Robust parquet file generation with proper typing
 - State management for incremental loads
-- Better separation of concerns (fetch → stage → register)
+- Better separation of concerns (fetch → DLT stage → PyIceberg register)
+- Matches established Cascade pattern for all ingestion assets
 
 **Verify:**
 ```sql
@@ -1432,7 +1458,7 @@ from functools import lru_cache
 @lru_cache(maxsize=1)
 def get_api_client():
     """Cached API client."""
-    return OpenWeatherClient(api_key=config.OPENWEATHER_API_KEY)
+    return OpenWeatherClient(api_key=config.openweather_api_key)
 ```
 
 ---
