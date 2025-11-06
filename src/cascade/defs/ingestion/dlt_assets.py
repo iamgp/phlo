@@ -11,6 +11,8 @@ from typing import Any
 
 import dagster as dg
 import dlt
+import pandas as pd
+import pandera.errors
 import requests
 from dagster.preview.freshness import FreshnessPolicy
 
@@ -19,6 +21,7 @@ from cascade.config import config
 from cascade.defs.partitions import daily_partition
 from cascade.defs.resources.iceberg import IcebergResource
 from cascade.iceberg.schema import get_schema, get_unique_key
+from cascade.schemas.glucose import RawGlucoseEntries
 
 
 # --- Helper Functions ---
@@ -117,6 +120,38 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
         ingestion_timestamp = datetime.now(timezone.utc)
         for entry in entries_data:
             entry["_cascade_ingested_at"] = ingestion_timestamp
+
+        # Step 1.5: Validate raw data using Pandera
+        context.log.info("Validating raw glucose data with Pandera schema...")
+        try:
+            # Convert to DataFrame for validation
+            raw_df = pd.DataFrame(entries_data)
+
+            # Convert timestamp fields to datetime for validation
+            raw_df["date_string"] = pd.to_datetime(raw_df["dateString"])
+            raw_df["_cascade_ingested_at"] = pd.to_datetime(raw_df["_cascade_ingested_at"])
+
+            # Rename fields to match schema (Nightscout API uses camelCase)
+            raw_df = raw_df.rename(columns={
+                "dateString": "date_string",
+            })
+
+            # Validate with Pandera (lazy=True to collect all errors)
+            RawGlucoseEntries.validate(raw_df, lazy=True)
+            context.log.info(f"Raw data validation passed for {len(raw_df)} entries")
+
+        except pandera.errors.SchemaErrors as err:
+            failure_cases = err.failure_cases
+            context.log.error(
+                f"Raw data validation failed with {len(failure_cases)} errors"
+            )
+            context.log.error(f"Validation errors: {failure_cases.head(10)}")
+            # Log but don't fail - allow data through with warning
+            # In production you might want to fail here depending on requirements
+            context.log.warning("Proceeding with ingestion despite validation errors")
+        except Exception as e:
+            context.log.warning(f"Validation check failed with exception: {e}")
+            context.log.warning("Proceeding with ingestion despite validation failure")
 
         # Step 2: Stage to S3 parquet using DLT
         context.log.info("Staging data to parquet via DLT...")
