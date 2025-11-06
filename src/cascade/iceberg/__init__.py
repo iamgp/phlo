@@ -8,7 +8,7 @@ This module provides integration with Apache Iceberg using PyIceberg and Nessie 
 """
 
 from cascade.iceberg.catalog import get_catalog
-from cascade.iceberg.tables import ensure_table, append_to_table
+from cascade.iceberg.tables import ensure_table, append_to_table, merge_to_table
 
 # Public API: Only these functions are exposed when importing the module
-__all__ = ["get_catalog", "ensure_table", "append_to_table"]
+__all__ = ["get_catalog", "ensure_table", "append_to_table", "merge_to_table"]

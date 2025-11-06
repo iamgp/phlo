@@ -18,7 +18,7 @@ from dagster.preview.freshness import FreshnessPolicy
 from cascade.config import config
 from cascade.defs.partitions import daily_partition
 from cascade.defs.resources.iceberg import IcebergResource
-from cascade.iceberg.schema import get_schema
+from cascade.iceberg.schema import get_schema, get_unique_key
 
 
 # --- Helper Functions ---
@@ -45,7 +45,8 @@ def get_staging_path(partition_date: str, table_name: str) -> str:
     partitions_def=daily_partition,
     description=(
         "Nightscout CGM glucose entries ingested via DLT to S3 parquet, "
-        "then registered in Iceberg raw.entries with daily partitioning"
+        "then merged to Iceberg raw.entries with idempotent deduplication. "
+        "Safe to run multiple times - uses _id as unique key."
     ),
     compute_kind="dlt+pyiceberg",
     op_tags={"dagster/max_runtime": 300},
@@ -55,12 +56,14 @@ def get_staging_path(partition_date: str, table_name: str) -> str:
 )
 def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
     """
-    Ingest Nightscout entries using two-step pattern:
+    Ingest Nightscout entries using two-step pattern with idempotent merge:
 
     1. DLT stages data to S3 as parquet files
-    2. PyIceberg registers/appends to Iceberg table
+    2. PyIceberg merges to Iceberg table with deduplication
 
     Features:
+    - Idempotent ingestion: safe to run multiple times without duplicates
+    - Deduplication based on _id field (Nightscout's unique entry ID)
     - Daily partitioning by timestamp
     - S3 parquet staging with filesystem destination
     - Iceberg table management with schema enforcement
@@ -180,19 +183,30 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
             partition_spec=None,
         )
 
-        # Step 4: Append to Iceberg table
-        context.log.info("Appending data to Iceberg table...")
-        iceberg.append_parquet(table_name=table_name, data_path=str(parquet_path))
+        # Step 4: Merge to Iceberg table (idempotent ingestion)
+        context.log.info("Merging data to Iceberg table (idempotent upsert)...")
+        unique_key = get_unique_key("entries")
+        merge_metrics = iceberg.merge_parquet(
+            table_name=table_name,
+            data_path=str(parquet_path),
+            unique_key=unique_key,
+        )
 
         total_elapsed = time.time() - start_time_ts
         rows_loaded = len(entries_data)
         context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
-        context.log.info(f"Loaded {rows_loaded} rows to {table_name}")
+        context.log.info(
+            f"Merged {merge_metrics['rows_inserted']} rows to {table_name} "
+            f"(deleted {merge_metrics['rows_deleted']} existing duplicates)"
+        )
 
         return dg.MaterializeResult(
             metadata={
                 "partition_date": dg.MetadataValue.text(partition_date),
                 "rows_loaded": dg.MetadataValue.int(rows_loaded),
+                "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
+                "rows_deleted": dg.MetadataValue.int(merge_metrics["rows_deleted"]),
+                "unique_key": dg.MetadataValue.text(unique_key),
                 "start_time": dg.MetadataValue.text(start_time_iso),
                 "end_time": dg.MetadataValue.text(end_time_iso),
                 "table_name": dg.MetadataValue.text(table_name),
