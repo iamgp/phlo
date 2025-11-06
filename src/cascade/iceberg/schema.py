@@ -21,8 +21,9 @@ from pyiceberg.types import (
 # Predefined PyIceberg schemas for different data types
 # GitHub User Events Schema
 # Based on GitHub API: /users/{username}/events
+# UNIQUE KEY: id (GitHub event ID - globally unique per event)
 GITHUB_USER_EVENTS_SCHEMA = Schema(
-    NestedField(1, "id", StringType(), required=False, doc="Event ID"),
+    NestedField(1, "id", StringType(), required=False, doc="Event ID (UNIQUE KEY)"),
     NestedField(2, "type", StringType(), required=False, doc="Event type"),
     NestedField(3, "actor", StringType(), required=False, doc="Actor information (JSON)"),
     NestedField(4, "repo", StringType(), required=False, doc="Repository information (JSON)"),
@@ -48,11 +49,12 @@ GITHUB_USER_EVENTS_SCHEMA = Schema(
 
 # GitHub Repository Statistics Schema
 # Based on GitHub API: /repos/{owner}/{repo}/stats/*
+# UNIQUE KEY: Composite of (repo_id, collection_date) - one stats snapshot per repo per day
 GITHUB_REPO_STATS_SCHEMA = Schema(
     NestedField(1, "repo_name", StringType(), required=False, doc="Repository name"),
     NestedField(2, "repo_full_name", StringType(), required=False, doc="Full repository name"),
-    NestedField(3, "repo_id", LongType(), required=False, doc="Repository ID"),
-    NestedField(4, "collection_date", StringType(), required=False, doc="Data collection date"),
+    NestedField(3, "repo_id", LongType(), required=False, doc="Repository ID (part of composite key)"),
+    NestedField(4, "collection_date", StringType(), required=False, doc="Data collection date (part of composite key)"),
     NestedField(5, "contributors_data", StringType(), required=False, doc="Contributors statistics (JSON)"),
     NestedField(6, "commit_activity_data", StringType(), required=False, doc="Commit activity statistics (JSON)"),
     NestedField(7, "code_frequency_data", StringType(), required=False, doc="Code frequency statistics (JSON)"),
@@ -75,8 +77,9 @@ GITHUB_REPO_STATS_SCHEMA = Schema(
 
 # Nightscout Entries Schema
 # Based on Nightscout API: /api/v1/entries
+# UNIQUE KEY: _id (Nightscout's unique identifier for each glucose entry)
 NIGHTSCOUT_ENTRIES_SCHEMA = Schema(
-    NestedField(1, "_id", StringType(), required=False, doc="Nightscout entry ID"),
+    NestedField(1, "_id", StringType(), required=False, doc="Nightscout entry ID (UNIQUE KEY)"),
     NestedField(2, "sgv", LongType(), required=False, doc="Sensor glucose value (mg/dL)"),
     NestedField(3, "date", LongType(), required=False, doc="Unix timestamp (ms)"),
     NestedField(4, "date_string", TimestamptzType(), required=False, doc="ISO timestamp"),
@@ -104,8 +107,9 @@ NIGHTSCOUT_ENTRIES_SCHEMA = Schema(
 
 # Nightscout Treatments Schema
 # Based on Nightscout API: /api/v1/treatments
+# UNIQUE KEY: _id (Nightscout's unique identifier for each treatment record)
 NIGHTSCOUT_TREATMENTS_SCHEMA = Schema(
-    NestedField(1, "_id", StringType(), required=True, doc="Nightscout treatment ID"),
+    NestedField(1, "_id", StringType(), required=True, doc="Nightscout treatment ID (UNIQUE KEY)"),
     NestedField(
         2, "eventType", StringType(), required=False, doc="Treatment event type"
     ),
@@ -175,3 +179,34 @@ def get_schema(table_type: str) -> Schema:
         )
 
     return schema
+
+
+def get_unique_key(table_type: str) -> str:
+    """
+    Get the unique key column name for a table type.
+
+    This column is used for idempotent ingestion (deduplication on merge).
+
+    Args:
+        table_type: Table type ("entries", "treatments", "user_events", "repo_stats")
+
+    Returns:
+        Column name to use as unique key
+
+    Example:
+        unique_key = get_unique_key("entries")  # Returns "_id"
+    """
+    unique_keys = {
+        "entries": "_id",
+        "treatments": "_id",
+        "user_events": "id",
+        "repo_stats": "_dlt_id",  # Using DLT's generated ID for repo_stats composite key handling
+    }
+
+    key = unique_keys.get(table_type)
+    if not key:
+        raise ValueError(
+            f"Unknown table type: {table_type}. Available: {list(unique_keys.keys())}"
+        )
+
+    return key
