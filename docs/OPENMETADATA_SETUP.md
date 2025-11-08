@@ -88,6 +88,17 @@ make catalog
 
 > ⚠️ **Security Note**: Change the default password in production by updating `OPENMETADATA_ADMIN_PASSWORD` in `.env`
 
+### 3. Complete Setup Checklist
+
+After first-time setup, you MUST complete these steps in order:
+
+1. ✅ Configure Trino data source (see "Setting Up Trino Source" section)
+2. ✅ Create and run metadata ingestion pipeline
+3. ✅ **Enable search indices** (Settings → OpenMetadata → Search → Run with "Recreate Indexes")
+4. ✅ Verify search works on Explore page
+
+**Skip step 3 at your own peril** - without it, search and the Explore page will be completely broken.
+
 ### 3. First Login
 
 1. Navigate to http://localhost:10020
@@ -97,47 +108,330 @@ make catalog
 
 ## Connecting Cascade Data Sources
 
-### Step 1: Add Trino Connection
+### Step 1: Add Trino Database Service
 
-1. Click **Settings** (gear icon) in the top-right
-2. Navigate to **Services** → **Databases**
-3. Click **Add Service**
-4. Select **Trino** as the database type
-5. Configure the connection:
+1. Click **Settings** (gear icon) in the top-right corner
+2. Navigate to **Integrations** → **Databases**
+3. Click **Add New Service**
+4. Select **Trino** from the list of database types
+5. Click **Next**
 
-```yaml
-Name: cascade-trino
-Description: Cascade Lakehouse Trino Query Engine
-Host: trino
-Port: 8080
-Username: cascade
-Catalog: iceberg
+### Step 2: Configure Trino Connection
+
+**Service Name:**
+```
+trino
 ```
 
-6. Click **Test Connection** → Should show success
-7. Click **Save**
-
-### Step 2: Configure Metadata Ingestion
-
-1. In the Trino service page, click **Add Ingestion**
-2. Select **Metadata Ingestion**
-3. Configure:
-
-```yaml
-Name: cascade-iceberg-metadata
-Include Schemas: bronze, silver, gold, marts, raw
-Include Tables: .*
+**Description (optional):**
+```
+Cascade lakehouse Trino query engine with Iceberg catalog
 ```
 
-4. Set schedule (optional): Daily at 2:00 AM
+**Connection Configuration:**
+
+Click on **Basic** authentication type, then configure:
+
+| Field | Value | Notes |
+|-------|-------|-------|
+| **Host** | `trino` | Docker service name (internal network) |
+| **Port** | `8080` | Internal container port (NOT 10005!) |
+| **Username** | `cascade` | Any username (no auth in dev) |
+| **Catalog** | Leave empty | We'll filter by catalog in ingestion |
+| **Database Schema** | Leave empty | - |
+
+> **Port Note:** Trino runs on port `8080` inside the Docker network. The external host port `10005` is only for accessing Trino from your laptop. OpenMetadata uses the internal port `8080`.
+
+**Advanced Options (leave defaults):**
+- Connection Options: (empty)
+- Connection Arguments: (empty)
+
+Click **Test Connection** - you should see:
+```
+Connection test was successful
+```
+
+If the test fails, verify Trino is running:
+```bash
+docker ps --filter name=trino
+curl http://localhost:8080/v1/info
+```
+
+Click **Submit** to save the service.
+
+### Step 3: Configure Metadata Ingestion Pipeline
+
+After creating the service, you'll be prompted to set up metadata ingestion.
+
+1. **Pipeline Name:** `trino-metadata`
+2. **Pipeline Type:** Select **Metadata Ingestion**
+3. Click **Next**
+
+**Metadata Configuration:**
+
+**Filter Patterns (CRITICAL - prevents crashes):**
+
+```yaml
+Database Filter Pattern:
+  Include: iceberg
+  Exclude: system
+
+Schema Filter Pattern:
+  Include: raw, bronze, silver, gold
+  Exclude: information_schema
+
+Table Filter Pattern:
+  Include: .*
+  Exclude: (leave empty)
+```
+
+**Advanced Configuration:**
+
+Enable/disable these options:
+
+| Option | Enable? | Reason |
+|--------|---------|--------|
+| Include Tables | ✅ Yes | Core metadata |
+| Include Views | ✅ Yes | Include views |
+| Include Tags | ✅ Yes | Catalog tags |
+| Include Owners | ❌ No | Not used in dev |
+| Include Stored Procedures | ❌ **NO** | **Causes crashes** |
+| Mark Deleted Stored Procedures | ❌ **NO** | **Causes crashes** |
+| Include DDL | ❌ No | Not needed |
+| Override Metadata | ❌ No | - |
+
+**Ingestion Settings:**
+- Thread Count: `1` (default)
+- Timeout: `300` seconds (default)
+
+**Query Log Ingestion:** Skip for now (can add later for lineage)
+
+Click **Next**.
+
+### Step 4: Configure Scheduling
+
+**Schedule Type:** Choose one:
+
+**Option A: Manual (Recommended for Development)**
+- Select **Manual**
+- Run ingestion on-demand when you need to refresh metadata
+- Good for: Development, testing
+
+**Option B: Scheduled (Recommended for Production)**
+- Select **Scheduled**
+- Choose **Cron Expression**
+- Enter: `0 3 * * *` (runs daily at 3 AM, after Dagster pipelines complete)
+- Timezone: `UTC`
+
+Click **Next**.
+
+### Step 5: Review and Deploy
+
+1. Review your configuration
+2. Click **Deploy**
+3. The pipeline will be created and registered with Airflow
+
+You'll see a success message with the pipeline ID.
+
+### Step 6: Run Initial Ingestion
+
+**Via OpenMetadata UI:**
+
+1. Go to **Settings → Integrations → Databases**
+2. Click on **trino** service
+3. Click **Ingestions** tab
+4. Find `trino-metadata` pipeline
+5. Click **Run** (play button)
+6. Monitor progress in real-time
+
+**Via Airflow UI (Alternative):**
+
+1. Open http://localhost:8080/
+2. Login with `admin` / `admin`
+3. Find DAG named `trino_metadata_<id>` or similar
+4. Toggle it **ON** (unpause the DAG)
+5. Click **Trigger DAG** (play button)
+6. Click on the DAG run to view logs
+
+**Expected Output:**
+
+```
+INFO - Starting metadata ingestion
+INFO - Connecting to Trino at trino:8080
+INFO - Processing catalog: iceberg
+INFO - Processing schema: raw
+INFO - Discovered 1 tables in schema raw
+INFO - Processing table: glucose_entries
+INFO - Successfully ingested table: trino.iceberg.raw.glucose_entries
+INFO - Processing schema: bronze
+INFO - Processing schema: silver
+INFO - Processing schema: gold
+INFO - Metadata ingestion completed
+INFO - Total tables ingested: 15
+INFO - Total schemas ingested: 4
+INFO - Total errors: 0
+```
+
+### Step 7: Enable Search (CRITICAL)
+
+After initial ingestion, search will NOT work until you populate the search index. This is a required step.
+
+**Navigate to Search Settings:**
+
+1. Go to **Settings** (gear icon) → **OpenMetadata** → **Search**
+2. Click on **SearchIndexingApplication**
+3. Click **Run Now** button
+
+**Configure the Reindex Job:**
+
+1. Enable **"Recreate Indexes"** toggle (IMPORTANT)
+2. Select **"All"** entities (or leave default)
+3. Click **Submit**
+
+**Monitor Progress:**
+
+- The job will run for 1-2 minutes
+- You'll see "Success" when complete
+- Or check logs:
+  ```bash
+  docker logs openmetadata-server --tail 100 | grep -i "reindex"
+  ```
+
+**What This Does:**
+
+- Creates the `all` search alias
+- Populates search indices from metadata
+- Enables Explore page and search functionality
+
+**Without this step:**
+- Explore page will show error: "Search failed due to Elasticsearch exception"
+- Global search will not work
+- You can only navigate by direct URLs
+
+### Step 8: Verify Everything Works
+
+**Check Search Works:**
+
+1. Go to **Explore** page
+2. Should see databases/tables listed (no errors)
+3. Type `glucose` in search bar
+4. Should find `glucose_entries` table
+
+**Browse via Navigation:**
+
+1. Go to **Settings → Services → Database Services**
+2. Click on **trino**
+3. Navigate: iceberg → raw → glucose_entries
+4. You should see:
+   - Table schema with all columns
+   - Column descriptions
+   - Sample data (if profiling enabled)
+
+**Direct URL Access:**
+```
+http://localhost:10020/table/trino.iceberg.raw.glucose_entries
+```
+
+**Verify in Airflow:**
+```bash
+docker logs openmetadata-ingestion | grep "Successfully ingested"
+```
+
+**Check Elasticsearch Indices:**
+```bash
+# Verify tables are indexed
+docker exec openmetadata-elasticsearch curl -s \
+  "http://localhost:9200/table_search_index/_count"
+
+# Should show: {"count": 6, ...}
+```
+
+## Configuration Reference
+
+### Complete Ingestion Configuration
+
+This is what your pipeline configuration looks like (stored in `volumes/openmetadata-ingestion-dags/<pipeline-id>.json`):
+
+```json
+{
+  "source": {
+    "type": "trino",
+    "serviceName": "trino",
+    "sourceConfig": {
+      "config": {
+        "type": "DatabaseMetadata",
+        "markDeletedTables": true,
+        "markDeletedStoredProcedures": false,
+        "includeTables": true,
+        "includeViews": true,
+        "includeTags": true,
+        "includeOwners": false,
+        "includeStoredProcedures": false,
+        "includeDDL": false,
+        "overrideMetadata": false,
+        "databaseFilterPattern": {
+          "includes": ["iceberg"],
+          "excludes": ["system"]
+        },
+        "schemaFilterPattern": {
+          "includes": ["raw", "bronze", "silver", "gold"],
+          "excludes": ["information_schema"]
+        },
+        "tableFilterPattern": {
+          "includes": [".*"]
+        },
+        "threads": 1,
+        "queryLogDuration": 1
+      }
+    }
+  },
+  "sink": {
+    "type": "metadata-rest",
+    "config": {}
+  },
+  "workflowConfig": {
+    "loggerLevel": "INFO",
+    "openMetadataServerConfig": {
+      "hostPort": "http://openmetadata-server:8585/api",
+      "authProvider": "openmetadata",
+      "securityConfig": {
+        "jwtToken": "<auto-generated>"
+      }
+    }
+  },
+  "airflowConfig": {
+    "pausePipeline": false,
+    "concurrency": 1,
+    "pipelineCatchup": false,
+    "pipelineTimezone": "UTC",
+    "retries": 0,
+    "retryDelay": 300,
+    "maxActiveRuns": 1
+  }
+}
+```
+
+### Editing Configuration Later
+
+**Via UI:**
+1. Go to **Settings → Databases → trino**
+2. Click **Ingestions** tab
+3. Click **Edit** (pencil icon) on your pipeline
+4. Modify configuration
 5. Click **Save**
+6. Re-run the pipeline
 
-### Step 3: Run Initial Ingestion
+**Via File (Advanced):**
+```bash
+# Find your pipeline configuration
+ls volumes/openmetadata-ingestion-dags/
 
-1. Click **Run** on the ingestion pipeline
-2. Wait 1-2 minutes for completion
-3. Navigate to **Explore** → **Tables**
-4. You should see all your Iceberg tables!
+# Edit the JSON file directly
+vim volumes/openmetadata-ingestion-dags/<pipeline-id>.json
+
+# Restart Airflow to pick up changes
+docker restart openmetadata-ingestion
+```
 
 ## Discovered Data Assets
 
@@ -342,6 +636,131 @@ docker logs openmetadata-mysql
 docker logs openmetadata-elasticsearch
 ```
 
+**Common causes:**
+1. Database migrations haven't run yet
+2. Server still initializing (wait 2-3 minutes)
+3. Dependency services not healthy
+
+**Check migration status:**
+```bash
+# Verify migration completed successfully
+docker logs openmetadata-migrate
+
+# Check exit code (should be 0)
+docker inspect openmetadata-migrate --format='{{.State.ExitCode}}'
+```
+
+### Search Not Working / "All Shards Failed" Error
+
+**Symptom:**
+- Explore page shows: "Search failed due to Elasticsearch exception [type=search_phase_execution_exception, reason=all shards failed]"
+- Global search returns no results
+- Direct table URLs work fine
+
+**Cause:** The `all` search index is not populated after initial setup.
+
+**Solution:**
+
+1. Go to **Settings → OpenMetadata → Search**
+2. Click on **SearchIndexingApplication**
+3. Click **Run Now**
+4. **IMPORTANT:** Enable "Recreate Indexes" toggle
+5. Click **Submit**
+6. Wait 1-2 minutes for completion
+7. Refresh browser and test search
+
+**If reindex fails with "Invalid alias name [all]" error:**
+
+```bash
+# Delete the incorrect index
+docker exec openmetadata-elasticsearch curl -s -X DELETE "http://localhost:9200/all"
+
+# Run reindex again from UI with "Recreate Indexes" enabled
+```
+
+**Verify search is working:**
+```bash
+# Check all alias exists and points to indices
+docker exec openmetadata-elasticsearch curl -s "http://localhost:9200/_cat/aliases?v" | grep all
+
+# Test search query
+docker exec openmetadata-elasticsearch curl -s \
+  "http://localhost:9200/all/_search?q=glucose&size=1" | grep -o '"total":{"value":[0-9]*'
+```
+
+### Airflow Authentication Failed
+
+**Error:** `Authentication failed for user [admin] trying to access the Airflow APIs`
+
+This occurs when connecting ingestion pipelines after a fresh install.
+
+**Solution:**
+```bash
+# Reset Airflow admin password
+docker exec openmetadata-ingestion airflow users reset-password -u admin -p admin
+
+# Restart Airflow
+docker restart openmetadata-ingestion
+```
+
+### Missing Elasticsearch Indices
+
+**Error:** `Failed to find index table_search_index` or similar
+
+**Root cause:** OpenMetadata should create Elasticsearch indices automatically on startup. If you see this error, it indicates the initialization failed.
+
+**Verification:**
+```bash
+# Check if indices exist
+docker exec openmetadata-elasticsearch curl -s http://localhost:9200/_cat/indices | grep search_index
+```
+
+**Solution:**
+Indices should be created automatically by OpenMetadata. If they're missing after a fresh install:
+
+1. Check OpenMetadata server logs for initialization errors:
+   ```bash
+   docker logs openmetadata-server | grep -i "elastic\|index"
+   ```
+
+2. Restart OpenMetadata server to trigger re-initialization:
+   ```bash
+   docker restart openmetadata-server
+   ```
+
+3. If problem persists, this is a bug in OpenMetadata 1.6.1 - report to the OpenMetadata team
+
+### Server Crashes During Ingestion
+
+**Symptoms:**
+- OpenMetadata server keeps restarting
+- Container shows "Restarting (137)" or "Killed"
+- Logs show signal 9 or OOM errors
+
+**Root cause:** Memory exhaustion, typically from stored procedure queries
+
+**Solution:**
+
+1. **Disable stored procedures** in ingestion configuration:
+   - Edit your Trino service ingestion pipeline
+   - Advanced Options → Uncheck "Include Stored Procedures"
+   - Advanced Options → Uncheck "Mark Deleted Stored Procedures"
+
+2. **Add schema filters** to reduce scope:
+   ```yaml
+   Include Schemas: raw,bronze,silver,gold
+   Exclude Schemas: information_schema,system
+   Include Databases: iceberg
+   ```
+
+3. **Increase server memory** if crashes continue:
+   ```yaml
+   # In docker-compose.yml
+   openmetadata-server:
+     environment:
+       OPENMETADATA_HEAP_OPTS: "-Xmx4G -Xms4G"  # Increase from default
+   ```
+
 ### Elasticsearch Out of Memory
 
 If you see OOM errors, increase memory:
@@ -377,6 +796,37 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
    ```bash
    make trino-shell
    SHOW SCHEMAS FROM iceberg;
+   ```
+3. Check Airflow DAG execution:
+   - Access Airflow at http://localhost:8080/
+   - Login: `admin` / `admin`
+   - View DAG logs for detailed error messages
+
+### Tables Not Appearing After Ingestion
+
+**Problem:** Ingestion runs successfully but tables don't show in UI
+
+**Solutions:**
+
+1. **Check if ingestion actually found tables:**
+   ```bash
+   docker logs openmetadata-ingestion | grep "Successfully ingested"
+   ```
+
+2. **Verify schema filters aren't too restrictive:**
+   - Go to Settings → Database Services → trino → Ingestion
+   - Check Include/Exclude Schemas configuration
+   - Ensure your target schemas are included
+
+3. **Search by fully qualified name:**
+   - In UI search bar: `trino.iceberg.raw.glucose_entries`
+   - Navigate to Explore → Tables and browse database hierarchy
+
+4. **Check Elasticsearch index:**
+   ```bash
+   # Verify table is in Elasticsearch
+   docker exec openmetadata-elasticsearch curl -s \
+     "http://localhost:9200/table_search_index/_search?q=glucose_entries&pretty"
    ```
 
 ## Resource Requirements
