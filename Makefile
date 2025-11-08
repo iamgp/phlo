@@ -11,7 +11,7 @@ PROFILE_BI ?= superset pgweb
 PROFILE_DOCS ?= mkdocs
 PROFILE_OBSERVABILITY ?= prometheus loki alloy grafana postgres-exporter
 PROFILE_API ?= api hasura
-PROFILE_CATALOG ?= openmetadata-mysql openmetadata-elasticsearch openmetadata-server
+PROFILE_CATALOG ?= openmetadata-mysql openmetadata-elasticsearch openmetadata-server openmetadata-ingestion
 PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(PROFILE_OBSERVABILITY) $(PROFILE_API) $(PROFILE_CATALOG)
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
