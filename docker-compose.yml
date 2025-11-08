@@ -621,6 +621,25 @@ services:
       timeout: 5s
       retries: 10
 
+  openmetadata-migrate:
+    image: openmetadata/server:${OPENMETADATA_VERSION:-1.6.1}
+    container_name: openmetadata-migrate
+    profiles: ["catalog", "all"]
+    command: ["./bootstrap/openmetadata-ops.sh", "migrate"]
+    environment:
+      DB_DRIVER_CLASS: com.mysql.cj.jdbc.Driver
+      DB_SCHEME: mysql
+      DB_USE_SSL: "false"
+      DB_HOST: openmetadata-mysql
+      DB_PORT: 3306
+      DB_USER: ${OPENMETADATA_MYSQL_USER:-openmetadata_user}
+      DB_USER_PASSWORD: ${OPENMETADATA_MYSQL_PASSWORD:-openmetadata_password}
+      OM_DATABASE: ${OPENMETADATA_MYSQL_DATABASE:-openmetadata_db}
+      MIGRATION_LIMIT_PARAM: 1200
+    depends_on:
+      openmetadata-mysql:
+        condition: service_healthy
+
   openmetadata-server:
     image: openmetadata/server:${OPENMETADATA_VERSION:-1.6.1}
     container_name: openmetadata-server
@@ -656,18 +675,69 @@ services:
       AUTHENTICATION_AUTHORITY: https://accounts.google.com
       AUTHENTICATION_CLIENT_ID: ""
       AUTHENTICATION_CALLBACK_URL: ""
+      # Airflow/Pipeline Service configuration
+      PIPELINE_SERVICE_CLIENT_ENABLED: "true"
+      PIPELINE_SERVICE_CLIENT_CLASS_NAME: org.openmetadata.service.clients.pipeline.airflow.AirflowRESTClient
+      PIPELINE_SERVICE_CLIENT_ENDPOINT: http://openmetadata-ingestion:8080
+      PIPELINE_SERVICE_CLIENT_VERIFY_SSL: no-ssl
+      PIPELINE_SERVICE_CLIENT_SSL_CERT_PATH: ""
+      SERVER_HOST_API_URL: http://openmetadata-server:8585/api
+      AIRFLOW_USERNAME: admin
+      AIRFLOW_PASSWORD: admin
+      AIRFLOW_TIMEOUT: 10
+      # Java heap memory configuration
+      OPENMETADATA_HEAP_OPTS: "-Xmx4G -Xms4G"
     ports:
       - "${OPENMETADATA_PORT:-10020}:8585"
-    volumes:
-      - ./volumes/openmetadata-server:/opt/openmetadata
+    # volumes:
+    #   - ./volumes/openmetadata-server:/opt/openmetadata
     depends_on:
       openmetadata-mysql:
         condition: service_healthy
       openmetadata-elasticsearch:
         condition: service_healthy
+      openmetadata-migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8585/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 60s
+
+  openmetadata-ingestion:
+    image: openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.1}
+    container_name: openmetadata-ingestion
+    restart: unless-stopped
+    profiles: ["catalog", "all"]
+    command: ["airflow", "standalone"]
+    environment:
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__OPENMETADATA_AIRFLOW_APIS__DAG_GENERATED_CONFIGS: /opt/airflow/dags
+      AIRFLOW_DB: ${OPENMETADATA_MYSQL_DATABASE:-openmetadata_db}
+      DB_HOST: openmetadata-mysql
+      DB_PORT: 3306
+      DB_USER: ${OPENMETADATA_MYSQL_USER:-openmetadata_user}
+      DB_PASSWORD: ${OPENMETADATA_MYSQL_PASSWORD:-openmetadata_password}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://${OPENMETADATA_MYSQL_USER:-openmetadata_user}:${OPENMETADATA_MYSQL_PASSWORD:-openmetadata_password}@openmetadata-mysql:3306/${OPENMETADATA_MYSQL_DATABASE:-openmetadata_db}
+      SERVER_HOST_API_URL: http://openmetadata-server:8585/api
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./volumes/openmetadata-ingestion-logs:/opt/airflow/logs
+      - ./volumes/openmetadata-ingestion-dags:/opt/airflow/dags
+      - ./volumes/openmetadata-ingestion-config:/opt/airflow/config
+    depends_on:
+      openmetadata-server:
+        condition: service_started
+      openmetadata-mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
