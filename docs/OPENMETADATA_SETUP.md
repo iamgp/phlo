@@ -530,22 +530,102 @@ glucose_analytics_mart (mart) ← Trino publish
 Superset Dashboard: "CGM Overview"
 ```
 
-### Enable Lineage Tracking
+### Enable Lineage Tracking with dbt
 
 Lineage is automatically extracted from:
-- **dbt models** - Add dbt ingestion pipeline
-- **SQL queries** - Enable query log ingestion
+- **dbt models** - Shows dependencies between models and tables
+- **SQL queries** - Enable query log ingestion (advanced)
 
-To add dbt lineage:
+**Step 1: Add dbt Service**
 
-1. **Settings** → **Services** → **Pipeline Services**
-2. **Add Service** → **dbt**
-3. Configure:
-   ```yaml
-   Name: cascade-dbt
-   dbt Manifest Path: /dbt/target/manifest.json
-   dbt Catalog Path: /dbt/target/catalog.json
+1. Go to **Settings** → **Services** → **Pipeline Services**
+2. Click **Add Service**
+3. Select **dbt**
+4. Configure:
+
+| Field | Value |
+|-------|-------|
+| **Name** | `cascade-dbt` |
+| **dbt Cloud API URL** | Leave empty (we use local files) |
+| **dbt Cloud Account ID** | Leave empty |
+
+Click **Next**.
+
+**Step 2: Configure dbt Metadata Ingestion**
+
+1. **Source Configuration:**
+
+| Field | Value | Notes |
+|-------|-------|-------|
+| **dbt Configuration Source** | `Local` | We're using local files, not dbt Cloud |
+| **dbt Catalog File Path** | `/dbt/target/catalog.json` | Contains column-level metadata |
+| **dbt Manifest File Path** | `/dbt/target/manifest.json` | Contains lineage and dependencies |
+| **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results |
+
+2. **Database Service Name:** `trino`
+   - This links dbt models to your Trino tables
+   - Must match the name of your Trino service
+
+3. **Include Tags:** `Yes` (Enable)
+   - Imports dbt model tags as OpenMetadata tags
+
+Click **Next**.
+
+**Step 3: Schedule dbt Ingestion**
+
+**For Development:**
+- Select **Manual**
+- Run after `dbt run` or `dbt build` completes
+
+**For Production:**
+- Select **Scheduled**
+- Cron: `0 4 * * *` (4 AM, after Dagster + Trino ingestion)
+
+Click **Next** → **Deploy**.
+
+**Step 4: Run dbt Ingestion**
+
+1. Ensure dbt artifacts are fresh:
+   ```bash
+   # From your local machine
+   cd transforms/dbt
+   dbt compile --profiles-dir ./profiles
+
+   # Or run the full build
+   dbt build --profiles-dir ./profiles
    ```
+
+2. Go to **Settings → Integrations → Pipeline → cascade-dbt**
+3. Click **Ingestions** tab
+4. Find `cascade-dbt-metadata` pipeline
+5. Click **Run** (play button)
+
+**Expected Output:**
+```
+INFO - Starting dbt metadata ingestion
+INFO - Reading manifest from /dbt/target/manifest.json
+INFO - Found 12 dbt models
+INFO - Processing model: glucose_daily_stats
+INFO - Linking model to table: trino.iceberg.silver.glucose_daily_stats
+INFO - Extracted lineage: bronze.entries_cleaned → silver.glucose_daily_stats
+INFO - Successfully ingested dbt metadata
+```
+
+**What You'll See:**
+
+After ingestion:
+1. **Enhanced Table Descriptions**: dbt model descriptions appear on tables
+2. **Column Descriptions**: From dbt schema YAML files
+3. **Lineage Graphs**: Visual connections between models
+4. **dbt Tags**: As OpenMetadata tags on tables
+5. **Test Results**: dbt tests show as data quality metrics
+
+**Verify dbt Integration:**
+
+Navigate to a table created by dbt (e.g., `silver.glucose_daily_stats`):
+- **Lineage** tab: Shows upstream dependencies
+- **Schema** tab: Has column descriptions from dbt
+- **Data Quality** tab: Shows dbt test results
 
 ## Advanced Features
 
