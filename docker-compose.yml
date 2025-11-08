@@ -730,6 +730,7 @@ services:
       - ./volumes/openmetadata-ingestion-logs:/opt/airflow/logs
       - ./volumes/openmetadata-ingestion-dags:/opt/airflow/dags
       - ./volumes/openmetadata-ingestion-config:/opt/airflow/config
+      - ./transforms/dbt:/dbt:ro  # Mount dbt project for metadata ingestion
     depends_on:
       openmetadata-server:
         condition: service_started
