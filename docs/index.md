@@ -120,24 +120,17 @@ Welcome to the Cascade documentation! This guide helps you navigate all availabl
     - Connection strings
     - Feature flags
 
-14. **[OPENMETADATA_SETUP.md](OPENMETADATA_SETUP.md)** ✨ NEW
-    - Data catalog setup and configuration
-    - Connecting Trino/Iceberg data sources
-    - Running metadata ingestion
-    - Troubleshooting common issues
-    - Search, discovery, and lineage tracking
-
-15. **[duckdb-iceberg-queries.md](duckdb-iceberg-queries.md)**
+14. **[duckdb-iceberg-queries.md](duckdb-iceberg-queries.md)**
     - Querying Iceberg tables with DuckDB
     - Ad-hoc analytics
     - Local development queries
 
-16. **[github_workflow_guide.md](github_workflow_guide.md)**
+15. **[github_workflow_guide.md](github_workflow_guide.md)**
     - Git branching strategy
     - Pull request workflow
     - CI/CD integration
 
-17. **[../NESSIE_WORKFLOW.md](../NESSIE_WORKFLOW.md)**
+16. **[../NESSIE_WORKFLOW.md](../NESSIE_WORKFLOW.md)**
     - Data branching with Nessie
     - Branch management
     - Merging and tagging
@@ -210,9 +203,6 @@ Welcome to the Cascade documentation! This guide helps you navigate all availabl
 **Set up monitoring:**
 - → [OBSERVABILITY.md](OBSERVABILITY.md)
 
-**Set up data catalog:**
-- → [OPENMETADATA_SETUP.md](OPENMETADATA_SETUP.md)
-
 **Use the API:**
 - → [API.md](API.md)
 
@@ -247,7 +237,6 @@ Welcome to the Cascade documentation! This guide helps you navigate all availabl
 | DBT_DEVELOPMENT_GUIDE.md | ✅ Current | 2025-11 | Transformations |
 | TROUBLESHOOTING_GUIDE.md | ✅ Current | 2025-11 | Debugging |
 | BEST_PRACTICES_GUIDE.md | ✅ Current | 2025-11 | Production |
-| OPENMETADATA_SETUP.md | ✅ Current | 2025-11 | Data Catalog |
 | API.md | ✅ Current | 2025 | API usage |
 | OBSERVABILITY.md | ✅ Current | 2025 | Monitoring |
 | architecture.md | ✅ Current | 2025 | Architecture |
@@ -272,6 +261,6 @@ Welcome to the Cascade documentation! This guide helps you navigate all availabl
 
 ---
 
-**Last updated:** 2025-11-08
-**Version:** 1.1
+**Last updated:** 2025-11-06
+**Version:** 1.0
 **Maintained by:** Cascade Team
