@@ -1,132 +1,116 @@
 # workflow.py - Nessie branching workflow assets for Git-like data versioning
-# Defines Dagster assets that manage development and production workflows
+# Defines Dagster assets that manage dynamic pipeline branches and production promotion
 # using Nessie branches for isolated data development and controlled promotion
 
 """
 Nessie branching workflows for data engineering.
 
-Provides assets that orchestrate common Git-like workflows:
-- Development workflow (dev branch)
-- Production promotion (dev -> main)
+Provides assets that orchestrate dynamic branch workflows:
+- Pipeline branch creation (pipeline/run-{id})
+- Validation-gated promotion (pipeline -> main)
+- Production tagging
 """
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import dagster as dg
-
+from cascade.config import config
 from cascade.defs.nessie import NessieResource
-from cascade.defs.nessie.operations import create_branch, list_branches, merge_branch
+from cascade.defs.nessie.branch_manager import BranchManagerResource
 
 
-# --- Workflow Assets ---
-# Dagster assets that implement Nessie branching operations
+# Production promotion asset (updated for dynamic branches)
 @dg.asset(
-    name="nessie_dev_branch",
+    name="promote_to_main",
     group_name="nessie",
-    description="Ensure dev branch exists for development work",
+    description="Promote pipeline branch to main after validation",
     compute_kind="nessie",
+    deps=[dg.AssetKey(["validation_orchestrator"])],
 )
-def nessie_dev_branch(context, nessie: NessieResource) -> dg.MaterializeResult:
+def promote_to_main(
+    context: dg.AssetExecutionContext,
+    nessie: NessieResource,
+    branch_manager: BranchManagerResource,
+) -> dg.MaterializeResult:
     """
-    Ensure the 'dev' branch exists.
-
-    This asset creates the dev branch if it doesn't exist, allowing
-    development work to be isolated from production.
-    """
-    try:
-        # First check if dev branch exists
-        branches = nessie.get_branches()
-        branch_names = [ref["name"] for ref in branches if ref.get("type") == "BRANCH"]
-
-        if "dev" in branch_names:
-            context.log.info("Dev branch already exists")
-            return dg.MaterializeResult(
-                metadata={
-                    "branch_name": dg.MetadataValue.text("dev"),
-                    "status": dg.MetadataValue.text("already_exists"),
-                    "operation": dg.MetadataValue.text("ensure_dev_branch"),
-                }
-            )
-
-        # Create dev branch from main
-        context.log.info("Creating dev branch from main")
-        result = nessie.create_branch("dev", "main")
-
-        return dg.MaterializeResult(
-            metadata={
-                "branch_name": dg.MetadataValue.text("dev"),
-                "source_ref": dg.MetadataValue.text("main"),
-                "status": dg.MetadataValue.text("created"),
-                "branch_hash": dg.MetadataValue.text(result.get("hash", "unknown")),
-                "operation": dg.MetadataValue.text("ensure_dev_branch"),
-            }
-        )
-
-    except Exception as e:
-        context.log.error(f"Failed to ensure dev branch: {e}")
-        raise
-
-
-# Production promotion asset
-@dg.asset(
-    name="promote_dev_to_main",
-    group_name="nessie",
-    description="Promote dev branch changes to main branch",
-    compute_kind="nessie",
-    deps=[dg.AssetKey("nessie_dev_branch")],
-)
-def promote_dev_to_main(context, nessie: NessieResource) -> dg.MaterializeResult:
-    """
-    Promote changes from dev branch to main branch.
+    Promote pipeline branch to main after validation.
 
     This is the key asset for production deployment:
-    1. Validates dev branch exists and has changes
-    2. Merges dev into main atomically
-    3. Tags the new production snapshot
+    1. Verifies all validations passed
+    2. Fast-forward merges pipeline branch into main
+    3. Creates timestamped production tag
+    4. Schedules branch cleanup
+
+    Run config:
+        branch_name: Name of pipeline branch to promote (e.g., "pipeline/run-a1b2c3d4")
+
+    Returns:
+        MaterializeResult with promotion metadata for cleanup sensor
     """
+    branch_name = context.run_config.get("branch_name")
+
+    if not branch_name:
+        raise ValueError("branch_name must be provided in run_config")
+
+    context.log.info(f"Promoting branch {branch_name} to main")
+
+    # 1. Verify validation_orchestrator passed (redundant check for safety)
+    instance = context.instance
+    validation_events = instance.get_event_records(
+        event_records_filter=dg.EventRecordsFilter(
+            event_type=dg.DagsterEventType.ASSET_MATERIALIZATION,
+            asset_key=dg.AssetKey(["validation_orchestrator"])
+        ),
+        limit=1
+    )
+
+    if validation_events:
+        validation_metadata = validation_events[0].asset_materialization.metadata
+        all_passed = validation_metadata.get("all_passed")
+        if not all_passed:
+            raise Exception(
+                f"Cannot promote: validation failures exist. "
+                f"Failures: {validation_metadata.get('blocking_failures')}"
+            )
+
+    # 2. Fast-forward merge to main
     try:
-        context.log.info("Starting dev -> main promotion")
-
-        # Check that dev branch exists and has commits ahead of main
-        branches = nessie.get_branches()
-        branch_names = [ref["name"] for ref in branches if ref.get("type") == "BRANCH"]
-
-        if "dev" not in branch_names:
-            raise ValueError("Dev branch does not exist - cannot promote")
-
-        context.log.info("Dev branch exists, proceeding with promotion")
-
-        # Promote dev to main by assigning main to dev's commit
-        # This is a fast-forward operation that avoids merge conflicts
-        merge_result = nessie.assign_branch("main", "dev")
-
-        context.log.info("Successfully promoted dev to main")
-
-        # Create a version tag for this production release
-        import datetime
-        tag_name = f"v{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-        try:
-            tag_result = nessie.tag_snapshot(tag_name, "main")
-            context.log.info(f"Created production tag: {tag_name}")
-        except Exception as e:
-            context.log.warning(f"Failed to create tag {tag_name}: {e}")
-            tag_name = None
-
-        return dg.MaterializeResult(
-            metadata={
-                "source_branch": dg.MetadataValue.text("dev"),
-                "target_branch": dg.MetadataValue.text("main"),
-                "merge_result": dg.MetadataValue.json(merge_result),
-                "production_tag": dg.MetadataValue.text(tag_name or "none"),
-                "operation": dg.MetadataValue.text("promote_dev_to_main"),
-                "status": dg.MetadataValue.text("completed"),
-            }
-        )
-
+        nessie.assign_branch("main", branch_name)
+        context.log.info(f"Successfully merged {branch_name} to main")
     except Exception as e:
-        context.log.error(f"Failed to promote dev to main: {e}")
+        context.log.error(f"Failed to merge {branch_name} to main: {e}")
         raise
+
+    # 3. Create production tag
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    try:
+        tag_result = nessie.tag_snapshot(f"v{timestamp}", "main")
+        context.log.info(f"Created tag: {tag_result['name']}")
+    except Exception as e:
+        context.log.error(f"Failed to create tag: {e}")
+        raise
+
+    # 4. Schedule branch cleanup
+    cleanup_result = branch_manager.schedule_cleanup(
+        branch_name=branch_name,
+        retention_days=config.branch_retention_days,
+        promotion_succeeded=True
+    )
+
+    context.log.info(
+        f"Scheduled cleanup for {branch_name} after {cleanup_result['cleanup_after']}"
+    )
+
+    return dg.MaterializeResult(
+        metadata={
+            "branch_promoted": branch_name,
+            "promoted_at": timestamp,
+            "tag_created": tag_result["name"],
+            "cleanup_scheduled_for": cleanup_result["cleanup_after"]
+        }
+    )
 
 
 # Branch status reporting asset

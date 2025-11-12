@@ -1,35 +1,15 @@
-# __init__.py - Sensors module initialization, aggregating monitoring and alerting sensors
-# Defines sensors that monitor pipeline health, data freshness, and trigger
-# automated workflows for observability and incident response
+"""
+Sensors package for Cascade data pipeline automation.
 
-from __future__ import annotations
+Provides sensors for:
+- Automatic branch promotion after validation
+- Branch cleanup after retention period
+- Failure monitoring
+"""
 
-import dagster as dg
+from cascade.defs.sensors.promotion_sensor import auto_promotion_sensor, branch_cleanup_sensor
 
-from cascade.defs.sensors.failure_monitoring import (
-    iceberg_freshness_sensor,
-    pipeline_failure_sensor,
-    pipeline_success_sensor,
-)
-
-
-# --- Aggregation Function ---
-# Builds sensor definitions for pipeline monitoring
-def build_defs() -> dg.Definitions:
-    """Build sensors for observability and monitoring."""
-    return dg.Definitions(
-        sensors=[
-            pipeline_failure_sensor,
-            pipeline_success_sensor,
-            iceberg_freshness_sensor,
-        ]
-    )
-
-
-# Public API exports
 __all__ = [
-    "build_defs",
-    "pipeline_failure_sensor",
-    "pipeline_success_sensor",
-    "iceberg_freshness_sensor",
+    "auto_promotion_sensor",
+    "branch_cleanup_sensor",
 ]

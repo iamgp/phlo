@@ -36,7 +36,7 @@ FROM iceberg_dev.silver.fct_glucose_readings
 @asset_check(
     name="nightscout_glucose_quality",
     asset=AssetKey(["fct_glucose_readings"]),
-    blocking=False,
+    blocking=True,
     description="Validate processed Nightscout glucose data using Pandera schema validation.",
 )
 def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
@@ -223,7 +223,7 @@ FROM iceberg_dev.gold.fct_daily_glucose_metrics
 @asset_check(
     name="daily_glucose_metrics_quality",
     asset=AssetKey(["fct_daily_glucose_metrics"]),
-    blocking=False,
+    blocking=True,
     description="Validate daily glucose metrics using Pandera schema validation.",
 )
 def daily_glucose_metrics_quality_check(context, trino: TrinoResource) -> AssetCheckResult:

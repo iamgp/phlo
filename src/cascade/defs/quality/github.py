@@ -53,7 +53,7 @@ FROM iceberg_dev.silver.fct_github_repo_stats
 @asset_check(
     name="github_user_events_quality",
     asset=AssetKey(["fct_github_user_events"]),
-    blocking=False,
+    blocking=True,
     description="Validate processed GitHub user events using Pandera schema validation.",
 )
 def github_user_events_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
@@ -209,7 +209,7 @@ def github_user_events_quality_check(context, trino: TrinoResource) -> AssetChec
 @asset_check(
     name="github_repo_stats_quality",
     asset=AssetKey(["fct_github_repo_stats"]),
-    blocking=False,
+    blocking=True,
     description="Validate processed GitHub repository statistics using Pandera schema validation.",
 )
 def github_repo_stats_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
@@ -403,7 +403,7 @@ FROM iceberg_dev.silver.fct_github_repo_stats
 @asset_check(
     name="fact_github_user_events_quality",
     asset=AssetKey(["fct_github_user_events"]),
-    blocking=False,
+    blocking=True,
     description="Validate enriched GitHub user events fact table using Pandera schema validation.",
 )
 def fact_github_user_events_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
@@ -526,7 +526,7 @@ def fact_github_user_events_quality_check(context, trino: TrinoResource) -> Asse
 @asset_check(
     name="fact_github_repo_stats_quality",
     asset=AssetKey(["fct_github_repo_stats"]),
-    blocking=False,
+    blocking=True,
     description="Validate enriched GitHub repo stats fact table using Pandera schema validation.",
 )
 def fact_github_repo_stats_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
