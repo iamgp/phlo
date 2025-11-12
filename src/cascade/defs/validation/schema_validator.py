@@ -16,6 +16,86 @@ from pyiceberg.table import Table
 class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
     """Validates schema compatibility between branches."""
 
+    def check_table_compatibility(
+        self,
+        table_name: str,
+        feature_branch: str,
+        target_branch: str = "main"
+    ) -> dict[str, Any]:
+        """
+        Check compatibility for a single table.
+
+        Args:
+            table_name: Fully qualified table name (e.g., "silver.fct_glucose_readings")
+            feature_branch: Pipeline branch to validate
+            target_branch: Target branch to compare against (default: main)
+
+        Returns:
+            {
+                "compatible": bool,
+                "table": str,
+                "breaking_changes": [...],
+                "additive_changes": [...]
+            }
+        """
+        try:
+            feature_catalog = get_catalog(ref=feature_branch)
+            target_catalog = get_catalog(ref=target_branch)
+        except Exception as e:
+            return {
+                "compatible": False,
+                "table": table_name,
+                "breaking_changes": [{
+                    "table": table_name,
+                    "change_type": "catalog_error",
+                    "details": f"Failed to connect to catalogs: {str(e)}"
+                }],
+                "additive_changes": []
+            }
+
+        try:
+            feature_table = feature_catalog.load_table(table_name)
+            target_table = target_catalog.load_table(table_name)
+
+            changes = self._compare_schemas(
+                table_name,
+                feature_table.schema(),
+                target_table.schema()
+            )
+
+            return {
+                "compatible": len(changes["breaking"]) == 0,
+                "table": table_name,
+                "breaking_changes": changes["breaking"],
+                "additive_changes": changes["additive"]
+            }
+
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "does not exist" in error_msg:
+                # New table in feature branch (additive)
+                return {
+                    "compatible": True,
+                    "table": table_name,
+                    "breaking_changes": [],
+                    "additive_changes": [{
+                        "table": table_name,
+                        "change_type": "table_added",
+                        "details": f"New table '{table_name}' in {feature_branch}"
+                    }]
+                }
+            else:
+                return {
+                    "compatible": False,
+                    "table": table_name,
+                    "breaking_changes": [{
+                        "table": table_name,
+                        "change_type": "table_error",
+                        "details": f"Error comparing table: {str(e)}"
+                    }],
+                    "additive_changes": []
+                }
+
     def check_compatibility(
         self,
         feature_branch: str,

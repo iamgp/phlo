@@ -28,6 +28,55 @@ class PanderaValidatorResource(dg.ConfigurableResource):
     trino: TrinoResource
     critical_level: str = "error"  # "error" | "warning" | "info"
 
+    def validate_table(
+        self,
+        table_name: str,
+        schema_class: Type[pa.DataFrameModel],
+        branch_name: str
+    ) -> dict[str, Any]:
+        """
+        Validate a single table against its Pandera schema.
+
+        Args:
+            table_name: Table name (e.g., "fct_glucose_readings")
+            schema_class: Pandera DataFrameModel class to validate against
+            branch_name: Nessie branch name
+
+        Returns:
+            {
+                "all_passed": bool,
+                "table": str,
+                "critical_failures": [...],
+                "warnings": [...]
+            }
+        """
+        result = self._validate_table(table_name, schema_class, branch_name)
+
+        if not result["has_failures"]:
+            return {
+                "all_passed": True,
+                "table": table_name,
+                "critical_failures": [],
+                "warnings": []
+            }
+
+        # Separate failures by severity
+        critical_failures = []
+        warnings = []
+
+        for failure in result["failures"]:
+            if failure["severity"] == self.critical_level:
+                critical_failures.append(failure)
+            else:
+                warnings.append(failure)
+
+        return {
+            "all_passed": len(critical_failures) == 0,
+            "table": table_name,
+            "critical_failures": critical_failures,
+            "warnings": warnings
+        }
+
     def validate_all_tables(
         self,
         branch_name: str
@@ -53,6 +102,8 @@ class PanderaValidatorResource(dg.ConfigurableResource):
                 "warnings": [...]
             }
         """
+        # Define tables to validate (only used by validate_all_tables)
+        # Individual checks use validate_table() and pass schema_class directly
         tables_to_validate = [
             ("fct_glucose_readings", FactGlucoseReadings),
             ("fct_daily_glucose_metrics", FactDailyGlucoseMetrics),
@@ -64,15 +115,12 @@ class PanderaValidatorResource(dg.ConfigurableResource):
         warnings = []
 
         for table_name, schema_class in tables_to_validate:
-            result = self._validate_table(table_name, schema_class, branch_name)
+            result = self.validate_table(table_name, schema_class, branch_name)
 
-            if result["has_failures"]:
-                # Filter by severity
-                for failure in result["failures"]:
-                    if failure["severity"] == self.critical_level:
-                        critical_failures.append(failure)
-                    else:
-                        warnings.append(failure)
+            if not result["all_passed"]:
+                critical_failures.extend(result["critical_failures"])
+            if result["warnings"]:
+                warnings.extend(result["warnings"])
 
         all_passed = len(critical_failures) == 0
 

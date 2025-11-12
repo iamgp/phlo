@@ -76,6 +76,11 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
     pipeline_name = f"nightscout_entries_{partition_date.replace('-', '_')}"
     table_name = f"{config.iceberg_default_namespace}.glucose_entries"
 
+    # Get branch from run tags (set by create_pipeline_branch asset)
+    # Falls back to run_config if not in tags, then defaults to "main"
+    run_tags = context.instance.get_run_tags(context.run.run_id) or {}
+    branch_name = run_tags.get("branch") or context.run_config.get("branch_name", "main")
+
     start_time_iso = f"{partition_date}T00:00:00.000Z"
     end_time_iso = f"{partition_date}T23:59:59.999Z"
 
@@ -83,6 +88,7 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
     pipelines_base_dir.mkdir(parents=True, exist_ok=True)
 
     context.log.info(f"Starting ingestion for partition {partition_date}")
+    context.log.info(f"Ingesting to branch: {branch_name}")
     context.log.info(f"Date range: {start_time_iso} to {end_time_iso}")
     context.log.info(f"Target table: {table_name}")
 
@@ -209,22 +215,24 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
         dlt_elapsed = time.time() - start_time_ts
         context.log.info(f"DLT staging completed in {dlt_elapsed:.2f}s")
 
-        # Step 3: Ensure Iceberg table exists
-        context.log.info(f"Ensuring Iceberg table {table_name} exists...")
+        # Step 3: Ensure Iceberg table exists on specified branch
+        context.log.info(f"Ensuring Iceberg table {table_name} exists on branch {branch_name}...")
         schema = get_schema("entries")
         iceberg.ensure_table(
             table_name=table_name,
             schema=schema,
             partition_spec=None,
+            override_ref=branch_name,
         )
 
-        # Step 4: Merge to Iceberg table (idempotent ingestion)
-        context.log.info("Merging data to Iceberg table (idempotent upsert)...")
+        # Step 4: Merge to Iceberg table on specified branch (idempotent ingestion)
+        context.log.info(f"Merging data to Iceberg table on branch {branch_name} (idempotent upsert)...")
         unique_key = get_unique_key("entries")
         merge_metrics = iceberg.merge_parquet(
             table_name=table_name,
             data_path=str(parquet_path),
             unique_key=unique_key,
+            override_ref=branch_name,
         )
 
         total_elapsed = time.time() - start_time_ts
@@ -237,6 +245,7 @@ def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
 
         return dg.MaterializeResult(
             metadata={
+                "branch": branch_name,
                 "partition_date": dg.MetadataValue.text(partition_date),
                 "rows_loaded": dg.MetadataValue.int(rows_loaded),
                 "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),

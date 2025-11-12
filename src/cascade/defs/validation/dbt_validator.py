@@ -12,13 +12,28 @@ from pathlib import Path
 from typing import Any
 
 import dagster as dg
+from cascade.config import config
 
 
 class DBTValidatorResource(dg.ConfigurableResource):
     """Runs dbt tests and parses results."""
 
-    dbt_project_dir: str = "/opt/dagster/app/transforms/dbt"
-    dbt_profiles_dir: str = "/opt/dagster/app/transforms/dbt/profiles"
+    def run_tests_for_model(
+        self,
+        model_name: str,
+        branch_name: str
+    ) -> dict[str, Any]:
+        """
+        Run dbt tests for a specific model on specified branch.
+
+        Args:
+            model_name: Model name (e.g., "fct_glucose_readings")
+            branch_name: Nessie branch to test
+
+        Returns:
+            Same format as run_tests()
+        """
+        return self.run_tests(branch_name, select=model_name)
 
     def run_tests(
         self,
@@ -52,8 +67,8 @@ class DBTValidatorResource(dg.ConfigurableResource):
         # Build dbt test command
         cmd = [
             "dbt", "test",
-            "--project-dir", self.dbt_project_dir,
-            "--profiles-dir", self.dbt_profiles_dir,
+            "--project-dir", str(config.dbt_project_path),
+            "--profiles-dir", str(config.dbt_profiles_path),
         ]
 
         if select:
@@ -74,7 +89,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
             )
 
             # Parse run_results.json
-            results_path = Path(self.dbt_project_dir) / "target" / "run_results.json"
+            results_path = config.dbt_project_path / "target" / "run_results.json"
 
             if not results_path.exists():
                 return {

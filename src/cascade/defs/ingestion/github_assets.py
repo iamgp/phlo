@@ -75,6 +75,11 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
     pipeline_name = f"github_user_events_{partition_date.replace('-', '_')}"
     table_name = f"{config.iceberg_default_namespace}.github_user_events"
 
+    # Get branch from run tags (set by create_pipeline_branch asset)
+    # Falls back to run_config if not in tags, then defaults to "main"
+    run_tags = context.instance.get_run_tags(context.run.run_id) or {}
+    branch_name = run_tags.get("branch") or context.run_config.get("branch_name", "main")
+
     # Calculate date range for the partition
     start_date = datetime.fromisoformat(partition_date)
     end_date = start_date + timedelta(days=1)
@@ -83,6 +88,7 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
     pipelines_base_dir.mkdir(parents=True, exist_ok=True)
 
     context.log.info(f"Starting ingestion for partition {partition_date}")
+    context.log.info(f"Ingesting to branch: {branch_name}")
     context.log.info(f"Date range: {start_date.isoformat()} to {end_date.isoformat()}")
     context.log.info(f"Target table: {table_name}")
 
@@ -235,8 +241,8 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
         dlt_elapsed = time.time() - start_time_ts
         context.log.info(f"DLT staging completed in {dlt_elapsed:.2f}s")
 
-        # Step 3: Ensure Iceberg table exists
-        context.log.info(f"Ensuring Iceberg table {table_name} exists...")
+        # Step 3: Ensure Iceberg table exists on specified branch
+        context.log.info(f"Ensuring Iceberg table {table_name} exists on branch {branch_name}...")
         # We'll define the schema in the schemas module
         from cascade.iceberg.schema import get_schema
         schema = get_schema("user_events")
@@ -244,15 +250,17 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
             table_name=table_name,
             schema=schema,
             partition_spec=None,
+            override_ref=branch_name,
         )
 
-        # Step 4: Merge to Iceberg table (idempotent ingestion)
-        context.log.info("Merging data to Iceberg table (idempotent upsert)...")
+        # Step 4: Merge to Iceberg table on specified branch (idempotent ingestion)
+        context.log.info(f"Merging data to Iceberg table on branch {branch_name} (idempotent upsert)...")
         unique_key = get_unique_key("user_events")
         merge_metrics = iceberg.merge_parquet(
             table_name=table_name,
             data_path=str(parquet_path),
             unique_key=unique_key,
+            override_ref=branch_name,
         )
 
         total_elapsed = time.time() - start_time_ts
@@ -265,6 +273,7 @@ def github_user_events(context, iceberg: IcebergResource) -> dg.MaterializeResul
 
         return dg.MaterializeResult(
             metadata={
+                "branch": branch_name,
                 "partition_date": dg.MetadataValue.text(partition_date),
                 "rows_loaded": dg.MetadataValue.int(rows_loaded),
                 "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
@@ -324,10 +333,16 @@ def github_repo_stats(context, iceberg: IcebergResource) -> dg.MaterializeResult
     pipeline_name = f"github_repo_stats_{partition_date.replace('-', '_')}"
     table_name = f"{config.iceberg_default_namespace}.github_repo_stats"
 
+    # Get branch from run tags (set by create_pipeline_branch asset)
+    # Falls back to run_config if not in tags, then defaults to "main"
+    run_tags = context.instance.get_run_tags(context.run.run_id) or {}
+    branch_name = run_tags.get("branch") or context.run_config.get("branch_name", "main")
+
     pipelines_base_dir = Path.home() / ".dlt" / "pipelines" / "partitioned"
     pipelines_base_dir.mkdir(parents=True, exist_ok=True)
 
     context.log.info(f"Starting repo stats ingestion for partition {partition_date}")
+    context.log.info(f"Ingesting to branch: {branch_name}")
     context.log.info(f"Target table: {table_name}")
 
     try:
@@ -496,23 +511,25 @@ def github_repo_stats(context, iceberg: IcebergResource) -> dg.MaterializeResult
         dlt_elapsed = time.time() - start_time_ts
         context.log.info(f"DLT staging completed in {dlt_elapsed:.2f}s")
 
-        # Step 3: Ensure Iceberg table exists
-        context.log.info(f"Ensuring Iceberg table {table_name} exists...")
+        # Step 3: Ensure Iceberg table exists on specified branch
+        context.log.info(f"Ensuring Iceberg table {table_name} exists on branch {branch_name}...")
         from cascade.iceberg.schema import get_schema
         schema = get_schema("repo_stats")
         iceberg.ensure_table(
             table_name=table_name,
             schema=schema,
             partition_spec=None,
+            override_ref=branch_name,
         )
 
-        # Step 4: Merge to Iceberg table (idempotent ingestion)
-        context.log.info("Merging data to Iceberg table (idempotent upsert)...")
+        # Step 4: Merge to Iceberg table on specified branch (idempotent ingestion)
+        context.log.info(f"Merging data to Iceberg table on branch {branch_name} (idempotent upsert)...")
         unique_key = get_unique_key("repo_stats")
         merge_metrics = iceberg.merge_parquet(
             table_name=table_name,
             data_path=str(parquet_path),
             unique_key=unique_key,
+            override_ref=branch_name,
         )
 
         total_elapsed = time.time() - start_time_ts
@@ -525,6 +542,7 @@ def github_repo_stats(context, iceberg: IcebergResource) -> dg.MaterializeResult
 
         return dg.MaterializeResult(
             metadata={
+                "branch": branch_name,
                 "partition_date": dg.MetadataValue.text(partition_date),
                 "rows_loaded": dg.MetadataValue.int(rows_loaded),
                 "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),

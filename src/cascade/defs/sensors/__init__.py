@@ -2,14 +2,31 @@
 Sensors package for Cascade data pipeline automation.
 
 Provides sensors for:
-- Automatic branch promotion after validation
+- Automatic branch creation when jobs start
+- Automatic branch promotion after all checks pass
 - Branch cleanup after retention period
-- Failure monitoring
 """
 
-from cascade.defs.sensors.promotion_sensor import auto_promotion_sensor, branch_cleanup_sensor
+import dagster as dg
+from cascade.defs.sensors.branch_lifecycle import (
+    branch_creation_sensor,
+    auto_promotion_sensor,
+    branch_cleanup_sensor,
+)
 
 __all__ = [
+    "branch_creation_sensor",
     "auto_promotion_sensor",
     "branch_cleanup_sensor",
 ]
+
+
+def build_defs() -> dg.Definitions:
+    """Build sensor definitions for automated pipeline management."""
+    return dg.Definitions(
+        sensors=[
+            branch_creation_sensor,
+            auto_promotion_sensor,
+            branch_cleanup_sensor,
+        ],
+    )
