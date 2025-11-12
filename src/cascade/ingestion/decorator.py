@@ -1,0 +1,210 @@
+from __future__ import annotations
+
+import time
+from collections.abc import Callable
+from datetime import timedelta
+from functools import wraps
+from typing import Any
+
+import dagster as dg
+from dagster.preview.freshness import FreshnessPolicy
+
+from cascade.defs.partitions import daily_partition
+from cascade.defs.resources.iceberg import IcebergResource
+from cascade.ingestion.dlt_helpers import (
+    get_branch_from_context,
+    merge_to_iceberg,
+    setup_dlt_pipeline,
+    stage_to_parquet,
+    validate_with_pandera,
+)
+from cascade.schemas.registry import TableConfig
+
+_INGESTION_ASSETS: list[Any] = []
+
+
+def cascade_ingestion(
+    table_name: str,
+    unique_key: str,
+    iceberg_schema: Any,
+    group: str,
+    validation_schema: type[Any] | None = None,
+    partition_spec: Any | None = None,
+    cron: str | None = None,
+    freshness_hours: tuple[int, int] | None = None,
+    max_runtime_seconds: int = 300,
+    max_retries: int = 3,
+    retry_delay_seconds: int = 30,
+    validate: bool = True,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """
+    Decorator for creating Cascade ingestion assets with minimal boilerplate.
+
+    Define schemas inline with your asset - no central registry required!
+
+    Automatically handles:
+    - Branch extraction from context
+    - Table name generation (namespace.table_name)
+    - DLT pipeline directory setup
+    - Pandera validation (if validation_schema provided)
+    - DLT staging to parquet
+    - Iceberg table creation
+    - Merge to Iceberg with deduplication
+    - Timing instrumentation
+    - MaterializeResult generation
+
+    Args:
+        table_name: Iceberg table name (without namespace)
+        unique_key: Column name for deduplication (e.g., "id", "_id")
+        iceberg_schema: PyIceberg Schema defining table structure
+        group: Dagster asset group name
+        validation_schema: Pandera DataFrameModel class (optional)
+        partition_spec: Iceberg partition spec (optional)
+        cron: Cron schedule for automation (e.g., "0 */1 * * *")
+        freshness_hours: Tuple of (warn_window_hours, fail_window_hours)
+        max_runtime_seconds: Maximum runtime before timeout
+        max_retries: Number of retry attempts on failure
+        retry_delay_seconds: Delay between retries
+        validate: Whether to validate data with Pandera schema
+
+    Returns:
+        Decorator function that wraps user's fetch function
+
+    Example:
+        @cascade_ingestion(
+            table_name="github_user_events",
+            unique_key="id",
+            iceberg_schema=GITHUB_USER_EVENTS_SCHEMA,
+            validation_schema=RawGitHubUserEvents,
+            group="github",
+            cron="0 */1 * * *",
+            freshness_hours=(1, 24),
+        )
+        def github_user_events(partition_date: str):
+            return rest_api({...})
+    """
+    # Create table config from inline parameters
+    table_config = TableConfig(
+        table_name=table_name,
+        iceberg_schema=iceberg_schema,
+        validation_schema=validation_schema,  # type: ignore
+        unique_key=unique_key,
+        group_name=group,
+        partition_spec=partition_spec,
+    )
+
+    def decorator(func: Callable[..., Any]) -> Any:
+        @dg.asset(
+            name=f"dlt_{table_config.table_name}",
+            group_name=group,
+            partitions_def=daily_partition,
+            description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
+            compute_kind="dlt+pyiceberg",
+            op_tags={"dagster/max_runtime": max_runtime_seconds},
+            retry_policy=dg.RetryPolicy(
+                max_retries=max_retries, delay=retry_delay_seconds
+            ),
+            automation_condition=(
+                dg.AutomationCondition.on_cron(cron) if cron else None
+            ),
+            freshness_policy=(
+                FreshnessPolicy.time_window(
+                    warn_window=timedelta(hours=freshness_hours[0]),
+                    fail_window=timedelta(hours=freshness_hours[1]),
+                )
+                if freshness_hours
+                else None
+            ),
+        )
+        def wrapper(context, iceberg: IcebergResource) -> dg.MaterializeResult:
+            partition_date = context.partition_key
+            pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
+            branch_name = get_branch_from_context(context)
+
+            context.log.info(f"Starting ingestion for partition {partition_date}")
+            context.log.info(f"Ingesting to branch: {branch_name}")
+            context.log.info(f"Target table: {table_config.full_table_name}")
+
+            start_time = time.time()
+
+            try:
+                context.log.info("Calling user function to get DLT source...")
+                dlt_source = func(partition_date)
+
+                if dlt_source is None:
+                    context.log.info(
+                        f"No data for partition {partition_date}, skipping"
+                    )
+                    return dg.MaterializeResult(
+                        metadata={
+                            "branch": branch_name,
+                            "partition_date": dg.MetadataValue.text(partition_date),
+                            "rows_loaded": dg.MetadataValue.int(0),
+                            "status": dg.MetadataValue.text("no_data"),
+                        }
+                    )
+
+                pipeline, local_staging_root = setup_dlt_pipeline(
+                    pipeline_name=pipeline_name,
+                    dataset_name=group,
+                )
+
+                parquet_path, dlt_elapsed = stage_to_parquet(
+                    context=context,
+                    pipeline=pipeline,
+                    dlt_source=dlt_source,
+                    local_staging_root=local_staging_root,
+                )
+
+                merge_metrics = merge_to_iceberg(
+                    context=context,
+                    iceberg=iceberg,
+                    table_config=table_config,
+                    parquet_path=parquet_path,
+                    branch_name=branch_name,
+                )
+
+                total_elapsed = time.time() - start_time
+                context.log.info(
+                    f"Ingestion completed successfully in {total_elapsed:.2f}s"
+                )
+
+                return dg.MaterializeResult(
+                    metadata={
+                        "branch": branch_name,
+                        "partition_date": dg.MetadataValue.text(partition_date),
+                        "rows_inserted": dg.MetadataValue.int(
+                            merge_metrics["rows_inserted"]
+                        ),
+                        "rows_deleted": dg.MetadataValue.int(
+                            merge_metrics["rows_deleted"]
+                        ),
+                        "unique_key": dg.MetadataValue.text(table_config.unique_key),
+                        "table_name": dg.MetadataValue.text(
+                            table_config.full_table_name
+                        ),
+                        "dlt_elapsed_seconds": dg.MetadataValue.float(dlt_elapsed),
+                        "total_elapsed_seconds": dg.MetadataValue.float(total_elapsed),
+                    }
+                )
+
+            except Exception as e:
+                context.log.error(f"Ingestion failed for partition {partition_date}: {e}")
+                raise RuntimeError(
+                    f"Ingestion failed for partition {partition_date}: {e}"
+                ) from e
+
+        _INGESTION_ASSETS.append(wrapper)
+        return wrapper
+
+    return decorator
+
+
+def get_ingestion_assets() -> list[Any]:
+    """
+    Get all assets registered with @cascade_ingestion decorator.
+
+    Returns:
+        List of Dagster asset definitions
+    """
+    return _INGESTION_ASSETS.copy()
