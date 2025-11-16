@@ -90,26 +90,27 @@ def pandera_to_iceberg(
             f"Pandera schema {pandera_schema.__name__} has no field annotations"
         )
 
-    # Get field metadata from Pandera schema
-    schema_config = getattr(pandera_schema, "Config", None)
+    # Get Pandera schema instance to access column metadata
+    try:
+        pandera_schema_obj = pandera_schema.to_schema()
+    except Exception as e:
+        raise SchemaConversionError(
+            f"Failed to instantiate Pandera schema {pandera_schema.__name__}: {e}"
+        ) from e
 
     for field_name, field_type in annotations.items():
         # Skip internal Pandera fields and Config class
         if field_name.startswith("__") or field_name == "Config":
             continue
 
-        # Get field configuration from schema if available
-        field_info = getattr(pandera_schema, field_name, None)
-
-        # Extract metadata
+        # Extract metadata from Pandera column
         description = ""
         nullable = True  # Default to nullable (required=False in Iceberg)
 
-        if field_info is not None and hasattr(field_info, "properties"):
-            # Pandera Field object
-            props = field_info.properties
-            description = props.get("description", "")
-            nullable = props.get("nullable", True)
+        if field_name in pandera_schema_obj.columns:
+            column = pandera_schema_obj.columns[field_name]
+            nullable = column.nullable
+            description = column.description or ""
 
         # Map Pandera type to PyIceberg type
         iceberg_type = _map_type(field_name, field_type)
