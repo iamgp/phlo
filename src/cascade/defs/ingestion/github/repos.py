@@ -7,7 +7,6 @@ import dlt
 import requests
 
 from cascade.config import config
-from cascade.iceberg.schema import GITHUB_REPO_STATS_SCHEMA
 from cascade.ingestion import cascade_ingestion
 from cascade.schemas.github import RawGitHubRepoStats
 
@@ -87,7 +86,6 @@ def fetch_repo_stats(partition_date: str) -> Any:
 @cascade_ingestion(
     table_name="github_repo_stats",
     unique_key="_dlt_id",
-    iceberg_schema=GITHUB_REPO_STATS_SCHEMA,
     validation_schema=RawGitHubRepoStats,
     group="github",
     cron="0 2 * * *",

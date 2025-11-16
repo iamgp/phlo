@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dlt.sources.rest_api import rest_api
 
-from cascade.iceberg.schema import NIGHTSCOUT_ENTRIES_SCHEMA
 from cascade.ingestion import cascade_ingestion
 from cascade.schemas.glucose import RawGlucoseEntries
 
@@ -10,7 +9,6 @@ from cascade.schemas.glucose import RawGlucoseEntries
 @cascade_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
-    iceberg_schema=NIGHTSCOUT_ENTRIES_SCHEMA,
     validation_schema=RawGlucoseEntries,
     group="nightscout",
     cron="0 */1 * * *",

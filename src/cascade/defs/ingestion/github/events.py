@@ -3,7 +3,6 @@ from __future__ import annotations
 from dlt.sources.rest_api import rest_api
 
 from cascade.config import config
-from cascade.iceberg.schema import GITHUB_USER_EVENTS_SCHEMA
 from cascade.ingestion import cascade_ingestion
 from cascade.schemas.github import RawGitHubUserEvents
 
@@ -11,7 +10,6 @@ from cascade.schemas.github import RawGitHubUserEvents
 @cascade_ingestion(
     table_name="github_user_events",
     unique_key="id",
-    iceberg_schema=GITHUB_USER_EVENTS_SCHEMA,
     validation_schema=RawGitHubUserEvents,
     group="github",
     cron="0 */1 * * *",

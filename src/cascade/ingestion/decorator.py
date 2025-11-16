@@ -18,6 +18,7 @@ from cascade.ingestion.dlt_helpers import (
     stage_to_parquet,
     validate_with_pandera,
 )
+from cascade.schemas.converter import pandera_to_iceberg
 from cascade.schemas.registry import TableConfig
 
 _INGESTION_ASSETS: list[Any] = []
@@ -26,9 +27,9 @@ _INGESTION_ASSETS: list[Any] = []
 def cascade_ingestion(
     table_name: str,
     unique_key: str,
-    iceberg_schema: Any,
     group: str,
     validation_schema: type[Any] | None = None,
+    iceberg_schema: Any | None = None,
     partition_spec: Any | None = None,
     cron: str | None = None,
     freshness_hours: tuple[int, int] | None = None,
@@ -56,9 +57,9 @@ def cascade_ingestion(
     Args:
         table_name: Iceberg table name (without namespace)
         unique_key: Column name for deduplication (e.g., "id", "_id")
-        iceberg_schema: PyIceberg Schema defining table structure
         group: Dagster asset group name
-        validation_schema: Pandera DataFrameModel class (optional)
+        validation_schema: Pandera DataFrameModel class (optional but recommended)
+        iceberg_schema: PyIceberg Schema (optional - auto-generated from validation_schema if not provided)
         partition_spec: Iceberg partition spec (optional)
         cron: Cron schedule for automation (e.g., "0 */1 * * *")
         freshness_hours: Tuple of (warn_window_hours, fail_window_hours)
@@ -71,10 +72,10 @@ def cascade_ingestion(
         Decorator function that wraps user's fetch function
 
     Example:
+        # With Pandera validation (iceberg_schema auto-generated):
         @cascade_ingestion(
             table_name="github_user_events",
             unique_key="id",
-            iceberg_schema=GITHUB_USER_EVENTS_SCHEMA,
             validation_schema=RawGitHubUserEvents,
             group="github",
             cron="0 */1 * * *",
@@ -83,6 +84,15 @@ def cascade_ingestion(
         def github_user_events(partition_date: str):
             return rest_api({...})
     """
+    # Auto-generate PyIceberg schema from Pandera if not provided
+    if iceberg_schema is None and validation_schema is not None:
+        iceberg_schema = pandera_to_iceberg(validation_schema)
+    elif iceberg_schema is None:
+        raise ValueError(
+            "Either 'validation_schema' (for auto-generation) or 'iceberg_schema' "
+            "(explicit schema) must be provided"
+        )
+
     # Create table config from inline parameters
     table_config = TableConfig(
         table_name=table_name,
