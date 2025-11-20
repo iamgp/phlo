@@ -6,12 +6,18 @@ from __future__ import annotations
 
 import dagster as dg
 
-from cascade.defs.ingestion.dlt_assets import entries
-from cascade.defs.ingestion.github_assets import github_user_events, github_repo_stats
+from cascade.ingestion import get_ingestion_assets
+
+# Import all asset modules to trigger decorator registration
+from cascade.defs.ingestion import github  # noqa: F401
+from cascade.defs.ingestion import nightscout  # noqa: F401
 
 
-# --- Aggregation Function ---
-# Builds ingestion asset definitions
 def build_defs() -> dg.Definitions:
-    """Build ingestion definitions using dlt."""
-    return dg.Definitions(assets=[entries, github_user_events, github_repo_stats])
+    """
+    Build ingestion definitions using cascade_ingestion decorator.
+
+    Assets are automatically discovered from all modules that use the
+    @cascade_ingestion decorator. No manual registration required.
+    """
+    return dg.Definitions(assets=get_ingestion_assets())

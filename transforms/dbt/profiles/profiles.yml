@@ -6,9 +6,11 @@ cascade:
       host: "{{ env_var('TRINO_HOST', 'trino') }}"
       port: "{{ env_var('TRINO_PORT', '10005') | int }}"
       user: dbt
-      catalog: iceberg_dev
+      catalog: iceberg
       schema: bronze
       threads: 8
+      session_properties:
+        iceberg.nessie_reference_name: "{{ env_var('NESSIE_REF', 'main') }}"
 
     prod:
       type: trino
@@ -18,6 +20,8 @@ cascade:
       catalog: iceberg
       schema: bronze
       threads: 8
+      session_properties:
+        iceberg.nessie_reference_name: "main"
 
     postgres:
       type: postgres

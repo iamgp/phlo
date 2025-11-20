@@ -279,18 +279,24 @@ class FactGitHubUserEvents(DataFrameModel):
     - Extracted JSON fields (actor_login, repo_name, etc.)
     - Time dimensions (hour_of_day, day_of_week)
     - Boolean flags (is_repo_public, involves_organization)
+
+    Severity levels (for validation gates):
+    - error: Critical checks that block promotion to main
+    - warning: Non-critical checks that generate warnings
     """
 
     event_id: str = Field(
         nullable=False,
         unique=True,
         description="Unique identifier for the GitHub event",
+        metadata={"severity": "error"},  # Critical: duplicate IDs block promotion
     )
 
     event_type: str = Field(
         isin=VALID_EVENT_TYPES,
         nullable=False,
         description="Type of GitHub event",
+        metadata={"severity": "error"},  # Critical: invalid event types block promotion
     )
 
     event_category: str = Field(
@@ -308,51 +314,61 @@ class FactGitHubUserEvents(DataFrameModel):
         ],
         nullable=False,
         description="Categorized event type for analytics",
+        metadata={"severity": "warning"},  # Non-critical: category errors warn only
     )
 
     actor_login: str = Field(
         nullable=False,
         description="GitHub username of the actor (extracted from JSON)",
+        metadata={"severity": "error"},  # Critical: missing actor blocks promotion
     )
 
     actor_id: str = Field(
         nullable=False,
         description="GitHub actor ID (extracted from JSON)",
+        metadata={"severity": "error"},  # Critical: missing actor ID blocks promotion
     )
 
     repo_name: str = Field(
         nullable=False,
         description="Repository name (extracted from JSON)",
+        metadata={"severity": "error"},  # Critical: missing repo name blocks promotion
     )
 
     repo_full_name: str = Field(
         nullable=False,
         description="Full repository name owner/repo (extracted from JSON)",
+        metadata={"severity": "error"},  # Critical: missing full name blocks promotion
     )
 
     public: bool = Field(
         nullable=False,
         description="Whether the event is public",
+        metadata={"severity": "warning"},  # Non-critical: public flag errors warn only
     )
 
     is_repo_public: bool = Field(
         nullable=False,
         description="Whether the repository is public",
+        metadata={"severity": "warning"},  # Non-critical: repo public flag errors warn only
     )
 
     involves_organization: bool = Field(
         nullable=False,
         description="Whether the event involves an organization",
+        metadata={"severity": "warning"},  # Non-critical: org flag errors warn only
     )
 
     created_at: datetime = Field(
         nullable=False,
         description="Event creation timestamp",
+        metadata={"severity": "error"},  # Critical: missing timestamp blocks promotion
     )
 
     event_date: datetime = Field(
         nullable=False,
         description="Date of the event (truncated to day)",
+        metadata={"severity": "error"},  # Critical: missing date blocks promotion
     )
 
     hour_of_day: int = Field(
@@ -360,6 +376,7 @@ class FactGitHubUserEvents(DataFrameModel):
         le=23,
         nullable=False,
         description="Hour when event occurred (0-23)",
+        metadata={"severity": "error"},  # Critical: time dimensions must be valid
     )
 
     day_of_week: int = Field(
@@ -367,11 +384,13 @@ class FactGitHubUserEvents(DataFrameModel):
         le=7,
         nullable=False,
         description="Day of week (1=Monday, 7=Sunday)",
+        metadata={"severity": "error"},  # Critical: time dimensions must be valid
     )
 
     day_name: str = Field(
         nullable=False,
         description="Name of the day (e.g., 'Monday', 'Tuesday')",
+        metadata={"severity": "warning"},  # Non-critical: day name errors warn only
     )
 
     class Config:
@@ -388,86 +407,104 @@ class FactGitHubRepoStats(DataFrameModel):
     - Commit activity summaries
     - Activity scores
     - Classification fields (contribution_level, activity_level, repository_health)
+
+    Severity levels (for validation gates):
+    - error: Critical checks that block promotion to main
+    - warning: Non-critical checks that generate warnings
     """
 
     repo_name: str = Field(
         nullable=False,
         description="Name of the repository",
+        metadata={"severity": "error"},  # Critical: missing repo name blocks promotion
     )
 
     repo_full_name: str = Field(
         nullable=False,
         unique=True,
         description="Full name of the repository (owner/repo)",
+        metadata={"severity": "error"},  # Critical: duplicate full names block promotion
     )
 
     repo_id: int = Field(
         nullable=False,
         unique=True,
         description="GitHub repository ID",
+        metadata={"severity": "error"},  # Critical: duplicate IDs block promotion
     )
 
     repo_owner: str = Field(
         nullable=False,
         description="Repository owner (extracted from full_name)",
+        metadata={"severity": "error"},  # Critical: missing owner blocks promotion
     )
 
     repo_short_name: str = Field(
         nullable=False,
         description="Repository short name (extracted from full_name)",
+        metadata={"severity": "error"},  # Critical: missing short name blocks promotion
     )
 
     collection_date: str = Field(
         nullable=False,
         description="Date when statistics were collected (YYYY-MM-DD)",
+        metadata={"severity": "error"},  # Critical: missing collection date blocks promotion
     )
 
     contributor_count: int = Field(
         ge=0,
         nullable=False,
         description="Number of contributors",
+        metadata={"severity": "warning"},  # Non-critical: negative counts warn only
     )
 
     total_commits_last_52_weeks: int = Field(
         ge=0,
         nullable=False,
         description="Total commits in last 52 weeks",
+        metadata={"severity": "warning"},  # Non-critical: negative commits warn only
     )
 
     weeks_with_activity: int = Field(
         ge=0,
         nullable=False,
         description="Number of weeks with activity",
+        metadata={"severity": "warning"},  # Non-critical: negative weeks warn only
     )
 
     activity_score: int | float = Field(
         ge=0,
         nullable=False,
         description="Calculated activity score",
+        metadata={"severity": "warning"},  # Non-critical: negative scores warn only
     )
 
     contribution_level: str = Field(
         isin=["high_contribution", "medium_contribution", "low_contribution", "no_contribution"],
         nullable=False,
         description="Contribution level classification",
+        metadata={"severity": "warning"},  # Non-critical: classification errors warn only
     )
 
     activity_level: str = Field(
         isin=["very_active", "active", "moderate", "inactive"],
         nullable=False,
         description="Activity level classification",
+        metadata={"severity": "warning"},  # Non-critical: classification errors warn only
     )
 
     repository_health: str = Field(
         isin=["healthy", "stable", "developing", "dormant"],
         nullable=False,
         description="Repository health status",
+        metadata={"severity": "warning"},  # Non-critical: health status errors warn only
     )
 
     avg_commits_per_week: float | None = Field(
         ge=0,
         nullable=True,
         description="Average commits per week",
+        metadata={"severity": "warning"},  # Non-critical: metric errors warn only
     )
 
     class Config:
