@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Phase 9: Integrated Branching Workflows Test Suite
-# Tests dev/prod pipeline isolation, branch-aware resources, and promotion workflow
+# Phase 9: Dynamic Branch Workflow Test Suite
+# Tests dynamic pipeline branches, validation gates, and automatic promotion workflow
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -47,166 +47,243 @@ check_service() {
     fi
 }
 
-section "Phase 9: Integrated Branching Workflows Tests"
+section "Phase 9: Dynamic Branch Workflow Tests"
 
-info "Testing branch-aware resource configuration and workflow orchestration"
+info "Testing dynamic branch creation, validation gates, and automatic promotion"
 
-section "9.1: Branch-Aware Resources"
+section "9.1: Branch-Aware Resources with Dynamic Branch Support"
 
-# Test TrinoResource supports nessie_ref parameter
-if grep -q "nessie_ref:" src/cascade/defs/resources/trino.py; then
-    pass "TrinoResource has nessie_ref parameter"
+# Test TrinoResource supports override_ref parameter
+if grep -q "override_ref" src/cascade/defs/resources/trino.py; then
+    pass "TrinoResource has override_ref parameter for dynamic branches"
 else
-    fail "TrinoResource missing nessie_ref parameter"
+    fail "TrinoResource missing override_ref parameter"
 fi
 
-# Test IcebergResource supports ref parameter
-if grep -q "ref:" src/cascade/defs/resources/iceberg.py; then
-    pass "IcebergResource has ref parameter"
+# Test IcebergResource supports override_ref parameter
+if grep -q "override_ref" src/cascade/defs/resources/iceberg.py; then
+    pass "IcebergResource has override_ref parameter for dynamic branches"
 else
-    fail "IcebergResource missing ref parameter"
+    fail "IcebergResource missing override_ref parameter"
 fi
 
-# Test NessieResource is available in resources
-if grep -q "NessieResource" src/cascade/defs/resources/__init__.py; then
-    pass "NessieResource available in resources module"
-else
-    fail "NessieResource not available in resources module"
-fi
-
-# Test Trino connection uses session properties
-if grep -q "session_properties" src/cascade/defs/resources/trino.py; then
-    pass "TrinoResource uses session_properties for branch configuration"
+# Test Trino connection uses session properties for dynamic branches
+if grep -q "iceberg.nessie_reference_name" src/cascade/defs/resources/trino.py; then
+    pass "TrinoResource uses session_properties for dynamic branch configuration"
 else
     fail "TrinoResource missing session_properties support"
 fi
 
-section "9.2: Multi-Job Pipeline Definition"
+section "9.2: Branch Manager Resource"
 
-# Test workflow definitions exist
-if [ -f "src/cascade/defs/workflows/__init__.py" ]; then
-    pass "Workflow definitions module exists"
+# Test BranchManagerResource exists
+if [ -f "src/cascade/defs/nessie/branch_manager.py" ]; then
+    pass "BranchManagerResource module exists"
 else
-    fail "Workflow definitions module missing"
+    fail "BranchManagerResource module missing"
 fi
 
-# Test dev_pipeline job exists
-if grep -q "DEV_PIPELINE_JOB" src/cascade/defs/workflows/__init__.py; then
-    pass "DEV_PIPELINE_JOB defined"
+# Test BranchManagerResource has create_pipeline_branch method
+if grep -q "create_pipeline_branch" src/cascade/defs/nessie/branch_manager.py; then
+    pass "BranchManagerResource has create_pipeline_branch method"
 else
-    fail "DEV_PIPELINE_JOB not defined"
+    fail "BranchManagerResource missing create_pipeline_branch method"
 fi
 
-# Test prod_promotion job exists
-if grep -q "PROD_PROMOTION_JOB" src/cascade/defs/workflows/__init__.py; then
-    pass "PROD_PROMOTION_JOB defined"
+# Test BranchManagerResource has schedule_cleanup method
+if grep -q "schedule_cleanup" src/cascade/defs/nessie/branch_manager.py; then
+    pass "BranchManagerResource has schedule_cleanup method"
 else
-    fail "PROD_PROMOTION_JOB not defined"
+    fail "BranchManagerResource missing schedule_cleanup method"
 fi
 
-# Test dev_pipeline job selects correct assets
-if grep -q '"nessie_dev_branch"' src/cascade/defs/workflows/__init__.py; then
-    pass "DEV_PIPELINE_JOB includes nessie_dev_branch"
+section "9.3: Validation Gates"
+
+# Test validation orchestrator exists
+if [ -f "src/cascade/defs/validation/orchestrator.py" ]; then
+    pass "Validation orchestrator module exists"
 else
-    fail "DEV_PIPELINE_JOB missing nessie_dev_branch dependency"
+    fail "Validation orchestrator module missing"
 fi
 
-# Test dev_pipeline job configures dev target
-if grep -A20 "DEV_PIPELINE_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"target": "dev"'; then
-    pass "DEV_PIPELINE_JOB uses dbt dev target"
+# Test PanderaValidator exists
+if [ -f "src/cascade/defs/validation/pandera_validator.py" ]; then
+    pass "PanderaValidator module exists"
 else
-    fail "DEV_PIPELINE_JOB missing dbt dev target configuration"
+    fail "PanderaValidator module missing"
 fi
 
-# Test prod_promotion job (note: doesn't use dbt, only runs promote and publish)
-if grep -A10 "PROD_PROMOTION_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"promote_dev_to_main"'; then
-    pass "PROD_PROMOTION_JOB includes promote_dev_to_main asset"
+# Test DBTValidator exists
+if [ -f "src/cascade/defs/validation/dbt_validator.py" ]; then
+    pass "DBTValidator module exists"
 else
-    fail "PROD_PROMOTION_JOB missing promote_dev_to_main asset"
+    fail "DBTValidator module missing"
 fi
 
-# Test dev_pipeline job uses dev branch resources
-if grep -A20 "DEV_PIPELINE_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"ref": "dev"'; then
-    pass "DEV_PIPELINE_JOB configures iceberg resource with dev ref"
+# Test FreshnessValidator exists
+if [ -f "src/cascade/defs/validation/freshness_validator.py" ]; then
+    pass "FreshnessValidator module exists"
 else
-    fail "DEV_PIPELINE_JOB missing iceberg dev ref configuration"
+    fail "FreshnessValidator module missing"
 fi
 
-# Test prod_promotion job uses main branch resources
-if grep -A20 "PROD_PROMOTION_JOB" src/cascade/defs/workflows/__init__.py | grep -q '"ref": "main"'; then
-    pass "PROD_PROMOTION_JOB configures iceberg resource with main ref"
+# Test SchemaCompatibilityValidator exists
+if [ -f "src/cascade/defs/validation/schema_validator.py" ]; then
+    pass "SchemaCompatibilityValidator module exists"
 else
-    fail "PROD_PROMOTION_JOB missing iceberg main ref configuration"
+    fail "SchemaCompatibilityValidator module missing"
 fi
 
-section "9.3: Schedules for Automated Workflows"
-
-# Test dev_pipeline schedule exists
-if grep -q "dev_pipeline_schedule" src/cascade/defs/workflows/__init__.py; then
-    pass "dev_pipeline_schedule defined"
+# Test validation_orchestrator asset exists
+if grep -q "validation_orchestrator" src/cascade/defs/validation/orchestrator.py; then
+    pass "validation_orchestrator asset defined"
 else
-    fail "dev_pipeline_schedule not defined"
+    fail "validation_orchestrator asset not defined"
 fi
 
-# Test schedule is configured to run daily
-if grep -A5 "dev_pipeline_schedule" src/cascade/defs/workflows/__init__.py | grep -q "cron_schedule"; then
-    pass "dev_pipeline_schedule has cron configuration"
+section "9.4: Dynamic Job Definitions"
+
+# Test full_pipeline job exists in config
+if grep -q "full_pipeline" src/cascade/defs/jobs/config.yaml; then
+    pass "full_pipeline job defined in config.yaml"
 else
-    fail "dev_pipeline_schedule missing cron configuration"
+    fail "full_pipeline job not defined in config.yaml"
 fi
 
-# Test workflow definitions are imported in main definitions
-if grep -q "from cascade.defs.workflows import build_defs as build_workflow_defs" src/cascade/definitions.py; then
-    pass "Workflow definitions imported in main definitions"
+# Test validate job exists in config
+if grep -q "validate" src/cascade/defs/jobs/config.yaml; then
+    pass "validate job defined in config.yaml"
 else
-    fail "Workflow definitions not imported in main definitions"
+    fail "validate job not defined in config.yaml"
 fi
 
-# Test workflow definitions are merged
-if grep -q "build_workflow_defs()" src/cascade/definitions.py; then
-    pass "Workflow definitions merged into main definitions"
+# Test promote job exists in config
+if grep -q "promote" src/cascade/defs/jobs/config.yaml; then
+    pass "promote job defined in config.yaml"
 else
-    fail "Workflow definitions not merged into main definitions"
+    fail "promote job not defined in config.yaml"
 fi
 
-section "9.4: dbt Profile Configuration"
-
-# Test dbt dev profile has nessie.reference: dev
-if grep -A10 "^\s*dev:" transforms/dbt/profiles/profiles.yml | grep -q "nessie.reference: dev"; then
-    pass "dbt dev profile uses nessie.reference: dev"
+# Test validate job includes validation_orchestrator
+if grep -A5 "validate:" src/cascade/defs/jobs/config.yaml | grep -q "validation_orchestrator"; then
+    pass "validate job includes validation_orchestrator"
 else
-    fail "dbt dev profile missing nessie.reference: dev"
+    fail "validate job missing validation_orchestrator"
 fi
 
-# Test dbt prod profile has nessie.reference: main
-if grep -A10 "^\s*prod:" transforms/dbt/profiles/profiles.yml | grep -q "nessie.reference: main"; then
-    pass "dbt prod profile uses nessie.reference: main"
+# Test promote job includes promote_to_main
+if grep -A5 "promote:" src/cascade/defs/jobs/config.yaml | grep -q "promote_to_main"; then
+    pass "promote job includes promote_to_main"
 else
-    fail "dbt prod profile missing nessie.reference: main"
+    fail "promote job missing promote_to_main"
 fi
 
-section "9.5: Python Imports and Syntax"
+section "9.5: Promotion Sensors"
 
-# Test workflow module imports correctly (requires installed package)
+# Test promotion sensor exists
+if [ -f "src/cascade/defs/sensors/promotion_sensor.py" ]; then
+    pass "Promotion sensor module exists"
+else
+    fail "Promotion sensor module missing"
+fi
+
+# Test auto_promotion_sensor exists
+if grep -q "auto_promotion_sensor" src/cascade/defs/sensors/promotion_sensor.py; then
+    pass "auto_promotion_sensor defined"
+else
+    fail "auto_promotion_sensor not defined"
+fi
+
+# Test branch_cleanup_sensor exists
+if grep -q "branch_cleanup_sensor" src/cascade/defs/sensors/promotion_sensor.py; then
+    pass "branch_cleanup_sensor defined"
+else
+    fail "branch_cleanup_sensor not defined"
+fi
+
+section "9.6: Ingestion Assets Support Dynamic Branches"
+
+# Test glucose entries asset accepts branch_name from run_config
+if grep -q 'run_config.get("branch_name"' src/cascade/defs/ingestion/dlt_assets.py; then
+    pass "Glucose entries asset supports dynamic branch_name from run_config"
+else
+    fail "Glucose entries asset missing branch_name support"
+fi
+
+# Test github assets accept branch_name from run_config
+if grep -q 'run_config.get("branch_name"' src/cascade/defs/ingestion/github_assets.py; then
+    pass "GitHub assets support dynamic branch_name from run_config"
+else
+    fail "GitHub assets missing branch_name support"
+fi
+
+section "9.7: dbt Profile Configuration"
+
+# Test dbt profile uses NESSIE_REF environment variable
+if grep -q 'env_var.*NESSIE_REF' transforms/dbt/profiles/profiles.yml; then
+    pass "dbt profile uses NESSIE_REF environment variable for dynamic branches"
+else
+    fail "dbt profile missing NESSIE_REF environment variable support"
+fi
+
+# Test dbt session properties use iceberg.nessie_reference_name
+if grep -q "iceberg.nessie_reference_name" transforms/dbt/profiles/profiles.yml; then
+    pass "dbt profile uses session_properties for dynamic branch configuration"
+else
+    fail "dbt profile missing session_properties support"
+fi
+
+section "9.8: Configuration Schema"
+
+# Test config has branch retention settings
+if grep -q "branch_retention_days" src/cascade/config.py; then
+    pass "Config has branch_retention_days setting"
+else
+    fail "Config missing branch_retention_days setting"
+fi
+
+# Test config has auto_promote_enabled setting
+if grep -q "auto_promote_enabled" src/cascade/config.py; then
+    pass "Config has auto_promote_enabled setting"
+else
+    fail "Config missing auto_promote_enabled setting"
+fi
+
+# Test config has validation retry settings
+if grep -q "validation_retry_enabled" src/cascade/config.py; then
+    pass "Config has validation_retry_enabled setting"
+else
+    fail "Config missing validation_retry_enabled setting"
+fi
+
+section "9.9: Python Imports and Syntax"
+
+# Test validation module imports correctly (requires installed package)
 if [ -f "pyproject.toml" ]; then
     info "Checking if cascade package is installed..."
     if python3 -c "import cascade" 2>/dev/null; then
-        if python3 -c "from cascade.defs.workflows import build_defs" 2>/dev/null; then
-            pass "Workflow module imports successfully"
+        if python3 -c "from cascade.defs.validation import build_defs" 2>/dev/null; then
+            pass "Validation module imports successfully"
         else
-            fail "Workflow module import failed"
+            fail "Validation module import failed"
         fi
 
-        if python3 -c "from cascade.defs.workflows import DEV_PIPELINE_JOB, PROD_PROMOTION_JOB" 2>/dev/null; then
-            pass "Workflow job definitions import successfully"
+        if python3 -c "from cascade.defs.validation import validation_orchestrator" 2>/dev/null; then
+            pass "Validation orchestrator imports successfully"
         else
-            fail "Workflow job definitions import failed"
+            fail "Validation orchestrator import failed"
         fi
 
-        if python3 -c "from cascade.defs.resources import IcebergResource, TrinoResource, NessieResource" 2>/dev/null; then
-            pass "Branch-aware resources import successfully"
+        if python3 -c "from cascade.defs.nessie.branch_manager import BranchManagerResource" 2>/dev/null; then
+            pass "BranchManagerResource imports successfully"
         else
-            fail "Branch-aware resources import failed"
+            fail "BranchManagerResource import failed"
+        fi
+
+        if python3 -c "from cascade.defs.sensors import auto_promotion_sensor, branch_cleanup_sensor" 2>/dev/null; then
+            pass "Promotion sensors import successfully"
+        else
+            fail "Promotion sensors import failed"
         fi
     else
         info "Cascade package not installed - skipping Python import tests"
@@ -214,12 +291,12 @@ if [ -f "pyproject.toml" ]; then
     fi
 fi
 
-section "9.6: Service Integration Tests (if services are running)"
+section "9.10: Service Integration Tests (if services are running)"
 
 if check_service nessie && check_service trino; then
     info "Services are running, performing integration tests"
 
-    # Test Nessie branches exist
+    # Test Nessie main branch exists
     NESSIE_URL="http://localhost:19120/api/v1"
     if curl -s "$NESSIE_URL/trees" | grep -q "main"; then
         pass "Nessie main branch exists"
@@ -227,18 +304,11 @@ if check_service nessie && check_service trino; then
         fail "Nessie main branch not found"
     fi
 
-    # Test dev branch can be created/verified
-    if curl -s "$NESSIE_URL/trees" | grep -q "dev" || curl -s -X POST "$NESSIE_URL/trees/dev" -H "Content-Type: application/json" 2>/dev/null; then
-        pass "Nessie dev branch exists or can be created"
-    else
-        fail "Nessie dev branch setup failed"
-    fi
-
     # Test Trino can connect with session properties
-    if docker compose exec -T trino trino --execute "SHOW SESSION" 2>/dev/null | grep -q "nessie.reference" || true; then
-        pass "Trino supports nessie.reference session property"
+    if docker compose exec -T trino trino --execute "SHOW SESSION" 2>/dev/null | grep -q "nessie" || true; then
+        pass "Trino supports nessie session properties"
     else
-        info "Trino nessie.reference property test skipped (may require manual verification)"
+        info "Trino nessie session property test skipped (may require manual verification)"
     fi
 
 else
