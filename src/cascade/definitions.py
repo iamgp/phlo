@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import platform
-from typing import cast
 
 import dagster as dg
 
@@ -18,6 +17,7 @@ from cascade.defs.resources import build_defs as build_resource_defs
 from cascade.defs.schedules import build_defs as build_schedule_defs
 from cascade.defs.sensors import build_defs as build_sensor_defs
 from cascade.defs.transform import build_defs as build_transform_defs
+from cascade.defs.validation import build_defs as build_validation_defs
 
 
 # Executor selection function: Chooses between in-process and multiprocess executors
@@ -55,6 +55,7 @@ def _merged_definitions() -> dg.Definitions:
         build_publishing_defs(),
         build_quality_defs(),
         build_nessie_defs(),
+        build_validation_defs(),
         build_schedule_defs(),
         build_sensor_defs(),
     )
@@ -71,7 +72,7 @@ def _merged_definitions() -> dg.Definitions:
     }
 
     if executor is not None:
-        defs_kwargs["executor"] = cast(dg.ExecutorDefinition, executor)
+        defs_kwargs["executor"] = executor
 
     return dg.Definitions(**defs_kwargs)
 

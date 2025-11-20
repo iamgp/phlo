@@ -101,22 +101,6 @@ services:
       retries: 10
       start_period: 30s
 
-  nessie-setup:
-    image: curlimages/curl:latest
-    container_name: nessie-setup
-    command: >
-      sh -c "
-      sleep 5 &&
-      echo 'Creating Nessie branches...' &&
-      MAIN_HASH=$$(curl -s http://nessie:19120/api/v2/trees/main | grep -o '\"hash\":\"[^\"]*\"' | cut -d'\"' -f4) &&
-      curl -X POST 'http://nessie:19120/api/v2/trees?name=dev&type=BRANCH' -H 'Content-Type: application/json' -H 'Accept: application/json' -d '{\"name\":\"main\",\"hash\":\"'$$MAIN_HASH'\",\"type\":\"BRANCH\"}' || echo 'dev branch may already exist' &&
-      echo 'Nessie setup complete'
-      "
-    depends_on:
-      nessie:
-        condition: service_healthy
-    restart: "no"
-
   trino:
     image: trinodb/trino:${TRINO_VERSION}
     container_name: trino

@@ -100,12 +100,17 @@ class FactGlucoseReadings(DataFrameModel):
     - Valid direction indicators
     - Time dimension fields (hour, day of week)
     - Glucose categorization
+
+    Severity levels (for validation gates):
+    - error: Critical checks that block promotion to main
+    - warning: Non-critical checks that generate warnings
     """
 
     entry_id: str = Field(
         nullable=False,
         unique=True,
         description="Unique identifier for each glucose reading entry",
+        metadata={"severity": "error"},  # Critical: duplicate IDs block promotion
     )
 
     glucose_mg_dl: int = Field(
@@ -115,17 +120,20 @@ class FactGlucoseReadings(DataFrameModel):
         description=(
             f"Blood glucose level in mg/dL (valid range: {MIN_GLUCOSE_MG_DL}-{MAX_GLUCOSE_MG_DL})"
         ),
+        metadata={"severity": "error"},  # Critical: out-of-range glucose blocks promotion
     )
 
     reading_timestamp: datetime = Field(
         nullable=False,
         description="Timestamp when the glucose reading was taken",
+        metadata={"severity": "error"},  # Critical: missing timestamps block promotion
     )
 
     direction: str | None = Field(
         isin=VALID_DIRECTIONS,
         nullable=True,
         description="Trend direction of glucose levels (e.g., 'SingleUp', 'Flat')",
+        metadata={"severity": "warning"},  # Non-critical: invalid direction warns only
     )
 
     hour_of_day: int = Field(
@@ -133,6 +141,7 @@ class FactGlucoseReadings(DataFrameModel):
         le=23,
         nullable=False,
         description="Hour of day when reading was taken (0-23)",
+        metadata={"severity": "error"},  # Critical: time dimensions must be valid
     )
 
     day_of_week: int = Field(
@@ -140,18 +149,21 @@ class FactGlucoseReadings(DataFrameModel):
         le=6,
         nullable=False,
         description="Day of week (0=Monday, 6=Sunday)",
+        metadata={"severity": "error"},  # Critical: time dimensions must be valid
     )
 
     glucose_category: str = Field(
         isin=["hypoglycemia", "in_range", "hyperglycemia_mild", "hyperglycemia_severe"],
         nullable=False,
         description="Categorized glucose level based on ADA guidelines",
+        metadata={"severity": "warning"},  # Non-critical: category errors warn only
     )
 
     is_in_range: int = Field(
         isin=[0, 1],
         nullable=False,
         description="Whether glucose level is within target range (0=no, 1=yes)",
+        metadata={"severity": "warning"},  # Non-critical: flag errors warn only
     )
 
     class Config:
@@ -168,18 +180,24 @@ class FactDailyGlucoseMetrics(DataFrameModel):
     - Time in range percentages
     - Estimated A1C
     - Time dimensions
+
+    Severity levels (for validation gates):
+    - error: Critical checks that block promotion to main
+    - warning: Non-critical checks that generate warnings
     """
 
     reading_date: datetime = Field(
         nullable=False,
         unique=True,
         description="Date of glucose readings (unique per day)",
+        metadata={"severity": "error"},  # Critical: duplicate dates block promotion
     )
 
     day_name: str = Field(
         nullable=False,
         isin=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
         description="Name of the day",
+        metadata={"severity": "warning"},  # Non-critical: invalid day name warns only
     )
 
     day_of_week: int = Field(
@@ -187,6 +205,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=7,
         nullable=False,
         description="Day of week (1=Monday, 7=Sunday)",
+        metadata={"severity": "error"},  # Critical: time dimensions must be valid
     )
 
     week_of_year: int = Field(
@@ -194,6 +213,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=53,
         nullable=False,
         description="Week of the year (1-53)",
+        metadata={"severity": "error"},  # Critical: time dimensions must be valid
     )
 
     month: int = Field(
@@ -201,6 +221,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=12,
         nullable=False,
         description="Month number (1-12)",
+        metadata={"severity": "error"},  # Critical: time dimensions must be valid
     )
 
     year: int = Field(
@@ -208,12 +229,14 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=2100,
         nullable=False,
         description="Year (2000-2100 reasonable range)",
+        metadata={"severity": "error"},  # Critical: year must be valid
     )
 
     reading_count: int = Field(
         ge=0,
         nullable=False,
         description="Number of readings for the day",
+        metadata={"severity": "warning"},  # Non-critical: negative counts warn only
     )
 
     avg_glucose_mg_dl: float | None = Field(
@@ -221,6 +244,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=1000,
         nullable=True,
         description="Average glucose level for the day",
+        metadata={"severity": "warning"},  # Non-critical: metric errors warn only
     )
 
     min_glucose_mg_dl: int | None = Field(
@@ -228,6 +252,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=1000,
         nullable=True,
         description="Minimum glucose level for the day",
+        metadata={"severity": "warning"},  # Non-critical: metric errors warn only
     )
 
     max_glucose_mg_dl: int | None = Field(
@@ -235,12 +260,14 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=1000,
         nullable=True,
         description="Maximum glucose level for the day",
+        metadata={"severity": "warning"},  # Non-critical: metric errors warn only
     )
 
     stddev_glucose_mg_dl: float | None = Field(
         ge=0,
         nullable=True,
         description="Standard deviation of glucose levels",
+        metadata={"severity": "warning"},  # Non-critical: metric errors warn only
     )
 
     time_in_range_pct: float | None = Field(
@@ -248,6 +275,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=100,
         nullable=True,
         description="Percentage of time in target range (70-180 mg/dL)",
+        metadata={"severity": "error"},  # Critical: invalid percentages block promotion
     )
 
     time_below_range_pct: float | None = Field(
@@ -255,6 +283,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=100,
         nullable=True,
         description="Percentage of time below range (<70 mg/dL)",
+        metadata={"severity": "error"},  # Critical: invalid percentages block promotion
     )
 
     time_above_range_pct: float | None = Field(
@@ -262,6 +291,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=100,
         nullable=True,
         description="Percentage of time above range (>180 mg/dL)",
+        metadata={"severity": "error"},  # Critical: invalid percentages block promotion
     )
 
     estimated_a1c_pct: float | None = Field(
@@ -269,6 +299,7 @@ class FactDailyGlucoseMetrics(DataFrameModel):
         le=20,
         nullable=True,
         description="Estimated A1C percentage (GMI approximation)",
+        metadata={"severity": "warning"},  # Non-critical: A1C errors warn only
     )
 
     class Config:

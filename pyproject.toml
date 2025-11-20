@@ -2,6 +2,9 @@
 requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/cascade"]
+
 [project]
 name = "cascade"
 version = "0.1.0"
@@ -29,7 +32,7 @@ dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["src", "services/hub"]
+members = ["services/hub"]
 
 [dependency-groups]
 dev = [

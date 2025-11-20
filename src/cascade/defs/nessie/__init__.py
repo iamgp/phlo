@@ -121,12 +121,18 @@ class NessieResource(dg.ConfigurableResource):
 # Builds complete Nessie definitions with resource and workflow assets
 def build_defs() -> dg.Definitions:
     """Build Nessie branch management definitions."""
+    from cascade.defs.nessie.branch_manager import BranchManagerResource
     from cascade.defs.nessie.workflow import build_defs as build_workflow_defs
 
     return dg.Definitions.merge(
         dg.Definitions(
             resources={
                 "nessie": NessieResource(),
+                "branch_manager": BranchManagerResource(
+                    nessie=NessieResource(),
+                    retention_days=config.branch_retention_days,
+                    retention_days_failed=config.branch_retention_days_failed,
+                ),
             }
         ),
         build_workflow_defs(),
