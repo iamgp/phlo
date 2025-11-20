@@ -70,7 +70,63 @@ class Settings(BaseSettings):
         default="raw", description="Default namespace/schema for Iceberg tables"
     )
     iceberg_nessie_ref: str = Field(
-        default="dev", description="Default Nessie branch/tag for Iceberg operations"
+        default="main", description="Default Nessie branch/tag for Iceberg operations"
+    )
+
+    # --- Nessie Branch Management ---
+    # Settings for dynamic branch workflow and validation gates
+    branch_retention_days: int = Field(
+        default=7,
+        description="Days to retain pipeline branches after successful merge"
+    )
+    branch_retention_days_failed: int = Field(
+        default=14,
+        description="Days to retain pipeline branches that failed validation"
+    )
+    auto_promote_enabled: bool = Field(
+        default=True,
+        description="Enable automatic promotion to main after validation passes"
+    )
+
+    # --- Validation Gates Configuration ---
+    # Settings for data quality validation and promotion gates
+    freshness_blocks_promotion: bool = Field(
+        default=False,
+        description="Whether freshness policy failures should block promotion to main"
+    )
+    pandera_critical_level: str = Field(
+        default="error",
+        description="Pandera check severity that blocks promotion (error|warning|info)"
+    )
+
+    # --- Validation Retry Configuration ---
+    # Settings for automatic retry of failed validations
+    validation_retry_enabled: bool = Field(
+        default=True,
+        description="Enable automatic retry of failed validations"
+    )
+    validation_retry_max_attempts: int = Field(
+        default=3,
+        description="Maximum number of validation retry attempts"
+    )
+    validation_retry_delay_seconds: int = Field(
+        default=300,
+        description="Delay between validation retry attempts (seconds)"
+    )
+
+    # --- Freshness Thresholds ---
+    # Override asset-level freshness policies with global thresholds
+    glucose_freshness_hours: int = Field(
+        default=24,
+        description="Max age of glucose data before considered stale"
+    )
+    github_events_freshness_hours: int = Field(
+        default=24,
+        description="Max age of GitHub events before considered stale"
+    )
+    github_stats_freshness_hours: int = Field(
+        default=48,
+        description="Max age of GitHub repo stats before considered stale"
     )
 
     # --- BI Services Configuration ---

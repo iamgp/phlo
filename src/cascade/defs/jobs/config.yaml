@@ -26,33 +26,10 @@ jobs:
       keys: ["publish_glucose_marts_to_postgres", "publish_github_marts_to_postgres"]
     partitions: null
 
-  dev_pipeline:
-    name: "dev_pipeline"
-    description: "Development pipeline: runs on dev branch with branch isolation"
+  full_pipeline:
+    name: "full_pipeline"
+    description: "Complete pipeline: branch created automatically -> ingestion -> transformation (checks run automatically -> promotion by sensor)"
     selection:
-      type: "mixed"
-      keys: ["nessie_dev_branch"]
+      type: "group"
       groups: ["nightscout", "github"]
     partitions: "daily"
-    resources:
-      iceberg:
-        config:
-          ref: "dev"
-      trino:
-        config:
-          nessie_ref: "dev"
-
-  prod_promotion:
-    name: "prod_promotion"
-    description: "Production promotion: merge dev to main and publish marts to postgres"
-    selection:
-      type: "keys"
-      keys: ["promote_dev_to_main", "publish_glucose_marts_to_postgres", "publish_github_marts_to_postgres"]
-    partitions: null
-    resources:
-      iceberg:
-        config:
-          ref: "main"
-      trino:
-        config:
-          nessie_ref: "main"

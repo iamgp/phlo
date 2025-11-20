@@ -7,7 +7,7 @@ from __future__ import annotations
 import dagster as dg
 
 from cascade.defs.jobs import JOBS
-from cascade.defs.sensors.sensors import build_sensors
+from cascade.defs.sensors.sensors import build_sensors as build_transform_sensors
 from cascade.defs.schedules.schedules import create_schedules
 
 
@@ -19,7 +19,12 @@ def build_schedules() -> list[dg.ScheduleDefinition]:
 # --- Aggregation Function ---
 # Combines all schedule-related definitions into a single Definitions object
 def build_defs() -> dg.Definitions:
-    schedules = build_schedules()
-    sensors = build_sensors()
+    """
+    Build schedules and transform sensors.
 
-    return dg.Definitions(jobs=JOBS, schedules=schedules, sensors=sensors)
+    Note: Promotion and cleanup sensors are defined in cascade.defs.sensors
+    """
+    schedules = build_schedules()
+    transform_sensors = build_transform_sensors()
+
+    return dg.Definitions(jobs=JOBS, schedules=schedules, sensors=transform_sensors)
