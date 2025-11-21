@@ -1257,10 +1257,10 @@ dagster asset materialize -m cascade.definitions -a dlt_glucose_entries --downst
 Congratulations! You now understand the basics of Cascade.
 
 **Continue your learning:**
-1. 📖 Read the [Workflow Development Guide](WORKFLOW_DEVELOPMENT_GUIDE.md) to build your own pipelines
-2. 📖 Read the [Data Modeling Guide](DATA_MODELING_GUIDE.md) to learn Bronze/Silver/Gold best practices
-3. 📖 Read the [Dagster Assets Tutorial](DAGSTER_ASSETS_TUTORIAL.md) for deep-dive on orchestration
-4. 📖 Read the [dbt Development Guide](DBT_DEVELOPMENT_GUIDE.md) for transformation best practices
+1. 📖 Read the [Workflow Development Guide](../guides/workflow-development.md) to build your own pipelines
+2. 📖 Read the [Data Modeling Guide](../guides/data-modeling.md) to learn Bronze/Silver/Gold best practices
+3. 📖 Read the [Dagster Assets Tutorial](../guides/dagster-assets.md) for deep-dive on orchestration
+4. 📖 Read the [dbt Development Guide](../guides/dbt-development.md) for transformation best practices
 
 **Try these exercises:**
 1. Add a new field to `fct_glucose_readings`
