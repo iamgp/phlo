@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from datetime import timedelta
-from functools import wraps
 from typing import Any
 
 import dagster as dg
@@ -16,12 +15,108 @@ from cascade.ingestion.dlt_helpers import (
     merge_to_iceberg,
     setup_dlt_pipeline,
     stage_to_parquet,
-    validate_with_pandera,
 )
 from cascade.schemas.converter import pandera_to_iceberg
 from cascade.schemas.registry import TableConfig
+from cascade.exceptions import (
+    CascadeConfigError,
+    CascadeSchemaError,
+    CascadeCronError,
+    suggest_similar_field_names,
+    format_field_list,
+)
 
 _INGESTION_ASSETS: list[Any] = []
+
+
+def _validate_cron_expression(cron: str | None) -> None:
+    """
+    Validate cron expression format.
+
+    Args:
+        cron: Cron expression string
+
+    Raises:
+        CascadeCronError: If cron expression is invalid
+    """
+    if not cron:
+        return
+
+    parts = cron.strip().split()
+
+    # Cron should have 5 parts: minute hour day_of_month month day_of_week
+    if len(parts) != 5:
+        raise CascadeCronError(
+            message=f"Invalid cron expression '{cron}'",
+            suggestions=[
+                "Cron format: [minute] [hour] [day_of_month] [month] [day_of_week]",
+                'Examples: "0 */1 * * *" (hourly), "0 0 * * *" (daily), "*/15 * * * *" (every 15 min)',
+                "Test your cron at: https://crontab.guru",
+            ],
+        )
+
+    # Basic validation of each part
+    for i, part in enumerate(parts):
+        part_names = ["minute", "hour", "day_of_month", "month", "day_of_week"]
+        # Allow *, */N, N, N-M, N,M patterns
+        if not (part == "*" or "/" in part or "-" in part or "," in part or part.isdigit()):
+            # Check if it's a day name (MON, TUE, etc.) for day_of_week
+            if i == 4 and part.upper() in ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]:
+                continue
+
+            raise CascadeCronError(
+                message=f"Invalid cron expression '{cron}': invalid {part_names[i]} value '{part}'",
+            )
+
+
+def _validate_unique_key_in_schema(
+    unique_key: str,
+    validation_schema: type[Any] | None,
+) -> None:
+    """
+    Validate that unique_key exists in validation_schema fields.
+
+    Args:
+        unique_key: Field name used for deduplication
+        validation_schema: Pandera DataFrameModel class
+
+    Raises:
+        CascadeSchemaError: If unique_key not found in schema
+    """
+    if validation_schema is None:
+        # Can't validate without schema
+        return
+
+    try:
+        # Get schema fields from Pandera DataFrameModel
+        from typing import get_type_hints
+
+        schema_fields = list(get_type_hints(validation_schema).keys())
+
+        # Remove special Config class if present
+        schema_fields = [f for f in schema_fields if f != "Config"]
+
+        if unique_key not in schema_fields:
+            # Generate "Did you mean?" suggestions
+            suggestions_list = suggest_similar_field_names(unique_key, schema_fields)
+            suggestions_list.append(f"Available fields: {format_field_list(schema_fields)}")
+
+            raise CascadeSchemaError(
+                message=f"unique_key '{unique_key}' not found in schema '{validation_schema.__name__}'",
+                suggestions=suggestions_list,
+            )
+
+    except CascadeSchemaError:
+        raise
+    except Exception as e:
+        # If we can't validate (e.g., schema format issue), log but don't fail
+        # The error will be caught at runtime if there's a real problem
+        import warnings
+
+        warnings.warn(
+            f"Could not validate unique_key '{unique_key}' against schema: {e}",
+            UserWarning,
+        )
 
 
 def cascade_ingestion(
@@ -84,13 +179,21 @@ def cascade_ingestion(
         def github_user_events(partition_date: str):
             return rest_api({...})
     """
+    # Validate decorator parameters at definition time (fast feedback!)
+    _validate_cron_expression(cron)
+    _validate_unique_key_in_schema(unique_key, validation_schema)
+
     # Auto-generate PyIceberg schema from Pandera if not provided
     if iceberg_schema is None and validation_schema is not None:
         iceberg_schema = pandera_to_iceberg(validation_schema)
     elif iceberg_schema is None:
-        raise ValueError(
-            "Either 'validation_schema' (for auto-generation) or 'iceberg_schema' "
-            "(explicit schema) must be provided"
+        raise CascadeConfigError(
+            message="Missing required schema parameter",
+            suggestions=[
+                "Add validation_schema parameter (recommended): validation_schema=MyPanderaSchema",
+                "Or add iceberg_schema parameter (manual): iceberg_schema=IcebergSchema(...)",
+                "Recommended: Use validation_schema - Iceberg schema will be auto-generated",
+            ],
         )
 
     # Create table config from inline parameters
