@@ -16,7 +16,7 @@ For current testing approaches, see: docs/TESTING_GUIDE.md
 import json
 import pandas as pd
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Iterator, Union
+from typing import Any, Dict, List, Optional, Iterator, Union, cast
 from contextlib import contextmanager
 
 
@@ -76,8 +76,9 @@ class MockDLTSource:
             resource_name: Name of the mock DLT resource
         """
         if isinstance(data, pd.DataFrame):
-            self.data = data.to_dict('records')
-            self._dataframe = data
+            df_data = cast(pd.DataFrame, data)
+            self.data = df_data.to_dict('records')
+            self._dataframe = df_data
         else:
             self.data = data
             self._dataframe = None
@@ -371,18 +372,20 @@ def save_fixture(
 
     elif suffix == ".csv":
         if isinstance(data, pd.DataFrame):
-            data.to_csv(path, index=False)
+            df_data = cast(pd.DataFrame, data)
+            df_data.to_csv(path, index=False)
         else:
             # Convert to DataFrame first
-            df = pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
+            df: pd.DataFrame = pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
             df.to_csv(path, index=False)
 
     elif suffix == ".parquet":
         if isinstance(data, pd.DataFrame):
-            data.to_parquet(path, index=False)
+            df_data = cast(pd.DataFrame, data)
+            df_data.to_parquet(path, index=False)
         else:
             # Convert to DataFrame first
-            df = pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
+            df: pd.DataFrame = pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
             df.to_parquet(path, index=False)
 
     else:

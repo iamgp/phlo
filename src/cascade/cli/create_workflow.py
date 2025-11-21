@@ -4,9 +4,8 @@ Create Workflow Command
 Scaffolds new Cascade workflows with interactive prompts.
 """
 
-import os
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import click
 from rich.console import Console
@@ -41,7 +40,7 @@ console = Console()
 def create_workflow(
     workflow_type: str,
     domain: str,
-    asset_name: Optional[str],
+    asset_name: str | None,
     interactive: bool,
 ):
     """
@@ -72,7 +71,7 @@ def create_workflow(
     if not project_root:
         console.print(
             "[red]Error: Could not find Cascade project root.[/red]\n"
-            "Make sure you're in a Cascade project directory.",
+            + "Make sure you're in a Cascade project directory.",
             style="red",
         )
         raise click.Abort()
@@ -109,7 +108,7 @@ def create_workflow(
     _display_next_steps(config)
 
 
-def _find_project_root() -> Optional[Path]:
+def _find_project_root() -> Path | None:
     """Find the Cascade project root directory."""
     current = Path.cwd()
 
@@ -121,7 +120,7 @@ def _find_project_root() -> Optional[Path]:
     return None
 
 
-def _prompt_ingestion_config(config: dict) -> dict:
+def _prompt_ingestion_config(config: dict[str, Any]) -> dict[str, Any]:
     """Prompt for ingestion workflow configuration."""
     console.print("\n[bold]Configuration:[/bold]\n")
 
@@ -163,7 +162,7 @@ def _prompt_ingestion_config(config: dict) -> dict:
     return config
 
 
-def _display_config_summary(config: dict):
+def _display_config_summary(config: dict[str, Any]) -> None:
     """Display configuration summary."""
     console.print("\n[bold]Summary:[/bold]")
     console.print(f"  Domain: [cyan]{config['domain']}[/cyan]")
@@ -176,7 +175,7 @@ def _display_config_summary(config: dict):
         console.print(f"  Schedule: [cyan]{config['cron']}[/cyan]")
 
 
-def _create_ingestion_workflow(config: dict):
+def _create_ingestion_workflow(config: dict[str, Any]) -> None:
     """Create ingestion workflow files."""
     console.print("\n[bold]Creating files...[/bold]\n")
 
@@ -256,7 +255,7 @@ def _register_domain_import(init_file: Path, domain: str, project_root: Path):
         console.print(f"[red]✗[/red] Could not find {init_file.relative_to(project_root)}")
 
 
-def _generate_asset_template(config: dict) -> str:
+def _generate_asset_template(config: dict[str, Any]) -> str:
     """Generate asset Python code from template."""
     domain = config["domain"]
     asset_name = config["asset_name"]
@@ -352,7 +351,7 @@ def {asset_name}(partition_date: str):
 '''
 
 
-def _generate_schema_template(config: dict) -> str:
+def _generate_schema_template(config: dict[str, Any]) -> str:
     """Generate schema Python code from template."""
     domain = config["domain"]
     asset_name = config["asset_name"]
@@ -404,7 +403,7 @@ class {schema_class}(pa.DataFrameModel):
 '''
 
 
-def _generate_test_template(config: dict) -> str:
+def _generate_test_template(config: dict[str, Any]) -> str:
     """Generate test Python code from template."""
     domain = config["domain"]
     asset_name = config["asset_name"]
@@ -465,7 +464,7 @@ class TestAssetConfiguration:
 '''
 
 
-def _display_next_steps(config: dict):
+def _display_next_steps(config: dict[str, Any]) -> None:
     """Display next steps for user."""
     domain = config["domain"]
     asset_name = config["asset_name"]

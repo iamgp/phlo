@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from datetime import timedelta
-from functools import wraps
 from typing import Any
 
 import dagster as dg
@@ -16,7 +15,6 @@ from cascade.ingestion.dlt_helpers import (
     merge_to_iceberg,
     setup_dlt_pipeline,
     stage_to_parquet,
-    validate_with_pandera,
 )
 from cascade.schemas.converter import pandera_to_iceberg
 from cascade.schemas.registry import TableConfig
@@ -31,7 +29,7 @@ from cascade.exceptions import (
 _INGESTION_ASSETS: list[Any] = []
 
 
-def _validate_cron_expression(cron: str) -> None:
+def _validate_cron_expression(cron: str | None) -> None:
     """
     Validate cron expression format.
 
