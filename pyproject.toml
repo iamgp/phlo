@@ -29,7 +29,12 @@ dependencies = [
     "trino",
     "requests",
     "psycopg2-binary",
+    "click>=8.0",
+    "rich>=13.0",
 ]
+
+[project.scripts]
+cascade = "cascade.cli.main:cli"
 
 [tool.uv.workspace]
 members = ["services/hub"]
