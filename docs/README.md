@@ -2,9 +2,9 @@
 
 Welcome to the Cascade documentation. This guide will help you understand, deploy, and use the Cascade data lakehouse platform.
 
-## 📖 **START HERE: [Documentation Index](INDEX.md)**
+## 📖 **START HERE: [Documentation Index](index.md)**
 
-**New to Cascade?** Check out the **[INDEX.md](INDEX.md)** for a complete guide to all documentation, organized by experience level and topic.
+**New to Cascade?** Check out the **[index.md](index.md)** for a complete guide to all documentation, organized by experience level and topic.
 
 ---
 
@@ -14,14 +14,14 @@ Welcome to the Cascade documentation. This guide will help you understand, deplo
 
 **Start with these comprehensive guides:**
 
-1. **[BEGINNERS_GUIDE.md](BEGINNERS_GUIDE.md)** - **Start here!**
+1. **[Beginner's Guide](getting-started/beginners-guide.md)** - **Start here!**
    - What is a data lakehouse?
    - All concepts explained from scratch
    - How Cascade works end-to-end
    - Understanding the technologies
    - Your first look at the platform
 
-2. **[WORKFLOW_DEVELOPMENT_GUIDE.md](WORKFLOW_DEVELOPMENT_GUIDE.md)**
+2. **[Workflow Development Guide](guides/workflow-development.md)**
    - Complete tutorial: Build a weather pipeline
    - Step-by-step from zero to production
    - Uses DLT, dbt, Bronze/Silver/Gold layers
@@ -36,17 +36,17 @@ Welcome to the Cascade documentation. This guide will help you understand, deplo
 
 If you're developing on Cascade:
 
-1. **[DATA_MODELING_GUIDE.md](DATA_MODELING_GUIDE.md)** - Architecture patterns
+1. **[Data Modeling Guide](guides/data-modeling.md)** - Architecture patterns
    - Bronze/Silver/Gold explained
    - Fact vs dimension tables
    - Real-world examples
 
-2. **[DAGSTER_ASSETS_TUTORIAL.md](DAGSTER_ASSETS_TUTORIAL.md)** - Orchestration
+2. **[Dagster Assets Tutorial](guides/dagster-assets.md)** - Orchestration
    - Complete assets guide
    - Dependencies, resources, partitions
    - Schedules and sensors
 
-3. **[DBT_DEVELOPMENT_GUIDE.md](DBT_DEVELOPMENT_GUIDE.md)** - Transformations
+3. **[dbt Development Guide](guides/dbt-development.md)** - Transformations
    - dbt fundamentals
    - Models, tests, documentation
    - Incremental models
@@ -55,12 +55,12 @@ If you're developing on Cascade:
 
 If you're building pipelines on Cascade:
 
-1. **[BEST_PRACTICES_GUIDE.md](BEST_PRACTICES_GUIDE.md)** - Production patterns
+1. **[Best Practices Guide](operations/best-practices.md)** - Production patterns
    - Code organization
    - Data quality
    - Performance & security
 
-2. **[TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)** - Fix issues
+2. **[Troubleshooting Guide](operations/troubleshooting.md)** - Fix issues
    - Services won't start
    - Dagster/dbt problems
    - Debugging techniques
@@ -70,12 +70,12 @@ If you're building pipelines on Cascade:
    - Merge workflows
    - Time travel queries
 
-4. **[DuckDB Query Guide](./duckdb-iceberg-queries.md)** - Ad-hoc analysis
+4. **[DuckDB Query Guide](reference/duckdb-queries.md)** - Ad-hoc analysis
    - DuckDB setup
    - Query examples
    - Python integration
 
-5. **[OpenMetadata Setup](./OPENMETADATA_SETUP.md)** - Data catalog and discovery
+5. **[OpenMetadata Setup](setup/openmetadata.md)** - Data catalog and discovery
    - Self-service data discovery
    - Metadata management
    - Data lineage visualization
@@ -111,7 +111,7 @@ If you're building pipelines on Cascade:
 
 ### docs/ Directory
 
-- **[duckdb-iceberg-queries.md](./duckdb-iceberg-queries.md)** - DuckDB analysis guide
+- **[duckdb-iceberg-queries.md](reference/duckdb-queries.md)** - DuckDB analysis guide
   - Installation and setup
   - Query examples
   - Python integration
@@ -247,7 +247,7 @@ df = conn.execute("""
 print(df)
 ```
 
-**Learn more**: [duckdb-iceberg-queries.md](./duckdb-iceberg-queries.md)
+**Learn more**: [duckdb-iceberg-queries.md](reference/duckdb-queries.md)
 
 ## Service URLs
 
@@ -472,4 +472,4 @@ For questions or issues:
 - [Quick Start](../QUICK_START.md)
 - [Architecture](../ARCHITECTURE.md)
 - [Nessie Workflow](../NESSIE_WORKFLOW.md)
-- [DuckDB Queries](./duckdb-iceberg-queries.md)
+- [DuckDB Queries](reference/duckdb-queries.md)
