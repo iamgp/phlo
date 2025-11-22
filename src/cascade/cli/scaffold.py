@@ -4,7 +4,6 @@ Workflow Scaffolding
 Generates Cascade workflow files from templates.
 """
 
-import os
 import re
 from pathlib import Path
 from typing import List, Optional
@@ -13,17 +12,45 @@ from typing import List, Optional
 def _to_snake_case(name: str) -> str:
     """Convert string to snake_case."""
     # Replace spaces and hyphens with underscores
-    name = re.sub(r'[\s-]+', '_', name)
+    name = re.sub(r"[\s-]+", "_", name)
     # Insert underscore before capital letters
-    name = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', name)
+    name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
     return name.lower()
 
 
 def _to_pascal_case(name: str) -> str:
     """Convert string to PascalCase."""
     # Split on underscores, hyphens, and spaces
-    words = re.split(r'[_\s-]+', name)
-    return ''.join(word.capitalize() for word in words)
+    words = re.split(r"[_\s-]+", name)
+    return "".join(word.capitalize() for word in words)
+
+
+def _is_user_project(project_root: Path) -> bool:
+    """
+    Detect if this is a user project or the Cascade repository.
+
+    Returns:
+        True if user project, False if Cascade repo
+    """
+    # User projects have workflows/ directory but not src/cascade/
+    has_workflows = (project_root / "workflows").exists()
+    has_cascade_src = (project_root / "src" / "cascade").exists()
+
+    # If both exist, prefer user project mode
+    if has_workflows and not has_cascade_src:
+        return True
+    elif has_workflows and has_cascade_src:
+        # Both exist - check pyproject.toml to determine
+        pyproject = project_root / "pyproject.toml"
+        if pyproject.exists():
+            content = pyproject.read_text()
+            # User projects have "cascade" as a dependency
+            # Cascade repo has name = "cascade"
+            if 'name = "cascade"' in content:
+                return False  # Cascade repo
+        return True  # User project
+    else:
+        return False  # Cascade repo
 
 
 def create_ingestion_workflow(
@@ -35,6 +62,10 @@ def create_ingestion_workflow(
 ) -> List[str]:
     """
     Create ingestion workflow files.
+
+    Automatically detects project type:
+    - User project: Creates files in workflows/
+    - Cascade repo: Creates files in src/cascade/defs/
 
     Args:
         domain: Domain name (e.g., "weather", "stripe")
@@ -55,12 +86,26 @@ def create_ingestion_workflow(
     table_snake = _to_snake_case(table_name)
     schema_class = f"Raw{_to_pascal_case(table_name)}"
 
-    # Define paths
     project_root = Path.cwd()
-    schema_dir = project_root / "src" / "cascade" / "schemas"
-    asset_dir = project_root / "src" / "cascade" / "defs" / "ingestion" / domain_snake
-    test_dir = project_root / "tests"
-    init_file = project_root / "src" / "cascade" / "defs" / "ingestion" / "__init__.py"
+
+    # Detect project type
+    is_user_project = _is_user_project(project_root)
+
+    # Define paths based on project type
+    if is_user_project:
+        # User project mode - use workflows/
+        schema_dir = project_root / "workflows" / "schemas"
+        asset_dir = project_root / "workflows" / "ingestion" / domain_snake
+        test_dir = project_root / "tests"
+        schema_import_path = f"workflows.schemas.{domain_snake}"
+    else:
+        # Cascade repo mode - use src/cascade/defs/
+        schema_dir = project_root / "src" / "cascade" / "schemas"
+        asset_dir = (
+            project_root / "src" / "cascade" / "defs" / "ingestion" / domain_snake
+        )
+        test_dir = project_root / "tests"
+        schema_import_path = f"cascade.schemas.{domain_snake}"
 
     schema_file = schema_dir / f"{domain_snake}.py"
     asset_file = asset_dir / f"{table_snake}.py"
@@ -77,7 +122,7 @@ def create_ingestion_workflow(
 
     if existing:
         raise FileExistsError(
-            f"Files already exist:\n" + "\n".join(f"  - {f}" for f in existing)
+            "Files already exist:\n" + "\n".join(f"  - {f}" for f in existing)
         )
 
     # Create directories
@@ -146,7 +191,7 @@ Ingests {table_name} from REST API to Iceberg.
 
 from dlt.sources.rest_api import rest_api
 from cascade.ingestion import cascade_ingestion
-from cascade.schemas.{domain_snake} import {schema_class}
+from {schema_import_path} import {schema_class}
 
 
 @cascade_ingestion(
@@ -174,7 +219,7 @@ def {table_snake}(partition_date: str):
     # TODO: Configure your REST API source
     source = rest_api({{
         "client": {{
-            "base_url": "{api_base_url or 'https://api.example.com/v1'}",
+            "base_url": "{api_base_url or "https://api.example.com/v1"}",
 
             # TODO: Add authentication
             # "auth": {{
@@ -211,7 +256,7 @@ Tests for {domain} {table_name} workflow.
 
 import pytest
 import pandas as pd
-from cascade.schemas.{domain_snake} import {schema_class}
+from {schema_import_path} import {schema_class}
 
 
 class TestSchema:
@@ -275,18 +320,26 @@ class TestSchema:
 
     test_file.write_text(test_content)
 
-    # Register domain in __init__.py
-    if init_file.exists():
-        init_content = init_file.read_text()
-        import_line = f"from cascade.defs.ingestion import {domain_snake}  # noqa: F401\n"
+    # Register domain in __init__.py (only for Cascade repo mode)
+    if not is_user_project:
+        init_file = (
+            project_root / "src" / "cascade" / "defs" / "ingestion" / "__init__.py"
+        )
+        if init_file.exists():
+            init_content = init_file.read_text()
+            import_line = (
+                f"from cascade.defs.ingestion import {domain_snake}  # noqa: F401\n"
+            )
 
-        if import_line not in init_content:
-            # Add import
-            init_content += import_line
-            init_file.write_text(init_content)
-    else:
-        # Create new __init__.py
-        init_file.write_text(f'from cascade.defs.ingestion import {domain_snake}  # noqa: F401\n')
+            if import_line not in init_content:
+                # Add import
+                init_content += import_line
+                init_file.write_text(init_content)
+        else:
+            # Create new __init__.py
+            init_file.write_text(
+                f"from cascade.defs.ingestion import {domain_snake}  # noqa: F401\n"
+            )
 
     return [
         str(schema_file.relative_to(project_root)),
