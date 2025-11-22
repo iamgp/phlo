@@ -919,4 +919,4 @@ ORDER BY order_date DESC
 
 ---
 
-**Next:** [dbt Development Guide](DBT_DEVELOPMENT_GUIDE.md) - Learn advanced dbt techniques for implementing these patterns.
+**Next:** [dbt Development Guide](dbt-development.md) - Learn advanced dbt techniques for implementing these patterns.
