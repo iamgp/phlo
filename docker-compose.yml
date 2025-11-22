@@ -544,6 +544,47 @@ services:
       timeout: 5s
       retries: 5
 
+  postgrest:
+    image: postgrest/postgrest:${POSTGREST_VERSION:-v12.2.3}
+    container_name: postgrest
+    restart: unless-stopped
+    profiles: ["api", "all"]
+    environment:
+      # Database connection (using authenticator role that can switch to other roles)
+      PGRST_DB_URI: postgresql://authenticator:${POSTGREST_AUTHENTICATOR_PASSWORD:-authenticator_password_change_in_production}@postgres:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: api
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_POOL: 20
+      PGRST_DB_POOL_TIMEOUT: 10
+      PGRST_DB_MAX_ROWS: 10000
+      PGRST_DB_EXTRA_SEARCH_PATH: public
+      # JWT Configuration (shared with FastAPI and Hasura)
+      PGRST_JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      PGRST_JWT_SECRET_IS_BASE64: "false"
+      PGRST_JWT_ROLE_CLAIM_KEY: .role
+      # Server Configuration
+      PGRST_SERVER_HOST: 0.0.0.0
+      PGRST_SERVER_PORT: 3000
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:${POSTGREST_PORT:-10018}
+      PGRST_OPENAPI_MODE: follow-privileges
+      # Admin server for health checks
+      PGRST_ADMIN_SERVER_PORT: 3001
+      # Logging
+      PGRST_LOG_LEVEL: info
+      # Allow application settings (for JWT secret access in functions)
+      PGRST_DB_CONFIG: "true"
+    ports:
+      - "${POSTGREST_PORT:-10018}:3000"
+      - "${POSTGREST_ADMIN_PORT:-10019}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   mkdocs:
     build:
       context: .
