@@ -5,7 +5,7 @@ This module provides a Dagster resource for validating data freshness based on
 Dagster FreshnessPolicy and configured thresholds.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import dagster as dg
