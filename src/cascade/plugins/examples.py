@@ -41,7 +41,8 @@ These examples show how to create plugins for:
    ```
 """
 
-from typing import Any, Dict, Iterator, Optional
+from collections.abc import Iterator
+from typing import Any
 
 import pandas as pd
 
@@ -97,7 +98,7 @@ class WeatherAPIConnector(SourceConnectorPlugin):
             dependencies=["requests"],
         )
 
-    def fetch_data(self, config: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
+    def fetch_data(self, config: dict[str, Any]) -> Iterator[dict[str, Any]]:
         """
         Fetch weather data from API.
 
@@ -133,7 +134,7 @@ class WeatherAPIConnector(SourceConnectorPlugin):
                 "weather_condition": data["condition"],
             }
 
-    def get_schema(self, config: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def get_schema(self, config: dict[str, Any]) -> dict[str, str] | None:
         """Return schema of weather data."""
         return {
             "station_id": "string",
@@ -145,7 +146,7 @@ class WeatherAPIConnector(SourceConnectorPlugin):
             "weather_condition": "string",
         }
 
-    def test_connection(self, config: Dict[str, Any]) -> bool:
+    def test_connection(self, config: dict[str, Any]) -> bool:
         """Test API connectivity."""
         try:
             import requests
@@ -316,7 +317,7 @@ class PivotTransform(TransformationPlugin):
             tags=["transform", "pivot", "reshape"],
         )
 
-    def transform(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    def transform(self, df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
         """
         Pivot a DataFrame.
 
@@ -339,8 +340,8 @@ class PivotTransform(TransformationPlugin):
         ).reset_index()
 
     def get_output_schema(
-        self, input_schema: Dict[str, str], config: Dict[str, Any]
-    ) -> Optional[Dict[str, str]]:
+        self, input_schema: dict[str, str], config: dict[str, Any]
+    ) -> dict[str, str] | None:
         """
         Get output schema after pivot.
 
@@ -349,7 +350,7 @@ class PivotTransform(TransformationPlugin):
         """
         return None  # Dynamic schema
 
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: dict[str, Any]) -> bool:
         """Validate pivot configuration."""
         required_keys = ["index", "columns", "values"]
         return all(key in config for key in required_keys)
