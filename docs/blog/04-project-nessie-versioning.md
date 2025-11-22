@@ -128,7 +128,7 @@ SELECT * FROM iceberg.silver.fct_readings
 FOR TAG v1.0-released;
 ```
 
-## Nessie in Cascade
+## Nessie in Phlo
 
 ### Setup: Nessie Runs in Docker
 
@@ -146,7 +146,7 @@ curl http://localhost:19120/api/v2/config
 
 ### Default: main Branch
 
-When you start Cascade, the `main` branch exists:
+When you start Phlo, the `main` branch exists:
 
 ```bash
 # List branches
@@ -165,10 +165,10 @@ curl http://localhost:19120/api/v2/trees
 
 ### Creating a Development Branch
 
-In Cascade, Dagster automatically creates `dev` branch:
+In Phlo, Dagster automatically creates `dev` branch:
 
 ```python
-# From src/cascade/defs/nessie/operations.py
+# From src/phlo/defs/nessie/operations.py
 
 @asset(name="nessie_dev_branch")
 def create_dev_branch(nessie_client: NessieResource) -> None:
@@ -189,9 +189,9 @@ def create_dev_branch(nessie_client: NessieResource) -> None:
         print("Dev branch already exists")
 ```
 
-### Cascade's Development Workflow
+### Phlo's Development Workflow
 
-Here's how Cascade uses Nessie branches:
+Here's how Phlo uses Nessie branches:
 
 ```
 1. INGEST TO DEV
@@ -233,7 +233,7 @@ Here's how Cascade uses Nessie branches:
 ### Code: Merge from Dev to Main
 
 ```python
-# From src/cascade/defs/nessie/workflow.py
+# From src/phlo/defs/nessie/workflow.py
 
 @asset(deps=[nessie_dev_branch, "dbt:*", "quality_checks"])
 def promote_dev_to_main(nessie_client: NessieResource) -> None:
@@ -341,7 +341,7 @@ In dbt, this is automatic—it reads from the configured branch:
 ```yaml
 # transforms/dbt/profiles.yml
 
-cascade:
+phlo:
   outputs:
     dev:
       type: trino
@@ -454,7 +454,7 @@ FROM stg_glucose_entries;
    ↓ Can query dev branch to see what was wrong
 ```
 
-## Cascade's Nessie Configuration
+## Phlo's Nessie Configuration
 
 In `docker-compose.yml`:
 
@@ -499,7 +499,7 @@ See you then!
 - Tags for releases
 - REST API for automation
 
-**In Cascade**:
+**In Phlo**:
 - Automatically creates `dev` branch
 - Ingests/transforms on `dev`
 - Validates data quality

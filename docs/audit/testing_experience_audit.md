@@ -19,11 +19,11 @@
 
 ### Quick Wins Identified
 
-1. Create testing utilities module: `cascade.testing` with mocks and helpers
+1. Create testing utilities module: `phlo.testing` with mocks and helpers
 2. Add local development mode (in-memory DuckDB instead of Docker)
 3. Write comprehensive testing guide for workflow developers
 4. Add example tests to workflow templates
-5. Create `cascade test` CLI command for quick validation
+5. Create `phlo test` CLI command for quick validation
 
 ## Current Testing State
 
@@ -267,7 +267,7 @@ WHERE order_total < 0
 
 ---
 
-### Cascade: No Testing Utilities (Gap)
+### Phlo: No Testing Utilities (Gap)
 
 **Current State**:
 ```python
@@ -287,7 +287,7 @@ def test_my_ingestion_asset():
 ```
 
 **Gap Analysis**:
-- No `cascade.testing` module
+- No `phlo.testing` module
 - No mock DLT sources
 - No mock Iceberg catalog
 - No in-memory test mode
@@ -309,7 +309,7 @@ make up-core up-query
 
 **Step 2: Make Code Change** (varies)
 ```python
-# Edit src/cascade/defs/ingestion/github/events.py
+# Edit src/phlo/defs/ingestion/github/events.py
 ```
 
 **Step 3: Restart Dagster** (30-60 seconds)
@@ -348,12 +348,12 @@ docker logs minio
 
 **Step 1: Make Code Change** (varies)
 ```python
-# Edit src/cascade/defs/ingestion/github/events.py
+# Edit src/phlo/defs/ingestion/github/events.py
 ```
 
 **Step 2: Run Local Test** (< 5 seconds)
 ```bash
-cascade test github_events --mock-data tests/fixtures/github_events.json
+phlo test github_events --mock-data tests/fixtures/github_events.json
 
 # Output:
 # Running local test for github_events...
@@ -378,7 +378,7 @@ pytest tests/test_github_events.py -v
 
 **Step 4: Only Test E2E When Ready** (30-60 seconds)
 ```bash
-cascade test github_events --integration
+phlo test github_events --integration
 
 # Output:
 # Running integration test...
@@ -423,7 +423,7 @@ def github_events(partition_date: str):
 
 **Proposed Solution**:
 ```python
-from cascade.testing import mock_dlt_source
+from phlo.testing import mock_dlt_source
 
 def test_github_events():
     """Test github_events asset with mock data."""
@@ -457,7 +457,7 @@ def test_github_events():
 
 **Proposed Solution**:
 ```python
-from cascade.testing import mock_iceberg_catalog
+from phlo.testing import mock_iceberg_catalog
 
 def test_iceberg_write():
     """Test Iceberg write operations."""
@@ -489,7 +489,7 @@ def test_iceberg_write():
 
 **Proposed Solution**:
 ```python
-from cascade.testing import test_asset_execution
+from phlo.testing import test_asset_execution
 
 def test_weather_observations():
     """Test weather_observations asset end-to-end."""
@@ -520,7 +520,7 @@ def test_weather_observations():
 
 **Proposed Solution**:
 ```python
-from cascade.testing import load_fixture, save_fixture
+from phlo.testing import load_fixture, save_fixture
 
 def test_with_fixture():
     """Test using saved fixture data."""
@@ -558,7 +558,7 @@ Create `docs/TESTING_GUIDE.md`:
 Test schema validation and business logic:
 
 ```python
-from cascade.testing import mock_dlt_source
+from phlo.testing import mock_dlt_source
 
 def test_schema_validation():
     with mock_dlt_source(data=[...]) as source:
@@ -571,7 +571,7 @@ def test_schema_validation():
 Test full pipeline:
 
 ```bash
-cascade test my_asset --integration
+phlo test my_asset --integration
 ```
 
 ### Example Test Patterns
@@ -593,7 +593,7 @@ See `templates/tests/` for complete examples.
 
 **Overall Impact**: 10-120x faster feedback loop for most development tasks.
 
-## Prefect vs Dagster vs Cascade Testing
+## Prefect vs Dagster vs Phlo Testing
 
 ### Prefect Testing Example
 
@@ -642,7 +642,7 @@ def test_my_asset():
 
 ---
 
-### Cascade Testing Example (Current)
+### Phlo Testing Example (Current)
 
 ```python
 # No testing utilities provided
@@ -670,10 +670,10 @@ def test_github_events():
 
 ---
 
-### Cascade Testing Example (Proposed)
+### Phlo Testing Example (Proposed)
 
 ```python
-from cascade.testing import test_asset_execution, mock_dlt_source
+from phlo.testing import test_asset_execution, mock_dlt_source
 
 def test_github_events():
     """Test github_events asset with mock data."""
@@ -702,21 +702,21 @@ def test_github_events():
 
 ### Priority 1 (Quick Wins)
 
-**1. Create `cascade.testing` module with mock utilities**
+**1. Create `phlo.testing` module with mock utilities**
 
 Implementation:
 ```python
-# src/cascade/testing/__init__.py
-from cascade.testing.mocks import (
+# src/phlo/testing/__init__.py
+from phlo.testing.mocks import (
     mock_dlt_source,
     mock_iceberg_catalog,
     mock_dagster_context,
 )
-from cascade.testing.harness import (
+from phlo.testing.harness import (
     test_asset_execution,
     test_schema_validation,
 )
-from cascade.testing.fixtures import (
+from phlo.testing.fixtures import (
     load_fixture,
     save_fixture,
 )
@@ -731,7 +731,7 @@ from cascade.testing.fixtures import (
 Implementation:
 ```python
 # Use DuckDB instead of Iceberg for local testing
-from cascade.testing import LocalTestMode
+from phlo.testing import LocalTestMode
 
 with LocalTestMode():
     # All Iceberg operations use DuckDB
@@ -760,7 +760,7 @@ Create `docs/TESTING_GUIDE.md`:
 
 ```python
 # templates/ingestion/rest_api_test.py
-from cascade.testing import test_asset_execution
+from phlo.testing import test_asset_execution
 
 def test_my_ingestion_asset():
     """Example test for ingestion asset."""
@@ -776,12 +776,12 @@ def test_my_ingestion_asset():
 
 ### Priority 2 (Medium-term)
 
-**5. Create `cascade test` CLI command**
+**5. Create `phlo test` CLI command**
 
 ```bash
-cascade test my_asset --local
-cascade test my_asset --integration
-cascade test --all
+phlo test my_asset --local
+phlo test my_asset --integration
+phlo test --all
 ```
 
 **Impact**: Streamlines testing workflow
@@ -810,10 +810,10 @@ def test_with_fixture(mock_iceberg):
 
 ```bash
 # Record real API responses as fixtures
-cascade test my_asset --record-fixtures
+phlo test my_asset --record-fixtures
 
 # Replay recorded fixtures in tests
-cascade test my_asset --replay-fixtures
+phlo test my_asset --replay-fixtures
 ```
 
 **Impact**: Enables offline testing with realistic data
@@ -823,7 +823,7 @@ cascade test my_asset --replay-fixtures
 **8. Add test coverage reporting**
 
 ```bash
-cascade test --coverage
+phlo test --coverage
 # Reports which assets have tests
 # Reports test coverage percentage
 ```
@@ -835,7 +835,7 @@ cascade test --coverage
 **9. Add performance benchmarking**
 
 ```bash
-cascade test my_asset --benchmark
+phlo test my_asset --benchmark
 # Measures execution time
 # Compares with previous runs
 # Detects performance regressions
@@ -857,7 +857,7 @@ Features:
 
 ## Comparison Matrix
 
-| Aspect | Cascade Current | Prefect | Dagster | dbt | Target | Gap |
+| Aspect | Phlo Current | Prefect | Dagster | dbt | Target | Gap |
 |--------|----------------|---------|---------|-----|--------|-----|
 | **Testing Utilities** | None | Excellent | Good | Excellent | Essential | Major gap |
 | **Mock Support** | None | Built-in | Built-in | N/A | Essential | Major gap |
@@ -886,14 +886,14 @@ Features:
 5. High barrier to entry for writing first test
 
 **Priority Actions**:
-1. Create `cascade.testing` module with mocks and helpers
+1. Create `phlo.testing` module with mocks and helpers
 2. Add local test mode using DuckDB (no Docker)
 3. Write comprehensive testing guide
 4. Add example tests to workflow templates
-5. Create `cascade test` CLI command
+5. Create `phlo test` CLI command
 
 **Impact**: Implementing testing utilities would reduce feedback loop from 30-60 seconds to < 5 seconds (6-12x improvement) and reduce first test creation time from 30-60 minutes to 5-10 minutes (3-6x improvement).
 
-**User Experience**: Currently requires expert-level knowledge of pytest, mocking, Docker, and Cascade internals to write tests. With testing utilities, would match Prefect/Dagster ease of use (5-10 minutes to first test).
+**User Experience**: Currently requires expert-level knowledge of pytest, mocking, Docker, and Phlo internals to write tests. With testing utilities, would match Prefect/Dagster ease of use (5-10 minutes to first test).
 
 **Strategic Priority**: HIGH - Testing utilities are essential for developer productivity and framework adoption. This is the largest gap vs competitors.

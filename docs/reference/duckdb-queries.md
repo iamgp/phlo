@@ -1,6 +1,6 @@
 # DuckDB Iceberg Extension for Ad-hoc Analysis
 
-This guide explains how to query Cascade's Iceberg tables directly using DuckDB's Iceberg extension, enabling fast ad-hoc analysis without going through Trino.
+This guide explains how to query Phlo's Iceberg tables directly using DuckDB's Iceberg extension, enabling fast ad-hoc analysis without going through Trino.
 
 ## Why DuckDB + Iceberg?
 

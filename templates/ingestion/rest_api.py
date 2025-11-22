@@ -4,22 +4,22 @@ REST API Ingestion Template
 This template shows how to create a Cascade ingestion asset for REST API data sources.
 
 TODO: Customize this template:
-1. Copy this file to src/cascade/defs/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
+1. Copy this file to src/phlo/defs/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
 2. Update the schema import to match your schema file
-3. Configure the @cascade_ingestion decorator parameters
+3. Configure the @phlo_ingestion decorator parameters
 4. Configure the DLT rest_api source
-5. Register domain in src/cascade/defs/ingestion/__init__.py
+5. Register domain in src/phlo/defs/ingestion/__init__.py
 """
 
 from dlt.sources.rest_api import rest_api
-from cascade.ingestion import cascade_ingestion
+from phlo.ingestion import phlo_ingestion
 
 # TODO: Update this import to match your schema file
-# Example: from cascade.schemas.weather import RawWeatherObservations
-from cascade.schemas.example import RawExampleData
+# Example: from phlo.schemas.weather import RawWeatherObservations
+from phlo.schemas.example import RawExampleData
 
 
-@cascade_ingestion(
+@phlo_ingestion(
     # TODO: Set the Iceberg table name (will be created in 'raw' schema)
     # Example: "weather_observations", "stripe_payments", "github_events"
     table_name="example_data",
@@ -203,7 +203,7 @@ def example_data_ingestion(partition_date: str):
 # Example: Weather API Ingestion
 # ==============================
 #
-# @cascade_ingestion(
+# @phlo_ingestion(
 #     table_name="weather_observations",
 #     unique_key="observation_id",
 #     validation_schema=RawWeatherData,
@@ -238,7 +238,7 @@ def example_data_ingestion(partition_date: str):
 # Example: Stripe Payments Ingestion
 # ===================================
 #
-# @cascade_ingestion(
+# @phlo_ingestion(
 #     table_name="stripe_charges",
 #     unique_key="id",
 #     validation_schema=RawStripeCharges,
@@ -291,15 +291,15 @@ def example_data_ingestion(partition_date: str):
 # ===========
 #
 # 1. Copy this template to your domain directory:
-#    cp templates/ingestion/rest_api.py src/cascade/defs/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
+#    cp templates/ingestion/rest_api.py src/phlo/defs/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
 #
 # 2. Create corresponding schema:
-#    cp templates/schemas/example_schema.py src/cascade/schemas/YOUR_DOMAIN.py
+#    cp templates/schemas/example_schema.py src/phlo/schemas/YOUR_DOMAIN.py
 #
 # 3. Edit both files and replace all TODOs
 #
-# 4. Register domain in src/cascade/defs/ingestion/__init__.py:
-#    from cascade.defs.ingestion import YOUR_DOMAIN  # noqa: F401
+# 4. Register domain in src/phlo/defs/ingestion/__init__.py:
+#    from phlo.defs.ingestion import YOUR_DOMAIN  # noqa: F401
 #
 # 5. Restart Dagster:
 #    docker restart dagster-webserver

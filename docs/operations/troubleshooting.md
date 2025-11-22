@@ -1,8 +1,8 @@
 # Troubleshooting Guide
 
-## Debugging Common Issues in Cascade
+## Debugging Common Issues in Phlo
 
-This guide helps you debug and fix common problems in Cascade.
+This guide helps you debug and fix common problems in Phlo.
 
 ---
 
@@ -157,8 +157,8 @@ docker-compose restart dagster-webserver dagster-daemon
 
 **Solution 2: Check asset registration**
 ```python
-# In src/cascade/definitions.py
-from cascade.defs.ingestion import build_ingestion_defs
+# In src/phlo/definitions.py
+from phlo.defs.ingestion import build_ingestion_defs
 
 defs = dg.Definitions.merge(
     build_ingestion_defs(),  # Your assets must be here
@@ -169,7 +169,7 @@ defs = dg.Definitions.merge(
 **Solution 3: Check for syntax errors**
 ```bash
 # Test definitions load
-docker-compose exec dagster-webserver python -c "from cascade.definitions import defs; print(defs)"
+docker-compose exec dagster-webserver python -c "from phlo.definitions import defs; print(defs)"
 ```
 
 ### Asset Materialization Fails
@@ -183,13 +183,13 @@ docker-compose exec dagster-webserver python -c "from cascade.definitions import
 **2. Check dependencies**
 ```bash
 # Ensure upstream assets materialized
-dagster asset materialize -m cascade.definitions -a upstream_asset
+dagster asset materialize -m phlo.definitions -a upstream_asset
 ```
 
 **3. Test locally**
 ```python
 # In Python shell
-from cascade.definitions import defs
+from phlo.definitions import defs
 from dagster import materialize
 
 asset_def = defs.get_asset_def("my_asset")
@@ -200,7 +200,7 @@ print(result)
 **4. Check resources**
 ```python
 # Are resources configured?
-from cascade.config import get_config
+from phlo.config import get_config
 config = get_config()
 print(config.TRINO_HOST)  # Should print value, not error
 ```
@@ -283,7 +283,7 @@ docker-compose exec trino trino --execute \
 docker-compose exec dagster-webserver \
   dbt compile --project-dir /opt/dagster/app/transforms/dbt
 
-# Check: transforms/dbt/target/compiled/cascade/models/your_model.sql
+# Check: transforms/dbt/target/compiled/phlo/models/your_model.sql
 # This shows the actual SQL generated
 ```
 
@@ -544,7 +544,7 @@ SELECT * FROM iceberg_dev.raw.my_table
 **Check 3: Ensure asset materialized**
 ```bash
 # Materialize the ingestion asset first
-dagster asset materialize -m cascade.definitions -a my_ingestion_asset
+dagster asset materialize -m phlo.definitions -a my_ingestion_asset
 ```
 
 ### Nessie API Errors
@@ -831,7 +831,7 @@ For dbt issues:
 dbt compile --project-dir /opt/dagster/app/transforms/dbt
 
 # View compiled SQL
-cat transforms/dbt/target/compiled/cascade/models/silver/fct_my_model.sql
+cat transforms/dbt/target/compiled/phlo/models/silver/fct_my_model.sql
 
 # Run compiled SQL directly in Trino to debug
 docker-compose exec trino trino < compiled.sql

@@ -17,7 +17,7 @@
 
 ### Quick Wins Identified
 
-1. Add CLI command: `cascade create-workflow` for guided scaffolding
+1. Add CLI command: `phlo create-workflow` for guided scaffolding
 2. Create workflow templates in `templates/` directory
 3. Add 5-minute quickstart guide (Phase 5)
 4. Provide example repository with runnable examples
@@ -30,10 +30,10 @@ Based on `docs/WORKFLOW_DEVELOPMENT_GUIDE.md` and existing code patterns.
 
 **Step 1: Define Schema** (3-5 minutes)
 
-Location: `src/cascade/schemas/domain.py`
+Location: `src/phlo/schemas/domain.py`
 
 ```python
-# Create: src/cascade/schemas/weather.py
+# Create: src/phlo/schemas/weather.py
 import pandera as pa
 from pandera.typing import Series
 
@@ -62,13 +62,13 @@ class RawWeatherObservations(pa.DataFrameModel):
 
 **Step 2: Create Ingestion Asset** (5-7 minutes)
 
-Location: `src/cascade/defs/ingestion/domain/asset.py`
+Location: `src/phlo/defs/ingestion/domain/asset.py`
 
 ```python
-# Create: src/cascade/defs/ingestion/weather/observations.py
+# Create: src/phlo/defs/ingestion/weather/observations.py
 from dlt.sources.rest_api import rest_api
-from cascade.ingestion import cascade_ingestion
-from cascade.schemas.weather import RawWeatherObservations
+from phlo.ingestion import cascade_ingestion
+from phlo.schemas.weather import RawWeatherObservations
 
 @cascade_ingestion(
     table_name="weather_observations",
@@ -127,13 +127,13 @@ def weather_observations(partition_date: str):
 
 **Step 3: Register Domain for Auto-Discovery** (1 minute)
 
-Location: `src/cascade/defs/ingestion/__init__.py`
+Location: `src/phlo/defs/ingestion/__init__.py`
 
 ```python
 # Edit existing file
-from cascade.defs.ingestion import github  # noqa: F401
-from cascade.defs.ingestion import nightscout  # noqa: F401
-from cascade.defs.ingestion import weather  # noqa: F401  # <- ADD THIS LINE
+from phlo.defs.ingestion import github  # noqa: F401
+from phlo.defs.ingestion import nightscout  # noqa: F401
+from phlo.defs.ingestion import weather  # noqa: F401  # <- ADD THIS LINE
 ```
 
 **Manual steps**:
@@ -190,7 +190,7 @@ docker exec dagster-webserver dagster asset materialize \
 
 **Step 6: Add YAML Job Configuration (Optional)** (2-3 minutes)
 
-Location: `src/cascade/defs/jobs/config.yaml`
+Location: `src/phlo/defs/jobs/config.yaml`
 
 ```yaml
 jobs:
@@ -320,7 +320,7 @@ dbt run --select my_model
 
 ---
 
-### Cascade: 15-20 Minute Workflow Creation
+### Phlo: 15-20 Minute Workflow Creation
 
 **Current process**: All manual (see above)
 
@@ -399,15 +399,15 @@ dbt run --select my_model
 
 **1. Project initialization** (low priority - project already exists):
 ```bash
-cascade init my-lakehouse
+phlo init my-lakehouse
 ```
-Creates new Cascade project with full structure.
+Creates new Phlo project with full structure.
 
 ---
 
 **2. Workflow scaffolding** (HIGH PRIORITY):
 ```bash
-cascade create-workflow --type ingestion --domain weather
+phlo create-workflow --type ingestion --domain weather
 
 # Interactive prompts:
 # - What is your data source? (REST API, Database, File, etc.): REST API
@@ -417,28 +417,28 @@ cascade create-workflow --type ingestion --domain weather
 # - What is the freshness policy? (warn_hours, fail_hours): 1, 24
 
 # Creates:
-# - src/cascade/schemas/weather.py (template with TODOs)
-# - src/cascade/defs/ingestion/weather/observations.py (template)
-# - src/cascade/defs/ingestion/weather/__init__.py
-# - Adds import to src/cascade/defs/ingestion/__init__.py
-# - Adds job to src/cascade/defs/jobs/config.yaml
+# - src/phlo/schemas/weather.py (template with TODOs)
+# - src/phlo/defs/ingestion/weather/observations.py (template)
+# - src/phlo/defs/ingestion/weather/__init__.py
+# - Adds import to src/phlo/defs/ingestion/__init__.py
+# - Adds job to src/phlo/defs/jobs/config.yaml
 
 # Output:
-# ✅ Created schema: src/cascade/schemas/weather.py
-# ✅ Created asset: src/cascade/defs/ingestion/weather/observations.py
+# ✅ Created schema: src/phlo/schemas/weather.py
+# ✅ Created asset: src/phlo/defs/ingestion/weather/observations.py
 # ✅ Registered domain in auto-discovery
 # ✅ Added job configuration
 #
 # Next steps:
-# 1. Edit src/cascade/schemas/weather.py to define your schema
-# 2. Edit src/cascade/defs/ingestion/weather/observations.py to configure API
+# 1. Edit src/phlo/schemas/weather.py to define your schema
+# 2. Edit src/phlo/defs/ingestion/weather/observations.py to configure API
 # 3. Run: docker restart dagster-webserver
 # 4. Test: docker exec dagster-webserver dagster asset materialize --select weather_observations
 ```
 
 **3. Schema validation** (MEDIUM PRIORITY):
 ```bash
-cascade validate-schema schemas/weather.py
+phlo validate-schema schemas/weather.py
 
 # Output:
 # ✅ Schema is valid Pandera DataFrameModel
@@ -449,7 +449,7 @@ cascade validate-schema schemas/weather.py
 
 **4. Asset validation** (MEDIUM PRIORITY):
 ```bash
-cascade validate-workflow ingestion/weather/observations.py
+phlo validate-workflow ingestion/weather/observations.py
 
 # Output:
 # ✅ Decorator configuration is valid
@@ -462,7 +462,7 @@ cascade validate-workflow ingestion/weather/observations.py
 
 **5. List templates** (LOW PRIORITY):
 ```bash
-cascade list-templates
+phlo list-templates
 
 # Output:
 # Available templates:
@@ -475,7 +475,7 @@ cascade list-templates
 
 **6. Local testing** (MEDIUM PRIORITY):
 ```bash
-cascade test-workflow ingestion/weather/observations.py --partition 2024-01-15
+phlo test-workflow ingestion/weather/observations.py --partition 2024-01-15
 
 # Output:
 # Running workflow locally (without Dagster)...
@@ -512,11 +512,11 @@ cascade test-workflow ingestion/weather/observations.py --partition 2024-01-15
 
 **With CLI Scaffolding** (proposed):
 
-- [ ] Run `cascade create-workflow --type ingestion --domain weather`
+- [ ] Run `phlo create-workflow --type ingestion --domain weather`
 - [ ] Answer interactive prompts
 - [ ] Edit generated schema template (fill TODOs)
 - [ ] Edit generated asset template (fill API config)
-- [ ] Test workflow: `cascade test-workflow ingestion/weather/observations.py`
+- [ ] Test workflow: `phlo test-workflow ingestion/weather/observations.py`
 - [ ] Restart Dagster: `docker restart dagster-webserver`
 - [ ] Verify in UI and materialize
 
@@ -543,7 +543,7 @@ Possible causes:
 3. Decorator not applied correctly
 
 Suggestion: Check that you've added this line:
-    from cascade.defs.ingestion import weather  # noqa: F401
+    from phlo.defs.ingestion import weather  # noqa: F401
 ```
 
 ---
@@ -633,7 +633,7 @@ Each template includes:
 **4. Implement basic CLI scaffolding**
 Start with single command:
 ```bash
-cascade create-workflow --type ingestion --domain <name>
+phlo create-workflow --type ingestion --domain <name>
 ```
 
 Features:
@@ -644,7 +644,7 @@ Features:
 
 **5. Add schema validation tool**
 ```bash
-cascade validate-schema schemas/weather.py
+phlo validate-schema schemas/weather.py
 ```
 
 Checks:
@@ -655,7 +655,7 @@ Checks:
 
 **6. Add local testing tool**
 ```bash
-cascade test-workflow ingestion/weather/observations.py --partition 2024-01-15
+phlo test-workflow ingestion/weather/observations.py --partition 2024-01-15
 ```
 
 Runs workflow without Dagster:
@@ -668,7 +668,7 @@ Runs workflow without Dagster:
 
 **7. Interactive workflow builder (TUI)**
 ```bash
-cascade create
+phlo create
 ```
 
 Terminal UI with:
@@ -690,7 +690,7 @@ Terminal UI with:
 
 ## Comparison Matrix
 
-| Aspect | Cascade | Prefect | Dagster | dbt | Target | Gap |
+| Aspect | Phlo | Prefect | Dagster | dbt | Target | Gap |
 |--------|---------|---------|---------|-----|--------|-----|
 | **CLI Scaffolding** | No | Excellent | Good | Excellent | Essential | ❌ Major gap |
 | **Templates** | No | Yes | Yes | Yes | Desirable | ❌ Gap |
@@ -721,7 +721,7 @@ Terminal UI with:
 
 **Priority Actions**:
 1. Create workflow templates directory with examples
-2. Implement `cascade create-workflow` CLI command
+2. Implement `phlo create-workflow` CLI command
 3. Add 5-minute quickstart guide (separate from full tutorial)
 4. Improve error messages with actionable suggestions
 5. Add validation tools (`validate-schema`, `validate-workflow`)

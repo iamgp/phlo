@@ -1,6 +1,6 @@
-site_name: Cascade Lakehouse Platform
-site_description: Documentation for the Cascade data lakehouse platform
-site_author: Cascade Team
+site_name: Phlo Lakehouse Platform
+site_description: Documentation for the Phlo data lakehouse platform
+site_author: Phlo Team
 
 theme:
   name: material

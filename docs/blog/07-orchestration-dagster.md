@@ -90,7 +90,7 @@ Large datasets need splitting. Dagster partitions by time:
 
 ```python
 # Define daily partitions starting from a date
-from cascade.defs.partitions import daily_partition
+from phlo.defs.partitions import daily_partition
 
 @dg.asset(
     partitions_def=daily_partition,
@@ -151,10 +151,10 @@ def nightscout_api_sensor():
         )
 ```
 
-In Cascade's code:
+In Phlo's code:
 
 ```python
-# From src/cascade/defs/ingestion/dlt_assets.py
+# From src/phlo/defs/ingestion/dlt_assets.py
 
 @dg.asset(
     partitions_def=daily_partition,
@@ -178,7 +178,7 @@ def trino_resource(config) -> trino.dbapi.Connection:
     return trino.dbapi.connect(
         host=config.trino_host,
         port=config.trino_port,
-        user="cascade",
+        user="phlo",
     )
 
 @dg.resource
@@ -249,9 +249,9 @@ dlt_glucose_entries (complete)
 dbt_bronze [SUCCESS]
 ```
 
-## Cascade's Asset Graph
+## Phlo's Asset Graph
 
-Here's Cascade's actual orchestration (simplified):
+Here's Phlo's actual orchestration (simplified):
 
 ```
 Sources
@@ -284,13 +284,13 @@ Analytics
 All dependencies auto-detected by Dagster:
 
 ```python
-# File: src/cascade/defs/ingestion/dlt_assets.py
+# File: src/phlo/defs/ingestion/dlt_assets.py
 @dg.asset(name="dlt_glucose_entries")
 def entries() -> MaterializeResult:
     """Produces raw.glucose_entries"""
     pass
 
-# File: src/cascade/defs/transform/dbt.py
+# File: src/phlo/defs/transform/dbt.py
 @dbt_assets(...)
 def all_dbt_assets(dbt: DbtCliResource):
     """
@@ -368,7 +368,7 @@ docker exec dagster-webserver dagster asset materialize \
 ### Via Python API
 
 ```python
-# From src/cascade/defs/...
+# From src/phlo/defs/...
 
 from dagster import materialize
 
@@ -443,10 +443,10 @@ def dlt_glucose_entries() -> MaterializeResult:
 
 ## Configuration and Environment
 
-Cascade uses `cascade/config.py` for centralized config:
+Phlo uses `phlo/config.py` for centralized config:
 
 ```python
-# src/cascade/config.py
+# src/phlo/config.py
 from pydantic_settings import BaseSettings
 
 class CascadeConfig(BaseSettings):
@@ -506,7 +506,7 @@ def ingestion_pipeline():
     validated = validate_data(data)
     write_to_iceberg(validated)
 
-# Most of Cascade uses Assets instead (more declarative)
+# Most of Phlo uses Assets instead (more declarative)
 ```
 
 ## Performance Considerations
@@ -571,7 +571,7 @@ See you there!
 - Error handling and retries
 - Monitoring and alerting
 
-**In Cascade**:
+**In Phlo**:
 - Assets for ingestion, transformation, publishing
 - Daily partitions for scalability
 - Automatic dependency resolution

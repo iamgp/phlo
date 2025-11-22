@@ -1,6 +1,6 @@
 # Workflow Development Guide
 
-## Building Your First Data Pipeline in Cascade
+## Building Your First Data Pipeline in Phlo
 
 This guide walks you through creating a complete data pipeline from scratch. We'll build a pipeline that ingests weather data from an API, transforms it through Bronze/Silver/Gold layers, and publishes it for analytics.
 
@@ -70,7 +70,7 @@ Superset Dashboard
 
 Before starting, make sure you have:
 
-1. ✅ Cascade running (`make up-core up-query`)
+1. ✅ Phlo running (`make up-core up-query`)
 2. ✅ Basic understanding of SQL
 3. ✅ OpenWeather API key (free at https://openweathermap.org/api)
 4. ✅ Text editor or IDE
@@ -83,7 +83,7 @@ First, let's define what our data looks like.
 
 ### 1.1 Create Schema Definition
 
-Create a new file: `src/cascade/schemas/weather.py`
+Create a new file: `src/phlo/schemas/weather.py`
 
 ```python
 """Schema definitions for weather data."""
@@ -154,7 +154,7 @@ class WeatherReadingSchema(pa.DataFrameModel):
 
 ### 1.2 Create Iceberg Table Schema
 
-Create: `src/cascade/iceberg/schemas/weather.py`
+Create: `src/phlo/iceberg/schemas/weather.py`
 
 ```python
 """Iceberg table schemas for weather data."""
@@ -209,7 +209,7 @@ Now let's fetch data from the OpenWeather API and store it in Iceberg.
 
 ### 2.1 Add API Configuration
 
-Edit `src/cascade/config.py` and add:
+Edit `src/phlo/config.py` and add:
 
 ```python
 class CascadeConfig(BaseSettings):
@@ -236,9 +236,9 @@ OPENWEATHER_CITIES=London,GB;New York,US;Tokyo,JP;Sydney,AU
 
 ### 2.3 Create the Ingestion Asset
 
-Create: `src/cascade/defs/ingestion/weather_assets.py`
+Create: `src/phlo/defs/ingestion/weather_assets.py`
 
-**Important:** We use **DLT (Data Load Tool)** for ingestion, following Cascade's established pattern. DLT handles:
+**Important:** We use **DLT (Data Load Tool)** for ingestion, following Phlo's established pattern. DLT handles:
 - Robust data loading with retries
 - Schema inference and validation
 - Parquet file staging
@@ -258,10 +258,10 @@ import dagster as dg
 import dlt
 import requests
 
-from cascade.config import config
-from cascade.defs.resources.iceberg import IcebergResource
-from cascade.schemas.weather import WeatherObservationSchema
-from cascade.iceberg.schemas.weather import WEATHER_OBSERVATION_SCHEMA
+from phlo.config import config
+from phlo.defs.resources.iceberg import IcebergResource
+from phlo.schemas.weather import WeatherObservationSchema
+from phlo.iceberg.schemas.weather import WEATHER_OBSERVATION_SCHEMA
 
 
 @dg.asset(
@@ -359,7 +359,7 @@ def weather_data(
 
         context.log.info(f"Successfully fetched {len(weather_records)} weather observations")
 
-        # Add cascade ingestion timestamp
+        # Add phlo ingestion timestamp
         ingestion_timestamp = datetime.now(timezone.utc)
         for record in weather_records:
             record["_cascade_ingested_at"] = ingestion_timestamp
@@ -462,7 +462,7 @@ def build_weather_ingestion_defs() -> dg.Definitions:
 
 ### 2.4 Register the Asset
 
-Edit `src/cascade/defs/ingestion/__init__.py`:
+Edit `src/phlo/defs/ingestion/__init__.py`:
 
 ```python
 """Ingestion assets module."""
@@ -493,7 +493,7 @@ docker-compose restart dagster-webserver dagster-daemon
 # Click "Materialize"
 
 # Or use CLI
-dagster asset materialize -m cascade.definitions -a dlt_weather_data
+dagster asset materialize -m phlo.definitions -a dlt_weather_data
 ```
 
 **What just happened?**
@@ -508,7 +508,7 @@ dagster asset materialize -m cascade.definitions -a dlt_weather_data
 - Robust parquet file generation with proper typing
 - State management for incremental loads
 - Better separation of concerns (fetch → DLT stage → PyIceberg register)
-- Matches established Cascade pattern for all ingestion assets
+- Matches established Phlo pattern for all ingestion assets
 
 **Verify:**
 ```sql
@@ -1054,7 +1054,7 @@ Quality checks ensure your data meets expectations.
 
 ### 7.1 Create Quality Check Asset
 
-Create: `src/cascade/defs/quality/weather.py`
+Create: `src/phlo/defs/quality/weather.py`
 
 ```python
 """Data quality checks for weather pipeline."""
@@ -1063,8 +1063,8 @@ import dagster as dg
 import pandas as pd
 from dagster_pandera import pandera_schema_to_dagster_type
 
-from cascade.schemas.weather import WeatherObservationSchema, WeatherReadingSchema
-from cascade.defs.resources import TrinoResource
+from phlo.schemas.weather import WeatherObservationSchema, WeatherReadingSchema
+from phlo.defs.resources import TrinoResource
 
 
 @dg.asset(
@@ -1180,7 +1180,7 @@ def build_weather_quality_defs() -> dg.Definitions:
 
 ### 7.2 Register Quality Checks
 
-Edit `src/cascade/defs/quality/__init__.py`:
+Edit `src/phlo/defs/quality/__init__.py`:
 
 ```python
 """Quality check assets module."""
@@ -1208,7 +1208,7 @@ Configure which tables get published to PostgreSQL for BI tools.
 
 ### 8.1 Update Publishing Config
 
-Edit: `src/cascade/defs/publishing/config.yaml`
+Edit: `src/phlo/defs/publishing/config.yaml`
 
 ```yaml
 # Existing configurations...
@@ -1236,7 +1236,7 @@ The publishing asset is already generic and will pick up your config automatical
 
 Test it:
 ```bash
-dagster asset materialize -m cascade.definitions -a publish_postgres_marts
+dagster asset materialize -m phlo.definitions -a publish_postgres_marts
 ```
 
 ---
@@ -1247,7 +1247,7 @@ Schedule your pipeline to run automatically.
 
 ### 9.1 Create Schedule
 
-Edit: `src/cascade/defs/schedules/schedules.py`
+Edit: `src/phlo/defs/schedules/schedules.py`
 
 ```python
 # Add to existing schedules
@@ -1312,7 +1312,7 @@ def weather_freshness_sensor(context: dg.SensorEvaluationContext):
 
 ```bash
 # Materialize all weather assets
-dagster asset materialize -m cascade.definitions \
+dagster asset materialize -m phlo.definitions \
   --select "tag:weather"
 
 # Or use Dagster UI:

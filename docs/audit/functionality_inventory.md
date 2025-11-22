@@ -17,7 +17,7 @@
 
 ### Quick Wins Identified
 
-1. Create `@cascade_quality` decorator for data quality checks
+1. Create `@phlo_quality` decorator for data quality checks
 2. Add plugin system via Python entry points
 3. Expand YAML configuration for schedules and sensors
 4. Provide helper functions for common transformation patterns
@@ -26,7 +26,7 @@
 
 ### 1. Decorators
 
-**`@cascade_ingestion`** (src/cascade/ingestion/decorator.py)
+**`@cascade_ingestion`** (src/phlo/ingestion/decorator.py)
 - **Lines of Code**: 220
 - **Purpose**: Declarative ingestion asset creation
 - **Capabilities**: 10+ automated operations
@@ -80,7 +80,7 @@ def github_user_events(partition_date: str):
 
 ### 2. Schema Auto-Generation
 
-**`pandera_to_iceberg()`** (src/cascade/schemas/converter.py)
+**`pandera_to_iceberg()`** (src/phlo/schemas/converter.py)
 - **Lines of Code**: 239
 - **Purpose**: Convert Pandera schemas to PyIceberg schemas
 - **Boilerplate Elimination**: 100% (no duplicate schema definitions)
@@ -120,7 +120,7 @@ iceberg_schema = pandera_to_iceberg(RawData)
 
 ### 3. DLT Helper Functions
 
-**`setup_dlt_pipeline()`** (src/cascade/ingestion/dlt_helpers.py)
+**`setup_dlt_pipeline()`** (src/phlo/ingestion/dlt_helpers.py)
 - **Purpose**: Setup DLT pipeline with filesystem staging
 - **Returns**: DLT pipeline + local staging path
 
@@ -152,7 +152,7 @@ iceberg_schema = pandera_to_iceberg(RawData)
 
 ### 4. YAML-Driven Configuration
 
-**Job Configuration** (src/cascade/defs/jobs/config.yaml)
+**Job Configuration** (src/phlo/defs/jobs/config.yaml)
 - **Lines of Code**: 36
 - **Purpose**: Declarative job definitions
 - **Factory**: `create_jobs_from_config()` reads YAML and creates Dagster jobs
@@ -180,7 +180,7 @@ jobs:
 
 ---
 
-**Publishing Configuration** (src/cascade/defs/publishing/config.yaml)
+**Publishing Configuration** (src/phlo/defs/publishing/config.yaml)
 - **Lines of Code**: 34
 - **Purpose**: Declarative publishing from Iceberg to Postgres
 - **Factory**: `create_publishing_assets_from_config()` reads YAML
@@ -210,11 +210,11 @@ publishing:
 
 ### 5. Resource Abstractions
 
-**IcebergResource** (src/cascade/defs/resources/iceberg.py)
+**IcebergResource** (src/phlo/defs/resources/iceberg.py)
 - **Purpose**: Unified Iceberg catalog interface
 - **Features**: Branch-aware operations, transaction support
 
-**TrinoResource** (src/cascade/defs/resources/trino.py)
+**TrinoResource** (src/phlo/defs/resources/trino.py)
 - **Purpose**: Trino query engine interface
 - **Features**: Context manager for cursors, schema selection
 
@@ -224,7 +224,7 @@ publishing:
 
 ### 6. dbt Integration
 
-**Transform Assets** (src/cascade/defs/transform/dbt.py)
+**Transform Assets** (src/phlo/defs/transform/dbt.py)
 - **Purpose**: Wrap dbt CLI as Dagster assets
 - **Features**: Automatic asset dependency graph from dbt manifest
 
@@ -260,9 +260,9 @@ def etl():
     return data
 ```
 
-**Cascade Equivalent**: `@cascade_ingestion` provides similar retry/timeout but for full ingestion pipeline, not individual tasks.
+**Phlo Equivalent**: `@cascade_ingestion` provides similar retry/timeout but for full ingestion pipeline, not individual tasks.
 
-**Gap**: Prefect's granular task-level control vs Cascade's asset-level control. Trade-off: Cascade is higher-level (less boilerplate), Prefect is more flexible.
+**Gap**: Prefect's granular task-level control vs Phlo's asset-level control. Trade-off: Phlo is higher-level (less boilerplate), Prefect is more flexible.
 
 ---
 
@@ -287,12 +287,12 @@ def github_events(context: AssetExecutionContext):
     return data
 ```
 
-**Cascade Comparison**:
-- Cascade's `@cascade_ingestion` is more opinionated (includes DLT, Pandera, Iceberg)
+**Phlo Comparison**:
+- Phlo's `@cascade_ingestion` is more opinionated (includes DLT, Pandera, Iceberg)
 - Dagster's `@asset` is more flexible (bring your own tools)
-- Cascade provides higher-level abstraction
+- Phlo provides higher-level abstraction
 
-**Gap**: Dagster's `@multi_asset` for multiple outputs. Cascade currently limited to single table per decorator.
+**Gap**: Dagster's `@multi_asset` for multiple outputs. Phlo currently limited to single table per decorator.
 
 ---
 
@@ -319,13 +319,13 @@ FROM source
 WHERE deleted_at IS NULL
 ```
 
-**Cascade Integration**: ✅ Excellent - Cascade wraps dbt, provides all dbt functionality
+**Phlo Integration**: ✅ Excellent - Phlo wraps dbt, provides all dbt functionality
 
-**Gap**: Cascade doesn't reinvent SQL transformations (good decision - leverage dbt)
+**Gap**: Phlo doesn't reinvent SQL transformations (good decision - leverage dbt)
 
 ## Functionality Coverage Matrix
 
-| Capability | Cascade | Prefect | Dagster | dbt | Assessment |
+| Capability | Phlo | Prefect | Dagster | dbt | Assessment |
 |------------|---------|---------|---------|-----|------------|
 | **Ingestion** | Decorator (excellent) | Manual | Manual | N/A | ✅ Best-in-class |
 | **Schema Validation** | Pandera (built-in) | Manual | Manual | dbt tests | ✅ Excellent |
@@ -348,7 +348,7 @@ WHERE deleted_at IS NULL
 
 **Current Approach**: Manual Dagster assets for quality checks
 
-**Example** (src/cascade/defs/quality/nightscout.py):
+**Example** (src/phlo/defs/quality/nightscout.py):
 ```python
 @asset(
     group_name="nightscout",
@@ -378,11 +378,11 @@ def glucose_quality_check_nulls(context, trino: TrinoResource):
 - Threshold checking
 - Metadata generation
 
-**Opportunity**: Create `@cascade_quality` decorator
+**Opportunity**: Create `@phlo_quality` decorator
 
 **Proposed**:
 ```python
-@cascade_quality(
+@phlo_quality(
     table="raw.glucose_entries",
     group="nightscout",
     checks=[
@@ -479,7 +479,7 @@ Do NOT move complex logic to YAML (anti-pattern).
 ### Current State: Limited Extensibility
 
 **Internal Modules**:
-- All functionality is internal to `cascade` package
+- All functionality is internal to `phlo` package
 - No external plugin system
 - Users must fork to extend
 
@@ -493,20 +493,20 @@ Do NOT move complex logic to YAML (anti-pattern).
 
 **Entry Point Categories**:
 
-1. `cascade.ingestion` - Custom ingestion decorators
-2. `cascade.quality` - Custom quality check decorators
-3. `cascade.publishing` - Custom publishing destinations
-4. `cascade.validation` - Custom validation schemas
+1. `phlo.ingestion` - Custom ingestion decorators
+2. `phlo.quality` - Custom quality check decorators
+3. `phlo.publishing` - Custom publishing destinations
+4. `phlo.validation` - Custom validation schemas
 
-**Example Plugin** (`cascade-plugin-salesforce`):
+**Example Plugin** (`phlo-plugin-salesforce`):
 
 ```python
 # pyproject.toml
-[project.entry-points."cascade.ingestion"]
+[project.entry-points."phlo.ingestion"]
 salesforce = "cascade_salesforce:SalesforceIngestion"
 
 # cascade_salesforce/__init__.py
-from cascade.ingestion import cascade_ingestion
+from phlo.ingestion import cascade_ingestion
 
 class SalesforceIngestion:
     @staticmethod
@@ -520,7 +520,7 @@ class SalesforceIngestion:
 
 **User Installation**:
 ```bash
-uv add cascade-plugin-salesforce
+uv add phlo-plugin-salesforce
 
 # Auto-discovered, no code changes needed!
 ```
@@ -532,7 +532,7 @@ uv add cascade-plugin-salesforce
 ### Gap 1: Data Quality Decorator
 
 **Current**: Manual quality check assets
-**Proposed**: `@cascade_quality` decorator
+**Proposed**: `@phlo_quality` decorator
 **Impact**: 70% boilerplate reduction
 
 ---
@@ -584,14 +584,14 @@ def daily_glucose_stats(df: pd.DataFrame) -> pd.DataFrame:
 ### Gap 4: CLI Commands
 
 **Current**: Docker exec commands
-**Proposed**: `cascade` CLI with subcommands
+**Proposed**: `phlo` CLI with subcommands
 
 Examples:
 ```bash
-cascade materialize --select glucose_entries --partition 2024-01-15
-cascade run-job weather_pipeline
-cascade create-workflow --type ingestion --domain stripe
-cascade validate-schema schemas/weather.py
+phlo materialize --select glucose_entries --partition 2024-01-15
+phlo run-job weather_pipeline
+phlo create-workflow --type ingestion --domain stripe
+phlo validate-schema schemas/weather.py
 ```
 
 **Assessment**: ❌ Major gap (see Phase 2 audit)
@@ -605,7 +605,7 @@ cascade validate-schema schemas/weather.py
 
 Example:
 ```python
-from cascade.testing import mock_dlt_source, mock_iceberg
+from phlo.testing import mock_dlt_source, mock_iceberg
 
 def test_glucose_ingestion():
     with mock_dlt_source(data=[...]) as source:
@@ -620,7 +620,7 @@ def test_glucose_ingestion():
 
 ### Priority 1 (Quick Wins)
 
-**1. Create `@cascade_quality` decorator**
+**1. Create `@phlo_quality` decorator**
 - Automate data quality checks (null checks, range checks, freshness)
 - Reduce boilerplate by 70%
 - Standardize quality patterns
@@ -647,9 +647,9 @@ def test_glucose_ingestion():
 - Integrate with Pandera schemas
 
 **6. Add CLI commands**
-- Start with `cascade materialize` (wrapper for docker exec)
-- Add `cascade create-workflow` (see Phase 2)
-- Add `cascade validate-schema`
+- Start with `phlo materialize` (wrapper for docker exec)
+- Add `phlo create-workflow` (see Phase 2)
+- Add `phlo validate-schema`
 
 ### Priority 3 (Future)
 
@@ -680,12 +680,12 @@ def test_glucose_ingestion():
 4. No testing utilities for workflow developers
 
 **Priority Actions**:
-1. Create `@cascade_quality` decorator for quality checks
+1. Create `@phlo_quality` decorator for quality checks
 2. Implement plugin system via entry points
 3. Expand YAML configuration to schedules/sensors
 4. Add CLI commands for common operations
 5. Create testing utilities package
 
-**Impact**: Cascade already eliminates 74% of ingestion boilerplate. Extending decorator pattern to quality and validation would achieve similar reductions in those areas. Plugin system would enable community contributions without forking.
+**Impact**: Phlo already eliminates 74% of ingestion boilerplate. Extending decorator pattern to quality and validation would achieve similar reductions in those areas. Plugin system would enable community contributions without forking.
 
 **Strategic Direction**: Continue decorator-driven approach (excellent), add extensibility for external contributions, maintain YAML/Python balance (good), leverage dbt for transformations (excellent decision).

@@ -1,10 +1,10 @@
-# Cascade API Guide
+# Phlo API Guide
 
-Complete guide to accessing Cascade lakehouse data via REST and GraphQL APIs.
+Complete guide to accessing Phlo lakehouse data via REST and GraphQL APIs.
 
 ## Overview
 
-Cascade provides two complementary APIs for data access:
+Phlo provides two complementary APIs for data access:
 
 1. **FastAPI REST** - Custom endpoints for controlled access to Iceberg and marts
 2. **Hasura GraphQL** - Auto-generated GraphQL API from Postgres marts schema
@@ -52,7 +52,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   "user": {
     "user_id": "admin_001",
     "username": "admin",
-    "email": "admin@cascade.local",
+    "email": "admin@phlo.local",
     "role": "admin"
   }
 }
@@ -395,7 +395,7 @@ curl http://localhost:8000/api/v1/metadata/health
 ```json
 {
   "status": "healthy",
-  "service": "cascade-api"
+  "service": "phlo-api"
 }
 ```
 
@@ -437,7 +437,7 @@ curl -H "Authorization: Bearer TOKEN" \
 {
   "user_id": "admin_001",
   "username": "admin",
-  "email": "admin@cascade.local",
+  "email": "admin@phlo.local",
   "role": "admin"
 }
 ```
@@ -883,7 +883,7 @@ docker compose logs -f api
 docker compose logs -f hasura
 
 # All API logs in Grafana (if observability running)
-# LogQL: {cascade_component=~"cascade-api|hasura"}
+# LogQL: {cascade_component=~"phlo-api|hasura"}
 ```
 
 ---

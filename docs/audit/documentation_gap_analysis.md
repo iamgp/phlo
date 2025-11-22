@@ -197,7 +197,7 @@ Open BI tool
 
 ---
 
-### Cascade Documentation Strategy (Current)
+### Phlo Documentation Strategy (Current)
 
 **Quickstart Time**: 20-30 minutes
 **Key Pattern**: Docker-first, comprehensive but slow
@@ -313,7 +313,7 @@ Open BI tool
 
 ### Current User Journey
 
-**Step 1: Discover Cascade** (5 min)
+**Step 1: Discover Phlo** (5 min)
 - Read README.md
 - Understand value proposition
 - Decide to try it
@@ -348,7 +348,7 @@ Open BI tool
 
 ### Ideal User Journey (Proposed)
 
-**Step 1: Discover Cascade** (5 min)
+**Step 1: Discover Phlo** (5 min)
 - Read README.md
 - Watch 5-minute video
 - Decide to try it
@@ -413,7 +413,7 @@ Create this file to fill the critical gap:
 ```markdown
 # 5-Minute Quickstart
 
-Get Cascade running and see your first data pipeline in action in under 5 minutes.
+Get Phlo running and see your first data pipeline in action in under 5 minutes.
 
 ## What You'll Build
 
@@ -439,10 +439,10 @@ That's it! (Docker/API keys come later for production)
 ## Step 1: Install (30 seconds)
 
 ```bash
-pip install cascade-lakehouse
+pip install phlo-lakehouse
 
 # Or with uv (recommended):
-uv pip install cascade-lakehouse
+uv pip install phlo-lakehouse
 ```
 
 ---
@@ -452,8 +452,8 @@ uv pip install cascade-lakehouse
 Create a file `hello_cascade.py`:
 
 ```python
-from cascade.ingestion import cascade_ingestion
-from cascade.testing import mock_dlt_source
+from phlo.ingestion import cascade_ingestion
+from phlo.testing import mock_dlt_source
 import pandera as pa
 from pandera.typing import Series
 
@@ -484,7 +484,7 @@ def weather_data(partition_date: str):
 ## Step 3: Test Locally (30 seconds)
 
 ```bash
-cascade test weather_data --local --partition 2024-01-15
+phlo test weather_data --local --partition 2024-01-15
 
 # Output:
 # Running local test...
@@ -502,7 +502,7 @@ cascade test weather_data --local --partition 2024-01-15
 # Test passed! (2.1s)
 ```
 
-**Success!** You've created and tested your first Cascade pipeline.
+**Success!** You've created and tested your first Phlo pipeline.
 
 ---
 
@@ -530,7 +530,7 @@ print(result)
 # 2  Berlin          8.7
 ```
 
-**Congratulations!** You've completed the Cascade quickstart.
+**Congratulations!** You've completed the Phlo quickstart.
 
 ---
 
@@ -552,7 +552,7 @@ In 5 minutes, you:
 
 ## Next Steps
 
-Now that you've seen Cascade in action, choose your path:
+Now that you've seen Phlo in action, choose your path:
 
 ### Path 1: Add Real Data (10 minutes)
 
@@ -606,10 +606,10 @@ Add transformations, quality checks, publishing:
 
 ## Common Issues
 
-**"cascade command not found"**
+**"phlo command not found"**
 ```bash
-# Install Cascade CLI
-pip install cascade-lakehouse
+# Install Phlo CLI
+pip install phlo-lakehouse
 ```
 
 **"Schema validation failed"**
@@ -626,7 +626,7 @@ pip install cascade-lakehouse
 
 ---
 
-## Why Cascade?
+## Why Phlo?
 
 **74% less boilerplate** vs manual Dagster assets:
 - No DLT pipeline setup code
@@ -634,12 +634,12 @@ pip install cascade-lakehouse
 - No manual partition handling
 - No freshness policy boilerplate
 
-**Before Cascade** (270 lines):
+**Before Phlo** (270 lines):
 ```python
 # Manual DLT setup, Iceberg operations, error handling, etc.
 ```
 
-**With Cascade** (60 lines):
+**With Phlo** (60 lines):
 ```python
 @cascade_ingestion(...)
 def my_asset(partition_date: str):
@@ -694,7 +694,7 @@ def my_asset(partition_date: str):
 
 ### 1. "Asset not found"
 **Cause**: Missing domain import
-**Solution**: Add `from cascade.defs.ingestion import domain` to `__init__.py`
+**Solution**: Add `from phlo.defs.ingestion import domain` to `__init__.py`
 **Details**: [TROUBLESHOOTING_GUIDE.md#asset-not-found](...)
 
 ### 2. "unique_key field not in schema"
@@ -739,7 +739,7 @@ Pattern:
 **6. Add interactive code playground**
 - Browser-based Python REPL
 - Pre-loaded example code
-- Run Cascade in browser
+- Run Phlo in browser
 - No installation required
 
 **Target**: Zero-friction first experience
@@ -786,7 +786,7 @@ Pattern:
 ---
 
 **11. Create certification program**
-- Cascade fundamentals
+- Phlo fundamentals
 - Advanced workflows
 - Production deployment
 - Earnable badges
@@ -795,7 +795,7 @@ Pattern:
 
 ## Comparison Matrix
 
-| Aspect | Cascade | Prefect | Dagster | dbt | Target | Gap |
+| Aspect | Phlo | Prefect | Dagster | dbt | Target | Gap |
 |--------|---------|---------|---------|-----|--------|-----|
 | **Quickstart Time** | 20-30 min | 3 min | 10 min | 5 min | < 10 min | Major gap |
 | **Documentation Depth** | Excellent (188KB) | Good | Good | Excellent | Comprehensive | On par |

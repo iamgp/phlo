@@ -17,7 +17,7 @@ We've covered all the pieces. Now let's build a complete, working pipeline from 
 ```
 Nightscout API
   ↓ (5-min readings)
-Cascade Ingestion
+Phlo Ingestion
   ├─ DLT stages to S3
   ├─ PyIceberg merges to raw.glucose_entries
   └─ Nessie tracks via snapshot
@@ -66,16 +66,16 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
 ### Asset: Fetch and Load
 
 ```python
-# File: src/cascade/defs/ingestion/dlt_assets.py
+# File: src/phlo/defs/ingestion/dlt_assets.py
 
 from datetime import datetime, timezone
 import requests
 import dlt
 import pandas as pd
-from cascade.config import config
-from cascade.defs.resources.iceberg import IcebergResource
-from cascade.iceberg.schema import get_schema, get_unique_key
-from cascade.schemas.glucose import RawGlucoseEntries
+from phlo.config import config
+from phlo.defs.resources.iceberg import IcebergResource
+from phlo.iceberg.schema import get_schema, get_unique_key
+from phlo.schemas.glucose import RawGlucoseEntries
 
 @dg.asset(
     name="dlt_glucose_entries",
@@ -422,7 +422,7 @@ ORDER BY reading_date DESC
 ### Publishing Job: Iceberg → Postgres
 
 ```python
-# File: src/cascade/defs/publishing/trino_to_postgres.py
+# File: src/phlo/defs/publishing/trino_to_postgres.py
 
 @dg.asset(
     deps=["all_dbt_assets"],  # Wait for transformations
@@ -519,7 +519,7 @@ http://localhost:3000
 
 **In Postgres**:
 ```bash
-docker exec -it pg psql -U cascade lakehouse
+docker exec -it pg psql -U phlo lakehouse
 
 lakehouse=# SELECT * FROM marts.mrt_glucose_overview ORDER BY reading_date DESC LIMIT 1;
 
@@ -543,7 +543,7 @@ http://localhost:8088
 ### Asset Checks
 
 ```python
-# File: src/cascade/defs/quality/nightscout.py
+# File: src/phlo/defs/quality/nightscout.py
 
 @dg.asset_check(asset=dlt_glucose_entries)
 def glucose_readings_received(context) -> dg.AssetCheckResult:

@@ -19,7 +19,7 @@ router = APIRouter(prefix="/metadata", tags=["Metadata"])
 @router.get("/health", summary="API health check")
 async def health_check() -> dict[str, str]:
     """Health check endpoint (no auth required)."""
-    return {"status": "healthy", "service": "cascade-api"}
+    return {"status": "healthy", "service": "phlo-api"}
 
 
 @router.get("/cache/stats", summary="Cache statistics")

@@ -18,7 +18,7 @@
 ### Quick Wins Identified
 
 1. Consider flattening ingestion structure from `defs/ingestion/domain/asset.py` to `defs/ingestion_domain/asset.py`
-2. Add CLI scaffolding command: `cascade create-workflow --type ingestion --domain weather`
+2. Add CLI scaffolding command: `phlo create-workflow --type ingestion --domain weather`
 3. Document folder structure rationale in ARCHITECTURE.md
 
 ## Current Structure Analysis
@@ -26,7 +26,7 @@
 ### Folder Hierarchy
 
 ```
-src/cascade/
+src/phlo/
 ├── ingestion/              # Framework: Decorator and DLT helpers
 │   ├── decorator.py
 │   ├── dlt_helpers.py
@@ -109,11 +109,11 @@ src/cascade/
 - 5 levels (ingestion assets): 5 files (10%)
 
 **Files exceeding 4-level guideline (5 files, 10%)**:
-1. `src/cascade/defs/ingestion/nightscout/glucose.py` (5 levels)
-2. `src/cascade/defs/ingestion/nightscout/__init__.py` (5 levels)
-3. `src/cascade/defs/ingestion/github/repos.py` (5 levels)
-4. `src/cascade/defs/ingestion/github/events.py` (5 levels)
-5. `src/cascade/defs/ingestion/github/__init__.py` (5 levels)
+1. `src/phlo/defs/ingestion/nightscout/glucose.py` (5 levels)
+2. `src/phlo/defs/ingestion/nightscout/__init__.py` (5 levels)
+3. `src/phlo/defs/ingestion/github/repos.py` (5 levels)
+4. `src/phlo/defs/ingestion/github/events.py` (5 levels)
+5. `src/phlo/defs/ingestion/github/__init__.py` (5 levels)
 
 **Assessment**: Only ingestion assets reach 5 levels due to domain-based organization (`defs/ingestion/domain/asset.py`). This is acceptable given the small number of domains (2 currently: github, nightscout).
 
@@ -152,12 +152,12 @@ my_project/
 
 **Dagster philosophy**: Prefer flatter structures with auto-discovery via decorators.
 
-**Cascade alignment**: ✅ Very close
+**Phlo alignment**: ✅ Very close
 - Uses same `definitions.py` pattern
 - Groups by capability (assets, resources, sensors, schedules)
-- Difference: Cascade adds one more level for domain nesting (`ingestion/github/`)
+- Difference: Phlo adds one more level for domain nesting (`ingestion/github/`)
 
-**Trade-off**: Cascade's domain nesting is appropriate for a lakehouse platform with multiple data sources. Dagster examples typically show single-domain projects.
+**Trade-off**: Phlo's domain nesting is appropriate for a lakehouse platform with multiple data sources. Dagster examples typically show single-domain projects.
 
 ### Prefect Reference Architecture
 
@@ -174,10 +174,10 @@ my_project/
 
 **Prefect philosophy**: Very flat, heavy use of CLI scaffolding (`prefect project init`).
 
-**Cascade alignment**: ⚠️ Partial
-- Cascade has more nesting due to asset-based model (vs flow-based)
-- Cascade uses YAML for jobs/publishing config (similar to prefect.yaml)
-- Difference: Prefect has strong CLI tooling for scaffolding (Cascade lacks this)
+**Phlo alignment**: ⚠️ Partial
+- Phlo has more nesting due to asset-based model (vs flow-based)
+- Phlo uses YAML for jobs/publishing config (similar to prefect.yaml)
+- Difference: Prefect has strong CLI tooling for scaffolding (Phlo lacks this)
 
 **Gap identified**: CLI scaffolding commands would improve workflow creation UX.
 
@@ -199,26 +199,26 @@ my_project/
 
 **dbt philosophy**: Layer-based organization (staging, intermediate, marts). Flat within each layer.
 
-**Cascade alignment**: ✅ Excellent
-- Cascade's dbt project follows this structure exactly (in `dbt_project/models/`)
-- Cascade's ingestion layer precedes dbt (raw → bronze → dbt)
+**Phlo alignment**: ✅ Excellent
+- Phlo's dbt project follows this structure exactly (in `dbt_project/models/`)
+- Phlo's ingestion layer precedes dbt (raw → bronze → dbt)
 - Clear separation between ingestion (Dagster assets) and transformation (dbt models)
 
-**Trade-off**: dbt handles SQL transformations, Cascade handles data ingestion and orchestration. Complementary, not competing.
+**Trade-off**: dbt handles SQL transformations, Phlo handles data ingestion and orchestration. Complementary, not competing.
 
 ## Auto-Discovery Mechanism Analysis
 
 ### Current Implementation
 
-**File**: `src/cascade/defs/ingestion/__init__.py`
+**File**: `src/phlo/defs/ingestion/__init__.py`
 
 ```python
 import dagster as dg
-from cascade.ingestion import get_ingestion_assets
+from phlo.ingestion import get_ingestion_assets
 
 # Import all asset modules to trigger decorator registration
-from cascade.defs.ingestion import github  # noqa: F401
-from cascade.defs.ingestion import nightscout  # noqa: F401
+from phlo.defs.ingestion import github  # noqa: F401
+from phlo.defs.ingestion import nightscout  # noqa: F401
 
 def build_defs() -> dg.Definitions:
     """
@@ -266,9 +266,9 @@ def discover_ingestion_assets():
 **Option 2: Entry points** (plugin system):
 ```python
 # pyproject.toml
-[project.entry-points."cascade.ingestion"]
-github = "cascade.defs.ingestion.github"
-nightscout = "cascade.defs.ingestion.nightscout"
+[project.entry-points."phlo.ingestion"]
+github = "phlo.defs.ingestion.github"
+nightscout = "phlo.defs.ingestion.nightscout"
 ```
 
 **Pros**: Extensible for external plugins
@@ -384,15 +384,15 @@ defs/
 ### Module Naming
 
 **Pattern**: Framework modules use nouns (`decorator`, `converter`), user modules use domain-specific names
-- `cascade.ingestion.decorator` (framework)
-- `cascade.schemas.converter` (framework)
-- `cascade.defs.ingestion.github.events` (user asset)
+- `phlo.ingestion.decorator` (framework)
+- `phlo.schemas.converter` (framework)
+- `phlo.defs.ingestion.github.events` (user asset)
 
 **Assessment**: ✅ Clear separation between framework and user code
 
 ## Comparison Matrix
 
-| Aspect | Cascade | Dagster | Prefect | dbt | Industry Standard | Assessment |
+| Aspect | Phlo | Dagster | Prefect | dbt | Industry Standard | Assessment |
 |--------|---------|---------|---------|-----|-------------------|------------|
 | **Max Depth** | 5 levels | 3-4 levels | 2-3 levels | 3 levels | ≤ 4 levels | ⚠️ Exceeds by 1 (acceptable) |
 | **Src Layout** | Yes | Mixed | No | No | Yes (for libraries) | ✅ Best practice |
@@ -426,11 +426,11 @@ defs/
 
 **4. Add CLI scaffolding command**
 ```bash
-cascade create-workflow --type ingestion --domain weather
+phlo create-workflow --type ingestion --domain weather
 # Creates:
-# - src/cascade/defs/ingestion/weather/__init__.py
-# - src/cascade/defs/ingestion/weather/observations.py (template)
-# - src/cascade/schemas/weather.py (template)
+# - src/phlo/defs/ingestion/weather/__init__.py
+# - src/phlo/defs/ingestion/weather/observations.py (template)
+# - src/phlo/schemas/weather.py (template)
 # - Adds import to defs/ingestion/__init__.py
 ```
 
@@ -443,7 +443,7 @@ cascade create-workflow --type ingestion --domain weather
 
 **6. Plugin system via entry points**
 - Allow external packages to contribute ingestion assets
-- Example: `cascade-plugin-salesforce` adds Salesforce ingestion
+- Example: `phlo-plugin-salesforce` adds Salesforce ingestion
 - Enables community contributions without forking
 
 **7. File-based auto-discovery for ingestion**

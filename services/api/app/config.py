@@ -8,17 +8,17 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     # API Settings
-    api_title: str = "Cascade Lakehouse API"
+    api_title: str = "Phlo Lakehouse API"
     api_version: str = "1.0.0"
     api_prefix: str = "/api/v1"
 
     # JWT Settings
-    jwt_secret: str = "cascade-jwt-secret-change-in-production"
+    jwt_secret: str = "phlo-jwt-secret-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
 
     # Hasura Settings (for shared JWT)
-    hasura_graphql_jwt_secret: str = "cascade-jwt-secret-change-in-production"
+    hasura_graphql_jwt_secret: str = "phlo-jwt-secret-change-in-production"
 
     # Cache Settings (in-memory)
     cache_default_ttl: int = 3600  # 1 hour
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     trino_host: str = "trino"
     trino_port: int = 10005
     trino_catalog: str = "iceberg"
-    trino_user: str = "cascade"
+    trino_user: str = "phlo"
 
     # Postgres Connection
     postgres_host: str = "postgres"

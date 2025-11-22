@@ -2,7 +2,7 @@
 
 ## Building Production-Ready Data Pipelines
 
-This guide contains battle-tested best practices for building reliable, maintainable, and scalable data pipelines in Cascade.
+This guide contains battle-tested best practices for building reliable, maintainable, and scalable data pipelines in Phlo.
 
 ---
 
@@ -135,7 +135,7 @@ def downstream(upstream):  # Clear dependency
 ### File Structure
 
 ```
-src/cascade/
+src/phlo/
 ├── config.py                    # Central configuration
 ├── definitions.py               # Main entry point
 │
@@ -457,7 +457,7 @@ API_KEY = 'abc123'  # Don't hardcode!
 ### Use Strong Authentication
 
 ```python
-from cascade.config import get_config
+from phlo.config import get_config
 
 @dg.asset
 def fetch_from_api():
@@ -606,7 +606,7 @@ Monitor key metrics:
 ```python
 # tests/test_transformations.py
 import pytest
-from cascade.utils.transformations import calculate_tax
+from phlo.utils.transformations import calculate_tax
 
 def test_calculate_tax():
     assert calculate_tax(100, 0.1) == 10
@@ -623,7 +623,7 @@ def test_calculate_tax_negative():
 ```python
 # tests/test_pipeline.py
 from dagster import materialize
-from cascade.definitions import defs
+from phlo.definitions import defs
 
 def test_orders_pipeline():
     """Test complete orders pipeline."""
@@ -759,7 +759,7 @@ dbt docs serve
 ### Maintain README
 
 ```markdown
-# Cascade Data Platform
+# Phlo Data Platform
 
 ## Quick Start
 ...

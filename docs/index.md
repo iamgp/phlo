@@ -1,10 +1,10 @@
-# Cascade Documentation
+# Phlo Documentation
 
-Welcome to Cascade - a modern data lakehouse platform combining Apache Iceberg, Project Nessie, Trino, dbt, and Dagster.
+Welcome to Phlo - a modern data lakehouse platform combining Apache Iceberg, Project Nessie, Trino, dbt, and Dagster.
 
 ## Quick Links
 
-- **New to Cascade?** Start with the [Quickstart Guide](getting-started/quickstart.md)
+- **New to Phlo?** Start with the [Quickstart Guide](getting-started/quickstart.md)
 - **Understand the concepts:** Read the [Beginner's Guide](getting-started/beginners-guide.md)
 - **Build pipelines:** Follow the [Workflow Development Guide](guides/workflow-development.md)
 
@@ -13,7 +13,7 @@ Welcome to Cascade - a modern data lakehouse platform combining Apache Iceberg, 
 ### 🚀 Getting Started
 Essential guides for new users:
 
-- [Quickstart Guide](getting-started/quickstart.md) - Get Cascade running in 10 minutes
+- [Quickstart Guide](getting-started/quickstart.md) - Get Phlo running in 10 minutes
 - [Beginner's Guide](getting-started/beginners-guide.md) - Core concepts and architecture explained
 
 ### 📚 Guides
@@ -58,7 +58,7 @@ Tutorial series and deep dives:
 ### Path 1: Complete Beginner → First Pipeline
 ```
 1. getting-started/beginners-guide.md     (Understand concepts)
-2. getting-started/quickstart.md          (Get Cascade running)
+2. getting-started/quickstart.md          (Get Phlo running)
 3. guides/workflow-development.md         (Build your first pipeline)
 4. operations/troubleshooting.md          (Fix issues)
 ```
@@ -80,7 +80,7 @@ Tutorial series and deep dives:
 2. reference/configuration.md             (Configure)
 3. operations/troubleshooting.md          (Debug issues)
 ```
-**Time:** 1-2 hours | **Outcome:** Running Cascade instance
+**Time:** 1-2 hours | **Outcome:** Running Phlo instance
 
 ## Getting Help
 
@@ -96,7 +96,7 @@ Tutorial series and deep dives:
 
 ## Contributing
 
-Cascade is open source. Contributions welcome!
+Phlo is open source. Contributions welcome!
 
 - Report bugs via GitHub Issues
 - Submit improvements via Pull Requests

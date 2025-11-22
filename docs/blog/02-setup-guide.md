@@ -1,6 +1,6 @@
-# Part 2: Getting Started with Cascade—Setup Guide
+# Part 2: Getting Started with Phlo—Setup Guide
 
-In this post, we'll get Cascade running on your machine. By the end, you'll have:
+In this post, we'll get Phlo running on your machine. By the end, you'll have:
 - All services running (Postgres, MinIO, Nessie, Trino, Dagster)
 - Sample data ingested
 - Your first data pipeline executed
@@ -26,8 +26,8 @@ In this post, we'll get Cascade running on your machine. By the end, you'll have
 
 3. **Git** (to clone the repo)
    ```bash
-   git clone https://github.com/iamgp/lakehousekit.git cascade
-   cd cascade
+   git clone https://github.com/iamgp/lakehousekit.git phlo
+   cd phlo
    ```
 
 ### System Requirements
@@ -45,8 +45,8 @@ If you have less than 4GB RAM, you can start a minimal setup (Postgres + MinIO o
 
 ```bash
 # Clone the repository
-git clone https://github.com/iamgp/lakehousekit.git cascade
-cd cascade
+git clone https://github.com/iamgp/lakehousekit.git phlo
+cd phlo
 
 # Copy example environment file
 cp .env.example .env
@@ -60,7 +60,7 @@ vim .env  # or open in your editor
 
 ```env
 # Database
-POSTGRES_USER=cascade
+POSTGRES_USER=phlo
 POSTGRES_PASSWORD=localpass123
 POSTGRES_DB=lakehouse
 
@@ -321,7 +321,7 @@ First-time setup:
 2. Select **PostgreSQL**
 3. Fill in connection:
    - Engine: `postgresql`
-   - Username: `cascade`
+   - Username: `phlo`
    - Password: (from .env)
    - Host: `postgres`
    - Port: `5432`
@@ -427,11 +427,11 @@ But first, let's make sure everything works by running a quick health check.
 #!/bin/bash
 # Save as: health-check.sh
 
-echo " Checking Cascade services..."
+echo " Checking Phlo services..."
 
 # Postgres
 echo -n "Postgres: "
-docker exec pg pg_isready -U cascade && echo "OK" || echo "FAIL"
+docker exec pg pg_isready -U phlo && echo "OK" || echo "FAIL"
 
 # MinIO
 echo -n "MinIO: "
@@ -461,7 +461,7 @@ chmod +x health-check.sh
 ## Summary
 
 You've successfully:
-- Set up Cascade with all services
+- Set up Phlo with all services
 - Ingested real glucose data
 - Ran transformations
 - Created a dashboard

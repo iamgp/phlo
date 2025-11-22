@@ -2,7 +2,7 @@
 
 ## SQL Transformations Made Easy
 
-This guide teaches you how to use dbt effectively in Cascade for data transformations.
+This guide teaches you how to use dbt effectively in Phlo for data transformations.
 
 ---
 
@@ -47,7 +47,7 @@ This guide teaches you how to use dbt effectively in Cascade for data transforma
 4. Result: Table created!
 ```
 
-### dbt in Cascade
+### dbt in Phlo
 
 **Location:** `transforms/dbt/`
 
@@ -234,7 +234,7 @@ SELECT * FROM {{ source('raw', 'weather_observations') }}
 
 ```yaml
 models:
-  cascade:
+  phlo:
     # All models default to table
     materialized: table
 

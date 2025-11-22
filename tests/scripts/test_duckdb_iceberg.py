@@ -10,7 +10,7 @@ import os
 import sys
 
 # Set environment variables for localhost (when running from host)
-# Must be set before any cascade imports to affect config loading
+# Must be set before any phlo imports to affect config loading
 os.environ.setdefault('NESSIE_HOST', 'localhost')
 os.environ.setdefault('MINIO_HOST', 'localhost')
 
@@ -61,7 +61,7 @@ def test_duckdb_iceberg():
     print("3. Getting Iceberg table location from Nessie...")
     try:
         # Use PyIceberg to get the actual table location
-        from cascade.iceberg.catalog import get_catalog
+        from phlo.iceberg.catalog import get_catalog
         catalog = get_catalog(ref="main")
 
         # List tables to see what exists

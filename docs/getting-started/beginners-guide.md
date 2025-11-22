@@ -1,8 +1,8 @@
-# Cascade Lakehouse Platform - Beginner's Guide
+# Phlo Lakehouse Platform - Beginner's Guide
 
 ## Welcome! 👋
 
-This guide is designed for **complete beginners** to data engineering. We'll explain every concept from the ground up, so you can understand how Cascade works and build your own data pipelines.
+This guide is designed for **complete beginners** to data engineering. We'll explain every concept from the ground up, so you can understand how Phlo works and build your own data pipelines.
 
 ---
 
@@ -10,10 +10,10 @@ This guide is designed for **complete beginners** to data engineering. We'll exp
 
 1. [What is a Data Lakehouse?](#what-is-a-data-lakehouse)
 2. [Core Concepts Explained](#core-concepts-explained)
-3. [How Cascade Works - The Big Picture](#how-cascade-works---the-big-picture)
+3. [How Phlo Works - The Big Picture](#how-phlo-works---the-big-picture)
 4. [Understanding the Data Journey](#understanding-the-data-journey)
 5. [Key Technologies Explained](#key-technologies-explained)
-6. [Your First Look at Cascade](#your-first-look-at-cascade)
+6. [Your First Look at Phlo](#your-first-look-at-phlo)
 7. [Understanding the Example Pipeline](#understanding-the-example-pipeline)
 8. [Common Workflows](#common-workflows)
 9. [Next Steps](#next-steps)
@@ -60,7 +60,7 @@ A **Data Lakehouse** combines the best of both:
 - ✅ Schema flexibility
 - ✅ Works with any data type
 
-**Cascade is a complete, ready-to-use Data Lakehouse platform.**
+**Phlo is a complete, ready-to-use Data Lakehouse platform.**
 
 ---
 
@@ -73,7 +73,7 @@ Think of this as a **giant file system in the cloud**.
 - Stores data as files (called "objects")
 - Incredibly cheap and scalable
 - Compatible with AWS S3 (the most popular cloud storage)
-- In Cascade, we use MinIO (an open-source S3-compatible storage)
+- In Phlo, we use MinIO (an open-source S3-compatible storage)
 
 **Example:** Your glucose readings get saved as Parquet files in MinIO at `s3://lake/warehouse/raw/glucose_entries/`
 
@@ -224,7 +224,7 @@ This is a **design pattern** for organizing data:
 
 ---
 
-## How Cascade Works - The Big Picture
+## How Phlo Works - The Big Picture
 
 Let's trace a single piece of data through the entire system:
 
@@ -351,7 +351,7 @@ This reading exists in the Nightscout app's database.
 
 ### 📥 Step 1: Ingestion (DLT Asset)
 
-**File:** `src/cascade/defs/ingestion/dlt_assets.py`
+**File:** `src/phlo/defs/ingestion/dlt_assets.py`
 
 **What happens:**
 ```python
@@ -505,7 +505,7 @@ ORDER BY reading_date
 **User requests:**
 ```bash
 curl -H "Authorization: Bearer <token>" \
-  https://api.cascade.local/api/v1/glucose/readings?date=2024-11-05
+  https://api.phlo.local/api/v1/glucose/readings?date=2024-11-05
 ```
 
 **API queries:**
@@ -550,7 +550,7 @@ ORDER BY reading_timestamp
 - AWS CLI: `aws --endpoint-url http://localhost:9000 s3 ls s3://lake/`
 - Python: `boto3.client('s3', endpoint_url='http://localhost:9000')`
 
-**Buckets in Cascade:**
+**Buckets in Phlo:**
 - `lake` - Main data storage
   - `warehouse/` - Iceberg table data
   - `stage/` - Temporary staging files
@@ -609,7 +609,7 @@ FOR SYSTEM_VERSION AS OF 1234567890;
 **Branches:**
 - Like Git branches
 - Isolate development from production
-- Cascade uses: `main` (prod) and `dev` (testing)
+- Phlo uses: `main` (prod) and `dev` (testing)
 
 **Commits:**
 - Atomic changes to table metadata
@@ -638,7 +638,7 @@ nessie merge experiment -s dev
 nessie merge dev -s main
 ```
 
-**How Cascade uses it:**
+**How Phlo uses it:**
 ```
 main branch (production)
   ├─ raw.glucose_entries
@@ -697,7 +697,7 @@ FROM iceberg.raw.glucose_entries i
 JOIN postgresql.public.users p ON i.user_id = p.id;
 ```
 
-**Configuration in Cascade:**
+**Configuration in Phlo:**
 
 Trino has two catalog configurations:
 
@@ -884,15 +884,15 @@ def daily_pipeline_schedule():
 
 ---
 
-## Your First Look at Cascade
+## Your First Look at Phlo
 
-Let's start Cascade and explore!
+Let's start Phlo and explore!
 
 ### Step 1: Start the Services
 
 ```bash
-# Make sure you're in the cascade directory
-cd /path/to/cascade
+# Make sure you're in the phlo directory
+cd /path/to/phlo
 
 # Copy example environment file
 cp .env.example .env
@@ -993,7 +993,7 @@ You'll see a dashboard with links to all services:
 
 ## Understanding the Example Pipeline
 
-Cascade includes a complete example: ingesting glucose monitoring data from Nightscout.
+Phlo includes a complete example: ingesting glucose monitoring data from Nightscout.
 
 ### The Pipeline Flow
 
@@ -1026,7 +1026,7 @@ Superset Dashboard
 ### Key Files
 
 **1. Ingestion**
-- **File:** `src/cascade/defs/ingestion/dlt_assets.py`
+- **File:** `src/phlo/defs/ingestion/dlt_assets.py`
 - **Asset:** `dlt_glucose_entries`
 - **What it does:** Fetches from Nightscout API, saves to Iceberg
 
@@ -1046,14 +1046,14 @@ Superset Dashboard
 - **What it does:** Creates aggregated daily statistics
 
 **5. Publishing**
-- **File:** `src/cascade/defs/publishing/trino_to_postgres.py`
+- **File:** `src/phlo/defs/publishing/trino_to_postgres.py`
 - **Asset:** `postgres_glucose_marts`
 - **What it does:** Copies Iceberg marts to PostgreSQL
 
 ### Configuration
 
 **Source Configuration:**
-- **File:** `src/cascade/config.py`
+- **File:** `src/phlo/config.py`
 - **Environment Variables:**
   ```
   NIGHTSCOUT_URL=https://your-nightscout.herokuapp.com
@@ -1065,7 +1065,7 @@ Superset Dashboard
 - **Profile:** `transforms/dbt/profiles/profiles.yml`
 
 **Publishing Configuration:**
-- **File:** `src/cascade/defs/publishing/config.yaml`
+- **File:** `src/phlo/defs/publishing/config.yaml`
 - **Defines which tables to publish to PostgreSQL**
 
 ---
@@ -1087,10 +1087,10 @@ Superset Dashboard
 **Or use the CLI:**
 ```bash
 # Materialize a single asset
-dagster asset materialize -m cascade.definitions -a dlt_glucose_entries
+dagster asset materialize -m phlo.definitions -a dlt_glucose_entries
 
 # Materialize with all downstream assets
-dagster asset materialize -m cascade.definitions -a dlt_glucose_entries --downstream
+dagster asset materialize -m phlo.definitions -a dlt_glucose_entries --downstream
 ```
 
 ### Workflow 2: Query Historical Data (Time Travel)
@@ -1130,14 +1130,14 @@ dagster asset materialize -m cascade.definitions -a dlt_glucose_entries --downst
 **Scenario:** You want to test a new transformation without affecting production.
 
 **Steps:**
-1. Work on the `dev` branch (default in Cascade)
+1. Work on the `dev` branch (default in Phlo)
 
 2. Make your changes to dbt models
 
 3. Run transformations on dev:
    ```bash
    # Dagster uses dev branch by default
-   dagster asset materialize -m cascade.definitions -a dbt:*
+   dagster asset materialize -m phlo.definitions -a dbt:*
    ```
 
 4. Query dev branch data:
@@ -1149,8 +1149,8 @@ dagster asset materialize -m cascade.definitions -a dlt_glucose_entries --downst
 5. If everything looks good, promote to main:
    ```bash
    # Use Nessie API or Dagster workflow
-   # (Cascade includes a promote_dev_to_main asset)
-   dagster asset materialize -m cascade.definitions -a promote_dev_to_main
+   # (Phlo includes a promote_dev_to_main asset)
+   dagster asset materialize -m phlo.definitions -a promote_dev_to_main
    ```
 
 6. Now production uses your changes:
@@ -1254,7 +1254,7 @@ dagster asset materialize -m cascade.definitions -a dlt_glucose_entries --downst
 
 ## Next Steps
 
-Congratulations! You now understand the basics of Cascade.
+Congratulations! You now understand the basics of Phlo.
 
 **Continue your learning:**
 1. 📖 Read the [Workflow Development Guide](../guides/workflow-development.md) to build your own pipelines

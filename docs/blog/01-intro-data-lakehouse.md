@@ -8,7 +8,7 @@ Either you have:
 - **A Data Lake**: cheap, flexible storage but chaotic and hard to query
 - **A Data Warehouse**: organized, fast queries but rigid and expensive
 
-Cascade solves this by combining the best of both worlds into a **lakehouse**.
+Phlo solves this by combining the best of both worlds into a **lakehouse**.
 
 ## The Three Eras of Data Architecture
 
@@ -29,10 +29,10 @@ Cascade solves this by combining the best of both worlds into a **lakehouse**.
 - Query engines (Trino, DuckDB) for analytics
 - **Result**: Lake economics + warehouse reliability
 
-## What Makes Cascade a Lakehouse?
+## What Makes Phlo a Lakehouse?
 
 ```
-Traditional Warehouse    vs    Cascade Lakehouse
+Traditional Warehouse    vs    Phlo Lakehouse
 ─────────────────────          ──────────────────
 Closed format                  Apache Iceberg (open)
 Vendor lock-in                 S3-compatible storage
@@ -42,7 +42,7 @@ Expensive storage              MinIO object storage
 Rigid schemas                  Schema evolution
 ```
 
-## The Cascade Stack at a Glance
+## The Phlo Stack at a Glance
 
 ```mermaid
 graph TB
@@ -178,7 +178,7 @@ def publish_marts() -> None:
     # ... copy data to marts
 ```
 
-## The Data Flow in Cascade
+## The Data Flow in Phlo
 
 ```
 1. INGEST
@@ -228,7 +228,7 @@ def publish_marts() -> None:
 
 ## Why This Matters (Real Benefits)
 
-| Problem | Traditional | Cascade Solution |
+| Problem | Traditional | Phlo Solution |
 |---------|-------------|------------------|
 | Data costs | High (warehouse fees) | Low (S3 storage) |
 | Query speed | Fast | Fast (Trino optimization) |
@@ -243,7 +243,7 @@ def publish_marts() -> None:
 This blog series walks through:
 
 1. **Part 1** (this): Architecture overview
-2. **Part 2**: Setting up Cascade locally
+2. **Part 2**: Setting up Phlo locally
 3. **Part 3**: Apache Iceberg table format
 4. **Part 4**: Project Nessie versioning
 5. **Part 5**: Data ingestion with DLT and PyIceberg
@@ -260,7 +260,7 @@ Each post includes hands-on examples and code you can run.
 ## Next Steps
 
 Ready to build? In Part 2, we'll:
-- Clone the Cascade repository
+- Clone the Phlo repository
 - Set up Docker and dependencies
 - Start all services with one command
 - Run your first data pipeline

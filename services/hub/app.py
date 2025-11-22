@@ -258,7 +258,7 @@ HTML_TEMPLATE = """
         <div class="footer">
             <p>Cascade Lakehouse Platform - Iceberg + Nessie + Trino</p>
             <p style="font-size: 0.9em; margin-top: 8px; opacity: 0.7;">
-                Quick Start: make up-all &nbsp;|&nbsp; Docs: /docs &nbsp;|&nbsp; GitHub: /cascade
+                Quick Start: make up-all &nbsp;|&nbsp; Docs: /docs &nbsp;|&nbsp; GitHub: /phlo
             </p>
         </div>
     </div>
