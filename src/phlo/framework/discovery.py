@@ -164,14 +164,6 @@ def _collect_registered_assets() -> list[Any]:
     except Exception as exc:
         logger.error(f"Error collecting ingestion assets: {exc}")
 
-    # TODO: Collect quality check assets when registry is added
-    # try:
-    #     from phlo.quality import get_quality_assets
-    #     quality_assets = get_quality_assets()
-    #     assets.extend(quality_assets)
-    # except ImportError:
-    #     pass
-
     return assets
 
 
@@ -189,13 +181,6 @@ def _clear_asset_registries() -> None:
         logger.debug("Cleared ingestion asset registry")
     except ImportError:
         pass
-
-    # TODO: Clear quality asset registry when it exists
-    # try:
-    #     from phlo.quality.decorator import _QUALITY_ASSETS
-    #     _QUALITY_ASSETS.clear()
-    # except ImportError:
-    #     pass
 
 
 def get_workflows_path_from_config() -> Path:

@@ -246,7 +246,6 @@ def branch_cleanup_sensor(
             return dg.SkipReason("No pipeline branches found")
 
         cursor = json.loads(context.cursor) if context.cursor else {}
-        now = datetime.now()
         branches_to_cleanup = []
 
         # Check each branch's age

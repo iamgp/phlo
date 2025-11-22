@@ -164,7 +164,7 @@ class PanderaValidatorResource(dg.ConfigurableResource):
 
             return {"has_failures": False, "failures": []}
 
-        except pandera.errors.SchemaErrors as err:
+        except pa.errors.SchemaErrors as err:
             failure_cases = err.failure_cases
 
             # Extract severity from field metadata
@@ -177,7 +177,6 @@ class PanderaValidatorResource(dg.ConfigurableResource):
                 # Get severity from schema metadata
                 try:
                     if hasattr(schema_class, column):
-                        field_info = schema_class.__annotations__.get(column)
                         # Try to get metadata from the field
                         severity = "error"  # Default severity
                         if hasattr(schema_class, "__fields__"):
