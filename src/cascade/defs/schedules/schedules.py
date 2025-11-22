@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from typing import List
-from cascade.defs.partitions import daily_partition
 from cascade.defs.jobs import full_pipeline_job
 
 import dagster as dg

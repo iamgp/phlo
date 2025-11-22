@@ -131,7 +131,7 @@ def main():
 
         if result.returncode == 0:
             metadata_location = result.stdout.strip()
-            print(f"✓ Auto-discovered metadata location:")
+            print("✓ Auto-discovered metadata location:")
             print(f"  {metadata_location}")
         else:
             raise Exception("Failed to auto-discover")

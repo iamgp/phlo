@@ -92,7 +92,9 @@ def create_workflow(
     # Display summary
     _display_config_summary(config)
 
-    if interactive and not Confirm.ask("\n[bold]Proceed with creation?[/bold]", default=True):
+    if interactive and not Confirm.ask(
+        "\n[bold]Proceed with creation?[/bold]", default=True
+    ):
         console.print("[yellow]Cancelled.[/yellow]")
         return
 
@@ -191,27 +193,37 @@ def _create_ingestion_workflow(config: dict[str, Any]) -> None:
 
     # Create ingestion directory
     ingestion_dir.mkdir(parents=True, exist_ok=True)
-    console.print(f"[green]✓[/green] Created directory: {ingestion_dir.relative_to(project_root)}")
+    console.print(
+        f"[green]✓[/green] Created directory: {ingestion_dir.relative_to(project_root)}"
+    )
 
     # Create asset file
     asset_file = ingestion_dir / f"{asset_name}.py"
     asset_content = _generate_asset_template(config)
     asset_file.write_text(asset_content)
-    console.print(f"[green]✓[/green] Created asset: {asset_file.relative_to(project_root)}")
+    console.print(
+        f"[green]✓[/green] Created asset: {asset_file.relative_to(project_root)}"
+    )
 
     # Create __init__.py in domain directory
     domain_init = ingestion_dir / "__init__.py"
     if not domain_init.exists():
         domain_init.write_text(f'"""{domain.title()} domain ingestion assets."""\n')
-        console.print(f"[green]✓[/green] Created: {domain_init.relative_to(project_root)}")
+        console.print(
+            f"[green]✓[/green] Created: {domain_init.relative_to(project_root)}"
+        )
 
     # Create schema file
     if not schema_file.exists():
         schema_content = _generate_schema_template(config)
         schema_file.write_text(schema_content)
-        console.print(f"[green]✓[/green] Created schema: {schema_file.relative_to(project_root)}")
+        console.print(
+            f"[green]✓[/green] Created schema: {schema_file.relative_to(project_root)}"
+        )
     else:
-        console.print(f"[yellow]ℹ[/yellow] Schema already exists: {schema_file.relative_to(project_root)}")
+        console.print(
+            f"[yellow]ℹ[/yellow] Schema already exists: {schema_file.relative_to(project_root)}"
+        )
 
     # Create test file
     if not test_file.parent.exists():
@@ -220,9 +232,13 @@ def _create_ingestion_workflow(config: dict[str, Any]) -> None:
     if not test_file.exists():
         test_content = _generate_test_template(config)
         test_file.write_text(test_content)
-        console.print(f"[green]✓[/green] Created test: {test_file.relative_to(project_root)}")
+        console.print(
+            f"[green]✓[/green] Created test: {test_file.relative_to(project_root)}"
+        )
     else:
-        console.print(f"[yellow]ℹ[/yellow] Test already exists: {test_file.relative_to(project_root)}")
+        console.print(
+            f"[yellow]ℹ[/yellow] Test already exists: {test_file.relative_to(project_root)}"
+        )
 
     # Update ingestion __init__.py to register domain
     _register_domain_import(init_file, domain, project_root)
@@ -235,7 +251,9 @@ def _register_domain_import(init_file: Path, domain: str, project_root: Path):
     if init_file.exists():
         content = init_file.read_text()
         if import_line in content:
-            console.print(f"[yellow]ℹ[/yellow] Domain already registered in {init_file.relative_to(project_root)}")
+            console.print(
+                f"[yellow]ℹ[/yellow] Domain already registered in {init_file.relative_to(project_root)}"
+            )
             return
 
         # Find insertion point (after other imports, before build_defs)
@@ -250,9 +268,13 @@ def _register_domain_import(init_file: Path, domain: str, project_root: Path):
 
         lines.insert(insert_idx, import_line)
         init_file.write_text("\n".join(lines))
-        console.print(f"[green]✓[/green] Registered domain in: {init_file.relative_to(project_root)}")
+        console.print(
+            f"[green]✓[/green] Registered domain in: {init_file.relative_to(project_root)}"
+        )
     else:
-        console.print(f"[red]✗[/red] Could not find {init_file.relative_to(project_root)}")
+        console.print(
+            f"[red]✗[/red] Could not find {init_file.relative_to(project_root)}"
+        )
 
 
 def _generate_asset_template(config: dict[str, Any]) -> str:
@@ -454,7 +476,7 @@ class TestAssetConfiguration:
         """Test that asset is configured with correct table name."""
 
         # Asset op name should be prefixed with 'dlt_'
-        assert {asset_name}.op.name == "dlt_{config['table_name']}"
+        assert {asset_name}.op.name == "dlt_{config["table_name"]}"
 
 
 # TODO: Add more tests

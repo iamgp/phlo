@@ -4,9 +4,8 @@ This module contains unit and integration tests for the
 cascade.definitions module, focusing on definition merging and executor selection.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from cascade.definitions import _default_executor, _merged_definitions, defs
 

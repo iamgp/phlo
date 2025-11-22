@@ -11,7 +11,6 @@ TODO: Customize this template:
 """
 
 import pytest
-from unittest.mock import Mock, patch
 import pandas as pd
 
 # TODO: Update these imports to match your asset and schema

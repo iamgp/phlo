@@ -8,7 +8,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from cascade.config import Settings, config, _get_config
+from cascade.config import Settings, _get_config
 
 
 class TestConfigUnitTests:
