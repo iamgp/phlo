@@ -28,7 +28,7 @@ def main():
     """Demonstrate querying Iceberg tables with DuckDB from your laptop."""
 
     print("=" * 60)
-    print("Cascade Analyst Workflow: DuckDB + Iceberg")
+    print("Phlo Analyst Workflow: DuckDB + Iceberg")
     print("=" * 60)
     print()
 
@@ -100,7 +100,7 @@ def main():
     print("  To get the metadata location, run inside Docker:")
     print("  -------------------------------------------------------")
     print("  docker compose exec dagster-webserver python -c \"")
-    print("  from cascade.iceberg.catalog import get_catalog")
+    print("  from phlo.iceberg.catalog import get_catalog")
     print("  table = get_catalog(ref='main').load_table('raw.entries')")
     print("  print(table.metadata_location)")
     print("  \"")
@@ -120,7 +120,7 @@ def main():
             [
                 "docker", "compose", "exec", "-T", "dagster-webserver",
                 "python", "-c",
-                "from cascade.iceberg.catalog import get_catalog; "
+                "from phlo.iceberg.catalog import get_catalog; "
                 "table = get_catalog(ref='main').load_table('raw.entries'); "
                 "print(table.metadata_location)"
             ],
@@ -131,7 +131,7 @@ def main():
 
         if result.returncode == 0:
             metadata_location = result.stdout.strip()
-            print(f"✓ Auto-discovered metadata location:")
+            print("✓ Auto-discovered metadata location:")
             print(f"  {metadata_location}")
         else:
             raise Exception("Failed to auto-discover")

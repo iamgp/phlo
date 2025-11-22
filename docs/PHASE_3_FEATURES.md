@@ -1,4 +1,4 @@
-# Cascade Phase 3 Features
+# Phlo Phase 3 Features
 
 **Version:** 1.0.0
 **Implementation Date:** January 2025
@@ -9,11 +9,11 @@
 
 Phase 3 delivers three major features that significantly improve developer experience:
 
-1. **@cascade_quality Decorator** (32h) - Reduce quality check boilerplate by 70%
+1. **@phlo_quality Decorator** (32h) - Reduce quality check boilerplate by 70%
 2. **Plugin System** (32h) - Enable community contributions via entry points
 3. **Error Documentation** (24h) - Per-error documentation with solutions
 
-## Feature 1: @cascade_quality Decorator
+## Feature 1: @phlo_quality Decorator
 
 ### Impact
 
@@ -26,7 +26,7 @@ Phase 3 delivers three major features that significantly improve developer exper
 
 ```python
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
-from cascade.defs.resources.trino import TrinoResource
+from phlo.defs.resources.trino import TrinoResource
 import pandas as pd
 
 @asset_check(
@@ -84,9 +84,9 @@ def weather_quality_check_old(context, trino: TrinoResource) -> AssetCheckResult
 ### After (8 lines - 80% reduction!)
 
 ```python
-from cascade.quality import cascade_quality, NullCheck, RangeCheck
+from phlo.quality import phlo_quality, NullCheck, RangeCheck
 
-@cascade_quality(
+@phlo_quality(
     table="bronze.weather_observations",
     checks=[
         NullCheck(columns=["station_id", "temperature"]),
@@ -158,7 +158,7 @@ CountCheck(
 Validate against Pandera schema.
 
 ```python
-from cascade.schemas.weather import WeatherObservations
+from phlo.schemas.weather import WeatherObservations
 
 SchemaCheck(
     schema=WeatherObservations,
@@ -169,8 +169,8 @@ SchemaCheck(
 ### Complete Example
 
 ```python
-from cascade.quality import (
-    cascade_quality,
+from phlo.quality import (
+    phlo_quality,
     NullCheck,
     RangeCheck,
     FreshnessCheck,
@@ -178,7 +178,7 @@ from cascade.quality import (
     CountCheck,
 )
 
-@cascade_quality(
+@phlo_quality(
     table="bronze.sensor_readings",
     checks=[
         # No nulls in critical columns
@@ -231,7 +231,7 @@ def sensor_quality_check():
 ### Impact
 
 - **Enable community contributions**
-- **Extend Cascade without modifying core**
+- **Extend Phlo without modifying core**
 - **Share reusable components**
 - **Support custom data sources and transformations**
 
@@ -239,10 +239,10 @@ def sensor_quality_check():
 
 #### 1. Source Connector Plugins
 
-Extend Cascade with new data sources.
+Extend Phlo with new data sources.
 
 ```python
-from cascade.plugins import SourceConnectorPlugin, PluginMetadata
+from phlo.plugins import SourceConnectorPlugin, PluginMetadata
 from typing import Iterator, Dict, Any
 
 class WeatherAPIConnector(SourceConnectorPlugin):
@@ -277,8 +277,8 @@ class WeatherAPIConnector(SourceConnectorPlugin):
 Add custom quality check types.
 
 ```python
-from cascade.plugins import QualityCheckPlugin
-from cascade.quality.checks import QualityCheck, QualityCheckResult
+from phlo.plugins import QualityCheckPlugin
+from phlo.quality.checks import QualityCheck, QualityCheckResult
 
 class BusinessRuleCheck(QualityCheck):
     def __init__(self, rule: str):
@@ -316,7 +316,7 @@ class BusinessRuleCheckPlugin(QualityCheckPlugin):
 Add custom data processing steps.
 
 ```python
-from cascade.plugins import TransformationPlugin
+from phlo.plugins import TransformationPlugin
 import pandas as pd
 
 class PivotTransform(TransformationPlugin):
@@ -342,12 +342,12 @@ class PivotTransform(TransformationPlugin):
 #### 1. Package Structure
 
 ```
-my-cascade-plugin/
+my-phlo-plugin/
 ├── pyproject.toml
 ├── README.md
 ├── LICENSE
 └── src/
-    └── my_cascade_plugin/
+    └── my_phlo_plugin/
         ├── __init__.py
         ├── connectors.py
         ├── quality.py
@@ -362,35 +362,35 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "my-cascade-plugin"
+name = "my-phlo-plugin"
 version = "1.0.0"
-description = "Custom Cascade plugins"
+description = "Custom Phlo plugins"
 requires-python = ">=3.11"
-dependencies = ["cascade>=0.1.0", "pandas", "requests"]
+dependencies = ["phlo>=0.1.0", "pandas", "requests"]
 
 # Register plugins via entry points
-[project.entry-points."cascade.plugins.sources"]
-weather_api = "my_cascade_plugin.connectors:WeatherAPIConnector"
+[project.entry-points."phlo.plugins.sources"]
+weather_api = "my_phlo_plugin.connectors:WeatherAPIConnector"
 
-[project.entry-points."cascade.plugins.quality"]
-business_rule = "my_cascade_plugin.quality:BusinessRuleCheckPlugin"
+[project.entry-points."phlo.plugins.quality"]
+business_rule = "my_phlo_plugin.quality:BusinessRuleCheckPlugin"
 
-[project.entry-points."cascade.plugins.transforms"]
-pivot = "my_cascade_plugin.transforms:PivotTransform"
+[project.entry-points."phlo.plugins.transforms"]
+pivot = "my_phlo_plugin.transforms:PivotTransform"
 ```
 
 #### 3. Install and Use
 
 ```bash
 # Install plugin
-pip install my-cascade-plugin
+pip install my-phlo-plugin
 
 # Plugins are auto-discovered
 ```
 
 ```python
 # Use in your code
-from cascade.plugins import get_source_connector, get_quality_check
+from phlo.plugins import get_source_connector, get_quality_check
 
 # Use source connector
 connector = get_source_connector("weather_api")
@@ -400,7 +400,7 @@ data = connector.fetch_data(config={"api_url": "...", "api_key": "..."})
 plugin = get_quality_check("business_rule")
 check = plugin.create_check(rule="revenue > 0")
 
-@cascade_quality(
+@phlo_quality(
     table="bronze.transactions",
     checks=[check],
 )
@@ -411,7 +411,7 @@ def transaction_quality():
 ### Plugin Discovery
 
 ```python
-from cascade.plugins import discover_plugins, list_plugins
+from phlo.plugins import discover_plugins, list_plugins
 
 # Discover all plugins
 plugins = discover_plugins()
@@ -460,10 +460,10 @@ print(all_plugins)
 
 ### Error Code Structure
 
-All Cascade errors follow a structured format:
+All Phlo errors follow a structured format:
 
 ```
-CascadeError (CASCADE-XXX): Clear description
+CascadeError (PHLO-XXX): Clear description
 
 Suggested actions:
   1. Specific action to try
@@ -472,37 +472,37 @@ Suggested actions:
 
 Caused by: OriginalException: Details
 
-Documentation: https://docs.cascade.dev/errors/CASCADE-XXX
+Documentation: https://docs.phlo.dev/errors/PHLO-XXX
 ```
 
 ### Error Categories
 
-#### Discovery and Configuration (CASCADE-001 to CASCADE-099)
-- CASCADE-001: Asset Not Discovered
-- CASCADE-002: Schema Mismatch
-- CASCADE-003: Invalid Cron Expression
-- CASCADE-004: Validation Failed
-- CASCADE-005: Missing Schema
+#### Discovery and Configuration (PHLO-001 to PHLO-099)
+- PHLO-001: Asset Not Discovered
+- PHLO-002: Schema Mismatch
+- PHLO-003: Invalid Cron Expression
+- PHLO-004: Validation Failed
+- PHLO-005: Missing Schema
 
-#### Runtime and Integration (CASCADE-006 to CASCADE-099)
-- CASCADE-006: Ingestion Failed
-- CASCADE-007: Table Not Found
-- CASCADE-008: Infrastructure Error
+#### Runtime and Integration (PHLO-006 to PHLO-099)
+- PHLO-006: Ingestion Failed
+- PHLO-007: Table Not Found
+- PHLO-008: Infrastructure Error
 
-#### Schema and Type (CASCADE-200 to CASCADE-299)
-- CASCADE-200: Schema Conversion Error
-- CASCADE-201: Type Conversion Error
+#### Schema and Type (PHLO-200 to PHLO-299)
+- PHLO-200: Schema Conversion Error
+- PHLO-201: Type Conversion Error
 
-#### DLT (CASCADE-300 to CASCADE-399)
-- CASCADE-300: DLT Pipeline Failed
-- CASCADE-301: DLT Source Error
+#### DLT (PHLO-300 to PHLO-399)
+- PHLO-300: DLT Pipeline Failed
+- PHLO-301: DLT Source Error
 
-#### Iceberg (CASCADE-400 to CASCADE-499)
-- CASCADE-400: Iceberg Catalog Error
-- CASCADE-401: Iceberg Table Error
-- CASCADE-402: Iceberg Write Error
+#### Iceberg (PHLO-400 to PHLO-499)
+- PHLO-400: Iceberg Catalog Error
+- PHLO-401: Iceberg Table Error
+- PHLO-402: Iceberg Write Error
 
-### Example: CASCADE-002 Documentation
+### Example: PHLO-002 Documentation
 
 Each error has comprehensive documentation:
 
@@ -527,13 +527,13 @@ try:
 except CascadeSchemaError as e:
     print(e)
     # Output:
-    # CascadeSchemaError (CASCADE-002): unique_key 'observation_idd' not found in schema
+    # CascadeSchemaError (PHLO-002): unique_key 'observation_idd' not found in schema
     #
     # Suggested actions:
     #   1. Did you mean 'observation_id'?
     #   2. Available fields: observation_id, station_id, temperature, timestamp
     #
-    # Documentation: https://docs.cascade.dev/errors/CASCADE-002
+    # Documentation: https://docs.phlo.dev/errors/PHLO-002
 ```
 
 ### Error Documentation Features
@@ -564,24 +564,24 @@ All error docs are in `docs/errors/`:
 
 ```bash
 # Browse locally
-cat docs/errors/CASCADE-002.md
+cat docs/errors/PHLO-002.md
 
 # Or visit online
-https://docs.cascade.dev/errors/CASCADE-002
+https://docs.phlo.dev/errors/PHLO-002
 ```
 
 ## Migration Guide
 
 ### Upgrading to Phase 3
 
-#### 1. Update Cascade
+#### 1. Update Phlo
 
 ```bash
 git pull origin main
 pip install -e .
 ```
 
-#### 2. Adopt @cascade_quality (Optional)
+#### 2. Adopt @phlo_quality (Optional)
 
 Gradually migrate quality checks:
 
@@ -592,7 +592,7 @@ def my_quality_check(context, trino):
     # ... manual implementation
 
 # New approach (recommended)
-@cascade_quality(
+@phlo_quality(
     table="bronze.my_table",
     checks=[NullCheck(...)],
 )
@@ -604,7 +604,7 @@ def my_quality_check():
 
 ```python
 # Discover installed plugins
-from cascade.plugins import list_plugins
+from phlo.plugins import list_plugins
 
 plugins = list_plugins()
 print(f"Available plugins: {plugins}")
@@ -624,7 +624,7 @@ except CascadeError as e:
 
 ## Performance Impact
 
-- **@cascade_quality**: No performance impact (same underlying code)
+- **@phlo_quality**: No performance impact (same underlying code)
 - **Plugin System**: Minimal (<1ms overhead on import)
 - **Error Documentation**: No runtime impact
 
@@ -633,7 +633,7 @@ except CascadeError as e:
 ### Testing Quality Checks
 
 ```python
-from cascade.quality.checks import NullCheck
+from phlo.quality.checks import NullCheck
 import pandas as pd
 
 def test_null_check():
@@ -654,7 +654,7 @@ def test_null_check():
 
 ```python
 def test_source_connector():
-    from my_cascade_plugin import WeatherAPIConnector
+    from my_phlo_plugin import WeatherAPIConnector
 
     connector = WeatherAPIConnector()
 
@@ -673,8 +673,8 @@ def test_source_connector():
 
 ## Documentation
 
-- **Quality Checks**: See `src/cascade/quality/examples.py`
-- **Plugin Development**: See `src/cascade/plugins/examples.py`
+- **Quality Checks**: See `src/phlo/quality/examples.py`
+- **Plugin Development**: See `src/phlo/plugins/examples.py`
 - **Error Codes**: See `docs/errors/README.md`
 
 ## Future Enhancements
@@ -701,7 +701,7 @@ Potential Phase 4 features:
 For questions or issues:
 
 1. Check error documentation: `docs/errors/`
-2. Search issues: https://github.com/cascade/cascade/issues
+2. Search issues: https://github.com/phlo/phlo/issues
 3. Create new issue with:
    - Error code (if applicable)
    - Steps to reproduce

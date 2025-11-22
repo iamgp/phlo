@@ -1,7 +1,7 @@
 [project]
-name = "cascade-hub"
+name = "phlo-hub"
 version = "0.1.0"
-description = "Service hub for Cascade data platform"
+description = "Service hub for Phlo data platform"
 requires-python = ">=3.11"
 dependencies = [
     "flask>=3.0.0",

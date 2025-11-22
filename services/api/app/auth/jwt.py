@@ -2,7 +2,7 @@
 # Handles password hashing, user authentication, JWT token creation/validation
 # and Hasura GraphQL integration for role-based access control
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jose import JWTError, jwt
@@ -23,14 +23,14 @@ USERS = {
     "admin": {
         "user_id": "admin_001",
         "username": "admin",
-        "email": "admin@cascade.local",
+        "email": "admin@phlo.local",
         "hashed_password": "$2b$12$hVzXLFlbMnbAN2Krtk88JOUxLWN6WGNxXASvb5fpzoN/tt/GGNriy",  # admin123
         "role": "admin",
     },
     "analyst": {
         "user_id": "analyst_001",
         "username": "analyst",
-        "email": "analyst@cascade.local",
+        "email": "analyst@phlo.local",
         "hashed_password": "$2b$12$rVI0z2.putUx/6/qRMbhZucUMhr7bI.6ykbyqwBOWMlV1eryipJci",  # analyst123
         "role": "analyst",
     },
@@ -66,9 +66,9 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
+        expire = datetime.now(UTC) + timedelta(
             minutes=settings.jwt_access_token_expire_minutes
         )
 

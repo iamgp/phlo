@@ -22,7 +22,7 @@ glucose_reading = {
 
 ## Three Layers of Validation
 
-Cascade uses validation at three points:
+Phlo uses validation at three points:
 
 ```
 API Data
@@ -46,10 +46,10 @@ Pandera provides type-safe validation with detailed error reporting.
 
 ### Setting Up a Schema
 
-In Cascade, schemas live in `cascade/schemas/`:
+In Phlo, schemas live in `phlo/schemas/`:
 
 ```python
-# cascade/schemas/glucose_entries.py
+# phlo/schemas/glucose_entries.py
 import pandera as pa
 from pandera import Column, DataFrameSchema, Check, Index
 from typing import Optional
@@ -124,8 +124,8 @@ glucose_entries_schema = DataFrameSchema(
 ### Using Pandera in DLT
 
 ```python
-# cascade/defs/ingestion/dlt_assets.py
-from cascade.schemas.glucose_entries import glucose_entries_schema
+# phlo/defs/ingestion/dlt_assets.py
+from phlo.schemas.glucose_entries import glucose_entries_schema
 import pandera as pa
 import dlt
 
@@ -276,7 +276,7 @@ After orchestration, Dagster asset checks monitor data quality in production.
 ### Defining Asset Checks
 
 ```python
-# cascade/defs/quality/glucose_checks.py
+# phlo/defs/quality/glucose_checks.py
 from dagster import asset, asset_check, AssetCheckResult, Config
 import pandas as pd
 from datetime import timedelta
@@ -436,7 +436,7 @@ Without Layer 1:
 ## Configuring Validation Strictness
 
 ```python
-# cascade/config.py
+# phlo/config.py
 from pydantic import BaseSettings
 
 class DataQualityConfig(BaseSettings):
@@ -506,7 +506,7 @@ ORDER BY 3 DESC;
 
 ## Summary
 
-Cascade uses **three-layer validation**:
+Phlo uses **three-layer validation**:
 
 1. **Pandera** (ingestion): Type and constraint checking
 2. **dbt** (transformation): Business logic and consistency

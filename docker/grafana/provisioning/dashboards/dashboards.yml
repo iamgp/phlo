@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: 'Cascade Dashboards'
+  - name: 'Phlo Dashboards'
     orgId: 1
-    folder: 'Cascade Lakehouse'
+    folder: 'Phlo Lakehouse'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10

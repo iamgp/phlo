@@ -58,7 +58,7 @@ Each write creates a new **snapshot**—a complete, immutable view of the table 
 
 ```python
 # In Python, using PyIceberg
-from cascade.iceberg.catalog import get_catalog
+from phlo.iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 table = catalog.load_table("raw.glucose_entries")
@@ -125,7 +125,7 @@ WHERE reading_timestamp = '2024-10-15';
 -- (you don't need to know the partition scheme)
 ```
 
-In Cascade's code, this is handled automatically:
+In Phlo's code, this is handled automatically:
 
 ```python
 # In iceberg/tables.py
@@ -214,7 +214,7 @@ Reader queries same table (right now)
   → Writer completes, new readers see new snapshot
 ```
 
-**In Cascade's Code**:
+**In Phlo's Code**:
 
 ```python
 # From defs/ingestion/dlt_assets.py
@@ -233,9 +233,9 @@ merge_metrics = iceberg.merge_parquet(
 # Result: Safe to run multiple times (idempotent)
 ```
 
-## Iceberg in Cascade
+## Iceberg in Phlo
 
-Let's see how Cascade uses Iceberg in practice.
+Let's see how Phlo uses Iceberg in practice.
 
 ### Reading Data (in dbt)
 
@@ -317,9 +317,9 @@ docker exec trino trino \
 | **Data quality** | Corrupted files? Undetectable | Checksums in metadata |
 | **Query cost** | Scan ALL files | Scan only necessary files |
 
-## How Cascade Stores Data
+## How Phlo Stores Data
 
-Here's Cascade's actual storage structure in MinIO:
+Here's Phlo's actual storage structure in MinIO:
 
 ```
 s3://lake/
@@ -366,7 +366,7 @@ docker exec -it dagster-webserver bash
 
 # Use Python to explore snapshots
 python3 << 'EOF'
-from cascade.iceberg.catalog import get_catalog
+from phlo.iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 table = catalog.load_table("raw.glucose_entries")
@@ -404,7 +404,7 @@ Apache Iceberg:
 - Hidden partitioning (automatic pruning)
 - Works with any S3-compatible storage
 
-Cascade uses Iceberg to ensure:
+Phlo uses Iceberg to ensure:
 - Safe ingestion (idempotent merges)
 - Reliable transformations (atomic snapshots)
 - Data governance (audit trail via time travel)

@@ -52,7 +52,7 @@ class RawGlucoseEntries(DataFrameModel):
 
 ### Step 2: Delete PyIceberg Schema Definition
 
-**Remove** the duplicate PyIceberg schema from `src/cascade/iceberg/schema.py`:
+**Remove** the duplicate PyIceberg schema from `src/phlo/iceberg/schema.py`:
 
 ```python
 # DELETE THIS - no longer needed!
@@ -74,19 +74,19 @@ import pandas as pd
 import requests
 from datetime import datetime, timezone
 
-from cascade.config import config
-from cascade.defs.partitions import daily_partition
-from cascade.defs.resources.iceberg import IcebergResource
-from cascade.iceberg.schema import GLUCOSE_ENTRIES_SCHEMA
-from cascade.ingestion.dlt_helpers import (
+from phlo.config import config
+from phlo.defs.partitions import daily_partition
+from phlo.defs.resources.iceberg import IcebergResource
+from phlo.iceberg.schema import GLUCOSE_ENTRIES_SCHEMA
+from phlo.ingestion.dlt_helpers import (
     get_branch_from_context,
     merge_to_iceberg,
     setup_dlt_pipeline,
     stage_to_parquet,
     validate_with_pandera,
 )
-from cascade.schemas.glucose import RawGlucoseEntries
-from cascade.schemas.registry import get_table_config
+from phlo.schemas.glucose import RawGlucoseEntries
+from phlo.schemas.registry import get_table_config
 
 @dg.asset(
     name="dlt_glucose_entries",
@@ -162,8 +162,8 @@ def dlt_glucose_entries(context, iceberg: IcebergResource) -> dg.MaterializeResu
 ```python
 from dlt.sources.rest_api import rest_api
 
-from cascade.ingestion import cascade_ingestion
-from cascade.schemas.glucose import RawGlucoseEntries
+from phlo.ingestion import cascade_ingestion
+from phlo.schemas.glucose import RawGlucoseEntries
 
 @cascade_ingestion(
     table_name="glucose_entries",
@@ -226,9 +226,9 @@ import dlt
 import requests
 from datetime import datetime, timezone
 
-from cascade.config import config
-from cascade.ingestion import cascade_ingestion
-from cascade.schemas.github import RawGitHubRepoStats
+from phlo.config import config
+from phlo.ingestion import cascade_ingestion
+from phlo.schemas.github import RawGitHubRepoStats
 
 @dlt.resource(name="repo_stats", write_disposition="replace")
 def fetch_repo_stats(partition_date: str):
@@ -266,11 +266,11 @@ def github_repo_stats(partition_date: str):
 
 ### Step 4: Update Domain __init__.py (if needed)
 
-If you created a new domain directory, ensure it's imported in `src/cascade/defs/ingestion/__init__.py`:
+If you created a new domain directory, ensure it's imported in `src/phlo/defs/ingestion/__init__.py`:
 
 ```python
-from cascade.defs.ingestion import github  # noqa: F401
-from cascade.defs.ingestion import nightscout  # noqa: F401
+from phlo.defs.ingestion import github  # noqa: F401
+from phlo.defs.ingestion import nightscout  # noqa: F401
 # Add your new domain here if needed
 ```
 
@@ -326,7 +326,7 @@ direction: str | None = Field(nullable=True, description="Trend direction")
 **Solution**: Provide explicit `iceberg_schema` alongside `validation_schema`:
 
 ```python
-from cascade.schemas.converter import pandera_to_iceberg
+from phlo.schemas.converter import pandera_to_iceberg
 
 # Generate base schema, then customize
 base_schema = pandera_to_iceberg(RawMyData)
@@ -367,13 +367,13 @@ After migration, verify:
 ### Before (270 lines)
 
 ```
-src/cascade/iceberg/schema.py (50 lines)
+src/phlo/iceberg/schema.py (50 lines)
   - Manual PyIceberg schema definition
 
-src/cascade/schemas/glucose.py (30 lines)
+src/phlo/schemas/glucose.py (30 lines)
   - Pandera validation schema
 
-src/cascade/defs/ingestion/dlt_assets.py (190 lines)
+src/phlo/defs/ingestion/dlt_assets.py (190 lines)
   - Manual branch extraction
   - Manual table config
   - Manual API requests
@@ -387,11 +387,11 @@ src/cascade/defs/ingestion/dlt_assets.py (190 lines)
 ### After (60 lines)
 
 ```
-src/cascade/schemas/glucose.py (30 lines)
+src/phlo/schemas/glucose.py (30 lines)
   - Enhanced Pandera schema with metadata
   - PyIceberg schema auto-generated!
 
-src/cascade/defs/ingestion/nightscout/glucose.py (30 lines)
+src/phlo/defs/ingestion/nightscout/glucose.py (30 lines)
   - @cascade_ingestion decorator
   - DLT rest_api source
   - Automatic everything!

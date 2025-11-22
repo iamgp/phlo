@@ -86,20 +86,20 @@ docker exec dagster-webserver dagster asset materialize --select "postgres_*"
 
 ```bash
 make setup                    # Install dependencies
-basedpyright src/cascade/     # Type checking
-ruff check src/cascade/       # Linting
+basedpyright src/phlo/     # Type checking
+ruff check src/phlo/       # Linting
 pytest tests/                 # Run tests
 ```
 
 ### Configuration
 
-All services configured via `.env` file. See `src/cascade/config.py` for schema.
+All services configured via `.env` file. See `src/phlo/config.py` for schema.
 
 ### Project Structure
 
 ```
-cascade/
-├── src/cascade/          # Dagster assets and core logic
+phlo/
+├── src/phlo/          # Dagster assets and core logic
 │   ├── defs/            # Ingestion, transformation, publishing assets
 │   ├── iceberg/         # PyIceberg catalog and tables
 │   └── schemas/         # Data validation schemas

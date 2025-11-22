@@ -1,6 +1,6 @@
 """Tests for Schema Converter Module.
 
-This module contains unit tests for the cascade.schemas.converter module.
+This module contains unit tests for the phlo.schemas.converter module.
 Tests cover Pandera to PyIceberg schema conversion including type mapping,
 field metadata extraction, DLT field injection, and error handling.
 """
@@ -10,7 +10,6 @@ from decimal import Decimal
 
 import pytest
 from pandera.pandas import DataFrameModel, Field
-from pyiceberg.schema import Schema
 from pyiceberg.types import (
     BinaryType,
     BooleanType,
@@ -21,7 +20,7 @@ from pyiceberg.types import (
     TimestamptzType,
 )
 
-from cascade.schemas.converter import SchemaConversionError, pandera_to_iceberg
+from phlo.schemas.converter import SchemaConversionError, pandera_to_iceberg
 
 
 class TestBasicTypeMapping:
