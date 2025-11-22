@@ -45,6 +45,9 @@ from cascade.testing.placeholders import (
     test_asset_execution,
     MockDLTSource,
     MockIcebergCatalog,
+    MockIcebergTable,
+    MockTableScan,
+    TestAssetResult,
     load_fixture,
     save_fixture,
 )
@@ -53,14 +56,17 @@ __all__ = [
     # DLT Mocking (✅ Implemented)
     "mock_dlt_source",
     "MockDLTSource",
+    # Iceberg Mocking (✅ Implemented)
+    "mock_iceberg_catalog",
+    "MockIcebergCatalog",
+    "MockIcebergTable",
+    "MockTableScan",
+    # Asset Testing (✅ Implemented)
+    "test_asset_execution",
+    "TestAssetResult",
     # Fixture Management (✅ Implemented)
     "load_fixture",
     "save_fixture",
-    # Iceberg Mocking (⚠️ Planned)
-    "mock_iceberg_catalog",
-    "MockIcebergCatalog",
-    # Asset Testing (⚠️ Planned)
-    "test_asset_execution",
 ]
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
