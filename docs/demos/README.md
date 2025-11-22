@@ -2,9 +2,39 @@
 
 Welcome to the Phlo platform demos! These resources showcase how to build production-ready data platforms using Phlo's modern lakehouse architecture.
 
+## 🎯 Key Concept: Phlo as an Installable Package
+
+**Phlo is a framework you install, not a repository you fork!**
+
+```
+┌──────────────────────────────────────┐
+│   PHLO PACKAGE (Framework)          │   pip install phlo
+│   • Decorators, CLI, core tools     │
+└──────────────────────────────────────┘
+                ↓ uses
+┌──────────────────────────────────────┐
+│   YOUR PROJECT (Workflows)           │   phlo init my-platform
+│   • Your schemas, APIs, dbt models  │
+└──────────────────────────────────────┘
+```
+
+**Separation:** Your workflow code lives in YOUR project, not in the Phlo package!
+
 ---
 
 ## Available Demos
+
+### 🌟 START HERE: Phlo as an Installable Package
+
+**[PHLO_AS_PACKAGE_DEMO.md](./PHLO_AS_PACKAGE_DEMO.md)** - **READ THIS FIRST!**
+
+Explains the critical separation between:
+- **Phlo package** (framework you install via pip)
+- **Your project** (workflows you create with `phlo init`)
+
+This is the foundation for understanding how Phlo works!
+
+---
 
 ### 1. Glucose Monitoring Platform
 
@@ -12,8 +42,10 @@ A complete, real-world example of a healthcare data platform for continuous gluc
 
 **Files:**
 - **[QUICKSTART_GLUCOSE_PLATFORM.md](./QUICKSTART_GLUCOSE_PLATFORM.md)** - 15-minute quick start guide
-- **[GLUCOSE_PLATFORM_DEMO.md](./GLUCOSE_PLATFORM_DEMO.md)** - Comprehensive deep dive
+- **[GLUCOSE_PLATFORM_DEMO.md](./GLUCOSE_PLATFORM_DEMO.md)** - Comprehensive deep dive (shows current example in phlo repo)
 - **[glucose_platform_demo.py](../../examples/glucose_platform_demo.py)** - Interactive demo script
+
+**Note:** The current glucose example lives in the Phlo repo for demonstration. In practice, you would create this using `phlo init` as shown in the package demo above!
 
 **What You'll Learn:**
 - Building data pipelines with `@phlo_ingestion` decorator
