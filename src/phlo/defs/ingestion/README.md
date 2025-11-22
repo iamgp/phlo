@@ -1,17 +1,17 @@
-# Cascade Ingestion Assets
+# Phlo Ingestion Assets
 
-This directory contains data ingestion assets organized by domain. Assets are automatically discovered using the `@cascade_ingestion` decorator.
+This directory contains data ingestion assets organized by domain. Assets are automatically discovered using the `@phlo_ingestion` decorator.
 
 ## Architecture
 
 ### Automatic Discovery
 
-Assets are automatically registered when decorated with `@cascade_ingestion`. No manual registration required in `__init__.py`.
+Assets are automatically registered when decorated with `@phlo_ingestion`. No manual registration required in `__init__.py`.
 
 ```python
-from phlo.ingestion import cascade_ingestion
+from phlo.ingestion import phlo_ingestion
 
-@cascade_ingestion(
+@phlo_ingestion(
     table="my_table",
     group="my_domain",
     cron="0 */1 * * *",

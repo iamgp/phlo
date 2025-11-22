@@ -24,7 +24,6 @@ try:
     import pyarrow as pa
     from pyiceberg.schema import Schema
     from pyiceberg.types import (
-        NestedField,
         StringType,
         IntegerType,
         LongType,
@@ -235,12 +234,10 @@ class MockIcebergTable:
             data: Pandas DataFrame or PyArrow Table
         """
         if isinstance(data, pa.Table):
-            df = data.to_pandas()
-        else:
-            df = data
+            data = data.to_pandas()
 
-        # Insert into DuckDB table
-        self.conn.execute(f"INSERT INTO {self.name} SELECT * FROM df")
+        # Insert into DuckDB table (data is now a pandas DataFrame)
+        self.conn.execute(f"INSERT INTO {self.name} SELECT * FROM data")
 
     def scan(self) -> 'MockTableScan':
         """Return a table scan for querying."""

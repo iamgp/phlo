@@ -61,7 +61,7 @@ def ensure_table(
     if len(parts) != 2:
         raise ValueError(f"Table name must be namespace.table, got: {table_name}")
 
-    namespace, table = parts
+    namespace, _ = parts
 
     # Ensure namespace exists
     create_namespace(namespace, ref=ref)
@@ -239,7 +239,7 @@ def merge_to_table(
 
         delete_expr = IsIn(unique_key, batch)
         try:
-            delete_result = table.delete(delete_expr)
+            table.delete(delete_expr)
             # Count deletions if available in result
             rows_deleted += len(batch)  # Approximation
         except Exception:
