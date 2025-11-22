@@ -4,11 +4,9 @@ This module contains unit, integration, and data quality tests for the
 cascade.defs.quality.nightscout module.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from typing import cast
 
-import pandas as pd
-import pytest
 from dagster import AssetCheckResult, MetadataValue, build_asset_check_context
 
 from cascade.defs.quality.nightscout import nightscout_glucose_quality_check
@@ -246,7 +244,6 @@ class TestQualityDataQualityTests:
         # This test verifies that the quality check is properly configured
         # to run after the fct_glucose_readings asset
 
-        from dagster import AssetKey
 
         # The check should be configured for the correct asset
         # This is tested by verifying the decorator configuration

@@ -10,7 +10,6 @@ from typing import Any
 import dagster as dg
 from cascade.iceberg.catalog import get_catalog
 from pyiceberg.schema import Schema
-from pyiceberg.table import Table
 
 
 class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):

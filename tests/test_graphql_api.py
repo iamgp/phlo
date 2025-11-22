@@ -6,7 +6,6 @@ Tests authentication, queries, and GraphQL-specific functionality.
 
 import requests
 import pytest
-from typing import Dict, Any
 
 BASE_URL = "http://localhost:8081"
 GRAPHQL_ENDPOINT = f"{BASE_URL}/v1/graphql"

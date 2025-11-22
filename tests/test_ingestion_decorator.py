@@ -7,11 +7,10 @@ configuration parameters, and error handling.
 
 from datetime import datetime
 
-import dagster as dg
 import pytest
 from pandera.pandas import DataFrameModel, Field
 from pyiceberg.schema import Schema
-from pyiceberg.types import LongType, NestedField, StringType, TimestamptzType
+from pyiceberg.types import NestedField, StringType
 
 from cascade.ingestion.decorator import _INGESTION_ASSETS, cascade_ingestion, get_ingestion_assets
 

@@ -5,8 +5,7 @@ Tests cover catalog operations, table management, and data operations.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, mock_open
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, TimestampType
@@ -184,7 +183,7 @@ class TestIcebergTablesUnitTests:
             # This should raise before any catalog operations
             parts = "invalid_table_name".split(".")
             if len(parts) != 2:
-                raise ValueError(f"Table name must be namespace.table, got: invalid_table_name")
+                raise ValueError("Table name must be namespace.table, got: invalid_table_name")
 
     @patch('cascade.iceberg.tables.get_catalog')
     @patch('pyarrow.parquet.read_table')
