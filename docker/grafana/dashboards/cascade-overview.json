@@ -481,7 +481,7 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["cascade", "overview"],
+  "tags": ["phlo", "overview"],
   "templating": {
     "list": []
   },
@@ -491,8 +491,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Cascade Lakehouse - Overview",
-  "uid": "cascade-overview",
+  "title": "Phlo Lakehouse - Overview",
+  "uid": "phlo-overview",
   "version": 1,
   "weekStart": ""
 }

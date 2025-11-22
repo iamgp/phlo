@@ -1,8 +1,8 @@
-# Executive Summary: Cascade Usability Audit
+# Executive Summary: Phlo Usability Audit
 
 ## Overview
 
-This comprehensive usability audit evaluates the Cascade lakehouse platform across six key dimensions: folder structure, workflow creation, functionality inventory, testing experience, documentation, and error messages. The audit was conducted in November 2024 and provides actionable recommendations prioritized by impact.
+This comprehensive usability audit evaluates the Phlo lakehouse platform across six key dimensions: folder structure, workflow creation, functionality inventory, testing experience, documentation, and error messages. The audit was conducted in November 2024 and provides actionable recommendations prioritized by impact.
 
 **Audit Date**: November 20, 2024
 **Platform Version**: Current main branch
@@ -69,14 +69,14 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 - **Effort**: 8 hours (document already drafted in Phase 5 audit)
 - **Dependencies**: None
 
-**2. Implement `cascade create-workflow` CLI Command**
+**2. Implement `phlo create-workflow` CLI Command**
 - **Problem**: Manual workflow creation takes 15-20 min and 13 steps
 - **Solution**: Interactive CLI scaffolding with templates
 - **Impact**: 2-3x faster workflow creation (20 min → 5-10 min), 54% fewer steps
 - **Effort**: 40 hours (CLI framework + scaffolding logic)
 - **Dependencies**: None
 
-**3. Create `cascade.testing` Module with Mock Utilities**
+**3. Create `phlo.testing` Module with Mock Utilities**
 - **Problem**: No testing utilities, users mock manually (30-60 min first test)
 - **Solution**: Provide mock_dlt_source, mock_iceberg_catalog, test_asset_execution
 - **Impact**: 3-6x faster test creation, 60-120x faster feedback loop
@@ -122,7 +122,7 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 - **Effort**: 40 hours (DuckDB integration + testing)
 - **Dependencies**: #3 (testing utilities)
 
-**9. Create `@cascade_quality` Decorator**
+**9. Create `@phlo_quality` Decorator**
 - **Problem**: Manual quality check assets (30-40 lines of boilerplate)
 - **Solution**: Declarative quality checks (5-10 lines)
 - **Impact**: 70% boilerplate reduction for quality checks
@@ -165,9 +165,9 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 **Goal**: Major infrastructure improvements
 
 **Deliverables**:
-1. `cascade` CLI framework (40h)
-2. `cascade create-workflow` command (40h)
-3. `cascade.testing` module (60h)
+1. `phlo` CLI framework (40h)
+2. `phlo create-workflow` command (40h)
+3. `phlo.testing` module (60h)
    - mock_dlt_source
    - mock_iceberg_catalog
    - test_asset_execution
@@ -188,7 +188,7 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 
 **Deliverables**:
 1. Local test mode with DuckDB (40h)
-2. `@cascade_quality` decorator (32h)
+2. `@phlo_quality` decorator (32h)
 3. Error documentation pages (24h)
 4. Video walkthrough (5 min) (16h)
 5. Plugin system via entry points (32h)
@@ -221,7 +221,7 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 
 ### Feature Parity Matrix
 
-| Feature | Cascade Current | Cascade (After) | Prefect | Dagster | dbt | Industry Standard |
+| Feature | Phlo Current | Phlo (After) | Prefect | Dagster | dbt | Industry Standard |
 |---------|----------------|-----------------|---------|---------|-----|-------------------|
 | **Boilerplate Reduction** | 74% | 74% | N/A | N/A | N/A | Unique advantage |
 | **CLI Scaffolding** | None | Excellent | Excellent | Good | Excellent | Essential |
@@ -351,7 +351,7 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 **Status**: Good but behind competitors (75/100)
 **Recommendations**: 6 high-priority improvements
 1. Create workflow templates (16h) - **Priority 1**
-2. Implement `cascade create-workflow` CLI (40h) - **Priority 1**
+2. Implement `phlo create-workflow` CLI (40h) - **Priority 1**
 3. Add schema validation tool (16h)
 4. Add local testing tool (included in testing utilities)
 5. Improve auto-discovery error handling (8h)
@@ -365,7 +365,7 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 
 **Status**: Excellent (90/100)
 **Recommendations**: 5 medium-priority improvements
-1. Create `@cascade_quality` decorator (32h) - **Priority 2**
+1. Create `@phlo_quality` decorator (32h) - **Priority 2**
 2. Implement plugin system (32h)
 3. Expand YAML configuration (16h)
 4. Add CLI commands (included in Phase 2)
@@ -379,11 +379,11 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 
 **Status**: Good framework tests, poor user-facing (65/100)
 **Recommendations**: 7 high-priority improvements
-1. Create `cascade.testing` module (60h) - **Priority 1**
+1. Create `phlo.testing` module (60h) - **Priority 1**
 2. Add local test mode with DuckDB (40h) - **Priority 2**
 3. Write TESTING_GUIDE.md (12h) - **Priority 1**
 4. Add example tests to templates (included in templates)
-5. Create `cascade test` CLI command (included in CLI)
+5. Create `phlo test` CLI command (included in CLI)
 6. Add pytest fixtures (16h)
 7. Create fixture recording mode (24h)
 
@@ -422,7 +422,7 @@ This comprehensive usability audit evaluates the Cascade lakehouse platform acro
 
 ### Overall Assessment
 
-Cascade has an **excellent foundation** with world-class core functionality:
+Phlo has an **excellent foundation** with world-class core functionality:
 - 74% boilerplate reduction (decorator pattern)
 - Schema auto-generation (eliminates duplication)
 - Comprehensive documentation (188KB)

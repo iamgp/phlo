@@ -10,8 +10,8 @@ from pathlib import Path
 
 from dagster import Definitions
 
-from cascade.framework.discovery import discover_user_workflows
-from cascade.framework.definitions import build_definitions
+from phlo.framework.discovery import discover_user_workflows
+from phlo.framework.definitions import build_definitions
 
 
 def test_discover_empty_workflows_directory():
@@ -43,11 +43,11 @@ def test_discover_workflows_with_simple_asset():
 Simple test workflow.
 """
 
-from cascade.ingestion import cascade_ingestion
+from phlo.ingestion import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 
 
-@cascade_ingestion(
+@phlo_ingestion(
     table_name="test_data",
     unique_key="id",
     group="test",
@@ -120,7 +120,7 @@ def test_build_definitions_without_workflows_path():
 
 def test_project_type_detection():
     """Test detection of user project vs Cascade repo."""
-    from cascade.cli.scaffold import _is_user_project
+    from phlo.cli.scaffold import _is_user_project
 
     with tempfile.TemporaryDirectory() as tmpdir:
         project_root = Path(tmpdir)
@@ -132,25 +132,25 @@ def test_project_type_detection():
         (project_root / "workflows").mkdir()
         assert _is_user_project(project_root)
 
-        # Add both workflows and src/cascade - check pyproject.toml
-        (project_root / "src" / "cascade").mkdir(parents=True)
+        # Add both workflows and src/phlo - check pyproject.toml
+        (project_root / "src" / "phlo").mkdir(parents=True)
 
-        # User project (has cascade as dependency)
+        # User project (has phlo as dependency)
         (project_root / "pyproject.toml").write_text(
-            '[project]\nname = "my-project"\ndependencies = ["cascade"]'
+            '[project]\nname = "my-project"\ndependencies = ["phlo"]'
         )
         assert _is_user_project(project_root)
 
-        # Cascade repo (has name = "cascade")
+        # Cascade repo (has name = "phlo")
         (project_root / "pyproject.toml").write_text(
-            '[project]\nname = "cascade"\ndependencies = []'
+            '[project]\nname = "phlo"\ndependencies = []'
         )
         assert not _is_user_project(project_root)
 
 
 def test_cli_init_command_structure():
-    """Test that cascade init creates correct project structure."""
-    from cascade.cli.main import _create_project_structure
+    """Test that phlo init creates correct project structure."""
+    from phlo.cli.main import _create_project_structure
 
     with tempfile.TemporaryDirectory() as tmpdir:
         project_dir = Path(tmpdir) / "test-project"
@@ -173,12 +173,12 @@ def test_cli_init_command_structure():
         # Check pyproject.toml content
         pyproject_content = (project_dir / "pyproject.toml").read_text()
         assert 'name = "test-project"' in pyproject_content
-        assert '"cascade"' in pyproject_content
+        assert '"phlo"' in pyproject_content
 
 
 def test_cli_init_minimal_template():
     """Test that minimal template doesn't create dbt structure."""
-    from cascade.cli.main import _create_project_structure
+    from phlo.cli.main import _create_project_structure
 
     with tempfile.TemporaryDirectory() as tmpdir:
         project_dir = Path(tmpdir) / "minimal-project"

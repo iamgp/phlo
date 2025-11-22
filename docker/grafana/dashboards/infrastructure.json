@@ -731,7 +731,7 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["cascade", "infrastructure"],
+  "tags": ["phlo", "infrastructure"],
   "templating": {
     "list": []
   },
@@ -741,8 +741,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Cascade Lakehouse - Infrastructure",
-  "uid": "cascade-infrastructure",
+  "title": "Phlo Lakehouse - Infrastructure",
+  "uid": "phlo-infrastructure",
   "version": 1,
   "weekStart": ""
 }

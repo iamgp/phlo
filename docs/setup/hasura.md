@@ -1,6 +1,6 @@
 # Hasura GraphQL Setup Guide
 
-Step-by-step guide to configuring Hasura for the Cascade lakehouse.
+Step-by-step guide to configuring Hasura for the Phlo lakehouse.
 
 ## Overview
 
@@ -21,7 +21,7 @@ make hasura
 # Or: http://localhost:8081/console
 ```
 
-**Admin Secret:** `cascade-admin-secret-change-me` (set in `.env`)
+**Admin Secret:** `phlo-admin-secret-change-me` (set in `.env`)
 
 ---
 
@@ -353,10 +353,10 @@ Save Hasura configuration to version control:
 npm install --global hasura-cli
 
 # Export metadata
-cd /path/to/cascade
+cd /path/to/phlo
 hasura metadata export \
   --endpoint http://localhost:8081 \
-  --admin-secret cascade-admin-secret-change-me
+  --admin-secret phlo-admin-secret-change-me
 ```
 
 Creates `metadata/` directory with:
@@ -377,7 +377,7 @@ Restore configuration to new Hasura instance:
 ```bash
 hasura metadata apply \
   --endpoint http://localhost:8081 \
-  --admin-secret cascade-admin-secret-change-me
+  --admin-secret phlo-admin-secret-change-me
 ```
 
 Useful for:
@@ -437,7 +437,7 @@ HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256","key":"${JWT_SECRET}"}'
 {
   "sub": "admin",
   "user_id": "admin_001",
-  "email": "admin@cascade.local",
+  "email": "admin@phlo.local",
   "role": "admin",
   "exp": 1234567890,
   "https://hasura.io/jwt/claims": {

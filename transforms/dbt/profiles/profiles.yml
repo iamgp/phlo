@@ -1,4 +1,4 @@
-cascade:
+phlo:
   target: dev
   outputs:
     dev:

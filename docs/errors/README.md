@@ -1,35 +1,35 @@
-# Cascade Error Documentation
+# Phlo Error Documentation
 
-Comprehensive documentation for all Cascade error codes with solutions, examples, and prevention strategies.
+Comprehensive documentation for all Phlo error codes with solutions, examples, and prevention strategies.
 
 ## Quick Reference
 
 | Error Code | Description | Severity | Category |
 |------------|-------------|----------|----------|
-| [CASCADE-001](#cascade-001) | Asset Not Discovered | High | Discovery |
-| [CASCADE-002](#cascade-002) | Schema Mismatch | High | Configuration |
-| [CASCADE-003](#cascade-003) | Invalid Cron Expression | Medium | Configuration |
-| [CASCADE-004](#cascade-004) | Validation Failed | High | Validation |
-| [CASCADE-005](#cascade-005) | Missing Schema | High | Configuration |
-| [CASCADE-006](#cascade-006) | Ingestion Failed | High | Runtime |
-| [CASCADE-007](#cascade-007) | Table Not Found | High | Runtime |
-| [CASCADE-008](#cascade-008) | Infrastructure Error | Critical | Infrastructure |
-| [CASCADE-200](#cascade-200) | Schema Conversion Error | High | Schema |
-| [CASCADE-201](#cascade-201) | Type Conversion Error | Medium | Schema |
-| [CASCADE-300](#cascade-300) | DLT Pipeline Failed | High | DLT |
-| [CASCADE-301](#cascade-301) | DLT Source Error | High | DLT |
-| [CASCADE-400](#cascade-400) | Iceberg Catalog Error | High | Iceberg |
-| [CASCADE-401](#cascade-401) | Iceberg Table Error | High | Iceberg |
-| [CASCADE-402](#cascade-402) | Iceberg Write Error | High | Iceberg |
+| [PHLO-001](#phlo-001) | Asset Not Discovered | High | Discovery |
+| [PHLO-002](#phlo-002) | Schema Mismatch | High | Configuration |
+| [PHLO-003](#phlo-003) | Invalid Cron Expression | Medium | Configuration |
+| [PHLO-004](#phlo-004) | Validation Failed | High | Validation |
+| [PHLO-005](#phlo-005) | Missing Schema | High | Configuration |
+| [PHLO-006](#phlo-006) | Ingestion Failed | High | Runtime |
+| [PHLO-007](#phlo-007) | Table Not Found | High | Runtime |
+| [PHLO-008](#phlo-008) | Infrastructure Error | Critical | Infrastructure |
+| [PHLO-200](#phlo-200) | Schema Conversion Error | High | Schema |
+| [PHLO-201](#phlo-201) | Type Conversion Error | Medium | Schema |
+| [PHLO-300](#phlo-300) | DLT Pipeline Failed | High | DLT |
+| [PHLO-301](#phlo-301) | DLT Source Error | High | DLT |
+| [PHLO-400](#phlo-400) | Iceberg Catalog Error | High | Iceberg |
+| [PHLO-401](#phlo-401) | Iceberg Table Error | High | Iceberg |
+| [PHLO-402](#phlo-402) | Iceberg Write Error | High | Iceberg |
 
 ## Error Categories
 
-### Discovery and Configuration Errors (CASCADE-001 to CASCADE-099)
+### Discovery and Configuration Errors (PHLO-001 to PHLO-099)
 
 Errors related to asset discovery, configuration, and setup.
 
-#### CASCADE-001: Asset Not Discovered
-**Exception:** `CascadeDiscoveryError`
+#### PHLO-001: Asset Not Discovered
+**Exception:** `PhloDiscoveryError`
 
 Dagster cannot discover your asset definitions.
 
@@ -41,17 +41,17 @@ Dagster cannot discover your asset definitions.
 **Quick fix:**
 ```python
 # definitions.py
-from cascade.defs.ingestion.weather.observations import weather_observations
+from phlo.defs.ingestion.weather.observations import weather_observations
 
 defs = dg.Definitions(assets=[weather_observations])
 ```
 
-[**Full Documentation →**](./CASCADE-001.md)
+[**Full Documentation →**](./PHLO-001.md)
 
 ---
 
-#### CASCADE-002: Schema Mismatch
-**Exception:** `CascadeSchemaError`
+#### PHLO-002: Schema Mismatch
+**Exception:** `PhloSchemaError`
 
 Mismatch between decorator configuration and Pandera schema.
 
@@ -69,12 +69,12 @@ Mismatch between decorator configuration and Pandera schema.
 )
 ```
 
-[**Full Documentation →**](./CASCADE-002.md)
+[**Full Documentation →**](./PHLO-002.md)
 
 ---
 
-#### CASCADE-003: Invalid Cron Expression
-**Exception:** `CascadeCronError`
+#### PHLO-003: Invalid Cron Expression
+**Exception:** `PhloCronError`
 
 Invalid or malformed cron schedule expression.
 
@@ -94,12 +94,12 @@ Invalid or malformed cron schedule expression.
 
 **Test your cron:** [crontab.guru](https://crontab.guru)
 
-[**Full Documentation →**](./CASCADE-003.md)
+[**Full Documentation →**](./PHLO-003.md)
 
 ---
 
-#### CASCADE-004: Validation Failed
-**Exception:** `CascadeValidationError`
+#### PHLO-004: Validation Failed
+**Exception:** `PhloValidationError`
 
 Data validation failed against Pandera schema.
 
@@ -115,12 +115,12 @@ Data validation failed against Pandera schema.
 # Fix data transformation to match schema constraints
 ```
 
-[**Full Documentation →**](./CASCADE-004.md)
+[**Full Documentation →**](./PHLO-004.md)
 
 ---
 
-#### CASCADE-005: Missing Schema
-**Exception:** `CascadeConfigError`
+#### PHLO-005: Missing Schema
+**Exception:** `PhloConfigError`
 
 Validation schema not provided to decorator.
 
@@ -131,7 +131,7 @@ Validation schema not provided to decorator.
 
 **Quick fix:**
 ```python
-from cascade.schemas.weather import WeatherObservations
+from phlo.schemas.weather import WeatherObservations
 
 @cascade_ingestion(
     unique_key="observation_id",
@@ -139,16 +139,16 @@ from cascade.schemas.weather import WeatherObservations
 )
 ```
 
-[**Full Documentation →**](./CASCADE-005.md)
+[**Full Documentation →**](./PHLO-005.md)
 
 ---
 
-### Runtime and Integration Errors (CASCADE-006 to CASCADE-099)
+### Runtime and Integration Errors (PHLO-006 to PHLO-099)
 
 Errors during asset execution and external integrations.
 
-#### CASCADE-006: Ingestion Failed
-**Exception:** `CascadeIngestionError`
+#### PHLO-006: Ingestion Failed
+**Exception:** `PhloIngestionError`
 
 Data ingestion failed during asset execution.
 
@@ -169,12 +169,12 @@ retry = Retry(total=3, backoff_factor=1)
 session.mount("http://", HTTPAdapter(max_retries=retry))
 ```
 
-[**Full Documentation →**](./CASCADE-006.md)
+[**Full Documentation →**](./PHLO-006.md)
 
 ---
 
-#### CASCADE-007: Table Not Found
-**Exception:** `CascadeTableError`
+#### PHLO-007: Table Not Found
+**Exception:** `PhloTableError`
 
 Iceberg table not found in catalog.
 
@@ -187,19 +187,19 @@ Iceberg table not found in catalog.
 **Quick fix:**
 ```python
 # Verify table exists in Iceberg catalog
-from cascade.iceberg.catalog import get_catalog
+from phlo.iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 tables = catalog.list_tables("bronze")
 print(f"Available tables: {tables}")
 ```
 
-[**Full Documentation →**](./CASCADE-007.md)
+[**Full Documentation →**](./PHLO-007.md)
 
 ---
 
-#### CASCADE-008: Infrastructure Error
-**Exception:** `CascadeInfrastructureError`
+#### PHLO-008: Infrastructure Error
+**Exception:** `PhloInfrastructureError`
 
 Infrastructure services (Dagster, Trino, S3, etc.) are unavailable.
 
@@ -220,15 +220,15 @@ docker logs trino
 docker-compose restart
 ```
 
-[**Full Documentation →**](./CASCADE-008.md)
+[**Full Documentation →**](./PHLO-008.md)
 
 ---
 
-### Schema and Type Errors (CASCADE-200 to CASCADE-299)
+### Schema and Type Errors (PHLO-200 to PHLO-299)
 
 Errors related to schema conversion and type handling.
 
-#### CASCADE-200: Schema Conversion Error
+#### PHLO-200: Schema Conversion Error
 **Exception:** `SchemaConversionError`
 
 Failed to convert Pandera schema to PyIceberg schema.
@@ -250,12 +250,12 @@ class MySchema(DataFrameModel):
     timestamp: datetime  # ✅ Supported
 ```
 
-[**Full Documentation →**](./CASCADE-200.md)
+[**Full Documentation →**](./PHLO-200.md)
 
 ---
 
-#### CASCADE-201: Type Conversion Error
-**Exception:** `CascadeError`
+#### PHLO-201: Type Conversion Error
+**Exception:** `PhloError`
 
 Failed to convert data types during processing.
 
@@ -271,15 +271,15 @@ df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 ```
 
-[**Full Documentation →**](./CASCADE-201.md)
+[**Full Documentation →**](./PHLO-201.md)
 
 ---
 
-### DLT Errors (CASCADE-300 to CASCADE-399)
+### DLT Errors (PHLO-300 to PHLO-399)
 
 Errors specific to DLT (Data Load Tool) operations.
 
-#### CASCADE-300: DLT Pipeline Failed
+#### PHLO-300: DLT Pipeline Failed
 **Exception:** `DLTPipelineError`
 
 DLT pipeline execution failed.
@@ -299,12 +299,12 @@ import dlt
 dlt.config.log_level = "DEBUG"
 ```
 
-[**Full Documentation →**](./CASCADE-300.md)
+[**Full Documentation →**](./PHLO-300.md)
 
 ---
 
-#### CASCADE-301: DLT Source Error
-**Exception:** `CascadeError`
+#### PHLO-301: DLT Source Error
+**Exception:** `PhloError`
 
 DLT source connector failed.
 
@@ -323,15 +323,15 @@ for item in source:
     break  # Test first item
 ```
 
-[**Full Documentation →**](./CASCADE-301.md)
+[**Full Documentation →**](./PHLO-301.md)
 
 ---
 
-### Iceberg Errors (CASCADE-400 to CASCADE-499)
+### Iceberg Errors (PHLO-400 to PHLO-499)
 
 Errors related to Apache Iceberg operations.
 
-#### CASCADE-400: Iceberg Catalog Error
+#### PHLO-400: Iceberg Catalog Error
 **Exception:** `IcebergCatalogError`
 
 Iceberg catalog operations failed.
@@ -351,12 +351,12 @@ catalog = load_catalog("default")
 print(f"Catalog namespaces: {catalog.list_namespaces()}")
 ```
 
-[**Full Documentation →**](./CASCADE-400.md)
+[**Full Documentation →**](./PHLO-400.md)
 
 ---
 
-#### CASCADE-401: Iceberg Table Error
-**Exception:** `CascadeError`
+#### PHLO-401: Iceberg Table Error
+**Exception:** `PhloError`
 
 Iceberg table operations failed.
 
@@ -374,12 +374,12 @@ tables = catalog.list_tables("bronze")
 print(f"Tables in bronze: {tables}")
 ```
 
-[**Full Documentation →**](./CASCADE-401.md)
+[**Full Documentation →**](./PHLO-401.md)
 
 ---
 
-#### CASCADE-402: Iceberg Write Error
-**Exception:** `CascadeError`
+#### PHLO-402: Iceberg Write Error
+**Exception:** `PhloError`
 
 Failed to write data to Iceberg table.
 
@@ -399,7 +399,7 @@ print("Table schema:", table_schema)
 print("DataFrame schema:", df_schema)
 ```
 
-[**Full Documentation →**](./CASCADE-402.md)
+[**Full Documentation →**](./PHLO-402.md)
 
 ---
 
@@ -407,12 +407,12 @@ print("DataFrame schema:", df_schema)
 
 ### 1. Use Structured Error Classes
 
-Always use Cascade exception classes with error codes:
+Always use Phlo exception classes with error codes:
 
 ```python
-from cascade.exceptions import CascadeIngestionError
+from phlo.exceptions import PhloIngestionError
 
-raise CascadeIngestionError(
+raise PhloIngestionError(
     message="Failed to fetch weather data",
     suggestions=[
         "Check API connectivity",
@@ -445,10 +445,10 @@ Provide relevant context in error messages:
 
 ```python
 # ❌ Bad: No context
-raise CascadeError("Schema mismatch")
+raise PhloError("Schema mismatch")
 
 # ✅ Good: Detailed context
-raise CascadeSchemaError(
+raise PhloSchemaError(
     message=f"unique_key '{unique_key}' not found in {schema.__name__}",
     suggestions=suggest_similar_field_names(unique_key, available_fields)
 )
@@ -467,7 +467,7 @@ def my_asset(partition: str, context):
         return data
     except Exception as e:
         context.log.error(f"❌ Ingestion failed: {e}")
-        raise CascadeIngestionError(
+        raise PhloIngestionError(
             message=f"Failed to fetch data for partition {partition}",
             cause=e
         )
@@ -479,39 +479,39 @@ Write tests for error conditions:
 
 ```python
 def test_ingestion_handles_api_failure():
-    with pytest.raises(CascadeIngestionError) as exc_info:
+    with pytest.raises(PhloIngestionError) as exc_info:
         weather_observations(partition="invalid")
 
     assert "API returned 404" in str(exc_info.value)
-    assert exc_info.value.code == CascadeErrorCode.INGESTION_FAILED
+    assert exc_info.value.code == PhloErrorCode.INGESTION_FAILED
 ```
 
 ## Getting Help
 
 If you encounter an error not covered in this documentation:
 
-1. **Check Error Code:** Look up the CASCADE-XXX code in the index above
+1. **Check Error Code:** Look up the PHLO-XXX code in the index above
 2. **Read Full Documentation:** Click the link to read detailed documentation
-3. **Search Issues:** Check [GitHub Issues](https://github.com/cascade/cascade/issues)
+3. **Search Issues:** Check [GitHub Issues](https://github.com/phlo/phlo/issues)
 4. **Ask for Help:** Create a new issue with:
    - Error code and full error message
    - Steps to reproduce
    - Relevant code snippets
-   - Environment details (OS, Python version, Cascade version)
+   - Environment details (OS, Python version, Phlo version)
 
 ## Contributing
 
 Found an error not documented? Help us improve:
 
 1. Fork the repository
-2. Add documentation in `docs/errors/CASCADE-XXX.md`
+2. Add documentation in `docs/errors/PHLO-XXX.md`
 3. Update this index
 4. Submit a pull request
 
 Template for new error documentation:
 
 ```markdown
-# CASCADE-XXX: Error Name
+# PHLO-XXX: Error Name
 
 **Error Type:** Category
 **Severity:** High/Medium/Low
@@ -540,4 +540,4 @@ Template for new error documentation:
 
 **Documentation Version:** 1.0.0
 **Last Updated:** 2024-01-15
-**Cascade Version:** 0.1.0
+**Phlo Version:** 0.1.0

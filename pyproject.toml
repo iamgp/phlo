@@ -3,10 +3,10 @@ requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cascade"]
+packages = ["src/phlo"]
 
 [project]
-name = "cascade"
+name = "phlo"
 version = "0.1.0"
 description = "Lakehouse platform"
 readme = "readme.md"
@@ -36,17 +36,17 @@ dependencies = [
 ]
 
 [project.scripts]
-cascade = "cascade.cli.main:cli"
+phlo = "phlo.cli.main:cli"
 
 # Plugin entry point groups
 # External plugins can register themselves in these groups
-[project.entry-points."cascade.plugins.sources"]
+[project.entry-points."phlo.plugins.sources"]
 # Example: my_source = "my_package.my_module:MySourceConnector"
 
-[project.entry-points."cascade.plugins.quality"]
+[project.entry-points."phlo.plugins.quality"]
 # Example: my_check = "my_package.my_module:MyQualityCheck"
 
-[project.entry-points."cascade.plugins.transforms"]
+[project.entry-points."phlo.plugins.transforms"]
 # Example: my_transform = "my_package.my_module:MyTransform"
 
 [tool.uv.workspace]
@@ -68,7 +68,7 @@ dev-dependencies = [
 [tool.ty.environment]
 root = ["./services/api"]
 extra-paths = ["src"]
-python = "/Users/garethprice/Developer/cascade/.venv/bin/python"
+python = "/Users/garethprice/Developer/phlo/.venv/bin/python"
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
