@@ -168,6 +168,220 @@ def test_data_filtering():
 
 ---
 
+## Advanced Testing Utilities ✨ NEW
+
+Cascade provides powerful testing utilities for fast, local testing without Docker.
+
+### MockIcebergCatalog
+
+Test Iceberg table operations in-memory using DuckDB backend.
+
+**Features**:
+- ⚡ **< 5 second execution** (vs 30-60 sec with Docker)
+- 🧪 In-memory DuckDB backend (no persistence)
+- ✅ PyIceberg-compatible API
+- 🔄 Append, scan, filter operations
+- 📊 Convert to Pandas or Arrow
+
+**Example**:
+```python
+from cascade.testing import mock_iceberg_catalog
+from cascade.schemas.converter import pandera_to_iceberg
+from cascade.schemas.weather import RawWeatherData
+import pandas as pd
+
+def test_iceberg_operations():
+    """Test Iceberg table operations locally."""
+
+    # Convert Pandera schema to Iceberg
+    iceberg_schema = pandera_to_iceberg(RawWeatherData)
+
+    # Create mock catalog
+    with mock_iceberg_catalog() as catalog:
+        # Create table
+        table = catalog.create_table("raw.weather", schema=iceberg_schema)
+
+        # Prepare test data
+        test_data = pd.DataFrame([
+            {"city": "London", "temp": 15.5, "timestamp": "2024-01-15"},
+            {"city": "Paris", "temp": 12.3, "timestamp": "2024-01-15"},
+        ])
+
+        # Validate with Pandera
+        validated = RawWeatherData.validate(test_data)
+
+        # Append to table
+        table.append(validated)
+
+        # Query entire table
+        result = table.scan().to_pandas()
+        assert len(result) == 2
+
+        # Query with filter
+        london = table.scan().filter("city = 'London'").to_pandas()
+        assert len(london) == 1
+        assert london["temp"].iloc[0] == 15.5
+
+        # Query with limit
+        first_row = table.scan().limit(1).to_pandas()
+        assert len(first_row) == 1
+```
+
+**API Reference**:
+```python
+# Create catalog
+with mock_iceberg_catalog() as catalog:
+    # Create table
+    table = catalog.create_table("namespace.table_name", schema=iceberg_schema)
+
+    # Load existing table
+    table = catalog.load_table("namespace.table_name")
+
+    # List tables
+    tables = catalog.list_tables()
+
+    # Drop table
+    catalog.drop_table("namespace.table_name")
+
+# Table operations
+table.append(df)                          # Append DataFrame
+table.append(arrow_table)                 # Append Arrow Table
+result = table.scan().to_pandas()         # Scan to DataFrame
+result = table.scan().to_arrow()          # Scan to Arrow Table
+filtered = table.scan().filter("city = 'London'").to_pandas()
+limited = table.scan().limit(10).to_pandas()
+count = table.count()                     # Row count
+table.delete_all()                        # Delete all rows
+table.drop()                              # Drop table
+```
+
+---
+
+### test_asset_execution
+
+Test asset functions directly without Dagster or Docker.
+
+**Features**:
+- 🚀 Execute asset logic directly
+- 🧪 Mock data support
+- ✅ Schema validation
+- 📊 Returns TestAssetResult with success/failure
+
+**Example**:
+```python
+from cascade.testing import test_asset_execution
+from cascade.schemas.weather import RawWeatherData
+
+def test_weather_asset():
+    """Test asset with mock data."""
+
+    # Mock API response data
+    test_data = [
+        {
+            "city": "London",
+            "temp": 15.5,
+            "humidity": 65,
+            "timestamp": "2024-01-15T12:00:00Z",
+        },
+    ]
+
+    # Test asset execution
+    result = test_asset_execution(
+        asset_fn=weather_observations_logic,  # Your asset function (not decorator)
+        partition="2024-01-15",
+        mock_data=test_data,
+        validation_schema=RawWeatherData,
+    )
+
+    # Assertions
+    assert result.success, f"Execution failed: {result.error}"
+    assert len(result.data) == 1
+    assert result.data["city"].iloc[0] == "London"
+    assert result.data["temp"].iloc[0] == 15.5
+    assert result.metadata["validation"] == "passed"
+```
+
+**Without Mock Data** (tests actual API):
+```python
+def test_weather_asset_real_api():
+    """Test with real API call."""
+
+    result = test_asset_execution(
+        asset_fn=weather_observations_logic,
+        partition="2024-01-15",
+        validation_schema=RawWeatherData,
+        # No mock_data = makes real API call
+    )
+
+    assert result.success
+    assert len(result.data) > 0
+```
+
+**API Reference**:
+```python
+result = test_asset_execution(
+    asset_fn=my_asset_function,           # Asset function (NOT decorated)
+    partition="2024-01-15",                # Partition date
+    mock_data=[...],                       # Optional: mock data (list/DataFrame)
+    validation_schema=MyPanderaSchema,     # Optional: validate with schema
+)
+
+# Result attributes
+result.success      # bool: True if successful
+result.data         # DataFrame: output data
+result.error        # Exception: error if failed
+result.metadata     # dict: metadata (validation status, etc.)
+```
+
+---
+
+### Combining MockIcebergCatalog + test_asset_execution
+
+Full end-to-end test without Docker:
+
+```python
+from cascade.testing import test_asset_execution, mock_iceberg_catalog
+from cascade.schemas.converter import pandera_to_iceberg
+from cascade.schemas.weather import RawWeatherData
+
+def test_full_pipeline_local():
+    """Test complete ingestion → Iceberg pipeline locally."""
+
+    # Step 1: Execute asset with mock data
+    test_data = [
+        {"city": "London", "temp": 15.5, "timestamp": "2024-01-15T12:00:00Z"},
+    ]
+
+    result = test_asset_execution(
+        asset_fn=weather_observations_logic,
+        partition="2024-01-15",
+        mock_data=test_data,
+        validation_schema=RawWeatherData,
+    )
+
+    assert result.success
+
+    # Step 2: Write to mock Iceberg catalog
+    iceberg_schema = pandera_to_iceberg(RawWeatherData)
+
+    with mock_iceberg_catalog() as catalog:
+        table = catalog.create_table("raw.weather", schema=iceberg_schema)
+        table.append(result.data)
+
+        # Step 3: Query from Iceberg
+        queried = table.scan().to_pandas()
+        assert len(queried) == 1
+        assert queried["city"].iloc[0] == "London"
+```
+
+**Performance Comparison**:
+| Approach | Setup Time | Execution | Total |
+|----------|------------|-----------|-------|
+| **Docker** | 30-60s | 30-60s | ~60-120s |
+| **MockIcebergCatalog** | 0s | < 5s | **< 5s** |
+
+---
+
 ## Integration Testing
 
 Integration tests require the full Docker stack and test end-to-end pipelines.
@@ -246,18 +460,59 @@ pytest tests/ -v -s
 
 ---
 
-## Current Limitations
+## CLI Commands ✨ NEW
 
-**Note**: Cascade does not yet provide testing utilities. Until `cascade.testing` module is available, you need to:
+Cascade now provides CLI commands for testing and workflow management.
 
-1. **For unit tests**: Test schemas and configuration (no mocking required)
-2. **For integration tests**: Use full Docker stack
+### cascade test
 
-**Coming soon**:
-- `cascade.testing.mock_dlt_source()` - Mock DLT data sources
-- `cascade.testing.mock_iceberg_catalog()` - In-memory Iceberg
-- `cascade.testing.test_asset_execution()` - Test assets without Docker
-- `cascade test` CLI command - Run tests from command line
+Run tests with various options:
+
+```bash
+# Run all tests
+cascade test
+
+# Run tests for specific asset
+cascade test weather_observations
+
+# Run unit tests only (skip Docker integration tests)
+cascade test --local
+
+# Run with coverage
+cascade test --coverage
+
+# Run specific marker
+cascade test -m integration
+```
+
+### cascade materialize
+
+Materialize assets via Docker:
+
+```bash
+# Materialize asset
+cascade materialize weather_observations
+
+# Materialize with partition
+cascade materialize weather_observations --partition 2024-01-15
+
+# Dry run (show command without executing)
+cascade materialize weather_observations --dry-run
+```
+
+### cascade create-workflow
+
+Interactive workflow scaffolding:
+
+```bash
+# Interactive prompts
+cascade create-workflow
+
+# With options
+cascade create-workflow --type ingestion --domain weather --table observations
+```
+
+See `cascade --help` for full documentation.
 
 ---
 
@@ -623,7 +878,7 @@ open htmlcov/index.html
 - **Template**: [templates/tests/test_ingestion.py](../templates/tests/test_ingestion.py)
 - **Pandera Docs**: https://pandera.readthedocs.io/
 - **Pytest Docs**: https://docs.pytest.org/
-- **Troubleshooting**: [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md)
+- **Troubleshooting**: [Troubleshooting Guide](troubleshooting.md)
 
 ---
 
