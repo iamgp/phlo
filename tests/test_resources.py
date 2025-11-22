@@ -6,7 +6,6 @@ cascade.defs.resources module, focusing on IcebergResource and TrinoResource.
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from cascade.defs.resources.iceberg import IcebergResource
 from cascade.defs.resources.trino import TrinoResource

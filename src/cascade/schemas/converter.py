@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, get_args, get_origin, get_type_hints

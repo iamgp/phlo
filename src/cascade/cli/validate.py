@@ -136,17 +136,21 @@ def _validate_single_schema(
             # Check for description
             if check_descriptions:
                 if not field.description or field.description.strip() == "":
-                    warnings.append(
-                        (field_name, "Missing description")
-                    )
+                    warnings.append((field_name, "Missing description"))
 
             # Check for constraints
             if check_constraints:
                 if not field.checks:
                     # Only warn for numeric types that might benefit from constraints
-                    if hasattr(field, 'dtype') and str(field.dtype) in ['int64', 'float64']:
+                    if hasattr(field, "dtype") and str(field.dtype) in [
+                        "int64",
+                        "float64",
+                    ]:
                         warnings.append(
-                            (field_name, "No constraints defined (consider adding ge/le/gt/lt)")
+                            (
+                                field_name,
+                                "No constraints defined (consider adding ge/le/gt/lt)",
+                            )
                         )
 
         # Display results in table
@@ -169,11 +173,11 @@ def _validate_single_schema(
         field_count = len(schema.columns)
         console.print(f"  [dim]Fields: {field_count}[/dim]")
 
-        if hasattr(schema_class, 'Config'):
+        if hasattr(schema_class, "Config"):
             config = schema_class.Config
-            if hasattr(config, 'strict'):
+            if hasattr(config, "strict"):
                 console.print(f"  [dim]Strict mode: {config.strict}[/dim]")
-            if hasattr(config, 'coerce'):
+            if hasattr(config, "coerce"):
                 console.print(f"  [dim]Coerce types: {config.coerce}[/dim]")
 
         console.print()

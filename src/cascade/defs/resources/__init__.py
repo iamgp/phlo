@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import dagster as dg
 from dagster_dbt import DbtCliResource
 
@@ -13,7 +15,9 @@ from cascade.defs.resources.trino import TrinoResource
 from cascade.defs.validation.pandera_validator import PanderaValidatorResource
 from cascade.defs.validation.dbt_validator import DBTValidatorResource
 from cascade.defs.validation.freshness_validator import FreshnessValidatorResource
-from cascade.defs.validation.schema_validator import SchemaCompatibilityValidatorResource
+from cascade.defs.validation.schema_validator import (
+    SchemaCompatibilityValidatorResource,
+)
 
 # Public API exports
 __all__ = ["IcebergResource", "TrinoResource", "NessieResource"]
@@ -24,19 +28,24 @@ __all__ = ["IcebergResource", "TrinoResource", "NessieResource"]
 def __getattr__(name: str):
     if name == "NessieResource":
         from cascade.defs.nessie import NessieResource
+
         return NessieResource
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # --- Resource Builder Functions ---
 # Helper functions to configure external service resources
-def _build_dbt_resource() -> DbtCliResource:
+def _build_dbt_resource() -> DbtCliResource | None:
     """
     Build the dbt CLI resource for data transformations.
 
     Returns:
-        Configured DbtCliResource using project and profiles paths from config
+        Configured DbtCliResource if dbt directories exist, None otherwise
     """
+    # Check if dbt directories exist (optional for user projects)
+    if not config.dbt_project_path.exists():
+        return None
+
     return DbtCliResource(
         project_dir=str(config.dbt_project_path),
         profiles_dir=str(config.dbt_profiles_path),
@@ -67,22 +76,27 @@ def build_defs() -> dg.Definitions:
     iceberg_resource = IcebergResource()
     trino_resource = TrinoResource()
 
-    return dg.Definitions(
-        resources={
-            "dbt": _build_dbt_resource(),
-            "trino": trino_resource,
-            "iceberg": iceberg_resource,
-            "pandera_validator": PanderaValidatorResource(
-                trino=trino_resource,
-                critical_level=config.pandera_critical_level,
-            ),
-            "dbt_validator": DBTValidatorResource(),
-            "freshness_validator": FreshnessValidatorResource(
-                blocks_promotion=config.freshness_blocks_promotion,
-                glucose_freshness_hours=config.glucose_freshness_hours,
-                github_events_freshness_hours=config.github_events_freshness_hours,
-                github_stats_freshness_hours=config.github_stats_freshness_hours,
-            ),
-            "schema_validator": SchemaCompatibilityValidatorResource(),
-        }
-    )
+    # Build resources dict, making dbt optional
+    resources: dict[str, Any] = {
+        "trino": trino_resource,
+        "iceberg": iceberg_resource,
+        "pandera_validator": PanderaValidatorResource(
+            trino=trino_resource,
+            critical_level=config.pandera_critical_level,
+        ),
+        "dbt_validator": DBTValidatorResource(),
+        "freshness_validator": FreshnessValidatorResource(
+            blocks_promotion=config.freshness_blocks_promotion,
+            glucose_freshness_hours=config.glucose_freshness_hours,
+            github_events_freshness_hours=config.github_events_freshness_hours,
+            github_stats_freshness_hours=config.github_stats_freshness_hours,
+        ),
+        "schema_validator": SchemaCompatibilityValidatorResource(),
+    }
+
+    # Add dbt resource if available
+    dbt_resource = _build_dbt_resource()
+    if dbt_resource is not None:
+        resources["dbt"] = dbt_resource
+
+    return dg.Definitions(resources=resources)

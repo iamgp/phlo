@@ -13,13 +13,8 @@ Provides assets that orchestrate dynamic branch workflows:
 
 from __future__ import annotations
 
-from datetime import datetime
 
 import dagster as dg
-from dagster import AssetExecutionContext, MaterializeResult
-from cascade.config import config
-from cascade.defs.nessie import NessieResource
-from cascade.defs.nessie.branch_manager import BranchManagerResource
 
 
 # --- Aggregation Function ---

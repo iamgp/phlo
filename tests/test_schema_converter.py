@@ -10,7 +10,6 @@ from decimal import Decimal
 
 import pytest
 from pandera.pandas import DataFrameModel, Field
-from pyiceberg.schema import Schema
 from pyiceberg.types import (
     BinaryType,
     BooleanType,

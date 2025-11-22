@@ -8,7 +8,6 @@ Iceberg table management and data operations.
 
 from pathlib import Path
 
-import pyarrow as pa
 import pyarrow.parquet as pq
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
@@ -243,7 +242,7 @@ def merge_to_table(
             delete_result = table.delete(delete_expr)
             # Count deletions if available in result
             rows_deleted += len(batch)  # Approximation
-        except Exception as e:
+        except Exception:
             # If delete fails (e.g., no matching records), continue
             pass
 

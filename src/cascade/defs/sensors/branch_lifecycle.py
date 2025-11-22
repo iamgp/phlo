@@ -8,7 +8,7 @@ This module provides sensors that manage the complete lifecycle of dynamic pipel
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import dagster as dg
 from cascade.config import config
