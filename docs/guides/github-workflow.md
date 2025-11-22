@@ -1,10 +1,10 @@
 # GitHub Analytics Workflow Guide
 
-This guide explains how to set up and use the GitHub analytics workflow in Cascade, which collects GitHub user events and repository statistics for data analysis and dashboarding.
+This guide explains how to set up and use the GitHub analytics workflow in Phlo, which collects GitHub user events and repository statistics for data analysis and dashboarding.
 
 ## Overview
 
-The GitHub workflow follows the same 4-layer architecture as other Cascade workflows:
+The GitHub workflow follows the same 4-layer architecture as other Phlo workflows:
 
 1. **Ingestion Layer** - Raw data collection from GitHub API
 2. **Bronze Layer** - Basic cleaning and type conversion
@@ -38,7 +38,7 @@ For private repositories, ensure your token has appropriate access.
 
 ## Architecture Components
 
-### 1. Ingestion Assets (`src/cascade/defs/ingestion/github_assets.py`)
+### 1. Ingestion Assets (`src/phlo/defs/ingestion/github_assets.py`)
 
 Two main ingestion assets:
 
@@ -56,7 +56,7 @@ Two main ingestion assets:
 - **Partitioning**: Daily by collection date
 - **Storage**: Iceberg `raw.repo_stats`
 
-### 2. Data Quality (`src/cascade/defs/quality/github.py`)
+### 2. Data Quality (`src/phlo/defs/quality/github.py`)
 
 Pandera-based schema validation:
 
@@ -94,7 +94,7 @@ Pandera-based schema validation:
 - `mrt_github_activity_overview.sql` - Daily activity summaries
 - `mrt_github_repo_insights.sql` - Repository performance analytics
 
-### 4. Publishing (`src/cascade/defs/publishing/trino_to_postgres.py`)
+### 4. Publishing (`src/phlo/defs/publishing/trino_to_postgres.py`)
 
 Moves curated marts from Iceberg to PostgreSQL for fast dashboard queries.
 
@@ -136,7 +136,7 @@ dagster asset materialize --select github_repo_stats --partition-key 2024-01-15
 Execute dbt transformations:
 ```bash
 # From the Dagster container
-docker exec -it cascade-dagster-dagster-web-1 bash
+docker exec -it phlo-dagster-dagster-web-1 bash
 cd /dbt
 
 # Install dependencies

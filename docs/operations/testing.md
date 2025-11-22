@@ -1,6 +1,6 @@
 # Testing Guide
 
-A comprehensive guide to testing Cascade workflows.
+A comprehensive guide to testing Phlo workflows.
 
 ## Overview
 
@@ -47,7 +47,7 @@ Test that your schema validates data correctly:
 ```python
 import pytest
 import pandas as pd
-from cascade.schemas.weather import RawWeatherData
+from phlo.schemas.weather import RawWeatherData
 
 def test_valid_weather_data_passes_validation():
     """Test that valid weather data passes schema validation."""
@@ -114,7 +114,7 @@ Verify decorator parameters:
 
 ```python
 import inspect
-from cascade.defs.ingestion.weather.observations import weather_observations
+from phlo.defs.ingestion.weather.observations import weather_observations
 
 def test_asset_has_correct_table_name():
     """Test that asset has correct table name."""
@@ -170,7 +170,7 @@ def test_data_filtering():
 
 ## Advanced Testing Utilities ✨ NEW
 
-Cascade provides powerful testing utilities for fast, local testing without Docker.
+Phlo provides powerful testing utilities for fast, local testing without Docker.
 
 ### MockIcebergCatalog
 
@@ -185,9 +185,9 @@ Test Iceberg table operations in-memory using DuckDB backend.
 
 **Example**:
 ```python
-from cascade.testing import mock_iceberg_catalog
-from cascade.schemas.converter import pandera_to_iceberg
-from cascade.schemas.weather import RawWeatherData
+from phlo.testing import mock_iceberg_catalog
+from phlo.schemas.converter import pandera_to_iceberg
+from phlo.schemas.weather import RawWeatherData
 import pandas as pd
 
 def test_iceberg_operations():
@@ -269,8 +269,8 @@ Test asset functions directly without Dagster or Docker.
 
 **Example**:
 ```python
-from cascade.testing import test_asset_execution
-from cascade.schemas.weather import RawWeatherData
+from phlo.testing import test_asset_execution
+from phlo.schemas.weather import RawWeatherData
 
 def test_weather_asset():
     """Test asset with mock data."""
@@ -340,9 +340,9 @@ result.metadata     # dict: metadata (validation status, etc.)
 Full end-to-end test without Docker:
 
 ```python
-from cascade.testing import test_asset_execution, mock_iceberg_catalog
-from cascade.schemas.converter import pandera_to_iceberg
-from cascade.schemas.weather import RawWeatherData
+from phlo.testing import test_asset_execution, mock_iceberg_catalog
+from phlo.schemas.converter import pandera_to_iceberg
+from phlo.schemas.weather import RawWeatherData
 
 def test_full_pipeline_local():
     """Test complete ingestion → Iceberg pipeline locally."""
@@ -462,57 +462,57 @@ pytest tests/ -v -s
 
 ## CLI Commands ✨ NEW
 
-Cascade now provides CLI commands for testing and workflow management.
+Phlo now provides CLI commands for testing and workflow management.
 
-### cascade test
+### phlo test
 
 Run tests with various options:
 
 ```bash
 # Run all tests
-cascade test
+phlo test
 
 # Run tests for specific asset
-cascade test weather_observations
+phlo test weather_observations
 
 # Run unit tests only (skip Docker integration tests)
-cascade test --local
+phlo test --local
 
 # Run with coverage
-cascade test --coverage
+phlo test --coverage
 
 # Run specific marker
-cascade test -m integration
+phlo test -m integration
 ```
 
-### cascade materialize
+### phlo materialize
 
 Materialize assets via Docker:
 
 ```bash
 # Materialize asset
-cascade materialize weather_observations
+phlo materialize weather_observations
 
 # Materialize with partition
-cascade materialize weather_observations --partition 2024-01-15
+phlo materialize weather_observations --partition 2024-01-15
 
 # Dry run (show command without executing)
-cascade materialize weather_observations --dry-run
+phlo materialize weather_observations --dry-run
 ```
 
-### cascade create-workflow
+### phlo create-workflow
 
 Interactive workflow scaffolding:
 
 ```bash
 # Interactive prompts
-cascade create-workflow
+phlo create-workflow
 
 # With options
-cascade create-workflow --type ingestion --domain weather --table observations
+phlo create-workflow --type ingestion --domain weather --table observations
 ```
 
-See `cascade --help` for full documentation.
+See `phlo --help` for full documentation.
 
 ---
 
@@ -765,11 +765,11 @@ def test_asset_decorator_configuration():
 
 **Solution**:
 ```bash
-# Install cascade in editable mode
+# Install phlo in editable mode
 pip install -e .
 
 # Or set PYTHONPATH
-export PYTHONPATH=/home/user/cascade/src:$PYTHONPATH
+export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
 ```
 
 ### Schema Validation Failures
@@ -825,7 +825,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Run unit tests
         run: |
-          pytest tests/ -m "not integration" -v --cov=cascade
+          pytest tests/ -m "not integration" -v --cov=phlo
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -848,7 +848,7 @@ jobs:
 
 ```bash
 # Run tests with coverage
-pytest tests/ --cov=cascade --cov-report=html
+pytest tests/ --cov=phlo --cov-report=html
 
 # Open coverage report
 open htmlcov/index.html
@@ -882,4 +882,4 @@ open htmlcov/index.html
 
 ---
 
-**Have questions?** Open a [GitHub Discussion](https://github.com/iamgp/cascade/discussions)
+**Have questions?** Open a [GitHub Discussion](https://github.com/iamgp/phlo/discussions)

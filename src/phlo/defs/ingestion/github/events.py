@@ -1,0 +1,73 @@
+from __future__ import annotations
+
+from dlt.sources.rest_api import rest_api
+
+from phlo.config import config
+from phlo.ingestion import phlo_ingestion
+from phlo.schemas.github import RawGitHubUserEvents
+
+
+@phlo_ingestion(
+    table_name="github_user_events",
+    unique_key="id",
+    validation_schema=RawGitHubUserEvents,
+    group="github",
+    cron="0 */1 * * *",
+    freshness_hours=(1, 24),
+)
+def github_user_events(partition_date: str):
+    """
+    Ingest GitHub user events using DLT rest_api source.
+
+    Fetches GitHub events for a specific user for a partition date,
+    stages to parquet, and merges to Iceberg with idempotent deduplication.
+
+    Features:
+    - Idempotent ingestion: safe to run multiple times without duplicates
+    - Deduplication based on id field (GitHub's unique event ID)
+    - Daily partitioning by event date
+    - Automatic validation with Pandera schema
+    - Branch-aware writes to Iceberg
+    - Automatic pagination through GitHub API
+
+    Args:
+        partition_date: Date partition in YYYY-MM-DD format
+
+    Returns:
+        DLT resource for GitHub user events, or None if no data
+    """
+    if not config.github_username:
+        raise ValueError("GitHub username not configured")
+
+    headers = {"Accept": "application/vnd.github+json"}
+    if config.github_token:
+        headers["Authorization"] = f"token {config.github_token}"
+
+    source = rest_api(  # type: ignore[arg-type]
+        {
+            "client": {
+                "base_url": config.github_base_url,
+                "headers": headers,
+            },
+            "resources": [
+                {
+                    "name": "user_events",
+                    "endpoint": {
+                        "path": f"users/{config.github_username}/events",
+                        "params": {
+                            "per_page": 100,
+                        },
+                        "paginator": {
+                            "type": "page_number",
+                            "page_param": "page",
+                            "total_path": None,
+                            "maximum_page": 3,
+                        },
+                        "data_selector": "$",
+                    },
+                }
+            ],
+        }
+    )
+
+    return source

@@ -67,7 +67,7 @@ app.include_router(metadata.router, prefix=settings.api_prefix)
 async def root():
     """Root endpoint."""
     return {
-        "service": "Cascade Lakehouse API",
+        "service": "Phlo Lakehouse API",
         "version": settings.api_version,
         "docs": "/docs",
         "health": "/api/v1/metadata/health",

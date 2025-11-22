@@ -78,7 +78,7 @@ Eliminate schema duplication by auto-generating PyIceberg schemas from Pandera s
 
 ### Implementation
 
-**Location:** `src/cascade/schemas/converter.py`
+**Location:** `src/phlo/schemas/converter.py`
 
 **Core Function:**
 ```python
@@ -180,14 +180,14 @@ Decorator automatically:
 ### Module Structure
 
 ```
-src/cascade/schemas/
+src/phlo/schemas/
 ├── __init__.py
 ├── converter.py          # NEW: pandera_to_iceberg()
 ├── glucose.py           # Pandera schemas only
 ├── github.py            # Pandera schemas only
 └── registry.py          # TableConfig (internal)
 
-src/cascade/iceberg/
+src/phlo/iceberg/
 ├── schema.py            # DELETE: Manual PyIceberg schemas
 └── tables.py            # Keep: Table operations
 ```
@@ -324,7 +324,7 @@ def test_backward_compatibility():
 ## Documentation Updates
 
 **Update:**
-- `src/cascade/defs/ingestion/README.md` - Remove `iceberg_schema` from examples
+- `src/phlo/defs/ingestion/README.md` - Remove `iceberg_schema` from examples
 - New: `docs/schemas.md` - Explain single source of truth approach
 - New: `docs/migration_guide.md` - Guide for migrating from manual schemas
 

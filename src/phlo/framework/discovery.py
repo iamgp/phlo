@@ -1,0 +1,227 @@
+"""
+User Workflow Discovery
+
+This module discovers and loads workflow files from a user's project directory.
+It dynamically imports Python modules which triggers decorator registration,
+then collects all registered assets, jobs, and schedules.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import logging
+import sys
+from pathlib import Path
+from typing import Any
+
+from dagster import Definitions
+
+logger = logging.getLogger(__name__)
+
+
+def discover_user_workflows(
+    workflows_path: Path | str,
+    clear_registries: bool = False,
+) -> Definitions:
+    """
+    Discover and load user workflow files from a directory.
+
+    This function scans the workflows directory for Python files, imports them
+    (which triggers @phlo_ingestion and @phlo_quality decorator registration),
+    and collects all registered Dagster assets and checks.
+
+    Args:
+        workflows_path: Path to workflows directory (e.g., "./workflows")
+        clear_registries: Whether to clear asset registries before discovery
+            (default: False). Set to True for testing.
+
+    Returns:
+        Dagster Definitions containing all discovered workflows
+
+    Example:
+        ```python
+        # Discover workflows in ./workflows directory
+        user_defs = discover_user_workflows(Path("./workflows"))
+
+        # Merge with core definitions
+        all_defs = Definitions.merge(core_defs, user_defs)
+        ```
+
+    Raises:
+        FileNotFoundError: If workflows_path doesn't exist
+        ImportError: If workflow modules fail to import
+    """
+    workflows_path = Path(workflows_path)
+
+    if not workflows_path.exists():
+        logger.warning(
+            "Workflows directory not found: %s. No user workflows will be loaded.",
+            workflows_path,
+        )
+        return Definitions()
+
+    if not workflows_path.is_dir():
+        raise ValueError(f"Workflows path must be a directory, got: {workflows_path}")
+
+    logger.info(f"Discovering user workflows in: {workflows_path}")
+
+    # Optionally clear registries (useful for testing)
+    if clear_registries:
+        _clear_asset_registries()
+
+    # Add parent directory to Python path so imports work
+    parent_dir = workflows_path.parent.resolve()
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+        logger.debug(f"Added to Python path: {parent_dir}")
+
+    # Import all workflow modules
+    imported_modules = _import_workflow_modules(workflows_path)
+
+    logger.info(
+        f"Imported {len(imported_modules)} workflow modules from {workflows_path}"
+    )
+
+    # Collect registered assets from decorators
+    collected_assets = _collect_registered_assets()
+
+    logger.info(f"Discovered {len(collected_assets)} assets from user workflows")
+
+    return Definitions(assets=collected_assets)
+
+
+def _import_workflow_modules(workflows_path: Path) -> list[Any]:
+    """
+    Import all Python modules in workflows directory.
+
+    Args:
+        workflows_path: Path to workflows directory
+
+    Returns:
+        List of imported module objects
+    """
+    imported_modules = []
+
+    # Find all Python files
+    py_files = list(workflows_path.rglob("*.py"))
+
+    for py_file in py_files:
+        # Skip __init__.py and files starting with underscore
+        if py_file.name.startswith("_"):
+            continue
+
+        try:
+            # Convert file path to module name
+            # e.g., workflows/ingestion/weather/observations.py
+            #    -> workflows.ingestion.weather.observations
+            relative_path = py_file.relative_to(workflows_path.parent)
+            module_name = str(relative_path.with_suffix("")).replace("/", ".")
+
+            logger.debug(f"Importing workflow module: {module_name}")
+
+            # Import the module
+            spec = importlib.util.spec_from_file_location(module_name, py_file)
+            if spec is None or spec.loader is None:
+                logger.warning(f"Could not load spec for: {py_file}")
+                continue
+
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+
+            imported_modules.append(module)
+            logger.debug(f"Successfully imported: {module_name}")
+
+        except Exception as exc:
+            logger.error(
+                f"Failed to import workflow module {py_file}: {exc}",
+                exc_info=True,
+            )
+            # Continue with other modules rather than failing completely
+            continue
+
+    return imported_modules
+
+
+def _collect_registered_assets() -> list[Any]:
+    """
+    Collect all assets registered via decorators.
+
+    Returns:
+        List of Dagster asset definitions
+    """
+    assets = []
+
+    # Collect ingestion assets
+    try:
+        from phlo.ingestion import get_ingestion_assets
+
+        ingestion_assets = get_ingestion_assets()
+        assets.extend(ingestion_assets)
+        logger.debug(f"Collected {len(ingestion_assets)} ingestion assets")
+    except ImportError:
+        logger.warning("Could not import phlo.ingestion.get_ingestion_assets")
+    except Exception as exc:
+        logger.error(f"Error collecting ingestion assets: {exc}")
+
+    # TODO: Collect quality check assets when registry is added
+    # try:
+    #     from phlo.quality import get_quality_assets
+    #     quality_assets = get_quality_assets()
+    #     assets.extend(quality_assets)
+    # except ImportError:
+    #     pass
+
+    return assets
+
+
+def _clear_asset_registries() -> None:
+    """
+    Clear all asset registries (for testing).
+
+    This clears the global registries that decorators append to,
+    allowing fresh discovery in test scenarios.
+    """
+    try:
+        from phlo.ingestion.decorator import _INGESTION_ASSETS
+
+        _INGESTION_ASSETS.clear()
+        logger.debug("Cleared ingestion asset registry")
+    except ImportError:
+        pass
+
+    # TODO: Clear quality asset registry when it exists
+    # try:
+    #     from phlo.quality.decorator import _QUALITY_ASSETS
+    #     _QUALITY_ASSETS.clear()
+    # except ImportError:
+    #     pass
+
+
+def get_workflows_path_from_config() -> Path:
+    """
+    Get workflows path from configuration.
+
+    Returns:
+        Path to workflows directory from config, or default "workflows"
+
+    Example:
+        ```python
+        workflows_path = get_workflows_path_from_config()
+        defs = discover_user_workflows(workflows_path)
+        ```
+    """
+    try:
+        from phlo.config import get_settings
+
+        settings = get_settings()
+
+        # Check if workflows_path attribute exists
+        if hasattr(settings, "workflows_path"):
+            return Path(settings.workflows_path)
+
+    except Exception as exc:
+        logger.warning(f"Could not get workflows_path from config: {exc}")
+
+    # Default fallback
+    return Path("workflows")

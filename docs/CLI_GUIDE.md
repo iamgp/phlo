@@ -1,17 +1,17 @@
-# Cascade CLI Guide
+# Phlo CLI Guide
 
-Command-line interface for Cascade workflows.
+Command-line interface for Phlo workflows.
 
 ## Installation
 
-The Cascade CLI is automatically available after installing Cascade:
+The Phlo CLI is automatically available after installing Phlo:
 
 ```bash
-# Install Cascade
+# Install Phlo
 pip install -e .
 
 # Verify installation
-cascade --version
+phlo --version
 ```
 
 ---
@@ -20,20 +20,20 @@ cascade --version
 
 | Command | Description | Speed |
 |---------|-------------|-------|
-| `cascade test` | Run tests with optional local mode | Fast (< 5s local) |
-| `cascade materialize` | Materialize assets via Docker | Medium (30-60s) |
-| `cascade create-workflow` | Interactive workflow scaffolding | Fast (< 10s) |
+| `phlo test` | Run tests with optional local mode | Fast (< 5s local) |
+| `phlo materialize` | Materialize assets via Docker | Medium (30-60s) |
+| `phlo create-workflow` | Interactive workflow scaffolding | Fast (< 10s) |
 
 ---
 
-## cascade test
+## phlo test
 
-Run tests for Cascade workflows.
+Run tests for Phlo workflows.
 
 ### Usage
 
 ```bash
-cascade test [ASSET_NAME] [OPTIONS]
+phlo test [ASSET_NAME] [OPTIONS]
 ```
 
 ### Options
@@ -50,41 +50,41 @@ cascade test [ASSET_NAME] [OPTIONS]
 
 **Run all tests**:
 ```bash
-cascade test
+phlo test
 ```
 
 **Run tests for specific asset**:
 ```bash
-cascade test weather_observations
+phlo test weather_observations
 ```
 
 **Run unit tests only (skip Docker integration tests)**:
 ```bash
-cascade test --local
+phlo test --local
 ```
 
 **Generate coverage report**:
 ```bash
-cascade test --coverage
+phlo test --coverage
 # Opens htmlcov/index.html
 ```
 
 **Run integration tests only**:
 ```bash
-cascade test -m integration
+phlo test -m integration
 ```
 
 **Verbose output**:
 ```bash
-cascade test -v
+phlo test -v
 ```
 
 ### Performance
 
 | Mode | Docker Required | Speed | Best For |
 |------|----------------|-------|----------|
-| `cascade test --local` | ❌ No | < 5s | Unit tests, CI/CD |
-| `cascade test` | ✅ Yes | 30-60s | Integration tests |
+| `phlo test --local` | ❌ No | < 5s | Unit tests, CI/CD |
+| `phlo test` | ✅ Yes | 30-60s | Integration tests |
 
 ### Test Markers
 
@@ -105,14 +105,14 @@ def test_full_pipeline():
 
 ---
 
-## cascade materialize
+## phlo materialize
 
 Materialize Dagster assets via Docker.
 
 ### Usage
 
 ```bash
-cascade materialize ASSET_NAME [OPTIONS]
+phlo materialize ASSET_NAME [OPTIONS]
 ```
 
 ### Options
@@ -128,23 +128,23 @@ cascade materialize ASSET_NAME [OPTIONS]
 
 **Materialize asset**:
 ```bash
-cascade materialize weather_observations
+phlo materialize weather_observations
 ```
 
 **Materialize with partition**:
 ```bash
-cascade materialize weather_observations --partition 2024-01-15
+phlo materialize weather_observations --partition 2024-01-15
 ```
 
 **Use Dagster selector**:
 ```bash
-cascade materialize --select "tag:weather"
-cascade materialize --select "*weather*"
+phlo materialize --select "tag:weather"
+phlo materialize --select "*weather*"
 ```
 
 **Dry run (show command without executing)**:
 ```bash
-cascade materialize weather_observations --dry-run
+phlo materialize weather_observations --dry-run
 # Output: docker exec dagster-webserver dagster asset materialize --select weather_observations
 ```
 
@@ -163,7 +163,7 @@ docker ps | grep dagster-webserver
 
 ### Behind the Scenes
 
-`cascade materialize` is a convenience wrapper for:
+`phlo materialize` is a convenience wrapper for:
 
 ```bash
 docker exec dagster-webserver dagster asset materialize --select <asset>
@@ -171,14 +171,14 @@ docker exec dagster-webserver dagster asset materialize --select <asset>
 
 ---
 
-## cascade create-workflow
+## phlo create-workflow
 
 Interactive workflow scaffolding.
 
 ### Usage
 
 ```bash
-cascade create-workflow [OPTIONS]
+phlo create-workflow [OPTIONS]
 ```
 
 ### Options
@@ -196,7 +196,7 @@ cascade create-workflow [OPTIONS]
 
 **Interactive mode** (recommended for first-time users):
 ```bash
-cascade create-workflow
+phlo create-workflow
 
 # Prompts:
 # Workflow type: ingestion
@@ -209,7 +209,7 @@ cascade create-workflow
 
 **Command-line mode** (for automation):
 ```bash
-cascade create-workflow \
+phlo create-workflow \
   --type ingestion \
   --domain weather \
   --table observations \
@@ -222,11 +222,11 @@ cascade create-workflow \
 
 The command generates 3 files:
 
-1. **Pandera schema** (`src/cascade/schemas/{domain}.py`)
-2. **Ingestion asset** (`src/cascade/defs/ingestion/{domain}/{table}.py`)
+1. **Pandera schema** (`src/phlo/schemas/{domain}.py`)
+2. **Ingestion asset** (`src/phlo/defs/ingestion/{domain}/{table}.py`)
 3. **Test file** (`tests/test_{domain}_{table}.py`)
 
-And auto-registers the domain in `src/cascade/defs/ingestion/__init__.py`.
+And auto-registers the domain in `src/phlo/defs/ingestion/__init__.py`.
 
 ### Example Output
 
@@ -235,16 +235,16 @@ And auto-registers the domain in `src/cascade/defs/ingestion/__init__.py`.
 
 ✅ Created files:
 
-  ✓ src/cascade/schemas/weather.py
-  ✓ src/cascade/defs/ingestion/weather/observations.py
+  ✓ src/phlo/schemas/weather.py
+  ✓ src/phlo/defs/ingestion/weather/observations.py
   ✓ tests/test_weather_observations.py
 
 📝 Next steps:
-  1. Edit schema: src/cascade/schemas/weather.py
-  2. Configure API: src/cascade/defs/ingestion/weather/observations.py
+  1. Edit schema: src/phlo/schemas/weather.py
+  2. Configure API: src/phlo/defs/ingestion/weather/observations.py
   3. Restart Dagster: docker restart dagster-webserver
-  4. Test: cascade test weather
-  5. Materialize: cascade materialize observations
+  4. Test: phlo test weather
+  5. Materialize: phlo materialize observations
 ```
 
 ### File Templates
@@ -260,8 +260,8 @@ Generated files include:
 1. **Edit schema** - Add your fields to the Pandera schema
 2. **Configure API** - Update the DLT rest_api configuration
 3. **Restart Dagster** - `docker restart dagster-webserver`
-4. **Test locally** - `cascade test {domain} --local`
-5. **Materialize** - `cascade materialize {table}`
+4. **Test locally** - `phlo test {domain} --local`
+5. **Materialize** - `phlo materialize {table}`
 
 ---
 
@@ -278,13 +278,13 @@ All commands support:
 
 ```bash
 # Show help
-cascade --help
-cascade test --help
-cascade materialize --help
-cascade create-workflow --help
+phlo --help
+phlo test --help
+phlo materialize --help
+phlo create-workflow --help
 
 # Show version
-cascade --version
+phlo --version
 ```
 
 ---
@@ -294,9 +294,9 @@ cascade --version
 | Task | Manual | With CLI | Time Saved |
 |------|--------|----------|------------|
 | **Create workflow** | 15-20 min | 5-10 min | 50-67% |
-| **Run tests** | `pytest tests/` | `cascade test` | Slight |
-| **Materialize asset** | `docker exec dagster-webserver dagster asset materialize ...` | `cascade materialize {asset}` | 70% fewer keystrokes |
-| **Local testing** | Manual pytest markers | `cascade test --local` | Easier |
+| **Run tests** | `pytest tests/` | `phlo test` | Slight |
+| **Materialize asset** | `docker exec dagster-webserver dagster asset materialize ...` | `phlo materialize {asset}` | 70% fewer keystrokes |
+| **Local testing** | Manual pytest markers | `phlo test --local` | Easier |
 
 ---
 
@@ -324,7 +324,7 @@ jobs:
 
       - name: Run tests
         run: |
-          cascade test --local --coverage
+          phlo test --local --coverage
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
@@ -337,7 +337,7 @@ test:
   image: python:3.11
   script:
     - pip install -e ".[dev]"
-    - cascade test --local --coverage
+    - phlo test --local --coverage
   artifacts:
     reports:
       coverage_report:
@@ -349,7 +349,7 @@ test:
 
 ## Troubleshooting
 
-### "cascade: command not found"
+### "phlo: command not found"
 
 **Solution**:
 ```bash
@@ -379,7 +379,7 @@ docker ps | grep dagster-webserver
 ls tests/test_*.py
 
 # Use exact asset name
-cascade test weather_observations  # Looks for tests/test_weather_observations.py
+phlo test weather_observations  # Looks for tests/test_weather_observations.py
 ```
 
 ### "Files already exist" (create-workflow)
@@ -387,12 +387,12 @@ cascade test weather_observations  # Looks for tests/test_weather_observations.p
 **Solution**:
 ```bash
 # Check existing files
-ls src/cascade/schemas/
-ls src/cascade/defs/ingestion/
+ls src/phlo/schemas/
+ls src/phlo/defs/ingestion/
 
 # Delete old files if you want to regenerate
-rm src/cascade/schemas/weather.py
-rm -r src/cascade/defs/ingestion/weather/
+rm src/phlo/schemas/weather.py
+rm -r src/phlo/defs/ingestion/weather/
 rm tests/test_weather_observations.py
 ```
 
@@ -404,27 +404,27 @@ rm tests/test_weather_observations.py
 
 ```bash
 # Fast feedback loop
-cascade test --local
+phlo test --local
 
 # Only run full integration tests when needed
-cascade test -m integration
+phlo test -m integration
 ```
 
 ### 2. Use `--dry-run` Before Production Materializations
 
 ```bash
 # Check command first
-cascade materialize critical_asset --dry-run
+phlo materialize critical_asset --dry-run
 
 # Then execute
-cascade materialize critical_asset
+phlo materialize critical_asset
 ```
 
 ### 3. Create Workflows with CLI
 
 ```bash
 # Consistent structure
-cascade create-workflow
+phlo create-workflow
 
 # vs manual (error-prone)
 # 1. Create schema file
@@ -438,7 +438,7 @@ cascade create-workflow
 
 ```yaml
 - name: Run tests with coverage
-  run: cascade test --coverage
+  run: phlo test --coverage
 
 - name: Check coverage threshold
   run: |
@@ -462,29 +462,29 @@ def pytest_configure(config):
     )
 
 # Run fast tests only
-# cascade test -m "not slow and not integration"
+# phlo test -m "not slow and not integration"
 ```
 
 ### Selective Asset Materialization
 
 ```bash
 # Materialize all assets in a group
-cascade materialize --select "group:weather"
+phlo materialize --select "group:weather"
 
 # Materialize all dependencies
-cascade materialize --select "weather_observations+"
+phlo materialize --select "weather_observations+"
 
 # Materialize all dependents
-cascade materialize --select "+weather_observations"
+phlo materialize --select "+weather_observations"
 ```
 
 ---
 
 ## Next Steps
 
-- **Create your first workflow**: `cascade create-workflow`
-- **Test it locally**: `cascade test {domain} --local`
-- **Materialize data**: `cascade materialize {table}`
+- **Create your first workflow**: `phlo create-workflow`
+- **Test it locally**: `phlo test {domain} --local`
+- **Materialize data**: `phlo materialize {table}`
 - **Read testing guide**: [TESTING_GUIDE.md](./TESTING_GUIDE.md)
 
 ---
@@ -492,5 +492,5 @@ cascade materialize --select "+weather_observations"
 ## Feedback
 
 Found a bug or have a feature request?
-- **GitHub Issues**: https://github.com/iamgp/cascade/issues
-- **GitHub Discussions**: https://github.com/iamgp/cascade/discussions
+- **GitHub Issues**: https://github.com/iamgp/phlo/issues
+- **GitHub Discussions**: https://github.com/iamgp/phlo/discussions

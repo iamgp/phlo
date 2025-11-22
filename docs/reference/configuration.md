@@ -1,6 +1,6 @@
 # Configuration Guide
 
-Cascade uses environment variables for configuration, centralized through Pydantic settings in `cascade/config.py`.
+Phlo uses environment variables for configuration, centralized through Pydantic settings in `phlo/config.py`.
 
 ## Environment Variables
 
@@ -93,7 +93,7 @@ LOKI_PORT=3100
 
 ## Service Profiles
 
-Cascade uses Docker Compose profiles to start services in logical groups:
+Phlo uses Docker Compose profiles to start services in logical groups:
 
 - **core**: PostgreSQL, MinIO, Dagster, Hub (required)
 - **query**: Trino, Nessie (required for analytics)
@@ -105,10 +105,10 @@ Cascade uses Docker Compose profiles to start services in logical groups:
 
 ## Configuration Classes
 
-The `cascade.config` module provides typed configuration:
+The `phlo.config` module provides typed configuration:
 
 ```python
-from cascade.config import config
+from phlo.config import config
 
 # Access configuration
 print(config.postgres.host)
