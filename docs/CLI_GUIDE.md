@@ -23,6 +23,7 @@ phlo --version
 | `phlo test` | Run tests with optional local mode | Fast (< 5s local) |
 | `phlo materialize` | Materialize assets via Docker | Medium (30-60s) |
 | `phlo create-workflow` | Interactive workflow scaffolding | Fast (< 10s) |
+| `phlo api setup-postgrest` | Setup PostgREST auth infrastructure | Fast (< 10s) |
 
 ---
 
@@ -262,6 +263,152 @@ Generated files include:
 3. **Restart Dagster** - `docker restart dagster-webserver`
 4. **Test locally** - `phlo test {domain} --local`
 5. **Materialize** - `phlo materialize {table}`
+
+---
+
+## phlo api
+
+API infrastructure management commands.
+
+### phlo api setup-postgrest
+
+Set up PostgREST authentication infrastructure in PostgreSQL.
+
+#### Usage
+
+```bash
+phlo api setup-postgrest [OPTIONS]
+```
+
+#### What It Does
+
+Sets up the core PostgREST authentication infrastructure:
+- PostgreSQL extensions (pgcrypto for password hashing)
+- Auth schema with users table
+- JWT signing and verification functions
+- Database roles (authenticator, anon, authenticated, analyst, admin)
+- Row-Level Security (RLS) setup
+
+**Note:** This only sets up authentication infrastructure. You create your own API views based on your data.
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--host TEXT` | PostgreSQL host (default: from `POSTGRES_HOST` env var or 'localhost') |
+| `--port INTEGER` | PostgreSQL port (default: from `POSTGRES_PORT` env var or 5432) |
+| `--database TEXT` | PostgreSQL database name (default: from `POSTGRES_DB` env var or 'lakehouse') |
+| `--user TEXT` | PostgreSQL user (default: from `POSTGRES_USER` env var or 'lake') |
+| `--password TEXT` | PostgreSQL password (default: from `POSTGRES_PASSWORD` env var) |
+| `--force` | Force re-setup even if already exists |
+| `-q, --quiet` | Suppress output |
+
+#### Examples
+
+**Basic setup** (uses environment variables):
+```bash
+phlo api setup-postgrest
+```
+
+**Specify connection details**:
+```bash
+phlo api setup-postgrest --host localhost --port 10000 --database lakehouse
+```
+
+**Force re-setup**:
+```bash
+phlo api setup-postgrest --force
+```
+
+**Quiet mode**:
+```bash
+phlo api setup-postgrest -q
+```
+
+#### What Gets Created
+
+**Schemas:**
+- `auth` - Private schema for user authentication (not exposed via API)
+
+**Tables:**
+- `auth.users` - User accounts with bcrypt-hashed passwords
+
+**Functions:**
+- `auth.sign_jwt()` - Sign JWT tokens with HS256
+- `auth.verify_jwt()` - Verify and decode JWT tokens
+- `api.login()` - Authenticate users and return JWT tokens
+
+**Roles:**
+- `authenticator` - PostgREST connection role (can switch to other roles)
+- `anon` - Unauthenticated users
+- `authenticated` - Base role for authenticated users
+- `analyst` - Analyst role with read access
+- `admin` - Administrator role with full access
+
+**Default Users:**
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `admin123` | admin |
+| `analyst` | `analyst123` | analyst |
+
+⚠️ **Important:** Change these passwords in production!
+
+#### After Setup
+
+1. **Create your API views** (your responsibility):
+```sql
+-- In your SQL files or dbt models
+CREATE VIEW api.my_data AS
+SELECT * FROM marts.my_mart;
+```
+
+2. **Start PostgREST**:
+```bash
+docker-compose --profile api up -d postgrest
+```
+
+3. **Test authentication**:
+```bash
+curl -X POST http://localhost:10018/rpc/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "analyst", "password": "analyst123"}'
+```
+
+#### Idempotent Operation
+
+This command is safe to run multiple times:
+- Checks if setup already exists
+- Skips if already complete (unless `--force` is used)
+- Creates only missing components
+
+#### From Python
+
+```python
+from phlo.api.postgrest import setup_postgrest
+
+# Use environment variables
+setup_postgrest()
+
+# Or specify connection details
+setup_postgrest(
+    host="localhost",
+    port=10000,
+    database="lakehouse",
+    user="lake",
+    password="lakepass"
+)
+```
+
+#### Requirements
+
+- PostgreSQL 12+ with superuser access
+- `psycopg2-binary` Python package (install with: `pip install psycopg2-binary`)
+
+#### See Also
+
+- [PostgREST Deployment Guide](./POSTGREST_DEPLOYMENT.md)
+- [PostgREST Migration PRD](./prd-postgrest-migration.md)
+- [PostgREST Examples](../migrations/postgrest/examples/)
 
 ---
 
