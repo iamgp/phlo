@@ -3,8 +3,8 @@
 ## Build/Lint/Test Commands
 
 - **Development setup**: `cd dagster && uv pip install -e .` (Python dependencies)
-- **Type checking**: `basedpyright cascade/` (from services/dagster/ dir)
-- **Linting**: `ruff check cascade/` and `ruff format cascade/` (from services/dagster/ dir)
+- **Type checking**: `basedpyright phlo/` (from services/dagster/ dir)
+- **Linting**: `ruff check phlo/` and `ruff format phlo/` (from services/dagster/ dir)
 - **Services**: `make up` (start all), `make down` (stop), `make rebuild` (rebuild Dagster)
 - **Asset validation**: `dagster dev --workspace dagster/workspace.yaml`
 - **Single asset test**: `dagster asset materialize --select entries` (Nightscout data)
@@ -14,18 +14,18 @@
 ## Architecture & Structure
 
 - **Data lakehouse** with MinIO (S3-compatible), PostgreSQL, DuckDB/DuckLake for analytics
-- **Core orchestrator**: Dagster with assets in `cascade/defs/` (ingestion, transform, publishing, quality, metadata)
+- **Core orchestrator**: Dagster with assets in `phlo/defs/` (ingestion, transform, publishing, quality, metadata)
 - **Transform layer**: dbt models with 4-layer architecture (bronze → silver → gold → marts)
 - **Databases**: PostgreSQL for catalog/metadata, DuckDB for analytical queries and DuckLake managed tables
 - **Storage**: MinIO bucket `lake` with prefix `ducklake/` for managed tables
 - **Services**: Superset (dashboards), DataHub (metadata catalog)
-- **Configuration**: Centralized in `cascade/config.py` using Pydantic settings from `.env`
+- **Configuration**: Centralized in `phlo/config.py` using Pydantic settings from `.env`
 
 ## Testing Strategy
 
 ### Data Quality Testing
 
-- **Pandera schemas**: Type-safe validation in `cascade/schemas/` with Dagster integration
+- **Pandera schemas**: Type-safe validation in `phlo/schemas/` with Dagster integration
 - **Dagster asset checks**: Runtime quality validation with detailed error reporting
 - **dbt tests**: Comprehensive testing across bronze/silver/gold/mart layers
 
@@ -60,7 +60,7 @@ packages:
 - **Python 3.11+**, line length 100, ruff + basedpyright for linting/typing
 - **Imports**: Use absolute imports, organize with ruff (E, F, I, N, UP, B, A, C4, SIM rules)
 - **Asset definitions**: Modular approach in `defs/` subdirectories, auto-discovered by Dagster
-- **Configuration**: Use `cascade.config.config` singleton, environment variables from `.env`
+- **Configuration**: Use `phlo.config.config` singleton, environment variables from `.env`
 - **Error handling**: Use Pydantic validation, tenacity for retries, structured logging
 - **Naming**: snake_case for Python, lowercase for databases/schemas, descriptive asset names
 - **Dependencies**: Managed with `uv`, pinned versions in `pyproject.toml`, Docker for services
@@ -69,5 +69,5 @@ To materialise assets, run the following command:
 
 ```
 docker exec dagster-web dagster asset materialize --select
-      "dlt_glucose_entries,stg_glucose_entries,fct_glucose_readings,mrt_glucose_readings,fct_daily_glucose_metrics,mrt_glucose_hourly_patterns" --partition "2025-11-04" -m cascade.definitions
+      "dlt_glucose_entries,stg_glucose_entries,fct_glucose_readings,mrt_glucose_readings,fct_daily_glucose_metrics,mrt_glucose_hourly_patterns" --partition "2025-11-04" -m phlo.definitions
 ```

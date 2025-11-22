@@ -112,15 +112,15 @@ REGION=us-east-1
 AVAILABILITY_ZONES=us-east-1a,us-east-1b,us-east-1c
 
 # Database
-POSTGRES_HOST=cascade-prod.c123456.us-east-1.rds.amazonaws.com
+POSTGRES_HOST=phlo-prod.c123456.us-east-1.rds.amazonaws.com
 POSTGRES_PORT=5432
-POSTGRES_DB=cascade
+POSTGRES_DB=phlo
 POSTGRES_USER=cascade_admin
 POSTGRES_PASSWORD=<SECURE_PASSWORD>
 
 # Storage
 S3_ENDPOINT=s3.us-east-1.amazonaws.com
-S3_BUCKET=cascade-prod-lake
+S3_BUCKET=phlo-prod-lake
 S3_ACCESS_KEY=<AWS_ACCESS_KEY>
 S3_SECRET_KEY=<AWS_SECRET_KEY>
 S3_REGION=us-east-1
@@ -156,7 +156,7 @@ echo ".env.prod" >> .gitignore
 ```bash
 # Create RDS instance (AWS CLI)
 aws rds create-db-instance \
-  --db-instance-identifier cascade-prod \
+  --db-instance-identifier phlo-prod \
   --db-instance-class db.m5.xlarge \
   --engine postgres \
   --master-username cascade_admin \
@@ -171,13 +171,13 @@ aws rds create-db-instance \
 
 # Wait for instance to be available
 aws rds wait db-instance-available \
-  --db-instance-identifier cascade-prod
+  --db-instance-identifier phlo-prod
 
 # Initialize schema
 docker run -it \
-  -e POSTGRES_HOST=cascade-prod.c123456.us-east-1.rds.amazonaws.com \
+  -e POSTGRES_HOST=phlo-prod.c123456.us-east-1.rds.amazonaws.com \
   -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-  cascade:latest \
+  phlo:latest \
   bash -c "cd services/dagster && alembic upgrade head"
 ```
 
@@ -185,16 +185,16 @@ docker run -it \
 
 ```bash
 # Create S3 bucket
-aws s3 mb s3://cascade-prod-lake --region us-east-1
+aws s3 mb s3://phlo-prod-lake --region us-east-1
 
 # Enable versioning (for Nessie and time-travel)
 aws s3api put-bucket-versioning \
-  --bucket cascade-prod-lake \
+  --bucket phlo-prod-lake \
   --versioning-configuration Status=Enabled
 
 # Enable encryption
 aws s3api put-bucket-encryption \
-  --bucket cascade-prod-lake \
+  --bucket phlo-prod-lake \
   --server-side-encryption-configuration '{
     "Rules": [{
       "ApplyServerSideEncryptionByDefault": {
@@ -205,17 +205,17 @@ aws s3api put-bucket-encryption \
 
 # Block public access
 aws s3api put-public-access-block \
-  --bucket cascade-prod-lake \
+  --bucket phlo-prod-lake \
   --public-access-block-configuration \
   BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 
 # Create IAM role for services
-aws iam create-role --role-name cascade-prod-role \
+aws iam create-role --role-name phlo-prod-role \
   --assume-role-policy-document file://trust-policy.json
 
 # Attach S3 policy
-aws iam put-role-policy --role-name cascade-prod-role \
-  --policy-name cascade-s3-policy \
+aws iam put-role-policy --role-name phlo-prod-role \
+  --policy-name phlo-s3-policy \
   --policy-document file://s3-policy.json
 ```
 
@@ -254,13 +254,13 @@ Push to registry:
 
 ```bash
 # Build
-docker build -t cascade:1.0.0 .
+docker build -t phlo:1.0.0 .
 
 # Tag for registry
-docker tag cascade:1.0.0 <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/cascade:1.0.0
+docker tag phlo:1.0.0 <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/phlo:1.0.0
 
 # Push to ECR
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/cascade:1.0.0
+docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/phlo:1.0.0
 ```
 
 ### Step 5: Kubernetes Deployment
@@ -289,7 +289,7 @@ spec:
       serviceAccountName: dagster
       containers:
       - name: dagster-webserver
-        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/cascade:1.0.0
+        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/phlo:1.0.0
         ports:
         - containerPort: 3000
           name: http
@@ -308,9 +308,9 @@ spec:
         # Environment from secrets
         envFrom:
         - secretRef:
-            name: cascade-secrets
+            name: phlo-secrets
         - configMapRef:
-            name: cascade-config
+            name: phlo-config
         
         # Health checks
         livenessProbe:
@@ -381,7 +381,7 @@ Deploy:
 kubectl create namespace dagster
 
 # Create secrets
-kubectl create secret generic cascade-secrets \
+kubectl create secret generic phlo-secrets \
   --from-file=.env.prod \
   -n dagster
 
@@ -472,21 +472,21 @@ spec:
 ```bash
 # RDS Multi-AZ setup (automatic failover)
 aws rds modify-db-instance \
-  --db-instance-identifier cascade-prod \
+  --db-instance-identifier phlo-prod \
   --multi-az \
   --apply-immediately
 
 # Automated backups
 aws rds modify-db-instance \
-  --db-instance-identifier cascade-prod \
+  --db-instance-identifier phlo-prod \
   --backup-retention-period 30 \
   --preferred-backup-window "03:00-04:00" \
   --apply-immediately
 
 # Point-in-time recovery
 aws rds restore-db-instance-to-point-in-time \
-  --source-db-instance-identifier cascade-prod \
-  --target-db-instance-identifier cascade-prod-restored \
+  --source-db-instance-identifier phlo-prod \
+  --target-db-instance-identifier phlo-prod-restored \
   --restore-time 2024-10-15T10:30:00Z
 ```
 
@@ -512,7 +512,7 @@ This ensures at least 1 pod is always running during maintenance.
 
 ```bash
 # Daily backup to S3
-aws s3 sync s3://cascade-prod-lake s3://cascade-prod-backup \
+aws s3 sync s3://phlo-prod-lake s3://phlo-prod-backup \
   --delete \
   --exclude "tmp/*"
 
@@ -521,7 +521,7 @@ cat > k8s/backup-cronjob.yaml << 'EOF'
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: cascade-backup
+  name: phlo-backup
   namespace: dagster
 spec:
   schedule: "0 2 * * *"  # 2 AM daily
@@ -537,7 +537,7 @@ spec:
             - /bin/sh
             - -c
             - |
-              aws s3 sync s3://cascade-prod-lake s3://cascade-prod-backup \
+              aws s3 sync s3://phlo-prod-lake s3://phlo-prod-backup \
                 --delete \
                 --exclude "tmp/*" \
                 --region us-east-1
@@ -561,7 +561,7 @@ kubectl apply -f k8s/backup-cronjob.yaml
 ## Cost Optimization
 
 ```python
-# cascade/monitoring/cost_tracking.py
+# phlo/monitoring/cost_tracking.py
 import boto3
 
 def estimate_monthly_cost():
@@ -569,7 +569,7 @@ def estimate_monthly_cost():
     
     # S3 storage costs
     s3 = boto3.client('s3')
-    response = s3.list_bucket_metrics_configurations(Bucket='cascade-prod-lake')
+    response = s3.list_bucket_metrics_configurations(Bucket='phlo-prod-lake')
     
     storage_size_gb = get_bucket_size() / (1024**3)
     storage_cost = storage_size_gb * 0.023  # $0.023/GB/month
@@ -629,15 +629,15 @@ aws cloudwatch put-dashboard \
   --dashboard-body file://dashboard.json
 
 # Real-time alerts
-aws sns create-topic --name cascade-alerts
+aws sns create-topic --name phlo-alerts
 aws sns subscribe \
-  --topic-arn arn:aws:sns:us-east-1:123456789:cascade-alerts \
+  --topic-arn arn:aws:sns:us-east-1:123456789:phlo-alerts \
   --protocol email \
   --notification-endpoint ops@company.com
 
 # Automated response
 aws lambda create-function \
-  --function-name cascade-auto-remediate \
+  --function-name phlo-auto-remediate \
   --runtime python3.11 \
   --handler index.handler \
   --zip-file fileb://lambda.zip
@@ -654,13 +654,13 @@ Production deployment requires:
 **Observability**: Monitoring, logging, alerts  
 **Cost Control**: Tracking, optimization  
 
-With these foundations, Cascade scales from prototype to enterprise-grade data platform.
+With these foundations, Phlo scales from prototype to enterprise-grade data platform.
 
 ---
 
 **Series Complete!**
 
-You've now learned the full Cascade stack:
+You've now learned the full Phlo stack:
 
 1. **Part 1**: Data Lakehouse concepts
 2. **Part 2**: Getting started
@@ -676,7 +676,7 @@ You've now learned the full Cascade stack:
 12. **Part 12**: Production deployment
 
 Next steps:
-- Deploy Cascade to your organization
+- Deploy Phlo to your organization
 - Extend with your own data sources
 - Contribute improvements back to the community
 

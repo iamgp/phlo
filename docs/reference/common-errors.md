@@ -1,6 +1,6 @@
 # Common Errors and Solutions
 
-Quick reference for resolving common Cascade errors.
+Quick reference for resolving common Phlo errors.
 
 ## Top 10 Errors
 
@@ -15,8 +15,8 @@ DagsterInvalidDefinitionError: Asset 'my_asset' not found
 
 **Solution**:
 ```python
-# Add import to src/cascade/defs/ingestion/__init__.py
-from cascade.defs.ingestion import my_domain  # noqa: F401
+# Add import to src/phlo/defs/ingestion/__init__.py
+from phlo.defs.ingestion import my_domain  # noqa: F401
 ```
 
 **Then restart Dagster**:
@@ -240,10 +240,10 @@ curl http://localhost:9001  # MinIO console
 
 **Error Message**:
 ```
-ModuleNotFoundError: No module named 'cascade'
+ModuleNotFoundError: No module named 'phlo'
 ```
 
-**Cause**: Cascade not installed or PYTHONPATH not set
+**Cause**: Phlo not installed or PYTHONPATH not set
 
 **Solution**:
 ```bash
@@ -252,7 +252,7 @@ docker exec -it dagster-webserver bash
 pip install -e /app
 
 # Or set PYTHONPATH
-export PYTHONPATH=/home/user/cascade/src:$PYTHONPATH
+export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
 ```
 
 ---
@@ -308,7 +308,7 @@ docker restart nessie
 
 | Error | Cause | Quick Fix |
 |-------|-------|-----------|
-| ModuleNotFoundError | Import issues | Install cascade in editable mode |
+| ModuleNotFoundError | Import issues | Install phlo in editable mode |
 | Permission denied | File permissions | Check Docker volume mounts |
 | Port already in use | Port conflict | Stop conflicting service or change port |
 
@@ -350,8 +350,8 @@ When you encounter an error:
    - [Workflow Development Guide](../guides/workflow-development.md)
 
 7. **Ask for help**
-   - [GitHub Discussions](https://github.com/iamgp/cascade/discussions)
-   - [GitHub Issues](https://github.com/iamgp/cascade/issues)
+   - [GitHub Discussions](https://github.com/iamgp/phlo/discussions)
+   - [GitHub Issues](https://github.com/iamgp/phlo/issues)
 
 ---
 
@@ -439,8 +439,8 @@ def my_asset(partition_date: str):
 
 ### Community
 
-- **GitHub Discussions**: https://github.com/iamgp/cascade/discussions
-- **GitHub Issues**: https://github.com/iamgp/cascade/issues
+- **GitHub Discussions**: https://github.com/iamgp/phlo/discussions
+- **GitHub Issues**: https://github.com/iamgp/phlo/issues
 
 ### Tips for Asking Questions
 

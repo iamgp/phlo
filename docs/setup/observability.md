@@ -1,10 +1,10 @@
 # Observability Guide
 
-Complete guide to monitoring, logging, and observability in the Cascade lakehouse platform.
+Complete guide to monitoring, logging, and observability in the Phlo lakehouse platform.
 
 ## Overview
 
-Cascade includes a production-ready observability stack based on industry-standard tools:
+Phlo includes a production-ready observability stack based on industry-standard tools:
 
 - **Prometheus** - Metrics collection and storage
 - **Loki** - Log aggregation and querying
@@ -85,14 +85,14 @@ Default credentials:
 #### Grafana Alloy (Port 12345)
 - Modern replacement for Prometheus exporters + Promtail
 - Discovers Docker containers automatically
-- Adds cascade-specific labels (component, service, job)
+- Adds phlo-specific labels (component, service, job)
 - Parses JSON logs and extracts fields
 - Forwards metrics to Prometheus, logs to Loki
 
 #### Grafana (Port 3001)
 - Pre-configured datasources (Prometheus + Loki)
 - Pre-built dashboards:
-  - **Cascade Overview** - Service health, errors, key metrics
+  - **Phlo Overview** - Service health, errors, key metrics
   - **Infrastructure** - Detailed per-service metrics and logs
 - Custom dashboards stored in `docker/grafana/dashboards/`
 
@@ -157,7 +157,7 @@ pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_r
 Add alert rules to `docker/prometheus/alerts/` (create directory):
 
 ```yaml
-# docker/prometheus/alerts/cascade.yml
+# docker/prometheus/alerts/phlo.yml
 groups:
   - name: cascade_lakehouse
     interval: 30s
@@ -218,7 +218,7 @@ rule_files:
 Dagster sensors emit structured logs that Loki automatically indexes:
 
 ```python
-# From src/cascade/defs/sensors/failure_monitoring.py
+# From src/phlo/defs/sensors/failure_monitoring.py
 context.log.error(
     "Pipeline failure detected",
     extra={
@@ -239,7 +239,7 @@ Query in LogQL:
 
 ### Pre-built Dashboards
 
-#### Cascade Overview
+#### Phlo Overview
 - Service status indicators (up/down)
 - Recent errors from all services
 - MinIO bucket usage
@@ -279,7 +279,7 @@ Example query panel (Prometheus):
 
 ### Failure Sensors
 
-Cascade includes three monitoring sensors:
+Phlo includes three monitoring sensors:
 
 #### pipeline_failure_sensor
 - Triggers on any pipeline failure
@@ -495,7 +495,7 @@ Integrate with Dagster, Trino, and dbt for end-to-end trace visibility.
 
 ## Support
 
-For issues specific to Cascade observability:
+For issues specific to Phlo observability:
 1. Check logs: `docker compose logs <service>`
 2. Verify health: `make health-observability`
 3. Review configurations in `docker/prometheus/`, `docker/loki/`, `docker/alloy/`

@@ -76,7 +76,7 @@ Request: dlt_glucose_entries asset materialization
 Total: 152ms
 ```
 
-## Cascade's Observability Stack
+## Phlo's Observability Stack
 
 ```
 ┌──────────────────────────────┐
@@ -111,7 +111,7 @@ Total: 152ms
 ### Asset-Level Metrics
 
 ```python
-# cascade/defs/monitoring/metrics.py
+# phlo/defs/monitoring/metrics.py
 from dagster import op, Out, DynamicOut, DynamicOutput, resource
 from prometheus_client import Counter, Histogram, Gauge
 import time
@@ -201,7 +201,7 @@ def ingest_with_metrics(context) -> int:
 ### System-Level Metrics
 
 ```python
-# cascade/monitoring/system_metrics.py
+# phlo/monitoring/system_metrics.py
 from prometheus_client import start_http_server, Gauge, Counter
 import psutil
 import docker
@@ -258,7 +258,7 @@ def collect_system_metrics():
 Use structured logs for easy searching:
 
 ```python
-# cascade/defs/ingestion/dlt_assets.py
+# phlo/defs/ingestion/dlt_assets.py
 import structlog
 
 logger = structlog.get_logger()
@@ -474,7 +474,7 @@ def on_asset_failure(context, event):
 ### Main Operations Dashboard
 
 ```
-Cascade Data Pipeline - Operations Dashboard
+Phlo Data Pipeline - Operations Dashboard
 
 ┌─────────────────┬─────────────────┬─────────────────┐
 │ Pipeline Status │  Data Freshness │  Quality Score  │
@@ -548,7 +548,7 @@ Downstream Usage
 Use distributed tracing to understand slow operations:
 
 ```python
-# cascade/monitoring/tracing.py
+# phlo/monitoring/tracing.py
 from jaeger_client import Config
 from opentelemetry import trace, metrics
 from opentelemetry.exporter.jaeger.thrift import JaegerExporter
@@ -626,7 +626,7 @@ Click on any span to see:
 ## Monitoring as Code
 
 ```python
-# cascade/monitoring/observability_assets.py
+# phlo/monitoring/observability_assets.py
 from dagster import asset, schedule
 
 
@@ -687,7 +687,7 @@ def update_observability():
 
 ## Summary
 
-Cascade's observability stack provides:
+Phlo's observability stack provides:
 
 **Metrics**: Track what's happening (execution time, throughput, quality)  
 **Logs**: Understand why (structured logs, searchable)  

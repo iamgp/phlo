@@ -23,14 +23,14 @@ USERS = {
     "admin": {
         "user_id": "admin_001",
         "username": "admin",
-        "email": "admin@cascade.local",
+        "email": "admin@phlo.local",
         "hashed_password": "$2b$12$hVzXLFlbMnbAN2Krtk88JOUxLWN6WGNxXASvb5fpzoN/tt/GGNriy",  # admin123
         "role": "admin",
     },
     "analyst": {
         "user_id": "analyst_001",
         "username": "analyst",
-        "email": "analyst@cascade.local",
+        "email": "analyst@phlo.local",
         "hashed_password": "$2b$12$rVI0z2.putUx/6/qRMbhZucUMhr7bI.6ykbyqwBOWMlV1eryipJci",  # analyst123
         "role": "analyst",
     },

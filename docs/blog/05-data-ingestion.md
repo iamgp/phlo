@@ -2,7 +2,7 @@
 
 We have our lakehouse infrastructure. Now: **how does data actually get in?**
 
-Cascade uses a two-step pattern:
+Phlo uses a two-step pattern:
 1. **DLT (Data Load Tool)**: Fetch and stage data
 2. **PyIceberg**: Merge staged data into Iceberg tables
 
@@ -42,7 +42,7 @@ DLT is a Python library that:
 ### How DLT Works
 
 ```python
-# From src/cascade/defs/ingestion/dlt_assets.py
+# From src/phlo/defs/ingestion/dlt_assets.py
 
 import dlt
 import requests
@@ -120,7 +120,7 @@ Parquet file with columns:
 ├── trend: int64
 ├── device: string
 ├── type: string
-└── _cascade_ingested_at: timestamp  ← Added by Cascade
+└── _cascade_ingested_at: timestamp  ← Added by Phlo
 ```
 
 DLT automatically:
@@ -141,7 +141,7 @@ PyIceberg is the Python client for Iceberg. It:
 First, ensure the table exists:
 
 ```python
-# From src/cascade/iceberg/tables.py
+# From src/phlo/iceberg/tables.py
 
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, IntegerType, TimestampType
@@ -175,7 +175,7 @@ s3://lake/warehouse/raw/glucose_entries/
 Now merge staged parquet into Iceberg:
 
 ```python
-# From src/cascade/defs/resources/iceberg.py
+# From src/phlo/defs/resources/iceberg.py
 
 def merge_parquet(
     self,
@@ -275,10 +275,10 @@ s3://lake/warehouse/raw/glucose_entries/
 
 ## Pandera Data Quality Validation
 
-Before storing in the lakehouse, Cascade validates with **Pandera**—a schema validation library.
+Before storing in the lakehouse, Phlo validates with **Pandera**—a schema validation library.
 
 ```python
-# From src/cascade/schemas/glucose.py
+# From src/phlo/schemas/glucose.py
 
 from pandera import Column, DataFrameSchema, Check, Index
 
@@ -343,10 +343,10 @@ RawGlucoseEntries.validate(raw_df)  # Raises exception if invalid
 
 ## Handling Different Data Sources
 
-Cascade can ingest from multiple sources. Let's look at GitHub as another example:
+Phlo can ingest from multiple sources. Let's look at GitHub as another example:
 
 ```python
-# From src/cascade/defs/ingestion/github_assets.py
+# From src/phlo/defs/ingestion/github_assets.py
 
 @dg.asset(
     name="dlt_github_user_events",
@@ -407,7 +407,7 @@ def github_user_events(context, iceberg: IcebergResource) -> MaterializeResult:
     )
 ```
 
-## Ingestion Patterns in Cascade
+## Ingestion Patterns in Phlo
 
 ### Pattern 1: API Ingestion (Nightscout, GitHub)
 
@@ -460,7 +460,7 @@ docker exec minio mc ls myminio/lake/stage/entries/2024-10-15/
 
 # Check Iceberg table
 docker exec dagster-webserver python3 << 'EOF'
-from cascade.iceberg.catalog import get_catalog
+from phlo.iceberg.catalog import get_catalog
 import pandas as pd
 
 catalog = get_catalog()
@@ -530,7 +530,7 @@ See you there!
 
 ## Summary
 
-**Cascade's Ingestion Pattern**:
+**Phlo's Ingestion Pattern**:
 1. Fetch data from source (API, file, database)
 2. Validate with Pandera schemas
 3. Stage to S3 parquet with DLT

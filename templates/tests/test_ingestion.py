@@ -15,10 +15,10 @@ import pandas as pd
 
 # TODO: Update these imports to match your asset and schema
 # Example:
-# from cascade.defs.ingestion.weather.observations import weather_observations
-# from cascade.schemas.weather import RawWeatherData
-from cascade.defs.ingestion.example.data import example_data_ingestion
-from cascade.schemas.example import RawExampleData
+# from phlo.defs.ingestion.weather.observations import weather_observations
+# from phlo.schemas.weather import RawWeatherData
+from phlo.defs.ingestion.example.data import example_data_ingestion
+from phlo.schemas.example import RawExampleData
 
 
 class TestSchemaValidation:
@@ -124,7 +124,7 @@ class TestAssetExecution:
     Test asset execution.
 
     Note: These tests require mocking DLT, Iceberg, and Dagster context.
-    In production, consider using cascade.testing utilities (when available).
+    In production, consider using phlo.testing utilities (when available).
     """
 
     @pytest.mark.skip(reason="Requires full Docker stack or extensive mocking")
@@ -132,9 +132,9 @@ class TestAssetExecution:
         """
         Test asset execution with mocked dependencies.
 
-        TODO: Implement once cascade.testing module is available:
+        TODO: Implement once phlo.testing module is available:
 
-        from cascade.testing import mock_dlt_source, mock_iceberg_catalog
+        from phlo.testing import mock_dlt_source, mock_iceberg_catalog
 
         def test_execution():
             with mock_dlt_source(data=[...]) as source:
@@ -263,7 +263,7 @@ def sample_invalid_data():
 #   pytest tests/test_example.py::TestSchemaValidation::test_valid_data_passes_validation -v
 #
 # Run with coverage:
-#   pytest tests/test_example.py --cov=cascade --cov-report=html
+#   pytest tests/test_example.py --cov=phlo --cov-report=html
 #
 # Run integration tests only (requires Docker):
 #   pytest tests/test_example.py -m integration -v
@@ -324,6 +324,6 @@ def sample_invalid_data():
 #    - Track test coverage
 #
 # 6. Expand test coverage:
-#    - Add integration tests when cascade.testing is available
+#    - Add integration tests when phlo.testing is available
 #    - Test edge cases and error conditions
 #    - Test data transformations and business logic

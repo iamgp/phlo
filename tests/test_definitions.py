@@ -1,19 +1,19 @@
 """Tests for Definitions Module.
 
 This module contains unit and integration tests for the
-cascade.definitions module, focusing on definition merging and executor selection.
+phlo.definitions module, focusing on definition merging and executor selection.
 """
 
 from unittest.mock import patch
 
 
-from cascade.definitions import _default_executor, _merged_definitions, defs
+from phlo.definitions import _default_executor, _merged_definitions, defs
 
 
 class TestDefinitionsUnitTests:
     """Unit tests for definition merging and executor selection."""
 
-    @patch('cascade.definitions.config')
+    @patch('phlo.definitions.config')
     def test_executor_selection_works_for_different_platforms(self, mock_config):
         """Test that executor selection works for different platforms."""
         mock_config.cascade_force_in_process_executor = False
@@ -37,7 +37,7 @@ class TestDefinitionsUnitTests:
             assert executor is not None
             assert executor.name == 'multiprocess'
 
-    @patch('cascade.definitions.config')
+    @patch('phlo.definitions.config')
     def test_executor_selection_respects_force_flags(self, mock_config):
         """Test that executor selection respects force flags."""
         # Test force in-process
@@ -56,17 +56,17 @@ class TestDefinitionsUnitTests:
         assert executor is not None
         assert executor.name == 'multiprocess'
 
-    @patch('cascade.definitions.build_resource_defs')
-    @patch('cascade.definitions.build_ingestion_defs')
-    @patch('cascade.definitions.build_transform_defs')
-    @patch('cascade.definitions.build_publishing_defs')
-    @patch('cascade.definitions.build_quality_defs')
-    @patch('cascade.definitions.build_nessie_defs')
-    @patch('cascade.definitions.build_schedule_defs')
-    @patch('cascade.definitions.build_sensor_defs')
-    @patch('cascade.definitions.build_job_defs')
-    @patch('cascade.definitions.build_workflow_defs')
-    @patch('cascade.definitions._default_executor')
+    @patch('phlo.definitions.build_resource_defs')
+    @patch('phlo.definitions.build_ingestion_defs')
+    @patch('phlo.definitions.build_transform_defs')
+    @patch('phlo.definitions.build_publishing_defs')
+    @patch('phlo.definitions.build_quality_defs')
+    @patch('phlo.definitions.build_nessie_defs')
+    @patch('phlo.definitions.build_schedule_defs')
+    @patch('phlo.definitions.build_sensor_defs')
+    @patch('phlo.definitions.build_job_defs')
+    @patch('phlo.definitions.build_workflow_defs')
+    @patch('phlo.definitions._default_executor')
     def test_definitions_merges_all_component_defs_correctly(self, mock_executor, mock_workflow_defs, mock_job_defs, mock_sensor_defs, mock_schedule_defs, mock_nessie_defs, mock_quality_defs, mock_publishing_defs, mock_transform_defs, mock_ingestion_defs, mock_resource_defs):
         """Test that definitions merges all component defs correctly."""
         # Mock all the build functions to return empty definitions

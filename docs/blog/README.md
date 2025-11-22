@@ -1,10 +1,10 @@
-# Cascade Blog Series: Modern Data Engineering
+# Phlo Blog Series: Modern Data Engineering
 
-A comprehensive, hands-on guide to building a production-ready data lakehouse using Cascade.
+A comprehensive, hands-on guide to building a production-ready data lakehouse using Phlo.
 
 This 12-part series walks through:
 - Fundamental concepts of data lakehouses
-- Setting up Cascade step-by-step
+- Setting up Phlo step-by-step
 - Understanding Apache Iceberg and Project Nessie
 - Data ingestion patterns
 - SQL transformations with dbt
@@ -20,7 +20,7 @@ Each post includes:
 - Code examples you can run
 - Diagrams and visualizations
 - Hands-on exercises
-- References to actual Cascade code
+- References to actual Phlo code
 
 ## 5-Minute Quick Start
 
@@ -28,8 +28,8 @@ Want to see it in action immediately? Run this:
 
 ```bash
 # Clone and start
-git clone https://github.com/iamgp/lakehousekit.git cascade
-cd cascade
+git clone https://github.com/iamgp/lakehousekit.git phlo
+cd phlo
 cp .env.example .env
 make up
 
@@ -86,7 +86,7 @@ Don't worry if you're missing some skills - the series is designed to teach you 
 **Total content**: ~7,500 lines, 250+ KB of educational material
 **Estimated reading time**: 4-6 hours (complete series)
 
-## Cascade Architecture
+## Phlo Architecture
 
 Here's how all the pieces fit together:
 
@@ -214,7 +214,7 @@ graph TB
 **Time**: 3 hours reading + hands-on
 
 ### Path 3: Architect/Decision Maker
-**Goal**: Evaluate Cascade for your organization
+**Goal**: Evaluate Phlo for your organization
 
 1. [Part 1](01-intro-data-lakehouse.md) (comparison to alternatives)
 2. [Part 3](03-apache-iceberg-explained.md) (open standards benefits)
@@ -329,7 +329,7 @@ Most sections can run on minimum spec, just slower.
 2. **Advanced analytics**: Anomaly detection, forecasting
 3. **Production deployment**: Kubernetes, cloud migration
 4. **Compliance**: Data governance, PII handling, retention policies
-5. **ML integration**: Train models on Cascade data
+5. **ML integration**: Train models on Phlo data
 
 See the main [docs](../README.md) for references and advanced guides.
 
@@ -352,7 +352,7 @@ Find issues in these posts? Want to add examples?
 
 ## License
 
-This blog series is part of Cascade, MIT License.
+This blog series is part of Phlo, MIT License.
 
 ---
 

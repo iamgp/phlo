@@ -1,6 +1,6 @@
 # 10-Minute Quickstart
 
-Get Cascade running and see your first data pipeline in action in under 10 minutes.
+Get Phlo running and see your first data pipeline in action in under 10 minutes.
 
 ## What You'll Build
 
@@ -19,8 +19,8 @@ A simple glucose data ingestion pipeline that:
 ## Step 1: Clone and Setup (2 minutes)
 
 ```bash
-git clone https://github.com/yourusername/cascade.git
-cd cascade
+git clone https://github.com/yourusername/phlo.git
+cd phlo
 
 # Copy environment template
 cp .env.example .env
@@ -43,12 +43,12 @@ You'll see the existing glucose ingestion asset already defined!
 
 ## Step 3: Understand the Asset (2 minutes)
 
-Open `src/cascade/defs/ingestion/nightscout/glucose.py`:
+Open `src/phlo/defs/ingestion/nightscout/glucose.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
-from cascade.ingestion import cascade_ingestion
-from cascade.schemas.glucose import RawGlucoseEntries
+from phlo.ingestion import cascade_ingestion
+from phlo.schemas.glucose import RawGlucoseEntries
 
 @cascade_ingestion(
     table_name="glucose_entries",
@@ -145,7 +145,7 @@ print(result)
 ## What You Just Did
 
 In 10 minutes, you:
-1. Started Cascade's lakehouse platform
+1. Started Phlo's lakehouse platform
 2. Explored an ingestion asset
 3. Materialized data to Iceberg
 4. Queried with SQL engines
@@ -160,7 +160,7 @@ In 10 minutes, you:
 
 ### Create Your Own Ingestion Asset (15 minutes)
 
-1. Define schema in `src/cascade/schemas/mydata.py`:
+1. Define schema in `src/phlo/schemas/mydata.py`:
 
 ```python
 import pandera as pa
@@ -176,12 +176,12 @@ class RawWeatherData(pa.DataFrameModel):
         coerce = True
 ```
 
-2. Create asset in `src/cascade/defs/ingestion/weather/observations.py`:
+2. Create asset in `src/phlo/defs/ingestion/weather/observations.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
-from cascade.ingestion import cascade_ingestion
-from cascade.schemas.mydata import RawWeatherData
+from phlo.ingestion import cascade_ingestion
+from phlo.schemas.mydata import RawWeatherData
 
 @cascade_ingestion(
     table_name="weather_observations",
@@ -210,10 +210,10 @@ def weather_observations(partition_date: str):
     return source
 ```
 
-3. Register domain in `src/cascade/defs/ingestion/__init__.py`:
+3. Register domain in `src/phlo/defs/ingestion/__init__.py`:
 
 ```python
-from cascade.defs.ingestion import weather  # noqa: F401
+from phlo.defs.ingestion import weather  # noqa: F401
 ```
 
 4. Restart Dagster:
@@ -271,14 +271,14 @@ make up-core up-query
 docker restart dagster-webserver
 
 # Check import in defs/ingestion/__init__.py
-# Ensure domain is imported: from cascade.defs.ingestion import weather
+# Ensure domain is imported: from phlo.defs.ingestion import weather
 ```
 
 **"Validation failed"**
 ```bash
 # Check schema matches your data types
 # Common issue: timestamp as datetime instead of string
-# Review Pandera schema in src/cascade/schemas/
+# Review Pandera schema in src/phlo/schemas/
 ```
 
 **"Permission denied in MinIO"**
@@ -287,11 +287,11 @@ docker restart dagster-webserver
 # Default: MINIO_ROOT_USER=minioadmin, MINIO_ROOT_PASSWORD=minioadmin
 ```
 
-## Why Cascade?
+## Why Phlo?
 
 **74% less boilerplate** vs manual Dagster/Iceberg/DLT integration:
 
-| Operation | Manual Code | With Cascade | Reduction |
+| Operation | Manual Code | With Phlo | Reduction |
 |-----------|-------------|--------------|-----------|
 | DLT setup | ~50 lines | 0 lines | 100% |
 | Iceberg schema | ~40 lines | 0 lines (auto-generated) | 100% |
