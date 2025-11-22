@@ -8,7 +8,6 @@ specified Nessie branches and parsing the test results to determine pass/fail st
 import json
 import os
 import subprocess
-from pathlib import Path
 from typing import Any
 
 import dagster as dg

@@ -12,7 +12,6 @@ TODO: Customize this template:
 
 import pandera as pa
 from pandera.typing import Series
-from datetime import datetime
 
 
 class RawExampleData(pa.DataFrameModel):

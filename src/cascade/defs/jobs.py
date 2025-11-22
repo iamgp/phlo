@@ -7,7 +7,6 @@ from __future__ import annotations
 import dagster as dg
 
 from cascade.defs.jobs import (
-    JOBS,
     nightscout_job,
     github_job,
     publish_job,

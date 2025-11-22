@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     postgres_port: int = Field(default=10000, description="PostgreSQL port")
     postgres_user: str = Field(default="lake", description="PostgreSQL username")
     postgres_password: str = Field(description="PostgreSQL password")
-    postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
+    postgres_db: str = Field(
+        default="lakehouse", description="PostgreSQL database name"
+    )
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
     )
@@ -55,7 +57,9 @@ class Settings(BaseSettings):
     trino_version: str = Field(default="477", description="Trino version")
     trino_port: int = Field(default=10005, description="Trino HTTP port")
     trino_host: str = Field(default="trino", description="Trino service hostname")
-    trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
+    trino_catalog: str = Field(
+        default="iceberg", description="Trino catalog name for Iceberg"
+    )
 
     # --- Data Lake Configuration ---
     # Settings for Iceberg table format and warehouse paths
@@ -76,67 +80,73 @@ class Settings(BaseSettings):
     # --- Nessie Branch Management ---
     # Settings for dynamic branch workflow and validation gates
     branch_retention_days: int = Field(
-        default=7,
-        description="Days to retain pipeline branches after successful merge"
+        default=7, description="Days to retain pipeline branches after successful merge"
     )
     branch_retention_days_failed: int = Field(
         default=14,
-        description="Days to retain pipeline branches that failed validation"
+        description="Days to retain pipeline branches that failed validation",
     )
     auto_promote_enabled: bool = Field(
         default=True,
-        description="Enable automatic promotion to main after validation passes"
+        description="Enable automatic promotion to main after validation passes",
     )
 
     # --- Validation Gates Configuration ---
     # Settings for data quality validation and promotion gates
     freshness_blocks_promotion: bool = Field(
         default=False,
-        description="Whether freshness policy failures should block promotion to main"
+        description="Whether freshness policy failures should block promotion to main",
     )
     pandera_critical_level: str = Field(
         default="error",
-        description="Pandera check severity that blocks promotion (error|warning|info)"
+        description="Pandera check severity that blocks promotion (error|warning|info)",
     )
 
     # --- Validation Retry Configuration ---
     # Settings for automatic retry of failed validations
     validation_retry_enabled: bool = Field(
-        default=True,
-        description="Enable automatic retry of failed validations"
+        default=True, description="Enable automatic retry of failed validations"
     )
     validation_retry_max_attempts: int = Field(
-        default=3,
-        description="Maximum number of validation retry attempts"
+        default=3, description="Maximum number of validation retry attempts"
     )
     validation_retry_delay_seconds: int = Field(
-        default=300,
-        description="Delay between validation retry attempts (seconds)"
+        default=300, description="Delay between validation retry attempts (seconds)"
     )
 
     # --- Freshness Thresholds ---
     # Override asset-level freshness policies with global thresholds
     glucose_freshness_hours: int = Field(
-        default=24,
-        description="Max age of glucose data before considered stale"
+        default=24, description="Max age of glucose data before considered stale"
     )
     github_events_freshness_hours: int = Field(
-        default=24,
-        description="Max age of GitHub events before considered stale"
+        default=24, description="Max age of GitHub events before considered stale"
     )
     github_stats_freshness_hours: int = Field(
-        default=48,
-        description="Max age of GitHub repo stats before considered stale"
+        default=48, description="Max age of GitHub repo stats before considered stale"
     )
 
     # --- BI Services Configuration ---
     # Settings for Apache Superset business intelligence dashboard
     # Services - Superset
     superset_port: int = Field(default=10007, description="Superset web port")
-    superset_admin_user: str = Field(default="admin", description="Superset admin username")
+    superset_admin_user: str = Field(
+        default="admin", description="Superset admin username"
+    )
     superset_admin_password: str = Field(description="Superset admin password")
     superset_admin_email: str = Field(
         default="admin@example.com", description="Superset admin email"
+    )
+
+    # --- User Project Paths ---
+    # Settings for user project structure (for installable package mode)
+    workflows_path: str = Field(
+        default="workflows",
+        description="Path to user workflows directory (for external projects)",
+    )
+    dbt_project_dir_override: str | None = Field(
+        default=None,
+        description="Override dbt project directory path (defaults to transforms/dbt)",
     )
 
     # --- Computed Paths ---
@@ -146,6 +156,10 @@ class Settings(BaseSettings):
     @property
     def dbt_project_dir(self) -> str:
         """dbt project directory - /dbt in container, transforms/dbt locally."""
+        # Allow override via explicit setting
+        if self.dbt_project_dir_override:
+            return self.dbt_project_dir_override
+
         if os.path.exists("/dbt"):  # Container environment
             return "/dbt"
         else:  # Local development
@@ -161,6 +175,7 @@ class Settings(BaseSettings):
             return "transforms/dbt/profiles"
 
             # --- Orchestration Configuration ---
+
     # Settings for Dagster data orchestration platform
     # Dagster
     dagster_port: int = Field(default=10006, description="Dagster webserver port")
@@ -180,8 +195,12 @@ class Settings(BaseSettings):
     # --- GitHub API Configuration ---
     # Settings for GitHub API integration
     # GitHub API
-    github_token: str | None = Field(default=None, description="GitHub personal access token")
-    github_username: str | None = Field(default=None, description="GitHub username for API requests")
+    github_token: str | None = Field(
+        default=None, description="GitHub personal access token"
+    )
+    github_username: str | None = Field(
+        default=None, description="GitHub username for API requests"
+    )
     github_base_url: str = Field(
         default="https://api.github.com", description="GitHub API base URL"
     )
@@ -214,6 +233,7 @@ class Settings(BaseSettings):
         return f"http://{self.nessie_host}:{self.nessie_port}/iceberg"
 
         # --- Helper Methods ---
+
     # Methods to generate connection strings and catalog configurations
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
         """
@@ -314,5 +334,27 @@ def _get_config() -> Settings:
     return Settings()
 
 
+def get_settings() -> Settings:
+    """
+    Get application settings.
+
+    This is the recommended way to access configuration in new code,
+    as it's easier to test and allows for future dependency injection.
+
+    Returns:
+        Validated Settings instance
+
+    Example:
+        ```python
+        from cascade.config import get_settings
+
+        settings = get_settings()
+        workflows_path = settings.workflows_path
+        ```
+    """
+    return _get_config()
+
+
 # Global config instance for convenient access throughout the application
+# Note: Consider using get_settings() in new code for better testability
 config = _get_config()

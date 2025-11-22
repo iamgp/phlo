@@ -11,7 +11,6 @@ from app.auth.dependencies import CurrentUser
 from app.config import settings
 from app.connectors.postgres import postgres_connector
 from app.middleware.cache import cached
-from app.models.schemas import DailySummary, HourlyPattern
 
 # --- Router Configuration ---
 # API router for glucose-related endpoints

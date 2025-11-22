@@ -10,7 +10,6 @@ Tests authentication, endpoints, and error handling.
 
 import requests
 import pytest
-from typing import Dict, Any
 
 # --- Test Configuration ---
 # Base URLs and constants for API testing

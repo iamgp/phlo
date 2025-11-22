@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import dagster as dg
 import dlt
 import pandas as pd
 import pandera.errors

@@ -4,9 +4,7 @@ This module contains end-to-end and data quality tests for the
 complete Cascade data lakehouse system.
 """
 
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 from cascade.definitions import defs
 
