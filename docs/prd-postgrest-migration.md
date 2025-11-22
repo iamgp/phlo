@@ -4,13 +4,13 @@
 **Date**: 2025-11-21
 **Author**: Claude (AI Assistant)
 **Status**: Draft
-**Project**: Cascade Lakehouse API Modernization
+**Project**: Phlo Lakehouse API Modernization
 
 ---
 
 ## Executive Summary
 
-This PRD outlines the migration of the Cascade Lakehouse REST API from a custom FastAPI implementation to PostgREST, a declarative REST API layer that automatically generates RESTful endpoints from PostgreSQL database schemas. This migration aims to reduce code complexity, improve maintainability, and leverage PostgreSQL's native capabilities for authentication, authorization, and data access.
+This PRD outlines the migration of the Phlo Lakehouse REST API from a custom FastAPI implementation to PostgREST, a declarative REST API layer that automatically generates RESTful endpoints from PostgreSQL database schemas. This migration aims to reduce code complexity, improve maintainability, and leverage PostgreSQL's native capabilities for authentication, authorization, and data access.
 
 **Key Benefits:**
 - **Reduced Code Complexity**: Eliminate ~2,000+ lines of custom API code
@@ -25,7 +25,7 @@ This PRD outlines the migration of the Cascade Lakehouse REST API from a custom 
 
 ### Current State
 
-The Cascade Lakehouse platform currently uses a **FastAPI-based REST API** (`/services/api/app/`) with:
+The Phlo Lakehouse platform currently uses a **FastAPI-based REST API** (`/services/api/app/`) with:
 
 - **15+ custom endpoints** across 5 route modules (auth, glucose, iceberg, query, metadata)
 - **Dual database architecture**: PostgreSQL for marts, Trino for Iceberg queries
@@ -536,7 +536,7 @@ db-anon-role = "anon"
 # JWT authentication
 jwt-secret = "${JWT_SECRET}"  # Same secret as FastAPI
 jwt-secret-is-base64 = false
-jwt-aud = "cascade-api"
+jwt-aud = "phlo-api"
 
 # API configuration
 server-host = "0.0.0.0"

@@ -4,7 +4,7 @@ This directory contains PostgreSQL migrations for the PostgREST API implementati
 
 ## Overview
 
-These migrations transform the Cascade Lakehouse database to support PostgREST, a standalone web server that automatically generates RESTful APIs from PostgreSQL schemas.
+These migrations transform the Phlo Lakehouse database to support PostgREST, a standalone web server that automatically generates RESTful APIs from PostgreSQL schemas.
 
 ## Migration Files
 

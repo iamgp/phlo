@@ -1,6 +1,6 @@
 # PostgREST Deployment Guide
 
-This guide covers deploying PostgREST alongside the existing FastAPI service in the Cascade Lakehouse platform.
+This guide covers deploying PostgREST alongside the existing FastAPI service in the Phlo Lakehouse platform.
 
 ## Overview
 
@@ -23,7 +23,7 @@ PostgREST is a standalone web server that automatically generates a RESTful API 
 
 2. **Docker Compose** (for containerized deployment)
 
-3. **Cascade services running**:
+3. **Phlo services running**:
    - PostgreSQL database
    - (Optional) FastAPI for comparison
 
@@ -165,7 +165,7 @@ Expected response:
   "user": {
     "user_id": "uuid-here",
     "username": "analyst",
-    "email": "analyst@cascade.local",
+    "email": "analyst@phlo.local",
     "role": "analyst"
   }
 }
@@ -283,7 +283,7 @@ Expected response:
 {
   "user_id": "uuid-here",
   "username": "analyst",
-  "email": "analyst@cascade.local",
+  "email": "analyst@phlo.local",
   "role": "analyst"
 }
 ```

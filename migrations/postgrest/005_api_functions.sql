@@ -145,7 +145,7 @@ BEGIN
   RETURN json_build_object(
     'status', 'healthy',
     'timestamp', NOW(),
-    'service', 'cascade-postgrest',
+    'service', 'phlo-postgrest',
     'database', current_database()
   );
 END;

@@ -39,8 +39,8 @@ CREATE TRIGGER users_updated_at
 -- Seed default users (passwords: admin123, analyst123)
 INSERT INTO auth.users (username, email, password_hash, role)
 VALUES
-  ('admin', 'admin@cascade.local', crypt('admin123', gen_salt('bf')), 'admin'),
-  ('analyst', 'analyst@cascade.local', crypt('analyst123', gen_salt('bf')), 'analyst')
+  ('admin', 'admin@phlo.local', crypt('admin123', gen_salt('bf')), 'admin'),
+  ('analyst', 'analyst@phlo.local', crypt('analyst123', gen_salt('bf')), 'analyst')
 ON CONFLICT (username) DO NOTHING;
 
 -- Grant necessary permissions

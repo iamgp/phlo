@@ -559,7 +559,7 @@ services:
       PGRST_DB_MAX_ROWS: 10000
       PGRST_DB_EXTRA_SEARCH_PATH: public
       # JWT Configuration (shared with FastAPI and Hasura)
-      PGRST_JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      PGRST_JWT_SECRET: ${JWT_SECRET:-phlo-jwt-secret-change-in-production}
       PGRST_JWT_SECRET_IS_BASE64: "false"
       PGRST_JWT_ROLE_CLAIM_KEY: .role
       # Server Configuration
