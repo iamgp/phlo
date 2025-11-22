@@ -21,7 +21,7 @@
 
 1. Add validation-time checks for decorator parameters
 2. Wrap integration errors with contextual messages
-3. Add error codes (CASCADE-001, CASCADE-002, etc.)
+3. Add error codes (PHLO-001, PHLO-002, etc.)
 4. Link errors to documentation
 5. Create error message guidelines for contributors
 
@@ -44,7 +44,7 @@ dagster._core.errors.DagsterInvalidDefinitionError: Asset 'dlt_weather_observati
 
 **Improved Error**:
 ```
-CascadeDiscoveryError (CASCADE-001): Asset 'weather_observations' not discovered.
+CascadeDiscoveryError (PHLO-001): Asset 'weather_observations' not discovered.
 
 Possible causes:
 1. Domain 'weather' not registered in defs/ingestion/__init__.py
@@ -52,10 +52,10 @@ Possible causes:
 3. Decorator not applied correctly
 
 Suggested fix:
-Add this line to src/cascade/defs/ingestion/__init__.py:
-    from cascade.defs.ingestion import weather  # noqa: F401
+Add this line to src/phlo/defs/ingestion/__init__.py:
+    from phlo.defs.ingestion import weather  # noqa: F401
 
-Documentation: https://cascade.dev/docs/errors/CASCADE-001
+Documentation: https://phlo.dev/docs/errors/PHLO-001
 ```
 
 **Impact**: Self-service resolution in < 1 minute (vs 10-30 minutes searching)
@@ -87,7 +87,7 @@ KeyError: 'observation_id'
 
 **Improved Error**:
 ```
-CascadeSchemaError (CASCADE-002): unique_key 'observation_id' not found in schema 'WeatherObservationSchema'
+CascadeSchemaError (PHLO-002): unique_key 'observation_id' not found in schema 'WeatherObservationSchema'
 
 Available fields in schema:
 - id (str, required)
@@ -108,7 +108,7 @@ Or add 'observation_id' field to your schema:
         observation_id: str = Field(nullable=False)
         ...
 
-Documentation: https://cascade.dev/docs/errors/CASCADE-002
+Documentation: https://phlo.dev/docs/errors/PHLO-002
 ```
 
 **Impact**: Self-service resolution in < 2 minutes (vs 20-60 minutes debugging)
@@ -137,7 +137,7 @@ ValueError: Invalid cron expression
 
 **Improved Error**:
 ```
-CascadeCronError (CASCADE-003): Invalid cron expression 'every hour'
+CascadeCronError (PHLO-003): Invalid cron expression 'every hour'
 
 Cron format: [minute] [hour] [day_of_month] [month] [day_of_week]
 
@@ -148,7 +148,7 @@ Valid examples:
 - "0 0 * * *"      (daily at midnight)
 
 Quick reference: https://crontab.guru/
-Documentation: https://cascade.dev/docs/errors/CASCADE-003
+Documentation: https://phlo.dev/docs/errors/PHLO-003
 ```
 
 **Impact**: Self-service resolution in < 1 minute
@@ -175,7 +175,7 @@ failure cases:
 
 **Improved Error** (wrapped):
 ```
-CascadeValidationError (CASCADE-004): Schema validation failed for 'weather_observations'
+CascadeValidationError (PHLO-004): Schema validation failed for 'weather_observations'
 
 Schema: WeatherObservationSchema
 Field: temperature (float)
@@ -192,7 +192,7 @@ Suggested actions:
 Original Pandera error:
 [Pandera stack trace...]
 
-Documentation: https://cascade.dev/docs/errors/CASCADE-004
+Documentation: https://phlo.dev/docs/errors/PHLO-004
 ```
 
 **Impact**: Clearer context, faster debugging
@@ -212,11 +212,11 @@ ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
 - Error message is explicit
 - Tells user what's missing
 
-**Already Good**: This is an example of a good error message from Cascade framework.
+**Already Good**: This is an example of a good error message from Phlo framework.
 
 **Could Be Better**:
 ```
-CascadeConfigError (CASCADE-005): Missing required schema parameter
+CascadeConfigError (PHLO-005): Missing required schema parameter
 
 Either 'validation_schema' or 'iceberg_schema' must be provided to @cascade_ingestion decorator.
 
@@ -232,7 +232,7 @@ Example:
         ...
     )
 
-Documentation: https://cascade.dev/docs/errors/CASCADE-005
+Documentation: https://phlo.dev/docs/errors/PHLO-005
 ```
 
 ---
@@ -260,7 +260,7 @@ Caused by:
 
 **Improved Error** (wrapped):
 ```
-CascadeIngestionError (CASCADE-006): DLT pipeline failed for asset 'weather_observations'
+CascadeIngestionError (PHLO-006): DLT pipeline failed for asset 'weather_observations'
 
 Stage: load (fetching data from API)
 Partition: 2024-01-15
@@ -277,12 +277,12 @@ Suggested actions:
 1. Check API status: https://status.example.com
 2. Verify network: curl https://api.example.com
 3. Check credentials in .env file
-4. Retry with: cascade materialize weather_observations --partition 2024-01-15
+4. Retry with: phlo materialize weather_observations --partition 2024-01-15
 
 Original DLT error:
 [DLT stack trace...]
 
-Documentation: https://cascade.dev/docs/errors/CASCADE-006
+Documentation: https://phlo.dev/docs/errors/PHLO-006
 ```
 
 **Impact**: Much clearer debugging path
@@ -304,12 +304,12 @@ pyiceberg.exceptions.NoSuchTableError: Table does not exist: raw.weather_observa
 
 **Improved Error**:
 ```
-CascadeTableError (CASCADE-007): Iceberg table 'raw.weather_observations' does not exist
+CascadeTableError (PHLO-007): Iceberg table 'raw.weather_observations' does not exist
 
 This table is created by asset: 'dlt_weather_observations'
 
 To create the table, materialize the asset:
-    cascade materialize weather_observations --partition 2024-01-15
+    phlo materialize weather_observations --partition 2024-01-15
 
 Or via Dagster UI:
     1. Open http://localhost:3000
@@ -317,9 +317,9 @@ Or via Dagster UI:
     3. Click "Materialize"
 
 Check asset status:
-    cascade status weather_observations
+    phlo status weather_observations
 
-Documentation: https://cascade.dev/docs/errors/CASCADE-007
+Documentation: https://phlo.dev/docs/errors/PHLO-007
 ```
 
 **Impact**: Clear path to resolution
@@ -346,7 +346,7 @@ Traceback (most recent call last):
 
 **Improved Error**:
 ```
-CascadeInfrastructureError (CASCADE-008): Cannot connect to Nessie catalog (http://localhost:19120)
+CascadeInfrastructureError (PHLO-008): Cannot connect to Nessie catalog (http://localhost:19120)
 
 This usually means Docker services are not running.
 
@@ -362,7 +362,7 @@ Check logs:
 Verify connection:
     curl http://localhost:19120/api/v2/config
 
-Documentation: https://cascade.dev/docs/errors/CASCADE-008
+Documentation: https://phlo.dev/docs/errors/PHLO-008
 ```
 
 **Impact**: Immediate diagnosis and fix
@@ -506,7 +506,7 @@ Learn more: https://docs.getdbt.com/errors/compilation-error
 
 ---
 
-### Cascade (Current)
+### Phlo (Current)
 
 **Example**: Asset not found
 ```
@@ -546,13 +546,13 @@ Good: "Validation failed for field 'temperature' in row 42: value -150.5 violate
 **4. Link to Documentation**
 ```
 Bad:  "See documentation"
-Good: "Learn more: https://cascade.dev/docs/errors/CASCADE-002"
+Good: "Learn more: https://phlo.dev/docs/errors/PHLO-002"
 ```
 
 **5. Provide Error Codes**
 ```
 Bad:  "Schema error"
-Good: "CascadeSchemaError (CASCADE-002): unique_key field not found"
+Good: "CascadeSchemaError (PHLO-002): unique_key field not found"
 ```
 
 **6. Use Progressive Disclosure**
@@ -629,10 +629,10 @@ except dlt.exceptions.PipelineStepFailed as e:
 **Proposed Solution**: Add error code enum:
 ```python
 class CascadeErrorCode(Enum):
-    ASSET_NOT_DISCOVERED = "CASCADE-001"
-    SCHEMA_MISMATCH = "CASCADE-002"
-    INVALID_CRON = "CASCADE-003"
-    VALIDATION_FAILED = "CASCADE-004"
+    ASSET_NOT_DISCOVERED = "PHLO-001"
+    SCHEMA_MISMATCH = "PHLO-002"
+    INVALID_CRON = "PHLO-003"
+    VALIDATION_FAILED = "PHLO-004"
     # ... etc
 ```
 
@@ -651,7 +651,7 @@ class CascadeError(Exception):
         super().__init__(message)
         self.code = code
         self.suggestions = suggestions
-        self.doc_url = f"https://cascade.dev/docs/errors/{code}"
+        self.doc_url = f"https://phlo.dev/docs/errors/{code}"
 ```
 
 ---
@@ -700,7 +700,7 @@ After:
 
 ```python
 class CascadeError(Exception):
-    """Base exception for Cascade framework errors."""
+    """Base exception for Phlo framework errors."""
 
     def __init__(
         self,
@@ -710,7 +710,7 @@ class CascadeError(Exception):
     ):
         self.code = code
         self.suggestions = suggestions or []
-        self.doc_url = f"https://cascade.dev/docs/errors/{code}"
+        self.doc_url = f"https://phlo.dev/docs/errors/{code}"
 
         full_message = f"{self.__class__.__name__} ({code}): {message}"
         if suggestions:
@@ -735,7 +735,7 @@ try:
 except dlt.exceptions.PipelineStepFailed as e:
     raise CascadeIngestionError(
         message=f"DLT pipeline failed for asset '{asset_name}'",
-        code="CASCADE-006",
+        code="PHLO-006",
         suggestions=[
             "Check API credentials in .env",
             "Verify network connectivity",
@@ -757,7 +757,7 @@ if unique_key not in schema_fields:
     similar = get_close_matches(unique_key, schema_fields, n=3, cutoff=0.6)
     raise CascadeSchemaError(
         message=f"unique_key '{unique_key}' not found in schema '{schema.__name__}'",
-        code="CASCADE-002",
+        code="PHLO-002",
         suggestions=[
             f"Available fields: {', '.join(schema_fields)}",
             f"Did you mean: {', '.join(similar)}" if similar else None,
@@ -771,7 +771,7 @@ if unique_key not in schema_fields:
 
 **5. Create error documentation pages**
 
-For each error code (CASCADE-001, CASCADE-002, etc.):
+For each error code (PHLO-001, PHLO-002, etc.):
 - Detailed explanation
 - Common causes
 - Step-by-step solutions
@@ -808,7 +808,7 @@ def test_unique_key_mismatch_error():
         )
         def asset(): pass
 
-    assert "CASCADE-002" in str(exc_info.value)
+    assert "PHLO-002" in str(exc_info.value)
     assert "Did you mean" in str(exc_info.value)
 ```
 
@@ -819,7 +819,7 @@ def test_unique_key_mismatch_error():
 **8. Add interactive error resolution**
 
 ```bash
-cascade diagnose CASCADE-002
+phlo diagnose PHLO-002
 
 # Interactive prompts:
 # Issue: unique_key 'observation_id' not in schema
@@ -849,10 +849,10 @@ Document in CONTRIBUTING.md:
 **10. Add AI-powered error diagnosis (future)**
 
 ```bash
-cascade explain-error "KeyError: observation_id"
+phlo explain-error "KeyError: observation_id"
 
 # AI suggests:
-# This looks like CASCADE-002 (unique_key mismatch)
+# This looks like PHLO-002 (unique_key mismatch)
 # Your decorator specifies unique_key="observation_id"
 # but your schema only has: id, city, temperature
 # Try changing unique_key="id"
@@ -862,7 +862,7 @@ cascade explain-error "KeyError: observation_id"
 
 ## Comparison Matrix
 
-| Aspect | Cascade Current | Prefect | Dagster | dbt | Target | Gap |
+| Aspect | Phlo Current | Prefect | Dagster | dbt | Target | Gap |
 |--------|----------------|---------|---------|-----|--------|-----|
 | **Error Codes** | None | Yes | Yes | Yes | Essential | Major gap |
 | **Suggestions** | Rare | Common | Common | Common | Essential | Major gap |

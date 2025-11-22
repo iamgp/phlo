@@ -2,7 +2,7 @@
 
 ## Mastering Asset-Based Orchestration
 
-This guide teaches you everything about Dagster assets in Cascade - from basics to advanced patterns.
+This guide teaches you everything about Dagster assets in Phlo - from basics to advanced patterns.
 
 ---
 
@@ -59,7 +59,7 @@ That's it! Dagster will:
 
 **CLI:**
 ```bash
-dagster asset materialize -m cascade.definitions -a my_first_asset
+dagster asset materialize -m phlo.definitions -a my_first_asset
 ```
 
 **Programmatically:**
@@ -221,7 +221,7 @@ asset_b ─┘
 ### Conditional Dependencies
 
 ```python
-from cascade.config import get_config
+from phlo.config import get_config
 
 @dg.asset
 def optional_upstream():
@@ -255,7 +255,7 @@ def conditional_asset():
 ### Using Resources
 
 ```python
-from cascade.defs.resources import TrinoResource, IcebergResource
+from phlo.defs.resources import TrinoResource, IcebergResource
 
 @dg.asset
 def asset_with_resources(
@@ -318,7 +318,7 @@ def weather_data(weather_api: WeatherAPIResource):
 ### Configuration from Environment
 
 ```python
-from cascade.config import get_config
+from phlo.config import get_config
 
 @dg.asset
 def configured_asset(context: dg.AssetExecutionContext):
@@ -379,7 +379,7 @@ def daily_weather_data(context: dg.AssetExecutionContext):
 
 **Single partition:**
 ```bash
-dagster asset materialize -m cascade.definitions \
+dagster asset materialize -m phlo.definitions \
   -a daily_weather_data \
   --partition 2024-11-05
 ```
@@ -387,7 +387,7 @@ dagster asset materialize -m cascade.definitions \
 **Range of partitions:**
 ```bash
 # Backfill last 7 days
-dagster asset backfill -m cascade.definitions \
+dagster asset backfill -m phlo.definitions \
   -a daily_weather_data \
   --from 2024-11-01 \
   --to 2024-11-07
@@ -395,7 +395,7 @@ dagster asset backfill -m cascade.definitions \
 
 **Latest partition:**
 ```bash
-dagster asset materialize -m cascade.definitions \
+dagster asset materialize -m phlo.definitions \
   -a daily_weather_data \
   --partition $(date +%Y-%m-%d)
 ```
@@ -839,7 +839,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 
 2. Run locally:
    ```python
-   from cascade.definitions import defs
+   from phlo.definitions import defs
    from dagster import materialize
 
    result = materialize([defs.get_asset_def("my_asset")])

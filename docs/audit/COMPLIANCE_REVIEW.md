@@ -1,9 +1,9 @@
-# Cascade Audit Compliance Review
+# Phlo Audit Compliance Review
 
 **Date**: November 21, 2024
 **Reviewer**: Claude (AI Assistant)
 **Audit Reference**: docs/audit/executive_summary.md
-**Branch**: claude/review-cascade-audit-01AH6FhHS1p1UwrYGox2scWp
+**Branch**: claude/review-phlo-audit-01AH6FhHS1p1UwrYGox2scWp
 
 ---
 
@@ -44,13 +44,13 @@
 
 | Item | Status | File | Lines | Quality |
 |------|--------|------|-------|---------|
-| CascadeError Classes | ✅ Complete | src/cascade/exceptions.py | 307 | Excellent - 13 error classes with codes |
-| Validation-time Checks | ✅ Complete | src/cascade/ingestion/decorator.py | 88 | Excellent - cron & unique_key validation |
+| CascadeError Classes | ✅ Complete | src/phlo/exceptions.py | 307 | Excellent - 13 error classes with codes |
+| Validation-time Checks | ✅ Complete | src/phlo/ingestion/decorator.py | 88 | Excellent - cron & unique_key validation |
 | "Did You Mean?" | ✅ Complete | exceptions.py:271-302 | 32 | Excellent - fuzzy matching |
 | Error Documentation | ✅ Complete | Integrated in COMMON_ERRORS.md | - | Good - covers top 10 errors |
 
 **Key Features Implemented**:
-1. **Error Codes**: CASCADE-001 to CASCADE-402 (organized by category)
+1. **Error Codes**: PHLO-001 to PHLO-402 (organized by category)
 2. **Structured Errors**: Message + code + suggestions + doc URL
 3. **Validation-time Checks**: Errors caught at decorator application (not runtime)
 4. **Fuzzy Matching**: "Did you mean 'id'?" suggestions for typos
@@ -58,13 +58,13 @@
 
 **Example Error Output**:
 ```
-CascadeSchemaError (CASCADE-002): unique_key 'observation_id' not found in schema 'WeatherObservationSchema'
+CascadeSchemaError (PHLO-002): unique_key 'observation_id' not found in schema 'WeatherObservationSchema'
 
 Suggested actions:
   1. Did you mean 'id'?
   2. Available fields: id, city, temperature, timestamp
 
-Documentation: https://docs.cascade.dev/errors/CASCADE-002
+Documentation: https://docs.phlo.dev/errors/PHLO-002
 ```
 
 **Impact**: **HIGH** - 30-60x faster error feedback (immediate vs 30-60 sec runtime)
@@ -85,7 +85,7 @@ Documentation: https://docs.cascade.dev/errors/CASCADE-002
 **What Works** ✅:
 ```python
 # Mock DLT sources for unit testing
-from cascade.testing import mock_dlt_source
+from phlo.testing import mock_dlt_source
 
 test_data = [{"id": "1", "value": 42}]
 with mock_dlt_source(data=test_data) as source:
@@ -106,16 +106,16 @@ with mock_dlt_source(data=test_data) as source:
 
 | Item | Status | Evidence | Impact |
 |------|--------|----------|--------|
-| cascade CLI framework | ❌ Not Started | No entry points in pyproject.toml | Users manually create all files |
-| cascade create-workflow | ❌ Not Started | N/A | Workflow creation still 15-20 min (vs 5-10 min target) |
-| cascade test | ❌ Not Started | N/A | No CLI test command |
-| cascade materialize | ❌ Not Started | N/A | Must use docker exec |
+| phlo CLI framework | ❌ Not Started | No entry points in pyproject.toml | Users manually create all files |
+| phlo create-workflow | ❌ Not Started | N/A | Workflow creation still 15-20 min (vs 5-10 min target) |
+| phlo test | ❌ Not Started | N/A | No CLI test command |
+| phlo materialize | ❌ Not Started | N/A | Must use docker exec |
 
 **Gap vs Competitors**:
 - Prefect: `prefect flow create` ✅
 - Dagster: `dagster project scaffold` ✅
 - dbt: `dbt init` ✅
-- **Cascade**: None ❌
+- **Phlo**: None ❌
 
 **Impact**: **CRITICAL** - Major gap vs industry standards
 
@@ -126,7 +126,7 @@ with mock_dlt_source(data=test_data) as source:
 | Item | Status | Estimated Hours | Priority | Notes |
 |------|--------|-----------------|----------|-------|
 | Local test mode with DuckDB | ❌ Not Started | 40h | High | Would enable < 5 sec feedback |
-| @cascade_quality decorator | ❌ Not Started | 32h | Medium | Would reduce quality check boilerplate by 70% |
+| @phlo_quality decorator | ❌ Not Started | 32h | Medium | Would reduce quality check boilerplate by 70% |
 | Error documentation pages | ⚠️ Partial | 24h | Low | Have COMMON_ERRORS.md, but not per-error pages |
 | Video walkthrough | ❌ Not Started | 16h | Low | Would support visual learners |
 | Plugin system via entry points | ❌ Not Started | 32h | Medium | Would enable community contributions |
@@ -141,7 +141,7 @@ with mock_dlt_source(data=test_data) as source:
 
 #### 1. Validation-Time Error Checks
 
-**Location**: `src/cascade/ingestion/decorator.py:183-184`
+**Location**: `src/phlo/ingestion/decorator.py:183-184`
 
 ```python
 def cascade_ingestion(...):
@@ -168,11 +168,11 @@ def cascade_ingestion(...):
 
 #### 2. Structured Error Classes
 
-**Location**: `src/cascade/exceptions.py` (307 lines)
+**Location**: `src/phlo/exceptions.py` (307 lines)
 
 **Features**:
 - 13 error classes for different scenarios
-- Error codes (CASCADE-001 to CASCADE-402)
+- Error codes (PHLO-001 to PHLO-402)
 - Contextual suggestions
 - Documentation links
 - Cause chaining for wrapped exceptions
@@ -180,17 +180,17 @@ def cascade_ingestion(...):
 **Error Class Hierarchy**:
 ```
 CascadeError (base)
-├── CascadeDiscoveryError (CASCADE-001)
-├── CascadeSchemaError (CASCADE-002)
-├── CascadeCronError (CASCADE-003)
-├── CascadeValidationError (CASCADE-004)
-├── CascadeConfigError (CASCADE-005)
-├── CascadeIngestionError (CASCADE-006)
-├── CascadeTableError (CASCADE-007)
-├── CascadeInfrastructureError (CASCADE-008)
-├── SchemaConversionError (CASCADE-200)
-├── DLTPipelineError (CASCADE-300)
-└── IcebergCatalogError (CASCADE-400)
+├── CascadeDiscoveryError (PHLO-001)
+├── CascadeSchemaError (PHLO-002)
+├── CascadeCronError (PHLO-003)
+├── CascadeValidationError (PHLO-004)
+├── CascadeConfigError (PHLO-005)
+├── CascadeIngestionError (PHLO-006)
+├── CascadeTableError (PHLO-007)
+├── CascadeInfrastructureError (PHLO-008)
+├── SchemaConversionError (PHLO-200)
+├── DLTPipelineError (PHLO-300)
+└── IcebergCatalogError (PHLO-400)
 ```
 
 ---
@@ -228,7 +228,7 @@ CascadeError (base)
 
 #### 4. MockDLTSource Implementation
 
-**Location**: `src/cascade/testing/placeholders.py:23-100`
+**Location**: `src/phlo/testing/placeholders.py:23-100`
 
 **Features**:
 - Accepts list of dicts or DataFrame
@@ -265,9 +265,9 @@ validated = MySchema.validate(df)  # Test schema works
 **Missing Commands**:
 ```bash
 # These don't exist yet
-cascade create-workflow --type ingestion --domain weather
-cascade test weather_observations --local
-cascade materialize weather_observations --partition 2024-01-15
+phlo create-workflow --type ingestion --domain weather
+phlo test weather_observations --local
+phlo materialize weather_observations --partition 2024-01-15
 ```
 
 **Comparison**:
@@ -276,7 +276,7 @@ cascade materialize weather_observations --partition 2024-01-15
 | Prefect | ✅ `prefect flow create` | 3-5 min |
 | Dagster | ✅ `dagster project scaffold` | 10 min |
 | dbt | ✅ `dbt init` | 5 min |
-| **Cascade** | ❌ None | **15-20 min** |
+| **Phlo** | ❌ None | **15-20 min** |
 
 ---
 
@@ -295,7 +295,7 @@ cascade materialize weather_observations --partition 2024-01-15
 **What Users Want**:
 ```python
 # This doesn't work yet ❌
-from cascade.testing import test_asset_execution, mock_iceberg_catalog
+from phlo.testing import test_asset_execution, mock_iceberg_catalog
 
 def test_my_asset():
     with mock_iceberg_catalog() as catalog:
@@ -310,7 +310,7 @@ def test_my_asset():
 
 ---
 
-#### 3. No @cascade_quality Decorator ❌
+#### 3. No @phlo_quality Decorator ❌
 
 **Current State** (manual quality checks):
 ```python
@@ -330,7 +330,7 @@ def weather_quality_checks(context, trino: TrinoResource):
 **Proposed** (with decorator):
 ```python
 # 5-10 lines with decorator
-@cascade_quality(
+@phlo_quality(
     table="raw.weather_observations",
     group="weather",
     checks=[
@@ -417,14 +417,14 @@ def weather_quality():
 - **Impact**: Enable fast local testing without Docker
 
 **2. Begin CLI Framework** (20h initial)
-- Add entry point for `cascade` command
-- Implement `cascade test` wrapper (10h)
-- Implement `cascade materialize` wrapper (10h)
+- Add entry point for `phlo` command
+- Implement `phlo test` wrapper (10h)
+- Implement `phlo materialize` wrapper (10h)
 - **Impact**: Improve developer experience, parity with competitors
 
 ### Short-Term (Next 1-2 Months)
 
-**3. Implement cascade create-workflow** (40h)
+**3. Implement phlo create-workflow** (40h)
 - Interactive prompts for domain, table, schedule
 - Auto-generate schema, asset, test files
 - Auto-register domain in __init__.py
@@ -437,7 +437,7 @@ def weather_quality():
 
 ### Medium-Term (Next 3-6 Months)
 
-**5. Create @cascade_quality Decorator** (32h)
+**5. Create @phlo_quality Decorator** (32h)
 - Common quality checks (null, range, freshness)
 - Declarative quality definitions
 - **Impact**: 70% boilerplate reduction for quality checks
@@ -462,7 +462,7 @@ def weather_quality():
 - Testing utilities (integration with Dagster test harness)
 
 ### Mitigation Strategies
-1. **Start with minimal CLI**: Focus on `cascade test` and `cascade materialize` first
+1. **Start with minimal CLI**: Focus on `phlo test` and `phlo materialize` first
 2. **Incremental DuckDB integration**: Start with read-only queries
 3. **User testing**: Get feedback on MockDLTSource before building more
 
@@ -495,7 +495,7 @@ To achieve the full vision outlined in the audit, focus on:
 
 1. **Complete MockIcebergCatalog** (20h) - Enable local testing
 2. **Build CLI Framework** (40h) - Achieve parity with competitors
-3. **Implement cascade create-workflow** (40h) - Reduce workflow creation time
+3. **Implement phlo create-workflow** (40h) - Reduce workflow creation time
 
 ### Overall Grade
 
@@ -520,14 +520,14 @@ To achieve the full vision outlined in the audit, focus on:
 - `docs/COMMON_ERRORS.md` (10KB, 456 lines)
 
 ### Error Handling Files
-- `src/cascade/exceptions.py` (307 lines)
+- `src/phlo/exceptions.py` (307 lines)
   - 13 error classes
-  - Error codes CASCADE-001 to CASCADE-402
+  - Error codes PHLO-001 to PHLO-402
   - Fuzzy matching utility functions
 
 ### Testing Files
-- `src/cascade/testing/__init__.py` (67 lines)
-- `src/cascade/testing/placeholders.py` (Full MockDLTSource implementation)
+- `src/phlo/testing/__init__.py` (67 lines)
+- `src/phlo/testing/placeholders.py` (Full MockDLTSource implementation)
 
 ### Template Files
 - `templates/ingestion/rest_api.py` (313 lines)
@@ -535,7 +535,7 @@ To achieve the full vision outlined in the audit, focus on:
 - `templates/tests/test_ingestion.py` (331 lines)
 
 ### Modified Files
-- `src/cascade/ingestion/decorator.py` (validation-time checks added)
+- `src/phlo/ingestion/decorator.py` (validation-time checks added)
   - Lines 32-70: `_validate_cron_expression()`
   - Lines 72-120: `_validate_unique_key_in_schema()`
   - Lines 183-184: Validation calls

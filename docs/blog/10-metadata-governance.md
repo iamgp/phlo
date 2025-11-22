@@ -37,9 +37,9 @@ OpenMetadata is an open-source data catalog that answers:
 - How often is it updated?
 - What quality checks does it have?
 
-## Why OpenMetadata for Cascade?
+## Why OpenMetadata for Phlo?
 
-OpenMetadata integrates seamlessly with Cascade's tech stack:
+OpenMetadata integrates seamlessly with Phlo's tech stack:
 
 - **Trino connector** - Auto-discovers Iceberg tables
 - **Modern UI** - Intuitive search and browsing experience
@@ -131,7 +131,7 @@ trino
 
 **Description:**
 ```
-Cascade lakehouse Trino query engine with Iceberg catalog
+Phlo lakehouse Trino query engine with Iceberg catalog
 ```
 
 **Connection Configuration:**
@@ -142,7 +142,7 @@ Click on **Basic** authentication type, then configure:
 |-------|-------|-------|
 | **Host** | `trino` | Docker service name (internal network) |
 | **Port** | `8080` | Internal container port |
-| **Username** | `cascade` | Any username (no auth in dev) |
+| **Username** | `phlo` | Any username (no auth in dev) |
 | **Catalog** | Leave empty | We'll filter by catalog in ingestion |
 | **Database Schema** | Leave empty | - |
 
@@ -371,7 +371,7 @@ Lineage is automatically extracted from:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `cascade-dbt` |
+| **Name** | `phlo-dbt` |
 | **dbt Cloud API URL** | Leave empty (we use local files) |
 | **dbt Cloud Account ID** | Leave empty |
 
@@ -417,9 +417,9 @@ Click **Next** → **Deploy**.
    dbt compile --profiles-dir ./profiles
    ```
 
-2. Go to **Settings → Integrations → Pipeline → cascade-dbt**
+2. Go to **Settings → Integrations → Pipeline → phlo-dbt**
 3. Click **Ingestions** tab
-4. Find `cascade-dbt-metadata` pipeline
+4. Find `phlo-dbt-metadata` pipeline
 5. Click **Run** (play button)
 
 Expected output:
@@ -487,7 +487,7 @@ Track who has access to what:
 2. View **Activity Feeds**
 3. See who accessed, queried, or modified
 
-## Integration with Cascade Workflows
+## Integration with Phlo Workflows
 
 ### Update Ingestion Schedule
 

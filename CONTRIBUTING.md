@@ -24,8 +24,8 @@ Thank you for your interest in contributing to Cascade! This guide will help you
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cascade.git
-cd cascade
+git clone https://github.com/yourusername/phlo.git
+cd phlo
 
 # Install dependencies
 make setup
@@ -44,8 +44,8 @@ Cascade follows the **src-layout** pattern with clear separation between framewo
 ### Directory Organization
 
 ```
-cascade/
-├── src/cascade/              # Framework source code
+phlo/
+├── src/phlo/              # Framework source code
 │   ├── ingestion/            # Ingestion framework (decorator, helpers)
 │   ├── schemas/              # Schema definitions and converter
 │   ├── iceberg/              # Iceberg catalog and table management
@@ -73,8 +73,8 @@ cascade/
 Based on the [Folder Structure Audit](docs/audit/folder_structure_analysis.md):
 
 **Depth Guideline**: Keep file paths ≤ 4 levels deep
-- ✅ Good: `src/cascade/defs/transform/dbt.py` (4 levels)
-- ⚠️ Acceptable: `src/cascade/defs/ingestion/domain/asset.py` (5 levels)
+- ✅ Good: `src/phlo/defs/transform/dbt.py` (4 levels)
+- ⚠️ Acceptable: `src/phlo/defs/ingestion/domain/asset.py` (5 levels)
 - ❌ Avoid: Deeper nesting
 
 **Naming Conventions**:
@@ -86,24 +86,24 @@ Based on the [Folder Structure Audit](docs/audit/folder_structure_analysis.md):
 ### Where to Add New Code
 
 **New Ingestion Asset**:
-1. Create schema: `src/cascade/schemas/domain.py`
-2. Create asset: `src/cascade/defs/ingestion/domain/asset_name.py`
-3. Register domain: Add import in `src/cascade/defs/ingestion/__init__.py`
+1. Create schema: `src/phlo/schemas/domain.py`
+2. Create asset: `src/phlo/defs/ingestion/domain/asset_name.py`
+3. Register domain: Add import in `src/phlo/defs/ingestion/__init__.py`
 
 **New Transformation**:
 1. Add dbt model: `dbt_project/models/layer/model_name.sql`
 2. Follow dbt naming conventions: `stg_*` (bronze), `fct_*` (silver), `mrt_*` (marts)
 
 **New Quality Check**:
-1. Create asset: `src/cascade/defs/quality/domain.py`
+1. Create asset: `src/phlo/defs/quality/domain.py`
 2. Use Dagster asset decorator with quality checks
 
 **New Publishing Configuration**:
-1. Edit: `src/cascade/defs/publishing/config.yaml`
+1. Edit: `src/phlo/defs/publishing/config.yaml`
 2. Add table mappings and dependencies
 
 **New Job Configuration**:
-1. Edit: `src/cascade/defs/jobs/config.yaml`
+1. Edit: `src/phlo/defs/jobs/config.yaml`
 2. Define asset selection and partitions
 
 ## Development Workflow
@@ -116,7 +116,7 @@ Based on the [Workflow Creation Audit](docs/audit/workflow_creation_audit.md):
 
 **Step 1: Define Schema** (3-5 min)
 ```python
-# src/cascade/schemas/weather.py
+# src/phlo/schemas/weather.py
 import pandera as pa
 from pandera.typing import Series
 
@@ -134,10 +134,10 @@ class RawWeatherObservations(pa.DataFrameModel):
 
 **Step 2: Create Ingestion Asset** (5-7 min)
 ```python
-# src/cascade/defs/ingestion/weather/observations.py
+# src/phlo/defs/ingestion/weather/observations.py
 from dlt.sources.rest_api import rest_api
-from cascade.ingestion import cascade_ingestion
-from cascade.schemas.weather import RawWeatherObservations
+from phlo.ingestion import cascade_ingestion
+from phlo.schemas.weather import RawWeatherObservations
 
 @cascade_ingestion(
     table_name="weather_observations",
@@ -171,10 +171,10 @@ def weather_observations(partition_date: str):
 
 **Step 3: Register Domain** (1 min)
 ```python
-# src/cascade/defs/ingestion/__init__.py
-from cascade.defs.ingestion import github  # noqa: F401
-from cascade.defs.ingestion import nightscout  # noqa: F401
-from cascade.defs.ingestion import weather  # noqa: F401  # <- ADD THIS
+# src/phlo/defs/ingestion/__init__.py
+from phlo.defs.ingestion import github  # noqa: F401
+from phlo.defs.ingestion import nightscout  # noqa: F401
+from phlo.defs.ingestion import weather  # noqa: F401  # <- ADD THIS
 ```
 
 **Step 4: Test**
@@ -223,13 +223,13 @@ Based on the [Functionality Inventory](docs/audit/functionality_inventory.md):
 **Commands**:
 ```bash
 # Format code
-ruff format cascade/
+ruff format phlo/
 
 # Lint code
-ruff check cascade/
+ruff check phlo/
 
 # Type check
-basedpyright cascade/
+basedpyright phlo/
 ```
 
 ### Code Quality Guidelines
@@ -267,7 +267,7 @@ make test
 pytest tests/test_ingestion_decorator.py
 
 # Run with coverage
-pytest --cov=cascade tests/
+pytest --cov=phlo tests/
 ```
 
 ### Test Structure
@@ -286,7 +286,7 @@ tests/
 **Unit Tests** (for framework code):
 ```python
 import pytest
-from cascade.ingestion import cascade_ingestion
+from phlo.ingestion import cascade_ingestion
 
 def test_decorator_basic_functionality():
     """Test cascade_ingestion decorator creates valid asset."""
@@ -314,7 +314,7 @@ pytest tests/test_system_e2e.py
 ### Testing Gaps (Future Improvements)
 
 Based on audit findings, we plan to add:
-- Testing utilities module (`cascade.testing`)
+- Testing utilities module (`phlo.testing`)
 - Mock DLT sources for unit tests
 - Local test mode (no Docker required)
 - Comprehensive testing guide
@@ -370,13 +370,13 @@ git checkout -b feature/your-feature-name
 3. **Run Quality Checks**
 ```bash
 # Format
-ruff format cascade/
+ruff format phlo/
 
 # Lint
-ruff check cascade/
+ruff check phlo/
 
 # Type check
-basedpyright cascade/
+basedpyright phlo/
 
 # Test
 pytest tests/

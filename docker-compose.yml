@@ -1,4 +1,4 @@
-# docker-compose.yml - Multi-service Docker Compose configuration for Cascade lakehouse platform
+# docker-compose.yml - Multi-service Docker Compose configuration for Phlo lakehouse platform
 # Defines all services: databases, query engines, orchestration, BI, monitoring
 # Provides complete development and production environment setup
 
@@ -183,7 +183,7 @@ services:
     ports: ["${DAGSTER_PORT}:3000"]
     volumes:
       - ./services/dagster:/opt/dagster
-      - ./src/cascade:/opt/dagster/cascade:ro
+      - ./src/phlo:/opt/dagster/phlo:ro
       - ./transforms/dbt:/dbt # Needs write for target/
       - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
@@ -242,7 +242,7 @@ services:
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
       - ./services/dagster:/opt/dagster
-      - ./src/cascade:/opt/dagster/cascade:ro
+      - ./src/phlo:/opt/dagster/phlo:ro
       - ./transforms/dbt:/dbt # Needs write for target/
       - ./data:/data # Legacy mount retained for local artifacts
     depends_on:
@@ -484,21 +484,21 @@ services:
     build:
       context: ./services/api
       dockerfile: Dockerfile
-    container_name: cascade-api
+    container_name: phlo-api
     restart: unless-stopped
     profiles: ["api", "all"]
     environment:
       # API Configuration
-      JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-phlo-jwt-secret-change-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       # Hasura shared JWT secret
-      HASURA_GRAPHQL_JWT_SECRET: ${JWT_SECRET:-cascade-jwt-secret-change-in-production}
+      HASURA_GRAPHQL_JWT_SECRET: ${JWT_SECRET:-phlo-jwt-secret-change-in-production}
       # Trino connection
       TRINO_HOST: ${TRINO_HOST:-trino}
       TRINO_PORT: ${TRINO_PORT:-8080}
       TRINO_CATALOG: ${TRINO_CATALOG:-iceberg}
-      TRINO_USER: ${TRINO_USER:-cascade}
+      TRINO_USER: ${TRINO_USER:-phlo}
       # Postgres connection
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: 5432
@@ -529,8 +529,8 @@ services:
       HASURA_GRAPHQL_DEV_MODE: "true"
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       # JWT Authentication (shared with FastAPI)
-      HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256","key":"${JWT_SECRET:-cascade-jwt-secret-change-in-production}"}'
-      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-cascade-admin-secret-change-me}
+      HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256","key":"${JWT_SECRET:-phlo-jwt-secret-change-in-production}"}'
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-phlo-admin-secret-change-me}
       # CORS
       HASURA_GRAPHQL_CORS_DOMAIN: "*"
     ports:

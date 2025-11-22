@@ -1,7 +1,7 @@
 """Tests for Quality Module.
 
 This module contains unit, integration, and data quality tests for the
-cascade.defs.quality.nightscout module.
+phlo.defs.quality.nightscout module.
 """
 
 from unittest.mock import MagicMock
@@ -9,7 +9,7 @@ from typing import cast
 
 from dagster import AssetCheckResult, MetadataValue, build_asset_check_context
 
-from cascade.defs.quality.nightscout import nightscout_glucose_quality_check
+from phlo.defs.quality.nightscout import nightscout_glucose_quality_check
 
 
 class TestQualityUnitTests:

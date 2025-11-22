@@ -2,7 +2,7 @@
 
 ## Overview
 
-OpenMetadata is an open-source data catalog that provides a unified platform for data discovery, governance, and collaboration. This guide explains how to set up and use OpenMetadata with Cascade to enable self-service data discovery.
+OpenMetadata is an open-source data catalog that provides a unified platform for data discovery, governance, and collaboration. This guide explains how to set up and use OpenMetadata with Phlo to enable self-service data discovery.
 
 ## What is a Data Catalog?
 
@@ -13,9 +13,9 @@ A data catalog is a searchable inventory of your data assets that helps users:
 - **Access** data through multiple interfaces (SQL, APIs, dashboards)
 - **Govern** data with ownership, tags, and quality metrics
 
-## Why OpenMetadata for Cascade?
+## Why OpenMetadata for Phlo?
 
-OpenMetadata integrates seamlessly with Cascade's tech stack:
+OpenMetadata integrates seamlessly with Phlo's tech stack:
 
 - ✅ **Trino connector** - Auto-discovers Iceberg tables
 - ✅ **Modern UI** - Intuitive search and browsing experience
@@ -106,7 +106,7 @@ After first-time setup, you MUST complete these steps in order:
 3. Complete the welcome tour (optional)
 4. You'll see the empty catalog dashboard
 
-## Connecting Cascade Data Sources
+## Connecting Phlo Data Sources
 
 ### Step 1: Add Trino Database Service
 
@@ -125,7 +125,7 @@ trino
 
 **Description (optional):**
 ```
-Cascade lakehouse Trino query engine with Iceberg catalog
+Phlo lakehouse Trino query engine with Iceberg catalog
 ```
 
 **Connection Configuration:**
@@ -136,7 +136,7 @@ Click on **Basic** authentication type, then configure:
 |-------|-------|-------|
 | **Host** | `trino` | Docker service name (internal network) |
 | **Port** | `8080` | Internal container port (NOT 10005!) |
-| **Username** | `cascade` | Any username (no auth in dev) |
+| **Username** | `phlo` | Any username (no auth in dev) |
 | **Catalog** | Leave empty | We'll filter by catalog in ingestion |
 | **Database Schema** | Leave empty | - |
 
@@ -545,7 +545,7 @@ Lineage is automatically extracted from:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `cascade-dbt` |
+| **Name** | `phlo-dbt` |
 | **dbt Cloud API URL** | Leave empty (we use local files) |
 | **dbt Cloud Account ID** | Leave empty |
 
@@ -595,9 +595,9 @@ Click **Next** → **Deploy**.
    dbt build --profiles-dir ./profiles
    ```
 
-2. Go to **Settings → Integrations → Pipeline → cascade-dbt**
+2. Go to **Settings → Integrations → Pipeline → phlo-dbt**
 3. Click **Ingestions** tab
-4. Find `cascade-dbt-metadata` pipeline
+4. Find `phlo-dbt-metadata` pipeline
 5. Click **Run** (play button)
 
 **Expected Output:**
@@ -665,7 +665,7 @@ curl http://localhost:10020/api/v1/tables/name/iceberg.silver.glucose_daily_stat
 curl "http://localhost:10020/api/v1/search/query?q=glucose"
 ```
 
-## Integration with Cascade Workflows
+## Integration with Phlo Workflows
 
 ### Update Ingestion Schedule
 
@@ -955,9 +955,9 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 - [Data Quality Guide](https://docs.open-metadata.org/how-to-guides/data-quality-observability)
 - [API Documentation](https://docs.open-metadata.org/developers/apis)
 
-## Related Cascade Documentation
+## Related Phlo Documentation
 
-- [Quick Start Guide](quick-start.md) - Get Cascade running
+- [Quick Start Guide](quick-start.md) - Get Phlo running
 - [API Documentation](../reference/api.md) - FastAPI and Hasura setup
 - [dbt Development Guide](../guides/dbt-development.md) - Creating dbt models
 - [Workflow Development Guide](../guides/workflow-development.md) - Dagster pipelines

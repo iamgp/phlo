@@ -1,6 +1,6 @@
 """Tests for Config Module.
 
-This module contains unit and integration tests for the cascade.config module.
+This module contains unit and integration tests for the phlo.config module.
 Tests cover configuration loading, validation, computed fields, caching, and connection strings.
 """
 
@@ -8,7 +8,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from cascade.config import Settings, _get_config
+from phlo.config import Settings, _get_config
 
 
 class TestConfigUnitTests:

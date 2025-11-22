@@ -113,10 +113,10 @@ SELECT * FROM cleaned
 
 dbt materializes this as:
 - **View**: Query source every time (slow for complex transforms)
-- **Table**: Precompute once, fast queries (Cascade uses this)
+- **Table**: Precompute once, fast queries (Phlo uses this)
 - **Incremental**: Only process new data (for huge tables)
 
-Cascade's config:
+Phlo's config:
 
 ```sql
 -- Bronze models
@@ -248,7 +248,7 @@ dbt docs serve  # Opens http://localhost:8000
 # - Query execution stats
 ```
 
-## Cascade's dbt Structure
+## Phlo's dbt Structure
 
 ### Directory Layout
 
@@ -356,13 +356,13 @@ transforms/dbt/
    ORDER BY reading_date DESC
    ```
 
-## Integration with Cascade
+## Integration with Phlo
 
 ### Connection Configuration
 
 ```yaml
 # profiles.yml
-cascade:
+phlo:
   target: dev  # development by default
   
   outputs:
@@ -461,7 +461,7 @@ uv pip install dbt-trino
 # Create dbt profiles
 mkdir -p ~/.dbt
 cat > ~/.dbt/profiles.yml << EOF
-cascade:
+phlo:
   target: dev
   outputs:
     dev:
@@ -608,7 +608,7 @@ See you there!
 - Documentation generation
 - Version control (git-friendly)
 
-**Cascade uses dbt for**:
+**Phlo uses dbt for**:
 - Bronze: Raw data staging
 - Silver: Fact tables with business logic
 - Gold: Dimensions and metrics

@@ -1,10 +1,10 @@
-# Cascade Documentation
+# Phlo Documentation
 
-Welcome to the Cascade documentation. This guide will help you understand, deploy, and use the Cascade data lakehouse platform.
+Welcome to the Phlo documentation. This guide will help you understand, deploy, and use the Phlo data lakehouse platform.
 
 ## 📖 **START HERE: [Documentation Index](index.md)**
 
-**New to Cascade?** Check out the **[index.md](index.md)** for a complete guide to all documentation, organized by experience level and topic.
+**New to Phlo?** Check out the **[index.md](index.md)** for a complete guide to all documentation, organized by experience level and topic.
 
 ---
 
@@ -17,7 +17,7 @@ Welcome to the Cascade documentation. This guide will help you understand, deplo
 1. **[Beginner's Guide](getting-started/beginners-guide.md)** - **Start here!**
    - What is a data lakehouse?
    - All concepts explained from scratch
-   - How Cascade works end-to-end
+   - How Phlo works end-to-end
    - Understanding the technologies
    - Your first look at the platform
 
@@ -27,14 +27,14 @@ Welcome to the Cascade documentation. This guide will help you understand, deplo
    - Uses DLT, dbt, Bronze/Silver/Gold layers
    - 10-step guided walkthrough
 
-3. **[Quick Start Guide](../QUICK_START.md)** - Get Cascade running
+3. **[Quick Start Guide](../QUICK_START.md)** - Get Phlo running
    - Prerequisites and setup
    - Service startup
    - First pipeline run
 
 ### 👨‍💻 For Developers
 
-If you're developing on Cascade:
+If you're developing on Phlo:
 
 1. **[Data Modeling Guide](guides/data-modeling.md)** - Architecture patterns
    - Bronze/Silver/Gold explained
@@ -53,7 +53,7 @@ If you're developing on Cascade:
 
 ### 🔧 For Data Engineers
 
-If you're building pipelines on Cascade:
+If you're building pipelines on Phlo:
 
 1. **[Best Practices Guide](operations/best-practices.md)** - Production patterns
    - Code organization
@@ -251,7 +251,7 @@ print(df)
 
 ## Service URLs
 
-When Cascade is running, access these web interfaces:
+When Phlo is running, access these web interfaces:
 
 | Service | URL | Purpose |
 |---------|-----|---------|
@@ -317,7 +317,7 @@ open http://localhost:3000
 docker logs dagster-daemon
 
 # Verify configuration
-docker exec dagster-webserver python -c "from cascade.config import config; print(config.model_dump_json(indent=2))"
+docker exec dagster-webserver python -c "from phlo.config import config; print(config.model_dump_json(indent=2))"
 ```
 
 **Learn more**: [QUICK_START.md - Dagster Assets Failing](../QUICK_START.md#dagster-assets-failing)
@@ -332,7 +332,7 @@ curl http://localhost:19120/api/v2/config
 docker exec trino trino --execute "SHOW CATALOGS;"
 
 # Verify PyIceberg
-docker exec dagster-webserver python -c "from cascade.iceberg.catalog import get_catalog; print(get_catalog().list_namespaces())"
+docker exec dagster-webserver python -c "from phlo.iceberg.catalog import get_catalog; print(get_catalog().list_namespaces())"
 ```
 
 **Learn more**: [QUICK_START.md - Catalog Connection Issues](../QUICK_START.md#catalog-connection-issues)
@@ -357,18 +357,18 @@ cd services/dagster
 uv pip install -e .
 
 # Run type checking
-basedpyright src/cascade/
+basedpyright src/phlo/
 
 # Run linting
-ruff check src/cascade/
-ruff format src/cascade/
+ruff check src/phlo/
+ruff format src/phlo/
 ```
 
 **Learn more**: [README.md - Development](../README.md#development)
 
 ### Adding Assets
 
-1. Create asset function in `src/cascade/defs/`
+1. Create asset function in `src/phlo/defs/`
 2. Import in `__init__.py`
 3. Asset auto-discovered by Dagster
 
@@ -448,7 +448,7 @@ Superset → Trino (Iceberg queries)
 
 ## Contributing
 
-Cascade is a personal project demonstrating modern data lakehouse patterns. Feel free to:
+Phlo is a personal project demonstrating modern data lakehouse patterns. Feel free to:
 
 - Fork and adapt for your needs
 - Open issues for bugs or questions

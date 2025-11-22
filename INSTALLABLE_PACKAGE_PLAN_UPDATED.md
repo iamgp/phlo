@@ -8,7 +8,7 @@
 ## Executive Summary
 
 Transform Cascade into an installable Python package where users can:
-1. ✅ Install Cascade via `pip install cascade` (packaging ready)
+1. ✅ Install Cascade via `pip install phlo` (packaging ready)
 2. ✅ Extend with plugins via entry points (plugin system exists)
 3. ⬜ Create minimal project directories with workflow files (need workflow discovery)
 4. ⬜ Use enhanced CLI for project initialization (partially exists)
@@ -20,7 +20,7 @@ Transform Cascade into an installable Python package where users can:
 
 ### 1. Plugin System (Complete)
 
-**Location:** `src/cascade/plugins/`
+**Location:** `src/phlo/plugins/`
 
 **Components:**
 - `base.py` - Base classes for all plugin types
@@ -44,28 +44,28 @@ Transform Cascade into an installable Python package where users can:
 
 **Entry Points Defined:** `pyproject.toml:41-50`
 ```toml
-[project.entry-points."cascade.plugins.sources"]
+[project.entry-points."phlo.plugins.sources"]
 # Example: my_source = "my_package.my_module:MySourceConnector"
 
-[project.entry-points."cascade.plugins.quality"]
+[project.entry-points."phlo.plugins.quality"]
 # Example: my_check = "my_package.my_module:MyQualityCheck"
 
-[project.entry-points."cascade.plugins.transforms"]
+[project.entry-points."phlo.plugins.transforms"]
 # Example: my_transform = "my_package.my_module:MyTransform"
 ```
 
 ### 2. Quality Check System (Complete)
 
-**Location:** `src/cascade/quality/`
+**Location:** `src/phlo/quality/`
 
 **Components:**
-- `decorator.py` - `@cascade_quality` decorator
+- `decorator.py` - `@phlo_quality` decorator
 - `checks.py` - Built-in quality checks
 - `examples.py` - Example quality workflows
 
 ### 3. CLI Scaffolding (Partial)
 
-**Location:** `src/cascade/cli/`
+**Location:** `src/phlo/cli/`
 
 **Existing:**
 - `main.py` - CLI entry point
@@ -77,15 +77,15 @@ Transform Cascade into an installable Python package where users can:
 - Generates schema, asset, and test files
 
 **What's missing:**
-- `cascade init` - Project initialization
-- `cascade dev` - Development server
+- `phlo init` - Project initialization
+- `phlo dev` - Development server
 - Workflow discovery for user projects
 
 ### 4. Package Configuration (Ready)
 
 **`pyproject.toml` is well-configured:**
 - ✅ Modern build system (hatchling)
-- ✅ Entry point: `cascade` CLI
+- ✅ Entry point: `phlo` CLI
 - ✅ Plugin entry points defined
 - ✅ Dependencies specified
 - ✅ Dynamic versioning (uv-dynamic-versioning)
@@ -102,14 +102,14 @@ Transform Cascade into an installable Python package where users can:
 
 **Implementation:**
 ```python
-# cascade/framework/discovery.py (NEW)
+# phlo/framework/discovery.py (NEW)
 def discover_user_workflows(workflows_path: Path) -> Definitions:
     """
     Discover workflow files in user project.
 
     Scans workflows/ directory for:
     - Ingestion assets (decorated with @cascade_ingestion)
-    - Quality checks (decorated with @cascade_quality)
+    - Quality checks (decorated with @phlo_quality)
     - Schemas (Pandera models)
 
     Returns merged Dagster Definitions.
@@ -131,16 +131,16 @@ def discover_user_workflows(workflows_path: Path) -> Definitions:
 
 ### 2. Definitions Entry Point for User Projects
 
-**Problem:** `cascade/definitions.py` currently loads in-package workflows.
+**Problem:** `phlo/definitions.py` currently loads in-package workflows.
 
 **Need:** New entry point that discovers external workflows.
 
 **Implementation:**
 ```python
-# cascade/framework/definitions.py (NEW)
-from cascade.config import get_settings
-from cascade.framework.discovery import discover_user_workflows
-from cascade.framework.resources import build_resources
+# phlo/framework/definitions.py (NEW)
+from phlo.config import get_settings
+from phlo.framework.discovery import discover_user_workflows
+from phlo.framework.resources import build_resources
 
 def build_definitions() -> Definitions:
     """
@@ -179,14 +179,14 @@ defs = build_definitions()
 
 **Need these new commands:**
 
-#### `cascade init`
+#### `phlo init`
 ```bash
 # Initialize new project
-$ cascade init my-data-project
+$ phlo init my-data-project
 
 # Creates:
 my-data-project/
-├── pyproject.toml        # Minimal: dependencies = ["cascade"]
+├── pyproject.toml        # Minimal: dependencies = ["phlo"]
 ├── .env
 ├── workflows/
 │   ├── __init__.py
@@ -197,26 +197,26 @@ my-data-project/
 └── workspace.yaml        # Dagster config
 ```
 
-#### `cascade dev`
+#### `phlo dev`
 ```bash
 # Start Dagster with user workflows
-$ cascade dev
+$ phlo dev
 
 # Auto-discovers workflows in ./workflows/
 # Launches Dagster UI at http://localhost:3000
 ```
 
-#### `cascade services` (optional)
+#### `phlo services` (optional)
 ```bash
 # Manage infrastructure services
-$ cascade services start    # Start Docker services
-$ cascade services stop     # Stop services
-$ cascade services status   # Show status
+$ phlo services start    # Start Docker services
+$ phlo services stop     # Stop services
+$ phlo services status   # Show status
 ```
 
 ### 4. Configuration Updates
 
-**Add to `cascade/config.py`:**
+**Add to `phlo/config.py`:**
 ```python
 class Settings(BaseSettings):
     # ... existing fields ...
@@ -251,13 +251,13 @@ class Settings(BaseSettings):
 **Move to separate repo or mark as examples:**
 ```
 # Current (in package):
-src/cascade/defs/ingestion/nightscout/
-src/cascade/defs/ingestion/github/
-src/cascade/schemas/glucose.py
-src/cascade/schemas/github.py
+src/phlo/defs/ingestion/nightscout/
+src/phlo/defs/ingestion/github/
+src/phlo/schemas/glucose.py
+src/phlo/schemas/github.py
 
 # Should be:
-cascade-examples/ (separate repo)
+phlo-examples/ (separate repo)
 └── examples/
     ├── nightscout/
     │   ├── workflows/
@@ -281,20 +281,20 @@ Cascade needs **both** plugin discovery (exists) and workflow discovery (need):
 **Example:**
 ```bash
 # Install a community plugin
-pip install cascade-plugin-salesforce
+pip install phlo-plugin-salesforce
 
 # Automatically discovered and available
-from cascade.plugins import get_source_connector
+from phlo.plugins import get_source_connector
 salesforce = get_source_connector("salesforce")
 ```
 
 **Plugin package structure:**
 ```python
-# cascade-plugin-salesforce/setup.py
+# phlo-plugin-salesforce/setup.py
 setup(
-    name="cascade-plugin-salesforce",
+    name="phlo-plugin-salesforce",
     entry_points={
-        "cascade.plugins.sources": [
+        "phlo.plugins.sources": [
             "salesforce = cascade_salesforce:SalesforceConnector"
         ]
     }
@@ -309,7 +309,7 @@ setup(
 **Example:**
 ```python
 # my-project/workflows/ingestion/weather/observations.py
-from cascade.ingestion import cascade_ingestion
+from phlo.ingestion import cascade_ingestion
 from workflows.schemas.weather import WeatherObservations
 
 @cascade_ingestion(
@@ -326,7 +326,7 @@ def weather_observations(partition_date: str):
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  CASCADE PACKAGE (pip install cascade)          │
+│  CASCADE PACKAGE (pip install phlo)          │
 │                                                  │
 │  Plugin Discovery        Workflow Discovery     │
 │  (exists ✅)             (need ⬜)               │
@@ -338,7 +338,7 @@ def weather_observations(partition_date: str):
    │   PLUGINS   │        │ USER PROJECT │
    │             │        │              │
    │ pip install │        │ workflows/   │
-   │ cascade-    │        │ transforms/  │
+   │ phlo-    │        │ transforms/  │
    │ plugin-xyz  │        │ schemas/     │
    └─────────────┘        └──────────────┘
          │                        │
@@ -360,7 +360,7 @@ def weather_observations(partition_date: str):
 **Goal:** Enable loading workflows from external directories
 
 Tasks:
-- [ ] Create `cascade/framework/discovery.py`
+- [ ] Create `phlo/framework/discovery.py`
 - [ ] Implement `discover_user_workflows()`
 - [ ] Add workflow path to Settings
 - [ ] Test with example user project
@@ -375,22 +375,22 @@ Tasks:
 **Goal:** Make it easy to create and run user projects
 
 Tasks:
-- [ ] Implement `cascade init` command
-- [ ] Implement `cascade dev` command
-- [ ] Update `cascade create-workflow` for user projects
+- [ ] Implement `phlo init` command
+- [ ] Implement `phlo dev` command
+- [ ] Update `phlo create-workflow` for user projects
 - [ ] Add project templates to package data
 - [ ] Test end-to-end workflow
 
 **Acceptance:**
-- Can create new project with `cascade init`
+- Can create new project with `phlo init`
 - Can scaffold workflows in user project
-- Can run Dagster with `cascade dev`
+- Can run Dagster with `phlo dev`
 
 ### Phase 3: Definitions Integration ⬜ (1 week)
 **Goal:** Merge user workflows with framework resources
 
 Tasks:
-- [ ] Create `cascade/framework/definitions.py`
+- [ ] Create `phlo/framework/definitions.py`
 - [ ] Integrate workflow discovery
 - [ ] Integrate plugin discovery
 - [ ] Update workspace.yaml template
@@ -423,7 +423,7 @@ Tasks:
 - [ ] Move examples to separate repo
 - [ ] Keep only framework code in package
 - [ ] Update imports and tests
-- [ ] Create `cascade-examples` repository
+- [ ] Create `phlo-examples` repository
 - [ ] Link examples in documentation
 
 **Acceptance:**
@@ -442,7 +442,7 @@ Tasks:
 - [ ] Verify installation works
 
 **Acceptance:**
-- `pip install cascade` works
+- `pip install phlo` works
 - All features functional
 - Documentation deployed
 
@@ -456,7 +456,7 @@ Tasks:
 
 ### Current Behavior
 
-The `dbt_project_dir` is already **configurable** in `cascade/config.py`:
+The `dbt_project_dir` is already **configurable** in `phlo/config.py`:
 
 ```python
 @computed_field
@@ -558,7 +558,7 @@ CASCADE_CONFIG = {
 ## Next Steps (Priority Order)
 
 1. **Implement workflow discovery** - Core functionality
-2. **Create `cascade init` command** - User experience
+2. **Create `phlo init` command** - User experience
 3. **Build user project template** - Testing
 4. **Integrate with definitions** - Make it work end-to-end
 5. **Write migration guide** - Help existing users

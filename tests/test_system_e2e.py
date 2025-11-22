@@ -6,7 +6,7 @@ complete Cascade data lakehouse system.
 
 
 
-from cascade.definitions import defs
+from phlo.definitions import defs
 
 
 class TestSystemE2ETests:

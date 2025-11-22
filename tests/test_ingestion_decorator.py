@@ -1,6 +1,6 @@
 """Tests for Ingestion Decorator Module.
 
-This module contains unit tests for the cascade.ingestion.decorator module.
+This module contains unit tests for the phlo.ingestion.decorator module.
 Tests cover decorator application, schema auto-generation, asset registration,
 configuration parameters, and error handling.
 """
@@ -12,7 +12,7 @@ from pandera.pandas import DataFrameModel, Field
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
-from cascade.ingestion.decorator import _INGESTION_ASSETS, cascade_ingestion, get_ingestion_assets
+from phlo.ingestion.decorator import _INGESTION_ASSETS, phlo_ingestion, get_ingestion_assets
 
 
 def get_asset_spec(asset_def):
@@ -31,7 +31,7 @@ class TestSchemaAutoGeneration:
             id: str = Field(nullable=False)
             value: int
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestPanderaSchema,
@@ -54,7 +54,7 @@ class TestSchemaAutoGeneration:
             NestedField(field_id=1, name="custom_field", field_type=StringType(), required=True)
         )
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestPanderaSchema,
@@ -73,7 +73,7 @@ class TestSchemaAutoGeneration:
 
         with pytest.raises(ValueError, match="Either 'validation_schema'.*or 'iceberg_schema'"):
 
-            @cascade_ingestion(
+            @phlo_ingestion(
                 table_name="test_table",
                 unique_key="id",
                 group="test",
@@ -91,7 +91,7 @@ class TestDecoratorConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="custom_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -109,7 +109,7 @@ class TestDecoratorConfiguration:
         class TestSchema(DataFrameModel):
             custom_id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="custom_id",
             validation_schema=TestSchema,
@@ -127,7 +127,7 @@ class TestDecoratorConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -150,7 +150,7 @@ class TestAutomationConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -170,7 +170,7 @@ class TestAutomationConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -193,7 +193,7 @@ class TestFreshnessConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -213,7 +213,7 @@ class TestFreshnessConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -236,7 +236,7 @@ class TestRetryConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -255,7 +255,7 @@ class TestRetryConfiguration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -284,7 +284,7 @@ class TestAssetRegistration:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="registration_test",
             unique_key="id",
             validation_schema=TestSchema,
@@ -320,7 +320,7 @@ class TestAssetAttributes:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="github_events",
             unique_key="id",
             validation_schema=TestSchema,
@@ -338,7 +338,7 @@ class TestAssetAttributes:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -358,7 +358,7 @@ class TestAssetAttributes:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -376,7 +376,7 @@ class TestAssetAttributes:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -404,7 +404,7 @@ class TestComplexSchemas:
             created_at: datetime = Field(nullable=False)
             public: bool = Field(nullable=False)
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="github_user_events",
             unique_key="id",
             validation_schema=GitHubEvents,
@@ -433,7 +433,7 @@ class TestComplexSchemas:
             date_string: datetime = Field(nullable=False)
             direction: str | None = Field(nullable=True)
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="glucose_entries",
             unique_key="_id",
             validation_schema=GlucoseEntries,
@@ -462,7 +462,7 @@ class TestEdgeCases:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -481,7 +481,7 @@ class TestEdgeCases:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,
@@ -500,7 +500,7 @@ class TestEdgeCases:
         class TestSchema(DataFrameModel):
             id: str
 
-        @cascade_ingestion(
+        @phlo_ingestion(
             table_name="test_table",
             unique_key="id",
             validation_schema=TestSchema,

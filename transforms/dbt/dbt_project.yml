@@ -1,14 +1,14 @@
-name: cascade
+name: phlo
 version: 1.0.0
 config-version: 2
 
-profile: cascade
+profile: phlo
 
 model-paths: ["models"]
 seed-paths: ["seeds"]
 
 models:
-  cascade:
+  phlo:
     +materialized: table
     bronze:
       +schema: bronze

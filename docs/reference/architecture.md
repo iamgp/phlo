@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Cascade is built on modern lakehouse principles using Apache Iceberg as the table format and Project Nessie as a Git-like catalog. This architecture provides ACID transactions, schema evolution, time travel, and branch isolation for data engineering workflows.
+Phlo is built on modern lakehouse principles using Apache Iceberg as the table format and Project Nessie as a Git-like catalog. This architecture provides ACID transactions, schema evolution, time travel, and branch isolation for data engineering workflows.
 
 ## Design Principles
 
@@ -123,7 +123,7 @@ graph TB
 
 ## Branching Strategy
 
-Cascade uses a Git-like branching model for data:
+Phlo uses a Git-like branching model for data:
 
 - **main**: Production data (read-only for most users)
 - **dev**: Development workspace (read-write)

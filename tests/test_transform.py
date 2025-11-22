@@ -1,7 +1,7 @@
 """Tests for Transform Module (dbt Assets).
 
 This module contains unit, integration, e2e, and data quality tests for the
-cascade.defs.transform.dbt module, focusing on the CustomDbtTranslator and dbt assets.
+phlo.defs.transform.dbt module, focusing on the CustomDbtTranslator and dbt assets.
 """
 
 from unittest.mock import MagicMock, patch
@@ -10,7 +10,7 @@ from typing import cast
 import pytest
 from dagster import AssetKey
 
-from cascade.defs.transform.dbt import CustomDbtTranslator, all_dbt_assets
+from phlo.defs.transform.dbt import CustomDbtTranslator, all_dbt_assets
 
 
 class TestTransformUnitTests:
@@ -97,8 +97,8 @@ class TestTransformUnitTests:
         asset_key = translator.get_asset_key(dbt_source_props)
         assert asset_key == AssetKey(["entries"])
 
-    @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('cascade.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_all_dbt_assets_runs_dbt_build_command(self, mock_profiles_dir, mock_project_dir):
         """Test that all_dbt_assets runs dbt build command."""
@@ -136,8 +136,8 @@ class TestTransformUnitTests:
         assert "--target" in call_args
         assert "dev" in call_args
 
-    @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('cascade.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_all_dbt_assets_runs_dbt_docs_generate(self, mock_profiles_dir, mock_project_dir):
         """Test that all_dbt_assets runs dbt docs generate."""
@@ -172,8 +172,8 @@ class TestTransformUnitTests:
         assert "docs" in docs_call_args
         assert "generate" in docs_call_args
 
-    @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('cascade.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_all_dbt_assets_handles_partitioned_runs(self, mock_profiles_dir, mock_project_dir):
         """Test that all_dbt_assets handles partitioned runs."""
@@ -209,8 +209,8 @@ class TestTransformUnitTests:
 class TestTransformIntegrationTests:
     """Integration tests for transform operations."""
 
-    @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('cascade.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_all_dbt_assets_integrates_with_dbt_cli_resource(self, mock_profiles_dir, mock_project_dir):
         """Test that all_dbt_assets integrates with DbtCliResource."""
@@ -244,7 +244,7 @@ class TestTransformIntegrationTests:
     def test_dbt_models_transform_data_correctly_from_bronze_to_gold(self):
         """Test that dbt models transform data correctly from bronze to gold."""
         # Test the dbt asset configuration and dependencies without running actual dbt
-        from cascade.defs.transform.dbt import CustomDbtTranslator
+        from phlo.defs.transform.dbt import CustomDbtTranslator
         from dagster import AssetKey
 
         translator = CustomDbtTranslator()
@@ -306,8 +306,8 @@ class TestTransformDataQualityTests:
 class TestTransformE2ETests:
     """End-to-end tests for transform pipeline."""
 
-    @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('cascade.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
     def test_full_transformation_pipeline_completes(self, mock_profiles_dir, mock_project_dir):
         """Test that full transformation pipeline (raw → bronze → silver → gold) completes."""
         # Mock paths
@@ -339,7 +339,7 @@ class TestTransformE2ETests:
     def test_full_transformation_pipeline_completes(self):
         """Test that full transformation pipeline (raw → bronze → silver → gold) completes."""
         # This E2E test verifies the complete transformation pipeline structure
-        from cascade.defs.transform import build_defs
+        from phlo.defs.transform import build_defs
         from dagster import Definitions
 
         defs = build_defs()
@@ -366,8 +366,8 @@ class TestTransformE2ETests:
         assert defs.resources is not None
         assert 'dbt' in defs.resources
 
-    @patch('cascade.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('cascade.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
+    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
     @patch('shutil.copy')
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_dbt_docs_are_generated_and_artifacts_copied_correctly(self, mock_copy, mock_profiles_dir, mock_project_dir):
