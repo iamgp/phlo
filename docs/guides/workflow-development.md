@@ -1477,10 +1477,10 @@ def get_api_client():
 - ✅ Create BI dashboards
 
 **Continue learning:**
-- [Data Modeling Guide](DATA_MODELING_GUIDE.md) - Best practices for schema design
-- [Dagster Assets Tutorial](DAGSTER_ASSETS_TUTORIAL.md) - Advanced orchestration patterns
-- [dbt Development Guide](DBT_DEVELOPMENT_GUIDE.md) - Advanced SQL techniques
-- [Troubleshooting Guide](TROUBLESHOOTING_GUIDE.md) - Debug common issues
+- [Data Modeling Guide](data-modeling.md) - Best practices for schema design
+- [Dagster Assets Tutorial](dagster-assets.md) - Advanced orchestration patterns
+- [dbt Development Guide](dbt-development.md) - Advanced SQL techniques
+- [Troubleshooting Guide](../operations/troubleshooting.md) - Debug common issues
 
 **Try these challenges:**
 1. Add more cities to monitor

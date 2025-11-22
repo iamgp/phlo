@@ -24,7 +24,7 @@ from cascade.defs.ingestion import my_domain  # noqa: F401
 docker restart dagster-webserver
 ```
 
-**Details**: [TROUBLESHOOTING_GUIDE.md#asset-not-found](./TROUBLESHOOTING_GUIDE.md#asset-not-found)
+**Details**: [Troubleshooting Guide - Asset Not Found](../operations/troubleshooting.md#asset-not-found)
 
 ---
 
@@ -346,8 +346,8 @@ When you encounter an error:
    - Test API connection manually
 
 6. **Search documentation**
-   - [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md)
-   - [WORKFLOW_DEVELOPMENT_GUIDE.md](./WORKFLOW_DEVELOPMENT_GUIDE.md)
+   - [Troubleshooting Guide](../operations/troubleshooting.md)
+   - [Workflow Development Guide](../guides/workflow-development.md)
 
 7. **Ask for help**
    - [GitHub Discussions](https://github.com/iamgp/cascade/discussions)
@@ -432,10 +432,10 @@ def my_asset(partition_date: str):
 
 ### Documentation
 
-- **Full Troubleshooting**: [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md)
-- **Workflow Development**: [WORKFLOW_DEVELOPMENT_GUIDE.md](./WORKFLOW_DEVELOPMENT_GUIDE.md)
-- **Testing**: [TESTING_GUIDE.md](./TESTING_GUIDE.md)
-- **Architecture**: [architecture.md](./architecture.md)
+- **Full Troubleshooting**: [Troubleshooting Guide](../operations/troubleshooting.md)
+- **Workflow Development**: [Workflow Development Guide](../guides/workflow-development.md)
+- **Testing**: [Testing Guide](../operations/testing.md)
+- **Architecture**: [Architecture](architecture.md)
 
 ### Community
 

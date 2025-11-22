@@ -958,6 +958,6 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ## Related Cascade Documentation
 
 - [Quick Start Guide](quick-start.md) - Get Cascade running
-- [API Documentation](API.md) - FastAPI and Hasura setup
-- [DBT Development Guide](DBT_DEVELOPMENT_GUIDE.md) - Creating dbt models
-- [Workflow Development Guide](WORKFLOW_DEVELOPMENT_GUIDE.md) - Dagster pipelines
+- [API Documentation](../reference/api.md) - FastAPI and Hasura setup
+- [dbt Development Guide](../guides/dbt-development.md) - Creating dbt models
+- [Workflow Development Guide](../guides/workflow-development.md) - Dagster pipelines

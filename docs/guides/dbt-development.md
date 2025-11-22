@@ -1008,4 +1008,4 @@ dbt docs serve
 - ✅ Use incremental models for large data
 - ✅ Version control all code
 
-**Next:** [Troubleshooting Guide](TROUBLESHOOTING_GUIDE.md) - Debug common dbt issues.
+**Next:** [Troubleshooting Guide](../operations/troubleshooting.md) - Debug common dbt issues.

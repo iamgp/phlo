@@ -955,4 +955,4 @@ When asking for help, include:
 
 ---
 
-**Next:** [Best Practices Guide](BEST_PRACTICES_GUIDE.md) - Build better pipelines.
+**Next:** [Best Practices Guide](best-practices.md) - Build better pipelines.

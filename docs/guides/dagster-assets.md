@@ -939,4 +939,4 @@ def iceberg_io_manager(iceberg: IcebergResource):
 - ✅ Log important information
 - ✅ Handle errors gracefully
 
-**Next:** [Troubleshooting Guide](TROUBLESHOOTING_GUIDE.md) - Debug common issues.
+**Next:** [Troubleshooting Guide](../operations/troubleshooting.md) - Debug common issues.
