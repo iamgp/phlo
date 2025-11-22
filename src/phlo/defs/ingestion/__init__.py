@@ -9,8 +9,8 @@ import dagster as dg
 from phlo.ingestion import get_ingestion_assets
 
 # Import all asset modules to trigger decorator registration
-from phlo.defs.ingestion import github  # noqa: F401
-from phlo.defs.ingestion import nightscout  # noqa: F401
+from phlo.defs.ingestion import github as github
+from phlo.defs.ingestion import nightscout as nightscout
 
 
 def build_defs() -> dg.Definitions:

@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Optional
 
 import psycopg2
-from psycopg2 import sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 

@@ -58,10 +58,6 @@ def pipeline_failure_sensor(context: dg.RunFailureSensorContext):
             },
         )
 
-    # Future: Send to external alerting
-    # slack_client.send_alert(...)
-    # pagerduty_client.create_incident(...)
-
 
 # Success status sensor
 @dg.run_status_sensor(
