@@ -227,7 +227,7 @@ docker restart dagster-webserver
 ### Build Complete Pipeline (60 minutes)
 
 Follow the comprehensive tutorial:
-- **[WORKFLOW_DEVELOPMENT_GUIDE.md](./WORKFLOW_DEVELOPMENT_GUIDE.md)** (42KB, 10-step tutorial)
+- **[Workflow Development Guide](../guides/workflow-development.md)** (42KB, 10-step tutorial)
 
 This covers:
 - Bronze/Silver/Gold layers with dbt
@@ -244,11 +244,11 @@ This covers:
 
 ## Learning Resources
 
-- **Concepts**: [BEGINNERS_GUIDE.md](./BEGINNERS_GUIDE.md) - Understand lakehouse fundamentals
-- **Complete Tutorial**: [WORKFLOW_DEVELOPMENT_GUIDE.md](./WORKFLOW_DEVELOPMENT_GUIDE.md) - Build full pipeline
-- **Best Practices**: [BEST_PRACTICES_GUIDE.md](./BEST_PRACTICES_GUIDE.md) - Production patterns
-- **Architecture**: [architecture.md](./architecture.md) - System design
-- **Troubleshooting**: [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md) - Common issues
+- **Concepts**: [Beginner's Guide](beginners-guide.md) - Understand lakehouse fundamentals
+- **Complete Tutorial**: [Workflow Development Guide](../guides/workflow-development.md) - Build full pipeline
+- **Best Practices**: [Best Practices Guide](../operations/best-practices.md) - Production patterns
+- **Architecture**: [Architecture](../reference/architecture.md) - System design
+- **Troubleshooting**: [Troubleshooting Guide](../operations/troubleshooting.md) - Common issues
 
 ## Common Issues
 
@@ -313,4 +313,4 @@ docker restart dagster-webserver
 - **GitHub Issues**: Report bugs and request features
 - **GitHub Discussions**: Ask questions and share ideas
 
-**Next**: [Complete Tutorial](./WORKFLOW_DEVELOPMENT_GUIDE.md) | [Best Practices](./BEST_PRACTICES_GUIDE.md)
+**Next**: [Complete Tutorial](../guides/workflow-development.md) | [Best Practices](../operations/best-practices.md)

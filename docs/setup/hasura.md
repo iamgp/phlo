@@ -580,4 +580,4 @@ Helps with debugging and monitoring.
 5. **Integrate with frontend** using Apollo Client or similar
 6. **Set up monitoring** via Hasura logs
 
-For API usage examples, see [API.md](./API.md).
+For API usage examples, see [API Reference](../reference/api.md).
