@@ -543,6 +543,56 @@ Cascade data workflows for {project_name}.
     (project_dir / "README.md").write_text(readme_content)
 
 
+@cli.group()
+def api():
+    """API infrastructure management commands."""
+    pass
+
+
+@api.command("setup-postgrest")
+@click.option("--host", help="PostgreSQL host")
+@click.option("--port", type=int, help="PostgreSQL port")
+@click.option("--database", help="PostgreSQL database name")
+@click.option("--user", help="PostgreSQL user")
+@click.option("--password", help="PostgreSQL password")
+@click.option("--force", is_flag=True, help="Force re-setup even if already exists")
+@click.option("-q", "--quiet", is_flag=True, help="Suppress output")
+def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
+    """Set up PostgREST authentication infrastructure.
+
+    This command sets up the core PostgREST infrastructure:
+    - PostgreSQL extensions (pgcrypto)
+    - Auth schema and users table
+    - JWT signing/verification functions
+    - Database roles (anon, authenticated, analyst, admin)
+    - Row-Level Security policies
+
+    Examples:
+        phlo api setup-postgrest
+        phlo api setup-postgrest --host localhost --port 10000
+        phlo api setup-postgrest --force  # Re-apply setup
+    """
+    try:
+        from phlo.api.postgrest import setup_postgrest
+
+        setup_postgrest(
+            host=host,
+            port=port,
+            database=database,
+            user=user,
+            password=password,
+            force=force,
+            verbose=not quiet,
+        )
+    except ImportError as e:
+        click.echo(f"Error: Missing dependency - {e}", err=True)
+        click.echo("Install with: pip install psycopg2-binary", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 def main():
     """Main entry point for CLI."""
     cli()
