@@ -38,6 +38,17 @@ dependencies = [
 [project.scripts]
 cascade = "cascade.cli.main:cli"
 
+# Plugin entry point groups
+# External plugins can register themselves in these groups
+[project.entry-points."cascade.plugins.sources"]
+# Example: my_source = "my_package.my_module:MySourceConnector"
+
+[project.entry-points."cascade.plugins.quality"]
+# Example: my_check = "my_package.my_module:MyQualityCheck"
+
+[project.entry-points."cascade.plugins.transforms"]
+# Example: my_transform = "my_package.my_module:MyTransform"
+
 [tool.uv.workspace]
 members = ["services/hub"]
 
