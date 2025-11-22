@@ -130,19 +130,6 @@ class WeatherSchema(DataFrameModel):
     timestamp: datetime = Field(nullable=False)
 """
 
-# Use SchemaCheck to validate against Pandera schema
-# @phlo_quality(
-#     table="bronze.weather_observations",
-#     checks=[
-#         SchemaCheck(schema=WeatherSchema),
-#         FreshnessCheck(timestamp_column="timestamp", max_age_hours=1),
-#     ],
-#     group="weather",
-# )
-# def weather_schema_check():
-#     """Validate weather data against Pandera schema."""
-#     pass
-
 
 # Example 4: Allowing some threshold of failures
 # -----------------------------------------------
