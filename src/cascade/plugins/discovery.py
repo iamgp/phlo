@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import logging
-from typing import Any, Dict, List, Optional, Type
+import os
 
 from cascade.plugins.base import (
     Plugin,
@@ -30,8 +30,8 @@ ENTRY_POINT_GROUPS = {
 
 
 def discover_plugins(
-    plugin_type: Optional[str] = None, auto_register: bool = True
-) -> Dict[str, List[Plugin]]:
+    plugin_type: str | None = None, auto_register: bool = True
+) -> dict[str, list[Plugin]]:
     """
     Discover all installed Cascade plugins.
 
@@ -58,7 +58,7 @@ def discover_plugins(
         # {'source_connectors': [...]}
         ```
     """
-    discovered: Dict[str, List[Plugin]] = {
+    discovered: dict[str, list[Plugin]] = {
         "source_connectors": [],
         "quality_checks": [],
         "transformations": [],
@@ -76,7 +76,9 @@ def discover_plugins(
 
         entry_point_group = ENTRY_POINT_GROUPS[ptype]
 
-        logger.info(f"Discovering {ptype} plugins from entry point: {entry_point_group}")
+        logger.info(
+            f"Discovering {ptype} plugins from entry point: {entry_point_group}"
+        )
 
         # Discover entry points
         try:
@@ -89,7 +91,9 @@ def discover_plugins(
         # Load each plugin
         for entry_point in entry_points:
             try:
-                logger.info(f"Loading plugin: {entry_point.name} from {entry_point.value}")
+                logger.info(
+                    f"Loading plugin: {entry_point.name} from {entry_point.value}"
+                )
 
                 # Load the plugin class
                 plugin_class = entry_point.load()
@@ -143,8 +147,7 @@ def discover_plugins(
 
             except Exception as exc:
                 logger.error(
-                    f"Failed to load plugin {entry_point.name}: {exc}",
-                    exc_info=True
+                    f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True
                 )
                 continue
 
@@ -155,7 +158,7 @@ def discover_plugins(
     return discovered
 
 
-def list_plugins(plugin_type: Optional[str] = None) -> Dict[str, List[str]]:
+def list_plugins(plugin_type: str | None = None) -> dict[str, list[str]]:
     """
     List all plugins in the global registry.
 
@@ -188,7 +191,7 @@ def list_plugins(plugin_type: Optional[str] = None) -> Dict[str, List[str]]:
     return all_plugins
 
 
-def get_plugin(plugin_type: str, name: str) -> Optional[Plugin]:
+def get_plugin(plugin_type: str, name: str) -> Plugin | None:
     """
     Get a plugin by type and name.
 
@@ -219,7 +222,7 @@ def get_plugin(plugin_type: str, name: str) -> Optional[Plugin]:
         return None
 
 
-def get_source_connector(name: str) -> Optional[SourceConnectorPlugin]:
+def get_source_connector(name: str) -> SourceConnectorPlugin | None:
     """
     Get a source connector plugin by name.
 
@@ -240,7 +243,7 @@ def get_source_connector(name: str) -> Optional[SourceConnectorPlugin]:
     return registry.get_source_connector(name)
 
 
-def get_quality_check(name: str) -> Optional[QualityCheckPlugin]:
+def get_quality_check(name: str) -> QualityCheckPlugin | None:
     """
     Get a quality check plugin by name.
 
@@ -261,7 +264,7 @@ def get_quality_check(name: str) -> Optional[QualityCheckPlugin]:
     return registry.get_quality_check(name)
 
 
-def get_transformation(name: str) -> Optional[TransformationPlugin]:
+def get_transformation(name: str) -> TransformationPlugin | None:
     """
     Get a transformation plugin by name.
 
@@ -299,8 +302,6 @@ def auto_discover() -> None:
 # Auto-discover plugins when module is imported
 # This ensures plugins are available immediately after import
 # Users can disable this by setting CASCADE_NO_AUTO_DISCOVER env var
-import os
-
 if not os.environ.get("CASCADE_NO_AUTO_DISCOVER"):
     try:
         auto_discover()

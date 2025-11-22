@@ -115,7 +115,9 @@ def cascade_quality(
             if partition_key and "WHERE" not in sql_query.upper():
                 # Auto-add partition filter for common timestamp columns
                 # This is a heuristic; users can override with custom query
-                final_query = f"{sql_query}\nWHERE DATE(timestamp) = DATE '{partition_key}'"
+                final_query = (
+                    f"{sql_query}\nWHERE DATE(timestamp) = DATE '{partition_key}'"
+                )
                 context.log.info(f"Validating partition: {partition_key}")
 
             # Load data based on backend
@@ -145,9 +147,7 @@ def cascade_quality(
                     passed=True,
                     metadata={
                         "rows_validated": MetadataValue.int(0),
-                        "note": MetadataValue.text(
-                            "No data available for validation"
-                        ),
+                        "note": MetadataValue.text("No data available for validation"),
                     },
                 )
 
@@ -245,7 +245,6 @@ def _load_data_trino(context: Any, query: str, resources: dict) -> Any:
 
 def _load_data_duckdb(context: Any, query: str, resources: dict) -> Any:
     """Load data from DuckDB."""
-    import pandas as pd
 
     # Get DuckDB connection
     duckdb_conn = resources.get("duckdb")
@@ -266,9 +265,7 @@ def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict:
         "rows_validated": MetadataValue.int(len(df)),
         "columns_validated": MetadataValue.int(len(df.columns)),
         "checks_executed": MetadataValue.int(len(check_results)),
-        "checks_passed": MetadataValue.int(
-            sum(1 for r in check_results if r.passed)
-        ),
+        "checks_passed": MetadataValue.int(sum(1 for r in check_results if r.passed)),
         "checks_failed": MetadataValue.int(
             sum(1 for r in check_results if not r.passed)
         ),
@@ -310,8 +307,7 @@ def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict:
         summary_table = (
             "## Quality Check Results\n\n"
             "| Check | Status | Value | Message |\n"
-            "|-------|--------|-------|----------|\n"
-            + "\n".join(summary_rows)
+            "|-------|--------|-------|----------|\n" + "\n".join(summary_rows)
         )
         metadata["quality_summary"] = MetadataValue.md(summary_table)
 

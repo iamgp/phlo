@@ -162,7 +162,7 @@ class SourceConnectorPlugin(Plugin, ABC):
         """
         pass
 
-    def get_schema(self, config: dict[str, Any]) -> dict[str, str] | None:
+    def get_schema(self, config: dict[str, Any]) -> (dict[str, str]]:
         """
         Get the schema of data returned by this connector.
 
@@ -342,7 +342,7 @@ class TransformationPlugin(Plugin, ABC):
 
     def get_output_schema(
         self, input_schema: dict[str, str], config: dict[str, Any]
-    ) -> dict[str, str] | None:
+    ) -> (dict[str, str]]:
         """
         Get the schema of transformed data.
 

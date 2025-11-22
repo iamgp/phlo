@@ -7,8 +7,6 @@ methods for accessing them by name and type.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Type
-
 from cascade.plugins.base import (
     Plugin,
     QualityCheckPlugin,
@@ -27,10 +25,10 @@ class PluginRegistry:
 
     def __init__(self):
         """Initialize empty plugin registry."""
-        self._sources: Dict[str, SourceConnectorPlugin] = {}
-        self._quality_checks: Dict[str, QualityCheckPlugin] = {}
-        self._transformations: Dict[str, TransformationPlugin] = {}
-        self._all_plugins: Dict[str, Plugin] = {}
+        self._sources: dict[str, SourceConnectorPlugin] = {}
+        self._quality_checks: dict[str, QualityCheckPlugin] = {}
+        self._transformations: dict[str, TransformationPlugin] = {}
+        self._all_plugins: dict[str, Plugin] = {}
 
     def register_source_connector(
         self, plugin: SourceConnectorPlugin, replace: bool = False
@@ -104,7 +102,7 @@ class PluginRegistry:
         self._transformations[name] = plugin
         self._all_plugins[f"transformation:{name}"] = plugin
 
-    def get_source_connector(self, name: str) -> Optional[SourceConnectorPlugin]:
+    def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
         """
         Get a source connector plugin by name.
 
@@ -116,7 +114,7 @@ class PluginRegistry:
         """
         return self._sources.get(name)
 
-    def get_quality_check(self, name: str) -> Optional[QualityCheckPlugin]:
+    def get_quality_check(self, name: str) -> QualityCheckPlugin | None:
         """
         Get a quality check plugin by name.
 
@@ -128,7 +126,7 @@ class PluginRegistry:
         """
         return self._quality_checks.get(name)
 
-    def get_transformation(self, name: str) -> Optional[TransformationPlugin]:
+    def get_transformation(self, name: str) -> TransformationPlugin | None:
         """
         Get a transformation plugin by name.
 
@@ -140,7 +138,7 @@ class PluginRegistry:
         """
         return self._transformations.get(name)
 
-    def list_source_connectors(self) -> List[str]:
+    def list_source_connectors(self) -> list[str]:
         """
         List all registered source connector plugins.
 
@@ -149,7 +147,7 @@ class PluginRegistry:
         """
         return list(self._sources.keys())
 
-    def list_quality_checks(self) -> List[str]:
+    def list_quality_checks(self) -> list[str]:
         """
         List all registered quality check plugins.
 
@@ -158,7 +156,7 @@ class PluginRegistry:
         """
         return list(self._quality_checks.keys())
 
-    def list_transformations(self) -> List[str]:
+    def list_transformations(self) -> list[str]:
         """
         List all registered transformation plugins.
 
@@ -167,7 +165,7 @@ class PluginRegistry:
         """
         return list(self._transformations.keys())
 
-    def list_all_plugins(self) -> Dict[str, List[str]]:
+    def list_all_plugins(self) -> dict[str, list[str]]:
         """
         List all registered plugins by type.
 

@@ -41,7 +41,6 @@ These examples show how to create plugins for:
    ```
 """
 
-from datetime import datetime
 from typing import Any, Dict, Iterator, Optional
 
 import pandas as pd
@@ -197,7 +196,9 @@ class SequentialIDCheck(QualityCheck):
         passed = actual == list(expected)
 
         if not passed:
-            gaps = [i for i, (exp, act) in enumerate(zip(expected, actual)) if exp != act]
+            gaps = [
+                i for i, (exp, act) in enumerate(zip(expected, actual)) if exp != act
+            ]
             failure_msg = f"IDs are not sequential. Gaps at positions: {gaps[:10]}"
         else:
             failure_msg = None

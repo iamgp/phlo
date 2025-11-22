@@ -10,7 +10,6 @@ from cascade.quality import (
     FreshnessCheck,
     NullCheck,
     RangeCheck,
-    SchemaCheck,
     UniqueCheck,
     cascade_quality,
 )
@@ -75,6 +74,7 @@ def weather_quality_check_old(context, trino: TrinoResource) -> AssetCheckResult
             metadata={"error": MetadataValue.text(str(exc))}
         )
 """
+
 
 # AFTER (with decorator): ~8 lines - 80% reduction!
 @cascade_quality(
