@@ -9,7 +9,7 @@ packages = ["src/cascade"]
 name = "cascade"
 version = "0.1.0"
 description = "Lakehouse platform"
-readme = "README.md"
+readme = "readme.md"
 requires-python = ">=3.11"
 dependencies = [
     "dagster",
@@ -62,6 +62,7 @@ dev-dependencies = [
     "ruff",
     "basedpyright",
     "ty",
+    "sqruff",
 ]
 
 [tool.ty.environment]

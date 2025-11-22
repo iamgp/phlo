@@ -19,7 +19,8 @@ setup install install-dagster health \
 up-core up-query up-bi up-docs up-observability up-api up-catalog up-all \
 dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog \
 dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
-health-observability health-api health-catalog
+health-observability health-api health-catalog \
+lint lint-sql lint-python fix-sql
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -258,3 +259,15 @@ trino-shell:
 
 nessie-shell:
 	$(COMPOSE) exec nessie sh
+
+# Linting targets
+lint: lint-python lint-sql
+
+lint-python:
+	uv run ruff check .
+
+lint-sql:
+	uv run sqruff lint transforms/dbt
+
+fix-sql:
+	uv run sqruff fix transforms/dbt

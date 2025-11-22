@@ -878,7 +878,7 @@ open htmlcov/index.html
 - **Template**: [templates/tests/test_ingestion.py](../templates/tests/test_ingestion.py)
 - **Pandera Docs**: https://pandera.readthedocs.io/
 - **Pytest Docs**: https://docs.pytest.org/
-- **Troubleshooting**: [TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md)
+- **Troubleshooting**: [Troubleshooting Guide](troubleshooting.md)
 
 ---
 
