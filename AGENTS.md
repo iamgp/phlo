@@ -1,4 +1,4 @@
-# Agents Configuration for Cascade
+# Agents Configuration for Phlo
 
 ## Build/Lint/Test Commands
 
