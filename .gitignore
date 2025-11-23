@@ -42,6 +42,9 @@ ENV/
 env/
 .venv
 
+# Git worktrees
+.worktrees/
+
 # IDEs
 .vscode/
 .idea/
