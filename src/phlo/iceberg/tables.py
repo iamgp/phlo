@@ -246,7 +246,61 @@ def merge_to_table(
             # If delete fails (e.g., no matching records), continue
             pass
 
-    # Step 2: Append the new data
+    # Step 2: Evolve schema if there are new columns
+    # Check for columns in arrow_table that don't exist in the Iceberg schema
+    iceberg_column_names = {field.name for field in table.schema().fields}
+    arrow_column_names = set(arrow_table.schema.names)
+    new_columns = arrow_column_names - iceberg_column_names
+
+    if new_columns:
+        # Add missing columns to the Iceberg table schema
+        from pyiceberg.types import (
+            BooleanType,
+            DateType,
+            DoubleType,
+            FloatType,
+            IntegerType,
+            LongType,
+            StringType,
+            TimestampType,
+        )
+        import pyarrow as pa
+
+        # Map PyArrow types to PyIceberg types
+        type_mapping = {
+            pa.types.is_boolean: BooleanType(),
+            pa.types.is_int8: IntegerType(),
+            pa.types.is_int16: IntegerType(),
+            pa.types.is_int32: IntegerType(),
+            pa.types.is_int64: LongType(),
+            pa.types.is_uint8: IntegerType(),
+            pa.types.is_uint16: IntegerType(),
+            pa.types.is_uint32: LongType(),
+            pa.types.is_uint64: LongType(),
+            pa.types.is_float32: FloatType(),
+            pa.types.is_float64: DoubleType(),
+            pa.types.is_string: StringType(),
+            pa.types.is_large_string: StringType(),
+            pa.types.is_date: DateType(),
+            pa.types.is_timestamp: TimestampType(),
+        }
+
+        with table.update_schema(allow_incompatible_changes=False) as update:
+            for col_name in new_columns:
+                arrow_field = arrow_table.schema.field(col_name)
+                arrow_type = arrow_field.type
+
+                # Find matching Iceberg type
+                iceberg_type = StringType()  # Default to string if no match
+                for type_check, ice_type in type_mapping.items():
+                    if type_check(arrow_type):
+                        iceberg_type = ice_type
+                        break
+
+                # Add the new column as optional
+                update.add_column(col_name, iceberg_type, required=False)
+
+    # Step 3: Append the new data
     table.append(arrow_table)
     rows_inserted = len(arrow_table)
 
