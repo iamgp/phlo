@@ -4,9 +4,12 @@
 
 from __future__ import annotations
 
+import logging
 import platform
 
 import dagster as dg
+
+logger = logging.getLogger(__name__)
 
 from phlo.config import config
 from phlo.defs.ingestion import build_defs as build_ingestion_defs
@@ -26,22 +29,42 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     """
     Choose an executor suited to the current environment.
 
+    Priority order:
+    1. CASCADE_FORCE_IN_PROCESS_EXECUTOR (explicit override)
+    2. CASCADE_FORCE_MULTIPROCESS_EXECUTOR (explicit override)
+    3. CASCADE_HOST_PLATFORM (from environment, for Docker on macOS)
+    4. platform.system() (fallback for local dev)
+
     Multiprocessing is desirable on Linux servers, but DuckDB has been crashing (SIGBUS) when the
     container runs under Docker Desktop/Colima on macOS. Fall back to the in-process executor on
-    macOS, and allow an override via `CASCADE_FORCE_IN_PROCESS_EXECUTOR` if someone hits the
-    same issue elsewhere.
-
-    Updated: Testing DuckDB 1.4.1 which has improved multiprocessing/fork safety.
+    macOS, and allow overrides if needed.
     """
+    # Priority 1: Explicit force in-process
     if config.cascade_force_in_process_executor:
+        logger.info("Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)")
         return dg.in_process_executor
 
+    # Priority 2: Explicit force multiprocess
     if config.cascade_force_multiprocess_executor:
+        logger.info("Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)")
         return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
-    if platform.system() == "Darwin":
+    # Priority 3: Check host platform (for Docker on macOS detection)
+    host_platform = config.cascade_host_platform
+    if host_platform is None:
+        # Priority 4: Fall back to container/local platform
+        host_platform = platform.system()
+        logger.debug(f"CASCADE_HOST_PLATFORM not set, detected: {host_platform}")
+    else:
+        logger.info(f"Using CASCADE_HOST_PLATFORM: {host_platform}")
+
+    # Use in-process executor if host is macOS
+    if host_platform == "Darwin":
+        logger.info("Using in-process executor (host platform: Darwin/macOS)")
         return dg.in_process_executor
 
+    # Default: multiprocess executor for Linux
+    logger.info(f"Using multiprocess executor (host platform: {host_platform})")
     return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
 
