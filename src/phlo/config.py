@@ -185,6 +185,11 @@ class Settings(BaseSettings):
     cascade_force_multiprocess_executor: bool = Field(
         default=False, description="Force use of multiprocess executor"
     )
+    cascade_host_platform: str | None = Field(
+        default=None,
+        description="Host platform for executor selection (Darwin/Linux/Windows). "
+        "Auto-detected in CLI; set explicitly for daemon/webserver on macOS.",
+    )
 
     # --- Hub Service Configuration ---
     # Settings for the Flask-based hub service
