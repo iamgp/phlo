@@ -234,10 +234,10 @@ def merge_to_table(
     for i in range(0, len(unique_values_list), batch_size):
         batch = unique_values_list[i:i + batch_size]
         # PyIceberg delete uses expressions
-        # We'll use the IsIn expression for efficient filtering
-        from pyiceberg.expressions import IsIn
+        # We'll use the In expression for efficient filtering
+        from pyiceberg.expressions import In
 
-        delete_expr = IsIn(unique_key, batch)
+        delete_expr = In(unique_key, batch)
         try:
             table.delete(delete_expr)
             # Count deletions if available in result
