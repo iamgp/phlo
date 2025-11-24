@@ -1,28 +1,35 @@
 """
-Cascade CLI Main Entry Point
+Phlo CLI Main Entry Point
 
-Provides command-line interface for Cascade workflows.
+Provides command-line interface for Phlo workflows.
 """
 
-import sys
-import subprocess
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
+
 import click
+
+from phlo.cli.services import get_project_name, services
 
 
 @click.group()
 @click.version_option(version="1.0.0", prog_name="phlo")
 def cli():
     """
-    Cascade - Modern Data Lakehouse Framework
+    Phlo - Modern Data Lakehouse Framework
 
     Build production-ready data pipelines with minimal boilerplate.
 
     Documentation: https://github.com/iamgp/phlo
     """
     pass
+
+
+# Add services subcommand
+cli.add_command(services)
 
 
 @cli.command()
@@ -39,7 +46,7 @@ def test(
     marker: Optional[str],
 ):
     """
-    Run tests for Cascade workflows.
+    Run tests for Phlo workflows.
 
     Examples:
         phlo test                          # Run all tests
@@ -48,7 +55,7 @@ def test(
         phlo test --coverage               # Generate coverage report
         phlo test -m integration           # Run integration tests only
     """
-    click.echo("🧪 Running Cascade tests...\n")
+    click.echo("Running Phlo tests...\n")
 
     # Build pytest command
     pytest_args = ["pytest", "tests/"]
@@ -59,7 +66,7 @@ def test(
         if Path(test_file).exists():
             pytest_args = ["pytest", test_file]
         else:
-            click.echo(f"❌ Test file not found: {test_file}", err=True)
+            click.echo(f"Error: Test file not found: {test_file}", err=True)
             click.echo("\nAvailable test files:", err=True)
             for f in Path("tests").glob("test_*.py"):
                 click.echo(f"  - {f.name}", err=True)
@@ -82,7 +89,7 @@ def test(
         result = subprocess.run(pytest_args, check=False)
         sys.exit(result.returncode)
     except FileNotFoundError:
-        click.echo("❌ pytest not found. Install with: pip install pytest", err=True)
+        click.echo("Error: pytest not found. Install with: pip install pytest", err=True)
         sys.exit(1)
 
 
@@ -101,19 +108,27 @@ def materialize(
     Materialize Dagster assets via Docker.
 
     Examples:
-        phlo materialize weather_observations
-        phlo materialize weather_observations --partition 2024-01-15
-        phlo materialize --select "tag:weather"
-        phlo materialize weather_observations --dry-run
+        phlo materialize dlt_glucose_entries
+        phlo materialize dlt_glucose_entries --partition 2025-01-15
+        phlo materialize --select "tag:nightscout"
+        phlo materialize dlt_glucose_entries --dry-run
     """
+    # Get project name for container naming
+    project_name = get_project_name()
+    container_name = f"{project_name}-dagster-webserver-1"
+
     # Build docker exec command
     cmd = [
         "docker",
         "exec",
-        "dagster-webserver",
+        container_name,
         "dagster",
         "asset",
         "materialize",
+        "-m",
+        "phlo.framework.definitions",
+        "-d",
+        "/app",
     ]
 
     if select:
@@ -125,28 +140,29 @@ def materialize(
         cmd.extend(["--partition", partition])
 
     if dry_run:
-        click.echo("🔍 Dry run - would execute:\n")
+        click.echo("Dry run - would execute:\n")
         click.echo(" ".join(cmd))
         sys.exit(0)
 
-    click.echo(f"⚡ Materializing {asset_name}...\n")
+    click.echo(f"Materializing {asset_name}...\n")
 
     # Execute command
     try:
         result = subprocess.run(cmd, check=False)
         if result.returncode == 0:
-            click.echo(f"\n✅ Successfully materialized {asset_name}")
+            click.echo(f"\nSuccessfully materialized {asset_name}")
         else:
             click.echo(
-                f"\n❌ Materialization failed with exit code {result.returncode}",
+                f"\nMaterialization failed with exit code {result.returncode}",
                 err=True,
             )
         sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo(
-            "❌ Docker not found or dagster-webserver container not running", err=True
+            f"Error: Docker not found or {container_name} container not running",
+            err=True,
         )
-        click.echo("\nStart services with: make up-core", err=True)
+        click.echo("\nStart services with: phlo services start", err=True)
         sys.exit(1)
 
 
@@ -161,9 +177,9 @@ def materialize(
 @click.option("--force", is_flag=True, help="Initialize in non-empty directory")
 def init(project_name: Optional[str], template: str, force: bool):
     """
-    Initialize a new Cascade project.
+    Initialize a new Phlo project.
 
-    Creates a minimal project structure for using Cascade as an installable package.
+    Creates a minimal project structure for using Phlo as an installable package.
     Users only need to maintain workflow files, not the entire framework.
 
     Examples:
@@ -171,7 +187,7 @@ def init(project_name: Optional[str], template: str, force: bool):
         phlo init . --force                # Initialize in current directory
         phlo init weather-pipeline --template minimal
     """
-    click.echo("🚀 Cascade Project Initializer\n")
+    click.echo("Phlo Project Initializer\n")
 
     # Determine project directory
     if project_name is None or project_name == ".":
@@ -184,7 +200,7 @@ def init(project_name: Optional[str], template: str, force: bool):
 
     # Check if directory exists and is not empty
     if project_dir.exists() and any(project_dir.iterdir()) and not force:
-        click.echo(f"\n❌ Directory {project_dir} is not empty", err=True)
+        click.echo(f"\nError: Directory {project_dir} is not empty", err=True)
         click.echo("Use --force to initialize anyway", err=True)
         sys.exit(1)
 
@@ -192,8 +208,8 @@ def init(project_name: Optional[str], template: str, force: bool):
     try:
         _create_project_structure(project_dir, project_name, template)
 
-        click.echo(f"\n✅ Successfully initialized Cascade project: {project_name}\n")
-        click.echo("📁 Created structure:")
+        click.echo(f"\nSuccessfully initialized Phlo project: {project_name}\n")
+        click.echo("Created structure:")
         click.echo(f"  {project_name}/")
         click.echo("  ├── pyproject.toml       # Project dependencies")
         click.echo("  ├── .env.example         # Environment variables template")
@@ -203,19 +219,19 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo("  ├── transforms/dbt/      # dbt transformation models")
         click.echo("  └── tests/               # Workflow tests")
 
-        click.echo("\n📝 Next steps:")
+        click.echo("\nNext steps:")
         if project_name != project_dir.name:
             click.echo(f"  1. cd {project_name}")
         click.echo(
-            "  2. pip install -e .              # Install Cascade and dependencies"
+            "  2. pip install -e .              # Install Phlo and dependencies"
         )
         click.echo("  3. phlo create-workflow       # Create your first workflow")
         click.echo("  4. phlo dev                   # Start Dagster UI")
 
-        click.echo("\n📚 Documentation: https://github.com/iamgp/phlo")
+        click.echo("\nDocumentation: https://github.com/iamgp/phlo")
 
     except Exception as e:
-        click.echo(f"\n❌ Error initializing project: {e}", err=True)
+        click.echo(f"\nError initializing project: {e}", err=True)
         import traceback
 
         traceback.print_exc()
@@ -239,19 +255,19 @@ def dev(host: str, port: int, workflows_path: str):
         phlo dev --port 8080                  # Use custom port
         phlo dev --workflows-path custom_workflows
     """
-    click.echo("🚀 Starting Cascade development server...\n")
+    click.echo("Starting Phlo development server...\n")
 
-    # Check if we're in a Cascade project
+    # Check if we're in a Phlo project
     if not Path("pyproject.toml").exists():
-        click.echo("❌ No pyproject.toml found", err=True)
-        click.echo("\nAre you in a Cascade project directory?", err=True)
+        click.echo("Error: No pyproject.toml found", err=True)
+        click.echo("\nAre you in a Phlo project directory?", err=True)
         click.echo("Initialize a new project with: phlo init", err=True)
         sys.exit(1)
 
     # Check if workflows directory exists
     workflows_dir = Path(workflows_path)
     if not workflows_dir.exists():
-        click.echo(f"⚠️  Workflows directory not found: {workflows_path}")
+        click.echo(f"Warning: Workflows directory not found: {workflows_path}")
         click.echo("Creating empty workflows directory...")
         workflows_dir.mkdir(parents=True, exist_ok=True)
         (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
@@ -259,8 +275,8 @@ def dev(host: str, port: int, workflows_path: str):
     # Set environment variable for workflows path
     os.environ["CASCADE_WORKFLOWS_PATH"] = workflows_path
 
-    click.echo(f"📂 Workflows directory: {workflows_path}")
-    click.echo(f"🌐 Starting server at http://{host}:{port}\n")
+    click.echo(f"Workflows directory: {workflows_path}")
+    click.echo(f"Starting server at http://{host}:{port}\n")
 
     # Build dagster dev command
     cmd = [
@@ -278,13 +294,13 @@ def dev(host: str, port: int, workflows_path: str):
         # Run dagster dev (blocking)
         subprocess.run(cmd, check=True)
     except KeyboardInterrupt:
-        click.echo("\n\n👋 Shutting down Dagster development server...")
+        click.echo("\n\nShutting down Dagster development server...")
     except FileNotFoundError:
-        click.echo("❌ dagster command not found", err=True)
-        click.echo("\nInstall Cascade with: pip install -e .", err=True)
+        click.echo("Error: dagster command not found", err=True)
+        click.echo("\nInstall Phlo with: pip install -e .", err=True)
         sys.exit(1)
     except subprocess.CalledProcessError as e:
-        click.echo(f"\n❌ Dagster failed with exit code {e.returncode}", err=True)
+        click.echo(f"\nDagster failed with exit code {e.returncode}", err=True)
         sys.exit(e.returncode)
 
 
@@ -340,7 +356,7 @@ def create_workflow(
     """
     from phlo.cli.scaffold import create_ingestion_workflow
 
-    click.echo(f"\n🚀 Creating {workflow_type} workflow for {domain}.{table}...\n")
+    click.echo(f"\nCreating {workflow_type} workflow for {domain}.{table}...\n")
 
     try:
         if workflow_type == "ingestion":
@@ -352,11 +368,11 @@ def create_workflow(
                 api_base_url=api_base_url or None,
             )
 
-            click.echo("✅ Created files:\n")
+            click.echo("Created files:\n")
             for file_path in files:
-                click.echo(f"  ✓ {file_path}")
+                click.echo(f"  - {file_path}")
 
-            click.echo("\n📝 Next steps:")
+            click.echo("\nNext steps:")
             click.echo(f"  1. Edit schema: {files[0]}")
             click.echo(f"  2. Configure API: {files[1]}")
             click.echo("  3. Restart Dagster: docker restart dagster-webserver")
@@ -365,13 +381,13 @@ def create_workflow(
 
         else:
             click.echo(
-                f"❌ Workflow type '{workflow_type}' not yet implemented", err=True
+                f"Error: Workflow type '{workflow_type}' not yet implemented", err=True
             )
             click.echo("Currently supported: ingestion", err=True)
             sys.exit(1)
 
     except Exception as e:
-        click.echo(f"❌ Error creating workflow: {e}", err=True)
+        click.echo(f"Error creating workflow: {e}", err=True)
         sys.exit(1)
 
 
@@ -458,19 +474,18 @@ select = ["E", "F", "I"]
     (project_dir / "pyproject.toml").write_text(pyproject_content)
 
     # Create .env.example
-    env_example_content = """# Cascade Configuration
-CASCADE_WORKFLOWS_PATH=workflows
+    env_example_content = """# Phlo Configuration
+PHLO_WORKFLOWS_PATH=workflows
 
 # Database Configuration
 POSTGRES_PASSWORD=your_password_here
 MINIO_ROOT_PASSWORD=your_password_here
-SUPERSET_ADMIN_PASSWORD=your_password_here
 
 # Optional: Override dbt location
-# CASCADE_DBT_PROJECT_DIR_OVERRIDE=custom_dbt
+# PHLO_DBT_PROJECT_DIR_OVERRIDE=custom_dbt
 
 # Optional: Include core examples
-# CASCADE_INCLUDE_CORE_ASSETS=false
+# PHLO_INCLUDE_CORE_ASSETS=false
 """
     (project_dir / ".env.example").write_text(env_example_content)
 
@@ -496,7 +511,7 @@ htmlcov/
     # Create README.md
     readme_content = f"""# {project_name}
 
-Cascade data workflows for {project_name}.
+Phlo data workflows for {project_name}.
 
 ## Getting Started
 
@@ -531,7 +546,7 @@ Cascade data workflows for {project_name}.
 
 ## Documentation
 
-- [Cascade Documentation](https://github.com/iamgp/phlo)
+- [Phlo Documentation](https://github.com/iamgp/phlo)
 - [Workflow Development Guide](https://github.com/iamgp/phlo/blob/main/docs/guides/workflow-development.md)
 
 ## Commands
