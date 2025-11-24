@@ -117,18 +117,18 @@ def materialize(
     project_name = get_project_name()
     container_name = f"{project_name}-dagster-webserver-1"
 
-    # Build docker exec command
+    # Build docker exec command with working directory set to /app
     cmd = [
         "docker",
         "exec",
+        "-w",
+        "/app",
         container_name,
         "dagster",
         "asset",
         "materialize",
         "-m",
         "phlo.framework.definitions",
-        "-d",
-        "/app",
     ]
 
     if select:
