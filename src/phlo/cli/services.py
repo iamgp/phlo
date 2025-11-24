@@ -227,7 +227,9 @@ services:
       - "${DAGSTER_PORT:-3000}:3000"
     volumes:
       - ./dagster:/opt/dagster
-      - ..:/app:ro
+      - ../workflows:/app/workflows:ro
+      - ../transforms:/app/transforms:ro
+      - ../tests:/app/tests:ro
     depends_on:
       minio:
         condition: service_healthy
@@ -275,7 +277,9 @@ services:
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
       - ./dagster:/opt/dagster
-      - ..:/app:ro
+      - ../workflows:/app/workflows:ro
+      - ../transforms:/app/transforms:ro
+      - ../tests:/app/tests:ro
     depends_on:
       dagster-webserver:
         condition: service_started
@@ -783,7 +787,7 @@ def init(force: bool, project_name: Optional[str]):
     type=click.Choice(["observability", "api", "all"]),
     help="Enable optional profiles",
 )
-def start(detach: bool, build: bool, profile: tuple):
+def start(detach: bool, build: bool, profile: tuple[str, ...]):
     """Start Phlo infrastructure services.
 
     Starts the complete Phlo data lakehouse stack.
@@ -872,7 +876,7 @@ def start(detach: bool, build: bool, profile: tuple):
     type=click.Choice(["observability", "api", "all"]),
     help="Stop optional profile services",
 )
-def stop(volumes: bool, profile: tuple):
+def stop(volumes: bool, profile: tuple[str, ...]):
     """Stop Phlo infrastructure services.
 
     Examples:
