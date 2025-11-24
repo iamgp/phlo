@@ -117,10 +117,17 @@ def materialize(
     project_name = get_project_name()
     container_name = f"{project_name}-dagster-webserver-1"
 
+    # Detect host platform for executor selection in container
+    import platform
+
+    host_platform = platform.system()
+
     # Build docker exec command with working directory set to /app
     cmd = [
         "docker",
         "exec",
+        "-e",
+        f"CASCADE_HOST_PLATFORM={host_platform}",
         "-w",
         "/app",
         container_name,

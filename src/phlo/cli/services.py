@@ -222,6 +222,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       CASCADE_WORKFLOWS_PATH: /app/workflows
+      CASCADE_HOST_PLATFORM: ${CASCADE_HOST_PLATFORM:-$$(uname -s)}
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/workspace.yaml"]
     ports:
       - "${DAGSTER_PORT:-3000}:3000"
@@ -274,6 +275,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       CASCADE_WORKFLOWS_PATH: /app/workflows
+      CASCADE_HOST_PLATFORM: ${CASCADE_HOST_PLATFORM:-$$(uname -s)}
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
       - ./dagster:/opt/dagster
@@ -437,6 +439,11 @@ TRINO_PORT=8080
 
 # Dagster (Orchestration)
 DAGSTER_PORT=3000
+
+# Host Platform Detection (auto-detected via uname -s)
+# Override if needed:
+#   CASCADE_HOST_PLATFORM=Darwin  # for in-process executor (more stable on macOS)
+#   CASCADE_HOST_PLATFORM=Linux   # for multiprocess executor (better performance)
 
 # GitHub token for private repo access (required for phlo from private GitHub repo)
 # Create at: https://github.com/settings/tokens
@@ -810,6 +817,34 @@ def start(detach: bool, build: bool, profile: tuple[str, ...]):
         sys.exit(1)
 
     click.echo(f"Starting {project_name} infrastructure...")
+
+    # Check Docker memory on macOS
+    import platform
+    import subprocess as sp
+
+    if platform.system() == "Darwin":
+        try:
+            result = sp.run(
+                ["docker", "info", "--format", "{{.MemTotal}}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                mem_bytes = int(result.stdout.strip())
+                mem_gb = mem_bytes / (1024**3)
+                if mem_gb < 16:
+                    click.echo(
+                        f"\nWarning: Docker has {mem_gb:.1f}GB memory allocated. "
+                        f"Recommend 16GB+ for Dagster stability.",
+                        err=True,
+                    )
+                    click.echo(
+                        "Increase in Docker Desktop -> Settings -> Resources -> Memory\n",
+                        err=True,
+                    )
+        except Exception:
+            pass  # Silently ignore if docker info fails
 
     cmd = [
         "docker",
