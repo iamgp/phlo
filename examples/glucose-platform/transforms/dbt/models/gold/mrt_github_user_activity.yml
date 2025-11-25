@@ -1,0 +1,106 @@
+# mrt_github_user_activity.yml - Schema and integrity tests for GitHub user activity mart
+
+version: 2
+
+models:
+  - name: mrt_github_user_activity
+    description: "Gold layer curated fact table for GitHub user activity"
+    meta:
+      dagster:
+        asset_key: ["mrt_github_user_activity"]
+    columns:
+      - name: event_id
+        description: "Unique identifier for the GitHub event"
+        tests:
+          - not_null
+          - unique
+
+      - name: event_type
+        description: "Type of GitHub event"
+        tests:
+          - not_null
+
+      - name: event_category
+        description: "Categorized event type"
+        tests:
+          - not_null
+
+      - name: actor_login
+        description: "GitHub username of the actor"
+        tests:
+          - not_null
+
+      - name: actor_id
+        description: "GitHub actor ID"
+        tests:
+          - not_null
+
+      - name: repo_name
+        description: "Repository name"
+        tests:
+          - not_null
+
+      - name: repo_full_name
+        description: "Full repository name (owner/repo)"
+        tests:
+          - not_null
+
+      - name: public
+        description: "Whether the event is public"
+        tests:
+          - not_null
+
+      - name: is_repo_public
+        description: "Whether the repository is public"
+        tests:
+          - not_null
+
+      - name: involves_organization
+        description: "Whether the event involves an organization"
+        tests:
+          - not_null
+
+      - name: created_at
+        description: "Event creation timestamp"
+        tests:
+          - not_null
+
+      - name: event_date
+        description: "Date of the event"
+        tests:
+          - not_null
+
+      - name: hour_of_day
+        description: "Hour when event occurred (0-23)"
+        tests:
+          - not_null
+
+      - name: day_of_week
+        description: "Day of week (1-7)"
+        tests:
+          - not_null
+
+      - name: day_name
+        description: "Day name (Monday, Tuesday, etc.)"
+        tests:
+          - not_null
+
+# Custom business logic tests
+  - name: test_github_event_categories_complete
+    description: "Test that all events have valid categories"
+    columns:
+      - name: event_category
+        tests:
+          - accepted_values:
+              values: ['code_contribution', 'issue_management', 'pull_request',
+                      'repository_management', 'social', 'collaboration', 'release_management',
+                      'documentation', 'visibility', 'other']
+
+  - name: test_github_hourly_distribution
+    description: "Test that hourly distribution makes sense (no invalid hours)"
+    columns:
+      - name: hour_of_day
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 23
