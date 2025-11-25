@@ -16,6 +16,11 @@ from typing import Any
 
 from dagster import Definitions
 
+try:
+    from dagster_dbt import DbtCliResource
+except ImportError:
+    DbtCliResource = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -163,7 +168,7 @@ def _discover_dbt_assets() -> list[Any]:
     try:
         from dagster import AssetKey
         from dagster_dbt import DagsterDbtTranslator, dbt_assets
-        from typing import Any, Mapping
+        from typing import Mapping
 
         from phlo.defs.partitions import daily_partition
 
@@ -217,7 +222,7 @@ def _discover_dbt_assets() -> list[Any]:
             dagster_dbt_translator=CustomDbtTranslator(),
             partitions_def=daily_partition,
         )
-        def all_dbt_assets(context, dbt):
+        def all_dbt_assets(context, dbt: DbtCliResource):
             import os
             import shutil
 
