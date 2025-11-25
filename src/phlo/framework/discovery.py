@@ -143,9 +143,141 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
     return imported_modules
 
 
+def _discover_dbt_assets() -> list[Any]:
+    """
+    Discover and create dbt assets if transforms/dbt exists.
+
+    Returns:
+        List containing dbt asset definition if found, empty list otherwise
+    """
+    from phlo.config import get_settings
+
+    settings = get_settings()
+    dbt_project_path = settings.dbt_project_path
+    manifest_path = dbt_project_path / "target" / "manifest.json"
+
+    if not manifest_path.exists():
+        logger.debug(f"No dbt manifest found at {manifest_path}, skipping dbt assets")
+        return []
+
+    try:
+        from collections.abc import Generator
+        from dagster import AssetKey
+        from dagster_dbt import DagsterDbtTranslator, dbt_assets
+        from typing import Any, Mapping
+
+        from phlo.defs.partitions import daily_partition
+
+        # Use the same custom translator from the core package
+        class CustomDbtTranslator(DagsterDbtTranslator):
+            def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> AssetKey:
+                resource_type = dbt_resource_props.get("resource_type")
+                if resource_type == "source":
+                    source_name = dbt_resource_props["source_name"]
+                    table_name = dbt_resource_props["name"]
+                    if source_name == "dagster_assets":
+                        if table_name == "user_events":
+                            return AssetKey(["dlt_github_user_events"])
+                        elif table_name == "repo_stats":
+                            return AssetKey(["dlt_github_repo_stats"])
+                        elif table_name == "entries" or table_name == "glucose_entries":
+                            return AssetKey(["dlt_glucose_entries"])
+                        else:
+                            return AssetKey([table_name])
+                    return super().get_asset_key(dbt_resource_props)
+                return AssetKey(dbt_resource_props["name"])
+
+            def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
+                model_name = dbt_resource_props["name"]
+
+                if "_github_" in model_name or model_name in [
+                    "stg_github_user_events", "stg_github_repo_stats",
+                    "fct_github_user_events", "fct_github_repo_stats",
+                    "mrt_github_user_activity", "mrt_github_repo_metrics",
+                    "mrt_github_activity_overview", "mrt_github_repo_insights"
+                ]:
+                    return "github"
+                elif "_glucose_" in model_name or "_entries" in model_name or model_name in [
+                    "stg_entries", "fct_glucose_readings", "mrt_glucose_readings",
+                    "mrt_glucose_overview", "mrt_glucose_hourly_patterns"
+                ]:
+                    return "nightscout"
+                elif model_name == "fct_daily_glucose_metrics":
+                    return "nightscout"
+
+                if model_name.startswith("stg_"):
+                    return "bronze"
+                if model_name.startswith(("dim_", "fct_")):
+                    return "silver"
+                if model_name.startswith("mrt_"):
+                    return "gold"
+                return "transform"
+
+        @dbt_assets(
+            manifest=manifest_path,
+            dagster_dbt_translator=CustomDbtTranslator(),
+            partitions_def=daily_partition,
+        )
+        def all_dbt_assets(context, dbt) -> Generator[object, None, None]:
+            import os
+            import shutil
+
+            target = context.op_config.get("target") if context.op_config else None
+            target = target or "dev"
+
+            build_args = [
+                "build",
+                "--project-dir",
+                str(dbt_project_path),
+                "--profiles-dir",
+                str(settings.dbt_profiles_path),
+                "--target",
+                target,
+            ]
+
+            if context.has_partition_key:
+                partition_date = context.partition_key
+                build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
+                context.log.info(f"Running dbt for partition: {partition_date}")
+
+            os.environ.setdefault("TRINO_HOST", settings.trino_host)
+            os.environ.setdefault("TRINO_PORT", str(settings.trino_port))
+
+            build_invocation = dbt.cli(build_args, context=context)
+            yield from build_invocation.stream()
+            build_invocation.wait()
+
+            docs_args = [
+                "docs",
+                "generate",
+                "--project-dir",
+                str(dbt_project_path),
+                "--profiles-dir",
+                str(settings.dbt_profiles_path),
+                "--target",
+                target,
+            ]
+            docs_invocation = dbt.cli(docs_args, context=context).wait()
+
+            default_target_dir = dbt_project_path / "target"
+            default_target_dir.mkdir(parents=True, exist_ok=True)
+
+            for artifact in ("manifest.json", "catalog.json", "run_results.json"):
+                artifact_path = docs_invocation.target_path / artifact
+                if artifact_path.exists():
+                    shutil.copy(artifact_path, default_target_dir / artifact)
+
+        logger.info(f"Discovered dbt assets from {manifest_path}")
+        return [all_dbt_assets]
+
+    except Exception as exc:
+        logger.error(f"Error creating dbt assets: {exc}", exc_info=True)
+        return []
+
+
 def _collect_registered_assets() -> list[Any]:
     """
-    Collect all assets registered via decorators.
+    Collect all assets registered via decorators and auto-discovered assets.
 
     Returns:
         List of Dagster asset definitions
@@ -163,6 +295,10 @@ def _collect_registered_assets() -> list[Any]:
         logger.warning("Could not import phlo.ingestion.get_ingestion_assets")
     except Exception as exc:
         logger.error(f"Error collecting ingestion assets: {exc}")
+
+    # Auto-discover dbt assets
+    dbt_assets = _discover_dbt_assets()
+    assets.extend(dbt_assets)
 
     return assets
 
