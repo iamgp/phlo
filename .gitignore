@@ -144,3 +144,5 @@ logs/
 .cache/
 
 transforms/dbt/target
+specs
+PLATFORM_REVIEW.md
