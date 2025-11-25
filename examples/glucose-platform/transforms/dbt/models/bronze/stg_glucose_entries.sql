@@ -33,7 +33,7 @@ select
     utc_offset as utc_offset_minutes,
     -- Metadata columns
     sys_time,
-    _cascade_ingested_at,
+    sys_time as _cascade_ingested_at,  -- Use sys_time as proxy for ingestion timestamp
     _dlt_load_id,
     _dlt_id
 from raw_data
