@@ -1,0 +1,4 @@
+load_from:
+  - python_module:
+      module_name: phlo.framework.definitions
+      working_directory: /app
