@@ -144,9 +144,9 @@ class Settings(BaseSettings):
         default="workflows",
         description="Path to user workflows directory (for external projects)",
     )
-    dbt_project_dir_override: str | None = Field(
-        default=None,
-        description="Override dbt project directory path (defaults to transforms/dbt)",
+    dbt_project_dir: str = Field(
+        default="transforms/dbt",
+        description="Path to dbt project directory",
     )
 
     # --- Computed Paths ---
@@ -154,25 +154,9 @@ class Settings(BaseSettings):
     # Paths (computed based on environment)
     @computed_field
     @property
-    def dbt_project_dir(self) -> str:
-        """dbt project directory - /dbt in container, transforms/dbt locally."""
-        # Allow override via explicit setting
-        if self.dbt_project_dir_override:
-            return self.dbt_project_dir_override
-
-        if os.path.exists("/dbt"):  # Container environment
-            return "/dbt"
-        else:  # Local development
-            return "transforms/dbt"
-
-    @computed_field
-    @property
     def dbt_profiles_dir(self) -> str:
-        """dbt profiles directory - /dbt/profiles in container, transforms/dbt/profiles locally."""
-        if os.path.exists("/dbt"):  # Container environment
-            return "/dbt/profiles"
-        else:  # Local development
-            return "transforms/dbt/profiles"
+        """dbt profiles directory - derived from dbt_project_dir."""
+        return f"{self.dbt_project_dir}/profiles"
 
             # --- Orchestration Configuration ---
 
