@@ -161,7 +161,7 @@ def _discover_dbt_assets() -> list[Any]:
         return []
 
     try:
-        from collections.abc import Generator
+        from collections.abc import Generator as GeneratorType
         from dagster import AssetKey
         from dagster_dbt import DagsterDbtTranslator, dbt_assets
         from typing import Any, Mapping
@@ -218,7 +218,7 @@ def _discover_dbt_assets() -> list[Any]:
             dagster_dbt_translator=CustomDbtTranslator(),
             partitions_def=daily_partition,
         )
-        def all_dbt_assets(context, dbt) -> Generator[object, None, None]:
+        def all_dbt_assets(context, dbt) -> GeneratorType[object, None, None]:
             import os
             import shutil
 
