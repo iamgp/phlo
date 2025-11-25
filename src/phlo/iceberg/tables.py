@@ -300,7 +300,28 @@ def merge_to_table(
                 # Add the new column as optional
                 update.add_column(col_name, iceberg_type, required=False)
 
-    # Step 3: Append the new data
+    # Step 3: Reorder and cast arrow table to match Iceberg schema
+    # Iceberg requires exact column order matching
+    import pyarrow as pa
+    from pyiceberg.io.pyarrow import schema_to_pyarrow
+
+    # Get the target PyArrow schema from Iceberg
+    target_schema = schema_to_pyarrow(table.schema())
+
+    # Reorder arrow_table columns to match target schema order
+    target_field_names = target_schema.names
+    arrow_table = arrow_table.select(target_field_names)
+
+    # Cast to handle type differences (e.g., timestamp vs timestamptz, nullability)
+    try:
+        arrow_table = arrow_table.cast(target_schema)
+    except (pa.ArrowInvalid, pa.ArrowTypeError) as e:
+        # If casting fails, log the issue but try appending anyway
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Could not cast arrow table to target schema: {e}")
+
+    # Step 4: Append the casted data
     table.append(arrow_table)
     rows_inserted = len(arrow_table)
 
