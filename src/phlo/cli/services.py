@@ -623,7 +623,7 @@ services:
     volumes:
       - ./dagster:/opt/dagster
       - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
+      - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
       # Mount local phlo source (path set via PHLO_DEV_SOURCE_PATH env var)
       - ${PHLO_DEV_SOURCE_PATH}/src/phlo:/opt/phlo-src/phlo:ro
@@ -636,7 +636,7 @@ services:
     volumes:
       - ./dagster:/opt/dagster
       - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
+      - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
       # Mount local phlo source
       - ${PHLO_DEV_SOURCE_PATH}/src/phlo:/opt/phlo-src/phlo:ro
