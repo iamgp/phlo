@@ -40,38 +40,42 @@ def _parse_asset_selection(selection_config: Dict[str, Any]) -> dg.AssetSelectio
         raise ValueError(f"Unknown selection type: {selection_type}")
 
 
-def create_jobs_from_config(config_path: Path | None = None) -> List[dg.UnresolvedAssetJobDefinition]:
+def create_jobs_from_config(
+    config_path: Path | None = None,
+) -> List[dg.UnresolvedAssetJobDefinition]:
     """Create job definitions from YAML configuration.
-    
+
     Args:
         config_path: Path to config.yaml. If None, looks for config.yaml in same directory.
                      Returns empty list if config file doesn't exist.
     """
     if config_path is None:
         config_path = Path(__file__).parent / "config.yaml"
-    
+
     if not config_path.exists():
         return []
-    
-    with open(config_path, 'r') as f:
+
+    with open(config_path, "r") as f:
         config_data = yaml.safe_load(f)
 
     jobs = []
 
-    for job_key, job_config in config_data['jobs'].items():
+    for job_key, job_config in config_data["jobs"].items():
         # Parse asset selection
-        selection = _parse_asset_selection(job_config['selection'])
+        selection = _parse_asset_selection(job_config["selection"])
 
         # Parse partitions
-        partitions_def = daily_partition if job_config.get('partitions') == 'daily' else None
+        partitions_def = (
+            daily_partition if job_config.get("partitions") == "daily" else None
+        )
 
         # Create job
-        resources_config = job_config.get('resources', {})
+        resources_config = job_config.get("resources", {})
         config = {"resources": resources_config} if resources_config else {}
 
         job = dg.define_asset_job(
-            name=job_config['name'],
-            description=job_config['description'],
+            name=job_config["name"],
+            description=job_config["description"],
             selection=selection,
             partitions_def=partitions_def,
             config=config,

@@ -192,7 +192,7 @@ class TestSystemDataQualityTests:
         assert len(quality_checks) > 0
 
         # Check that glucose-related validations are present
-        glucose_checks = [check for check in quality_checks if hasattr(check, 'name') and 'glucose' in check.name]
+        [check for check in quality_checks if hasattr(check, 'name') and 'glucose' in check.name]
         # If no checks have names, we'll skip this assertion for now
         # assert len(glucose_checks) > 0
 
@@ -209,7 +209,7 @@ class TestSystemDataQualityTests:
         # Verify freshness policies are configured
         # Check that assets have freshness_policy defined
 
-        assets_with_freshness = [asset for asset in defs.assets
+        [asset for asset in defs.assets
                                 if hasattr(asset, 'freshness_policy') and asset.freshness_policy]
         # Note: Not all assets may have explicit freshness policies,
         # but ingestion assets should

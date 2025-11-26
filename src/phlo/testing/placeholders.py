@@ -34,6 +34,7 @@ try:
         DateType,
         BinaryType,
     )
+
     ICEBERG_DEPS_AVAILABLE = True
 except ImportError:
     ICEBERG_DEPS_AVAILABLE = False
@@ -96,7 +97,7 @@ class MockDLTSource:
         """
         if isinstance(data, pd.DataFrame):
             df_data = cast(pd.DataFrame, data)
-            self.data = df_data.to_dict('records')
+            self.data = df_data.to_dict("records")
             self._dataframe = df_data
         else:
             self.data = data
@@ -183,7 +184,7 @@ def mock_dlt_source(
 class MockIcebergTable:
     """Mock Iceberg table backed by DuckDB."""
 
-    def __init__(self, name: str, schema: Schema, conn: 'duckdb.DuckDBPyConnection'):
+    def __init__(self, name: str, schema: Schema, conn: "duckdb.DuckDBPyConnection"):
         """Initialize mock table."""
         self.name = name
         self.schema = schema
@@ -239,7 +240,7 @@ class MockIcebergTable:
         # Insert into DuckDB table (data is now a pandas DataFrame)
         self.conn.execute(f"INSERT INTO {self.name} SELECT * FROM data")
 
-    def scan(self) -> 'MockTableScan':
+    def scan(self) -> "MockTableScan":
         """Return a table scan for querying."""
         return MockTableScan(self.name, self.conn)
 
@@ -268,19 +269,19 @@ class MockIcebergTable:
 class MockTableScan:
     """Mock Iceberg table scan."""
 
-    def __init__(self, table_name: str, conn: 'duckdb.DuckDBPyConnection'):
+    def __init__(self, table_name: str, conn: "duckdb.DuckDBPyConnection"):
         """Initialize table scan."""
         self.table_name = table_name
         self.conn = conn
         self._filter_expr: Optional[str] = None
         self._limit: Optional[int] = None
 
-    def filter(self, expr: str) -> 'MockTableScan':
+    def filter(self, expr: str) -> "MockTableScan":
         """Add WHERE clause filter (SQL syntax)."""
         self._filter_expr = expr
         return self
 
-    def limit(self, n: int) -> 'MockTableScan':
+    def limit(self, n: int) -> "MockTableScan":
         """Limit number of rows."""
         self._limit = n
         return self
@@ -436,7 +437,9 @@ class MockIcebergCatalog:
         """
         duckdb_name = name.replace(".", "_")
         if duckdb_name not in self.tables:
-            raise KeyError(f"Table {name} not found. Available tables: {list(self.tables.keys())}")
+            raise KeyError(
+                f"Table {name} not found. Available tables: {list(self.tables.keys())}"
+            )
         return self.tables[duckdb_name]
 
     def list_tables(self) -> List[str]:
@@ -631,9 +634,9 @@ def test_asset_execution(
             result_source = asset_fn(partition)
 
         # Convert source to DataFrame
-        if hasattr(result_source, 'to_pandas'):
+        if hasattr(result_source, "to_pandas"):
             df = result_source.to_pandas()
-        elif hasattr(result_source, '__iter__'):
+        elif hasattr(result_source, "__iter__"):
             # DLT source is iterable
             data_list = list(result_source)
             df = pd.DataFrame(data_list)
@@ -679,7 +682,9 @@ def test_asset_execution(
 # Fixture Management - ✅ Implemented
 
 
-def load_fixture(path: Union[str, Path]) -> Union[pd.DataFrame, List[Dict[str, Any]], Dict[str, Any]]:
+def load_fixture(
+    path: Union[str, Path],
+) -> Union[pd.DataFrame, List[Dict[str, Any]], Dict[str, Any]]:
     """
     Load test fixture from file.
 
@@ -718,7 +723,7 @@ def load_fixture(path: Union[str, Path]) -> Union[pd.DataFrame, List[Dict[str, A
     suffix = path.suffix.lower()
 
     if suffix == ".json":
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             data = json.load(f)
         # If it's a list of dicts, return as-is for easy use with MockDLTSource
         # If it's a dict, return as-is
@@ -781,7 +786,7 @@ def save_fixture(
     suffix = path.suffix.lower()
 
     if suffix == ".json":
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             if pretty:
                 json.dump(data, f, indent=2, default=str)
             else:
@@ -793,7 +798,9 @@ def save_fixture(
             df_data.to_csv(path, index=False)
         else:
             # Convert to DataFrame first
-            df: pd.DataFrame = pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
+            df: pd.DataFrame = (
+                pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
+            )
             df.to_csv(path, index=False)
 
     elif suffix == ".parquet":
@@ -802,7 +809,9 @@ def save_fixture(
             df_data.to_parquet(path, index=False)
         else:
             # Convert to DataFrame first
-            df: pd.DataFrame = pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
+            df: pd.DataFrame = (
+                pd.DataFrame(data) if isinstance(data, list) else pd.DataFrame([data])
+            )
             df.to_parquet(path, index=False)
 
     else:

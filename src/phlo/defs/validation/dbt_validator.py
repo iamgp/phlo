@@ -17,11 +17,7 @@ from phlo.config import config
 class DBTValidatorResource(dg.ConfigurableResource):
     """Runs dbt tests and parses results."""
 
-    def run_tests_for_model(
-        self,
-        model_name: str,
-        branch_name: str
-    ) -> dict[str, Any]:
+    def run_tests_for_model(self, model_name: str, branch_name: str) -> dict[str, Any]:
         """
         Run dbt tests for a specific model on specified branch.
 
@@ -34,11 +30,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
         """
         return self.run_tests(branch_name, select=model_name)
 
-    def run_tests(
-        self,
-        branch_name: str,
-        select: str | None = None
-    ) -> dict[str, Any]:
+    def run_tests(self, branch_name: str, select: str | None = None) -> dict[str, Any]:
         """
         Run dbt test command on specified branch.
 
@@ -65,9 +57,12 @@ class DBTValidatorResource(dg.ConfigurableResource):
         """
         # Build dbt test command
         cmd = [
-            "dbt", "test",
-            "--project-dir", str(config.dbt_project_path),
-            "--profiles-dir", str(config.dbt_profiles_path),
+            "dbt",
+            "test",
+            "--project-dir",
+            str(config.dbt_project_path),
+            "--profiles-dir",
+            str(config.dbt_profiles_path),
         ]
 
         if select:
@@ -84,7 +79,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
                 capture_output=True,
                 text=True,
                 env=env,
-                timeout=600  # 10 minute timeout
+                timeout=600,  # 10 minute timeout
             )
 
             # Parse run_results.json
@@ -97,10 +92,9 @@ class DBTValidatorResource(dg.ConfigurableResource):
                     "failed": 0,
                     "skipped": 0,
                     "all_passed": False,
-                    "failures": [{
-                        "error": "run_results.json not found",
-                        "stderr": result.stderr
-                    }]
+                    "failures": [
+                        {"error": "run_results.json not found", "stderr": result.stderr}
+                    ],
                 }
 
             with open(results_path) as f:
@@ -124,12 +118,16 @@ class DBTValidatorResource(dg.ConfigurableResource):
                         passed += 1
                     elif status == "fail":
                         failed += 1
-                        failures.append({
-                            "test_name": result_node.get("unique_id", "unknown").split(".")[-1],
-                            "model": self._extract_model_name(result_node),
-                            "error_message": result_node.get("message", ""),
-                            "failed_rows": result_node.get("failures", 0)
-                        })
+                        failures.append(
+                            {
+                                "test_name": result_node.get(
+                                    "unique_id", "unknown"
+                                ).split(".")[-1],
+                                "model": self._extract_model_name(result_node),
+                                "error_message": result_node.get("message", ""),
+                                "failed_rows": result_node.get("failures", 0),
+                            }
+                        )
                     elif status in ["skipped", "skip"]:
                         skipped += 1
 
@@ -141,7 +139,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
                 "failed": failed,
                 "skipped": skipped,
                 "all_passed": all_passed,
-                "failures": failures
+                "failures": failures,
             }
 
         except subprocess.TimeoutExpired:
@@ -151,7 +149,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
                 "failed": 0,
                 "skipped": 0,
                 "all_passed": False,
-                "failures": [{"error": "dbt test command timed out after 10 minutes"}]
+                "failures": [{"error": "dbt test command timed out after 10 minutes"}],
             }
         except Exception as e:
             return {
@@ -160,7 +158,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
                 "failed": 0,
                 "skipped": 0,
                 "all_passed": False,
-                "failures": [{"error": str(e)}]
+                "failures": [{"error": str(e)}],
             }
 
     def _extract_model_name(self, result_node: dict) -> str:

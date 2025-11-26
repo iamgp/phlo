@@ -9,8 +9,6 @@ import platform
 
 import dagster as dg
 
-logger = logging.getLogger(__name__)
-
 from phlo.config import config
 from phlo.defs.nessie import build_defs as build_nessie_defs
 from phlo.defs.publishing import build_defs as build_publishing_defs
@@ -21,6 +19,8 @@ from phlo.defs.transform import build_defs as build_transform_defs
 from phlo.defs.validation import build_defs as build_validation_defs
 from phlo.ingestion import get_ingestion_assets
 from phlo.quality import get_quality_checks
+
+logger = logging.getLogger(__name__)
 
 
 # Executor selection function: Chooses between in-process and multiprocess executors
@@ -41,12 +41,16 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     """
     # Priority 1: Explicit force in-process
     if config.cascade_force_in_process_executor:
-        logger.info("Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)")
+        logger.info(
+            "Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)"
+        )
         return dg.in_process_executor
 
     # Priority 2: Explicit force multiprocess
     if config.cascade_force_multiprocess_executor:
-        logger.info("Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)")
+        logger.info(
+            "Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)"
+        )
         return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
     # Priority 3: Check host platform (for Docker on macOS detection)

@@ -9,7 +9,12 @@ from datetime import datetime
 from typing import Any
 
 import dagster as dg
-from dagster import AssetKey, AssetExecutionContext, DagsterEventType, EventRecordsFilter
+from dagster import (
+    AssetKey,
+    AssetExecutionContext,
+    DagsterEventType,
+    EventRecordsFilter,
+)
 
 
 class FreshnessValidatorResource(dg.ConfigurableResource):
@@ -22,7 +27,7 @@ class FreshnessValidatorResource(dg.ConfigurableResource):
         self,
         context: AssetExecutionContext,
         asset_key: str,
-        threshold_hours: int | None = None
+        threshold_hours: int | None = None,
     ) -> dict[str, Any]:
         """
         Check freshness of a single asset.
@@ -48,7 +53,7 @@ class FreshnessValidatorResource(dg.ConfigurableResource):
                 "fresh": False,
                 "age_hours": float("inf"),
                 "threshold_hours": threshold,
-                "last_updated": None
+                "last_updated": None,
             }
 
         age = datetime.now() - last_materialization
@@ -59,13 +64,11 @@ class FreshnessValidatorResource(dg.ConfigurableResource):
             "fresh": fresh,
             "age_hours": round(age_hours, 2),
             "threshold_hours": threshold,
-            "last_updated": last_materialization.isoformat()
+            "last_updated": last_materialization.isoformat(),
         }
 
     def _get_last_materialization(
-        self,
-        context: AssetExecutionContext,
-        asset_key: str
+        self, context: AssetExecutionContext, asset_key: str
     ) -> datetime | None:
         """Get timestamp of last materialization for asset."""
         instance = context.instance
@@ -73,9 +76,9 @@ class FreshnessValidatorResource(dg.ConfigurableResource):
         events = instance.get_event_records(
             event_records_filter=EventRecordsFilter(
                 event_type=DagsterEventType.ASSET_MATERIALIZATION,
-                asset_key=AssetKey([asset_key])
+                asset_key=AssetKey([asset_key]),
             ),
-            limit=1
+            limit=1,
         )
 
         if not events:

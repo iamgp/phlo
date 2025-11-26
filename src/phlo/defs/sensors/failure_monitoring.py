@@ -32,7 +32,9 @@ def pipeline_failure_sensor(context: dg.RunFailureSensorContext):
     """
     run_id = context.dagster_run.run_id
     job_name = context.dagster_run.job_name
-    failure_message = context.failure_event.message if context.failure_event else "Unknown failure"
+    failure_message = (
+        context.failure_event.message if context.failure_event else "Unknown failure"
+    )
 
     # Log structured failure information for Loki to pick up
     context.log.error(
@@ -99,7 +101,9 @@ def pipeline_success_sensor(context: dg.RunStatusSensorContext):
     asset_key=dg.AssetKey(["entries"]),
     description="Monitors freshness of Iceberg ingestion",
 )
-def iceberg_freshness_sensor(context: dg.SensorEvaluationContext, asset_event: dg.EventLogEntry):
+def iceberg_freshness_sensor(
+    context: dg.SensorEvaluationContext, asset_event: dg.EventLogEntry
+):
     """
     Monitors freshness of critical Iceberg tables.
 

@@ -21,9 +21,7 @@ class BranchManagerResource(dg.ConfigurableResource):
     retention_days_failed: int
 
     def create_pipeline_branch(
-        self,
-        run_id: str,
-        source_ref: str = "main"
+        self, run_id: str, source_ref: str = "main"
     ) -> dict[str, Any]:
         """
         Create a new pipeline branch for this pipeline run.
@@ -62,14 +60,11 @@ class BranchManagerResource(dg.ConfigurableResource):
             "branch_name": branch_name,
             "created_from": source_ref,
             "created_at": datetime.now().isoformat(),
-            "source_hash": result.get("hash", "unknown")
+            "source_hash": result.get("hash", "unknown"),
         }
 
     def schedule_cleanup(
-        self,
-        branch_name: str,
-        retention_days: int,
-        promotion_succeeded: bool
+        self, branch_name: str, retention_days: int, promotion_succeeded: bool
     ) -> dict[str, Any]:
         """
         Schedule branch for cleanup after retention period.
@@ -107,7 +102,7 @@ class BranchManagerResource(dg.ConfigurableResource):
             "cleanup_after": cleanup_after.isoformat(),
             "promotion_succeeded": promotion_succeeded,
             "scheduled_at": datetime.now().isoformat(),
-            "retention_days": retention_days
+            "retention_days": retention_days,
         }
 
     def cleanup_branch(self, branch_name: str, dry_run: bool = False) -> dict[str, Any]:
@@ -138,7 +133,7 @@ class BranchManagerResource(dg.ConfigurableResource):
                 "branch_name": branch_name,
                 "deleted": False,
                 "deleted_at": None,
-                "dry_run": True
+                "dry_run": True,
             }
 
         try:
@@ -146,14 +141,14 @@ class BranchManagerResource(dg.ConfigurableResource):
             return {
                 "branch_name": branch_name,
                 "deleted": True,
-                "deleted_at": datetime.now().isoformat()
+                "deleted_at": datetime.now().isoformat(),
             }
         except Exception as e:
             return {
                 "branch_name": branch_name,
                 "deleted": False,
                 "error": str(e),
-                "deleted_at": None
+                "deleted_at": None,
             }
 
     def get_all_pipeline_branches(self) -> list[dict[str, Any]]:
@@ -181,7 +176,8 @@ class BranchManagerResource(dg.ConfigurableResource):
 
         # Filter for pipeline branches only
         pipeline_branches = [
-            branch for branch in all_branches
+            branch
+            for branch in all_branches
             if branch.get("name", "").startswith("pipeline/")
         ]
 

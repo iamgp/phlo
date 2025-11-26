@@ -64,10 +64,7 @@ def list_branches(context, nessie: NessieResource) -> dg.MaterializeResult:
     tags={"nessie": "branching"},
 )
 def create_branch(
-    context,
-    nessie: NessieResource,
-    branch_name: str,
-    source_ref: str = "main"
+    context, nessie: NessieResource, branch_name: str, source_ref: str = "main"
 ) -> dg.MaterializeResult:
     """
     Create a new branch from a source reference.
@@ -117,10 +114,7 @@ def create_branch(
     tags={"nessie": "branching"},
 )
 def merge_branch(
-    context,
-    nessie: NessieResource,
-    source_branch: str,
-    target_branch: str
+    context, nessie: NessieResource, source_branch: str, target_branch: str
 ) -> dg.MaterializeResult:
     """
     Merge source branch into target branch.
@@ -136,7 +130,9 @@ def merge_branch(
 
         result = nessie.merge_branch(source_branch, target_branch)
 
-        context.log.info(f"Successfully merged '{source_branch}' into '{target_branch}'")
+        context.log.info(
+            f"Successfully merged '{source_branch}' into '{target_branch}'"
+        )
 
         return dg.MaterializeResult(
             metadata={
@@ -158,10 +154,7 @@ def merge_branch(
     tags={"nessie": "branching"},
 )
 def tag_snapshot(
-    context,
-    nessie: NessieResource,
-    tag_name: str,
-    source_ref: str = "main"
+    context, nessie: NessieResource, tag_name: str, source_ref: str = "main"
 ) -> dg.MaterializeResult:
     """
     Create a tag for the current snapshot of a reference.

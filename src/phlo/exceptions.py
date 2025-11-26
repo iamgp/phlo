@@ -139,7 +139,8 @@ class CascadeCronError(CascadeError):
         super().__init__(
             message=message,
             code=CascadeErrorCode.INVALID_CRON,
-            suggestions=suggestions or [
+            suggestions=suggestions
+            or [
                 "Use standard cron format: [minute] [hour] [day_of_month] [month] [day_of_week]",
                 'Examples: "0 */1 * * *" (hourly), "0 0 * * *" (daily)',
                 "Test your cron at: https://crontab.guru",

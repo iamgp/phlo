@@ -60,9 +60,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return "gold"
         return "transform"
 
-    def get_kinds(
-        self, dbt_resource_props: Mapping[str, Any]
-    ) -> set[str]:
+    def get_kinds(self, dbt_resource_props: Mapping[str, Any]) -> set[str]:
         """Return kinds for the asset."""
         return {"dbt", "trino"}
 
@@ -122,4 +120,5 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
 def build_defs():
     """Build dbt transform definitions."""
     import dagster as dg
+
     return dg.Definitions(assets=[all_dbt_assets])
