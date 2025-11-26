@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Any
 
 import dagster as dg
-from dagster.preview.freshness import FreshnessPolicy
+from dagster import FreshnessPolicy
 
 from phlo.defs.partitions import daily_partition
 from phlo.defs.resources.iceberg import IcebergResource
