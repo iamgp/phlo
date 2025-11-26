@@ -691,6 +691,6 @@ You now understand:
 
 Time to build your own pipelines!
 
-See the [main docs](../README.md) for API references, troubleshooting, and production deployment guides.
+See the [main docs](../index.md) for API references, troubleshooting, and production deployment guides.
 
 **Next**: [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md)

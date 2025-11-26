@@ -6,7 +6,7 @@
 
 ## Description
 
-This error occurs when Dagster cannot discover your asset definitions. Phlo uses Python decorators like `@cascade_ingestion` to define assets, and Dagster needs to be able to find and load these definitions.
+This error occurs when Dagster cannot discover your asset definitions. Phlo uses Python decorators like `@phlo_ingestion` to define assets, and Dagster needs to be able to find and load these definitions.
 
 ## Common Causes
 
@@ -15,7 +15,7 @@ This error occurs when Dagster cannot discover your asset definitions. Phlo uses
    - Dagster cannot discover assets that aren't imported
 
 2. **Incorrect decorator usage**
-   - Missing `@cascade_ingestion` decorator
+   - Missing `@phlo_ingestion` decorator
    - Decorator applied to non-function object
 
 3. **Import errors in asset module**
@@ -70,10 +70,10 @@ If you see an error, fix the import issue first.
 Ensure you're using the decorator correctly:
 
 ```python
-from phlo.ingestion import cascade_ingestion
+from phlo.ingestion import phlo_ingestion
 from phlo.schemas.weather import WeatherObservations
 
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -108,14 +108,14 @@ defs = dg.Definitions(
 
 ```python
 def weather_observations(partition: str):
-    # Missing @cascade_ingestion decorator
+    # Missing @phlo_ingestion decorator
     return fetch_weather_data(partition)
 ```
 
 ### ✅ Correct: Decorator applied
 
 ```python
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
