@@ -191,6 +191,9 @@ def _discover_dbt_assets() -> list[Any]:
                     return super().get_asset_key(dbt_resource_props)
                 return AssetKey(dbt_resource_props["name"])
 
+            def get_kinds(self, dbt_resource_props: Mapping[str, Any]) -> set[str]:
+                return {"dbt", "trino"}
+
             def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
                 model_name = dbt_resource_props["name"]
 
