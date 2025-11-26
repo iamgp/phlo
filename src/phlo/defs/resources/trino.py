@@ -32,28 +32,23 @@ class TrinoResource(ConfigurableResource):
 
     def get_connection(self, schema: str | None = None, override_ref: str | None = None) -> Connection:
         """
-        Open a Trino DB-API connection with branch-specific session properties.
+        Open a Trino DB-API connection.
 
-        Uses session properties to set the Nessie reference name dynamically,
-        allowing queries to target specific branches without multiple catalogs.
+        Note: Nessie branching is configured at the catalog level in Trino,
+        not via session properties. The iceberg catalog is configured to use
+        a specific Nessie branch via iceberg.rest-catalog.prefix in the catalog
+        properties file.
 
         Args:
             schema: Schema to use for queries
-            override_ref: Override default Nessie reference
+            override_ref: Override default Nessie reference (for future use)
         """
-        branch = override_ref or self.nessie_ref
-
-        session_properties = {
-            "iceberg.nessie_reference_name": branch
-        }
-
         return connect(
             host=self.host,
             port=self.port,
             user=self.user,
             catalog=self.catalog,
             schema=schema or self.trino_schema,
-            session_properties=session_properties,
         )
 
     @contextmanager
