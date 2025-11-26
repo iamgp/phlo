@@ -152,16 +152,18 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
                 "additive_changes": []
             }
 
-        # Get list of tables to compare
-        tables_to_check = [
-            "bronze.entries",
-            "silver.fct_glucose_readings",
-            "silver.fct_daily_glucose_metrics",
-            "bronze.github_user_events",
-            "silver.fct_github_user_events",
-            "bronze.github_repo_stats",
-            "silver.fct_github_repo_stats",
-        ]
+        # Discover tables from target catalog
+        tables_to_check = []
+        try:
+            # List tables from common namespaces
+            for namespace in ["bronze", "silver", "gold", "marts", "raw"]:
+                try:
+                    tables = target_catalog.list_tables(namespace)
+                    tables_to_check.extend([f"{namespace}.{t[1]}" for t in tables])
+                except Exception:
+                    pass  # Namespace doesn't exist
+        except Exception:
+            pass  # Fall back to empty list
 
         breaking_changes = []
         additive_changes = []
