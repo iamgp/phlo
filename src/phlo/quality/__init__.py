@@ -37,11 +37,12 @@ from phlo.quality.checks import (
     SchemaCheck,
     UniqueCheck,
 )
-from phlo.quality.decorator import phlo_quality
+from phlo.quality.decorator import phlo_quality, get_quality_checks
 
 __all__ = [
     # Decorator
     "phlo_quality",
+    "get_quality_checks",
     # Base class
     "QualityCheck",
     # Quality checks

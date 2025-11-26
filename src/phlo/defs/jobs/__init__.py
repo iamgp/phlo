@@ -1,35 +1,24 @@
 # __init__.py - Jobs module initialization
-# Provides job definitions for the data pipeline
+# Provides job factory utilities for creating jobs from config
+
+from __future__ import annotations
+
+from typing import Any
 
 import dagster as dg
-from phlo.defs.partitions import daily_partition
+
 from .factory import create_jobs_from_config
 
-# Load all jobs
-JOBS = create_jobs_from_config() + [
-    # Transform job (complex asset selection, so defined here)
-    dg.define_asset_job(
-        name="transform_dbt_models",
-        selection=dg.AssetSelection.groups(
-            "github",
-            "nightscout",
-            "transform",
-        ),
-        partitions_def=daily_partition,
-    )
-]
+# Jobs are user-defined - framework returns empty list by default
+JOBS: list[Any] = []
 
 # Create a lookup dictionary for jobs by name
 JOB_LOOKUP = {job.name: job for job in JOBS}
 
-# Helper function to get job by name
-def get_job(name: str):
+
+def get_job(name: str) -> dg.JobDefinition | None:
     """Get a job by name."""
     return JOB_LOOKUP.get(name)
 
-# Expose individual jobs for easy access
-transform_job = get_job("transform_dbt_models")
-nightscout_job = get_job("nightscout_pipeline")
-github_job = get_job("github_pipeline")
-publish_job = get_job("publish_pipeline")
-full_pipeline_job = get_job("full_pipeline")
+
+__all__ = ["JOBS", "JOB_LOOKUP", "get_job", "create_jobs_from_config"]

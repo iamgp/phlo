@@ -40,9 +40,19 @@ def _parse_asset_selection(selection_config: Dict[str, Any]) -> dg.AssetSelectio
         raise ValueError(f"Unknown selection type: {selection_type}")
 
 
-def create_jobs_from_config() -> List[dg.UnresolvedAssetJobDefinition]:
-    """Create job definitions from YAML configuration."""
-    config_path = Path(__file__).parent / "config.yaml"
+def create_jobs_from_config(config_path: Path | None = None) -> List[dg.UnresolvedAssetJobDefinition]:
+    """Create job definitions from YAML configuration.
+    
+    Args:
+        config_path: Path to config.yaml. If None, looks for config.yaml in same directory.
+                     Returns empty list if config file doesn't exist.
+    """
+    if config_path is None:
+        config_path = Path(__file__).parent / "config.yaml"
+    
+    if not config_path.exists():
+        return []
+    
     with open(config_path, 'r') as f:
         config_data = yaml.safe_load(f)
 
