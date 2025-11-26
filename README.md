@@ -42,7 +42,3 @@ make rebuild     # Rebuild Dagster container
 ruff check src/  # Lint
 ruff format src/ # Format
 ```
-
-## License
-
-MIT
