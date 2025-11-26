@@ -19,7 +19,7 @@ A simple glucose data ingestion pipeline that:
 ## Step 1: Clone and Setup (2 minutes)
 
 ```bash
-git clone https://github.com/yourusername/phlo.git
+git clone https://github.com/iamgp/phlo.git
 cd phlo
 
 # Copy environment template
@@ -47,10 +47,10 @@ Open `src/phlo/defs/ingestion/nightscout/glucose.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import cascade_ingestion
+from phlo.ingestion import phlo_ingestion
 from phlo.schemas.glucose import RawGlucoseEntries
 
-@cascade_ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -83,7 +83,7 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-**Notice**: Only 60 lines! The `@cascade_ingestion` decorator handles:
+**Notice**: Only 60 lines! The `@phlo_ingestion` decorator handles:
 - DLT pipeline setup
 - Pandera validation
 - Iceberg table creation
@@ -151,7 +151,7 @@ In 10 minutes, you:
 4. Queried with SQL engines
 
 **Key Concepts**:
-- **Decorator-driven**: Minimal boilerplate with `@cascade_ingestion`
+- **Decorator-driven**: Minimal boilerplate with `@phlo_ingestion`
 - **Schema-first**: Pandera validates data quality
 - **Iceberg tables**: ACID transactions, time travel, schema evolution
 - **Multi-engine**: Query with Trino, DuckDB, Spark
@@ -180,10 +180,10 @@ class RawWeatherData(pa.DataFrameModel):
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import cascade_ingestion
+from phlo.ingestion import phlo_ingestion
 from phlo.schemas.mydata import RawWeatherData
 
-@cascade_ingestion(
+@phlo_ingestion(
     table_name="weather_observations",
     unique_key="timestamp",
     validation_schema=RawWeatherData,
@@ -309,7 +309,7 @@ docker restart dagster-webserver
 
 ## Get Help
 
-- **Documentation**: [docs/README.md](./README.md)
+- **Documentation**: [docs/index.md](./index.md)
 - **GitHub Issues**: Report bugs and request features
 - **GitHub Discussions**: Ask questions and share ideas
 

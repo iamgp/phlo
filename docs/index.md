@@ -20,6 +20,7 @@ Essential guides for new users:
 In-depth tutorials and how-tos:
 
 - [Workflow Development](guides/workflow-development.md) - Build complete data pipelines
+- [CLI Reference](guides/cli.md) - Command-line interface
 - [Data Modeling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
 - [Dagster Assets](guides/dagster-assets.md) - Master orchestration
 - [dbt Development](guides/dbt-development.md) - SQL transformations
@@ -29,6 +30,7 @@ In-depth tutorials and how-tos:
 Configure additional services:
 
 - [OpenMetadata](setup/openmetadata.md) - Data catalog and governance
+- [PostgREST](setup/postgrest.md) - REST API from PostgreSQL
 - [Hasura](setup/hasura.md) - GraphQL API
 - [Observability](setup/observability.md) - Monitoring with Grafana
 
@@ -104,4 +106,4 @@ Phlo is open source. Contributions welcome!
 
 ---
 
-**Version:** 1.0 | **Last Updated:** 2025-11-21
+**Version:** 1.0 | **Last Updated:** 2025-11-26
