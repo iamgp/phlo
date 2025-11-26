@@ -22,5 +22,7 @@ models:
       +tags: ["gold"]
       +persist_docs: { relation: true, columns: true }
     marts_postgres:
+      +database: postgres
       +schema: marts
       +tags: ["mart"]
+      +materialized: table
