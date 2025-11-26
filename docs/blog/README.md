@@ -331,7 +331,7 @@ Most sections can run on minimum spec, just slower.
 4. **Compliance**: Data governance, PII handling, retention policies
 5. **ML integration**: Train models on Phlo data
 
-See the main [docs](../README.md) for references and advanced guides.
+See the main [docs](../index.md) for references and advanced guides.
 
 ## Contributing
 

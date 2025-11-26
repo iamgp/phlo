@@ -43,7 +43,7 @@ class WeatherObservations(DataFrameModel):
     timestamp: datetime
 
 # ingestion/weather.py
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ✅ Matches schema field
     validation_schema=WeatherObservations,
 )
@@ -94,7 +94,7 @@ unique_key="observation_id"
 ### ❌ Incorrect: Typo in unique_key
 
 ```python
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="observation_idd",  # ❌ Typo: extra 'd'
     validation_schema=WeatherObservations,
 )
@@ -105,7 +105,7 @@ def weather_observations(partition: str):
 ### ✅ Correct: Exact match
 
 ```python
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ✅ Matches schema field exactly
     validation_schema=WeatherObservations,
 )
@@ -121,7 +121,7 @@ class WeatherObservations(DataFrameModel):
     temperature: float
     # ❌ No observation_id field
 
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ❌ Field doesn't exist
     validation_schema=WeatherObservations,
 )
@@ -137,7 +137,7 @@ class WeatherObservations(DataFrameModel):
     station_id: str
     temperature: float
 
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ✅ Field exists in schema
     validation_schema=WeatherObservations,
 )
@@ -205,7 +205,7 @@ def weather_observations(partition: str):
    # ingestion/weather.py
    from phlo.schemas.weather import WeatherObservations, UNIQUE_KEY
 
-   @cascade_ingestion(
+   @phlo_ingestion(
        unique_key=UNIQUE_KEY,  # ✅ Use constant to avoid typos
        validation_schema=WeatherObservations,
    )

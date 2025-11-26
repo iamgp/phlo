@@ -406,7 +406,7 @@ setup_postgrest(
 
 #### See Also
 
-- [PostgREST Deployment Guide](./POSTGREST_DEPLOYMENT.md)
+- [PostgREST Deployment Guide](../setup/postgrest.md)
 - [PostgREST Migration PRD](./prd-postgrest-migration.md)
 - [PostgREST Examples](../migrations/postgrest/examples/)
 
