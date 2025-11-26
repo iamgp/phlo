@@ -12,12 +12,9 @@ from dagster_dbt import DbtCliResource
 from phlo.config import config
 from phlo.defs.resources.iceberg import IcebergResource
 from phlo.defs.resources.trino import TrinoResource
-from phlo.defs.validation.pandera_validator import PanderaValidatorResource
 from phlo.defs.validation.dbt_validator import DBTValidatorResource
 from phlo.defs.validation.freshness_validator import FreshnessValidatorResource
-from phlo.defs.validation.schema_validator import (
-    SchemaCompatibilityValidatorResource,
-)
+from phlo.defs.validation.schema_validator import SchemaCompatibilityValidatorResource
 
 # Public API exports
 __all__ = ["IcebergResource", "TrinoResource", "NessieResource"]
@@ -66,7 +63,6 @@ def build_defs() -> dg.Definitions:
         - dbt: For SQL-based data transformations
         - trino: Query engine used for Iceberg reads/writes (branch-aware)
         - iceberg: PyIceberg/Nessie catalog helper (branch-aware)
-        - pandera_validator: Data quality validation with Pandera schemas
         - dbt_validator: dbt test execution and parsing
         - freshness_validator: Data freshness checks
         - schema_validator: Schema compatibility validation
@@ -80,17 +76,8 @@ def build_defs() -> dg.Definitions:
     resources: dict[str, Any] = {
         "trino": trino_resource,
         "iceberg": iceberg_resource,
-        "pandera_validator": PanderaValidatorResource(
-            trino=trino_resource,
-            critical_level=config.pandera_critical_level,
-        ),
         "dbt_validator": DBTValidatorResource(),
-        "freshness_validator": FreshnessValidatorResource(
-            blocks_promotion=config.freshness_blocks_promotion,
-            glucose_freshness_hours=config.glucose_freshness_hours,
-            github_events_freshness_hours=config.github_events_freshness_hours,
-            github_stats_freshness_hours=config.github_stats_freshness_hours,
-        ),
+        "freshness_validator": FreshnessValidatorResource(),
         "schema_validator": SchemaCompatibilityValidatorResource(),
     }
 
