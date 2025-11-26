@@ -360,6 +360,8 @@ transforms/dbt/
 
 ### Connection Configuration
 
+Nessie branching is configured via different Trino catalogs:
+
 ```yaml
 # profiles.yml
 phlo:
@@ -367,23 +369,22 @@ phlo:
   
   outputs:
     dev:
-      type: trino          # Query engine
-      host: trino          # Service name
+      type: trino
+      host: trino
       port: 8080
-      catalog: iceberg     # Iceberg catalog
-      schema: bronze       # Default schema
-      session_properties:
-        iceberg.nessie_reference_name: dev  # Branch
+      catalog: iceberg_dev  # Dev branch catalog
+      schema: bronze
     
     prod:
       type: trino
       host: trino
       port: 8080
-      catalog: iceberg
-      schema: bronze       # Writes go to bronze
-      session_properties:
-        iceberg.nessie_reference_name: main  # Production branch
+      catalog: iceberg      # Main branch catalog
+      schema: bronze
 ```
+
+The `iceberg_dev` catalog points to the Nessie dev branch, while `iceberg` points to main.
+This is configured in Trino's catalog properties, not via session properties.
 
 ### Partition-Aware Execution
 
@@ -393,7 +394,6 @@ dbt runs on daily partitions (via Dagster):
 -- models/silver/fct_glucose_readings.sql
 {{ config(
     materialized='table',
-    pre_hook="SET SESSION iceberg.nessie_reference_name = '{{ var('nessie_branch') }}'",
 ) }}
 
 SELECT
