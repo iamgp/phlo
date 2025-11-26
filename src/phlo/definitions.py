@@ -12,15 +12,15 @@ import dagster as dg
 logger = logging.getLogger(__name__)
 
 from phlo.config import config
-from phlo.defs.ingestion import build_defs as build_ingestion_defs
 from phlo.defs.nessie import build_defs as build_nessie_defs
 from phlo.defs.publishing import build_defs as build_publishing_defs
-from phlo.defs.quality import build_defs as build_quality_defs
 from phlo.defs.resources import build_defs as build_resource_defs
 from phlo.defs.schedules import build_defs as build_schedule_defs
 from phlo.defs.sensors import build_defs as build_sensor_defs
 from phlo.defs.transform import build_defs as build_transform_defs
 from phlo.defs.validation import build_defs as build_validation_defs
+from phlo.ingestion import get_ingestion_assets
+from phlo.quality import get_quality_checks
 
 
 # Executor selection function: Chooses between in-process and multiprocess executors
@@ -71,12 +71,16 @@ def _default_executor() -> dg.ExecutorDefinition | None:
 # Merge definitions function: Combines all Dagster components from submodules
 # into a single Definitions object with the selected executor
 def _merged_definitions() -> dg.Definitions:
+    # Get user-defined ingestion assets and quality checks
+    ingestion_defs = dg.Definitions(assets=get_ingestion_assets())
+    quality_defs = dg.Definitions(asset_checks=get_quality_checks())
+
     merged = dg.Definitions.merge(
         build_resource_defs(),
-        build_ingestion_defs(),
+        ingestion_defs,
         build_transform_defs(),
         build_publishing_defs(),
-        build_quality_defs(),
+        quality_defs,
         build_nessie_defs(),
         build_validation_defs(),
         build_schedule_defs(),

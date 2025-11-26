@@ -172,7 +172,7 @@ def _discover_dbt_assets() -> list[Any]:
 
         from phlo.defs.partitions import daily_partition
 
-        # Use the same custom translator from the core package
+        # Use generic translator - maps sources to dlt_<name> assets
         class CustomDbtTranslator(DagsterDbtTranslator):
             def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> AssetKey:
                 resource_type = dbt_resource_props.get("resource_type")
@@ -180,14 +180,8 @@ def _discover_dbt_assets() -> list[Any]:
                     source_name = dbt_resource_props["source_name"]
                     table_name = dbt_resource_props["name"]
                     if source_name == "dagster_assets":
-                        if table_name == "user_events":
-                            return AssetKey(["dlt_github_user_events"])
-                        elif table_name == "repo_stats":
-                            return AssetKey(["dlt_github_repo_stats"])
-                        elif table_name == "entries" or table_name == "glucose_entries":
-                            return AssetKey(["dlt_glucose_entries"])
-                        else:
-                            return AssetKey([table_name])
+                        # Convention: dbt sources map to dlt_<table_name> assets
+                        return AssetKey([f"dlt_{table_name}"])
                     return super().get_asset_key(dbt_resource_props)
                 return AssetKey(dbt_resource_props["name"])
 
@@ -195,23 +189,22 @@ def _discover_dbt_assets() -> list[Any]:
                 return {"dbt", "trino"}
 
             def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
+                """Derive group from dbt model path or naming convention."""
                 model_name = dbt_resource_props["name"]
 
-                if "_github_" in model_name or model_name in [
-                    "stg_github_user_events", "stg_github_repo_stats",
-                    "fct_github_user_events", "fct_github_repo_stats",
-                    "mrt_github_user_activity", "mrt_github_repo_metrics",
-                    "mrt_github_activity_overview", "mrt_github_repo_insights"
-                ]:
-                    return "github"
-                elif "_glucose_" in model_name or "_entries" in model_name or model_name in [
-                    "stg_entries", "fct_glucose_readings", "mrt_glucose_readings",
-                    "mrt_glucose_overview", "mrt_glucose_hourly_patterns"
-                ]:
-                    return "nightscout"
-                elif model_name == "fct_daily_glucose_metrics":
-                    return "nightscout"
+                # Try to get group from dbt model config/meta
+                meta = dbt_resource_props.get("meta", {})
+                if "group" in meta:
+                    return meta["group"]
 
+                # Try to derive from fqn (folder path)
+                fqn = dbt_resource_props.get("fqn", [])
+                if len(fqn) > 2:
+                    folder = fqn[1]
+                    if folder in ("bronze", "silver", "gold", "marts", "staging"):
+                        return folder
+
+                # Fallback: group by naming convention
                 if model_name.startswith("stg_"):
                     return "bronze"
                 if model_name.startswith(("dim_", "fct_")):

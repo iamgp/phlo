@@ -14,6 +14,8 @@ from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 
 from phlo.quality.checks import QualityCheck, QualityCheckResult
 
+_QUALITY_CHECKS: list[Any] = []
+
 
 def phlo_quality(
     table: str,
@@ -211,9 +213,20 @@ def phlo_quality(
                 metadata=metadata,
             )
 
+        _QUALITY_CHECKS.append(quality_check_wrapper)
         return quality_check_wrapper
 
     return decorator
+
+
+def get_quality_checks() -> list[Any]:
+    """
+    Get all asset checks registered with @phlo_quality decorator.
+
+    Returns:
+        List of Dagster asset check definitions
+    """
+    return _QUALITY_CHECKS.copy()
 
 
 def _load_data_trino(context: Any, query: str, resources: dict) -> Any:

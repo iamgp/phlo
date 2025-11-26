@@ -151,15 +151,22 @@ def _publish_marts_to_postgres(
 # --- Asset Factory ---
 # Dynamically create publishing assets from YAML configuration
 
-def create_publishing_assets():
+def create_publishing_assets(config_path: Path | None = None):
     """
     Factory function that reads publishing config from YAML and creates assets dynamically.
+
+    Args:
+        config_path: Path to config.yaml. Returns empty list if not provided or doesn't exist.
 
     Returns:
         List of dynamically created Dagster assets
     """
-    # Load configuration from YAML
-    config_path = Path(__file__).parent / "config.yaml"
+    if config_path is None:
+        config_path = Path(__file__).parent / "config.yaml"
+
+    if not config_path.exists():
+        return []
+
     with open(config_path, 'r') as f:
         config_data = yaml.safe_load(f)
 
