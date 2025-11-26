@@ -31,34 +31,36 @@ class NessieResource(dg.ConfigurableResource):
 
     def get_branches(self) -> list[dict[str, Any]]:
         """Get all branches and tags."""
-        response = requests.get(f"{config.nessie_api_v1_uri}/trees")
+        response = requests.get(f"{config.nessie_api_v1_uri}/trees", timeout=30)
         response.raise_for_status()
         return response.json().get("references", [])
 
-    def create_branch(self, branch_name: str, source_ref: str = "main") -> dict[str, Any]:
+    def create_branch(
+        self, branch_name: str, source_ref: str = "main"
+    ) -> dict[str, Any]:
         """Create a new branch from source reference."""
         source_hash = self._get_ref_hash(source_ref)
         data = {"type": "BRANCH", "name": branch_name, "hash": source_hash}
         response = requests.post(
             f"{config.nessie_api_v1_uri}/trees/tree",
             json=data,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=30,
         )
         response.raise_for_status()
         return response.json()
 
     def merge_branch(self, source_branch: str, target_branch: str) -> dict[str, Any]:
         """Merge source branch into target branch."""
-        # Get the hash of the source branch
         source_hash = self._get_ref_hash(source_branch)
-
-        # Get the hash of the target branch (for optimistic locking)
         target_hash = self._get_ref_hash(target_branch)
 
         response = requests.post(
-            f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}/merge?expectedHash={target_hash}",
+            f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}/merge",
+            params={"expectedHash": target_hash},
             json={"fromRefName": source_branch, "fromHash": source_hash},
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=30,
         )
         response.raise_for_status()
         return response.json()
@@ -71,30 +73,33 @@ class NessieResource(dg.ConfigurableResource):
         exact same commit as source_branch, essentially "promoting" the source
         to target without merging. This avoids merge conflicts.
         """
-        # Get the hash of the source branch
         source_hash = self._get_ref_hash(source_branch)
-
-        # Get current hash of target for optimistic locking
         target_hash = self._get_ref_hash(target_branch)
 
         response = requests.put(
-            f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}?expectedHash={target_hash}",
+            f"{config.nessie_api_v1_uri}/trees/branch/{target_branch}",
+            params={"expectedHash": target_hash},
             json={"type": "BRANCH", "name": target_branch, "hash": source_hash},
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=30,
         )
         response.raise_for_status()
 
-        # API returns 204 No Content on success
         return {
             "status": "success",
             "source_branch": source_branch,
             "target_branch": target_branch,
-            "new_hash": source_hash
+            "new_hash": source_hash,
         }
 
     def delete_branch(self, branch_name: str) -> None:
         """Delete a branch."""
-        response = requests.delete(f"{config.nessie_api_v1_uri}/trees/branch/{branch_name}")
+        branch_hash = self._get_ref_hash(branch_name)
+        response = requests.delete(
+            f"{config.nessie_api_v1_uri}/trees/branch/{branch_name}",
+            params={"expectedHash": branch_hash},
+            timeout=30,
+        )
         response.raise_for_status()
 
     def tag_snapshot(self, tag_name: str, source_ref: str = "main") -> dict[str, Any]:
@@ -104,14 +109,18 @@ class NessieResource(dg.ConfigurableResource):
         response = requests.post(
             f"{config.nessie_api_v1_uri}/trees/tree",
             json=data,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=30,
         )
         response.raise_for_status()
         return response.json()
 
     def _get_ref_hash(self, ref: str) -> str:
         """Get the hash of a reference."""
-        response = requests.get(f"{config.nessie_api_v1_uri}/trees/tree/{ref}")
+        response = requests.get(
+            f"{config.nessie_api_v1_uri}/trees/tree/{ref}",
+            timeout=30,
+        )
         response.raise_for_status()
         return response.json()["hash"]
 

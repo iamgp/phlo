@@ -232,7 +232,7 @@ def merge_to_table(
     unique_values_list = list(unique_values_set)
 
     for i in range(0, len(unique_values_list), batch_size):
-        batch = unique_values_list[i:i + batch_size]
+        batch = unique_values_list[i : i + batch_size]
         # PyIceberg delete uses expressions
         # We'll use the In expression for efficient filtering
         from pyiceberg.expressions import In
@@ -318,6 +318,7 @@ def merge_to_table(
     except (pa.ArrowInvalid, pa.ArrowTypeError) as e:
         # If casting fails, log the issue but try appending anyway
         import logging
+
         logger = logging.getLogger(__name__)
         logger.warning(f"Could not cast arrow table to target schema: {e}")
 

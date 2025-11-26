@@ -101,9 +101,7 @@ def create_ingestion_workflow(
     else:
         # Cascade repo mode - use src/phlo/defs/
         schema_dir = project_root / "src" / "phlo" / "schemas"
-        asset_dir = (
-            project_root / "src" / "phlo" / "defs" / "ingestion" / domain_snake
-        )
+        asset_dir = project_root / "src" / "phlo" / "defs" / "ingestion" / domain_snake
         test_dir = project_root / "tests"
         schema_import_path = f"phlo.schemas.{domain_snake}"
 

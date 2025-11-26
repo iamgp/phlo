@@ -30,8 +30,8 @@ from phlo.config import config
 
 
 # Catalog names for different branches
-CATALOG_MAIN = "iceberg"      # Points to Nessie main branch
-CATALOG_DEV = "iceberg_dev"   # Points to Nessie dev branch
+CATALOG_MAIN = "iceberg"  # Points to Nessie main branch
+CATALOG_DEV = "iceberg_dev"  # Points to Nessie dev branch
 
 
 class TrinoResource(ConfigurableResource):
@@ -41,13 +41,13 @@ class TrinoResource(ConfigurableResource):
     Supports branch-aware queries through catalog selection:
     - `catalog="iceberg"` -> main branch (production)
     - `catalog="iceberg_dev"` -> dev branch (feature work)
-    
+
     Example:
         ```python
         # Read from main branch (production)
         trino = TrinoResource()
         rows = trino.execute("SELECT * FROM iceberg.marts.my_table")
-        
+
         # Read from dev branch
         trino_dev = TrinoResource(catalog="iceberg_dev")
         rows = trino_dev.execute("SELECT * FROM iceberg_dev.staging.my_table")
@@ -61,9 +61,7 @@ class TrinoResource(ConfigurableResource):
     trino_schema: str | None = None
 
     def get_connection(
-        self, 
-        schema: str | None = None, 
-        branch: Literal["main", "dev"] | None = None
+        self, schema: str | None = None, branch: Literal["main", "dev"] | None = None
     ) -> Connection:
         """
         Open a Trino DB-API connection.
@@ -79,7 +77,7 @@ class TrinoResource(ConfigurableResource):
             catalog = CATALOG_MAIN
         elif branch == "dev":
             catalog = CATALOG_DEV
-            
+
         return connect(
             host=self.host,
             port=self.port,
@@ -90,9 +88,7 @@ class TrinoResource(ConfigurableResource):
 
     @contextmanager
     def connection(
-        self, 
-        schema: str | None = None, 
-        branch: Literal["main", "dev"] | None = None
+        self, schema: str | None = None, branch: Literal["main", "dev"] | None = None
     ) -> Iterator[Connection]:
         """
         Context manager that yields a Trino connection and ensures it gets closed.
@@ -109,9 +105,7 @@ class TrinoResource(ConfigurableResource):
 
     @contextmanager
     def cursor(
-        self, 
-        schema: str | None = None, 
-        branch: Literal["main", "dev"] | None = None
+        self, schema: str | None = None, branch: Literal["main", "dev"] | None = None
     ) -> Iterator[Cursor]:
         """
         Context manager for a Trino cursor, closing both cursor and connection.
@@ -128,11 +122,11 @@ class TrinoResource(ConfigurableResource):
                 cursor.close()
 
     def execute(
-        self, 
-        sql: str, 
-        parameters: Sequence[Any] | None = None, 
-        schema: str | None = None, 
-        branch: Literal["main", "dev"] | None = None
+        self,
+        sql: str,
+        parameters: Sequence[Any] | None = None,
+        schema: str | None = None,
+        branch: Literal["main", "dev"] | None = None,
     ) -> list[tuple[Any, ...]]:
         """
         Execute SQL and fetch all rows.

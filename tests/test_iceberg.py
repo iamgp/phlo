@@ -177,7 +177,7 @@ class TestIcebergTablesUnitTests:
 
     def test_ensure_table_invalid_table_name(self):
         """Test that ensure_table raises error for invalid table names."""
-        schema = Schema(NestedField(1, "id", StringType(), required=True))
+        Schema(NestedField(1, "id", StringType(), required=True))
 
         with pytest.raises(ValueError, match="Table name must be namespace.table"):
             # This should raise before any catalog operations

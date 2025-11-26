@@ -122,7 +122,7 @@ class TestTransformUnitTests:
         mock_invocation.target_path = MagicMock()
 
         # Execute the asset function
-        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
+        cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify dbt build was called
         mock_dbt.cli.assert_called()
@@ -163,7 +163,7 @@ class TestTransformUnitTests:
         mock_docs_invocation.target_path = MagicMock()
 
         # Execute the asset function
-        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
+        cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify dbt docs generate was called
         assert mock_dbt.cli.call_count == 2
@@ -198,7 +198,7 @@ class TestTransformUnitTests:
         mock_invocation.target_path = MagicMock()
 
         # Execute the asset function
-        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
+        cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify partition variable was passed
         call_args = mock_dbt.cli.call_args_list[0][0][0]  # First call
@@ -234,7 +234,7 @@ class TestTransformIntegrationTests:
         mock_invocation.target_path = MagicMock()
 
         # Execute
-        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
+        cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify integration points
         assert mock_dbt.cli.called
@@ -330,7 +330,7 @@ class TestTransformE2ETests:
         mock_invocation.target_path = MagicMock()
 
         # Execute full pipeline
-        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
+        cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify both build and docs phases completed
         assert mock_dbt.cli.call_count == 2
@@ -400,7 +400,7 @@ class TestTransformE2ETests:
         mock_docs_invocation.target_path.__truediv__.return_value = mock_artifact_path
 
         # Execute
-        assets = cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
+        cast(list, list(all_dbt_assets(mock_context, mock_dbt)))
 
         # Verify artifacts were copied
         assert mock_copy.call_count == 3  # manifest.json, catalog.json, run_results.json
