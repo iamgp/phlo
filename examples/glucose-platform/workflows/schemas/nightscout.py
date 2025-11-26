@@ -10,7 +10,6 @@ from datetime import datetime
 
 from pandera.pandas import DataFrameModel, Field
 
-
 # Validation constants
 MIN_GLUCOSE_MG_DL = 20
 MAX_GLUCOSE_MG_DL = 600
@@ -107,7 +106,7 @@ class FactGlucoseReadings(DataFrameModel):
         ge=MIN_GLUCOSE_MG_DL,
         le=MAX_GLUCOSE_MG_DL,
         nullable=False,
-        description=f"Blood glucose level in mg/dL (valid range: {MIN_GLUCOSE_MG_DL}-{MAX_GLUCOSE_MG_DL})",
+        description=f"Blood glucose in mg/dL ({MIN_GLUCOSE_MG_DL}-{MAX_GLUCOSE_MG_DL})",
     )
 
     reading_timestamp: datetime = Field(

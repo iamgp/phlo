@@ -16,10 +16,7 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
     """Validates schema compatibility between branches."""
 
     def check_table_compatibility(
-        self,
-        table_name: str,
-        feature_branch: str,
-        target_branch: str = "main"
+        self, table_name: str, feature_branch: str, target_branch: str = "main"
     ) -> dict[str, Any]:
         """
         Check compatibility for a single table.
@@ -44,12 +41,14 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
             return {
                 "compatible": False,
                 "table": table_name,
-                "breaking_changes": [{
-                    "table": table_name,
-                    "change_type": "catalog_error",
-                    "details": f"Failed to connect to catalogs: {str(e)}"
-                }],
-                "additive_changes": []
+                "breaking_changes": [
+                    {
+                        "table": table_name,
+                        "change_type": "catalog_error",
+                        "details": f"Failed to connect to catalogs: {str(e)}",
+                    }
+                ],
+                "additive_changes": [],
             }
 
         try:
@@ -57,16 +56,14 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
             target_table = target_catalog.load_table(table_name)
 
             changes = self._compare_schemas(
-                table_name,
-                feature_table.schema(),
-                target_table.schema()
+                table_name, feature_table.schema(), target_table.schema()
             )
 
             return {
                 "compatible": len(changes["breaking"]) == 0,
                 "table": table_name,
                 "breaking_changes": changes["breaking"],
-                "additive_changes": changes["additive"]
+                "additive_changes": changes["additive"],
             }
 
         except Exception as e:
@@ -77,28 +74,30 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
                     "compatible": True,
                     "table": table_name,
                     "breaking_changes": [],
-                    "additive_changes": [{
-                        "table": table_name,
-                        "change_type": "table_added",
-                        "details": f"New table '{table_name}' in {feature_branch}"
-                    }]
+                    "additive_changes": [
+                        {
+                            "table": table_name,
+                            "change_type": "table_added",
+                            "details": f"New table '{table_name}' in {feature_branch}",
+                        }
+                    ],
                 }
             else:
                 return {
                     "compatible": False,
                     "table": table_name,
-                    "breaking_changes": [{
-                        "table": table_name,
-                        "change_type": "table_error",
-                        "details": f"Error comparing table: {str(e)}"
-                    }],
-                    "additive_changes": []
+                    "breaking_changes": [
+                        {
+                            "table": table_name,
+                            "change_type": "table_error",
+                            "details": f"Error comparing table: {str(e)}",
+                        }
+                    ],
+                    "additive_changes": [],
                 }
 
     def check_compatibility(
-        self,
-        feature_branch: str,
-        target_branch: str = "main"
+        self, feature_branch: str, target_branch: str = "main"
     ) -> dict[str, Any]:
         """
         Compare schemas between feature and target branches.
@@ -144,12 +143,14 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
             return {
                 "compatible": False,
                 "tables_checked": [],
-                "breaking_changes": [{
-                    "table": "N/A",
-                    "change_type": "catalog_error",
-                    "details": f"Failed to connect to catalogs: {str(e)}"
-                }],
-                "additive_changes": []
+                "breaking_changes": [
+                    {
+                        "table": "N/A",
+                        "change_type": "catalog_error",
+                        "details": f"Failed to connect to catalogs: {str(e)}",
+                    }
+                ],
+                "additive_changes": [],
             }
 
         # Discover tables from target catalog
@@ -177,9 +178,7 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
                 tables_checked.append(table_name)
 
                 changes = self._compare_schemas(
-                    table_name,
-                    feature_table.schema(),
-                    target_table.schema()
+                    table_name, feature_table.schema(), target_table.schema()
                 )
 
                 breaking_changes.extend(changes["breaking"])
@@ -193,18 +192,22 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
                     if feature_branch in str(e) or "feature" in str(e):
                         continue  # Table doesn't exist in feature yet (expected)
                     else:
-                        additive_changes.append({
-                            "table": table_name,
-                            "change_type": "table_added",
-                            "details": f"New table '{table_name}' in {feature_branch}"
-                        })
+                        additive_changes.append(
+                            {
+                                "table": table_name,
+                                "change_type": "table_added",
+                                "details": f"New table '{table_name}' in {feature_branch}",
+                            }
+                        )
                 else:
                     # Other error
-                    breaking_changes.append({
-                        "table": table_name,
-                        "change_type": "table_error",
-                        "details": f"Error comparing table: {str(e)}"
-                    })
+                    breaking_changes.append(
+                        {
+                            "table": table_name,
+                            "change_type": "table_error",
+                            "details": f"Error comparing table: {str(e)}",
+                        }
+                    )
 
         compatible = len(breaking_changes) == 0
 
@@ -212,14 +215,11 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
             "compatible": compatible,
             "tables_checked": tables_checked,
             "breaking_changes": breaking_changes,
-            "additive_changes": additive_changes
+            "additive_changes": additive_changes,
         }
 
     def _compare_schemas(
-        self,
-        table_name: str,
-        feature_schema: Schema,
-        target_schema: Schema
+        self, table_name: str, feature_schema: Schema, target_schema: Schema
     ) -> dict[str, list]:
         """Compare two schemas and categorize changes."""
         breaking = []
@@ -232,28 +232,34 @@ class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):
         # Check for dropped columns (breaking)
         for field_name, field in target_fields.items():
             if field_name not in feature_fields:
-                breaking.append({
-                    "table": table_name,
-                    "change_type": "column_dropped",
-                    "details": f"Column '{field_name}' exists in main but not in {table_name}"
-                })
+                breaking.append(
+                    {
+                        "table": table_name,
+                        "change_type": "column_dropped",
+                        "details": f"Column '{field_name}' exists in main but not in {table_name}",
+                    }
+                )
 
         # Check for new columns (additive) and type changes (breaking)
         for field_name, field in feature_fields.items():
             if field_name not in target_fields:
-                additive.append({
-                    "table": table_name,
-                    "change_type": "column_added",
-                    "details": f"New column '{field_name}' added"
-                })
+                additive.append(
+                    {
+                        "table": table_name,
+                        "change_type": "column_added",
+                        "details": f"New column '{field_name}' added",
+                    }
+                )
             else:
                 # Check for type changes (breaking)
                 target_field = target_fields[field_name]
                 if str(field.field_type) != str(target_field.field_type):
-                    breaking.append({
-                        "table": table_name,
-                        "change_type": "type_changed",
-                        "details": f"Column '{field_name}' type changed from {target_field.field_type} to {field.field_type}"
-                    })
+                    breaking.append(
+                        {
+                            "table": table_name,
+                            "change_type": "type_changed",
+                            "details": f"Column '{field_name}' type changed from {target_field.field_type} to {field.field_type}",
+                        }
+                    )
 
         return {"breaking": breaking, "additive": additive}

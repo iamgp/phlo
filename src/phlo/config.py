@@ -2,7 +2,6 @@
 # This module defines all configurable settings using Pydantic, loaded from environment variables
 # and .env file. It provides computed properties for connection strings and catalog configs.
 
-import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -90,6 +89,10 @@ class Settings(BaseSettings):
         default=True,
         description="Enable automatic promotion to main after validation passes",
     )
+    branch_cleanup_enabled: bool = Field(
+        default=False,
+        description="Enable automatic branch cleanup (set True in production)",
+    )
 
     # --- Validation Gates Configuration ---
     # Settings for data quality validation and promotion gates
@@ -146,7 +149,7 @@ class Settings(BaseSettings):
         """dbt profiles directory - derived from dbt_project_dir."""
         return f"{self.dbt_project_dir}/profiles"
 
-            # --- Orchestration Configuration ---
+        # --- Orchestration Configuration ---
 
     # Settings for Dagster data orchestration platform
     # Dagster

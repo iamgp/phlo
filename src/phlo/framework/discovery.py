@@ -237,7 +237,9 @@ def _discover_dbt_assets() -> list[Any]:
 
             if context.has_partition_key:
                 partition_date = context.partition_key
-                build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
+                build_args.extend(
+                    ["--vars", f'{{"partition_date_str": "{partition_date}"}}']
+                )
                 context.log.info(f"Running dbt for partition: {partition_date}")
 
             os.environ.setdefault("TRINO_HOST", settings.trino_host)
@@ -347,7 +349,9 @@ def _discover_publishing_assets() -> list[Any]:
             logger.debug("No marts models found in dbt manifest")
             return []
 
-        logger.info(f"Found {len(marts_models)} marts models to publish: {marts_models}")
+        logger.info(
+            f"Found {len(marts_models)} marts models to publish: {marts_models}"
+        )
 
         # Create asset keys for dependencies
         deps = [AssetKey(name) for name in marts_models]

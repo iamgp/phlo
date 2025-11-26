@@ -89,7 +89,9 @@ def test(
         result = subprocess.run(pytest_args, check=False)
         sys.exit(result.returncode)
     except FileNotFoundError:
-        click.echo("Error: pytest not found. Install with: pip install pytest", err=True)
+        click.echo(
+            "Error: pytest not found. Install with: pip install pytest", err=True
+        )
         sys.exit(1)
 
 
@@ -229,9 +231,7 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo("\nNext steps:")
         if project_name != project_dir.name:
             click.echo(f"  1. cd {project_name}")
-        click.echo(
-            "  2. pip install -e .              # Install Phlo and dependencies"
-        )
+        click.echo("  2. pip install -e .              # Install Phlo and dependencies")
         click.echo("  3. phlo create-workflow       # Create your first workflow")
         click.echo("  4. phlo dev                   # Start Dagster UI")
 

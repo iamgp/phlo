@@ -59,9 +59,19 @@ def _validate_cron_expression(cron: str | None) -> None:
     for i, part in enumerate(parts):
         part_names = ["minute", "hour", "day_of_month", "month", "day_of_week"]
         # Allow *, */N, N, N-M, N,M patterns
-        if not (part == "*" or "/" in part or "-" in part or "," in part or part.isdigit()):
+        if not (
+            part == "*" or "/" in part or "-" in part or "," in part or part.isdigit()
+        ):
             # Check if it's a day name (MON, TUE, etc.) for day_of_week
-            if i == 4 and part.upper() in ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]:
+            if i == 4 and part.upper() in [
+                "MON",
+                "TUE",
+                "WED",
+                "THU",
+                "FRI",
+                "SAT",
+                "SUN",
+            ]:
                 continue
 
             raise CascadeCronError(
@@ -99,7 +109,9 @@ def _validate_unique_key_in_schema(
         if unique_key not in schema_fields:
             # Generate "Did you mean?" suggestions
             suggestions_list = suggest_similar_field_names(unique_key, schema_fields)
-            suggestions_list.append(f"Available fields: {format_field_list(schema_fields)}")
+            suggestions_list.append(
+                f"Available fields: {format_field_list(schema_fields)}"
+            )
 
             raise CascadeSchemaError(
                 message=f"unique_key '{unique_key}' not found in schema '{validation_schema.__name__}'",
@@ -211,7 +223,8 @@ def phlo_ingestion(
             name=f"dlt_{table_config.table_name}",
             group_name=group,
             partitions_def=daily_partition,
-            description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
+            description=func.__doc__
+            or f"Ingests {table_config.table_name} data to Iceberg",
             kinds={"dlt", "iceberg"},
             op_tags={"dagster/max_runtime": max_runtime_seconds},
             retry_policy=dg.RetryPolicy(
@@ -231,7 +244,9 @@ def phlo_ingestion(
         )
         def wrapper(context, iceberg: IcebergResource) -> dg.MaterializeResult:
             partition_date = context.partition_key
-            pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
+            pipeline_name = (
+                f"{table_config.table_name}_{partition_date.replace('-', '_')}"
+            )
             branch_name = get_branch_from_context(context)
 
             context.log.info(f"Starting ingestion for partition {partition_date}")
@@ -302,7 +317,9 @@ def phlo_ingestion(
                 )
 
             except Exception as e:
-                context.log.error(f"Ingestion failed for partition {partition_date}: {e}")
+                context.log.error(
+                    f"Ingestion failed for partition {partition_date}: {e}"
+                )
                 raise RuntimeError(
                     f"Ingestion failed for partition {partition_date}: {e}"
                 ) from e

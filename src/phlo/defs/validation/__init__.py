@@ -27,7 +27,7 @@ __all__ = [
 
 def build_defs() -> dg.Definitions:
     """Build validation definitions.
-    
+
     Asset checks should be defined in user workflows using the validation resources.
     This returns empty definitions as the framework doesn't include example checks.
     """

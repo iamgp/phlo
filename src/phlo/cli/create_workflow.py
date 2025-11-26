@@ -153,7 +153,9 @@ def _display_config_summary(config: dict[str, Any]) -> None:
     console.print(f"  Type: [cyan]{config['workflow_type']}[/cyan]")
 
     if config["workflow_type"] == "ingestion":
-        console.print(f"  Table: [cyan]{config.get('table_name', config['asset_name'])}[/cyan]")
+        console.print(
+            f"  Table: [cyan]{config.get('table_name', config['asset_name'])}[/cyan]"
+        )
         console.print(f"  Unique Key: [cyan]{config.get('unique_key', 'id')}[/cyan]")
         console.print(f"  Schedule: [cyan]{config.get('cron', 'none')}[/cyan]")
 

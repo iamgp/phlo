@@ -28,7 +28,9 @@ class IcebergResource(ConfigurableResource):
     or overridden per-resource instance.
     """
 
-    ref: str = config.iceberg_nessie_ref  # Default from config (typically "main" for production)
+    ref: str = (
+        config.iceberg_nessie_ref
+    )  # Default from config (typically "main" for production)
 
     def get_catalog(self, override_ref: str | None = None) -> Catalog:
         """
@@ -64,7 +66,9 @@ class IcebergResource(ConfigurableResource):
             ref=branch,
         )
 
-    def append_parquet(self, table_name: str, data_path: str, override_ref: str | None = None) -> None:
+    def append_parquet(
+        self, table_name: str, data_path: str, override_ref: str | None = None
+    ) -> None:
         """
         Append a parquet file or directory to the Iceberg table.
 
@@ -77,7 +81,11 @@ class IcebergResource(ConfigurableResource):
         append_to_table(table_name=table_name, data_path=data_path, ref=branch)
 
     def merge_parquet(
-        self, table_name: str, data_path: str, unique_key: str, override_ref: str | None = None
+        self,
+        table_name: str,
+        data_path: str,
+        unique_key: str,
+        override_ref: str | None = None,
     ) -> dict[str, int]:
         """
         Merge (upsert) a parquet file or directory to the Iceberg table with deduplication.
