@@ -17,12 +17,12 @@ git merge  # Promote to main
 
 Nessie brings this same workflow to **data**:
 
-```sql
--- Data versioning
-BRANCH INTO dev FROM main  -- Create dev branch from main
--- Work on dev branch, transform data
-MERGE dev INTO main  -- Promote to production
--- Tag for releases: v1.0, v1.1, etc.
+```
+main branch (production)     dev branch (development)
+      │                            │
+      │  ← stable, validated       │  ← experimental, testing
+      │                            │
+      └──── merge when ready ──────┘
 ```
 
 ## The Problem Nessie Solves
@@ -189,75 +189,106 @@ def create_dev_branch(nessie_client: NessieResource) -> None:
         print("Dev branch already exists")
 ```
 
-### Phlo's Development Workflow
+### Phlo's Write-Audit-Publish Pattern
 
-Here's how Phlo uses Nessie branches:
+Phlo implements the **Write-Audit-Publish (WAP)** pattern automatically:
 
 ```
-1. INGEST TO DEV
-   ┌──────────────────────┐
-   │ nessie_dev_branch    │ ← Ensure dev exists
-   └──────────┬───────────┘
-              ↓
-   ┌──────────────────────────┐
-   │ dlt_glucose_entries      │ ← Ingest to raw.entries
-   │ (branch: dev)            │   (creates new snapshot on dev)
-   └──────────┬───────────────┘
-
-2. TRANSFORM ON DEV
-              ↓
-   ┌──────────────────────────┐
-   │ dbt_bronze, silver, gold │ ← Transform (new snapshots)
-   │ (branch: dev)            │
-   └──────────┬───────────────┘
-
-3. VALIDATE QUALITY
-              ↓
-   ┌──────────────────────────┐
-   │ Data quality checks      │ ← Tests, assertions
-   │ (branch: dev)            │
-   └──────────┬───────────────┘
-              ↓ (if OK)
-   
-4. MERGE TO MAIN
-   ┌──────────────────────────┐
-   │ promote_dev_to_main      │ ← Atomic merge
-   └──────────┬───────────────┘
-              ↓
-   ┌──────────────────────────┐
-   │ main branch now has      │ ← Production data
-   │ latest transformations   │   ready to use
-   └──────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     FEATURE BRANCH (dev)                         │
+│  Catalog: iceberg_dev                                           │
+│                                                                  │
+│  1. Ingestion ──► 2. Transforms (dbt) ──► 3. Quality Checks     │
+│     (PyIceberg)      (bronze→silver→gold)    (validation)       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ 4. All Checks Pass?
+                              ▼
+                    ┌─────────────────┐
+                    │  AUTO-MERGE     │ (Nessie merge via sensor)
+                    └─────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       MAIN BRANCH                                │
+│  Catalog: iceberg                                               │
+│                                                                  │
+│  5. Publishing ──► Postgres (marts for BI dashboards)           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Code: Merge from Dev to Main
+**Key insight**: All writes happen on the feature branch. Only validated data reaches main.
+
+### Automatic Branch Management with Sensors
+
+Phlo handles branching automatically via Dagster sensors:
 
 ```python
-# From src/phlo/defs/nessie/workflow.py
+# 1. branch_creation_sensor - Creates branch when pipeline starts
+@run_status_sensor(run_status=DagsterRunStatus.STARTING)
+def branch_creation_sensor(context, branch_manager):
+    """Auto-create pipeline/run-{id} branch for isolation."""
+    branch_manager.create_pipeline_branch(context.dagster_run.run_id)
 
-@asset(deps=[nessie_dev_branch, "dbt:*", "quality_checks"])
-def promote_dev_to_main(nessie_client: NessieResource) -> None:
-    """
-    Merge dev branch to main after validation.
+# 2. auto_promotion_sensor - Merges when quality checks pass
+@sensor(minimum_interval_seconds=30)
+def auto_promotion_sensor(context, nessie, branch_manager):
+    """Auto-merge to main when all ERROR-severity checks pass."""
+    # Check recent runs for passing quality checks
+    # If all pass → merge branch to main
+    # Create timestamped tag (v20251126_143000)
     
-    Ensures all transformation and quality checks pass
-    before promoting to production.
-    """
-    
-    nessie_client.merge_branch(
-        from_branch='dev',
-        to_branch='main',
-        message='Promote validated transforms to production'
-    )
-    
-    print("✓ Data promoted from dev to main")
-    print("✓ All tables on main branch updated atomically")
+# 3. branch_cleanup_sensor - Deletes old branches
+@sensor(minimum_interval_seconds=3600)
+def branch_cleanup_sensor(context, branch_manager):
+    """Clean up branches after retention period (default: 7 days)."""
 ```
 
-This ensures:
-- Dev branch never affects main
-- Merge is atomic (all tables or none)
-- Audit trail (who merged what, when)
+**You don't need to manually merge** - the sensor handles it when quality checks pass.
+
+### Trino Catalog Configuration (Not Session Properties)
+
+Nessie branching in Trino is configured at the **catalog level**, not via session properties:
+
+```properties
+# .phlo/trino/catalog/iceberg.properties (main branch)
+connector.name=iceberg
+iceberg.catalog.type=rest
+iceberg.rest-catalog.uri=http://nessie:19120/iceberg/main
+iceberg.rest-catalog.prefix=main
+```
+
+```properties
+# .phlo/trino/catalog/iceberg_dev.properties (dev branch)
+connector.name=iceberg
+iceberg.catalog.type=rest
+iceberg.rest-catalog.uri=http://nessie:19120/iceberg/dev
+iceberg.rest-catalog.prefix=dev
+```
+
+Query different branches by using different catalogs:
+
+```sql
+-- Query main (production)
+SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
+
+-- Query dev (development)  
+SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
+```
+
+### Using Branch in Code
+
+```python
+from phlo.defs.resources.trino import TrinoResource
+
+trino = TrinoResource()
+
+# Query main branch (default)
+rows = trino.execute("SELECT * FROM iceberg.marts.readings", branch="main")
+
+# Query dev branch
+rows = trino.execute("SELECT * FROM iceberg_dev.marts.readings", branch="dev")
+```
 
 ## Hands-On: Explore Nessie
 
@@ -317,26 +348,26 @@ curl "http://localhost:19120/api/v2/trees/main/history" \
 
 ### Query on a Specific Branch
 
-When using Trino with Nessie, you select which branch:
+Use different Trino catalogs to query different branches:
 
 ```sql
--- Query main (production)
-SET SESSION iceberg.nessie_reference_name = 'main';
+-- Query main (production) - uses 'iceberg' catalog
 SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
 -- Result: 5000
 
--- Query dev (development)
-SET SESSION iceberg.nessie_reference_name = 'dev';
-SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
+-- Query dev (development) - uses 'iceberg_dev' catalog
+SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
 -- Result: 5500 (includes new test data)
 
--- Switch back to main
-SET SESSION iceberg.nessie_reference_name = 'main';
-SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
--- Result: 5000 (unchanged)
+-- Compare between branches
+SELECT 
+    'main' as branch, COUNT(*) as rows FROM iceberg.raw.glucose_entries
+UNION ALL
+SELECT 
+    'dev' as branch, COUNT(*) as rows FROM iceberg_dev.raw.glucose_entries;
 ```
 
-In dbt, this is automatic—it reads from the configured branch:
+In dbt, select the target to use the appropriate catalog:
 
 ```yaml
 # transforms/dbt/profiles.yml
@@ -346,44 +377,68 @@ phlo:
     dev:
       type: trino
       host: trino
-      catalog: iceberg
+      catalog: iceberg_dev  # ← Dev branch catalog
       schema: bronze
-      session_properties:
-        iceberg.nessie_reference_name: dev  ← Run on dev branch
         
     prod:
       type: trino
       host: trino
-      catalog: iceberg
+      catalog: iceberg  # ← Main branch catalog
       schema: bronze
-      session_properties:
-        iceberg.nessie_reference_name: main  ← Run on main branch
+```
+
+```bash
+# Run dbt on dev branch
+dbt run --target dev
+
+# Run dbt on main branch (production)
+dbt run --target prod
 ```
 
 ## Advanced: Manual Branch Operations
 
+Using the Nessie REST API (v1):
+
 ```bash
-# Create a feature branch
-curl -X "POST" http://localhost:19120/api/v2/trees \
+# Get main branch hash
+MAIN_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/main | jq -r '.hash')
+
+# Create a feature branch from main
+curl -X POST http://localhost:19120/api/v1/trees/tree \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "feature/new-metrics",
-    "hash": "main"  # Branch from main
-  }'
+  -d "{\"type\": \"BRANCH\", \"name\": \"feature/new-metrics\", \"hash\": \"$MAIN_HASH\"}"
 
-# Make changes on feature branch
-# (Nessie tables automatically point to this branch)
+# List all branches
+curl -s http://localhost:19120/api/v1/trees | jq '.references[].name'
 
-# If changes are good, merge to dev
-curl -X "POST" http://localhost:19120/api/v2/trees/dev/commits \
+# Merge feature branch to main
+TARGET_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/main | jq -r '.hash')
+SOURCE_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/feature/new-metrics | jq -r '.hash')
+
+curl -X POST "http://localhost:19120/api/v1/trees/tree/main/merge?expectedHash=$TARGET_HASH" \
   -H "Content-Type: application/json" \
-  -d '{
-    "fromBranch": "feature/new-metrics",
-    "message": "Merge new metrics into dev"
-  }'
+  -d "{\"fromRefName\": \"feature/new-metrics\", \"fromHash\": \"$SOURCE_HASH\"}"
 
-# Clean up feature branch
-curl -X "DELETE" http://localhost:19120/api/v2/trees/feature/new-metrics
+# Delete feature branch after merge
+BRANCH_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/feature/new-metrics | jq -r '.hash')
+curl -X DELETE "http://localhost:19120/api/v1/trees/branch/feature/new-metrics?expectedHash=$BRANCH_HASH"
+```
+
+Or use the `NessieResource` in Python:
+
+```python
+from phlo.defs.nessie import NessieResource
+
+nessie = NessieResource()
+
+# Create branch
+nessie.create_branch("feature/new-metrics", source_ref="main")
+
+# Merge branch
+nessie.merge_branch("feature/new-metrics", "main")
+
+# Delete branch
+nessie.delete_branch("feature/new-metrics")
 ```
 
 ## Nessie vs Iceberg: Understanding the Layers
@@ -499,11 +554,11 @@ See you then!
 - Tags for releases
 - REST API for automation
 
-**In Phlo**:
-- Automatically creates `dev` branch
-- Ingests/transforms on `dev`
-- Validates data quality
-- Merges to `main` when production-ready
-- Prevents bugs from reaching production
+**In Phlo (Write-Audit-Publish)**:
+- `branch_creation_sensor` - Auto-creates pipeline branch on job start
+- `auto_promotion_sensor` - Auto-merges to main when quality checks pass
+- `branch_cleanup_sensor` - Cleans up old branches after retention period
+- Catalog-based branching: `iceberg` (main) vs `iceberg_dev` (dev)
+- All writes happen on feature branch - only validated data reaches main
 
 **Next**: [Part 5: Data Ingestion—Getting Data Into the Lakehouse](05-data-ingestion.md)
