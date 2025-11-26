@@ -114,18 +114,6 @@ class Settings(BaseSettings):
         default=300, description="Delay between validation retry attempts (seconds)"
     )
 
-    # --- Freshness Thresholds ---
-    # Override asset-level freshness policies with global thresholds
-    glucose_freshness_hours: int = Field(
-        default=24, description="Max age of glucose data before considered stale"
-    )
-    github_events_freshness_hours: int = Field(
-        default=24, description="Max age of GitHub events before considered stale"
-    )
-    github_stats_freshness_hours: int = Field(
-        default=48, description="Max age of GitHub repo stats before considered stale"
-    )
-
     # --- BI Services Configuration ---
     # Settings for Apache Superset business intelligence dashboard
     # Services - Superset
@@ -180,19 +168,6 @@ class Settings(BaseSettings):
     # Hub
     app_port: int = Field(default=10009, description="Hub application port")
     flask_debug: bool = Field(default=False, description="Flask debug mode")
-
-    # --- GitHub API Configuration ---
-    # Settings for GitHub API integration
-    # GitHub API
-    github_token: str | None = Field(
-        default=None, description="GitHub personal access token"
-    )
-    github_username: str | None = Field(
-        default=None, description="GitHub username for API requests"
-    )
-    github_base_url: str = Field(
-        default="https://api.github.com", description="GitHub API base URL"
-    )
 
     # --- Computed Properties ---
     # Additional properties computed from the base settings

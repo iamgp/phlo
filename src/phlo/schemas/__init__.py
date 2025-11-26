@@ -1,6 +1,5 @@
-# __init__.py - Schemas module initialization, exposing data validation and output schemas
-# This module aggregates all Pandera schemas and Pydantic models used for data quality
-# and asset output validation throughout the pipeline
+# __init__.py - Schemas module initialization
+# Provides base schemas and utilities for data validation
 
 from __future__ import annotations
 
@@ -9,11 +8,9 @@ from phlo.schemas.asset_outputs import (
     RawDataOutput,
     TablePublishStats,
 )
-from phlo.schemas.glucose import FactGlucoseReadings
 
-# Public API: Exported schemas and models for data validation and asset outputs
+# Public API
 __all__ = [
-    "FactGlucoseReadings",
     "PublishPostgresOutput",
     "RawDataOutput",
     "TablePublishStats",
