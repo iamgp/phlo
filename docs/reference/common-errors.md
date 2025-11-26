@@ -40,7 +40,7 @@ KeyError: 'observation_id'
 **Solution**:
 ```python
 # Check your decorator
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="id",  # Must match a field in validation_schema
     validation_schema=MySchema,
     ...
@@ -68,7 +68,7 @@ ValueError: Invalid cron expression: 'every hour'
 **Solution**:
 ```python
 # Use standard cron format: minute hour day month weekday
-@cascade_ingestion(
+@phlo_ingestion(
     cron="0 */1 * * *",  # Every hour at minute 0
     # NOT: cron="every hour"
     ...
@@ -130,7 +130,7 @@ ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
 **Solution**:
 ```python
 # Add validation_schema (recommended)
-@cascade_ingestion(
+@phlo_ingestion(
     table_name="my_table",
     unique_key="id",
     validation_schema=MySchema,  # Add this
@@ -371,7 +371,7 @@ MySchema.validate(test_data)  # Fails fast if schema is wrong
 
 ```python
 # unique_key must match schema field exactly
-@cascade_ingestion(
+@phlo_ingestion(
     unique_key="id",  # Must match field name below
     validation_schema=MySchema,
 )
