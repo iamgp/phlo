@@ -9,7 +9,3 @@ sources:
       - name: glucose_entries
         identifier: glucose_entries
         description: Nightscout CGM glucose data ingested via DLT/PyIceberg into Iceberg raw.glucose_entries
-      - name: user_events
-        description: GitHub user events ingested via DLT/PyIceberg into Iceberg raw.github_user_events
-      - name: repo_stats
-        description: GitHub repository statistics ingested via DLT/PyIceberg into Iceberg raw.github_repo_stats

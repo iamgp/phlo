@@ -1,5 +1,3 @@
-# mrt_glucose_readings.yml - Schema tests for glucose readings mart
-
 version: 2
 
 models:
@@ -8,13 +6,13 @@ models:
     columns:
       - name: entry_id
         description: "Unique identifier for the glucose entry"
-        tests:
+        data_tests:
           - not_null
           - unique
 
       - name: glucose_mg_dl
         description: "Blood glucose level in mg/dL"
-        tests:
+        data_tests:
           - not_null
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 20
@@ -22,30 +20,20 @@ models:
 
       - name: reading_timestamp
         description: "Timestamp when the glucose reading was taken"
-        tests:
+        data_tests:
           - not_null
 
       - name: glucose_category
         description: "Categorized glucose level"
-        tests:
+        data_tests:
           - not_null
 
       - name: is_in_range
         description: "Whether glucose level is within target range"
-        tests:
+        data_tests:
           - not_null
 
       - name: reading_date
         description: "Date of the glucose reading"
-        tests:
+        data_tests:
           - not_null
-
-# Custom business logic tests
-  - name: test_nightscout_glucose_ranges
-    description: "Test that glucose values are within physiologically plausible ranges"
-    columns:
-      - name: glucose_mg_dl
-        tests:
-          - dbt_expectations.expect_column_values_to_be_between:
-              min_value: 20
-              max_value: 600

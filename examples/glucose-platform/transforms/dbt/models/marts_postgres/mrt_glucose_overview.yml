@@ -8,38 +8,38 @@ models:
     columns:
       - name: reading_date
         description: "Date of glucose readings"
-        tests:
+        data_tests:
           - not_null
           - unique
 
       - name: reading_count
         description: "Number of readings on this date"
-        tests:
+        data_tests:
           - not_null
           - dbt_expectations.expect_column_values_to_be_of_type:
               column_type: bigint
 
       - name: avg_glucose_mg_dl
         description: "Average glucose level"
-        tests:
+        data_tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
               column_type: double
 
       - name: min_glucose_mg_dl
         description: "Minimum glucose level"
-        tests:
+        data_tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
               column_type: bigint
 
       - name: max_glucose_mg_dl
         description: "Maximum glucose level"
-        tests:
+        data_tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
               column_type: bigint
 
       - name: time_in_range_pct
         description: "Percentage of time in range"
-        tests:
+        data_tests:
           - dbt_expectations.expect_column_values_to_be_of_type:
               column_type: double
           - dbt_expectations.expect_column_values_to_be_between:
