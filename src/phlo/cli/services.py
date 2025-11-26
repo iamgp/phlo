@@ -73,6 +73,89 @@ def get_project_name() -> str:
     return config.get("name", Path.cwd().name.lower().replace(" ", "-").replace("_", "-"))
 
 
+def _init_nessie_branches(project_name: str) -> None:
+    """Initialize Nessie branches (main, dev) if they don't exist.
+    
+    Creates the branch structure needed for Write-Audit-Publish pattern:
+    - main: production data (validated, published to BI)
+    - dev: development/feature work (isolated transforms)
+    """
+    import json
+    import time
+    
+    container_name = f"{project_name}-nessie-1"
+    nessie_url = "http://localhost:19120"
+    
+    # Wait for Nessie to be ready
+    for _ in range(30):
+        try:
+            result = subprocess.run(
+                ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and "references" in result.stdout:
+                break
+        except Exception:
+            pass
+        time.sleep(1)
+    else:
+        click.echo("Warning: Nessie not ready, skipping branch initialization", err=True)
+        return
+    
+    # Get existing branches
+    try:
+        result = subprocess.run(
+            ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        data = json.loads(result.stdout)
+        existing = {r["name"] for r in data.get("references", [])}
+    except Exception as e:
+        click.echo(f"Warning: Could not check Nessie branches: {e}", err=True)
+        return
+    
+    # Create dev branch from main if it doesn't exist
+    if "dev" not in existing and "main" in existing:
+        click.echo("Creating Nessie 'dev' branch from 'main'...")
+        try:
+            # Get main branch hash
+            result = subprocess.run(
+                ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees/tree/main"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            main_data = json.loads(result.stdout)
+            main_hash = main_data.get("hash", "")
+            
+            if main_hash:
+                # Create dev branch
+                result = subprocess.run(
+                    [
+                        "docker", "exec", container_name,
+                        "curl", "-s", "-X", "POST",
+                        f"{nessie_url}/api/v1/trees/tree",
+                        "-H", "Content-Type: application/json",
+                        "-d", json.dumps({"type": "BRANCH", "name": "dev", "hash": main_hash})
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if "dev" in result.stdout:
+                    click.echo("Created Nessie 'dev' branch.")
+                else:
+                    click.echo(f"Warning: Could not create dev branch: {result.stdout}", err=True)
+        except Exception as e:
+            click.echo(f"Warning: Could not create dev branch: {e}", err=True)
+    elif "dev" in existing:
+        click.echo("Nessie branches ready (main, dev).")
+
+
 def _run_dbt_compile(project_name: str) -> None:
     """Run dbt deps + compile to generate manifest.json for Dagster.
     
@@ -1121,6 +1204,9 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
                 click.echo("")
                 click.echo("To apply phlo code changes, restart Dagster:")
                 click.echo("  docker restart dagster-webserver dagster-daemon")
+            
+            # Initialize Nessie branches (main, dev)
+            _init_nessie_branches(project_name)
             
             # Auto-run dbt deps + compile to generate manifest for Dagster
             _run_dbt_compile(project_name)
