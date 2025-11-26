@@ -320,27 +320,6 @@ class TestSchema:
 
     test_file.write_text(test_content)
 
-    # Register domain in __init__.py (only for Cascade repo mode)
-    if not is_user_project:
-        init_file = (
-            project_root / "src" / "phlo" / "defs" / "ingestion" / "__init__.py"
-        )
-        if init_file.exists():
-            init_content = init_file.read_text()
-            import_line = (
-                f"from phlo.defs.ingestion import {domain_snake}  # noqa: F401\n"
-            )
-
-            if import_line not in init_content:
-                # Add import
-                init_content += import_line
-                init_file.write_text(init_content)
-        else:
-            # Create new __init__.py
-            init_file.write_text(
-                f"from phlo.defs.ingestion import {domain_snake}  # noqa: F401\n"
-            )
-
     return [
         str(schema_file.relative_to(project_root)),
         str(asset_file.relative_to(project_root)),
