@@ -1,57 +1,46 @@
 # Phlo
 
-Modern lakehouse data platform built on Dagster, DLT, Iceberg, and Pandera.
+Modern data lakehouse platform built on Dagster, DLT, Iceberg, Nessie, and dbt.
 
 ## Features
 
-- **@phlo_ingestion decorator**: Simplified asset creation with automatic schema validation
-- **@phlo_quality decorator**: Declarative quality checks (70% less boilerplate)
-- **Plugin system**: Extend Phlo with custom connectors and quality checks
-- **CLI tools**: `phlo test`, `phlo materialize`, `phlo create-workflow`
-- **Testing utilities**: MockIcebergCatalog for fast local testing (<5s)
-- **Comprehensive error documentation**: Per-error guides with solutions
+- **Write-Audit-Publish pattern** - Branch isolation with automatic promotion
+- **@phlo_ingestion decorator** - 74% less boilerplate for data ingestion
+- **@phlo_quality decorator** - Declarative quality checks
+- **Auto-publishing** - Marts automatically published to Postgres for BI
+- **CLI tools** - `phlo services`, `phlo materialize`, `phlo create-workflow`
 
 ## Quick Start
 
-```python
-from phlo.ingestion import phlo_ingestion
-from phlo.schemas.weather import WeatherObservations
+```bash
+# Clone and start services
+git clone https://github.com/iamgp/phlo.git
+cd phlo
+cp .env.example .env
+phlo services start
 
-@phlo_ingestion(
-    unique_key="observation_id",
-    validation_schema=WeatherObservations,
-    cron="0 */1 * * *",
-)
-def weather_observations(partition: str):
-    """Fetch weather observations."""
-    return fetch_weather_data(partition)
+# Materialize the example pipeline
+phlo materialize --select "dlt_glucose_entries+"
 ```
 
 ## Documentation
 
-- [Testing Guide](docs/TESTING_GUIDE.md)
-- [CLI Guide](docs/CLI_GUIDE.md)
-- [Phase 3 Features](docs/PHASE_3_FEATURES.md)
-- [Error Reference](docs/errors/README.md)
+Full documentation at [docs/index.md](docs/index.md):
 
-## Installation
-
-```bash
-pip install -e .
-```
+- [Quickstart Guide](docs/getting-started/quickstart.md)
+- [CLI Reference](docs/guides/cli.md)
+- [Architecture](docs/reference/architecture.md)
+- [Blog Series](docs/blog/README.md) - 12-part deep dive
 
 ## Development
 
 ```bash
-# Run tests
-phlo test --local
+make up          # Start services
+make down        # Stop services
+make rebuild     # Rebuild Dagster container
 
-# Create new workflow
-phlo create-workflow --domain weather --table observations
-
-# Lint and type check
-ruff check .
-basedpyright .
+ruff check src/  # Lint
+ruff format src/ # Format
 ```
 
 ## License
