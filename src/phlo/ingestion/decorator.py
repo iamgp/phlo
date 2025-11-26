@@ -212,7 +212,7 @@ def phlo_ingestion(
             group_name=group,
             partitions_def=daily_partition,
             description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
-            compute_kind="dlt+pyiceberg",
+            kinds={"dlt", "iceberg"},
             op_tags={"dagster/max_runtime": max_runtime_seconds},
             retry_policy=dg.RetryPolicy(
                 max_retries=max_retries, delay=retry_delay_seconds
