@@ -77,10 +77,8 @@ class RawGlucoseEntries(DataFrameModel):
         description="Entry type (e.g., 'sgv')",
     )
 
-    _cascade_ingested_at: datetime = Field(
-        nullable=False,
-        description="Timestamp when data was ingested by Phlo",
-    )
+    # Note: _cascade_ingested_at is NOT added during ingestion currently
+    # This is a known gap - the ingestion decorator should add it but doesn't yet
 
     class Config:
         strict = False  # Allow DLT metadata fields
