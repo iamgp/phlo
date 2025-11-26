@@ -70,27 +70,36 @@ def get_project_config() -> dict:
 def get_project_name() -> str:
     """Get the project name for Docker Compose."""
     config = get_project_config()
-    return config.get("name", Path.cwd().name.lower().replace(" ", "-").replace("_", "-"))
+    return config.get(
+        "name", Path.cwd().name.lower().replace(" ", "-").replace("_", "-")
+    )
 
 
 def _init_nessie_branches(project_name: str) -> None:
     """Initialize Nessie branches (main, dev) if they don't exist.
-    
+
     Creates the branch structure needed for Write-Audit-Publish pattern:
     - main: production data (validated, published to BI)
     - dev: development/feature work (isolated transforms)
     """
     import json
     import time
-    
+
     container_name = f"{project_name}-nessie-1"
     nessie_url = "http://localhost:19120"
-    
+
     # Wait for Nessie to be ready
     for _ in range(30):
         try:
             result = subprocess.run(
-                ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
+                [
+                    "docker",
+                    "exec",
+                    container_name,
+                    "curl",
+                    "-s",
+                    f"{nessie_url}/api/v1/trees",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -101,13 +110,22 @@ def _init_nessie_branches(project_name: str) -> None:
             pass
         time.sleep(1)
     else:
-        click.echo("Warning: Nessie not ready, skipping branch initialization", err=True)
+        click.echo(
+            "Warning: Nessie not ready, skipping branch initialization", err=True
+        )
         return
-    
+
     # Get existing branches
     try:
         result = subprocess.run(
-            ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
+            [
+                "docker",
+                "exec",
+                container_name,
+                "curl",
+                "-s",
+                f"{nessie_url}/api/v1/trees",
+            ],
             capture_output=True,
             text=True,
             timeout=10,
@@ -117,30 +135,46 @@ def _init_nessie_branches(project_name: str) -> None:
     except Exception as e:
         click.echo(f"Warning: Could not check Nessie branches: {e}", err=True)
         return
-    
+
     # Create dev branch from main if it doesn't exist
     if "dev" not in existing and "main" in existing:
         click.echo("Creating Nessie 'dev' branch from 'main'...")
         try:
             # Get main branch hash
             result = subprocess.run(
-                ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees/tree/main"],
+                [
+                    "docker",
+                    "exec",
+                    container_name,
+                    "curl",
+                    "-s",
+                    f"{nessie_url}/api/v1/trees/tree/main",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=10,
             )
             main_data = json.loads(result.stdout)
             main_hash = main_data.get("hash", "")
-            
+
             if main_hash:
                 # Create dev branch
                 result = subprocess.run(
                     [
-                        "docker", "exec", container_name,
-                        "curl", "-s", "-X", "POST",
+                        "docker",
+                        "exec",
+                        container_name,
+                        "curl",
+                        "-s",
+                        "-X",
+                        "POST",
                         f"{nessie_url}/api/v1/trees/tree",
-                        "-H", "Content-Type: application/json",
-                        "-d", json.dumps({"type": "BRANCH", "name": "dev", "hash": main_hash})
+                        "-H",
+                        "Content-Type: application/json",
+                        "-d",
+                        json.dumps(
+                            {"type": "BRANCH", "name": "dev", "hash": main_hash}
+                        ),
                     ],
                     capture_output=True,
                     text=True,
@@ -149,7 +183,10 @@ def _init_nessie_branches(project_name: str) -> None:
                 if "dev" in result.stdout:
                     click.echo("Created Nessie 'dev' branch.")
                 else:
-                    click.echo(f"Warning: Could not create dev branch: {result.stdout}", err=True)
+                    click.echo(
+                        f"Warning: Could not create dev branch: {result.stdout}",
+                        err=True,
+                    )
         except Exception as e:
             click.echo(f"Warning: Could not create dev branch: {e}", err=True)
     elif "dev" in existing:
@@ -158,31 +195,34 @@ def _init_nessie_branches(project_name: str) -> None:
 
 def _run_dbt_compile(project_name: str) -> None:
     """Run dbt deps + compile to generate manifest.json for Dagster.
-    
+
     This runs after services start to ensure Dagster can discover dbt models.
     """
     import time
-    
+
     # Check if dbt project exists
     dbt_project = Path.cwd() / "transforms" / "dbt"
     if not (dbt_project / "dbt_project.yml").exists():
         return  # No dbt project, skip
-    
+
     click.echo("")
     click.echo("Compiling dbt models...")
-    
+
     # Wait for services to be ready
     time.sleep(5)
-    
+
     container_name = f"{project_name}-dagster-webserver-1"
-    
+
     try:
         # Run dbt deps
         result = subprocess.run(
             [
-                "docker", "exec", container_name,
-                "bash", "-c",
-                "cd /app/transforms/dbt && dbt deps --profiles-dir profiles"
+                "docker",
+                "exec",
+                container_name,
+                "bash",
+                "-c",
+                "cd /app/transforms/dbt && dbt deps --profiles-dir profiles",
             ],
             capture_output=True,
             text=True,
@@ -190,13 +230,16 @@ def _run_dbt_compile(project_name: str) -> None:
         )
         if result.returncode != 0:
             click.echo(f"Warning: dbt deps failed: {result.stderr}", err=True)
-        
+
         # Run dbt compile
         result = subprocess.run(
             [
-                "docker", "exec", container_name,
-                "bash", "-c",
-                "cd /app/transforms/dbt && dbt compile --profiles-dir profiles --target dev"
+                "docker",
+                "exec",
+                container_name,
+                "bash",
+                "-c",
+                "cd /app/transforms/dbt && dbt compile --profiles-dir profiles --target dev",
             ],
             capture_output=True,
             text=True,
@@ -206,7 +249,12 @@ def _run_dbt_compile(project_name: str) -> None:
             click.echo("dbt models compiled successfully.")
             click.echo("Restarting Dagster to pick up dbt manifest...")
             subprocess.run(
-                ["docker", "restart", container_name, f"{project_name}-dagster-daemon-1"],
+                [
+                    "docker",
+                    "restart",
+                    container_name,
+                    f"{project_name}-dagster-daemon-1",
+                ],
                 capture_output=True,
                 timeout=30,
             )
@@ -977,7 +1025,9 @@ def init(force: bool, project_name: Optional[str]):
     prometheus_dir = phlo_dir / "prometheus"
     prometheus_dir.mkdir(exist_ok=True)
     (prometheus_dir / "prometheus.yml").write_text(PROMETHEUS_CONFIG)
-    click.echo(f"Created: {(prometheus_dir / 'prometheus.yml').relative_to(Path.cwd())}")
+    click.echo(
+        f"Created: {(prometheus_dir / 'prometheus.yml').relative_to(Path.cwd())}"
+    )
 
     # Create Loki config (for optional observability profile)
     loki_dir = phlo_dir / "loki"
@@ -1031,7 +1081,9 @@ def init(force: bool, project_name: Optional[str]):
     type=click.Path(exists=True),
     help="Path to phlo source (default: auto-detect or use PHLO_DEV_SOURCE_PATH)",
 )
-def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_source: str):
+def start(
+    detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_source: str
+):
     """Start Phlo infrastructure services.
 
     Starts the complete Phlo data lakehouse stack.
@@ -1067,6 +1119,7 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
         else:
             # Try to auto-detect: check PHLO_DEV_SOURCE_PATH env var
             import os
+
             phlo_source_path = os.environ.get("PHLO_DEV_SOURCE_PATH")
             if phlo_source_path:
                 phlo_source_path = Path(phlo_source_path).resolve()
@@ -1074,7 +1127,9 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
                 # Try to find phlo source relative to current directory
                 # Check if we're in examples/glucose-platform -> ../../src/phlo
                 potential_paths = [
-                    Path.cwd().parent.parent / "src" / "phlo",  # examples/project -> repo root
+                    Path.cwd().parent.parent
+                    / "src"
+                    / "phlo",  # examples/project -> repo root
                     Path.cwd().parent / "src" / "phlo",  # direct child of repo
                     Path.cwd() / "src" / "phlo",  # in repo root
                 ]
@@ -1083,11 +1138,19 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
                         phlo_source_path = p.parent.parent.resolve()  # Get repo root
                         break
 
-        if not phlo_source_path or not (Path(phlo_source_path) / "src" / "phlo").exists():
+        if (
+            not phlo_source_path
+            or not (Path(phlo_source_path) / "src" / "phlo").exists()
+        ):
             click.echo("Error: Could not find phlo source.", err=True)
             click.echo("", err=True)
-            click.echo("Specify the path with --phlo-source or set PHLO_DEV_SOURCE_PATH:", err=True)
-            click.echo("  phlo services start --dev --phlo-source /path/to/phlo", err=True)
+            click.echo(
+                "Specify the path with --phlo-source or set PHLO_DEV_SOURCE_PATH:",
+                err=True,
+            )
+            click.echo(
+                "  phlo services start --dev --phlo-source /path/to/phlo", err=True
+            )
             click.echo("  export PHLO_DEV_SOURCE_PATH=/path/to/phlo", err=True)
             sys.exit(1)
 
@@ -1106,6 +1169,7 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
 
         # Set env var for compose interpolation
         import os
+
         os.environ["PHLO_DEV_SOURCE_PATH"] = str(phlo_source_path)
 
         # Force rebuild in dev mode to use dev Dockerfile
@@ -1176,7 +1240,9 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
                 click.echo("Phlo infrastructure started in DEVELOPMENT mode.")
                 click.echo("")
                 click.echo(f"Local phlo source mounted from: {phlo_source_path}")
-                click.echo("Changes to phlo code will be reflected after Dagster restart.")
+                click.echo(
+                    "Changes to phlo code will be reflected after Dagster restart."
+                )
                 click.echo("")
             else:
                 click.echo("Phlo infrastructure started.")
@@ -1204,18 +1270,22 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
                 click.echo("")
                 click.echo("To apply phlo code changes, restart Dagster:")
                 click.echo("  docker restart dagster-webserver dagster-daemon")
-            
+
             # Initialize Nessie branches (main, dev)
             _init_nessie_branches(project_name)
-            
+
             # Auto-run dbt deps + compile to generate manifest for Dagster
             _run_dbt_compile(project_name)
         else:
-            click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
+            click.echo(
+                f"Error: docker compose failed with code {result.returncode}", err=True
+            )
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
-        click.echo("Please install Docker: https://docs.docker.com/get-docker/", err=True)
+        click.echo(
+            "Please install Docker: https://docs.docker.com/get-docker/", err=True
+        )
         sys.exit(1)
 
 
@@ -1269,7 +1339,9 @@ def stop(volumes: bool, profile: tuple[str, ...]):
         if result.returncode == 0:
             click.echo(f"{project_name} infrastructure stopped.")
         else:
-            click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
+            click.echo(
+                f"Error: docker compose failed with code {result.returncode}", err=True
+            )
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)

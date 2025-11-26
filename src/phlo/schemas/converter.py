@@ -130,9 +130,7 @@ def pandera_to_iceberg(
                 nullable = False
             else:
                 # Other DLT fields start at 103
-                current_field_id = 103 + len(
-                    [f for f in fields if f.field_id >= 103]
-                )
+                current_field_id = 103 + len([f for f in fields if f.field_id >= 103])
         else:
             # Regular data fields
             current_field_id = field_id

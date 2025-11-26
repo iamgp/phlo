@@ -99,9 +99,7 @@ def _publish_marts_to_postgres(
             col_defs = ", ".join(f'"{col}" TEXT' for col in columns)
 
             # Create Postgres table
-            create_sql = (
-                f'CREATE TABLE "{target_schema}"."{table_alias}" ({col_defs})'
-            )
+            create_sql = f'CREATE TABLE "{target_schema}"."{table_alias}" ({col_defs})'
             pg_cursor.execute(create_sql)
 
             # Insert data in batches using executemany for performance
@@ -151,6 +149,7 @@ def _publish_marts_to_postgres(
 # --- Asset Factory ---
 # Dynamically create publishing assets from YAML configuration
 
+
 def create_publishing_assets(config_path: Path | None = None):
     """
     Factory function that reads publishing config from YAML and creates assets dynamically.
@@ -167,18 +166,18 @@ def create_publishing_assets(config_path: Path | None = None):
     if not config_path.exists():
         return []
 
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config_data = yaml.safe_load(f)
 
     assets = []
 
-    for data_source, config_item in config_data['publishing'].items():
+    for data_source, config_item in config_data["publishing"].items():
         # Create asset dynamically
-        asset_name = config_item['name']
-        group_name = config_item['group']
-        description = config_item['description']
-        dependencies = [AssetKey(dep) for dep in config_item['dependencies']]
-        tables_to_publish = config_item['tables']
+        asset_name = config_item["name"]
+        group_name = config_item["group"]
+        description = config_item["description"]
+        dependencies = [AssetKey(dep) for dep in config_item["dependencies"]]
+        tables_to_publish = config_item["tables"]
 
         # Use a factory function to properly capture variables in closure
         def make_publishing_asset(tables, source_name):
@@ -188,13 +187,16 @@ def create_publishing_assets(config_path: Path | None = None):
                 compute_kind="trino+postgres",
                 deps=dependencies,
             )
-            def publishing_asset(context, trino: TrinoResource) -> PublishPostgresOutput:
+            def publishing_asset(
+                context, trino: TrinoResource
+            ) -> PublishPostgresOutput:
                 return _publish_marts_to_postgres(
                     context=context,
                     trino=trino,
                     tables_to_publish=tables,
-                    data_source=source_name.capitalize()
+                    data_source=source_name.capitalize(),
                 )
+
             return publishing_asset
 
         publishing_asset = make_publishing_asset(tables_to_publish, data_source)
@@ -206,7 +208,7 @@ def create_publishing_assets(config_path: Path | None = None):
         Source: Iceberg marts schema ({data_source} data)
         Target: Postgres marts schema
 
-        Tables: {', '.join(tables_to_publish.keys())}
+        Tables: {", ".join(tables_to_publish.keys())}
         """
 
         # Rename the function to avoid conflicts

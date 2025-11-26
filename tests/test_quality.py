@@ -232,7 +232,7 @@ class TestQualityDataQualityTests:
         mock_cursor.fetchall.return_value = [("entry1", 120)]
 
         # Execute
-        result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
+        cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))
 
         # Verify partition filtering
         query_arg = mock_cursor.execute.call_args[0][0]

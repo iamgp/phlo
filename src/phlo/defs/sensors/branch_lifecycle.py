@@ -20,7 +20,7 @@ from phlo.defs.nessie.branch_manager import BranchManagerResource
     run_status=dg.DagsterRunStatus.STARTING,
     request_job=None,
     name="branch_creation_sensor",
-    description="Create dynamic pipeline branch when full_pipeline job starts"
+    description="Create dynamic pipeline branch when full_pipeline job starts",
 )
 def branch_creation_sensor(
     context: dg.RunStatusSensorContext,
@@ -64,7 +64,7 @@ def branch_creation_sensor(
 @dg.sensor(
     name="auto_promotion_sensor",
     minimum_interval_seconds=30,
-    description="Automatically promote pipeline branch to main when all checks pass"
+    description="Automatically promote pipeline branch to main when all checks pass",
 )
 def auto_promotion_sensor(
     context: dg.SensorEvaluationContext,
@@ -85,10 +85,9 @@ def auto_promotion_sensor(
     # Get recent successful runs of full_pipeline
     runs = instance.get_runs(
         filters=dg.RunsFilter(
-            job_name="full_pipeline",
-            statuses=[dg.DagsterRunStatus.SUCCESS]
+            job_name="full_pipeline", statuses=[dg.DagsterRunStatus.SUCCESS]
         ),
-        limit=10
+        limit=10,
     )
 
     cursor = json.loads(context.cursor) if context.cursor else {}
@@ -105,16 +104,17 @@ def auto_promotion_sensor(
             continue
 
         # Get all asset check evaluations for this run
-        check_evaluations = list(instance.event_log_storage.get_asset_check_execution_history(
-            check_key=None,  # All checks
-            limit=1000,
-            cursor=None
-        ))
+        check_evaluations = list(
+            instance.event_log_storage.get_asset_check_execution_history(
+                check_key=None,  # All checks
+                limit=1000,
+                cursor=None,
+            )
+        )
 
         # Filter to checks from this run
         run_checks = [
-            check for check in check_evaluations
-            if check.run_id == run.run_id
+            check for check in check_evaluations if check.run_id == run.run_id
         ]
 
         if not run_checks:
@@ -132,10 +132,14 @@ def auto_promotion_sensor(
             if evaluation.severity == dg.AssetCheckSeverity.ERROR:
                 if not evaluation.passed:
                     all_passed = False
-                    failures.append({
-                        "check": str(check_eval.event.asset_check_evaluation_data.asset_check_key),
-                        "metadata": evaluation.metadata
-                    })
+                    failures.append(
+                        {
+                            "check": str(
+                                check_eval.event.asset_check_evaluation_data.asset_check_key
+                            ),
+                            "metadata": evaluation.metadata,
+                        }
+                    )
 
         if not all_passed:
             context.log.warning(
@@ -151,7 +155,7 @@ def auto_promotion_sensor(
                 nessie=nessie,
                 branch_manager=branch_manager,
                 branch_name=branch_name,
-                context=context
+                context=context,
             )
 
             # Update cursor to prevent duplicate promotions
@@ -164,8 +168,10 @@ def auto_promotion_sensor(
             context.log.error(f"Failed to promote {branch_name}: {e}")
             continue
 
+    context.update_cursor(json.dumps(cursor))
+
     if promoted_any:
-        context.update_cursor(json.dumps(cursor))
+        return None  # Successful sensor tick
 
     return dg.SkipReason("No branches ready for promotion")
 
@@ -174,8 +180,8 @@ def promote_branch_to_main(
     nessie: NessieResource,
     branch_manager: BranchManagerResource,
     branch_name: str,
-    context
-):
+    context: dg.SensorEvaluationContext,
+) -> None:
     """
     Promote pipeline branch to main (internal function, not an asset).
 
@@ -208,7 +214,7 @@ def promote_branch_to_main(
         cleanup_info = branch_manager.schedule_cleanup(
             branch_name=branch_name,
             retention_days=config.branch_retention_days,
-            promotion_succeeded=True
+            promotion_succeeded=True,
         )
         context.log.info(
             f"Scheduled cleanup for {branch_name} after {cleanup_info['cleanup_after']}"
@@ -221,7 +227,7 @@ def promote_branch_to_main(
 @dg.sensor(
     name="branch_cleanup_sensor",
     minimum_interval_seconds=3600,  # Run hourly
-    description="Clean up old pipeline branches after retention period"
+    description="Clean up old pipeline branches after retention period",
 )
 def branch_cleanup_sensor(
     context: dg.SensorEvaluationContext,
@@ -269,20 +275,27 @@ def branch_cleanup_sensor(
         if not branches_to_cleanup:
             return dg.SkipReason("No branches ready for cleanup")
 
-        context.log.info(f"Found {len(branches_to_cleanup)} branches to check: {branches_to_cleanup}")
+        context.log.info(
+            f"Found {len(branches_to_cleanup)} branches to check: {branches_to_cleanup}"
+        )
 
-        # Perform cleanup (dry run for safety - can be disabled in config)
+        # Perform cleanup (dry run unless branch_cleanup_enabled is True)
+        dry_run = not config.branch_cleanup_enabled
         cleaned_branches = []
         for branch_name in branches_to_cleanup:
             try:
-                # For now, just log what we would clean up
-                # To actually delete, call with dry_run=False
-                result = branch_manager.cleanup_branch(branch_name, dry_run=True)
+                result = branch_manager.cleanup_branch(branch_name, dry_run=dry_run)
                 if result.get("dry_run"):
-                    context.log.info(f"Would delete branch: {branch_name}")
+                    context.log.info(
+                        f"Would delete branch: {branch_name} (dry_run=True)"
+                    )
                 elif result["deleted"]:
                     cleaned_branches.append(branch_name)
                     context.log.info(f"Deleted branch: {branch_name}")
+                else:
+                    context.log.warning(
+                        f"Failed to delete {branch_name}: {result.get('error')}"
+                    )
             except Exception as e:
                 context.log.error(f"Failed to clean up branch {branch_name}: {e}")
 
@@ -292,10 +305,7 @@ def branch_cleanup_sensor(
 
         if cleaned_branches:
             context.update_cursor(json.dumps(cursor))
-            return dg.SensorResult(
-                skip_reason=None,
-                cursor=json.dumps(cursor)
-            )
+            return dg.SensorResult(skip_reason=None, cursor=json.dumps(cursor))
 
         return dg.SkipReason("No branches cleaned up (dry run mode)")
 

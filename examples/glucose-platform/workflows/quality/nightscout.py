@@ -9,10 +9,9 @@ from __future__ import annotations
 import pandas as pd
 import pandera.errors
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
-
 from phlo.defs.resources.trino import TrinoResource
-from workflows.schemas.nightscout import FactDailyGlucoseMetrics, FactGlucoseReadings
 
+from workflows.schemas.nightscout import FactDailyGlucoseMetrics, FactGlucoseReadings
 
 FACT_QUERY_BASE = """
 SELECT
