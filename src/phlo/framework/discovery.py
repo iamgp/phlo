@@ -300,7 +300,114 @@ def _collect_registered_assets() -> list[Any]:
     dbt_assets = _discover_dbt_assets()
     assets.extend(dbt_assets)
 
+    # Auto-discover publishing assets for marts
+    publishing_assets = _discover_publishing_assets()
+    assets.extend(publishing_assets)
+
     return assets
+
+
+def _discover_publishing_assets() -> list[Any]:
+    """
+    Auto-discover dbt marts and create publishing assets to copy them to Postgres.
+
+    Scans the dbt manifest for models in the 'marts' schema and creates
+    a publishing asset that copies them from Iceberg to Postgres.
+
+    Returns:
+        List containing publishing asset if marts found, empty list otherwise
+    """
+    from phlo.config import get_settings
+
+    settings = get_settings()
+    dbt_project_path = settings.dbt_project_path
+    manifest_path = dbt_project_path / "target" / "manifest.json"
+
+    if not manifest_path.exists():
+        logger.debug("No dbt manifest found, skipping publishing assets")
+        return []
+
+    try:
+        import json
+        from dagster import asset, AssetKey
+
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+
+        # Find all models in marts schema
+        marts_models = []
+        for node_id, node in manifest.get("nodes", {}).items():
+            if node.get("resource_type") == "model":
+                schema = node.get("schema", "")
+                if schema == "marts":
+                    table_name = node.get("name")
+                    marts_models.append(table_name)
+
+        if not marts_models:
+            logger.debug("No marts models found in dbt manifest")
+            return []
+
+        logger.info(f"Found {len(marts_models)} marts models to publish: {marts_models}")
+
+        # Create asset keys for dependencies
+        deps = [AssetKey(name) for name in marts_models]
+
+        @asset(
+            name="publish_marts_to_postgres",
+            group_name="publishing",
+            deps=deps,
+            kinds={"trino", "postgres"},
+            description=f"Publish {len(marts_models)} mart tables from Iceberg to PostgreSQL for BI",
+        )
+        def publish_marts_to_postgres(context):
+            """Auto-generated publishing asset for dbt marts."""
+            from phlo.defs.resources.trino import TrinoResource
+
+            trino = TrinoResource()
+            conn = trino.get_connection()
+            cursor = conn.cursor()
+
+            total_rows = 0
+            published_tables = []
+
+            # Create marts schema in postgres if not exists
+            cursor.execute("CREATE SCHEMA IF NOT EXISTS postgres.marts")
+
+            for table_name in marts_models:
+                source = f"iceberg.marts.{table_name}"
+                target = f"postgres.marts.{table_name}"
+
+                context.log.info(f"Publishing {source} -> {target}")
+
+                try:
+                    # Drop and recreate (simple refresh)
+                    cursor.execute(f"DROP TABLE IF EXISTS {target}")
+                    cursor.execute(f"CREATE TABLE {target} AS SELECT * FROM {source}")
+
+                    # Get row count
+                    cursor.execute(f"SELECT COUNT(*) FROM {target}")
+                    row_count = cursor.fetchone()[0]
+                    total_rows += row_count
+                    published_tables.append(table_name)
+
+                    context.log.info(f"Published {row_count} rows to {target}")
+                except Exception as e:
+                    context.log.error(f"Failed to publish {table_name}: {e}")
+
+            cursor.close()
+            conn.close()
+
+            return {
+                "tables_published": len(published_tables),
+                "total_rows": total_rows,
+                "tables": published_tables,
+            }
+
+        return [publish_marts_to_postgres]
+
+    except Exception as exc:
+        logger.error(f"Error creating publishing assets: {exc}", exc_info=True)
+        return []
 
 
 def _clear_asset_registries() -> None:
