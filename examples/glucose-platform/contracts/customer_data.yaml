@@ -1,0 +1,74 @@
+# Data Contract for Customer Data
+# SaaS application customer information
+
+name: customer_data
+version: 1.0.0
+owner: platform-team
+description: "Contract for SaaS customer account data"
+
+schema:
+  required_columns:
+    - name: customer_id
+      type: string
+      required: true
+      description: "Unique customer identifier"
+      constraints:
+        unique: true
+
+    - name: email
+      type: string
+      required: true
+      description: "Customer email address"
+      constraints:
+        unique: true
+        pattern: ".+@.+\\..+"
+
+    - name: name
+      type: string
+      required: true
+      description: "Customer full name"
+
+    - name: signup_date
+      type: timestamp
+      required: true
+      description: "Date customer signed up"
+
+    - name: plan
+      type: string
+      required: true
+      description: "Subscription plan tier"
+      constraints:
+        valid_values: ["free", "pro", "enterprise"]
+
+    - name: mrr
+      type: double
+      required: false
+      description: "Monthly recurring revenue in USD"
+      constraints:
+        nullable: true
+        min: 0
+
+    - name: status
+      type: string
+      required: true
+      description: "Account status"
+      constraints:
+        valid_values: ["active", "trial", "suspended", "churned"]
+
+sla:
+  freshness_hours: 24
+  quality_threshold: 0.995
+  availability_percentage: 99.99
+
+consumers:
+  - name: finance-team
+    usage: "Revenue reporting and forecasting"
+    contact: "finance@example.com"
+
+  - name: support-team
+    usage: "Customer management and support"
+    contact: "support@example.com"
+
+  - name: product-team
+    usage: "Product usage analytics"
+    contact: "product@example.com"
