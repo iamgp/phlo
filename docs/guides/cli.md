@@ -22,8 +22,17 @@ phlo --version
 |---------|-------------|-------|
 | `phlo test` | Run tests with optional local mode | Fast (< 5s local) |
 | `phlo materialize` | Materialize assets via Docker | Medium (30-60s) |
+| `phlo backfill` | Backfill partitioned assets | Medium |
+| `phlo logs` | View and filter pipeline logs | Fast |
 | `phlo create-workflow` | Interactive workflow scaffolding | Fast (< 10s) |
-| `phlo api setup-postgrest` | Setup PostgREST auth infrastructure | Fast (< 10s) |
+| `phlo schema` | Manage Pandera schemas | Fast |
+| `phlo catalog` | Interact with Iceberg catalog | Fast |
+| `phlo branch` | Manage Nessie branches | Fast |
+| `phlo metrics` | View pipeline and data metrics | Fast |
+| `phlo lineage` | View asset dependencies | Fast |
+| `phlo plugin` | Manage Phlo plugins | Fast |
+| `phlo contract` | Manage data contracts | Fast |
+| `phlo api` | API layer management | Fast |
 
 ---
 
@@ -409,6 +418,504 @@ setup_postgrest(
 - [PostgREST Deployment Guide](../setup/postgrest.md)
 - [PostgREST Migration PRD](./prd-postgrest-migration.md)
 - [PostgREST Examples](../migrations/postgrest/examples/)
+
+### phlo api generate-views
+
+Auto-generate PostgREST API views from dbt models.
+
+#### Usage
+
+```bash
+phlo api generate-views [OPTIONS]
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--output FILE` | Write SQL to file |
+| `--apply` | Apply directly to database |
+| `--diff` | Show changes only |
+| `--models PATTERN` | Filter models (e.g., `mrt_*`) |
+
+#### Examples
+
+```bash
+# Print generated SQL
+phlo api generate-views
+
+# Write to file
+phlo api generate-views --output views.sql
+
+# Apply directly
+phlo api generate-views --apply
+
+# Filter to mart models only
+phlo api generate-views --models "mrt_*"
+```
+
+### phlo api hasura
+
+Manage Hasura GraphQL configuration.
+
+#### Usage
+
+```bash
+phlo api hasura <subcommand> [OPTIONS]
+```
+
+#### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `track` | Auto-track tables in Hasura |
+| `permissions sync` | Sync permissions from config |
+| `export` | Export Hasura metadata |
+| `apply` | Apply metadata file |
+| `status` | Show tracking status |
+
+#### Examples
+
+```bash
+# Track all untracked tables
+phlo api hasura track
+
+# Track specific schema
+phlo api hasura track --schema api
+
+# Sync permissions from config
+phlo api hasura permissions sync
+
+# Export/import metadata
+phlo api hasura export --output hasura.yaml
+phlo api hasura apply --input hasura.yaml
+```
+
+---
+
+## phlo backfill
+
+Backfill partitioned assets with date ranges.
+
+### Usage
+
+```bash
+phlo backfill ASSET_NAME [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--start-date DATE` | Start date (YYYY-MM-DD) |
+| `--end-date DATE` | End date (YYYY-MM-DD) |
+| `--partitions LIST` | Explicit partition list (comma-separated) |
+| `--parallel N` | Run N partitions in parallel |
+| `--resume` | Resume interrupted backfill |
+| `--dry-run` | Preview without executing |
+
+### Examples
+
+```bash
+# Backfill date range
+phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31
+
+# Explicit partitions
+phlo backfill glucose_entries --partitions 2024-01-01,2024-01-15,2024-01-31
+
+# Parallel execution
+phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4
+
+# Resume after interruption
+phlo backfill --resume
+
+# Dry-run preview
+phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31 --dry-run
+```
+
+---
+
+## phlo logs
+
+View and filter pipeline logs.
+
+### Usage
+
+```bash
+phlo logs [OPTIONS]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--asset NAME` | Filter by asset name |
+| `--job NAME` | Filter by job name |
+| `--level LEVEL` | Filter by log level (DEBUG, INFO, WARNING, ERROR) |
+| `--since DURATION` | Time filter (e.g., `1h`, `30m`, `7d`) |
+| `--follow` | Tail logs in real-time |
+| `--run-id ID` | Filter by specific run |
+| `--full` | Show full output (no truncation) |
+| `--json` | Output as JSON |
+
+### Examples
+
+```bash
+# View recent logs
+phlo logs
+
+# Filter by asset
+phlo logs --asset glucose_entries
+
+# Filter by level and time
+phlo logs --level ERROR --since 1h
+
+# Real-time tail
+phlo logs --follow
+
+# JSON output for scripting
+phlo logs --json | jq '.[] | select(.level == "ERROR")'
+```
+
+---
+
+## phlo schema
+
+Manage and inspect Pandera schemas.
+
+### Usage
+
+```bash
+phlo schema <subcommand> [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `list` | List all schemas |
+| `show` | Show schema details |
+| `diff` | Compare schema versions |
+| `validate` | Validate schema file |
+
+### Examples
+
+```bash
+# List all schemas
+phlo schema list
+phlo schema list --domain nightscout
+
+# Show schema details
+phlo schema show RawGlucoseEntries
+phlo schema show RawGlucoseEntries --iceberg  # Show Iceberg equivalent
+
+# Compare versions
+phlo schema diff RawGlucoseEntries --old HEAD~1
+phlo schema diff schemas/v1.py schemas/v2.py
+
+# Validate schema
+phlo schema validate src/phlo/schemas/glucose.py
+```
+
+---
+
+## phlo catalog
+
+Interact with the Iceberg catalog via Nessie.
+
+### Usage
+
+```bash
+phlo catalog <subcommand> [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `tables` | List all tables |
+| `describe` | Show table metadata |
+| `history` | Show snapshot history |
+| `sync` | Sync to OpenMetadata |
+
+### Examples
+
+```bash
+# List tables
+phlo catalog tables
+phlo catalog tables --namespace raw
+
+# Describe table
+phlo catalog describe raw.glucose_entries
+
+# Show history
+phlo catalog history raw.glucose_entries
+phlo catalog history raw.glucose_entries --limit 50
+
+# Sync to OpenMetadata
+phlo catalog sync
+phlo catalog sync --tables           # Tables only
+phlo catalog sync --models           # dbt models only
+phlo catalog sync --dry-run          # Preview changes
+```
+
+---
+
+## phlo branch
+
+Manage Nessie branches for data versioning.
+
+### Usage
+
+```bash
+phlo branch <subcommand> [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `list` | List all branches |
+| `create` | Create new branch |
+| `delete` | Delete branch |
+| `merge` | Merge branches |
+| `diff` | Show differences |
+
+### Examples
+
+```bash
+# List branches
+phlo branch list
+phlo branch list --all  # Include tags
+
+# Create branch
+phlo branch create feature/new-model
+phlo branch create feature/experiment --from dev
+
+# Delete branch
+phlo branch delete feature/old-branch
+phlo branch delete feature/old-branch --force
+
+# Merge
+phlo branch merge feature/new-model main
+phlo branch merge feature/new-model main --dry-run
+
+# Compare branches
+phlo branch diff main feature/new-model
+```
+
+---
+
+## phlo metrics
+
+View pipeline and data metrics.
+
+### Usage
+
+```bash
+phlo metrics [subcommand] [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `summary` | Show metrics overview |
+| `asset` | Per-asset metrics |
+| `export` | Export metrics |
+
+### Examples
+
+```bash
+# Summary dashboard
+phlo metrics
+phlo metrics summary --period 7d
+
+# Per-asset metrics
+phlo metrics asset glucose_entries
+phlo metrics asset glucose_entries --runs 20
+
+# Export metrics
+phlo metrics export --format csv --output metrics.csv
+phlo metrics export --format json --period 30d
+```
+
+---
+
+## phlo lineage
+
+View asset dependencies and impact analysis.
+
+### Usage
+
+```bash
+phlo lineage <subcommand> [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `show` | Display dependency tree |
+| `export` | Export lineage graph |
+| `impact` | Show downstream impact |
+
+### Examples
+
+```bash
+# Show dependencies
+phlo lineage show glucose_entries
+phlo lineage show glucose_entries --upstream
+phlo lineage show glucose_entries --downstream
+phlo lineage show glucose_entries --depth 2
+
+# Export
+phlo lineage export --format dot --output lineage.dot
+phlo lineage export --format mermaid --output lineage.md
+
+# Impact analysis
+phlo lineage impact glucose_entries
+```
+
+### Example Output
+
+```
+glucose_entries
+├── [upstream]
+│   └── (external) Nightscout API
+└── [downstream]
+    ├── stg_glucose_entries (dbt)
+    │   ├── fct_glucose_readings (dbt)
+    │   │   ├── mrt_glucose_readings (dbt)
+    │   │   └── fct_daily_glucose_metrics (dbt)
+```
+
+---
+
+## phlo plugin
+
+Manage Phlo plugins.
+
+### Usage
+
+```bash
+phlo plugin <subcommand> [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `list` | List installed plugins |
+| `info` | Show plugin details |
+| `check` | Validate plugins |
+| `create` | Scaffold new plugin |
+
+### Examples
+
+```bash
+# List plugins
+phlo plugin list
+phlo plugin list --type sources
+
+# Plugin info
+phlo plugin info jsonplaceholder
+
+# Validate plugins
+phlo plugin check
+
+# Create new plugin
+phlo plugin create my-custom-source --type source
+```
+
+### Example Output
+
+```
+Installed Plugins
+
+Sources:
+  NAME          VERSION  SOURCE
+  rest_api      built-in phlo.ingestion
+  jsonplaceholder 1.0.0  phlo-plugin-example
+
+Quality Checks:
+  NAME          VERSION  SOURCE
+  null_check    built-in phlo.quality
+  threshold_check 1.0.0  phlo-plugin-example
+
+Transforms:
+  NAME          VERSION  SOURCE
+  uppercase     1.0.0    phlo-plugin-example
+```
+
+---
+
+## phlo contract
+
+Manage data contracts between producers and consumers.
+
+### Usage
+
+```bash
+phlo contract <subcommand> [OPTIONS]
+```
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `list` | List all contracts |
+| `show` | Show contract details |
+| `validate` | Validate against live schema |
+| `check` | Check changes in PR |
+
+### Examples
+
+```bash
+# List contracts
+phlo contract list
+
+# Show contract
+phlo contract show glucose_readings
+
+# Validate contract
+phlo contract validate glucose_readings
+
+# Check PR changes
+phlo contract check --pr
+```
+
+### Contract Format
+
+Contracts are defined in YAML in the `contracts/` directory:
+
+```yaml
+# contracts/glucose_readings.yaml
+name: glucose_readings
+version: 1.0.0
+owner: data-team
+
+schema:
+  required_columns:
+    - name: reading_id
+      type: string
+      constraints:
+        unique: true
+        nullable: false
+    - name: sgv
+      type: integer
+      constraints:
+        min: 20
+        max: 600
+
+sla:
+  freshness_hours: 2
+  quality_threshold: 0.99
+
+consumers:
+  - name: analytics-team
+    usage: BI dashboards
+```
 
 ---
 
