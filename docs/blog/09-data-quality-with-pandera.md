@@ -377,6 +377,186 @@ Asset: fct_glucose_readings
 │  └─ Action: Investigate readings outside [45, 215]
 ```
 
+## The @phlo.quality Decorator
+
+The asset checks above work, but they're verbose. Each check requires:
+- A function definition
+- Boilerplate for querying data
+- Manual result construction
+- Repetitive metadata handling
+
+For common checks (null, range, freshness), Phlo provides the `@phlo.quality` decorator that reduces boilerplate by 70-80%.
+
+### Before: Traditional Asset Checks (60+ lines)
+
+```python
+@asset_check(asset=fct_glucose_readings)
+def glucose_null_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
+    null_counts = fct_glucose_readings[['glucose_mg_dl', 'timestamp']].isnull().sum()
+    passed = null_counts.sum() == 0
+    return AssetCheckResult(passed=passed, metadata={"null_counts": null_counts.to_dict()})
+
+@asset_check(asset=fct_glucose_readings)
+def glucose_range_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
+    invalid = fct_glucose_readings[
+        (fct_glucose_readings['glucose_mg_dl'] < 20) |
+        (fct_glucose_readings['glucose_mg_dl'] > 600)
+    ]
+    passed = len(invalid) == 0
+    return AssetCheckResult(passed=passed, metadata={"invalid_count": len(invalid)})
+
+@asset_check(asset=fct_glucose_readings)
+def glucose_freshness_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
+    latest = fct_glucose_readings['timestamp'].max()
+    hours_old = (pd.Timestamp.now(tz='UTC') - latest).total_seconds() / 3600
+    passed = hours_old < 24
+    return AssetCheckResult(passed=passed, metadata={"hours_old": hours_old})
+```
+
+### After: @phlo.quality Decorator (10 lines)
+
+```python
+import phlo
+from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
+
+@phlo.quality(
+    table="silver.fct_glucose_readings",
+    checks=[
+        NullCheck(columns=["glucose_mg_dl", "timestamp"]),
+        RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+        FreshnessCheck(column="timestamp", max_age_hours=24),
+    ],
+    group="glucose",
+    blocking=True,
+)
+def glucose_quality():
+    """Quality checks for glucose readings."""
+    pass
+```
+
+Same functionality, fraction of the code.
+
+### Available Check Types
+
+| Check Type | Purpose | Parameters |
+|------------|---------|------------|
+| `NullCheck` | Verify no nulls | `columns`, `tolerance` (% allowed) |
+| `RangeCheck` | Verify numeric bounds | `column`, `min_value`, `max_value` |
+| `FreshnessCheck` | Verify data recency | `column`, `max_age_hours` |
+| `UniqueCheck` | Verify uniqueness | `columns` (can be composite) |
+| `CountCheck` | Verify row count | `min_count`, `max_count` |
+| `SchemaCheck` | Validate against Pandera | `schema` (DataFrameModel class) |
+| `CustomSQLCheck` | Run arbitrary SQL | `sql`, `expected_result` |
+
+### Check Parameters in Detail
+
+**NullCheck with tolerance:**
+```python
+# Strict: no nulls allowed
+NullCheck(columns=["sgv", "timestamp"])
+
+# Lenient: allow up to 1% nulls
+NullCheck(columns=["device"], tolerance=0.01)
+```
+
+**RangeCheck:**
+```python
+# Both bounds
+RangeCheck(column="sgv", min_value=20, max_value=600)
+
+# Only lower bound
+RangeCheck(column="price", min_value=0)
+
+# Only upper bound
+RangeCheck(column="percentage", max_value=100)
+```
+
+**FreshnessCheck:**
+```python
+# Data must be less than 2 hours old
+FreshnessCheck(column="timestamp", max_age_hours=2)
+
+# Different column name
+FreshnessCheck(column="created_at", max_age_hours=24)
+```
+
+**UniqueCheck:**
+```python
+# Single column unique
+UniqueCheck(columns=["id"])
+
+# Composite unique (combination must be unique)
+UniqueCheck(columns=["user_id", "timestamp"])
+```
+
+**CustomSQLCheck for complex rules:**
+```python
+CustomSQLCheck(
+    name="business_hours_only",
+    sql="""
+        SELECT COUNT(*) as violations
+        FROM {table}
+        WHERE HOUR(timestamp) < 6 OR HOUR(timestamp) > 22
+    """,
+    expected_result=0,  # Zero violations expected
+)
+```
+
+### Decorator Parameters
+
+```python
+@phlo.quality(
+    table="silver.fct_glucose_readings",  # Fully qualified table name
+    checks=[...],                          # List of check instances
+    group="glucose",                       # Asset group (optional)
+    blocking=True,                         # Fail downstream if check fails
+    warn_threshold=0.1,                    # Warn if >10% of checks fail
+    backend="trino",                       # Query backend: "trino" or "duckdb"
+)
+```
+
+**blocking parameter:**
+- `blocking=True` (default): Failed checks prevent downstream assets from running
+- `blocking=False`: Failed checks log warnings but don't block execution
+
+**warn_threshold:**
+- Set to `0.0` for strict mode (any failure = warning)
+- Set to `0.1` to allow 10% of checks to fail before warning
+
+### Combining with Pandera Schemas
+
+For complex validation, combine the decorator with Pandera:
+
+```python
+from phlo.quality import SchemaCheck
+from workflows.schemas.glucose import FactGlucoseReadings
+
+@phlo.quality(
+    table="silver.fct_glucose_readings",
+    checks=[
+        # Use Pandera for full schema validation
+        SchemaCheck(schema=FactGlucoseReadings),
+        
+        # Plus additional runtime checks
+        FreshnessCheck(column="timestamp", max_age_hours=2),
+    ],
+)
+def glucose_comprehensive_quality():
+    pass
+```
+
+### When to Use Each Approach
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| Standard null/range/freshness checks | `@phlo.quality` decorator |
+| Complex business logic | Traditional `@asset_check` |
+| Statistical analysis | Traditional `@asset_check` |
+| Pandera schema validation | `SchemaCheck` in decorator |
+| One-off investigation | Traditional `@asset_check` |
+
+The decorator handles 80% of cases. Use traditional checks when you need custom logic.
+
 ## Validation at Each Layer
 
 ### Why Three Layers?
