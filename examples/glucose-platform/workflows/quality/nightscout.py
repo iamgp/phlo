@@ -2,6 +2,10 @@
 
 Implements data quality assurance for the silver and gold layers, ensuring processed
 glucose readings conform to business rules, data types, and expected ranges.
+
+This module demonstrates two approaches to quality checks:
+1. Traditional @asset_check with Pandera schemas (nightscout_glucose_quality_check)
+2. @phlo.quality decorator for declarative checks (glucose_readings_quality)
 """
 
 from __future__ import annotations
@@ -12,6 +16,55 @@ from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 from phlo.defs.resources.trino import TrinoResource
 
 from workflows.schemas.nightscout import FactDailyGlucoseMetrics, FactGlucoseReadings
+
+# Import quality check types for @phlo.quality decorator
+try:
+    import phlo
+    from phlo.quality import FreshnessCheck, NullCheck, RangeCheck
+
+    PHLO_QUALITY_AVAILABLE = True
+except ImportError:
+    PHLO_QUALITY_AVAILABLE = False
+
+
+# ---------------------------------------------------------------------------
+# @phlo.quality decorator approach (declarative, reduces boilerplate by 70-80%)
+# ---------------------------------------------------------------------------
+if PHLO_QUALITY_AVAILABLE:
+
+    @phlo.quality(
+        table="silver.fct_glucose_readings",
+        checks=[
+            NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
+            RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+            RangeCheck(column="hour_of_day", min_value=0, max_value=23),
+            FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+        ],
+        group="nightscout",
+        blocking=True,
+    )
+    def glucose_readings_quality():
+        """Declarative quality checks for glucose readings using @phlo.quality."""
+        pass
+
+    @phlo.quality(
+        table="gold.fct_daily_glucose_metrics",
+        checks=[
+            NullCheck(columns=["reading_date", "reading_count", "avg_glucose_mg_dl"]),
+            RangeCheck(column="avg_glucose_mg_dl", min_value=20, max_value=600),
+            RangeCheck(column="time_in_range_pct", min_value=0, max_value=100),
+        ],
+        group="nightscout",
+        blocking=True,
+    )
+    def daily_metrics_quality():
+        """Declarative quality checks for daily glucose metrics."""
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Traditional @asset_check approach (more control, custom logic)
+# ---------------------------------------------------------------------------
 
 FACT_QUERY_BASE = """
 SELECT
