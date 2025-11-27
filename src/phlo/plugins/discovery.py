@@ -11,6 +11,7 @@ import importlib.metadata
 import logging
 import os
 
+from phlo.config import get_settings
 from phlo.plugins.base import (
     Plugin,
     QualityCheckPlugin,
@@ -27,6 +28,31 @@ ENTRY_POINT_GROUPS = {
     "quality_checks": "phlo.plugins.quality",
     "transformations": "phlo.plugins.transforms",
 }
+
+
+def _is_plugin_allowed(plugin_name: str) -> bool:
+    """
+    Check if a plugin is allowed based on whitelist/blacklist configuration.
+
+    Args:
+        plugin_name: Name of the plugin
+
+    Returns:
+        True if plugin should be loaded, False otherwise
+    """
+    settings = get_settings()
+
+    # Check blacklist first
+    if plugin_name in settings.plugins_blacklist:
+        logger.debug(f"Plugin '{plugin_name}' is blacklisted, skipping")
+        return False
+
+    # Check whitelist (if not empty)
+    if settings.plugins_whitelist and plugin_name not in settings.plugins_whitelist:
+        logger.debug(f"Plugin '{plugin_name}' is not in whitelist, skipping")
+        return False
+
+    return True
 
 
 def discover_plugins(
@@ -58,6 +84,17 @@ def discover_plugins(
         # {'source_connectors': [...]}
         ```
     """
+    settings = get_settings()
+
+    # Check if plugins are enabled
+    if not settings.plugins_enabled:
+        logger.info("Plugin system is disabled")
+        return {
+            "source_connectors": [],
+            "quality_checks": [],
+            "transformations": [],
+        }
+
     discovered: dict[str, list[Plugin]] = {
         "source_connectors": [],
         "quality_checks": [],
@@ -91,6 +128,10 @@ def discover_plugins(
         # Load each plugin
         for entry_point in entry_points:
             try:
+                # Check if plugin is allowed
+                if not _is_plugin_allowed(entry_point.name):
+                    continue
+
                 logger.info(
                     f"Loading plugin: {entry_point.name} from {entry_point.value}"
                 )
@@ -283,6 +324,64 @@ def get_transformation(name: str) -> TransformationPlugin | None:
     """
     registry = get_global_registry()
     return registry.get_transformation(name)
+
+
+def get_plugin_info(plugin_type: str, name: str) -> dict | None:
+    """
+    Get detailed information about a plugin.
+
+    Args:
+        plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations")
+        name: Plugin name
+
+    Returns:
+        Dictionary with plugin information or None if not found
+
+    Example:
+        ```python
+        info = get_plugin_info("source_connectors", "github")
+        if info:
+            print(f"Version: {info['version']}")
+            print(f"Author: {info['author']}")
+        ```
+    """
+    registry = get_global_registry()
+    return registry.get_plugin_metadata(plugin_type, name)
+
+
+def validate_plugins() -> dict[str, list[str]]:
+    """
+    Validate all registered plugins.
+
+    Checks that all plugins comply with their interface requirements.
+
+    Returns:
+        Dictionary with two keys:
+        - 'valid': List of valid plugin names
+        - 'invalid': List of invalid plugin names
+    """
+    registry = get_global_registry()
+    all_plugins = registry.list_all_plugins()
+
+    valid = []
+    invalid = []
+
+    for plugin_type, plugin_names in all_plugins.items():
+        for name in plugin_names:
+            plugin = None
+            if plugin_type == "source_connectors":
+                plugin = registry.get_source_connector(name)
+            elif plugin_type == "quality_checks":
+                plugin = registry.get_quality_check(name)
+            elif plugin_type == "transformations":
+                plugin = registry.get_transformation(name)
+
+            if plugin and registry.validate_plugin(plugin):
+                valid.append(f"{plugin_type}:{name}")
+            else:
+                invalid.append(f"{plugin_type}:{name}")
+
+    return {"valid": valid, "invalid": invalid}
 
 
 def auto_discover() -> None:

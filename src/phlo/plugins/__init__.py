@@ -104,6 +104,7 @@ Plugins are loaded from installed Python packages only. Ensure you:
 
 from phlo.plugins.base import (
     Plugin,
+    PluginMetadata,
     QualityCheckPlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
@@ -111,16 +112,19 @@ from phlo.plugins.base import (
 from phlo.plugins.discovery import (
     discover_plugins,
     get_plugin,
+    get_plugin_info,
     get_quality_check,
     get_source_connector,
     get_transformation,
     list_plugins,
+    validate_plugins,
 )
 from phlo.plugins.registry import PluginRegistry
 
 __all__ = [
     # Base classes
     "Plugin",
+    "PluginMetadata",
     "SourceConnectorPlugin",
     "QualityCheckPlugin",
     "TransformationPlugin",
@@ -128,9 +132,11 @@ __all__ = [
     "discover_plugins",
     "list_plugins",
     "get_plugin",
+    "get_plugin_info",
     "get_source_connector",
     "get_quality_check",
     "get_transformation",
+    "validate_plugins",
     # Registry
     "PluginRegistry",
 ]

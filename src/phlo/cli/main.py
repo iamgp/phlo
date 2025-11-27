@@ -48,6 +48,9 @@ from phlo.cli.metrics import metrics_group
 from phlo.cli.lineage import lineage_group
 from phlo.cli.alerts import alerts_group
 
+# Add plugin management commands
+from phlo.cli.plugin import plugin_group
+
 # Import API subcommands to register with the existing api group (defined below)
 from phlo.cli.api import hasura, postgrest
 
@@ -63,6 +66,7 @@ cli.add_command(contract)
 cli.add_command(metrics_group)
 cli.add_command(lineage_group)
 cli.add_command(alerts_group)
+cli.add_command(plugin_group)
 
 
 @cli.command()
