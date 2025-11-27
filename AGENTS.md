@@ -11,6 +11,29 @@
 - **dbt commands**: `docker compose exec dagster-web dbt run/test --select model_name`
 - **dbt testing**: `dbt test --select tag:dataset_name` (comprehensive schema + business logic tests)
 
+## CLI Commands
+
+### Asset Materialization & Backfills
+
+- **Single materialization**: `phlo materialize asset_name --partition 2024-01-01`
+- **Date range backfill**: `phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31`
+- **Explicit partitions**: `phlo backfill glucose_entries --partitions 2024-01-01,2024-01-15,2024-01-31`
+- **Parallel backfill**: `phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4`
+- **Resume backfill**: `phlo backfill --resume` (continues after interruption)
+- **Dry-run preview**: `phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31 --dry-run`
+
+### Log Access & Filtering
+
+- **View recent logs**: `phlo logs` (last 100 logs)
+- **Filter by asset**: `phlo logs --asset glucose_entries`
+- **Filter by job**: `phlo logs --job weather_pipeline`
+- **Filter by level**: `phlo logs --level ERROR` (DEBUG, INFO, WARNING, ERROR)
+- **Time-based filter**: `phlo logs --since 1h` (last hour, supports h/m/d)
+- **Tail mode**: `phlo logs --follow` (real-time updates)
+- **Specific run**: `phlo logs --run-id abc123`
+- **Full output**: `phlo logs --full` (no truncation)
+- **JSON output**: `phlo logs --json` (for scripting)
+
 ## Architecture & Structure
 
 - **Data lakehouse** with MinIO (S3-compatible), PostgreSQL, DuckDB/DuckLake for analytics
