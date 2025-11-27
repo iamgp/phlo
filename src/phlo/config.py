@@ -200,6 +200,44 @@ class Settings(BaseSettings):
         default_factory=list, description="Email recipients for alerts"
     )
 
+    # --- OpenMetadata Configuration ---
+    # Settings for OpenMetadata data catalog integration
+    openmetadata_host: str = Field(
+        default="openmetadata-server", description="OpenMetadata server hostname"
+    )
+    openmetadata_port: int = Field(
+        default=8585, description="OpenMetadata server port"
+    )
+    openmetadata_username: str = Field(
+        default="admin", description="OpenMetadata admin username"
+    )
+    openmetadata_password: str = Field(
+        default="admin", description="OpenMetadata admin password"
+    )
+    openmetadata_sync_enabled: bool = Field(
+        default=True, description="Enable automatic metadata sync to OpenMetadata"
+    )
+    openmetadata_sync_interval_seconds: int = Field(
+        default=300, description="Minimum interval between metadata syncs (seconds)"
+    )
+
+    # --- dbt Configuration ---
+    # Settings for dbt integration and manifest location
+    dbt_manifest_path: str = Field(
+        default="transforms/dbt/target/manifest.json",
+        description="Path to dbt manifest.json after running dbt docs generate",
+    )
+    dbt_catalog_path: str = Field(
+        default="transforms/dbt/target/catalog.json",
+        description="Path to dbt catalog.json for column-level documentation",
+    )
+
+    # --- Nessie Configuration ---
+    # Settings for Nessie catalog access
+    nessie_api_version: str = Field(
+        default="v1", description="Nessie API version"
+    )
+
     # --- Computed Properties ---
     # Additional properties computed from the base settings
     @property
@@ -227,7 +265,12 @@ class Settings(BaseSettings):
         """
         return f"http://{self.nessie_host}:{self.nessie_port}/iceberg"
 
-        # --- Helper Methods ---
+    @property
+    def openmetadata_uri(self) -> str:
+        """Return OpenMetadata API base URI."""
+        return f"http://{self.openmetadata_host}:{self.openmetadata_port}/api"
+
+    # --- Helper Methods ---
 
     # Methods to generate connection strings and catalog configurations
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
