@@ -78,6 +78,11 @@ def test(
         # Skip integration tests that require Docker
         pytest_args.extend(["-m", "not integration"])
 
+    # Set local test mode environment variable
+    if local:
+        os.environ["PHLO_TEST_LOCAL"] = "1"
+        click.echo("Local test mode enabled (PHLO_TEST_LOCAL=1)\n")
+
     if verbose:
         pytest_args.append("-v")
 
