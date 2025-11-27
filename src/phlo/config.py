@@ -238,6 +238,23 @@ class Settings(BaseSettings):
         default="v1", description="Nessie API version"
     )
 
+    # --- Plugin Configuration ---
+    # Settings for plugin system
+    plugins_enabled: bool = Field(
+        default=True, description="Enable plugin system"
+    )
+    plugins_auto_discover: bool = Field(
+        default=True,
+        description="Automatically discover plugins from entry points on import",
+    )
+    plugins_whitelist: list[str] = Field(
+        default_factory=list,
+        description="Whitelist of plugin names to load (empty = all allowed)",
+    )
+    plugins_blacklist: list[str] = Field(
+        default_factory=list, description="Blacklist of plugin names to exclude"
+    )
+
     # --- Computed Properties ---
     # Additional properties computed from the base settings
     @property

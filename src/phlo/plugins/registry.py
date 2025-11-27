@@ -193,6 +193,78 @@ class PluginRegistry:
         """Check if a plugin is registered (key format: 'type:name')."""
         return key in self._all_plugins
 
+    def get_plugin_metadata(self, plugin_type: str, name: str) -> dict | None:
+        """
+        Get metadata for a plugin by type and name.
+
+        Args:
+            plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations")
+            name: Plugin name
+
+        Returns:
+            Dictionary with plugin metadata or None if not found
+        """
+        plugin = None
+        if plugin_type == "source_connectors":
+            plugin = self.get_source_connector(name)
+        elif plugin_type == "quality_checks":
+            plugin = self.get_quality_check(name)
+        elif plugin_type == "transformations":
+            plugin = self.get_transformation(name)
+
+        if not plugin:
+            return None
+
+        metadata = plugin.metadata
+        return {
+            "name": metadata.name,
+            "version": metadata.version,
+            "description": metadata.description,
+            "author": metadata.author,
+            "license": metadata.license,
+            "homepage": metadata.homepage,
+            "tags": metadata.tags,
+            "dependencies": metadata.dependencies,
+        }
+
+    def validate_plugin(self, plugin: Plugin) -> bool:
+        """
+        Validate plugin interface compliance.
+
+        Args:
+            plugin: Plugin instance to validate
+
+        Returns:
+            True if plugin is valid, False otherwise
+        """
+        # Check required attributes
+        if not hasattr(plugin, "metadata"):
+            return False
+
+        try:
+            metadata = plugin.metadata
+            if not isinstance(metadata, object):
+                return False
+
+            # Check required metadata fields
+            required_fields = ["name", "version"]
+            for field in required_fields:
+                if not hasattr(metadata, field):
+                    return False
+
+        except Exception:
+            return False
+
+        # Type-specific validation
+        if isinstance(plugin, SourceConnectorPlugin):
+            return hasattr(plugin, "fetch_data") and callable(plugin.fetch_data)
+        elif isinstance(plugin, QualityCheckPlugin):
+            return hasattr(plugin, "create_check") and callable(plugin.create_check)
+        elif isinstance(plugin, TransformationPlugin):
+            return hasattr(plugin, "transform") and callable(plugin.transform)
+
+        return True
+
 
 # Global registry instance
 _global_registry = PluginRegistry()
