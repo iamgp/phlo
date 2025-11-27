@@ -43,6 +43,11 @@ from phlo.cli.catalog import catalog
 from phlo.cli.branch import branch
 from phlo.cli.contract import contract
 
+# Add observability commands
+from phlo.cli.metrics import metrics_group
+from phlo.cli.lineage import lineage_group
+from phlo.cli.alerts import alerts_group
+
 cli.add_command(validate_schema)
 cli.add_command(validate_workflow)
 cli.add_command(status)
@@ -52,6 +57,9 @@ cli.add_command(schema)
 cli.add_command(catalog)
 cli.add_command(branch)
 cli.add_command(contract)
+cli.add_command(metrics_group)
+cli.add_command(lineage_group)
+cli.add_command(alerts_group)
 
 
 @cli.command()
