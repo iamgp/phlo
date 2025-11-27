@@ -48,6 +48,9 @@ from phlo.cli.metrics import metrics_group
 from phlo.cli.lineage import lineage_group
 from phlo.cli.alerts import alerts_group
 
+# Import API subcommands to register with the existing api group (defined below)
+from phlo.cli.api import hasura, postgrest
+
 cli.add_command(validate_schema)
 cli.add_command(validate_workflow)
 cli.add_command(status)
@@ -604,6 +607,11 @@ Phlo data workflows for {project_name}.
 def api():
     """API infrastructure management commands."""
     pass
+
+
+# Register API subcommands
+api.add_command(postgrest)
+api.add_command(hasura)
 
 
 @api.command("setup-postgrest")
