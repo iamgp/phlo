@@ -46,124 +46,176 @@ Pandera provides type-safe validation with detailed error reporting.
 
 ### Setting Up a Schema
 
-In Phlo, schemas live in `phlo/schemas/`:
+Phlo uses Pandera's DataFrameModel approach for cleaner, class-based schemas:
 
 ```python
-# phlo/schemas/glucose_entries.py
-import pandera as pa
-from pandera import Column, DataFrameSchema, Check, Index
-from typing import Optional
+# File: examples/glucose-platform/workflows/schemas/nightscout.py
+from pandera.pandas import DataFrameModel, Field
+
+# Validation constants
+MIN_GLUCOSE_MG_DL = 20
+MAX_GLUCOSE_MG_DL = 600
+
+VALID_DIRECTIONS = [
+    "Flat", "FortyFiveUp", "FortyFiveDown",
+    "SingleUp", "SingleDown", "DoubleUp", "DoubleDown", "NONE"
+]
 
 
-glucose_entries_schema = DataFrameSchema(
-    columns={
-        # Required fields with type and constraints
-        "_id": Column(
-            pa.String,
-            checks=[
-                Check(lambda x: x.str.len() > 0, "ID must not be empty"),
-                Check(lambda x: x.is_unique, "ID must be unique"),
-            ],
-            nullable=False,
-        ),
-        "sgv": Column(
-            pa.Int64,
-            checks=[
-                Check(lambda x: (x >= 20) & (x <= 600), "Glucose must be 20-600 mg/dL"),
-            ],
-            nullable=False,
-            description="Glucose reading in mg/dL",
-        ),
-        "timestamp": Column(
-            pa.Int64,
-            checks=[
-                Check(lambda x: x > 0, "Timestamp must be positive"),
-            ],
-            nullable=False,
-            description="Unix milliseconds",
-        ),
-        "date_string": Column(
-            pa.String,
-            checks=[
-                Check(
-                    lambda x: x.str.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"),
-                    "Date must be ISO 8601",
-                ),
-            ],
-            nullable=False,
-        ),
-        "device": Column(
-            pa.String,
-            checks=[
-                Check(
-                    lambda x: x.isin([
-                        "dexcom", "freestyle", "medtronic", "nightscout"
-                    ]),
-                    "Device must be known type",
-                ),
-            ],
-            nullable=False,
-        ),
-        "trend": Column(
-            pa.String,
-            checks=[
-                Check(
-                    lambda x: x.isin(["FLAT", "SINGLE UP", "DOUBLE UP", 
-                                      "SINGLE DOWN", "DOUBLE DOWN", "NOT COMPUTABLE"]),
-                    "Trend must be valid",
-                ),
-            ],
-            nullable=True,  # Some devices don't provide
-        ),
-    },
-    strict=False,  # Allow extra columns (will be dropped)
-    coerce=True,  # Try to convert types
-)
+class RawGlucoseEntries(DataFrameModel):
+    """
+    Schema for raw Nightscout glucose entries from the API.
+
+    Validates raw glucose data at ingestion time:
+    - Valid glucose ranges (1-1000 mg/dL for raw data)
+    - Proper field types and nullability
+    - Required metadata fields
+    - Unique entry IDs
+    """
+
+    _id: str = Field(
+        nullable=False,
+        unique=True,
+        description="Nightscout entry ID (unique identifier)",
+    )
+
+    sgv: int = Field(
+        ge=1,
+        le=1000,
+        nullable=False,
+        description="Sensor glucose value in mg/dL (1-1000 for raw data)",
+    )
+
+    date: int = Field(
+        nullable=False,
+        description="Unix timestamp in milliseconds",
+    )
+
+    date_string: datetime = Field(
+        nullable=False,
+        description="ISO 8601 timestamp",
+    )
+
+    direction: str | None = Field(
+        isin=VALID_DIRECTIONS,
+        nullable=True,
+        description="Trend direction (e.g., 'SingleUp', 'Flat')",
+    )
+
+    device: str | None = Field(
+        nullable=True,
+        description="Device name that recorded the entry",
+    )
+
+    class Config:
+        strict = False  # Allow DLT metadata fields
+        coerce = True
+
+
+class FactGlucoseReadings(DataFrameModel):
+    """
+    Schema for the fct_glucose_readings table (silver layer).
+
+    Validates processed Nightscout glucose data including:
+    - Valid glucose ranges (20-600 mg/dL)
+    - Proper timestamp formatting
+    - Valid direction indicators
+    - Time dimension fields (hour, day of week)
+    - Glucose categorization
+    """
+
+    entry_id: str = Field(
+        nullable=False,
+        unique=True,
+        description="Unique identifier for each glucose reading entry",
+    )
+
+    glucose_mg_dl: int = Field(
+        ge=MIN_GLUCOSE_MG_DL,
+        le=MAX_GLUCOSE_MG_DL,
+        nullable=False,
+        description=f"Blood glucose in mg/dL ({MIN_GLUCOSE_MG_DL}-{MAX_GLUCOSE_MG_DL})",
+    )
+
+    reading_timestamp: datetime = Field(
+        nullable=False,
+        description="Timestamp when the glucose reading was taken",
+    )
+
+    hour_of_day: int = Field(
+        ge=0,
+        le=23,
+        nullable=False,
+        description="Hour of day when reading was taken (0-23)",
+    )
+
+    glucose_category: str = Field(
+        isin=["hypoglycemia", "in_range", "hyperglycemia_mild", "hyperglycemia_severe"],
+        nullable=False,
+        description="Categorized glucose level based on ADA guidelines",
+    )
+
+    is_in_range: int = Field(
+        isin=[0, 1],
+        nullable=False,
+        description="Whether glucose level is within target range (0=no, 1=yes)",
+    )
+
+    class Config:
+        strict = True
+        coerce = True
 ```
 
-### Using Pandera in DLT
+### Using Pandera in @phlo_ingestion
+
+The `@phlo_ingestion` decorator automatically validates data with Pandera schemas:
 
 ```python
-# phlo/defs/ingestion/dlt_assets.py
-from phlo.schemas.glucose_entries import glucose_entries_schema
-import pandera as pa
-import dlt
+# File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
-@asset(
-    name="dlt_glucose_entries",
-    description="Raw glucose data from Nightscout API",
-    group_name="ingestion",
+from dlt.sources.rest_api import rest_api
+from phlo.ingestion import phlo_ingestion
+from workflows.schemas.nightscout import RawGlucoseEntries
+
+@phlo_ingestion(
+    table_name="glucose_entries",
+    unique_key="_id",
+    validation_schema=RawGlucoseEntries,  # Automatic validation
+    group="nightscout",
+    cron="0 */1 * * *",
+    freshness_hours=(1, 24),
 )
-def load_glucose_entries(context) -> None:
-    """Ingest glucose readings with validation."""
-    
-    # DLT loads from API
-    pipeline = dlt.pipeline(
-        pipeline_name="glucose_pipeline",
-        destination="s3",
-        dataset_name="raw",
+def glucose_entries(partition_date: str):
+    """
+    Ingest Nightscout glucose entries with automatic validation.
+
+    The decorator validates data against RawGlucoseEntries schema:
+    - Checks all field types and constraints
+    - Validates glucose ranges (1-1000 for raw)
+    - Ensures unique entry IDs
+    - Logs validation failures with details
+    """
+    start_time_iso = f"{partition_date}T00:00:00.000Z"
+    end_time_iso = f"{partition_date}T23:59:59.999Z"
+
+    source = rest_api(
+        client={"base_url": "https://gwp-diabetes.fly.dev/api/v1"},
+        resources=[
+            {
+                "name": "entries",
+                "endpoint": {
+                    "path": "entries.json",
+                    "params": {
+                        "count": 10000,
+                        "find[dateString][$gte]": start_time_iso,
+                        "find[dateString][$lt]": end_time_iso,
+                    },
+                },
+            }
+        ],
     )
-    
-    # Load data from API
-    data = fetch_from_nightscout_api()
-    
-    # Validate with Pandera BEFORE loading
-    try:
-        validated_df = glucose_entries_schema.validate(data)
-        context.log.info(f"✓ Validation passed: {len(validated_df)} rows")
-    except pa.errors.SchemaError as e:
-        context.log.error(f"✗ Validation failed:\n{e}")
-        # Log problematic rows for investigation
-        for idx, error in e.failure_cases.iterrows():
-            context.log.warning(f"  Row {idx}: {error}")
-        raise
-    
-    # Only load validated data
-    pipeline.run(
-        validated_df,
-        table_name="glucose_entries",
-        write_disposition="append",
-    )
+
+    return source
 ```
 
 ### Detailed Error Messages
@@ -271,93 +323,156 @@ dbt test --select stg_glucose_entries --debug
 
 ## Layer 3: Dagster Asset Checks (Runtime)
 
-After orchestration, Dagster asset checks monitor data quality in production.
+After orchestration, Dagster asset checks monitor data quality in production. Phlo provides **two approaches**: the declarative `@phlo.quality` decorator and traditional `@asset_check` for custom logic.
 
-### Defining Asset Checks
+### Approach 1: @phlo.quality Decorator (Declarative)
+
+For common checks (null, range, freshness), use the `@phlo.quality` decorator to reduce boilerplate by 70-80%:
 
 ```python
-# phlo/defs/quality/glucose_checks.py
-from dagster import asset, asset_check, AssetCheckResult, Config
-import pandas as pd
-from datetime import timedelta
+# File: examples/glucose-platform/workflows/quality/nightscout.py
 
+import phlo
+from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
 
-@asset
-def fct_glucose_readings():
-    """Glucose readings fact table."""
-    # ... asset code ...
+@phlo.quality(
+    table="silver.fct_glucose_readings",
+    checks=[
+        NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
+        RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+        RangeCheck(column="hour_of_day", min_value=0, max_value=23),
+        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+    ],
+    group="nightscout",
+    blocking=True,
+)
+def glucose_readings_quality():
+    """Declarative quality checks for glucose readings using @phlo.quality."""
     pass
 
 
-@asset_check(asset=fct_glucose_readings)
-def glucose_range_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
-    """Ensure glucose readings are in valid range."""
-    
-    invalid_rows = fct_glucose_readings[
-        (fct_glucose_readings['glucose_mg_dl'] < 20) |
-        (fct_glucose_readings['glucose_mg_dl'] > 600)
-    ]
-    
-    passed = len(invalid_rows) == 0
-    
-    return AssetCheckResult(
-        passed=passed,
-        metadata={
-            "invalid_count": len(invalid_rows),
-            "valid_count": len(fct_glucose_readings) - len(invalid_rows),
-            "percentage_valid": (
-                100 * (len(fct_glucose_readings) - len(invalid_rows)) 
-                / len(fct_glucose_readings)
-            ),
-        },
-    )
+@phlo.quality(
+    table="gold.fct_daily_glucose_metrics",
+    checks=[
+        NullCheck(columns=["reading_date", "reading_count", "avg_glucose_mg_dl"]),
+        RangeCheck(column="avg_glucose_mg_dl", min_value=20, max_value=600),
+        RangeCheck(column="time_in_range_pct", min_value=0, max_value=100),
+    ],
+    group="nightscout",
+    blocking=True,
+)
+def daily_metrics_quality():
+    """Declarative quality checks for daily glucose metrics."""
+    pass
+```
+
+### Approach 2: Traditional @asset_check (Custom Logic)
+
+For complex validation with Pandera schemas or custom business logic:
+
+```python
+# File: examples/glucose-platform/workflows/quality/nightscout.py
+
+from dagster import AssetCheckResult, AssetKey, asset_check
+from phlo.defs.resources.trino import TrinoResource
+from workflows.schemas.nightscout import FactGlucoseReadings
+import pandera.errors
 
 
-@asset_check(asset=fct_glucose_readings)
-def glucose_freshness_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
-    """Ensure recent readings exist."""
-    
-    latest_reading = fct_glucose_readings['timestamp_iso'].max()
-    hours_old = (pd.Timestamp.now(tz='UTC') - latest_reading).total_seconds() / 3600
-    
-    passed = hours_old < 2  # Alert if no reading in 2 hours
-    
-    return AssetCheckResult(
-        passed=passed,
-        metadata={
-            "latest_reading_hours_ago": round(hours_old, 2),
-            "threshold_hours": 2,
-        },
-    )
+@asset_check(
+    name="nightscout_glucose_quality",
+    asset=AssetKey(["fct_glucose_readings"]),
+    blocking=True,
+    description="Validate processed Nightscout glucose data using Pandera schema validation.",
+)
+def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
+    """
+    Quality check using Pandera for type-safe schema validation.
 
+    Validates glucose readings against the FactGlucoseReadings schema,
+    checking data types, ranges, and business rules directly against Iceberg via Trino.
+    """
+    query = """
+    SELECT
+        entry_id,
+        glucose_mg_dl,
+        reading_timestamp,
+        direction,
+        hour_of_day,
+        day_of_week,
+        glucose_category,
+        is_in_range
+    FROM iceberg_dev.silver.fct_glucose_readings
+    """
 
-@asset_check(asset=fct_glucose_readings)
-def glucose_statistical_bounds_check(
-    fct_glucose_readings: pd.DataFrame,
-) -> AssetCheckResult:
-    """Detect outliers using statistical bounds."""
-    
-    glucose_values = fct_glucose_readings['glucose_mg_dl']
-    mean = glucose_values.mean()
-    std = glucose_values.std()
-    
-    # Flag readings more than 3 std devs from mean
-    outliers = glucose_values[
-        (glucose_values < mean - 3 * std) |
-        (glucose_values > mean + 3 * std)
-    ]
-    
-    passed = len(outliers) < 5  # Allow a few, but flag many
-    
-    return AssetCheckResult(
-        passed=passed,
-        metadata={
-            "outlier_count": len(outliers),
-            "mean": round(mean, 2),
-            "std": round(std, 2),
-            "bounds": f"[{round(mean - 3*std, 2)}, {round(mean + 3*std, 2)}]",
-        },
-    )
+    partition_key = getattr(context, "partition_key", None)
+    if partition_key:
+        query = f"{query}\nWHERE DATE(reading_timestamp) = DATE '{partition_key}'"
+        context.log.info(f"Validating partition: {partition_key}")
+
+    try:
+        with trino.cursor(schema="silver") as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+
+        fact_df = pd.DataFrame(rows, columns=columns)
+
+        # Type conversions
+        fact_df["glucose_mg_dl"] = fact_df["glucose_mg_dl"].astype("int64")
+        fact_df["hour_of_day"] = fact_df["hour_of_day"].astype("int64")
+        fact_df["day_of_week"] = fact_df["day_of_week"].astype("int64")
+        fact_df["is_in_range"] = fact_df["is_in_range"].astype("int64")
+        fact_df["reading_timestamp"] = pd.to_datetime(fact_df["reading_timestamp"])
+
+        context.log.info(f"Loaded {len(fact_df)} rows for validation")
+
+    except Exception as exc:
+        context.log.error(f"Failed to load data from Trino: {exc}")
+        return AssetCheckResult(
+            passed=False,
+            metadata={
+                "reason": "trino_query_failed",
+                "error": str(exc),
+            },
+        )
+
+    if fact_df.empty:
+        return AssetCheckResult(
+            passed=True,
+            metadata={
+                "rows_validated": 0,
+                "note": "No data available for selected partition",
+            },
+        )
+
+    # Validate with Pandera schema
+    context.log.info("Validating data with Pandera schema...")
+    try:
+        FactGlucoseReadings.validate(fact_df, lazy=True)
+        context.log.info("All validation checks passed!")
+
+        return AssetCheckResult(
+            passed=True,
+            metadata={
+                "rows_validated": len(fact_df),
+                "columns_validated": len(fact_df.columns),
+            },
+        )
+
+    except pandera.errors.SchemaErrors as err:
+        failure_cases = err.failure_cases
+        context.log.warning(f"Validation failed with {len(failure_cases)} check failures")
+
+        return AssetCheckResult(
+            passed=False,
+            metadata={
+                "rows_evaluated": len(fact_df),
+                "failed_checks": len(failure_cases),
+                "failures_by_column": failure_cases.groupby("column").size().to_dict(),
+                "sample_failures": failure_cases.head(10).to_dict(orient="records"),
+            },
+        )
 ```
 
 ### Viewing Check Results
@@ -377,64 +492,68 @@ Asset: fct_glucose_readings
 │  └─ Action: Investigate readings outside [45, 215]
 ```
 
-## The @phlo.quality Decorator
+## Comparing Both Approaches
 
-The asset checks above work, but they're verbose. Each check requires:
-- A function definition
-- Boilerplate for querying data
-- Manual result construction
-- Repetitive metadata handling
+Both approaches are used in the actual Phlo implementation and serve different purposes:
 
-For common checks (null, range, freshness), Phlo provides the `@phlo.quality` decorator that reduces boilerplate by 70-80%.
+### @phlo.quality: Declarative (10 lines)
 
-### Before: Traditional Asset Checks (60+ lines)
+Best for standard checks - reduces boilerplate by 70-80%:
 
 ```python
-@asset_check(asset=fct_glucose_readings)
-def glucose_null_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
-    null_counts = fct_glucose_readings[['glucose_mg_dl', 'timestamp']].isnull().sum()
-    passed = null_counts.sum() == 0
-    return AssetCheckResult(passed=passed, metadata={"null_counts": null_counts.to_dict()})
+# File: examples/glucose-platform/workflows/quality/nightscout.py
 
-@asset_check(asset=fct_glucose_readings)
-def glucose_range_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
-    invalid = fct_glucose_readings[
-        (fct_glucose_readings['glucose_mg_dl'] < 20) |
-        (fct_glucose_readings['glucose_mg_dl'] > 600)
-    ]
-    passed = len(invalid) == 0
-    return AssetCheckResult(passed=passed, metadata={"invalid_count": len(invalid)})
-
-@asset_check(asset=fct_glucose_readings)
-def glucose_freshness_check(fct_glucose_readings: pd.DataFrame) -> AssetCheckResult:
-    latest = fct_glucose_readings['timestamp'].max()
-    hours_old = (pd.Timestamp.now(tz='UTC') - latest).total_seconds() / 3600
-    passed = hours_old < 24
-    return AssetCheckResult(passed=passed, metadata={"hours_old": hours_old})
-```
-
-### After: @phlo.quality Decorator (10 lines)
-
-```python
 import phlo
 from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
 
 @phlo.quality(
     table="silver.fct_glucose_readings",
     checks=[
-        NullCheck(columns=["glucose_mg_dl", "timestamp"]),
+        NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
         RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
-        FreshnessCheck(column="timestamp", max_age_hours=24),
+        RangeCheck(column="hour_of_day", min_value=0, max_value=23),
+        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
     ],
-    group="glucose",
+    group="nightscout",
     blocking=True,
 )
-def glucose_quality():
-    """Quality checks for glucose readings."""
+def glucose_readings_quality():
+    """Declarative quality checks for glucose readings."""
     pass
 ```
 
-Same functionality, fraction of the code.
+### Traditional @asset_check: Custom Logic (80+ lines)
+
+Best for complex validation with Pandera schemas or custom business logic:
+
+```python
+# File: examples/glucose-platform/workflows/quality/nightscout.py
+
+@asset_check(
+    name="nightscout_glucose_quality",
+    asset=AssetKey(["fct_glucose_readings"]),
+    blocking=True,
+)
+def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
+    """Full Pandera schema validation with custom error handling."""
+
+    # Query data from Trino
+    query = """SELECT entry_id, glucose_mg_dl, ... FROM iceberg_dev.silver.fct_glucose_readings"""
+    with trino.cursor() as cursor:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+    fact_df = pd.DataFrame(rows, columns=columns)
+
+    # Validate with Pandera schema
+    try:
+        FactGlucoseReadings.validate(fact_df, lazy=True)
+        return AssetCheckResult(passed=True, metadata={...})
+    except pandera.errors.SchemaErrors as err:
+        return AssetCheckResult(passed=False, metadata={...})
+```
+
+**Both approaches are valid** - use `@phlo.quality` for common checks, `@asset_check` for complex logic.
 
 ### Available Check Types
 
@@ -547,15 +666,20 @@ def glucose_comprehensive_quality():
 
 ### When to Use Each Approach
 
-| Scenario | Recommended Approach |
-|----------|---------------------|
-| Standard null/range/freshness checks | `@phlo.quality` decorator |
-| Complex business logic | Traditional `@asset_check` |
-| Statistical analysis | Traditional `@asset_check` |
-| Pandera schema validation | `SchemaCheck` in decorator |
-| One-off investigation | Traditional `@asset_check` |
+| Scenario | Recommended Approach | Example |
+|----------|---------------------|---------|
+| Standard null/range/freshness checks | `@phlo.quality` decorator | `NullCheck`, `RangeCheck`, `FreshnessCheck` |
+| Full Pandera schema validation | Traditional `@asset_check` | `FactGlucoseReadings.validate()` |
+| Complex business logic | Traditional `@asset_check` | Custom distribution checks |
+| Statistical analysis | Traditional `@asset_check` | Outlier detection |
+| Multiple simple checks | `@phlo.quality` decorator | Combine `NullCheck` + `RangeCheck` |
+| Custom error handling | Traditional `@asset_check` | Detailed failure reporting |
 
-The decorator handles 80% of cases. Use traditional checks when you need custom logic.
+**Real-world usage in examples/glucose-platform**:
+- `@phlo.quality`: `glucose_readings_quality()`, `daily_metrics_quality()` - standard checks
+- `@asset_check`: `nightscout_glucose_quality_check()` - full Pandera validation with custom error handling
+
+Both approaches are valid and complement each other. The decorator handles common cases efficiently, while traditional checks provide full control for complex scenarios.
 
 ## Validation at Each Layer
 

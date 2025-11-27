@@ -63,149 +63,75 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
 
 ## Step 2: Data Ingestion
 
-### Asset: Fetch and Load
+### Using @phlo_ingestion Decorator
+
+Phlo simplifies ingestion with the `@phlo_ingestion` decorator that handles validation, staging, and Iceberg merging:
 
 ```python
-# File: src/phlo/defs/ingestion/dlt_assets.py
+# File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
-from datetime import datetime, timezone
-import requests
-import dlt
-import pandas as pd
-from phlo.config import config
-from phlo.defs.resources.iceberg import IcebergResource
-from phlo.iceberg.schema import get_schema, get_unique_key
-from phlo.schemas.glucose import RawGlucoseEntries
+from dlt.sources.rest_api import rest_api
+from phlo.ingestion import phlo_ingestion
+from workflows.schemas.nightscout import RawGlucoseEntries
 
-@dg.asset(
-    name="dlt_glucose_entries",
-    group_name="nightscout",
-    partitions_def=daily_partition,
-    description="Ingest Nightscout glucose entries daily",
-    automation_condition=dg.AutomationCondition.on_cron("0 */1 * * *"),
+@phlo_ingestion(
+    table_name="glucose_entries",
+    unique_key="_id",
+    validation_schema=RawGlucoseEntries,
+    group="nightscout",
+    cron="0 */1 * * *",
+    freshness_hours=(1, 24),
 )
-def entries(context, iceberg: IcebergResource) -> dg.MaterializeResult:
+def glucose_entries(partition_date: str):
     """
-    Ingest Nightscout glucose entries using DLT + PyIceberg.
-    
-    Daily partition allows:
-    - Idempotent ingestion (safe to re-run)
-    - Incremental processing
-    - Easy recovery if single day fails
+    Ingest Nightscout glucose entries using DLT rest_api source.
+
+    Features:
+    - Idempotent ingestion: safe to run multiple times without duplicates
+    - Deduplication based on _id field (Nightscout's unique entry ID)
+    - Daily partitioning by timestamp
+    - Automatic validation with Pandera schema
+    - Branch-aware writes to Iceberg
+
+    Args:
+        partition_date: Date partition in YYYY-MM-DD format
+
+    Returns:
+        DLT resource for glucose entries, or None if no data
     """
-    partition_date = context.partition_key  # "2024-10-15"
-    
-    # 1. FETCH FROM API
-    context.log.info(f"Fetching data for {partition_date}")
-    
     start_time_iso = f"{partition_date}T00:00:00.000Z"
     end_time_iso = f"{partition_date}T23:59:59.999Z"
-    
-    try:
-        response = requests.get(
-            "https://gwp-diabetes.fly.dev/api/v1/entries.json",
-            params={
-                "count": "10000",
-                "find[dateString][$gte]": start_time_iso,
-                "find[dateString][$lt]": end_time_iso,
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
-    except requests.RequestException as e:
-        context.log.error(f"API request failed: {e}")
-        raise
-    
-    entries_data = response.json()
-    context.log.info(f"Fetched {len(entries_data)} entries")
-    
-    if not entries_data:
-        context.log.info(f"No data for {partition_date}")
-        return dg.MaterializeResult(
-            metadata={"status": dg.MetadataValue.text("no_data")}
-        )
-    
-    # 2. VALIDATE RAW DATA
-    context.log.info("Validating raw data with Pandera")
-    
-    raw_df = pd.DataFrame(entries_data)
-    raw_df["_cascade_ingested_at"] = datetime.now(timezone.utc)
-    
-    try:
-        RawGlucoseEntries.validate(raw_df, lazy=True)
-        context.log.info("Validation passed")
-    except Exception as e:
-        context.log.warning(f"Validation warning: {e}")
-        # Continue anyway (logging gate)
-    
-    # 3. STAGE TO S3 WITH DLT
-    context.log.info("Staging to parquet via DLT")
-    
-    pipeline_name = f"glucose_{partition_date.replace('-', '_')}"
-    staging_dir = Path.home() / ".dlt" / "pipelines" / pipeline_name
-    staging_dir.mkdir(parents=True, exist_ok=True)
-    
-    pipeline = dlt.pipeline(
-        pipeline_name=pipeline_name,
-        destination=dlt.destinations.filesystem(
-            bucket_url=staging_dir.as_uri()
-        ),
-        dataset_name="nightscout"
+
+    source = rest_api(
+        client={
+            "base_url": "https://gwp-diabetes.fly.dev/api/v1",
+        },
+        resources=[
+            {
+                "name": "entries",
+                "endpoint": {
+                    "path": "entries.json",
+                    "params": {
+                        "count": 10000,
+                        "find[dateString][$gte]": start_time_iso,
+                        "find[dateString][$lt]": end_time_iso,
+                    },
+                },
+            }
+        ],
     )
-    
-    @dlt.resource(name="entries", write_disposition="replace")
-    def provide_entries():
-        yield entries_data
-    
-    info = pipeline.run(
-        provide_entries(),
-        loader_file_format="parquet"
-    )
-    
-    # Extract parquet path
-    parquet_path = Path(info.load_packages[0].jobs["completed_jobs"][0].file_path)
-    context.log.info(f"Staged to {parquet_path}")
-    
-    # 4. CREATE ICEBERG TABLE
-    schema = get_schema("entries")
-    iceberg.ensure_table(
-        table_name="raw.glucose_entries",
-        schema=schema,
-        partition_spec=None,
-    )
-    
-    # 5. MERGE TO ICEBERG (IDEMPOTENT)
-    context.log.info("Merging to Iceberg with deduplication")
-    
-    unique_key = get_unique_key("entries")  # "_id"
-    merge_metrics = iceberg.merge_parquet(
-        table_name="raw.glucose_entries",
-        data_path=str(parquet_path),
-        unique_key=unique_key,
-    )
-    
-    context.log.info(
-        f"Merged {merge_metrics['rows_inserted']} rows "
-        f"(deleted {merge_metrics['rows_deleted']} duplicates)"
-    )
-    
-    return dg.MaterializeResult(
-        metadata={
-            "partition": dg.MetadataValue.text(partition_date),
-            "rows_loaded": dg.MetadataValue.int(len(entries_data)),
-            "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
-            "rows_deleted": dg.MetadataValue.int(merge_metrics["rows_deleted"]),
-        }
-    )
+
+    return source
 ```
 
-**What this does**:
-1. Fetches glucose readings from Nightscout API
-2. Validates schema with Pandera
-3. Stages raw parquet to local disk
-4. Creates Iceberg table if missing
-5. Merges data idempotently (safe to re-run)
-6. Logs metrics for monitoring
+**What the @phlo_ingestion decorator does automatically**:
+1. Creates Dagster asset with daily partitioning
+2. Runs DLT pipeline to fetch and stage data to parquet
+3. Validates with RawGlucoseEntries Pandera schema
+4. Creates Iceberg table if it doesn't exist
+5. Merges data idempotently using `_id` as unique key
+6. Adds freshness checks and cron scheduling
+7. Returns MaterializeResult with metadata
 
 **Run it**:
 ```bash
@@ -531,50 +457,81 @@ http://localhost:8088
 
 ## Step 8: Monitoring and Alerts
 
-### Asset Checks
+### Quality Checks with @phlo.quality
+
+Phlo provides two approaches for quality checks. The declarative `@phlo.quality` decorator:
 
 ```python
-# File: src/phlo/defs/quality/nightscout.py
+# File: examples/glucose-platform/workflows/quality/nightscout.py
 
-@dg.asset_check(asset=dlt_glucose_entries)
-def glucose_readings_received(context) -> dg.AssetCheckResult:
-    """Ensure at least 200 readings per day (one every 7 minutes)."""
-    
-    catalog = get_catalog()
-    table = catalog.load_table("raw.glucose_entries")
-    
-    row_count = len(table.scan().to_pandas())
-    passed = row_count >= 200
-    
-    return dg.AssetCheckResult(
-        passed=passed,
-        metadata={
-            "row_count": dg.MetadataValue.int(row_count),
-            "minimum_expected": dg.MetadataValue.int(200),
-        }
-    )
+import phlo
+from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
 
+@phlo.quality(
+    table="silver.fct_glucose_readings",
+    checks=[
+        NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
+        RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+        RangeCheck(column="hour_of_day", min_value=0, max_value=23),
+        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+    ],
+    group="nightscout",
+    blocking=True,
+)
+def glucose_readings_quality():
+    """Declarative quality checks for glucose readings using @phlo.quality."""
+    pass
+```
 
-@dg.asset_check(asset=fct_glucose_readings)
-def glucose_category_distribution(context) -> dg.AssetCheckResult:
-    """Ensure reasonable distribution (not all hypoglycemia)."""
-    
-    df = trino.execute("""
-        SELECT glucose_category, COUNT(*) as count
-        FROM iceberg.silver.fct_glucose_readings
-        GROUP BY glucose_category
-    """).to_pandas()
-    
-    # Check: hypoglycemia shouldn't be >30%
-    hypo_pct = (df[df['glucose_category'] == 'hypoglycemia']['count'].sum() / df['count'].sum())
-    passed = hypo_pct < 0.30
-    
-    return dg.AssetCheckResult(
-        passed=passed,
-        metadata={
-            "hypoglycemia_percent": dg.MetadataValue.float(hypo_pct * 100),
-        }
-    )
+And the traditional `@asset_check` for custom logic:
+
+```python
+# File: examples/glucose-platform/workflows/quality/nightscout.py
+
+from dagster import AssetCheckResult, AssetKey, asset_check
+from workflows.schemas.nightscout import FactGlucoseReadings
+
+@asset_check(
+    name="nightscout_glucose_quality",
+    asset=AssetKey(["fct_glucose_readings"]),
+    blocking=True,
+    description="Validate processed Nightscout glucose data using Pandera schema validation.",
+)
+def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
+    """Quality check using Pandera for type-safe schema validation."""
+
+    query = """
+    SELECT
+        entry_id, glucose_mg_dl, reading_timestamp, direction,
+        hour_of_day, day_of_week, glucose_category, is_in_range
+    FROM iceberg_dev.silver.fct_glucose_readings
+    """
+
+    with trino.cursor(schema="silver") as cursor:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+
+    fact_df = pd.DataFrame(rows, columns=columns)
+
+    # Validate with Pandera schema
+    try:
+        FactGlucoseReadings.validate(fact_df, lazy=True)
+        return AssetCheckResult(
+            passed=True,
+            metadata={
+                "rows_validated": len(fact_df),
+                "columns_validated": len(fact_df.columns),
+            },
+        )
+    except pandera.errors.SchemaErrors as err:
+        return AssetCheckResult(
+            passed=False,
+            metadata={
+                "failed_checks": len(err.failure_cases),
+                "failures_by_column": err.failure_cases.groupby("column").size().to_dict(),
+            },
+        )
 ```
 
 **Alerts**: If checks fail:

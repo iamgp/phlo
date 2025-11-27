@@ -240,7 +240,7 @@ Let's see how Phlo uses Iceberg in practice.
 ### Reading Data (in dbt)
 
 ```sql
--- File: transforms/dbt/models/bronze/stg_glucose_entries.sql
+-- File: examples/glucose-platform/transforms/dbt/models/bronze/stg_glucose_entries.sql
 {{ config(
     materialized='view',
 ) }}
@@ -259,31 +259,37 @@ WHERE sgv IS NOT NULL
 ```
 
 This dbt model:
-- Reads from Iceberg table `raw.glucose_entries` (via Trino)
+- Reads from Iceberg table `glucose_entries` (created by @phlo_ingestion)
 - Applies transformations
 - Writes to Iceberg table `bronze.stg_glucose_entries`
 - **All tracked as a snapshot**
 
-### Writing Data (in PyIceberg)
+### Writing Data (with @phlo_ingestion)
+
+The `@phlo_ingestion` decorator handles Iceberg writes automatically:
 
 ```python
-# From defs/ingestion/dlt_assets.py
+# From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
-# Ensure table exists with schema
-iceberg.ensure_table(
-    table_name="raw.glucose_entries",
-    schema=get_schema("entries"),  # Define columns, types
-    partition_spec=None,  # Iceberg auto-partitions
-)
+from phlo.ingestion import phlo_ingestion
 
-# Merge parquet file to Iceberg (with deduplication)
-merge_metrics = iceberg.merge_parquet(
-    table_name="raw.glucose_entries",
-    data_path="s3://lake/stage/entries/data.parquet",
+@phlo_ingestion(
+    table_name="glucose_entries",
     unique_key="_id",  # Deduplicate on this column
+    validation_schema=RawGlucoseEntries,
+    group="nightscout",
 )
+def glucose_entries(partition_date: str):
+    """Ingest glucose entries with automatic Iceberg merge."""
+    # Return DLT source
+    return rest_api(...)
 
-# Result: New snapshot created, no duplicates
+# The decorator automatically:
+# 1. Ensures Iceberg table exists
+# 2. Stages data to parquet via DLT
+# 3. Merges to Iceberg with deduplication on "_id"
+# 4. Creates new snapshot
+# 5. Tracks metadata in Dagster
 ```
 
 ### Querying with Time Travel
@@ -361,27 +367,24 @@ Note: Staging is temporary (cleaned up after merge). Only warehouse tables persi
 ## Hands-On: Explore Snapshots
 
 ```bash
-# Connect to Dagster container
-docker exec -it dagster-webserver bash
-
 # Use Python to explore snapshots
 python3 << 'EOF'
 from phlo.iceberg.catalog import get_catalog
 
 catalog = get_catalog()
-table = catalog.load_table("raw.glucose_entries")
+table = catalog.load_table("glucose_entries")
 
 print(f"Table: {table.name()}")
 print(f"Total snapshots: {len(table.snapshots())}")
 
 # Show recent snapshots
-for snapshot in sorted(table.snapshots(), 
-                       key=lambda s: s.timestamp_ms, 
+for snapshot in sorted(table.snapshots(),
+                       key=lambda s: s.timestamp_ms,
                        reverse=True)[:3]:
     print(f"\nSnapshot {snapshot.snapshot_id}:")
     print(f"  Time: {snapshot.timestamp_ms}")
     print(f"  Manifests: {len(snapshot.manifest_list)}")
-    
+
     # Show files in this snapshot
     for manifest_entry in snapshot.manifest_list:
         print(f"    File: {manifest_entry.manifest_path}")

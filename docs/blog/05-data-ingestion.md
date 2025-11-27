@@ -39,58 +39,80 @@ DLT is a Python library that:
 - Normalizes schema (makes consistent)
 - Stages to parquet files
 
-### How DLT Works
+### The @phlo_ingestion Decorator
+
+Phlo provides the `@phlo_ingestion` decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:
 
 ```python
-# From src/phlo/defs/ingestion/dlt_assets.py
+# From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
-import dlt
-import requests
+from dlt.sources.rest_api import rest_api
+from phlo.ingestion import phlo_ingestion
+from workflows.schemas.nightscout import RawGlucoseEntries
 
-@dg.asset
-def entries(context) -> MaterializeResult:
-    """Ingest Nightscout glucose entries."""
-    
-    # 1. Fetch from API
-    response = requests.get("https://gwp-diabetes.fly.dev/api/v1/entries.json",
-        params={
-            "count": "10000",
-            "find[dateString][$gte]": start_time_iso,
-            "find[dateString][$lt]": end_time_iso,
-        }
-    )
-    entries_data = response.json()  # List of dicts
-    
-    # 2. Configure DLT pipeline
-    local_staging_root = Path.home() / ".dlt" / "pipelines" / "partitioned"
-    local_staging_root.mkdir(parents=True, exist_ok=True)
+@phlo_ingestion(
+    table_name="glucose_entries",
+    unique_key="_id",
+    validation_schema=RawGlucoseEntries,
+    group="nightscout",
+    cron="0 */1 * * *",
+    freshness_hours=(1, 24),
+)
+def glucose_entries(partition_date: str):
+    """
+    Ingest Nightscout glucose entries using DLT rest_api source.
 
-    filesystem_destination = dlt.destinations.filesystem(
-        bucket_url=local_staging_root.as_uri(),
+    Fetches CGM glucose readings from the Nightscout API for a specific partition date,
+    stages to parquet, and merges to Iceberg with idempotent deduplication.
+
+    Features:
+    - Idempotent ingestion: safe to run multiple times without duplicates
+    - Deduplication based on _id field (Nightscout's unique entry ID)
+    - Daily partitioning by timestamp
+    - Automatic validation with Pandera schema
+    - Branch-aware writes to Iceberg
+
+    Args:
+        partition_date: Date partition in YYYY-MM-DD format
+
+    Returns:
+        DLT resource for glucose entries, or None if no data
+    """
+    start_time_iso = f"{partition_date}T00:00:00.000Z"
+    end_time_iso = f"{partition_date}T23:59:59.999Z"
+
+    source = rest_api(
+        client={
+            "base_url": "https://gwp-diabetes.fly.dev/api/v1",
+        },
+        resources=[
+            {
+                "name": "entries",
+                "endpoint": {
+                    "path": "entries.json",
+                    "params": {
+                        "count": 10000,
+                        "find[dateString][$gte]": start_time_iso,
+                        "find[dateString][$lt]": end_time_iso,
+                    },
+                },
+            }
+        ],
     )
 
-    pipeline = dlt.pipeline(
-        pipeline_name="nightscout_entries_2024_10_15",
-        destination=filesystem_destination,
-        dataset_name="nightscout",
-        pipelines_dir=str(local_staging_root)
-    )
-    
-    # 3. Define DLT resource
-    @dlt.resource(name="entries", write_disposition="replace")
-    def provide_entries():
-        yield entries_data  # DLT consumes this
-    
-    # 4. Run pipeline (stages to parquet)
-    info = pipeline.run(
-        provide_entries(),
-        loader_file_format="parquet"
-    )
-    
-    # Result: ~/.dlt/pipelines/nightscout_entries_2024_10_15/
-    #         └─ stage/nightscout/entries/
-    #            └─ data.parquet (300 rows)
+    return source
 ```
+
+### What @phlo_ingestion Does
+
+The decorator handles all the complexity:
+
+1. **DLT Pipeline Setup**: Automatically configures DLT staging and execution
+2. **Schema Validation**: Validates data with Pandera schema before ingestion
+3. **Iceberg Merge**: Performs idempotent upsert to Iceberg table using unique_key
+4. **Scheduling**: Supports cron-based scheduling
+5. **Freshness Checks**: Monitors data freshness (1-24 hours in this example)
+6. **Asset Metadata**: Tracks lineage and dependencies in Dagster
 
 ### DLT Schema Normalization
 
@@ -104,7 +126,6 @@ DLT normalizes messy API responses:
     "_id": "abc123",
     "sgv": 145,
     "direction": "Flat",
-    "trend": 0,
     "device": "iPhone",
     "type": "sgv"
   },
@@ -113,14 +134,12 @@ DLT normalizes messy API responses:
 
 # After DLT (normalized schema)
 Parquet file with columns:
-├── dateString: string
+├── date_string: string (converted from dateString)
 ├── _id: string
 ├── sgv: int64
 ├── direction: string
-├── trend: int64
 ├── device: string
 ├── type: string
-└── _cascade_ingested_at: timestamp  ← Added by Phlo
 ```
 
 DLT automatically:
@@ -128,6 +147,60 @@ DLT automatically:
 - 🚫 Handles nulls
 - 📛 Renames fields (snake_case)
 -  Validates structure
+
+### Pandera Schema Validation
+
+The validation schema is defined in `examples/glucose-platform/workflows/schemas/nightscout.py`:
+
+```python
+# From workflows/schemas/nightscout.py
+
+from pandera.pandas import DataFrameModel, Field
+
+class RawGlucoseEntries(DataFrameModel):
+    """
+    Schema for raw Nightscout glucose entries from the API.
+
+    Validates raw glucose data at ingestion time:
+    - Valid glucose ranges (1-1000 mg/dL for raw data)
+    - Proper field types and nullability
+    - Required metadata fields
+    - Unique entry IDs
+    """
+
+    _id: str = Field(
+        nullable=False,
+        unique=True,
+        description="Nightscout entry ID (unique identifier)",
+    )
+
+    sgv: int = Field(
+        ge=1,
+        le=1000,
+        nullable=False,
+        description="Sensor glucose value in mg/dL (1-1000 for raw data)",
+    )
+
+    date: int = Field(
+        nullable=False,
+        description="Unix timestamp in milliseconds",
+    )
+
+    date_string: datetime = Field(
+        nullable=False,
+        description="ISO 8601 timestamp",
+    )
+
+    direction: str | None = Field(
+        isin=["Flat", "FortyFiveUp", "FortyFiveDown", "SingleUp", "SingleDown", "DoubleUp", "DoubleDown", "NONE"],
+        nullable=True,
+        description="Trend direction (e.g., 'SingleUp', 'Flat')",
+    )
+
+    class Config:
+        strict = False  # Allow DLT metadata fields
+        coerce = True
+```
 
 ## Step 2: PyIceberg (Merge into Lakehouse)
 
@@ -223,41 +296,51 @@ def merge_parquet(
 
 This ensures **idempotency**: running the same ingestion multiple times produces the same result.
 
-### Real Example: Glucose Ingestion
+### Real Example: Glucose Ingestion with @phlo_ingestion
 
-Let's trace through a complete ingestion:
+Let's trace through what happens when you materialize a `@phlo_ingestion` asset:
 
 ```bash
-# Timeline: 2024-10-15, partition 10:00-11:00
+# Timeline: 2024-10-15
 
-# 1. Asset starts
-dagster asset materialize --select entries \
+# 1. Materialize the asset
+dagster asset materialize --select glucose_entries \
   --partition "2024-10-15"
 
-# 2. Fetch from Nightscout API (10:00-11:00 range)
-Starting ingestion for partition 2024-10-15
+# 2. The @phlo_ingestion decorator executes your function
+# Your function returns a DLT source configured for 2024-10-15
+
+# 3. Decorator automatically stages data via DLT
 Fetching data from Nightscout API...
 Successfully fetched 288 entries from API
-
-# 3. Validate with Pandera
-Validating raw glucose data with Pandera schema...
-Raw data validation passed for 288 entries
-
-# 4. Stage to parquet
 Staging data to parquet via DLT...
 DLT staging completed in 1.23s
 
-# 5. Create Iceberg table if needed
-Ensuring Iceberg table raw.glucose_entries exists...
+# 4. Decorator validates with Pandera schema (RawGlucoseEntries)
+Validating raw glucose data with Pandera schema...
+Raw data validation passed for 288 entries
 
-# 6. Merge with deduplication
+# 5. Decorator creates Iceberg table if needed
+Ensuring Iceberg table glucose_entries exists...
+
+# 6. Decorator merges with deduplication (using unique_key="_id")
 Merging data to Iceberg table (idempotent upsert)...
-Merged 288 rows to raw.glucose_entries
+Merged 288 rows to glucose_entries
   (deleted 0 existing duplicates)
+
+# 7. Decorator tracks metadata in Dagster
+Asset materialized successfully
+Metadata:
+  - rows_ingested: 288
+  - table_name: glucose_entries
+  - partition_date: 2024-10-15
 
 # Success!
 Ingestion completed successfully in 2.45s
 ```
+
+**You wrote**: ~10 lines of code (just the DLT source configuration)
+**You got**: Full ingestion pipeline with validation, staging, merging, and monitoring
 
 Now the data lives in Iceberg:
 
@@ -273,138 +356,133 @@ s3://lake/warehouse/raw/glucose_entries/
         └── 00003.parquet (88 rows)
 ```
 
-## Pandera Data Quality Validation
+## Quality Checks with @phlo.quality
 
-Before storing in the lakehouse, Phlo validates with **Pandera**—a schema validation library.
-
-```python
-# From src/phlo/schemas/glucose.py
-
-from pandera import Column, DataFrameSchema, Check, Index
-
-RawGlucoseEntries = DataFrameSchema({
-    "_id": Column(
-        str,
-        checks=Check.str_matches(r"^[a-f0-9]{24}$"),  # MongoDB ObjectId format
-        required=True
-    ),
-    "sgv": Column(
-        int,
-        checks=[
-            Check.greater_than_or_equal_to(20),   # Physiologically plausible minimum
-            Check.less_than_or_equal_to(600),     # Physiologically plausible maximum
-        ],
-        required=False
-    ),
-    "date_string": Column(
-        "datetime64[ns]",
-        required=False
-    ),
-    "direction": Column(
-        str,
-        checks=Check.isin(["Flat", "Single Up", "Double Up", 
-                           "Single Down", "Double Down", "None"]),
-        required=False
-    ),
-    "trend": Column(
-        int,
-        checks=Check.isin([-2, -1, 0, 1, 2]),  # Valid trend codes
-        required=False
-    ),
-})
-```
-
-Pandera checks:
-- Data types (int, string, datetime)
-- Value ranges (20-600 for glucose)
-- Format patterns (ObjectId format for _id)
-- Allowed values (direction must be specific strings)
-- Nullability (which columns are required)
-
-In the ingestion code:
+After ingestion and transformation, Phlo validates data with quality checks. The `@phlo.quality` decorator provides a declarative way to define quality checks:
 
 ```python
-try:
-    RawGlucoseEntries.validate(raw_df, lazy=True)
-    context.log.info(f"Raw data validation passed for {len(raw_df)} entries")
-except pandera.errors.SchemaErrors as err:
-    failure_cases = err.failure_cases
-    context.log.error(f"Raw data validation failed with {len(failure_cases)} errors")
-    # Log errors but continue (logging gate)
-    context.log.warning("Proceeding with ingestion despite validation errors")
+# From examples/glucose-platform/workflows/quality/nightscout.py
+
+import phlo
+from phlo.quality import FreshnessCheck, NullCheck, RangeCheck
+
+@phlo.quality(
+    table="silver.fct_glucose_readings",
+    checks=[
+        NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
+        RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
+        RangeCheck(column="hour_of_day", min_value=0, max_value=23),
+        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+    ],
+    group="nightscout",
+    blocking=True,
+)
+def glucose_readings_quality():
+    """Declarative quality checks for glucose readings using @phlo.quality."""
+    pass
 ```
 
-**Note**: In this example, validation failures are logged but don't block ingestion (logging gate). In production, you might fail hard:
+The `@phlo.quality` decorator provides:
+
+1. **NullCheck**: Ensures critical columns have no null values
+2. **RangeCheck**: Validates numeric values are within expected ranges
+3. **FreshnessCheck**: Ensures data is not stale (within 24 hours)
+4. **Blocking**: If `blocking=True`, downstream assets wait for checks to pass
+
+### Traditional Asset Checks (Alternative)
+
+You can also use traditional Dagster asset checks for more control:
 
 ```python
-# More strict: fail if validation errors
-RawGlucoseEntries.validate(raw_df)  # Raises exception if invalid
+# From workflows/quality/nightscout.py
+
+from dagster import AssetCheckResult, AssetKey, asset_check
+from workflows.schemas.nightscout import FactGlucoseReadings
+
+@asset_check(
+    name="nightscout_glucose_quality",
+    asset=AssetKey(["fct_glucose_readings"]),
+    blocking=True,
+)
+def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetCheckResult:
+    """Quality check using Pandera for type-safe schema validation."""
+
+    # Query data from Iceberg via Trino
+    query = "SELECT * FROM iceberg_dev.silver.fct_glucose_readings"
+    with trino.cursor(schema="silver") as cursor:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+
+    fact_df = pd.DataFrame(rows, columns=columns)
+
+    # Validate with Pandera schema
+    try:
+        FactGlucoseReadings.validate(fact_df, lazy=True)
+        return AssetCheckResult(
+            passed=True,
+            metadata={
+                "rows_validated": MetadataValue.int(len(fact_df)),
+            }
+        )
+    except pandera.errors.SchemaErrors as err:
+        return AssetCheckResult(
+            passed=False,
+            metadata={
+                "failed_checks": MetadataValue.int(len(err.failure_cases)),
+            }
+        )
 ```
+
+This approach gives you more control over the validation logic and error handling.
 
 ## Handling Different Data Sources
 
-Phlo can ingest from multiple sources. Let's look at GitHub as another example:
+The `@phlo_ingestion` decorator works with any DLT source. You just return a DLT source/resource and the decorator handles the rest.
+
+**Pattern**: Define your data source, return it, and let `@phlo_ingestion` handle staging, validation, and merging.
 
 ```python
-# From src/phlo/defs/ingestion/github_assets.py
+# Example: Custom API ingestion
 
-@dg.asset(
-    name="dlt_github_user_events",
-    partitions_def=daily_partition,
+from dlt.sources.rest_api import rest_api
+from phlo.ingestion import phlo_ingestion
+
+@phlo_ingestion(
+    table_name="github_events",
+    unique_key="event_id",
+    validation_schema=GitHubEventSchema,
+    group="github",
 )
-def github_user_events(context, iceberg: IcebergResource) -> MaterializeResult:
-    """Ingest GitHub user activity via GitHub API + DLT."""
-    
-    # Configure GitHub API client
-    github = Github(token=config.github_token)
-    user = github.get_user()
-    
-    # Fetch events (different schema than glucose)
-    events = [
-        {
-            "event_id": event.id,
-            "event_type": event.type,
-            "repo_name": event.repo.name,
-            "created_at": event.created_at,
-            "action": event.payload.get("action"),
-        }
-        for event in user.get_events()
-    ]
-    
-    # Same pattern: DLT stage → PyIceberg merge
-    local_staging_root = Path.home() / ".dlt" / "pipelines" / "github_events"
-    local_staging_root.mkdir(parents=True, exist_ok=True)
+def github_events(partition_date: str):
+    """Ingest GitHub events using DLT."""
 
-    filesystem_destination = dlt.destinations.filesystem(
-        bucket_url=local_staging_root.as_uri(),
+    # DLT rest_api source handles pagination and retries
+    source = rest_api(
+        client={
+            "base_url": "https://api.github.com",
+            "auth": {
+                "token": os.getenv("GITHUB_TOKEN"),
+            },
+        },
+        resources=[
+            {
+                "name": "events",
+                "endpoint": {
+                    "path": "/users/{username}/events",
+                    "params": {
+                        "per_page": 100,
+                    },
+                },
+            }
+        ],
     )
 
-    pipeline = dlt.pipeline(
-        pipeline_name=f"github_events_{partition_date}",
-        destination=filesystem_destination,
-        dataset_name="github"
-    )
-    
-    @dlt.resource(name="user_events", write_disposition="replace")
-    def provide_events():
-        yield events
-    
-    pipeline.run(provide_events(), loader_file_format="parquet")
-    
-    # Merge to Iceberg
-    merge_metrics = iceberg.merge_parquet(
-        table_name="raw.github_user_events",
-        data_path=str(parquet_path),
-        unique_key="event_id",
-    )
-    
-    return dg.MaterializeResult(
-        metadata={
-            "partition_date": dg.MetadataValue.text(partition_date),
-            "rows_merged": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
-            "table_total_rows": dg.MetadataValue.int(merge_metrics["rows_total"]),
-        }
-    )
+    return source
+    # @phlo_ingestion automatically:
+    # 1. Runs DLT pipeline to stage to parquet
+    # 2. Validates with GitHubEventSchema
+    # 3. Merges to Iceberg table with deduplication on event_id
 ```
 
 ## Ingestion Patterns in Phlo
@@ -451,28 +529,32 @@ All follow the same pattern for safety and idempotency.
 
 ```bash
 # Run ingestion and watch the flow
-docker exec dagster-webserver dagster asset materialize \
-  --select dlt_glucose_entries \
+# This uses the @phlo_ingestion decorated function
+dagster asset materialize \
+  --select glucose_entries \
   --partition "2024-10-15"
 
-# Check staged parquet
-docker exec minio mc ls myminio/lake/stage/entries/2024-10-15/
-
-# Check Iceberg table
-docker exec dagster-webserver python3 << 'EOF'
+# Check Iceberg table via PyIceberg
+python3 << 'EOF'
 from phlo.iceberg.catalog import get_catalog
 import pandas as pd
 
 catalog = get_catalog()
-table = catalog.load_table("raw.glucose_entries")
+table = catalog.load_table("glucose_entries")
 
 # Load all data
 df = table.scan().to_pandas()
 print(f"Total rows: {len(df)}")
 print(f"\nLatest snapshot: {table.current_snapshot().snapshot_id}")
 print(f"\nColumns:\n{df.columns.tolist()}")
-print(f"\nFirst row:\n{df.head(1)}")
+print(f"\nSample data:\n{df.head(3)}")
 EOF
+
+# Or query via Trino
+docker exec trino trino \
+  --catalog iceberg_dev \
+  --schema raw \
+  --execute "SELECT COUNT(*) as total FROM glucose_entries;"
 ```
 
 ## Performance Considerations
@@ -530,19 +612,39 @@ See you there!
 
 ## Summary
 
-**Phlo's Ingestion Pattern**:
-1. Fetch data from source (API, file, database)
-2. Validate with Pandera schemas
-3. Stage to S3 parquet with DLT
-4. Merge to Iceberg table with deduplication (idempotent)
-5. New snapshot created in Iceberg
-6. Ready for transformation
+**Phlo's Ingestion with @phlo_ingestion**:
+
+The `@phlo_ingestion` decorator simplifies data ingestion by handling:
+1. **DLT pipeline execution**: Stages data from source to parquet
+2. **Schema validation**: Validates with Pandera before loading
+3. **Iceberg merge**: Performs idempotent upsert using unique_key
+4. **Monitoring**: Tracks metrics in Dagster (rows, freshness, etc.)
+5. **Scheduling**: Supports cron-based execution
+
+**Decorator Parameters**:
+- `table_name`: Iceberg table to write to
+- `unique_key`: Column for deduplication
+- `validation_schema`: Pandera schema for validation
+- `group`: Asset group for organization
+- `cron`: Schedule (optional)
+- `freshness_hours`: Expected data freshness (optional)
+
+**Your Function**:
+- Takes `partition_date: str` parameter
+- Returns a DLT source or resource
+- The decorator handles everything else
 
 **Why This Pattern Works**:
-- Idempotent (safe to retry)
-- Atomic (all-or-nothing)
-- Validated (Pandera checks)
-- Auditable (snapshot history)
-- Scalable (works for small to large datasets)
+- **Simple**: Write 10 lines, get full pipeline
+- **Idempotent**: Safe to retry/rerun
+- **Atomic**: All-or-nothing commits
+- **Validated**: Pandera schema checks
+- **Auditable**: Iceberg snapshot history
+- **Scalable**: Works from KB to TB
+
+**Quality Checks**:
+- Use `@phlo.quality` for declarative checks (NullCheck, RangeCheck, FreshnessCheck)
+- Or use traditional `@asset_check` for custom validation logic
+- Both integrate with Dagster's asset check system
 
 **Next**: [Part 6: SQL Transformations with dbt—The Right Way](06-dbt-transformations.md)
