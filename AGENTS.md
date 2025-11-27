@@ -76,6 +76,14 @@ See `src/phlo/quality/examples.py` for comprehensive examples.
 - **Full output**: `phlo logs --full` (no truncation)
 - **JSON output**: `phlo logs --json` (for scripting)
 
+### Plugin Management
+
+- **List plugins**: `phlo plugin list` (shows all installed plugins)
+- **Filter by type**: `phlo plugin list --type sources` (sources, quality, transforms)
+- **Plugin info**: `phlo plugin info github` (detailed info about a plugin)
+- **Validate plugins**: `phlo plugin check` (checks all plugins are valid)
+- **Create plugin**: `phlo plugin create my-source --type source` (scaffolds new plugin)
+
 ## Architecture & Structure
 
 - **Data lakehouse** with MinIO (S3-compatible), PostgreSQL, DuckDB/DuckLake for analytics
