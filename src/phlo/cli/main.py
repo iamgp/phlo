@@ -31,6 +31,18 @@ def cli():
 # Add services subcommand
 cli.add_command(services)
 
+# Add validation commands
+from phlo.cli.validate import validate_schema, validate_workflow
+from phlo.cli.status import status
+from phlo.cli.backfill import backfill
+from phlo.cli.logs import logs
+
+cli.add_command(validate_schema)
+cli.add_command(validate_workflow)
+cli.add_command(status)
+cli.add_command(backfill)
+cli.add_command(logs)
+
 
 @cli.command()
 @click.argument("asset_name", required=False)
