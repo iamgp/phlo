@@ -1,0 +1,87 @@
+# Data Contract for Glucose Readings
+# Defines expected schema, SLAs, and consumers for glucose data
+
+name: glucose_readings
+version: 1.0.0
+owner: data-team
+description: "Contract for glucose readings from Nightscout API"
+
+schema:
+  required_columns:
+    - name: reading_id
+      type: string
+      required: true
+      description: "Unique identifier for each glucose reading"
+      constraints:
+        unique: true
+        nullable: false
+
+    - name: sgv
+      type: integer
+      required: true
+      description: "Sensor glucose value in mg/dL"
+      constraints:
+        min: 20
+        max: 600
+        nullable: false
+
+    - name: reading_timestamp
+      type: timestamp
+      required: true
+      description: "ISO 8601 timestamp when reading was taken (UTC)"
+      constraints:
+        nullable: false
+
+    - name: direction
+      type: string
+      required: false
+      description: "Glucose trend direction (e.g., Flat, SingleUp, SingleDown)"
+      constraints:
+        nullable: true
+        valid_values: ["Flat", "FortyFiveUp", "FortyFiveDown", "SingleUp", "SingleDown", "DoubleUp", "DoubleDown", "NONE"]
+
+    - name: device
+      type: string
+      required: false
+      description: "Device or transmitter that recorded the reading"
+      constraints:
+        nullable: true
+
+sla:
+  # Data must be available within 2 hours (freshness SLA)
+  freshness_hours: 2
+  
+  # At least 99% of rows must pass quality checks
+  quality_threshold: 0.99
+  
+  # Table must be available 99.9% of the time
+  availability_percentage: 99.9
+  
+  # Less than 0.5% of records can be stale
+  max_stale_records_percentage: 0.5
+
+# Data consumers and their usage patterns
+consumers:
+  - name: analytics-team
+    usage: "BI dashboards and ad-hoc analysis"
+    contact: "analytics@example.com"
+
+  - name: ml-team
+    usage: "Model training and feature engineering"
+    contact: "ml@example.com"
+
+  - name: reporting-system
+    usage: "Automated reports to patients"
+    contact: "ops@example.com"
+
+# Notification configuration
+notifications:
+  channels:
+    - type: slack
+      channel: "#data-alerts"
+  
+  on_events:
+    - schema_change_proposed
+    - schema_change_merged
+    - sla_breach
+    - quality_violation
