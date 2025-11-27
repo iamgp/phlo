@@ -44,11 +44,13 @@ After starting, access:
 
 ```
 glucose-platform/
+├── contracts/              # Data contracts (SLAs, schema agreements)
+│   └── glucose_readings.yaml
 ├── workflows/              # Data workflows
 │   ├── ingestion/         # Ingestion assets (@phlo_ingestion)
 │   │   └── nightscout/    # Nightscout CGM data
 │   ├── schemas/           # Pandera validation schemas
-│   └── quality/           # Data quality checks
+│   └── quality/           # Data quality checks (@phlo.quality)
 ├── transforms/dbt/        # dbt transformation models
 │   ├── bronze/           # Staging models (stg_*)
 │   ├── silver/           # Fact tables (fct_*)
@@ -61,10 +63,16 @@ glucose-platform/
 ## Materializing Assets
 
 ```bash
-# Via CLI
+# Single materialization
 phlo materialize glucose_entries --partition 2024-01-15
 
-# Or via Dagster UI
+# Backfill date range
+phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31
+
+# Parallel backfill
+phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4
+
+# Via Dagster UI
 # Navigate to Assets > glucose_entries > Materialize
 ```
 
@@ -76,11 +84,115 @@ phlo materialize glucose_entries --partition 2024-01-15
 4. **Gold**: `fct_daily_glucose_metrics` computes daily aggregates & time-in-range
 5. **Marts**: `mrt_glucose_*` tables ready for BI dashboards
 
-## Commands
+## CLI Commands
 
-- `phlo services start` - Start all infrastructure
-- `phlo services start --dev` - Start with local phlo source mounted
-- `phlo services stop` - Stop infrastructure
-- `phlo services status` - Check service health
-- `phlo materialize <asset>` - Materialize an asset
-- `phlo test` - Run tests
+### Core Operations
+
+```bash
+phlo services start       # Start all infrastructure
+phlo services stop        # Stop infrastructure
+phlo services status      # Check service health
+phlo materialize <asset>  # Materialize an asset
+phlo backfill <asset>     # Backfill partitions
+phlo test                 # Run tests
+```
+
+### Logs & Monitoring
+
+```bash
+phlo logs                        # View recent logs
+phlo logs --asset glucose_entries # Filter by asset
+phlo logs --level ERROR --since 1h
+phlo logs --follow               # Real-time tail
+
+phlo metrics                     # Summary dashboard
+phlo metrics asset glucose_entries
+```
+
+### Lineage & Impact Analysis
+
+```bash
+phlo lineage show glucose_entries
+phlo lineage show glucose_entries --downstream
+phlo lineage impact glucose_entries
+```
+
+### Schema & Catalog
+
+```bash
+phlo schema list
+phlo schema show RawGlucoseEntries
+
+phlo catalog tables
+phlo catalog describe raw.glucose_entries
+phlo catalog history raw.glucose_entries
+```
+
+### Data Contracts
+
+```bash
+phlo contract list
+phlo contract show glucose_readings
+phlo contract validate glucose_readings
+```
+
+## Data Contracts
+
+This project includes data contracts in `contracts/` that define:
+
+- **Schema requirements**: Required columns, types, and constraints
+- **SLAs**: Freshness (2 hours), quality threshold (99%)
+- **Consumers**: Teams that depend on this data
+
+Example contract (`contracts/glucose_readings.yaml`):
+
+```yaml
+name: glucose_readings
+version: 1.0.0
+owner: data-team
+
+schema:
+  required_columns:
+    - name: sgv
+      type: integer
+      constraints:
+        min: 20
+        max: 600
+
+sla:
+  freshness_hours: 2
+  quality_threshold: 0.99
+
+consumers:
+  - name: analytics-team
+    usage: BI dashboards
+```
+
+Validate contracts before deployment:
+
+```bash
+phlo contract validate glucose_readings
+```
+
+## Quality Framework
+
+Quality checks use the `@phlo.quality` decorator and Pandera schemas:
+
+```python
+from phlo.quality import NullCheck, RangeCheck
+import phlo
+
+@phlo.quality(
+    table="silver.fct_glucose_readings",
+    checks=[
+        NullCheck(columns=["sgv", "reading_timestamp"]),
+        RangeCheck(column="sgv", min_value=20, max_value=600),
+    ],
+    group="nightscout",
+    blocking=True,
+)
+def glucose_quality():
+    pass
+```
+
+See `workflows/quality/nightscout.py` for the full implementation using Pandera schemas

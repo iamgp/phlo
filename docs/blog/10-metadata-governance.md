@@ -572,14 +572,383 @@ Check connection from OpenMetadata container:
 docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ```
 
+## Data Contracts: Formalizing Data Agreements
+
+As data platforms grow, informal agreements break down. The ML team assumes glucose readings update hourly. The analytics team expects certain columns to never be null. The reporting system depends on specific value ranges. When someone changes the schema or update frequency, things break.
+
+**Data contracts** formalize these agreements between data producers (your pipelines) and data consumers (dashboards, ML models, downstream teams).
+
+### The Problem Contracts Solve
+
+```
+Without contracts:
+
+Monday:    Engineer adds new column, removes old one
+Tuesday:   ML model training fails silently
+Wednesday: Dashboard shows "No Data"
+Thursday:  Analyst reports: "Numbers look wrong"
+Friday:    Fire drill to understand what changed and why
+```
+
+With contracts, breaking changes are caught before deployment.
+
+### Anatomy of a Data Contract
+
+Contracts live in your `contracts/` directory as YAML files:
+
+```yaml
+# contracts/glucose_readings.yaml
+name: glucose_readings
+version: 1.0.0
+owner: data-team
+description: "Contract for glucose readings from Nightscout API"
+
+schema:
+  required_columns:
+    - name: reading_id
+      type: string
+      description: "Unique identifier for each glucose reading"
+      constraints:
+        unique: true
+        nullable: false
+
+    - name: sgv
+      type: integer
+      description: "Sensor glucose value in mg/dL"
+      constraints:
+        min: 20
+        max: 600
+        nullable: false
+
+    - name: reading_timestamp
+      type: timestamp
+      description: "When the reading was taken (UTC)"
+      constraints:
+        nullable: false
+
+sla:
+  freshness_hours: 2        # Data must be < 2 hours old
+  quality_threshold: 0.99   # 99% of rows must pass validation
+  availability_percentage: 99.9
+
+consumers:
+  - name: analytics-team
+    usage: "BI dashboards and ad-hoc analysis"
+    contact: "analytics@example.com"
+
+  - name: ml-team
+    usage: "Model training and feature engineering"
+    contact: "ml@example.com"
+
+notifications:
+  channels:
+    - type: slack
+      channel: "#data-alerts"
+  on_events:
+    - schema_change_proposed
+    - sla_breach
+    - quality_violation
+```
+
+### How Contract Validation Works
+
+When you run `phlo contract validate glucose_readings`, Phlo:
+
+1. **Loads the contract** from `contracts/glucose_readings.yaml`
+2. **Queries the live table** schema from Iceberg/Nessie
+3. **Compares** required columns, types, and constraints
+4. **Reports violations** with specific remediation steps
+
+```bash
+$ phlo contract validate glucose_readings
+
+Validating contract: glucose_readings v1.0.0
+Target table: silver.fct_glucose_readings
+
+Schema Validation:
+  ✓ reading_id: string, not null, unique
+  ✓ sgv: integer, range [20, 600]
+  ✓ reading_timestamp: timestamp, not null
+  ✓ direction: string (optional)
+
+SLA Validation:
+  ✓ Freshness: 1.2 hours (limit: 2 hours)
+  ✓ Quality: 99.7% pass rate (threshold: 99%)
+
+Contract VALID
+```
+
+### Schema Evolution and Breaking Changes
+
+The real power of contracts is **preventing breaking changes**. When you modify a schema, Phlo classifies changes:
+
+| Change Type | Classification | Action |
+|-------------|----------------|--------|
+| Add nullable column | SAFE | Auto-approve |
+| Add column with default | SAFE | Auto-approve |
+| Change column description | WARNING | Review required |
+| Add new constraint | WARNING | Review required |
+| Remove column | BREAKING | Block merge |
+| Change column type | BREAKING | Block merge |
+| Remove nullable | BREAKING | Block merge |
+
+In CI/CD, run `phlo contract check --pr` to validate changes before merge:
+
+```bash
+$ phlo contract check --pr
+
+Checking contracts against PR changes...
+
+glucose_readings:
+  BREAKING: Column 'device_type' removed
+  
+  Impact:
+    - analytics-team: BI dashboards (contact: analytics@example.com)
+    - ml-team: Model training (contact: ml@example.com)
+  
+  Action Required:
+    1. Notify consumers before removing column
+    2. Add deprecation period (recommended: 30 days)
+    3. Get explicit approval from consumers
+    4. Use --force to override (not recommended)
+
+Contract check FAILED - 1 breaking change detected
+```
+
+### Consumer Notifications
+
+When contracts change, affected teams get notified automatically:
+
+```
+#data-alerts Slack Channel:
+
+🔔 Schema Change Proposed: glucose_readings
+
+Changes:
+  • Column 'legacy_id' marked for removal
+  • New column 'device_model' added (nullable)
+
+Affected Consumers:
+  • analytics-team (BI dashboards)
+  • ml-team (Model training)
+
+PR: https://github.com/org/repo/pull/123
+Review by: Friday 5pm
+
+React with ✅ to approve or 🚫 to block
+```
+
+---
+
+## Schema Management via CLI
+
+Beyond contracts, Phlo provides tools for managing Pandera schemas themselves.
+
+### Why Schema Management Matters
+
+Pandera schemas define the expected structure of your data at each layer:
+
+```python
+# workflows/schemas/nightscout.py
+class RawGlucoseEntries(pa.DataFrameModel):
+    """Schema for raw glucose entries from Nightscout API."""
+    
+    _id: str = pa.Field(description="Nightscout entry ID")
+    sgv: int = pa.Field(ge=20, le=600, description="Glucose in mg/dL")
+    dateString: str = pa.Field(description="ISO timestamp string")
+    direction: str = pa.Field(nullable=True)
+```
+
+As your platform grows, you'll have dozens of schemas. The CLI helps you manage them.
+
+### Discovering Schemas
+
+```bash
+$ phlo schema list
+
+Schemas by Domain:
+
+nightscout (4 schemas):
+  RawGlucoseEntries      8 fields   workflows/schemas/nightscout.py
+  FactGlucoseReadings   12 fields   workflows/schemas/nightscout.py
+  FactDailyMetrics      15 fields   workflows/schemas/nightscout.py
+  MartGlucoseOverview    6 fields   workflows/schemas/nightscout.py
+
+weather (2 schemas):
+  RawWeatherObservations 10 fields  workflows/schemas/weather.py
+  FactWeatherDaily        8 fields  workflows/schemas/weather.py
+
+Total: 6 schemas across 2 domains
+```
+
+### Inspecting Schema Details
+
+```bash
+$ phlo schema show RawGlucoseEntries
+
+Schema: RawGlucoseEntries
+File: workflows/schemas/nightscout.py
+Domain: nightscout
+
+Fields:
+  _id          str       required  Nightscout entry ID
+  sgv          int       required  Glucose in mg/dL (20-600)
+  dateString   str       required  ISO timestamp string
+  direction    str       optional  Trend direction
+  device       str       optional  Recording device
+  type         str       optional  Entry type
+
+Constraints:
+  • sgv: ge=20, le=600
+  • _id: unique=True
+
+Iceberg Equivalent:
+  CREATE TABLE raw.glucose_entries (
+    _id STRING NOT NULL,
+    sgv INT NOT NULL,
+    dateString STRING NOT NULL,
+    direction STRING,
+    device STRING,
+    type STRING
+  )
+```
+
+### Comparing Schema Versions
+
+When schemas change, use `diff` to understand what's different:
+
+```bash
+$ phlo schema diff RawGlucoseEntries --old HEAD~5
+
+Schema Diff: RawGlucoseEntries
+
+Added:
+  + transmitter_id: str (optional) - "CGM transmitter serial"
+
+Modified:
+  ~ sgv: constraint changed
+    - was: ge=0, le=500
+    + now: ge=20, le=600
+
+Removed:
+  - legacy_timestamp: str
+
+Classification: WARNING (1 safe, 1 warning, 0 breaking)
+```
+
+---
+
+## Automated Metadata Sync
+
+Manually updating OpenMetadata is tedious and error-prone. The `phlo catalog sync` command automates this.
+
+### What Gets Synced
+
+When you run `phlo catalog sync`, Phlo:
+
+1. **Scans Nessie catalog** for all Iceberg tables
+2. **Parses dbt manifest** for model descriptions and column docs
+3. **Reads Pandera schemas** for constraint information
+4. **Pushes to OpenMetadata** via API
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     phlo catalog sync                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ▼                     ▼                     ▼
+┌───────────────┐   ┌─────────────────┐   ┌───────────────┐
+│ Nessie/Iceberg│   │  dbt manifest   │   │Pandera Schemas│
+│    Tables     │   │  & catalog.json │   │  constraints  │
+└───────┬───────┘   └────────┬────────┘   └───────┬───────┘
+        │                    │                    │
+        └────────────────────┼────────────────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  OpenMetadata   │
+                    │   API Client    │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  OpenMetadata   │
+                    │    Catalog      │
+                    └─────────────────┘
+```
+
+### Running Sync
+
+```bash
+# Full sync - tables and dbt models
+$ phlo catalog sync
+
+Syncing metadata to OpenMetadata...
+
+Tables (from Nessie):
+  ✓ raw.glucose_entries (15 columns)
+  ✓ bronze.stg_glucose_entries (12 columns)
+  ✓ silver.fct_glucose_readings (18 columns)
+  ✓ gold.fct_daily_glucose_metrics (15 columns)
+
+dbt Models:
+  ✓ stg_glucose_entries - linked to bronze.stg_glucose_entries
+  ✓ fct_glucose_readings - linked to silver.fct_glucose_readings
+  ✓ fct_daily_glucose_metrics - linked to gold.fct_daily_glucose_metrics
+
+Lineage:
+  ✓ 12 lineage edges created
+
+Sync complete: 4 tables, 3 models, 12 lineage edges
+```
+
+### Preview Changes
+
+Before applying, preview what will change:
+
+```bash
+$ phlo catalog sync --dry-run
+
+Dry run - no changes will be applied
+
+Would sync:
+  Tables: 4 (2 new, 2 updated)
+  Models: 3 (0 new, 3 updated)
+  Lineage: 12 edges
+
+Changes:
+  NEW: raw.weather_observations (10 columns)
+  NEW: bronze.stg_weather (8 columns)
+  UPDATE: silver.fct_glucose_readings
+    + New column: estimated_a1c
+    ~ Updated description: glucose_category
+```
+
+### Scheduling Sync
+
+For production, schedule sync to run after your pipelines complete:
+
+```yaml
+# In your Dagster schedule or cron
+# Run at 4 AM daily, after overnight pipelines
+0 4 * * * phlo catalog sync --tables --models
+```
+
+Or use the Dagster sensor that automatically syncs after materializations.
+
+---
+
 ## Best Practices
 
 1. **Document Everything**: Add descriptions to all tables and columns
 2. **Use Tags**: Create a consistent tagging strategy (layers, domains, sensitivity)
 3. **Set Ownership**: Assign owners to all datasets
-4. **Regular Updates**: Run ingestion daily to keep metadata fresh
+4. **Regular Updates**: Run `phlo catalog sync` daily to keep metadata fresh
 5. **Quality Checks**: Link data quality tests to tables
 6. **Glossary**: Maintain business terms for domain-specific language
+7. **Data Contracts**: Define contracts for critical datasets with clear SLAs
 
 ## Benefits of Metadata Management
 

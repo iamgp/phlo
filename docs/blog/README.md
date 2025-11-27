@@ -232,7 +232,7 @@ graph TB
 - [Part 1](01-intro-data-lakehouse.md): Overview of lakehouse concept
 - [Part 3](03-apache-iceberg-explained.md): Table format innovation
 - [Part 4](04-project-nessie-versioning.md): Governance model
-- [Part 10](10-metadata-governance.md): Metadata catalog and lineage
+- [Part 10](10-metadata-governance.md): Metadata catalog, lineage, and OpenMetadata CLI sync
 
 ### Getting Started
 - [Part 2](02-setup-guide.md): Installation and first run
@@ -244,10 +244,17 @@ graph TB
 - [Part 8](08-real-world-example.md): Complete pipeline
 
 ### Data Quality and Operations
-- [Part 9](09-data-quality-with-pandera.md): Validation layers
-- [Part 10](10-metadata-governance.md): Data governance
-- [Part 11](11-observability-monitoring.md): Monitoring and observability
+- [Part 9](09-data-quality-with-pandera.md): Validation layers, `@phlo.quality` decorator
+- [Part 10](10-metadata-governance.md): Data governance, contracts, schema management
+- [Part 11](11-observability-monitoring.md): Monitoring, alerting integrations, lineage CLI
 - [Part 12](12-production-deployment.md): Production readiness
+
+### New Features
+- **Plugin System**: Extend Phlo with custom sources, quality checks, and transforms via entry points
+- **Data Contracts**: YAML-based contracts with SLAs, schema validation, and consumer notifications
+- **Schema Management**: CLI commands for schema discovery, comparison, and evolution tracking
+- **API Layer Automation**: Auto-generate PostgREST views and manage Hasura GraphQL configuration
+- **Backfill & Logs**: Enhanced CLI for date-range backfills and log filtering
 
 ## Tools Reference
 

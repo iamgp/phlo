@@ -685,15 +685,424 @@ def update_observability():
     return {}
 ```
 
+## Lineage Visualization: Understanding Your Data Flow
+
+One of the hardest questions in data engineering: "If I change this table, what breaks?"
+
+Without lineage, you're guessing. With lineage, you know exactly what depends on what.
+
+### Why Lineage Matters
+
+```
+Scenario: You need to rename a column in glucose_entries
+
+Without lineage:
+  1. Grep through code looking for references
+  2. Miss the dbt model that uses a different alias
+  3. Deploy change
+  4. Dashboard breaks in production
+  5. 2am phone call
+
+With lineage:
+  1. Run: phlo lineage impact glucose_entries
+  2. See all 6 downstream dependencies
+  3. Update them first
+  4. Deploy safely
+```
+
+### Viewing Lineage from CLI
+
+The `phlo lineage` commands let you explore dependencies without opening a browser:
+
+```bash
+$ phlo lineage show glucose_entries
+
+glucose_entries
+├── [upstream]
+│   └── (external) Nightscout API
+│       └── Fetched via DLT rest_api
+└── [downstream]
+    └── stg_glucose_entries (dbt model)
+        └── fct_glucose_readings (dbt model)
+            ├── mrt_glucose_readings (dbt model)
+            │   └── publish_glucose_marts (Dagster asset)
+            │       └── (external) Superset Dashboard
+            └── fct_daily_glucose_metrics (dbt model)
+                └── mrt_glucose_hourly_patterns (dbt model)
+```
+
+This tree shows your entire data flow: from API source through transformations to dashboards.
+
+### Impact Analysis
+
+Before making changes, check what's affected:
+
+```bash
+$ phlo lineage impact glucose_entries
+
+Impact Analysis: glucose_entries
+
+Direct Dependencies (depth 1):
+  • stg_glucose_entries (dbt) - 12 columns reference source
+
+Transitive Dependencies (depth 2+):
+  • fct_glucose_readings - 8 columns derived
+  • fct_daily_glucose_metrics - aggregates from fact table
+
+Publishing Impact:
+  ⚠ mrt_glucose_readings → PostgreSQL marts (used by Superset)
+  ⚠ publish_glucose_marts → External consumers
+
+Total Impact:
+  6 assets affected
+  2 publishing endpoints
+  1 external dashboard
+
+Recommendation: Coordinate change with dashboard owners before deploying
+```
+
+### Exporting Lineage
+
+Generate lineage diagrams for documentation:
+
+```bash
+# Graphviz DOT format
+$ phlo lineage export --format dot --output lineage.dot
+$ dot -Tpng lineage.dot -o lineage.png
+
+# Mermaid format (for Markdown docs)
+$ phlo lineage export --format mermaid --output lineage.md
+```
+
+The Mermaid output can be embedded directly in GitHub READMEs or Notion docs:
+
+```mermaid
+graph LR
+    A[Nightscout API] --> B[glucose_entries]
+    B --> C[stg_glucose_entries]
+    C --> D[fct_glucose_readings]
+    D --> E[mrt_glucose_readings]
+    D --> F[fct_daily_glucose_metrics]
+    E --> G[Superset Dashboard]
+```
+
+---
+
+## Alerting: Getting Notified When Things Break
+
+Dashboards are great, but you can't watch them 24/7. Alerting ensures you know about problems before your users do.
+
+### The AlertManager Architecture
+
+Phlo's `AlertManager` centralizes alert routing:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                   Alert Sources                           │
+├──────────────────┬───────────────────┬───────────────────┤
+│  Dagster Sensor  │  Quality Checks   │  SLA Monitors     │
+│  (run failures)  │  (validation)     │  (freshness)      │
+└────────┬─────────┴─────────┬─────────┴─────────┬─────────┘
+         │                   │                   │
+         └───────────────────┼───────────────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  AlertManager   │
+                    │  • Deduplication│
+                    │  • Severity     │
+                    │  • Routing      │
+                    └────────┬────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         │                   │                   │
+         ▼                   ▼                   ▼
+   ┌───────────┐      ┌───────────┐      ┌───────────┐
+   │   Slack   │      │ PagerDuty │      │   Email   │
+   │  #alerts  │      │  on-call  │      │   team    │
+   └───────────┘      └───────────┘      └───────────┘
+```
+
+### Setting Up Alerting
+
+Configure alert destinations via environment variables:
+
+```bash
+# .env or docker-compose environment
+
+# Slack Integration
+PHLO_ALERT_SLACK_WEBHOOK=https://hooks.slack.com/services/T.../B.../xxx
+PHLO_ALERT_SLACK_CHANNEL=#data-alerts
+
+# PagerDuty Integration (for critical alerts)
+PHLO_ALERT_PAGERDUTY_KEY=your-integration-key
+PHLO_ALERT_PAGERDUTY_SERVICE=data-platform
+
+# Email Integration
+PHLO_ALERT_EMAIL_SMTP_HOST=smtp.gmail.com
+PHLO_ALERT_EMAIL_SMTP_PORT=587
+PHLO_ALERT_EMAIL_FROM=alerts@yourcompany.com
+PHLO_ALERT_EMAIL_RECIPIENTS=data-team@yourcompany.com,oncall@yourcompany.com
+```
+
+### Alert Severity and Routing
+
+Not every alert needs to wake someone up. Phlo routes alerts based on severity:
+
+| Severity | Description | Default Routing |
+|----------|-------------|-----------------|
+| **INFO** | FYI notifications | Slack only |
+| **WARNING** | Needs attention, not urgent | Slack + Email |
+| **ERROR** | Something failed, investigate soon | Slack + Email + PagerDuty (low urgency) |
+| **CRITICAL** | Production impact, immediate action | All channels + PagerDuty (high urgency) |
+
+You can customize routing per asset:
+
+```python
+# In your Dagster definitions
+@asset(
+    metadata={
+        "alert_severity_override": "CRITICAL",  # This asset is business-critical
+        "alert_channels": ["slack", "pagerduty"],  # Skip email for this one
+    }
+)
+def critical_reporting_asset():
+    ...
+```
+
+### What Gets Alerted
+
+Out of the box, Phlo alerts on:
+
+1. **Run Failures**: Any asset materialization that fails
+2. **Quality Violations**: When quality checks fail (from `@phlo.quality`)
+3. **SLA Breaches**: When data freshness exceeds thresholds
+4. **Resource Issues**: Disk space, memory pressure, connection pool exhaustion
+
+Example Slack alert:
+
+```
+🔴 Asset Materialization Failed
+
+Asset: glucose_entries
+Partition: 2024-01-15
+Run ID: abc123-def456
+
+Error: Connection timeout after 30s
+  File: ingestion/nightscout/readings.py
+  Line: 45
+
+Downstream Impact:
+  • 5 assets will be stale until resolved
+  • Dashboard "Glucose Overview" affected
+
+Quick Actions:
+  [View Run] [Retry] [Silence 1h]
+```
+
+### Deduplication: No Alert Storms
+
+If an asset fails every 5 minutes, you don't want 288 alerts per day. The AlertManager deduplicates:
+
+- Same asset + same error = 1 alert per hour (configurable)
+- Aggregates multiple failures into digest
+- Escalates if issue persists beyond threshold
+
+```
+# After 6 hours of repeated failures:
+
+🔴 Persistent Failure: glucose_entries
+
+This asset has failed 72 times in the last 6 hours.
+First failure: 2024-01-15 02:00 UTC
+Latest failure: 2024-01-15 08:00 UTC
+
+Error (consistent): Connection timeout after 30s
+
+Escalating to: @oncall-data, pagerduty
+
+This alert will repeat every 2 hours until resolved.
+```
+
+---
+
+## Log Access and Filtering
+
+When something goes wrong, you need logs. The `phlo logs` command gives you fast access without diving into Docker or Dagster UI.
+
+### Why CLI Logs?
+
+```
+Scenario: Dashboard is showing stale data
+
+Without CLI logs:
+  1. Open browser
+  2. Navigate to Dagster UI
+  3. Find the run
+  4. Scroll through logs
+  5. Try to filter
+  6. Give up and grep Docker logs
+
+With phlo logs:
+  $ phlo logs --asset glucose_entries --level ERROR --since 1h
+  
+  [10:35:42] ERROR glucose_entries: Connection refused to nightscout.api
+  [10:35:42] ERROR glucose_entries: Retry 3/3 failed, aborting
+  [10:35:43] ERROR glucose_entries: Run failed after 45s
+```
+
+### Filtering Options
+
+```bash
+# By asset
+phlo logs --asset glucose_entries
+
+# By time
+phlo logs --since 1h          # Last hour
+phlo logs --since 30m         # Last 30 minutes
+phlo logs --since 7d          # Last week
+
+# By severity
+phlo logs --level ERROR       # Errors only
+phlo logs --level WARNING     # Warnings and above
+
+# Combined filters
+phlo logs --asset glucose_entries --level ERROR --since 2h
+
+# By specific run
+phlo logs --run-id abc123-def456
+
+# By job (for scheduled jobs)
+phlo logs --job daily_glucose_pipeline
+```
+
+### Real-Time Tailing
+
+Watch logs as they happen:
+
+```bash
+$ phlo logs --follow
+
+[10:35:40] INFO  glucose_entries: Starting materialization
+[10:35:41] INFO  glucose_entries: Fetching from Nightscout API
+[10:35:42] INFO  glucose_entries: Retrieved 487 entries
+[10:35:43] INFO  glucose_entries: Validating with Pandera schema
+[10:35:44] INFO  glucose_entries: Writing to Iceberg table
+[10:35:45] INFO  glucose_entries: Materialization complete (5.2s)
+^C  # Ctrl+C to stop
+```
+
+### JSON Output for Scripting
+
+Pipe logs to other tools:
+
+```bash
+# Find all unique error messages in the last day
+phlo logs --level ERROR --since 1d --json | \
+  jq -r '.[] | .message' | \
+  sort | uniq -c | sort -rn
+
+# Export to file for analysis
+phlo logs --asset glucose_entries --since 7d --json > glucose_logs.json
+
+# Grep for specific patterns
+phlo logs --json | jq 'select(.message | contains("timeout"))'
+```
+
+---
+
+## Metrics: Quantifying Pipeline Health
+
+Logs tell you what happened. Metrics tell you how well things are running over time.
+
+### The Metrics Dashboard
+
+```bash
+$ phlo metrics
+
+Pipeline Health Dashboard (Last 24 Hours)
+══════════════════════════════════════════
+
+Overall Status: ✓ HEALTHY
+
+Runs:
+  Total:     288
+  Success:   285 (98.96%)
+  Failed:    3 (1.04%)
+  
+Data Volume:
+  Rows Processed:  1.2M
+  Bytes Written:   450 MB
+  
+Latency:
+  P50:   320ms
+  P95:   850ms
+  P99:   1.2s
+  
+Quality:
+  Pass Rate:     99.74%
+  Checks Run:    1,440
+  Failures:      4
+
+Active Alerts: 1
+  ⚠ publish_to_postgres running slow (1.2s avg vs 500ms baseline)
+```
+
+### Per-Asset Metrics
+
+Drill into specific assets:
+
+```bash
+$ phlo metrics asset glucose_entries --runs 20
+
+Asset: glucose_entries
+════════════════════════
+
+Last 20 Runs:
+  Run ID          Time      Duration  Rows   Status
+  ────────────────────────────────────────────────
+  abc123          10:35     5.2s      487    ✓
+  def456          10:30     4.8s      512    ✓
+  ghi789          10:25     5.1s      495    ✓
+  ...
+  xyz000          09:05     45.2s     0      ✗ (timeout)
+
+Statistics:
+  Success Rate:   95% (19/20)
+  Avg Duration:   5.1s
+  P95 Duration:   8.2s
+  Avg Rows:       498
+  
+Trend:
+  Duration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (stable)
+  Failures: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (1 in window)
+```
+
+### Exporting for Analysis
+
+Export metrics for external tools (Grafana, spreadsheets, custom analysis):
+
+```bash
+# CSV for spreadsheets
+$ phlo metrics export --format csv --period 30d --output metrics.csv
+
+# JSON for custom analysis
+$ phlo metrics export --format json --period 7d | \
+  python analyze_metrics.py
+```
+
+---
+
 ## Summary
 
 Phlo's observability stack provides:
 
 **Metrics**: Track what's happening (execution time, throughput, quality)  
-**Logs**: Understand why (structured logs, searchable)  
+**Logs**: Understand why (structured logs, searchable via CLI)  
 **Traces**: Debug how (distributed tracing of slow ops)  
 **Dashboards**: Visualize health (asset, system, quality)  
 **Alerts**: Get notified (Slack, PagerDuty, email)  
+**Lineage**: Understand impact (CLI visualization and export)  
 
 Combined, you have:
 - **Visibility**: Know your pipeline state at any time
