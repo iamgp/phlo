@@ -80,3 +80,9 @@ source = "uv-dynamic-versioning"
 vcs = "git"
 style = "pep440"
 bump = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+norecursedirs = ["src", ".venv"]
+addopts = "--ignore=src --continue-on-collection-errors"
