@@ -379,6 +379,185 @@ materialize(
 )
 ```
 
+## Backfilling Historical Data
+
+Single materializations work for daily operations, but what about:
+- Loading historical data when you first set up
+- Re-processing after a bug fix
+- Filling gaps from outages
+
+That's where backfills come in.
+
+### The Backfill Problem
+
+```
+Scenario: You fixed a bug in your glucose transformation.
+Need to re-process the last 90 days.
+
+Manual approach:
+  for date in 2024-07-01 to 2024-09-30:
+    phlo materialize glucose_entries --partition $date
+    # Wait for each to complete...
+
+Time: 90 days × 2 minutes = 3 hours of babysitting
+```
+
+### Using phlo backfill
+
+The `phlo backfill` command handles date ranges intelligently:
+
+```bash
+# Backfill a date range
+$ phlo backfill glucose_entries --start-date 2024-07-01 --end-date 2024-09-30
+
+Backfill Plan: glucose_entries
+══════════════════════════════
+
+Date Range: 2024-07-01 to 2024-09-30
+Partitions: 92 days
+Estimated Time: ~45 minutes (parallel)
+
+Proceed? [y/N] y
+
+[1/92]  2024-07-01 ✓ (32s)
+[2/92]  2024-07-02 ✓ (28s)
+[3/92]  2024-07-03 ✓ (31s)
+...
+[92/92] 2024-09-30 ✓ (29s)
+
+Backfill complete: 92 partitions in 43m
+```
+
+### Parallel Execution
+
+For large backfills, run multiple partitions simultaneously:
+
+```bash
+# Run 4 partitions in parallel
+$ phlo backfill glucose_entries \
+    --start-date 2024-01-01 \
+    --end-date 2024-12-31 \
+    --parallel 4
+
+Backfill Plan: glucose_entries
+══════════════════════════════
+
+Date Range: 2024-01-01 to 2024-12-31
+Partitions: 365 days
+Parallel Workers: 4
+Estimated Time: ~90 minutes
+
+[Worker 1] 2024-01-01 ✓
+[Worker 2] 2024-01-02 ✓
+[Worker 3] 2024-01-03 ✓
+[Worker 4] 2024-01-04 ✓
+[Worker 1] 2024-01-05 ✓
+...
+```
+
+**Parallel considerations:**
+- More workers = faster, but more resource usage
+- Don't exceed your database connection pool
+- Start with 2-4 workers, increase if stable
+
+### Explicit Partitions
+
+Sometimes you need specific dates, not a range:
+
+```bash
+# Only these specific dates
+$ phlo backfill glucose_entries \
+    --partitions 2024-01-01,2024-01-15,2024-02-01,2024-03-01
+```
+
+### Resuming Failed Backfills
+
+If a backfill fails partway through (network issue, resource limits), resume it:
+
+```bash
+# Backfill gets interrupted at partition 45
+$ phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-03-31
+...
+[45/90] 2024-02-14 ✗ Connection timeout
+Backfill interrupted. Run with --resume to continue.
+
+# Later, resume from where it stopped
+$ phlo backfill --resume
+
+Resuming backfill: glucose_entries
+Completed: 44/90
+Remaining: 46 partitions
+
+[45/90] 2024-02-14 ✓
+[46/90] 2024-02-15 ✓
+...
+```
+
+### Dry Run
+
+Preview what will happen without executing:
+
+```bash
+$ phlo backfill glucose_entries \
+    --start-date 2024-01-01 \
+    --end-date 2024-01-31 \
+    --dry-run
+
+Backfill Plan (DRY RUN)
+═══════════════════════
+
+Asset: glucose_entries
+Partitions to process: 31
+
+  2024-01-01 (not materialized)
+  2024-01-02 (not materialized)
+  2024-01-03 (stale - upstream changed)
+  2024-01-04 (not materialized)
+  ...
+  2024-01-15 (already fresh) <- would skip
+  ...
+
+Would process: 30 partitions
+Would skip: 1 partition (already fresh)
+
+Run without --dry-run to execute.
+```
+
+### Backfill Strategies
+
+| Scenario | Strategy |
+|----------|----------|
+| Initial load | `--start-date` from earliest data, `--parallel 4` |
+| Bug fix re-process | Date range of affected data, `--parallel 2` |
+| Fill gaps | `--partitions` with explicit list |
+| Monthly refresh | `--start-date` first of month, `--end-date` last |
+| Testing | `--dry-run` first, then small range |
+
+### Backfills in Production
+
+For production backfills:
+
+1. **Test first**: Run on a few partitions manually
+2. **Monitor resources**: Watch CPU, memory, connections
+3. **Off-peak hours**: Schedule large backfills overnight
+4. **Incremental**: Better to run multiple smaller backfills than one huge one
+5. **Notify team**: Large backfills can impact query performance
+
+```bash
+# Production backfill pattern
+$ phlo backfill glucose_entries \
+    --start-date 2024-01-01 \
+    --end-date 2024-12-31 \
+    --parallel 2 \           # Conservative parallelism
+    --dry-run                # Preview first
+
+# If dry-run looks good:
+$ phlo backfill glucose_entries \
+    --start-date 2024-01-01 \
+    --end-date 2024-12-31 \
+    --parallel 2
+```
+
 ## Monitoring and Alerts
 
 ### Event Logging
