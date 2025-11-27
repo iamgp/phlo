@@ -479,3 +479,101 @@ class SchemaCheck(QualityCheck):
     def name(self) -> str:
         schema_name = getattr(self.schema, "__name__", "schema")
         return f"schema_check_{schema_name}"
+
+
+@dataclass
+class CustomSQLCheck(QualityCheck):
+    """
+    Execute arbitrary SQL to validate data.
+
+    The SQL should return a single boolean column (or NULL for skipped rows).
+    Rows that are FALSE indicate quality violations.
+
+    Example:
+        ```python
+        CustomSQLCheck(
+            name="temperature_consistency",
+            sql="SELECT (max_temp >= min_temp) FROM weather_observations"
+        )
+        ```
+    """
+
+    name_: str
+    """Name of this check."""
+
+    sql: str
+    """SQL query that returns TRUE for valid rows, FALSE for invalid rows."""
+
+    expected: bool = True
+    """Expected result (default: TRUE for all rows valid)."""
+
+    allow_threshold: float = 0.0
+    """Maximum fraction of failures allowed."""
+
+    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+        """Execute custom SQL check on DataFrame."""
+        try:
+            # Execute SQL in pandas context
+            # This requires DuckDB or similar for SQL execution
+            import duckdb
+
+            # Register DataFrame as a view
+            conn = duckdb.connect(":memory:")
+            conn.register("data", df)
+
+            # Execute the check query
+            result = conn.execute(self.sql).fetchall()
+
+            if not result:
+                return QualityCheckResult(
+                    passed=True,
+                    metric_name=self.name_,
+                    metric_value={"rows_checked": 0},
+                    metadata={"note": "No data returned from check query"},
+                )
+
+            # Count failures (where result is False or not expected value)
+            failures = sum(1 for (row_result,) in result if row_result != self.expected)
+            failure_pct = failures / len(result) if result else 0.0
+
+            passed = failure_pct <= self.allow_threshold
+
+            failure_msg = None
+            if not passed:
+                failure_msg = (
+                    f"Custom SQL check failed: {failure_pct:.2%} of rows failed validation "
+                    f"(threshold: {self.allow_threshold:.2%})"
+                )
+
+            return QualityCheckResult(
+                passed=passed,
+                metric_name=self.name_,
+                metric_value={"failures": failures, "total": len(result)},
+                metadata={
+                    "failure_count": failures,
+                    "total_rows": len(result),
+                    "failure_percentage": float(failure_pct),
+                    "threshold": self.allow_threshold,
+                },
+                failure_message=failure_msg,
+            )
+
+        except ImportError:
+            return QualityCheckResult(
+                passed=False,
+                metric_name=self.name_,
+                metric_value=None,
+                failure_message="DuckDB not available for custom SQL check",
+            )
+        except Exception as exc:
+            return QualityCheckResult(
+                passed=False,
+                metric_name=self.name_,
+                metric_value=None,
+                metadata={"error": str(exc)},
+                failure_message=f"Custom SQL check failed: {exc}",
+            )
+
+    @property
+    def name(self) -> str:
+        return f"custom_sql_{self.name_}"

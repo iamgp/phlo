@@ -10,7 +10,7 @@ from __future__ import annotations
 from functools import wraps
 from typing import Any, Callable, List, Optional
 
-from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
+from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue, asset_check
 
 from phlo.quality.checks import QualityCheck, QualityCheckResult
 
@@ -23,6 +23,7 @@ def phlo_quality(
     asset_key: Optional[AssetKey] = None,
     group: Optional[str] = None,
     blocking: bool = True,
+    warn_threshold: float = 0.0,
     description: Optional[str] = None,
     query: Optional[str] = None,
     backend: str = "trino",
@@ -39,6 +40,7 @@ def phlo_quality(
         asset_key: Optional Dagster AssetKey (derived from table if not provided)
         group: Optional asset group
         blocking: Whether check failures block downstream assets (default: True)
+        warn_threshold: Fraction of checks that can fail before marking as WARN (0.0 = fail immediately)
         description: Optional description (auto-generated if not provided)
         query: Optional custom SQL query (defaults to SELECT * FROM {table})
         backend: Backend to use ("trino" or "duckdb", default: "trino")
@@ -192,11 +194,14 @@ def phlo_quality(
             # Build metadata for Dagster UI
             metadata = _build_metadata(df, check_results)
 
-            # Build summary message
+            # Calculate severity based on warn_threshold
             passed_count = sum(1 for r in check_results if r.passed)
+            failed_count = sum(1 for r in check_results if not r.passed)
+            failure_fraction = failed_count / len(check_results) if check_results else 0.0
+
             summary = f"{passed_count}/{len(check_results)} quality checks passed"
 
-            if not all_passed:
+            if failed_count > 0:
                 failed_checks = [
                     f"{r.metric_name}: {r.failure_message}"
                     for r in check_results
@@ -208,8 +213,20 @@ def phlo_quality(
 
             metadata["summary"] = MetadataValue.text(summary)
 
+            # Determine if this should be a warning or failure
+            severity = AssetCheckSeverity.SUCCESS if all_passed else AssetCheckSeverity.FAILURE
+
+            # If warn_threshold is set and we're below it, downgrade to warning
+            if failure_fraction > 0 and failure_fraction <= warn_threshold:
+                severity = AssetCheckSeverity.WARN
+                context.log.warning(
+                    f"Quality check warning: {failure_fraction:.1%} of checks failed "
+                    f"(within warn threshold of {warn_threshold:.1%})"
+                )
+
             return AssetCheckResult(
-                passed=all_passed,
+                passed=all_passed or (failure_fraction <= warn_threshold),
+                severity=severity if all_passed else None,
                 metadata=metadata,
             )
 

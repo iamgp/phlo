@@ -1,51 +1,37 @@
-# __init__.py - Cascade package initialization and error handling conventions
-# This file serves as the package entry point and documents the error handling patterns
-# used throughout the lakehouse platform codebase
-
+# __init__.py - Phlo package initialization
 """
-Lakehouse Kit - Data Lakehouse Platform
+Phlo - Data Platform Framework
 
-Error Handling Conventions
-===========================
+Declarative data pipelines with minimal boilerplate.
 
-This codebase follows consistent error handling patterns:
+Usage::
 
-1. Validation Errors
-   - Use: ValueError with clear, actionable message
-   - When: Input validation fails, configuration is invalid
-   - Action: Always log context before raising
+    import phlo
 
-2. External Service Failures (transient)
-   - Use: Log warning/error and return None or default value
-   - When: API calls fail, network issues, temporary service unavailability
-   - Action: Use retry logic (tenacity) for resilient operations
-   - Examples: Airbyte API calls, external data sources
+    @phlo.quality(
+        table="bronze.weather_observations",
+        checks=[NullCheck(columns=["id"]), RangeCheck(column="temp", min_value=-50, max_value=60)],
+    )
+    def weather_quality():
+        pass
 
-3. Critical Failures (cannot proceed)
-   - Use: RuntimeError or specific exception type
-   - When: Required resource unavailable, fatal configuration error
-   - Action: Always log context before raising
-
-4. General Exception Handling
-   - Always log exceptions with context using logger.exception()
-   - Avoid bare except: clauses
-   - Catch specific exceptions when possible
-   - Include relevant identifiers (connection names, file paths, etc.) in log messages
-
-Example:
-    def _resolve_connection_id(config: AirbyteConnectionConfig) -> str:
-        connection_id = _lookup_connection_by_name(config.connection_name)
-
-        if connection_id:
-            return connection_id
-
-        if config.connection_id:
-            logger.info(f"Using fallback ID for '{config.connection_name}'")
-            return config.connection_id
-
-        # Critical - can't proceed without connection ID
-        raise ValueError(
-            f"Cannot resolve Airbyte connection '{config.connection_name}'. "
-            "Connection not found in workspace and no fallback ID provided."
-        )
+    @phlo.ingestion(
+        table_name="weather_observations",
+        unique_key="id",
+        group="weather",
+    )
+    def weather_ingestion(partition_date: str):
+        return fetch_weather_data(partition_date)
 """
+
+from phlo.quality.decorator import phlo_quality as quality
+
+# Lazy import for ingestion to avoid circular/heavy dependencies
+def __getattr__(name):
+    if name == "ingestion":
+        from phlo.ingestion.decorator import phlo_ingestion
+        return phlo_ingestion
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+__version__ = "0.1.0"
+__all__ = ["quality", "ingestion"]

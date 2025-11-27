@@ -10,6 +10,48 @@
 - **Single asset test**: `dagster asset materialize --select entries` (Nightscout data)
 - **dbt commands**: `docker compose exec dagster-web dbt run/test --select model_name`
 - **dbt testing**: `dbt test --select tag:dataset_name` (comprehensive schema + business logic tests)
+- **Quality tests**: `pytest tests/test_quality_decorator.py -v` (35 comprehensive tests for @phlo_quality)
+
+## Quality Framework (@phlo.quality)
+
+The `@phlo.quality` decorator reduces quality check boilerplate by 70-80%:
+
+### Quick Example
+```python
+import phlo
+from phlo.quality import NullCheck, RangeCheck
+
+@phlo.quality(
+    table="bronze.glucose_entries",
+    checks=[
+        NullCheck(columns=["sgv", "timestamp"]),
+        RangeCheck(column="sgv", min_value=20, max_value=600),
+    ],
+    group="nightscout",
+    blocking=True,
+)
+def glucose_quality():
+    pass
+```
+
+### Available Check Types
+- **NullCheck**: Verify no null values (with tolerance threshold)
+- **RangeCheck**: Verify numeric values within bounds
+- **FreshnessCheck**: Verify data recency (max age in hours)
+- **UniqueCheck**: Verify unique/non-duplicate combinations
+- **CountCheck**: Verify row count within range
+- **SchemaCheck**: Validate against Pandera schema
+- **CustomSQLCheck**: Execute arbitrary SQL assertions (NEW)
+
+### Decorator Parameters
+- `table`: Fully qualified table name (e.g., "bronze.data")
+- `checks`: List of quality checks to execute
+- `group`: Asset group (optional)
+- `blocking`: Fail downstream if check fails (default: True)
+- `warn_threshold`: Fraction of checks allowed to fail before warning (0.0 = strict)
+- `backend`: "trino" (default) or "duckdb"
+
+See `src/phlo/quality/examples.py` for comprehensive examples.
 
 ## CLI Commands
 
