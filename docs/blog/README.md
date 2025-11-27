@@ -79,9 +79,10 @@ Don't worry if you're missing some skills - the series is designed to teach you 
 | 7 | [Dagster Orchestration](07-orchestration-dagster.md) | Assets, partitions, scheduling, monitoring | 20 min |
 | 8 | [Real-World Example](08-real-world-example.md) | Complete glucose pipeline, end-to-end | 25 min |
 | 9 | [Data Quality with Pandera](09-data-quality-with-pandera.md) | Schemas, validation, asset checks | 20 min |
-| 10 | [Metadata and Governance](10-metadata-governance.md) | OpenMetadata integration, lineage, ownership | 22 min |
-| 11 | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, logs, traces, dashboards, alerts | 25 min |
+| 10 | [Metadata and Governance](10-metadata-governance.md) | OpenMetadata, data contracts, schema evolution | 25 min |
+| 11 | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, alerting, lineage, debugging | 25 min |
 | 12 | [Production Deployment](12-production-deployment.md) | Kubernetes, HA, disaster recovery, scaling | 30 min |
+| 13 | [Extending Phlo with Plugins](13-plugin-system.md) | Custom sources, quality checks, transforms | 20 min |
 
 **Total content**: ~7,500 lines, 250+ KB of educational material
 **Estimated reading time**: 4-6 hours (complete series)
@@ -231,30 +232,25 @@ graph TB
 ### Data Architecture
 - [Part 1](01-intro-data-lakehouse.md): Overview of lakehouse concept
 - [Part 3](03-apache-iceberg-explained.md): Table format innovation
-- [Part 4](04-project-nessie-versioning.md): Governance model
-- [Part 10](10-metadata-governance.md): Metadata catalog, lineage, and OpenMetadata CLI sync
+- [Part 4](04-project-nessie-versioning.md): Git-like data versioning
 
 ### Getting Started
 - [Part 2](02-setup-guide.md): Installation and first run
 
 ### Technical Implementation
-- [Part 5](05-data-ingestion.md): Ingestion patterns
-- [Part 6](06-dbt-transformations.md): SQL transformations
-- [Part 7](07-orchestration-dagster.md): Orchestration
-- [Part 8](08-real-world-example.md): Complete pipeline
+- [Part 5](05-data-ingestion.md): Ingestion patterns with DLT and PyIceberg
+- [Part 6](06-dbt-transformations.md): SQL transformations and testing
+- [Part 7](07-orchestration-dagster.md): Scheduling and asset management
+- [Part 8](08-real-world-example.md): Complete end-to-end pipeline
 
-### Data Quality and Operations
-- [Part 9](09-data-quality-with-pandera.md): Validation layers, `@phlo.quality` decorator
-- [Part 10](10-metadata-governance.md): Data governance, contracts, schema management
-- [Part 11](11-observability-monitoring.md): Monitoring, alerting integrations, lineage CLI
-- [Part 12](12-production-deployment.md): Production readiness
+### Data Quality and Governance
+- [Part 9](09-data-quality-with-pandera.md): Schema validation and the `@phlo.quality` decorator
+- [Part 10](10-metadata-governance.md): Data catalog, contracts, and schema evolution
+- [Part 11](11-observability-monitoring.md): Metrics, alerting, lineage, and debugging
+- [Part 12](12-production-deployment.md): Scaling and high availability
 
-### New Features
-- **Plugin System**: Extend Phlo with custom sources, quality checks, and transforms via entry points
-- **Data Contracts**: YAML-based contracts with SLAs, schema validation, and consumer notifications
-- **Schema Management**: CLI commands for schema discovery, comparison, and evolution tracking
-- **API Layer Automation**: Auto-generate PostgREST views and manage Hasura GraphQL configuration
-- **Backfill & Logs**: Enhanced CLI for date-range backfills and log filtering
+### Extensibility
+- [Part 13](13-plugin-system.md): Building custom sources, quality checks, and transforms
 
 ## Tools Reference
 

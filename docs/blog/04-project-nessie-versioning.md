@@ -441,6 +441,158 @@ nessie.merge_branch("feature/new-metrics", "main")
 nessie.delete_branch("feature/new-metrics")
 ```
 
+## Branch Management via CLI
+
+The REST API and Python SDK work, but for day-to-day operations, `phlo branch` is simpler.
+
+### List Branches
+
+```bash
+$ phlo branch list
+
+Branches:
+  NAME                  HASH         TABLES  LAST COMMIT
+  main (default)        a1b2c3d4     15      2h ago
+  dev                   e5f6g7h8     15      4h ago
+  feature/new-metrics   i9j0k1l2     16      1d ago
+
+Tags:
+  release-2024-01       m3n4o5p6     15      7d ago
+```
+
+### Create a Feature Branch
+
+```bash
+# Create from main (default)
+$ phlo branch create feature/new-transform
+
+Creating branch: feature/new-transform
+Source: main (a1b2c3d4)
+
+✓ Branch created
+
+# Create from specific branch
+$ phlo branch create experiment/risky-change --from dev
+```
+
+### Compare Branches
+
+See what's different between branches before merging:
+
+```bash
+$ phlo branch diff main feature/new-transform
+
+Branch Diff: main ← feature/new-transform
+══════════════════════════════════════════
+
+Tables Modified:
+  silver.fct_glucose_readings
+    + Column: estimated_a1c (float)
+    ~ Column: glucose_category (type unchanged, constraint added)
+  
+Tables Added:
+  gold.dim_glucose_ranges (new table)
+
+Commits on feature/new-transform not in main:
+  i9j0k1l2  Add estimated A1C calculation
+  k2l3m4n5  Add glucose range dimension
+
+Safe to merge: Yes (no conflicts detected)
+```
+
+### Merge Branches
+
+```bash
+# Preview merge (dry run)
+$ phlo branch merge feature/new-transform main --dry-run
+
+Merge Preview: feature/new-transform → main
+════════════════════════════════════════════
+
+Changes to apply:
+  + gold.dim_glucose_ranges (new table)
+  ~ silver.fct_glucose_readings (schema change)
+
+No conflicts detected.
+Run without --dry-run to merge.
+
+# Perform merge
+$ phlo branch merge feature/new-transform main
+
+Merging: feature/new-transform → main
+
+✓ Merge successful
+  Commit: q8r9s0t1
+  Tables affected: 2
+```
+
+### Delete Branches
+
+```bash
+# Delete merged branch
+$ phlo branch delete feature/new-transform
+
+Deleting branch: feature/new-transform
+
+⚠ This branch has been merged to main.
+Proceed? [y/N] y
+
+✓ Branch deleted
+
+# Force delete unmerged branch
+$ phlo branch delete experiment/abandoned --force
+```
+
+### Practical Workflow: Safe Schema Changes
+
+Here's how to use branches for safe data development:
+
+```bash
+# 1. Create a feature branch
+$ phlo branch create feature/add-a1c-calculation
+
+# 2. Switch Trino to use the branch (in your SQL client)
+#    USE iceberg_feature_add_a1c_calculation.silver;
+
+# 3. Make changes (run dbt, materialize assets)
+$ dbt run --select fct_glucose_readings
+$ phlo materialize fct_glucose_readings --partition 2024-01-15
+
+# 4. Validate changes
+$ phlo contract validate glucose_readings
+$ phlo quality run silver.fct_glucose_readings
+
+# 5. Compare to main
+$ phlo branch diff main feature/add-a1c-calculation
+
+# 6. If everything looks good, merge
+$ phlo branch merge feature/add-a1c-calculation main
+
+# 7. Clean up
+$ phlo branch delete feature/add-a1c-calculation
+```
+
+### Branch Naming Conventions
+
+| Pattern | Use Case |
+|---------|----------|
+| `feature/xyz` | New features, schema changes |
+| `fix/xyz` | Bug fixes to transformations |
+| `experiment/xyz` | Exploratory work (may be abandoned) |
+| `release/v1.2` | Tagged releases for rollback points |
+| `dev` | Shared development branch |
+
+### When to Use Branches
+
+| Scenario | Use Branch? |
+|----------|-------------|
+| Adding new column to existing table | Yes |
+| Changing data type | Yes |
+| Testing new transformation logic | Yes |
+| Daily data ingestion | No (use main) |
+| Bug fix to production | Yes (then merge quickly) |
+| Exploratory analysis | Optional (nice for isolation) |
+
 ## Nessie vs Iceberg: Understanding the Layers
 
 ```
