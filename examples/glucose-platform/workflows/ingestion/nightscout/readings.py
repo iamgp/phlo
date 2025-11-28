@@ -5,13 +5,13 @@ Replicates the example from phlo.defs.ingestion.nightscout.glucose
 
 from __future__ import annotations
 
+import phlo
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
 
 from workflows.schemas.nightscout import RawGlucoseEntries
 
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,

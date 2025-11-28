@@ -39,18 +39,18 @@ DLT is a Python library that:
 - Normalizes schema (makes consistent)
 - Stages to parquet files
 
-### The @phlo_ingestion Decorator
+### The @phlo.ingestion Decorator
 
-Phlo provides the `@phlo_ingestion` decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:
+Phlo provides the `@phlo.ingestion` decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:
 
 ```python
 # From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
+import phlo
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -103,7 +103,7 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-### What @phlo_ingestion Does
+### What @phlo.ingestion Does
 
 The decorator handles all the complexity:
 
@@ -296,9 +296,9 @@ def merge_parquet(
 
 This ensures **idempotency**: running the same ingestion multiple times produces the same result.
 
-### Real Example: Glucose Ingestion with @phlo_ingestion
+### Real Example: Glucose Ingestion with @phlo.ingestion
 
-Let's trace through what happens when you materialize a `@phlo_ingestion` asset:
+Let's trace through what happens when you materialize a `@phlo.ingestion` asset:
 
 ```bash
 # Timeline: 2024-10-15
@@ -307,7 +307,7 @@ Let's trace through what happens when you materialize a `@phlo_ingestion` asset:
 dagster asset materialize --select glucose_entries \
   --partition "2024-10-15"
 
-# 2. The @phlo_ingestion decorator executes your function
+# 2. The @phlo.ingestion decorator executes your function
 # Your function returns a DLT source configured for 2024-10-15
 
 # 3. Decorator automatically stages data via DLT
@@ -438,17 +438,17 @@ This approach gives you more control over the validation logic and error handlin
 
 ## Handling Different Data Sources
 
-The `@phlo_ingestion` decorator works with any DLT source. You just return a DLT source/resource and the decorator handles the rest.
+The `@phlo.ingestion` decorator works with any DLT source. You just return a DLT source/resource and the decorator handles the rest.
 
-**Pattern**: Define your data source, return it, and let `@phlo_ingestion` handle staging, validation, and merging.
+**Pattern**: Define your data source, return it, and let `@phlo.ingestion` handle staging, validation, and merging.
 
 ```python
 # Example: Custom API ingestion
 
+import phlo
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="github_events",
     unique_key="event_id",
     validation_schema=GitHubEventSchema,
@@ -479,7 +479,7 @@ def github_events(partition_date: str):
     )
 
     return source
-    # @phlo_ingestion automatically:
+    # @phlo.ingestion automatically:
     # 1. Runs DLT pipeline to stage to parquet
     # 2. Validates with GitHubEventSchema
     # 3. Merges to Iceberg table with deduplication on event_id
@@ -529,7 +529,7 @@ All follow the same pattern for safety and idempotency.
 
 ```bash
 # Run ingestion and watch the flow
-# This uses the @phlo_ingestion decorated function
+# This uses the @phlo.ingestion decorated function
 dagster asset materialize \
   --select glucose_entries \
   --partition "2024-10-15"
@@ -612,9 +612,9 @@ See you there!
 
 ## Summary
 
-**Phlo's Ingestion with @phlo_ingestion**:
+**Phlo's Ingestion with @phlo.ingestion**:
 
-The `@phlo_ingestion` decorator simplifies data ingestion by handling:
+The `@phlo.ingestion` decorator simplifies data ingestion by handling:
 1. **DLT pipeline execution**: Stages data from source to parquet
 2. **Schema validation**: Validates with Pandera before loading
 3. **Iceberg merge**: Performs idempotent upsert using unique_key

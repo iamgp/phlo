@@ -259,21 +259,21 @@ WHERE sgv IS NOT NULL
 ```
 
 This dbt model:
-- Reads from Iceberg table `glucose_entries` (created by @phlo_ingestion)
+- Reads from Iceberg table `glucose_entries` (created by @phlo.ingestion)
 - Applies transformations
 - Writes to Iceberg table `bronze.stg_glucose_entries`
 - **All tracked as a snapshot**
 
-### Writing Data (with @phlo_ingestion)
+### Writing Data (with @phlo.ingestion)
 
-The `@phlo_ingestion` decorator handles Iceberg writes automatically:
+The `@phlo.ingestion` decorator handles Iceberg writes automatically:
 
 ```python
 # From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
-from phlo.ingestion import phlo_ingestion
+import phlo
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="glucose_entries",
     unique_key="_id",  # Deduplicate on this column
     validation_schema=RawGlucoseEntries,

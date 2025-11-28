@@ -63,18 +63,18 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
 
 ## Step 2: Data Ingestion
 
-### Using @phlo_ingestion Decorator
+### Using @phlo.ingestion Decorator
 
-Phlo simplifies ingestion with the `@phlo_ingestion` decorator that handles validation, staging, and Iceberg merging:
+Phlo simplifies ingestion with the `@phlo.ingestion` decorator that handles validation, staging, and Iceberg merging:
 
 ```python
 # File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
+import phlo
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -124,7 +124,7 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-**What the @phlo_ingestion decorator does automatically**:
+**What the @phlo.ingestion decorator does automatically**:
 1. Creates Dagster asset with daily partitioning
 2. Runs DLT pipeline to fetch and stage data to parquet
 3. Validates with RawGlucoseEntries Pandera schema

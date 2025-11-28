@@ -166,18 +166,18 @@ class FactGlucoseReadings(DataFrameModel):
         coerce = True
 ```
 
-### Using Pandera in @phlo_ingestion
+### Using Pandera in @phlo.ingestion
 
-The `@phlo_ingestion` decorator automatically validates data with Pandera schemas:
+The `@phlo.ingestion` decorator automatically validates data with Pandera schemas:
 
 ```python
 # File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
+import phlo
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,  # Automatic validation

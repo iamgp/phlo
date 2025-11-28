@@ -162,9 +162,9 @@ dbt handles:
 Declarative asset orchestration that tracks what data depends on what:
 
 ```python
-from phlo.ingestion import phlo_ingestion
+import phlo
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
