@@ -200,7 +200,7 @@ Open **Dagster** at http://localhost:3000
 You should see the asset graph:
 
 ```
-dlt_glucose_entries
+glucose_entries
   ↓
 stg_glucose_entries (dbt)
   ↓
@@ -211,7 +211,7 @@ fct_daily_glucose_metrics
 postgres_marts
 ```
 
-Click on `dlt_glucose_entries` → Click **Materialize this asset**
+Click on `glucose_entries` → Click **Materialize this asset**
 
 In the modal, select **Date range**: pick yesterday's date (or any recent date)
 
@@ -255,7 +255,7 @@ This will:
 
 Watch it propagate through the graph:
 ```
-dlt_glucose_entries [SUCCESS]
+glucose_entries [SUCCESS]
   ↓
 stg_glucose_entries ⏳ (running)
   ↓

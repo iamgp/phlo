@@ -103,85 +103,147 @@ Use: docker-compose up
 
 ### Step 1: Prepare the Environment
 
+Phlo uses environment variables for configuration. Start with the provided `.env.example`:
+
 ```bash
-# Production environment variables
-cat > .env.prod << 'EOF'
-# Deployment
-ENVIRONMENT=production
-REGION=us-east-1
-AVAILABILITY_ZONES=us-east-1a,us-east-1b,us-east-1c
+# Copy example environment file
+cp .env.example .env
 
-# Database
-POSTGRES_HOST=phlo-prod.c123456.us-east-1.rds.amazonaws.com
-POSTGRES_PORT=5432
-POSTGRES_DB=phlo
-POSTGRES_USER=cascade_admin
-POSTGRES_PASSWORD=<SECURE_PASSWORD>
+# Edit with your production values
+# Key variables to configure:
+```
 
-# Storage
-S3_ENDPOINT=s3.us-east-1.amazonaws.com
-S3_BUCKET=phlo-prod-lake
-S3_ACCESS_KEY=<AWS_ACCESS_KEY>
-S3_SECRET_KEY=<AWS_SECRET_KEY>
-S3_REGION=us-east-1
+Based on the actual `.env.example`, here are the critical production settings:
 
-# Dagster
-DAGSTER_DAEMON_INTERVAL=30
-DAGSTER_LOG_LEVEL=INFO
-DAGSTER_STORAGE_BACKEND=postgres
+```bash
+# Database (consider managed RDS for production)
+POSTGRES_USER=lake
+POSTGRES_PASSWORD=<SECURE_PASSWORD>  # Change from default!
+POSTGRES_DB=lakehouse
+POSTGRES_PORT=10000
 
-# Security
-JWT_SECRET_KEY=<SECURE_JWT_KEY>
-ENCRYPTION_KEY=<SECURE_ENCRYPTION_KEY>
+# MinIO / S3 Storage
+MINIO_ROOT_USER=<SECURE_USER>  # Change from default!
+MINIO_ROOT_PASSWORD=<SECURE_PASSWORD>  # Change from default!
+MINIO_API_PORT=10001
+MINIO_CONSOLE_PORT=10002
 
-# Monitoring
-NEWRELIC_LICENSE_KEY=<LICENSE_KEY>
-DATADOG_API_KEY=<API_KEY>
+# Nessie (Data Catalog)
+NESSIE_VERSION=0.105.5
+NESSIE_PORT=10003
 
-# Slack (alerts)
-SLACK_BOT_TOKEN=xoxb-<TOKEN>
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/<PATH>
+# Trino (Query Engine)
+TRINO_VERSION=477
+TRINO_PORT=10005
 
-# PagerDuty (on-call)
-PAGERDUTY_API_KEY=<API_KEY>
-PAGERDUTY_SERVICE_ID=<SERVICE_ID>
-EOF
+# Iceberg Configuration
+ICEBERG_WAREHOUSE_PATH=s3://lake/warehouse
+ICEBERG_STAGING_PATH=s3://lake/stage
+ICEBERG_NESSIE_REF=main
+
+# Dagster (Orchestration)
+DAGSTER_PORT=10006
+
+# Superset (BI)
+SUPERSET_PORT=10007
+SUPERSET_ADMIN_PASSWORD=<SECURE_PASSWORD>  # Change from default!
+
+# API Layer (JWT authentication)
+API_PORT=10010
+JWT_SECRET=<SECURE_JWT_SECRET>  # Change from default!
+HASURA_ADMIN_SECRET=<SECURE_ADMIN_SECRET>  # Change from default!
+POSTGREST_AUTHENTICATOR_PASSWORD=<SECURE_PASSWORD>  # Change from default!
+
+# Observability Stack
+GRAFANA_PORT=10016
+GRAFANA_ADMIN_PASSWORD=<SECURE_PASSWORD>  # Change from default!
+PROMETHEUS_PORT=10013
+
+# Data Catalog (OpenMetadata)
+OPENMETADATA_PORT=10020
+OPENMETADATA_ADMIN_PASSWORD=<SECURE_PASSWORD>  # Change from default!
+OPENMETADATA_MYSQL_PASSWORD=<SECURE_PASSWORD>  # Change from default!
 
 # Never commit .env files to git
-echo ".env.prod" >> .gitignore
+echo ".env" >> .gitignore
 ```
 
-### Step 2: Database Setup
+### Step 2: Deploy with Docker Compose
+
+Phlo includes a comprehensive `docker-compose.yml` that orchestrates all services. For production, you have options:
+
+**Option A: Docker Compose (Current Implementation)**
 
 ```bash
-# Create RDS instance (AWS CLI)
-aws rds create-db-instance \
-  --db-instance-identifier phlo-prod \
-  --db-instance-class db.m5.xlarge \
-  --engine postgres \
-  --master-username cascade_admin \
-  --master-user-password $POSTGRES_PASSWORD \
-  --allocated-storage 500 \
-  --storage-type gp3 \
-  --backup-retention-period 30 \
-  --enable-iam-database-authentication \
-  --enable-cloudwatch-logs-exports postgresql \
-  --multi-az \
-  --region us-east-1
+# Start all core services
+docker-compose up -d
 
-# Wait for instance to be available
-aws rds wait db-instance-available \
-  --db-instance-identifier phlo-prod
+# Or start with observability stack
+docker-compose --profile observability up -d
 
-# Initialize schema
-docker run -it \
-  -e POSTGRES_HOST=phlo-prod.c123456.us-east-1.rds.amazonaws.com \
-  -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-  phlo:latest \
-  bash -c "cd services/dagster && alembic upgrade head"
+# Or start with API layer
+docker-compose --profile api up -d
+
+# Or start with data catalog
+docker-compose --profile catalog up -d
+
+# Or start everything
+docker-compose --profile all up -d
+
+# Check service health
+docker-compose ps
 ```
 
-### Step 3: Storage (S3) Setup
+The actual `docker-compose.yml` includes:
+- **Core Services**: postgres, minio, nessie, trino, dagster-webserver, dagster-daemon, superset
+- **Observability** (profile: observability): prometheus, loki, grafana, alloy, postgres-exporter
+- **API Layer** (profile: api): FastAPI, Hasura GraphQL, PostgREST
+- **Data Catalog** (profile: catalog): OpenMetadata with MySQL and Elasticsearch
+- **Documentation** (profile: docs): MkDocs server
+
+**Option B: Managed Services (Recommended for Production)**
+
+For production workloads, consider replacing containerized services with managed alternatives:
+
+```bash
+# Use AWS RDS for PostgreSQL
+POSTGRES_HOST=phlo-prod.xxxxx.rds.amazonaws.com
+POSTGRES_PORT=5432
+
+# Use AWS S3 instead of MinIO
+ICEBERG_WAREHOUSE_PATH=s3://your-prod-bucket/warehouse
+MINIO_API_PORT=9000  # Or S3 endpoint
+
+# Keep Dagster, Trino, Nessie containerized with docker-compose
+docker-compose up -d dagster-webserver dagster-daemon trino nessie
+```
+
+### Step 3: Verify Service Health
+
+The docker-compose configuration includes health checks for all services:
+
+```bash
+# View service status
+docker-compose ps
+
+# Check logs for specific service
+docker-compose logs -f dagster-webserver
+docker-compose logs -f trino
+docker-compose logs -f nessie
+
+# Access services
+# Dagster UI: http://localhost:10006
+# Trino: http://localhost:10005
+# Nessie API: http://localhost:10003
+# Superset: http://localhost:10007
+# MinIO Console: http://localhost:10002
+# Grafana (with observability profile): http://localhost:10016
+# OpenMetadata (with catalog profile): http://localhost:10020
+```
+
+### Step 4: Storage Configuration (Production S3)
+
+For production, replace MinIO with AWS S3:
 
 ```bash
 # Create S3 bucket
@@ -203,70 +265,46 @@ aws s3api put-bucket-encryption \
     }]
   }'
 
-# Block public access
-aws s3api put-public-access-block \
-  --bucket phlo-prod-lake \
-  --public-access-block-configuration \
-  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-
-# Create IAM role for services
-aws iam create-role --role-name phlo-prod-role \
-  --assume-role-policy-document file://trust-policy.json
-
-# Attach S3 policy
-aws iam put-role-policy --role-name phlo-prod-role \
-  --policy-name phlo-s3-policy \
-  --policy-document file://s3-policy.json
+# Update environment variables
+ICEBERG_WAREHOUSE_PATH=s3://phlo-prod-lake/warehouse
+ICEBERG_STAGING_PATH=s3://phlo-prod-lake/stage
+AWS_ACCESS_KEY_ID=<your-access-key>
+AWS_SECRET_ACCESS_KEY=<your-secret-key>
+AWS_REGION=us-east-1
 ```
 
-### Step 4: Containerization
+### Step 5: Observability Stack
 
-```dockerfile
-# Dockerfile for production
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    postgresql-client \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy dependencies
-COPY pyproject.toml uv.lock ./
-
-# Install Python dependencies
-RUN pip install uv && uv pip install --system -e .
-
-# Copy application code
-COPY . .
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:3000/health')"
-
-# Run Dagster
-CMD ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
-```
-
-Push to registry:
+Enable Grafana, Prometheus, and Loki for monitoring:
 
 ```bash
-# Build
-docker build -t phlo:1.0.0 .
+# Start with observability profile
+docker-compose --profile observability up -d
 
-# Tag for registry
-docker tag phlo:1.0.0 <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/phlo:1.0.0
+# Access Grafana at http://localhost:10016
+# Default credentials from .env:
+# Username: admin
+# Password: admin123 (change in production!)
 
-# Push to ECR
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/phlo:1.0.0
+# Prometheus metrics: http://localhost:10013
+# Loki logs: Accessible via Grafana data source
 ```
 
-### Step 5: Kubernetes Deployment
+The observability stack includes:
+- **Prometheus**: Metrics collection and storage
+- **Loki**: Log aggregation
+- **Grafana**: Dashboards and visualization
+- **Alloy**: Metrics and log forwarding
+- **postgres-exporter**: PostgreSQL metrics
+
+## Future: Kubernetes Deployment
+
+> **Note**: Kubernetes manifests are not yet included in the repository. The following is a reference architecture for future implementation.
+
+For large-scale production deployments, Kubernetes provides better orchestration:
 
 ```yaml
-# k8s/dagster-deployment.yaml
+# Future: k8s/dagster-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -374,26 +412,24 @@ spec:
     protocol: TCP
 ```
 
-Deploy:
+**Future Kubernetes deployment** would look like:
 
 ```bash
 # Create namespace
 kubectl create namespace dagster
 
-# Create secrets
+# Create secrets from .env
 kubectl create secret generic phlo-secrets \
-  --from-file=.env.prod \
+  --from-env-file=.env \
   -n dagster
 
-# Deploy
+# Deploy (when k8s/ manifests are available)
 kubectl apply -f k8s/dagster-deployment.yaml
+kubectl apply -f k8s/trino-deployment.yaml
+kubectl apply -f k8s/nessie-deployment.yaml
 
 # Monitor rollout
 kubectl rollout status deployment/dagster-webserver -n dagster
-
-# Check status
-kubectl get pods -n dagster
-kubectl logs -f deployment/dagster-webserver -n dagster
 ```
 
 ## Scaling Strategies
@@ -510,13 +546,26 @@ This ensures at least 1 pod is always running during maintenance.
 
 ## Disaster Recovery
 
-```bash
-# Daily backup to S3
-aws s3 sync s3://phlo-prod-lake s3://phlo-prod-backup \
-  --delete \
-  --exclude "tmp/*"
+**Current Implementation: Docker Compose Backups**
 
-# Backup automation (CronJob)
+```bash
+# Backup PostgreSQL database
+docker-compose exec postgres pg_dump -U lake lakehouse > backup_$(date +%Y%m%d).sql
+
+# Backup MinIO data (if using MinIO)
+docker run --rm -v $(pwd)/volumes/minio:/data -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/minio_$(date +%Y%m%d).tar.gz /data
+
+# For production S3, use cross-region replication
+aws s3api put-bucket-replication \
+  --bucket phlo-prod-lake \
+  --replication-configuration file://replication.json
+```
+
+**Future: Kubernetes Backup Automation**
+
+```bash
+# Future backup automation with CronJob
 cat > k8s/backup-cronjob.yaml << 'EOF'
 apiVersion: batch/v1
 kind: CronJob
@@ -622,62 +671,123 @@ def optimize_costs():
 
 ## Monitoring Production
 
+**Current Implementation: Grafana + Prometheus**
+
+```bash
+# Start observability stack
+docker-compose --profile observability up -d
+
+# Access Grafana dashboards
+# http://localhost:10016
+
+# View Prometheus metrics
+# http://localhost:10013
+
+# Query logs with Loki
+# Available via Grafana Explore interface
+```
+
+Grafana dashboards are pre-provisioned in `docker/grafana/dashboards/`:
+- Lakehouse overview
+- Dagster pipeline metrics
+- PostgreSQL database metrics
+- Trino query performance
+
+**Future: Cloud-Native Monitoring**
+
+For AWS deployments, integrate with CloudWatch:
+
 ```bash
 # CloudWatch dashboard
 aws cloudwatch put-dashboard \
-  --dashboard-name CascadeProdStatus \
+  --dashboard-name PhloProductionStatus \
   --dashboard-body file://dashboard.json
 
-# Real-time alerts
-aws sns create-topic --name phlo-alerts
-aws sns subscribe \
-  --topic-arn arn:aws:sns:us-east-1:123456789:phlo-alerts \
-  --protocol email \
-  --notification-endpoint ops@company.com
-
-# Automated response
-aws lambda create-function \
-  --function-name phlo-auto-remediate \
-  --runtime python3.11 \
-  --handler index.handler \
-  --zip-file fileb://lambda.zip
+# Set up alerts
+aws cloudwatch put-metric-alarm \
+  --alarm-name phlo-dagster-failures \
+  --alarm-description "Alert on Dagster failures" \
+  --metric-name PipelineFailures \
+  --namespace Phlo \
+  --statistic Sum \
+  --period 300 \
+  --threshold 1 \
+  --comparison-operator GreaterThanThreshold
 ```
 
 ## Summary
 
-Production deployment requires:
+Production deployment with Phlo:
 
-**Infrastructure**: RDS, S3, Kubernetes cluster  
-**Security**: Secrets management, encryption, RBAC  
-**Reliability**: Backups, failover, disaster recovery  
-**Scalability**: Autoscaling, resource management  
-**Observability**: Monitoring, logging, alerts  
-**Cost Control**: Tracking, optimization  
+### Current Implementation (Docker Compose)
 
-With these foundations, Phlo scales from prototype to enterprise-grade data platform.
+**Deployment Method**: `docker-compose up -d` with profiles
+**Infrastructure**: Containerized services with health checks
+**Storage**: MinIO (dev) or S3 (production)
+**Database**: PostgreSQL (containerized or RDS)
+**Monitoring**: Grafana + Prometheus + Loki
+**Scaling**: Vertical (increase container resources)
+
+### Production Readiness Checklist
+
+✅ **Implemented**:
+- Docker Compose orchestration with health checks
+- Environment-based configuration (.env files)
+- Observability stack (Grafana, Prometheus, Loki)
+- API layer with authentication (FastAPI, Hasura, PostgREST)
+- Data catalog integration (OpenMetadata)
+- Multi-profile deployment (core, observability, api, catalog)
+
+📋 **Recommended for Production**:
+- Replace MinIO with AWS S3 or similar object storage
+- Use managed PostgreSQL (RDS, Cloud SQL)
+- Implement backup automation
+- Set up SSL/TLS certificates
+- Configure firewall rules and VPC
+- Change all default passwords in .env
+- Enable audit logging
+
+🔮 **Future (Kubernetes)**:
+- Kubernetes manifests for k8s/ directory
+- Horizontal pod autoscaling
+- Multi-region deployment
+- Service mesh integration
+
+### Quick Start
+
+```bash
+# Development
+docker-compose up -d
+
+# Production (all features)
+cp .env.example .env
+# Edit .env with production credentials
+docker-compose --profile all up -d
+
+# Access services
+# Dagster: http://localhost:10006
+# Grafana: http://localhost:10016
+# Superset: http://localhost:10007
+# OpenMetadata: http://localhost:10020
+```
 
 ---
 
-**Series Complete!**
+**Next**: [Part 13 - Plugin System](13-plugin-system.md) - Extend Phlo with custom plugins
 
-You've now learned the full Phlo stack:
-
-1. **Part 1**: Data Lakehouse concepts
-2. **Part 2**: Getting started
-3. **Part 3**: Apache Iceberg
-4. **Part 4**: Project Nessie
-5. **Part 5**: Data ingestion
-6. **Part 6**: dbt transformations
-7. **Part 7**: Dagster orchestration
-8. **Part 8**: Real-world example
-9. **Part 9**: Data quality with Pandera
-10. **Part 10**: Metadata and governance
-11. **Part 11**: Observability and monitoring
-12. **Part 12**: Production deployment
-
-Next steps:
-- Deploy Phlo to your organization
-- Extend with your own data sources
-- Contribute improvements back to the community
+**Series**:
+1. Data Lakehouse concepts
+2. Getting started
+3. Apache Iceberg
+4. Project Nessie
+5. Data ingestion
+6. dbt transformations
+7. Dagster orchestration
+8. Real-world example
+9. Data quality with Pandera
+10. Metadata and governance
+11. Observability and monitoring
+12. **Production deployment** ← You are here
+13. Plugin system
 
 Happy data engineering!
