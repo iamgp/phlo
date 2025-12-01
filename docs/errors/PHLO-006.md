@@ -73,7 +73,7 @@ def create_session_with_retries():
     return session
 
 # Use in asset
-@phlo_ingestion(...)
+@phlo.ingestion(...)
 def weather_observations(partition: str):
     session = create_session_with_retries()
     response = session.get(f"https://api.weather.com/observations/{partition}")
@@ -116,7 +116,7 @@ def validate_api_credentials():
             ]
         )
 
-@phlo_ingestion(...)
+@phlo.ingestion(...)
 def weather_observations(partition: str):
     validate_api_credentials()
     # ... fetch data
@@ -127,7 +127,7 @@ def weather_observations(partition: str):
 Wrap data fetching in try/except with detailed logging:
 
 ```python
-@phlo_ingestion(...)
+@phlo.ingestion(...)
 def weather_observations(partition: str, context):
     try:
         context.log.info(f"Fetching data for partition: {partition}")
@@ -184,7 +184,7 @@ def weather_observations(partition: str, context):
 ### ❌ Incorrect: No error handling
 
 ```python
-@phlo_ingestion(...)
+@phlo.ingestion(...)
 def weather_observations(partition: str):
     # ❌ No error handling - will fail silently
     response = requests.get(f"https://api.weather.com/obs/{partition}")
@@ -194,7 +194,7 @@ def weather_observations(partition: str):
 ### ✅ Correct: Comprehensive error handling
 
 ```python
-@phlo_ingestion(...)
+@phlo.ingestion(...)
 def weather_observations(partition: str, context):
     try:
         context.log.info(f"Fetching data for {partition}")
@@ -305,7 +305,7 @@ def weather_observations(partition: str, context):
        except:
            return False
 
-   @phlo_ingestion(...)
+   @phlo.ingestion(...)
    def weather_observations(partition: str):
        if not check_api_health():
            raise PhloIngestionError(
@@ -319,7 +319,7 @@ def weather_observations(partition: str, context):
    ```python
    from dagster import MetadataValue
 
-   @phlo_ingestion(...)
+   @phlo.ingestion(...)
    def weather_observations(partition: str, context):
        start_time = time.time()
 
@@ -351,7 +351,7 @@ def weather_observations(partition: str, context):
 
    breaker = CircuitBreaker(fail_max=5, timeout_duration=60)
 
-   @phlo_ingestion(...)
+   @phlo.ingestion(...)
    def weather_observations(partition: str):
        @breaker
        def fetch():

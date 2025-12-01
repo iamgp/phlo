@@ -223,7 +223,7 @@ graph TB
 4. [Part 8](08-real-world-example.md) (production patterns)
 5. [Part 10](10-metadata-governance.md) (governance and compliance)
 6. [Part 12](12-production-deployment.md) (scaling and HA)
-7. [ARCHITECTURE.md](../ARCHITECTURE.md) (deployment options)
+7. [Architecture Guide](../reference/architecture.md) (deployment options)
 
 **Time**: 2 hours reading
 
@@ -292,7 +292,7 @@ These posts include runnable code and exercises:
 - **"Do I need to understand Iceberg?"** → Yes, [Part 3](03-apache-iceberg-explained.md) explains why it matters and how it's different
 - **"Can I skip dbt and use Python instead?"** → You could, but [Part 6](06-dbt-transformations.md) explains why SQL via dbt is better
 - **"How does this compare to Snowflake/Databricks?"** → [Part 1](01-intro-data-lakehouse.md) compares. Key: open-source, no vendor lock-in
-- **"Is this production-ready?"** → Yes, see [Part 12](12-production-deployment.md) and [ARCHITECTURE.md](../ARCHITECTURE.md)
+- **"Is this production-ready?"** → Yes, see [Part 12](12-production-deployment.md) and [Architecture Guide](../reference/architecture.md)
 - **"Can I ingest from databases, not just APIs?"** → Yes, [Part 5](05-data-ingestion.md#handling-different-data-sources) covers the pattern
 - **"How do I ensure data quality?"** → [Part 9](09-data-quality-with-pandera.md) covers three validation layers
 - **"How do I discover and catalog my data?"** → [Part 10](10-metadata-governance.md) covers OpenMetadata integration
