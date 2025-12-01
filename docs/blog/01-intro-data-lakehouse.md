@@ -162,20 +162,29 @@ dbt handles:
 Declarative asset orchestration that tracks what data depends on what:
 
 ```python
-@asset(partitions_def=daily_partition)
-def dlt_glucose_entries(context, iceberg: IcebergResource) -> MaterializeResult:
-    """Ingest Nightscout data daily"""
-    # ... fetch, validate, write to Iceberg
-    
+import phlo
+
+@phlo.ingestion(
+    table_name="glucose_entries",
+    unique_key="_id",
+    validation_schema=RawGlucoseEntries,
+    group="nightscout",
+    cron="0 */1 * * *",
+)
+def glucose_entries(partition_date: str):
+    """Ingest Nightscout data daily with automatic DLT + Iceberg merge"""
+    # Return DLT source - decorator handles staging, validation, merge
+    return rest_api(...)
+
 @asset
 def dbt_transform(dbt: DbtCliResource) -> None:
     """Run dbt models on latest data"""
-    # ... execute transformations
-    
-@asset(deps=[dlt_glucose_entries, dbt_transform])
+    # Execute transformations
+
+@asset(deps=[glucose_entries, dbt_transform])
 def publish_marts() -> None:
     """Publish marts to Postgres after ingestion and transform"""
-    # ... copy data to marts
+    # Copy data to marts
 ```
 
 ## The Data Flow in Phlo

@@ -85,172 +85,95 @@ Total: 152ms
 └──────────────────────────────┘
             ↓ (emits events)
 ┌──────────────────────────────┐
-│  Collection Layer            │
-│  • Dagster Logs              │
-│  • Application Metrics       │
-│  • System Metrics (Prometheus)
+│  Phlo CLI & Monitoring       │
+│  • phlo logs                 │
+│  • phlo metrics              │
+│  • phlo lineage              │
+│  • phlo alerts               │
 └──────────────────────────────┘
             ↓
 ┌──────────────────────────────┐
-│  Storage Layer               │
-│  • Loki (logs)               │
-│  • Prometheus (metrics)      │
-│  • Jaeger (traces)           │
+│  Storage & Collection        │
+│  • Dagster Event Log         │
+│  • Metrics Collector         │
+│  • Lineage Graph             │
 └──────────────────────────────┘
             ↓
 ┌──────────────────────────────┐
-│  Analysis & Visualization    │
-│  • Grafana (dashboards)      │
-│  • Alertmanager (alerts)     │
-│  • Superset (data quality)   │
+│  Alerting & Notifications    │
+│  • Slack Webhooks            │
+│  • PagerDuty                 │
+│  • Email                     │
 └──────────────────────────────┘
 ```
 
-## Metrics: What to Track
+## Metrics: Tracking Pipeline Health
 
-### Asset-Level Metrics
+Phlo provides built-in metrics collection through the `phlo metrics` CLI command and the metrics collector module.
 
-```python
-# phlo/defs/monitoring/metrics.py
-from dagster import op, Out, DynamicOut, DynamicOutput, resource
-from prometheus_client import Counter, Histogram, Gauge
-import time
+### Viewing Metrics via CLI
 
+The easiest way to check pipeline health:
 
-# Define metrics
-asset_execution_time = Histogram(
-    name="asset_execution_seconds",
-    documentation="Asset execution time in seconds",
-    labelnames=["asset_name", "status"],
-)
+```bash
+# View overall pipeline metrics
+$ phlo metrics summary
 
-asset_rows_processed = Counter(
-    name="asset_rows_processed_total",
-    documentation="Total rows processed",
-    labelnames=["asset_name", "operation"],
-)
+Platform Metrics Summary
 
-asset_row_count_gauge = Gauge(
-    name="asset_row_count",
-    documentation="Current row count in asset",
-    labelnames=["asset_name", "schema"],
-)
+Runs (last 24h)
+  Total:     288
+  Success:   285 (98.96%)
+  Failure:   3 (1.04%)
 
-data_freshness_seconds = Gauge(
-    name="asset_freshness_seconds",
-    documentation="Seconds since last update",
-    labelnames=["asset_name"],
-)
+Data Volume
+  Rows:      1.2M
+  Bytes:     450 MB
 
-validation_pass_rate = Gauge(
-    name="validation_pass_rate",
-    documentation="Percentage of rows passing validation",
-    labelnames=["asset_name", "check_name"],
-)
+Latency (seconds)
+  p50:       0.32s
+  p95:       0.85s
+  p99:       1.20s
 
-
-@op
-def ingest_with_metrics(context) -> int:
-    """Ingest glucose data with metrics."""
-    
-    start_time = time.time()
-    
-    try:
-        # Fetch data
-        data = fetch_from_api()
-        row_count = len(data)
-        
-        # Log metrics
-        asset_rows_processed.labels(
-            asset_name="dlt_glucose_entries",
-            operation="fetch",
-        ).inc(row_count)
-        
-        # Validate
-        valid_rows = validate(data)
-        pass_rate = (len(valid_rows) / row_count) * 100
-        
-        validation_pass_rate.labels(
-            asset_name="dlt_glucose_entries",
-            check_name="schema",
-        ).set(pass_rate)
-        
-        # Execution time
-        elapsed = time.time() - start_time
-        asset_execution_time.labels(
-            asset_name="dlt_glucose_entries",
-            status="success",
-        ).observe(elapsed)
-        
-        context.log.info(
-            f"✓ Ingestion: {row_count} rows in {elapsed:.2f}s "
-            f"({pass_rate:.1f}% valid)"
-        )
-        
-        return row_count
-        
-    except Exception as e:
-        elapsed = time.time() - start_time
-        asset_execution_time.labels(
-            asset_name="dlt_glucose_entries",
-            status="failure",
-        ).observe(elapsed)
-        raise
+Assets
+  Active:    12
+  Success:   11
+  Warning:   0
+  Failure:   1
 ```
 
-### System-Level Metrics
+For per-asset details:
 
-```python
-# phlo/monitoring/system_metrics.py
-from prometheus_client import start_http_server, Gauge, Counter
-import psutil
-import docker
+```bash
+# View metrics for specific asset
+$ phlo metrics asset glucose_entries --runs 20
 
-disk_usage_percent = Gauge(
-    name="disk_usage_percent",
-    documentation="Disk usage percentage",
-    labelnames=["mount_point"],
-)
+Metrics for glucose_entries
+Metric              Value
+─────────────────────────────────
+Last Run Status     success
+Last Run Duration   5.20s
+Average Duration    5.10s
+Failure Rate        5.0%
+Avg Rows/Run        498
+Data Size           2.5 MB
 
-memory_usage_percent = Gauge(
-    name="memory_usage_percent",
-    documentation="Memory usage percentage",
-)
+Last 20 Runs
+Run ID    Status   Duration  Rows
+─────────────────────────────────
+abc123    success  5.2s      487
+def456    success  4.8s      512
+ghi789    success  5.1s      495
+```
 
-container_health = Gauge(
-    name="container_health",
-    documentation="Container status (1=healthy, 0=unhealthy)",
-    labelnames=["container_name"],
-)
+Export metrics for external analysis:
 
-storage_lake_size_bytes = Gauge(
-    name="storage_lake_size_bytes",
-    documentation="MinIO lake storage size",
-)
+```bash
+# Export to JSON
+$ phlo metrics export --format json --period 7d --output metrics.json
 
-
-def collect_system_metrics():
-    """Collect infrastructure metrics."""
-    
-    # Disk usage
-    disk = psutil.disk_usage("/")
-    disk_usage_percent.labels(mount_point="/").set(disk.percent)
-    
-    # Memory usage
-    memory = psutil.virtual_memory()
-    memory_usage_percent.set(memory.percent)
-    
-    # Container health
-    docker_client = docker.from_env()
-    for container in docker_client.containers.list():
-        status = container.status
-        health = 1 if status == "running" else 0
-        container_health.labels(container_name=container.name).set(health)
-    
-    # Lake storage size
-    minio_client = get_minio_client()
-    size = get_bucket_size(minio_client, "lake")
-    storage_lake_size_bytes.set(size)
+# Export to CSV
+$ phlo metrics export --format csv --period 30d --output metrics.csv
 ```
 
 ## Logs: Structured Logging
@@ -356,118 +279,87 @@ Last 24 hours:
 └─ 10/15 10:15 ✓ Succeeded in 156ms
 ```
 
-## Alerting: Detecting Problems
+## Alerting: Getting Notified When Things Break
 
-### Freshness Alerts
+Phlo includes a built-in alerting system that can send notifications to Slack, PagerDuty, and email.
 
-```yaml
-# monitoring/prometheus_rules.yaml
-groups:
-  - name: data_quality
-    rules:
-      # Alert if data is stale (>2 hours old)
-      - alert: DatasetFreshness
-        expr: |
-          (time() - asset_last_update_timestamp) / 3600 > 2
-        for: 5m
-        annotations:
-          summary: "Dataset {{ $labels.asset_name }} is stale"
-          description: "{{ $labels.asset_name }} not updated for {{ $value }}h"
-          
-      # Alert if validation fails
-      - alert: ValidationFailure
-        expr: validation_pass_rate < 95
-        for: 1m
-        annotations:
-          summary: "Data validation failed for {{ $labels.asset_name }}"
-          description: "Pass rate: {{ $value }}%"
-          
-      # Alert on high error rate
-      - alert: AssetErrorRate
-        expr: |
-          (
-            rate(asset_execution_failures_total[5m])
-            /
-            rate(asset_executions_total[5m])
-          ) > 0.1
-        for: 5m
-        annotations:
-          summary: "Asset {{ $labels.asset_name }} has high error rate"
-          description: "Error rate: {{ humanizePercentage $value }}"
+### Configuring Alert Destinations
+
+Set up alert destinations via environment variables:
+
+```bash
+# Slack Integration
+export PHLO_ALERT_SLACK_WEBHOOK="https://hooks.slack.com/services/T.../B.../xxx"
+export PHLO_ALERT_SLACK_CHANNEL="#data-alerts"  # Optional
+
+# PagerDuty Integration
+export PHLO_ALERT_PAGERDUTY_KEY="your-integration-key"
+
+# Email Integration
+export PHLO_ALERT_EMAIL_SMTP_HOST="smtp.gmail.com"
+export PHLO_ALERT_EMAIL_SMTP_PORT="587"
+export PHLO_ALERT_EMAIL_SMTP_USER="alerts@yourcompany.com"
+export PHLO_ALERT_EMAIL_SMTP_PASSWORD="your-password"
+export PHLO_ALERT_EMAIL_RECIPIENTS="data-team@yourcompany.com,oncall@yourcompany.com"
 ```
 
-### Sending Alerts
+### Managing Alerts via CLI
 
-```python
-# monitoring/alerting.py
-from slack_sdk import WebClient
-from alertmanager_api_client import AlertmanagerClient
-import os
+Check alert system status:
 
+```bash
+$ phlo alerts status
 
-slack_client = WebClient(token=os.environ["SLACK_BOT_TOKEN"])
-alertmanager = AlertmanagerClient(url="http://alertmanager:9093")
+Alert System Status
 
+Configured Destinations: 2
+  • slack
+  • email
 
-def send_slack_alert(
-    alert_name: str,
-    severity: str,
-    message: str,
-    context: dict,
-):
-    """Send alert to Slack."""
-    
-    color_map = {
-        "critical": "#FF0000",
-        "warning": "#FF9900",
-        "info": "#0099FF",
-    }
-    
-    slack_client.chat_postMessage(
-        channel="#data-alerts",
-        blocks=[
-            {
-                "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": f"{'🔴' if severity == 'critical' else '⚠️'} {alert_name}",
-                },
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{message}*\n\n{json.dumps(context, indent=2)}",
-                },
-            },
-            {
-                "type": "actions",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": "View Dashboard"},
-                        "url": f"http://grafana:3000/dashboard/{alert_name}",
-                    },
-                ],
-            },
-        ],
-    )
-
-
-# Example: Hook from Dagster
-def on_asset_failure(context, event):
-    """Called when asset fails."""
-    send_slack_alert(
-        alert_name=event.asset_key.path[-1],
-        severity="critical",
-        message=f"Asset failed: {event.asset_key}",
-        context={
-            "Run ID": event.run_id,
-            "Error": event.step_key,
-            "Time": event.timestamp,
-        },
-    )
+Recent Alerts Sent: 5
+Deduplication Window: 60 minutes
 ```
+
+List configured destinations:
+
+```bash
+$ phlo alerts list
+
+Configured Alert Destinations
+Name   Type              Status
+─────────────────────────────────
+slack  SlackDestination  ✓ Ready
+email  EmailDestination  ✓ Ready
+```
+
+Test your alert configuration:
+
+```bash
+# Send test alert to all destinations
+$ phlo alerts test
+
+✓ Test alert sent successfully! Check your configured alert destinations.
+
+# Test specific destination
+$ phlo alerts test --destination slack --severity critical
+```
+
+### What Triggers Alerts
+
+Phlo automatically sends alerts for:
+
+1. **Asset Failures** - When materialization fails
+2. **Quality Check Violations** - When data quality checks fail
+3. **SLA Breaches** - When freshness or quality thresholds are exceeded
+
+### Alert Severity Levels
+
+| Severity | Description | Default Routing |
+|----------|-------------|-----------------|
+| **INFO** | FYI notifications | Slack only |
+| **WARNING** | Needs attention | Slack + Email |
+| **ERROR** | Something failed | Slack + Email + PagerDuty (low urgency) |
+| **CRITICAL** | Production impact | All channels + PagerDuty (high urgency) |
 
 ## Dashboards: Visualizing Health
 
@@ -792,94 +684,9 @@ graph LR
 
 Dashboards are great, but you can't watch them 24/7. Alerting ensures you know about problems before your users do.
 
-### The AlertManager Architecture
+### Example Alert Format
 
-Phlo's `AlertManager` centralizes alert routing:
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                   Alert Sources                           │
-├──────────────────┬───────────────────┬───────────────────┤
-│  Dagster Sensor  │  Quality Checks   │  SLA Monitors     │
-│  (run failures)  │  (validation)     │  (freshness)      │
-└────────┬─────────┴─────────┬─────────┴─────────┬─────────┘
-         │                   │                   │
-         └───────────────────┼───────────────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  AlertManager   │
-                    │  • Deduplication│
-                    │  • Severity     │
-                    │  • Routing      │
-                    └────────┬────────┘
-                             │
-         ┌───────────────────┼───────────────────┐
-         │                   │                   │
-         ▼                   ▼                   ▼
-   ┌───────────┐      ┌───────────┐      ┌───────────┐
-   │   Slack   │      │ PagerDuty │      │   Email   │
-   │  #alerts  │      │  on-call  │      │   team    │
-   └───────────┘      └───────────┘      └───────────┘
-```
-
-### Setting Up Alerting
-
-Configure alert destinations via environment variables:
-
-```bash
-# .env or docker-compose environment
-
-# Slack Integration
-PHLO_ALERT_SLACK_WEBHOOK=https://hooks.slack.com/services/T.../B.../xxx
-PHLO_ALERT_SLACK_CHANNEL=#data-alerts
-
-# PagerDuty Integration (for critical alerts)
-PHLO_ALERT_PAGERDUTY_KEY=your-integration-key
-PHLO_ALERT_PAGERDUTY_SERVICE=data-platform
-
-# Email Integration
-PHLO_ALERT_EMAIL_SMTP_HOST=smtp.gmail.com
-PHLO_ALERT_EMAIL_SMTP_PORT=587
-PHLO_ALERT_EMAIL_FROM=alerts@yourcompany.com
-PHLO_ALERT_EMAIL_RECIPIENTS=data-team@yourcompany.com,oncall@yourcompany.com
-```
-
-### Alert Severity and Routing
-
-Not every alert needs to wake someone up. Phlo routes alerts based on severity:
-
-| Severity | Description | Default Routing |
-|----------|-------------|-----------------|
-| **INFO** | FYI notifications | Slack only |
-| **WARNING** | Needs attention, not urgent | Slack + Email |
-| **ERROR** | Something failed, investigate soon | Slack + Email + PagerDuty (low urgency) |
-| **CRITICAL** | Production impact, immediate action | All channels + PagerDuty (high urgency) |
-
-You can customize routing per asset:
-
-```python
-# In your Dagster definitions
-@asset(
-    metadata={
-        "alert_severity_override": "CRITICAL",  # This asset is business-critical
-        "alert_channels": ["slack", "pagerduty"],  # Skip email for this one
-    }
-)
-def critical_reporting_asset():
-    ...
-```
-
-### What Gets Alerted
-
-Out of the box, Phlo alerts on:
-
-1. **Run Failures**: Any asset materialization that fails
-2. **Quality Violations**: When quality checks fail (from `@phlo.quality`)
-3. **SLA Breaches**: When data freshness exceeds thresholds
-4. **Resource Issues**: Disk space, memory pressure, connection pool exhaustion
-
-Example Slack alert:
+When alerts are sent, they include context:
 
 ```
 🔴 Asset Materialization Failed
@@ -889,40 +696,14 @@ Partition: 2024-01-15
 Run ID: abc123-def456
 
 Error: Connection timeout after 30s
-  File: ingestion/nightscout/readings.py
-  Line: 45
 
-Downstream Impact:
-  • 5 assets will be stale until resolved
-  • Dashboard "Glucose Overview" affected
-
-Quick Actions:
-  [View Run] [Retry] [Silence 1h]
+Timestamp: 2024-01-15 10:35:42 UTC
 ```
 
-### Deduplication: No Alert Storms
-
-If an asset fails every 5 minutes, you don't want 288 alerts per day. The AlertManager deduplicates:
-
-- Same asset + same error = 1 alert per hour (configurable)
-- Aggregates multiple failures into digest
-- Escalates if issue persists beyond threshold
-
-```
-# After 6 hours of repeated failures:
-
-🔴 Persistent Failure: glucose_entries
-
-This asset has failed 72 times in the last 6 hours.
-First failure: 2024-01-15 02:00 UTC
-Latest failure: 2024-01-15 08:00 UTC
-
-Error (consistent): Connection timeout after 30s
-
-Escalating to: @oncall-data, pagerduty
-
-This alert will repeat every 2 hours until resolved.
-```
+The AlertManager automatically handles:
+- **Deduplication** - Same asset + same error = 1 alert per hour (configurable)
+- **Severity Routing** - Routes to appropriate channels based on severity
+- **Context** - Includes run ID, asset name, error details
 
 ---
 
@@ -1097,18 +878,18 @@ $ phlo metrics export --format json --period 7d | \
 
 Phlo's observability stack provides:
 
-**Metrics**: Track what's happening (execution time, throughput, quality)  
-**Logs**: Understand why (structured logs, searchable via CLI)  
-**Traces**: Debug how (distributed tracing of slow ops)  
-**Dashboards**: Visualize health (asset, system, quality)  
-**Alerts**: Get notified (Slack, PagerDuty, email)  
-**Lineage**: Understand impact (CLI visualization and export)  
+**Metrics**: Track what's happening via `phlo metrics` (execution time, throughput, quality)
+**Logs**: Understand why with `phlo logs` (structured logs, searchable, real-time tailing)
+**Lineage**: Understand impact with `phlo lineage` (CLI visualization, export, impact analysis)
+**Alerts**: Get notified via `phlo alerts` (Slack, PagerDuty, email with deduplication)
 
 Combined, you have:
-- **Visibility**: Know your pipeline state at any time
-- **Reliability**: Detect failures before users do
-- **Speed**: Find root causes in minutes, not hours
-- **Confidence**: Deploy with safety nets in place
+- **Visibility**: Know your pipeline state at any time via CLI
+- **Reliability**: Automated alerts detect failures before users do
+- **Speed**: Find root causes in minutes with structured logs and lineage
+- **Confidence**: Deploy with safety nets and impact analysis in place
+
+All accessible through simple CLI commands that integrate with your existing workflows.
 
 **Next**: [Part 12: Production Deployment and Scaling](12-production-deployment.md)
 

@@ -47,7 +47,7 @@ glucose-platform/
 ├── contracts/              # Data contracts (SLAs, schema agreements)
 │   └── glucose_readings.yaml
 ├── workflows/              # Data workflows
-│   ├── ingestion/         # Ingestion assets (@phlo_ingestion)
+│   ├── ingestion/         # Ingestion assets (@phlo.ingestion)
 │   │   └── nightscout/    # Nightscout CGM data
 │   ├── schemas/           # Pandera validation schemas
 │   └── quality/           # Data quality checks (@phlo.quality)

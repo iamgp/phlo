@@ -47,10 +47,10 @@ Open `src/phlo/defs/ingestion/nightscout/glucose.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
+import phlo
 from phlo.schemas.glucose import RawGlucoseEntries
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -83,7 +83,7 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-**Notice**: Only 60 lines! The `@phlo_ingestion` decorator handles:
+**Notice**: Only 60 lines! The `@phlo.ingestion` decorator handles:
 - DLT pipeline setup
 - Pandera validation
 - Iceberg table creation
@@ -151,7 +151,7 @@ In 10 minutes, you:
 4. Queried with SQL engines
 
 **Key Concepts**:
-- **Decorator-driven**: Minimal boilerplate with `@phlo_ingestion`
+- **Decorator-driven**: Minimal boilerplate with `@phlo.ingestion`
 - **Schema-first**: Pandera validates data quality
 - **Iceberg tables**: ACID transactions, time travel, schema evolution
 - **Multi-engine**: Query with Trino, DuckDB, Spark
@@ -180,10 +180,10 @@ class RawWeatherData(pa.DataFrameModel):
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
+import phlo
 from phlo.schemas.mydata import RawWeatherData
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="weather_observations",
     unique_key="timestamp",
     validation_schema=RawWeatherData,
