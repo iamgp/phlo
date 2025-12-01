@@ -25,6 +25,8 @@ Nobody knows because metadata is scattered:
 - Ownership unknown
 - Change history nowhere
 
+> **Note:** For detailed OpenMetadata setup instructions, see [docs/setup/openmetadata.md](/home/user/phlo/docs/setup/openmetadata.md)
+
 ## OpenMetadata: The Open-Source Data Catalog
 
 OpenMetadata is an open-source data catalog that answers:
@@ -439,7 +441,8 @@ INFO - Successfully ingested dbt metadata
 
 Question: "Can I delete the `raw.glucose_entries` table?"
 
-OpenMetadata shows:
+You can use the `phlo lineage impact` command (see Part 11) or check OpenMetadata:
+
 ```
 raw.glucose_entries
 ├─ Downstream: bronze.stg_glucose_entries
@@ -594,10 +597,10 @@ With contracts, breaking changes are caught before deployment.
 
 ### Anatomy of a Data Contract
 
-Contracts live in your `contracts/` directory as YAML files:
+Contracts live in your `contracts/` directory as YAML files. Here's a real example from the glucose platform:
 
 ```yaml
-# contracts/glucose_readings.yaml
+# examples/glucose-platform/contracts/glucose_readings.yaml
 name: glucose_readings
 version: 1.0.0
 owner: data-team
@@ -654,28 +657,31 @@ notifications:
 
 When you run `phlo contract validate glucose_readings`, Phlo:
 
-1. **Loads the contract** from `contracts/glucose_readings.yaml`
-2. **Queries the live table** schema from Iceberg/Nessie
-3. **Compares** required columns, types, and constraints
-4. **Reports violations** with specific remediation steps
+1. **Loads the contract** from `contracts/glucose_readings.yaml` (or `examples/glucose-platform/contracts/glucose_readings.yaml` for examples)
+2. **Validates** the contract schema and structure
+3. **Reports** expected schema and SLA requirements
+
+> **Note:** Full table schema comparison against live Iceberg tables is planned for a future release. Currently, the command validates contract syntax and displays expected requirements.
 
 ```bash
 $ phlo contract validate glucose_readings
 
-Validating contract: glucose_readings v1.0.0
-Target table: silver.fct_glucose_readings
+Contract Validation: glucose_readings
 
-Schema Validation:
-  ✓ reading_id: string, not null, unique
-  ✓ sgv: integer, range [20, 600]
-  ✓ reading_timestamp: timestamp, not null
-  ✓ direction: string (optional)
+Note: Requires live catalog access to validate actual schema
 
-SLA Validation:
-  ✓ Freshness: 1.2 hours (limit: 2 hours)
-  ✓ Quality: 99.7% pass rate (threshold: 99%)
+Required Columns:
+  reading_id   string
+  sgv          integer
+  reading_timestamp timestamp
+  direction    string
+  device       string
+```
 
-Contract VALID
+To check for contract violations against actual tables, you would use:
+```bash
+$ phlo contract show glucose_readings  # View full contract details
+$ phlo catalog describe raw.glucose_entries  # View actual table schema
 ```
 
 ### Schema Evolution and Breaking Changes
@@ -766,19 +772,14 @@ As your platform grows, you'll have dozens of schemas. The CLI helps you manage 
 ```bash
 $ phlo schema list
 
-Schemas by Domain:
-
-nightscout (4 schemas):
-  RawGlucoseEntries      8 fields   workflows/schemas/nightscout.py
-  FactGlucoseReadings   12 fields   workflows/schemas/nightscout.py
-  FactDailyMetrics      15 fields   workflows/schemas/nightscout.py
-  MartGlucoseOverview    6 fields   workflows/schemas/nightscout.py
-
-weather (2 schemas):
-  RawWeatherObservations 10 fields  workflows/schemas/weather.py
-  FactWeatherDaily        8 fields  workflows/schemas/weather.py
-
-Total: 6 schemas across 2 domains
+Available Schemas
+Name                     Fields  Module
+────────────────────────────────────────────────
+FactDailyMetrics           15   workflows.schemas.nightscout
+FactGlucoseReadings        12   workflows.schemas.nightscout
+MartGlucoseOverview         6   workflows.schemas.nightscout
+RawGlucoseEntries           8   workflows.schemas.nightscout
+RawWeatherObservations     10   workflows.schemas.weather
 ```
 
 ### Inspecting Schema Details
@@ -786,31 +787,25 @@ Total: 6 schemas across 2 domains
 ```bash
 $ phlo schema show RawGlucoseEntries
 
-Schema: RawGlucoseEntries
-File: workflows/schemas/nightscout.py
-Domain: nightscout
+RawGlucoseEntries
+Module: workflows.schemas.nightscout
+Fields: 8
 
-Fields:
-  _id          str       required  Nightscout entry ID
-  sgv          int       required  Glucose in mg/dL (20-600)
-  dateString   str       required  ISO timestamp string
-  direction    str       optional  Trend direction
-  device       str       optional  Recording device
-  type         str       optional  Entry type
+Fields
+Name         Type     Required  Description
+────────────────────────────────────────────
+_id          str      ✓
+sgv          int      ✓
+dateString   str      ✓
+direction    str
+device       str
+type         str
+```
 
-Constraints:
-  • sgv: ge=20, le=600
-  • _id: unique=True
+You can also view the Iceberg schema equivalent:
 
-Iceberg Equivalent:
-  CREATE TABLE raw.glucose_entries (
-    _id STRING NOT NULL,
-    sgv INT NOT NULL,
-    dateString STRING NOT NULL,
-    direction STRING,
-    device STRING,
-    type STRING
-  )
+```bash
+$ phlo schema show RawGlucoseEntries --iceberg
 ```
 
 ### Comparing Schema Versions
@@ -838,105 +833,73 @@ Classification: WARNING (1 safe, 1 warning, 0 breaking)
 
 ---
 
-## Automated Metadata Sync
+## Browsing Your Catalog via CLI
 
-Manually updating OpenMetadata is tedious and error-prone. The `phlo catalog sync` command automates this.
+While OpenMetadata provides a powerful UI, you can also explore your catalog from the command line.
 
-### What Gets Synced
+### Listing Tables
 
-When you run `phlo catalog sync`, Phlo:
-
-1. **Scans Nessie catalog** for all Iceberg tables
-2. **Parses dbt manifest** for model descriptions and column docs
-3. **Reads Pandera schemas** for constraint information
-4. **Pushes to OpenMetadata** via API
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     phlo catalog sync                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-        ▼                     ▼                     ▼
-┌───────────────┐   ┌─────────────────┐   ┌───────────────┐
-│ Nessie/Iceberg│   │  dbt manifest   │   │Pandera Schemas│
-│    Tables     │   │  & catalog.json │   │  constraints  │
-└───────┬───────┘   └────────┬────────┘   └───────┬───────┘
-        │                    │                    │
-        └────────────────────┼────────────────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  OpenMetadata   │
-                    │   API Client    │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  OpenMetadata   │
-                    │    Catalog      │
-                    └─────────────────┘
-```
-
-### Running Sync
+View all Iceberg tables in your catalog:
 
 ```bash
-# Full sync - tables and dbt models
-$ phlo catalog sync
+$ phlo catalog tables
 
-Syncing metadata to OpenMetadata...
+Iceberg Tables (ref: main)
+Namespace  Table Name              Full Name
+──────────────────────────────────────────────────
+raw        glucose_entries         raw.glucose_entries
+bronze     stg_glucose_entries     bronze.stg_glucose_entries
+silver     fct_glucose_readings    silver.fct_glucose_readings
+gold       fct_daily_glucose_metrics  gold.fct_daily_glucose_metrics
 
-Tables (from Nessie):
-  ✓ raw.glucose_entries (15 columns)
-  ✓ bronze.stg_glucose_entries (12 columns)
-  ✓ silver.fct_glucose_readings (18 columns)
-  ✓ gold.fct_daily_glucose_metrics (15 columns)
-
-dbt Models:
-  ✓ stg_glucose_entries - linked to bronze.stg_glucose_entries
-  ✓ fct_glucose_readings - linked to silver.fct_glucose_readings
-  ✓ fct_daily_glucose_metrics - linked to gold.fct_daily_glucose_metrics
-
-Lineage:
-  ✓ 12 lineage edges created
-
-Sync complete: 4 tables, 3 models, 12 lineage edges
+Total: 4 tables
 ```
 
-### Preview Changes
+Filter by namespace:
+```bash
+$ phlo catalog tables --namespace silver
+```
 
-Before applying, preview what will change:
+### Describing Table Metadata
+
+View detailed schema information:
 
 ```bash
-$ phlo catalog sync --dry-run
+$ phlo catalog describe raw.glucose_entries
 
-Dry run - no changes will be applied
+Table: raw.glucose_entries
+Location: s3://lake/warehouse/raw/glucose_entries
+Current Snapshot ID: 1234567890
+Format Version: 2
 
-Would sync:
-  Tables: 4 (2 new, 2 updated)
-  Models: 3 (0 new, 3 updated)
-  Lineage: 12 edges
-
-Changes:
-  NEW: raw.weather_observations (10 columns)
-  NEW: bronze.stg_weather (8 columns)
-  UPDATE: silver.fct_glucose_readings
-    + New column: estimated_a1c
-    ~ Updated description: glucose_category
+Schema:
+Column Name        Type      Required
+───────────────────────────────────────
+_id                string    ✓
+sgv                int       ✓
+dateString         string    ✓
+direction          string
+device             string
 ```
 
-### Scheduling Sync
+### Viewing Table History
 
-For production, schedule sync to run after your pipelines complete:
+Check snapshot history to understand table evolution:
 
-```yaml
-# In your Dagster schedule or cron
-# Run at 4 AM daily, after overnight pipelines
-0 4 * * * phlo catalog sync --tables --models
+```bash
+$ phlo catalog history raw.glucose_entries
+
+Snapshot History: raw.glucose_entries
+Snapshot ID   Timestamp            Operation  Current
+─────────────────────────────────────────────────────────
+abc12345...   2025-11-27 10:35:00  append     ●
+def67890...   2025-11-27 09:30:00  append
+ghi12345...   2025-11-27 08:25:00  append
+
+Showing 3 most recent snapshots
 ```
 
-Or use the Dagster sensor that automatically syncs after materializations.
+> **Future Feature:** Automated metadata sync to OpenMetadata (`phlo catalog sync`) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the [setup guide](../setup/openmetadata.md).
 
 ---
 
@@ -959,6 +922,10 @@ Traditional approach:
 
 Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
 
+> **Implementation Details:** For comprehensive API setup guides, see:
+> - [docs/setup/postgrest.md](/home/user/phlo/docs/setup/postgrest.md) - PostgREST configuration
+> - [docs/setup/hasura.md](/home/user/phlo/docs/setup/hasura.md) - Hasura GraphQL setup
+
 ### Auto-Generating REST APIs with PostgREST
 
 PostgREST turns PostgreSQL tables into REST endpoints automatically. The challenge is keeping API views in sync with your dbt models.
@@ -976,7 +943,7 @@ GRANT SELECT ON api.glucose_readings TO analyst;
 **The automated way:**
 
 ```bash
-$ phlo api generate-views
+$ phlo api postgrest generate-views
 
 Generating API views from dbt models...
 
@@ -994,7 +961,7 @@ Permissions:
 
 Generated SQL saved to: api_views.sql
 
-Apply with: phlo api generate-views --apply
+Apply with: phlo api postgrest generate-views --apply
 ```
 
 ### How View Generation Works
@@ -1052,22 +1019,30 @@ For richer query capabilities, Phlo integrates with Hasura:
 # Auto-track new tables in Hasura
 $ phlo api hasura track
 
-Connecting to Hasura at http://localhost:8080...
+✓ Tracked 3/3 tables
+```
 
-Discovering tables in schema: api
-  Found: glucose_readings (not tracked)
-  Found: daily_metrics (not tracked)
-  Found: user_summary (not tracked)
+You can also set up relationships and permissions:
 
-Tracking tables:
-  ✓ api.glucose_readings
-  ✓ api.daily_metrics
-  ✓ api.user_summary
+```bash
+# Auto-create relationships from foreign keys
+$ phlo api hasura relationships
 
-Detecting relationships:
-  ✓ glucose_readings -> users (via user_id)
+✓ Created 1/1 relationships
 
-Tracked 3 tables, 1 relationship
+# Set up default permissions
+$ phlo api hasura permissions
+
+✓ Created 6/6 permissions
+```
+
+Or do all three at once:
+
+```bash
+$ phlo api hasura auto-setup
+
+Auto-tracking tables, setting up relationships and permissions...
+✓ Complete
 ```
 
 Now you get GraphQL automatically:
@@ -1112,21 +1087,10 @@ tables:
         filter: {}
 ```
 
-Apply with:
+Apply permissions from a config file:
 
 ```bash
-$ phlo api hasura permissions sync
-
-Loading permissions from: hasura-permissions.yaml
-
-Changes:
-  api.glucose_readings:
-    + analyst: SELECT on 4 columns
-    + admin: SELECT on all columns
-  api.user_summary:
-    + admin: SELECT on all columns
-
-Apply changes? [y/N] y
+$ phlo api hasura sync-permissions --config hasura-permissions.yaml
 
 ✓ Permissions synced
 ```
