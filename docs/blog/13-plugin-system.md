@@ -70,220 +70,364 @@ This means:
 
 ## Creating a Source Connector Plugin
 
-Let's build a plugin that fetches data from JSONPlaceholder (a fake REST API for testing).
+Let's examine the actual example from `examples/phlo-plugin-example/`.
 
 ### Step 1: Project Structure
 
+The actual structure in `/home/user/phlo/examples/phlo-plugin-example/`:
+
 ```
-phlo-plugin-jsonplaceholder/
+examples/phlo-plugin-example/
 ├── pyproject.toml
 ├── README.md
+├── MANIFEST.in
 ├── src/
-│   └── phlo_jsonplaceholder/
+│   └── phlo_example/
 │       ├── __init__.py
-│       └── source.py
+│       ├── source.py       # JSONPlaceholderSource
+│       ├── quality.py      # ThresholdCheckPlugin
+│       └── transform.py    # UppercaseTransformPlugin
 └── tests/
-    └── test_source.py
+    ├── test_source.py
+    ├── test_quality.py
+    └── test_transform.py
 ```
 
-### Step 2: Define the Plugin Class
+### Step 2: Source Plugin Implementation
+
+Here's the actual implementation from `examples/phlo-plugin-example/src/phlo_example/source.py`:
 
 ```python
-# src/phlo_jsonplaceholder/source.py
-from typing import Iterator
-import httpx
-from phlo.plugins import SourceConnectorPlugin, PluginMetadata
+"""Example source connector plugin using JSONPlaceholder API."""
+
+from typing import Any, Iterator
+import requests
+from phlo.plugins import PluginMetadata, SourceConnectorPlugin
 
 
 class JSONPlaceholderSource(SourceConnectorPlugin):
-    """Source connector for JSONPlaceholder API."""
-    
+    """
+    Source connector for JSONPlaceholder API.
+
+    Fetches posts, comments, or other data from the free JSONPlaceholder API.
+    """
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata."""
         return PluginMetadata(
             name="jsonplaceholder",
             version="1.0.0",
-            description="Fetch posts, comments, and users from JSONPlaceholder API",
-            author="Your Name",
+            description="Fetch data from JSONPlaceholder API",
+            author="Cascade Team",
+            homepage="https://github.com/iamgp/phlo",
+            tags=["api", "example", "public"],
+            license="MIT",
         )
-    
-    def fetch_data(self, config: dict) -> Iterator[dict]:
+
+    def fetch_data(self, config: dict[str, Any]) -> Iterator[dict[str, Any]]:
         """
-        Fetch data from JSONPlaceholder.
-        
-        Config options:
-            base_url: API base URL (default: https://jsonplaceholder.typicode.com)
-            resource: posts, comments, users, etc.
-            limit: Max records to fetch (default: 100)
+        Fetch data from JSONPlaceholder API.
+
+        Args:
+            config: Configuration dictionary with:
+                - base_url: API base URL (default: https://jsonplaceholder.typicode.com)
+                - resource: Resource to fetch (default: posts)
+                - limit: Max items to fetch (default: 0 = all)
+
+        Yields:
+            Dictionary representing each item from the API
         """
+        # Validate configuration
+        if not self.validate_config(config):
+            raise ValueError("Invalid configuration")
+
         base_url = config.get("base_url", "https://jsonplaceholder.typicode.com")
         resource = config.get("resource", "posts")
-        limit = config.get("limit", 100)
-        
-        with httpx.Client() as client:
-            response = client.get(f"{base_url}/{resource}")
+        limit = config.get("limit", 0)
+
+        url = f"{base_url}/{resource}"
+
+        try:
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
-            
-            for i, record in enumerate(response.json()):
-                if i >= limit:
-                    break
-                yield record
-    
-    def get_schema(self, config: dict) -> dict:
-        """Return expected schema for the resource."""
+
+            items = response.json()
+            if not isinstance(items, list):
+                items = [items]
+
+            # Apply limit if specified
+            if limit > 0:
+                items = items[:limit]
+
+            for item in items:
+                yield item
+
+        except requests.RequestException as e:
+            raise RuntimeError(f"Failed to fetch from {url}: {e}")
+
+    def get_schema(self, config: dict[str, Any]) -> dict[str, str] | None:
+        """Get expected schema for the resource."""
+        resource = config.get("resource", "posts")
+
         schemas = {
             "posts": {
-                "id": "integer",
-                "userId": "integer",
+                "userId": "int",
+                "id": "int",
                 "title": "string",
                 "body": "string",
             },
-            "users": {
-                "id": "integer",
+            "comments": {
+                "postId": "int",
+                "id": "int",
                 "name": "string",
                 "email": "string",
+                "body": "string",
+            },
+            "users": {
+                "id": "int",
+                "name": "string",
                 "username": "string",
+                "email": "string",
+                "address": "object",
+                "phone": "string",
+                "website": "string",
             },
         }
-        resource = config.get("resource", "posts")
-        return schemas.get(resource, {})
-    
-    def test_connection(self, config: dict) -> bool:
-        """Verify API is reachable."""
-        base_url = config.get("base_url", "https://jsonplaceholder.typicode.com")
+
+        return schemas.get(resource, None)
+
+    def test_connection(self, config: dict[str, Any]) -> bool:
+        """Test if the API is accessible."""
         try:
-            with httpx.Client() as client:
-                response = client.get(base_url)
-                return response.status_code == 200
+            base_url = config.get("base_url", "https://jsonplaceholder.typicode.com")
+            resource = config.get("resource", "posts")
+            url = f"{base_url}/{resource}"
+
+            response = requests.get(url, timeout=5)
+            return response.status_code == 200
+
         except Exception:
             return False
+
+    def validate_config(self, config: dict[str, Any]) -> bool:
+        """Validate configuration."""
+        if not isinstance(config, dict):
+            return False
+
+        # Validate base_url if provided
+        base_url = config.get("base_url")
+        if base_url and not isinstance(base_url, str):
+            return False
+
+        # Validate resource if provided
+        resource = config.get("resource")
+        if resource and not isinstance(resource, str):
+            return False
+
+        # Validate limit if provided
+        limit = config.get("limit", 0)
+        if not isinstance(limit, int) or limit < 0:
+            return False
+
+        return True
 ```
 
-### Step 3: Register via Entry Points
+### Step 3: Entry Points Registration
+
+From `examples/phlo-plugin-example/pyproject.toml`:
 
 ```toml
-# pyproject.toml
 [project]
-name = "phlo-plugin-jsonplaceholder"
+name = "phlo-plugin-example"
 version = "1.0.0"
-dependencies = ["httpx>=0.24.0"]
+description = "Example Cascade plugin package demonstrating all plugin types"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=1.5.0",
+    "requests>=2.28.0",
+]
 
 [project.entry-points."phlo.plugins.sources"]
-jsonplaceholder = "phlo_jsonplaceholder.source:JSONPlaceholderSource"
-```
+jsonplaceholder = "phlo_example.source:JSONPlaceholderSource"
 
-The entry point format is:
-```
-plugin_name = "module.path:ClassName"
+[project.entry-points."phlo.plugins.quality"]
+threshold_check = "phlo_example.quality:ThresholdCheckPlugin"
+
+[project.entry-points."phlo.plugins.transforms"]
+uppercase = "phlo_example.transform:UppercaseTransformPlugin"
 ```
 
 ### Step 4: Install and Use
 
 ```bash
-# Install the plugin
-pip install -e ./phlo-plugin-jsonplaceholder
+# Install the example plugin
+cd examples/phlo-plugin-example
+pip install -e .
 
 # Verify it's discovered
 phlo plugin list
 ```
 
-Now use it in your ingestion:
+Now use it in your pipeline:
 
 ```python
-# workflows/ingestion/jsonplaceholder/posts.py
 from phlo.plugins import get_source_connector
 
-@asset
-def jsonplaceholder_posts(context):
-    """Ingest posts from JSONPlaceholder."""
-    
-    # Get the plugin
-    source = get_source_connector("jsonplaceholder")
-    
-    # Fetch data
-    config = {
-        "resource": "posts",
-        "limit": 50,
-    }
-    
-    records = list(source.fetch_data(config))
-    context.log.info(f"Fetched {len(records)} posts")
-    
-    # Write to Iceberg...
+# Get the plugin
+source = get_source_connector("jsonplaceholder")
+
+# Fetch data
+config = {
+    "resource": "posts",
+    "limit": 10,
+}
+
+for post in source.fetch_data(config):
+    print(post)
 ```
 
 ## Creating a Quality Check Plugin
 
-Custom quality checks let you encode business rules that go beyond standard null/range checks.
+Let's look at the actual threshold check plugin from `examples/phlo-plugin-example/`.
 
-### Example: Threshold Check with Tolerance
+### Example: Threshold Check Plugin
+
+From `examples/phlo-plugin-example/src/phlo_example/quality.py`:
 
 ```python
-# src/phlo_custom_checks/threshold.py
-from dataclasses import dataclass
-from phlo.plugins import QualityCheckPlugin, PluginMetadata
-from phlo.quality.checks import QualityCheck, QualityCheckResult
+"""Example quality check plugin."""
 
-
-@dataclass
-class ThresholdCheck(QualityCheck):
-    """Check that values fall within a threshold, with tolerance."""
-    
-    column: str
-    min_value: float
-    max_value: float
-    tolerance: float = 0.05  # Allow 5% of rows to fail
-    
-    def execute(self, df) -> QualityCheckResult:
-        total_rows = len(df)
-        
-        # Count violations
-        violations = df[
-            (df[self.column] < self.min_value) | 
-            (df[self.column] > self.max_value)
-        ]
-        violation_count = len(violations)
-        violation_rate = violation_count / total_rows if total_rows > 0 else 0
-        
-        passed = violation_rate <= self.tolerance
-        
-        return QualityCheckResult(
-            passed=passed,
-            check_name=f"threshold_{self.column}",
-            message=f"{violation_count}/{total_rows} rows outside [{self.min_value}, {self.max_value}]",
-            metadata={
-                "column": self.column,
-                "violation_count": violation_count,
-                "violation_rate": violation_rate,
-                "tolerance": self.tolerance,
-            },
-        )
+from typing import Any
+import pandas as pd
+from phlo.plugins import PluginMetadata, QualityCheckPlugin
 
 
 class ThresholdCheckPlugin(QualityCheckPlugin):
-    """Plugin that provides threshold checking with tolerance."""
-    
+    """
+    Quality check plugin for threshold validation.
+
+    Creates checks that verify numeric values fall within specified thresholds.
+    """
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata."""
         return PluginMetadata(
             name="threshold_check",
             version="1.0.0",
-            description="Check values within threshold with configurable tolerance",
+            description="Validate numeric values within thresholds",
+            author="Cascade Team",
+            homepage="https://github.com/iamgp/phlo",
+            tags=["validation", "numeric", "example"],
+            license="MIT",
         )
-    
-    def create_check(self, **kwargs) -> QualityCheck:
-        return ThresholdCheck(**kwargs)
+
+    def create_check(self, **kwargs) -> "ThresholdCheck":
+        """
+        Create a threshold check instance.
+
+        Args:
+            column: Column name to validate
+            min: Minimum value (inclusive)
+            max: Maximum value (inclusive)
+            tolerance: Fraction of rows allowed to fail (0.0 = strict, 1.0 = allow all)
+        """
+        return ThresholdCheck(
+            column=kwargs.get("column"),
+            min_value=kwargs.get("min"),
+            max_value=kwargs.get("max"),
+            tolerance=kwargs.get("tolerance", 0.0),
+        )
+
+
+class ThresholdCheck:
+    """Threshold-based quality check."""
+
+    def __init__(
+        self,
+        column: str,
+        min_value: float | None = None,
+        max_value: float | None = None,
+        tolerance: float = 0.0,
+    ):
+        """
+        Initialize threshold check.
+
+        Args:
+            column: Column to validate
+            min_value: Minimum allowed value
+            max_value: Maximum allowed value
+            tolerance: Fraction of rows allowed to fail (0.0-1.0)
+        """
+        self.column = column
+        self.min_value = min_value
+        self.max_value = max_value
+        self.tolerance = max(0.0, min(1.0, tolerance))  # Clamp to 0.0-1.0
+
+    def execute(self, df: pd.DataFrame, context: Any = None) -> dict:
+        """
+        Execute the quality check.
+
+        Returns:
+            Dictionary with check results:
+            {
+                "passed": bool,
+                "violations": int,
+                "total": int,
+                "violation_rate": float,
+            }
+        """
+        if self.column not in df.columns:
+            return {
+                "passed": False,
+                "violations": len(df),
+                "total": len(df),
+                "violation_rate": 1.0,
+                "error": f"Column '{self.column}' not found",
+            }
+
+        # Count violations
+        violations = 0
+        for value in df[self.column]:
+            if pd.isna(value):
+                violations += 1
+                continue
+
+            if self.min_value is not None and value < self.min_value:
+                violations += 1
+                continue
+
+            if self.max_value is not None and value > self.max_value:
+                violations += 1
+
+        total = len(df)
+        violation_rate = violations / total if total > 0 else 0.0
+
+        # Check if within tolerance
+        passed = violation_rate <= self.tolerance
+
+        return {
+            "passed": passed,
+            "violations": violations,
+            "total": total,
+            "violation_rate": violation_rate,
+        }
+
+    @property
+    def name(self) -> str:
+        """Return check name."""
+        bounds = []
+        if self.min_value is not None:
+            bounds.append(f"min={self.min_value}")
+        if self.max_value is not None:
+            bounds.append(f"max={self.max_value}")
+
+        bound_str = ",".join(bounds) if bounds else "unbounded"
+        return f"threshold_check({self.column},{bound_str})"
 ```
 
-Register it:
-
-```toml
-# pyproject.toml
-[project.entry-points."phlo.plugins.quality"]
-threshold_check = "phlo_custom_checks.threshold:ThresholdCheckPlugin"
-```
-
-Use it with `@phlo.quality`:
+**Usage:**
 
 ```python
 from phlo.plugins import get_quality_check
@@ -293,134 +437,178 @@ plugin = get_quality_check("threshold_check")
 
 # Create a check instance
 check = plugin.create_check(
-    column="revenue",
-    min_value=0,
-    max_value=1000000,
-    tolerance=0.01,  # Allow 1% outliers
+    column="temperature",
+    min=0,
+    max=100,
+    tolerance=0.05,  # Allow 5% of rows to fail
 )
 
-# Or use directly in @phlo.quality
-@phlo.quality(
-    table="silver.transactions",
-    checks=[
-        plugin.create_check(column="amount", min_value=0, max_value=10000),
-    ],
-)
-def transaction_quality():
-    pass
+# Execute the check
+result = check.execute(df)
+print(f"Passed: {result['passed']}")
+print(f"Violations: {result['violations']} / {result['total']}")
 ```
 
 ## Creating a Transform Plugin
 
-Transform plugins provide reusable transformation logic.
+Let's examine the uppercase transform plugin from `examples/phlo-plugin-example/`.
 
-### Example: Currency Conversion
+### Example: Uppercase Transform
+
+From `examples/phlo-plugin-example/src/phlo_example/transform.py`:
 
 ```python
-# src/phlo_transforms/currency.py
+"""Example transformation plugin."""
+
+from typing import Any
 import pandas as pd
-from phlo.plugins import TransformationPlugin, PluginMetadata
+from phlo.plugins import PluginMetadata, TransformationPlugin
 
 
-class CurrencyConvertPlugin(TransformationPlugin):
-    """Convert currency columns using exchange rates."""
-    
+class UppercaseTransformPlugin(TransformationPlugin):
+    """
+    Transformation plugin for uppercase conversion.
+
+    Converts specified string columns to uppercase.
+    """
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata."""
         return PluginMetadata(
-            name="currency_convert",
+            name="uppercase",
             version="1.0.0",
-            description="Convert currency values between currencies",
+            description="Convert string columns to uppercase",
+            author="Cascade Team",
+            homepage="https://github.com/iamgp/phlo",
+            tags=["string", "transform", "example"],
+            license="MIT",
         )
-    
-    # Exchange rates (in production, fetch from API)
-    RATES = {
-        ("USD", "EUR"): 0.92,
-        ("USD", "GBP"): 0.79,
-        ("EUR", "USD"): 1.09,
-        ("EUR", "GBP"): 0.86,
-        ("GBP", "USD"): 1.27,
-        ("GBP", "EUR"): 1.16,
-    }
-    
-    def transform(self, df: pd.DataFrame, config: dict) -> pd.DataFrame:
+
+    def transform(self, df: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
         """
-        Transform currency columns.
-        
-        Config:
-            column: Column to convert
-            from_currency: Source currency code
-            to_currency: Target currency code
-            output_column: Name for converted column (optional)
+        Transform DataFrame by converting columns to uppercase.
+
+        Args:
+            df: Input DataFrame
+            config: Configuration with:
+                - columns: List of column names to transform
+                - skip_na: Skip null values (default: True)
+
+        Returns:
+            Transformed DataFrame with uppercase values
         """
-        column = config["column"]
-        from_curr = config["from_currency"]
-        to_curr = config["to_currency"]
-        output_col = config.get("output_column", f"{column}_{to_curr.lower()}")
-        
-        rate = self.RATES.get((from_curr, to_curr))
-        if rate is None:
-            raise ValueError(f"No exchange rate for {from_curr} -> {to_curr}")
-        
+        if not self.validate_config(config):
+            raise ValueError("Invalid configuration")
+
+        # Copy to avoid modifying original
         result = df.copy()
-        result[output_col] = result[column] * rate
+
+        columns = config.get("columns", [])
+        skip_na = config.get("skip_na", True)
+
+        # Transform each column
+        for column in columns:
+            if column not in result.columns:
+                raise ValueError(f"Column '{column}' not found in DataFrame")
+
+            # Apply uppercase transformation
+            if skip_na:
+                result[column] = result[column].apply(
+                    lambda x: x.upper() if pd.notna(x) else x
+                )
+            else:
+                result[column] = result[column].str.upper()
+
         return result
-    
-    def validate_config(self, config: dict) -> list[str]:
-        """Validate configuration, return list of errors."""
-        errors = []
-        if "column" not in config:
-            errors.append("'column' is required")
-        if "from_currency" not in config:
-            errors.append("'from_currency' is required")
-        if "to_currency" not in config:
-            errors.append("'to_currency' is required")
-        return errors
+
+    def get_output_schema(
+        self, input_schema: dict[str, str], config: dict[str, Any]
+    ) -> dict[str, str] | None:
+        """
+        Get the schema of transformed data.
+
+        Uppercase transformation doesn't change types.
+        """
+        return input_schema
+
+    def validate_config(self, config: dict[str, Any]) -> bool:
+        """Validate transformation configuration."""
+        if not isinstance(config, dict):
+            return False
+
+        # Columns must be a list
+        columns = config.get("columns", [])
+        if not isinstance(columns, (list, tuple)):
+            return False
+
+        # Each column must be a string
+        for column in columns:
+            if not isinstance(column, str):
+                return False
+
+        # skip_na must be a boolean if provided
+        skip_na = config.get("skip_na", True)
+        if not isinstance(skip_na, bool):
+            return False
+
+        return True
 ```
 
-Use it:
+**Usage:**
 
 ```python
 from phlo.plugins import get_transformation
+import pandas as pd
 
-currency = get_transformation("currency_convert")
+# Get the plugin
+plugin = get_transformation("uppercase")
 
-# In a Dagster asset or dbt Python model
-df = currency.transform(df, {
-    "column": "price_usd",
-    "from_currency": "USD",
-    "to_currency": "EUR",
-    "output_column": "price_eur",
+# Create sample data
+df = pd.DataFrame({
+    "title": ["hello world", "foo bar"],
+    "body": ["test data", "more test"],
 })
+
+# Transform
+result = plugin.transform(df, config={
+    "columns": ["title", "body"],
+    "skip_na": True,
+})
+
+print(result)
+# Output:
+#         title       body
+# 0  HELLO WORLD  TEST DATA
+# 1     FOO BAR  MORE TEST
 ```
 
 ## Managing Plugins via CLI
 
-The `phlo plugin` commands help you discover and troubleshoot plugins.
+The actual CLI implementation provides these commands:
 
 ### List Installed Plugins
 
 ```bash
 $ phlo plugin list
 
-Installed Plugins
-═════════════════
-
 Sources:
-  NAME              VERSION  SOURCE
-  rest_api          built-in phlo.ingestion
-  jsonplaceholder   1.0.0    phlo-plugin-jsonplaceholder
+  NAME              VERSION  AUTHOR
+  jsonplaceholder   1.0.0    Cascade Team
 
 Quality Checks:
-  NAME              VERSION  SOURCE
-  null_check        built-in phlo.quality
-  range_check       built-in phlo.quality
-  freshness_check   built-in phlo.quality
-  threshold_check   1.0.0    phlo-custom-checks
+  NAME              VERSION  AUTHOR
+  threshold_check   1.0.0    Cascade Team
 
 Transforms:
-  NAME              VERSION  SOURCE
-  currency_convert  1.0.0    phlo-transforms
+  NAME              VERSION  AUTHOR
+  uppercase         1.0.0    Cascade Team
+
+# Filter by type
+$ phlo plugin list --type sources
+
+# Output as JSON
+$ phlo plugin list --json
 ```
 
 ### Get Plugin Details
@@ -428,23 +616,23 @@ Transforms:
 ```bash
 $ phlo plugin info jsonplaceholder
 
-Plugin: jsonplaceholder
-Type: Source Connector
+jsonplaceholder
+Type: sources
 Version: 1.0.0
-Package: phlo-plugin-jsonplaceholder
-Author: Your Name
+Author: Cascade Team
+Description: Fetch data from JSONPlaceholder API
+License: MIT
+Homepage: https://github.com/iamgp/phlo
+Tags: api, example, public
 
-Description:
-  Fetch posts, comments, and users from JSONPlaceholder API
+# Auto-detect plugin type
+$ phlo plugin info threshold_check
 
-Configuration Options:
-  base_url  (string)  API base URL
-  resource  (string)  Resource to fetch (posts, users, comments)
-  limit     (integer) Maximum records to fetch
+# Specify type explicitly
+$ phlo plugin info uppercase --type transforms
 
-Example:
-  source = get_source_connector("jsonplaceholder")
-  data = source.fetch_data({"resource": "posts", "limit": 10})
+# JSON output
+$ phlo plugin info jsonplaceholder --json
 ```
 
 ### Validate Plugins
@@ -452,45 +640,58 @@ Example:
 ```bash
 $ phlo plugin check
 
-Validating installed plugins...
+Validating plugins...
 
-Sources:
-  ✓ rest_api - OK
-  ✓ jsonplaceholder - OK
+✓ Valid Plugins: 3
+  ✓ source_connectors:jsonplaceholder
+  ✓ quality_checks:threshold_check
+  ✓ transformations:uppercase
 
-Quality Checks:
-  ✓ null_check - OK
-  ✓ range_check - OK
-  ⚠ threshold_check - WARNING: No test_check() method
+All plugins are valid!
 
-Transforms:
-  ✓ currency_convert - OK
-
-Summary: 6 plugins, 0 errors, 1 warning
+# JSON output
+$ phlo plugin check --json
 ```
 
-### Scaffold a New Plugin
+### Create New Plugin Scaffold
+
+The actual CLI implementation scaffolds complete plugin packages:
 
 ```bash
-$ phlo plugin create my-salesforce-source --type source
+$ phlo plugin create my-api-source --type source
 
-Creating plugin scaffold...
-
-Created: phlo-plugin-my-salesforce-source/
-├── pyproject.toml
-├── README.md
-├── src/
-│   └── phlo_my_salesforce_source/
-│       ├── __init__.py
-│       └── source.py
-└── tests/
-    └── test_source.py
+✓ Plugin created successfully!
 
 Next steps:
-  1. cd phlo-plugin-my-salesforce-source
-  2. Edit src/phlo_my_salesforce_source/source.py
-  3. pip install -e .
-  4. phlo plugin list (verify it appears)
+  1. cd phlo-plugin-my-api-source
+  2. Edit the plugin in src/phlo_my_api_source/
+  3. Run tests: pytest tests/
+  4. Install: pip install -e .
+
+# Create quality check plugin
+$ phlo plugin create my-validation --type quality
+
+# Create transform plugin
+$ phlo plugin create my-transform --type transform
+
+# Specify custom path
+$ phlo plugin create my-plugin --type source --path ./plugins/my-plugin
+```
+
+The scaffold creates a complete package structure:
+
+```
+phlo-plugin-my-api-source/
+├── pyproject.toml           # Package config with entry points
+├── README.md                # Documentation
+├── MANIFEST.in              # Package manifest
+├── src/
+│   └── phlo_my_api_source/
+│       ├── __init__.py
+│       └── plugin.py        # Plugin implementation
+└── tests/
+    ├── __init__.py
+    └── test_plugin.py       # Test suite
 ```
 
 ## Best Practices
@@ -615,4 +816,69 @@ Plugins are discovered automatically via Python entry points, managed via CLI, a
 - Simple quality checks (use built-in checks)
 - Anything that could be a dbt model
 
-**Next**: Return to [Part 1](01-intro-data-lakehouse.md) to review the full architecture, or explore the [example plugin package](../../examples/phlo-plugin-example/).
+---
+
+## Try the Example Plugin
+
+The complete working example is at `/home/user/phlo/examples/phlo-plugin-example/`:
+
+```bash
+# Install the example plugin
+cd examples/phlo-plugin-example
+pip install -e .
+
+# List discovered plugins
+phlo plugin list
+
+# Get plugin info
+phlo plugin info jsonplaceholder
+phlo plugin info threshold_check
+phlo plugin info uppercase
+
+# Test the source connector
+python -c "
+from phlo.plugins import get_source_connector
+source = get_source_connector('jsonplaceholder')
+for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
+    print(post['title'])
+"
+```
+
+**Actual Files to Study:**
+- Source plugin: `examples/phlo-plugin-example/src/phlo_example/source.py`
+- Quality check plugin: `examples/phlo-plugin-example/src/phlo_example/quality.py`
+- Transform plugin: `examples/phlo-plugin-example/src/phlo_example/transform.py`
+- Entry points: `examples/phlo-plugin-example/pyproject.toml`
+- Tests: `examples/phlo-plugin-example/tests/`
+
+**Base Classes:**
+- `phlo.plugins.SourceConnectorPlugin` - Inherit for source connectors
+- `phlo.plugins.QualityCheckPlugin` - Inherit for quality checks
+- `phlo.plugins.TransformationPlugin` - Inherit for transforms
+
+**Discovery Functions:**
+- `phlo.plugins.discover_plugins()` - Discover all plugins
+- `phlo.plugins.get_source_connector(name)` - Get source plugin
+- `phlo.plugins.get_quality_check(name)` - Get quality plugin
+- `phlo.plugins.get_transformation(name)` - Get transform plugin
+
+---
+
+**Previous**: [Part 12 - Production Deployment](12-production-deployment.md)
+
+**Series**:
+1. Data Lakehouse concepts
+2. Getting started
+3. Apache Iceberg
+4. Project Nessie
+5. Data ingestion
+6. dbt transformations
+7. Dagster orchestration
+8. Real-world example
+9. Data quality with Pandera
+10. Metadata and governance
+11. Observability and monitoring
+12. Production deployment
+13. **Plugin system** ← You are here
+
+Happy plugin development!

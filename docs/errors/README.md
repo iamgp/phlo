@@ -63,7 +63,7 @@ Mismatch between decorator configuration and Pandera schema.
 **Quick fix:**
 ```python
 # Verify unique_key matches schema field
-@phlo_ingestion(
+@phlo.ingestion(
     unique_key="observation_id",  # Must match schema field exactly
     validation_schema=WeatherObservations,
 )
@@ -86,7 +86,7 @@ Invalid or malformed cron schedule expression.
 **Quick fix:**
 ```python
 # Use standard 5-field cron format
-@phlo_ingestion(
+@phlo.ingestion(
     cron="0 */1 * * *",  # minute hour day month weekday
     ...
 )
@@ -133,7 +133,7 @@ Validation schema not provided to decorator.
 ```python
 from phlo.schemas.weather import WeatherObservations
 
-@phlo_ingestion(
+@phlo.ingestion(
     unique_key="observation_id",
     validation_schema=WeatherObservations,  # ✅ Required
 )
@@ -459,7 +459,7 @@ raise PhloSchemaError(
 Use Dagster context for logging:
 
 ```python
-@phlo_ingestion(...)
+@phlo.ingestion(...)
 def my_asset(partition: str, context):
     try:
         data = fetch_data(partition)
