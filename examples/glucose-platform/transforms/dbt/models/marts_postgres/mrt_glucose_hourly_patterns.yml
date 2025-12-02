@@ -5,6 +5,8 @@ version: 2
 models:
   - name: mrt_glucose_hourly_patterns
     description: "PostgreSQL mart providing hourly glucose patterns"
+    config:
+      tags: ['nightscout', 'mart', 'api', 'analyst']
     columns:
       - name: hour_of_day
         description: "Hour of the day"

@@ -607,6 +607,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  hasura:
+    image: hasura/graphql-engine:${HASURA_VERSION:-v2.46.0}
+    restart: unless-stopped
+    profiles: ["api", "all"]
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-phlo-hasura-admin-secret}
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
+    ports:
+      - "${HASURA_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 """
 
 ENV_CONTENT = """# Phlo Infrastructure Configuration
@@ -668,6 +690,9 @@ GRAFANA_ADMIN_PASSWORD=admin
 # API Layer (optional, use --profile api)
 POSTGREST_VERSION=v12.2.3
 POSTGREST_PORT=3002
+HASURA_VERSION=v2.46.0
+HASURA_PORT=8080
+HASURA_ADMIN_SECRET=phlo-hasura-admin-secret
 
 # Iceberg configuration (used by Phlo)
 ICEBERG_WAREHOUSE_PATH=s3://lake/warehouse
