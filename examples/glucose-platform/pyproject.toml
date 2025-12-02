@@ -13,9 +13,14 @@ dev = [
     "ruff",
 ]
 
+plugins = [
+    "phlo-plugin-example",
+]
+
 # For local development within the monorepo
 [tool.uv.sources]
 phlo = { path = "../.." }
+phlo-plugin-example = { path = "../phlo-plugin-example" }
 
 [tool.ruff]
 line-length = 100

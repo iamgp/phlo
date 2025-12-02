@@ -38,7 +38,7 @@ if PHLO_QUALITY_AVAILABLE:
             NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
             RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
             RangeCheck(column="hour_of_day", min_value=0, max_value=23),
-            FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+            FreshnessCheck(timestamp_column="reading_timestamp", max_age_hours=24),
         ],
         group="nightscout",
         blocking=True,
