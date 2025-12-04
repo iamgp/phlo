@@ -75,6 +75,44 @@ def get_project_name() -> str:
     )
 
 
+def find_dagster_container(project_name: str) -> str:
+    """Find the running Dagster webserver container for the project.
+
+    Args:
+        project_name: Project name from phlo.yaml
+
+    Returns:
+        Container name
+
+    Raises:
+        RuntimeError: If no running container is found
+    """
+    container_name = f"{project_name}-dagster-webserver-1"
+    result = subprocess.run(
+        ["docker", "ps", "--filter", f"name={container_name}", "--format", "{{.Names}}"],
+        capture_output=True,
+        text=True,
+    )
+
+    if result.stdout.strip():
+        return container_name
+
+    result = subprocess.run(
+        ["docker", "ps", "--filter", f"name={project_name}.*dagster.*webserver", "--format", "{{.Names}}"],
+        capture_output=True,
+        text=True,
+    )
+
+    containers = result.stdout.strip().split('\n')
+    if containers and containers[0]:
+        return containers[0]
+
+    raise RuntimeError(
+        f"Could not find running Dagster webserver container for project '{project_name}'. "
+        f"Expected container name: {container_name}"
+    )
+
+
 def _init_nessie_branches(project_name: str) -> None:
     """Initialize Nessie branches (main, dev) if they don't exist.
 
@@ -211,7 +249,7 @@ def _run_dbt_compile(project_name: str) -> None:
     # Wait for services to be ready
     time.sleep(5)
 
-    container_name = f"{project_name}-dagster-webserver-1"
+    container_name = find_dagster_container(project_name)
 
     try:
         # Run dbt deps

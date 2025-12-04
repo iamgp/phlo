@@ -245,10 +245,10 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
     Returns:
         List of command components
     """
-    from phlo.cli.services import get_project_name
+    from phlo.cli.services import find_dagster_container, get_project_name
 
     project_name = get_project_name()
-    container_name = f"{project_name}-dagster-webserver-1"
+    container_name = find_dagster_container(project_name)
 
     import platform
 
