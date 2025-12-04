@@ -148,6 +148,62 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
     return imported_modules
 
 
+def _ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
+    """
+    Attempt to generate dbt manifest if it doesn't exist.
+
+    Args:
+        dbt_project_path: Path to dbt project directory
+        profiles_path: Path to dbt profiles directory
+
+    Returns:
+        True if manifest exists or was successfully generated, False otherwise
+    """
+    import subprocess
+
+    manifest_path = dbt_project_path / "target" / "manifest.json"
+
+    if manifest_path.exists():
+        return True
+
+    logger.info(f"dbt manifest not found at {manifest_path}, attempting to generate...")
+
+    try:
+        result = subprocess.run(
+            ["dbt", "compile", "--profiles-dir", str(profiles_path)],
+            cwd=str(dbt_project_path),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        if result.returncode == 0 and manifest_path.exists():
+            logger.info("Successfully generated dbt manifest")
+            return True
+        else:
+            logger.warning(
+                f"Failed to generate dbt manifest: {result.stderr}\n"
+                "dbt models will not be available as assets. "
+                "Run 'dbt compile' manually in transforms/dbt/"
+            )
+            return False
+    except FileNotFoundError:
+        logger.warning(
+            "dbt command not found. Install dbt to use dbt models as assets.\n"
+            "Alternatively, run 'dbt compile' manually in transforms/dbt/"
+        )
+        return False
+    except subprocess.TimeoutExpired:
+        logger.warning(
+            "dbt compile timed out after 60 seconds. "
+            "Run 'dbt compile' manually in transforms/dbt/"
+        )
+        return False
+    except Exception as e:
+        logger.warning(f"Could not auto-generate dbt manifest: {e}")
+        return False
+
+
 def _discover_dbt_assets() -> list[Any]:
     """
     Discover and create dbt assets if transforms/dbt exists.
@@ -159,10 +215,11 @@ def _discover_dbt_assets() -> list[Any]:
 
     settings = get_settings()
     dbt_project_path = settings.dbt_project_path
+    dbt_profiles_path = settings.dbt_profiles_path
     manifest_path = dbt_project_path / "target" / "manifest.json"
 
-    if not manifest_path.exists():
-        logger.debug(f"No dbt manifest found at {manifest_path}, skipping dbt assets")
+    if not _ensure_dbt_manifest(dbt_project_path, dbt_profiles_path):
+        logger.debug(f"No dbt manifest available at {manifest_path}, skipping dbt assets")
         return []
 
     try:
