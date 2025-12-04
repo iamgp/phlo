@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: dagster_assets
+    database: "{{ target.catalog }}"
+    schema: raw
+    description: Upstream Dagster assets providing raw data from Iceberg via Nessie catalog
+    tables:
+      - name: user_events
+        identifier: user_events
+        description: GitHub user events ingested via DLT/PyIceberg into Iceberg raw.user_events
+      - name: user_repos
+        identifier: user_repos
+        description: GitHub user repositories ingested via DLT/PyIceberg into Iceberg raw.user_repos
+      - name: user_profile
+        identifier: user_profile
+        description: GitHub user profile ingested via DLT/PyIceberg into Iceberg raw.user_profile

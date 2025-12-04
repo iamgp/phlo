@@ -1,0 +1,12 @@
+# Environment and secrets
+.env
+
+# Runtime data
+volumes/
+dagster/storage/
+
+# Backup files
+*.bak
+
+# macOS
+.DS_Store
