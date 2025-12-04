@@ -12,7 +12,7 @@ from typing import Optional
 
 import click
 
-from phlo.cli.services import get_project_name, services
+from phlo.cli.services import find_dagster_container, get_project_name, services
 
 
 @click.group()
@@ -157,9 +157,9 @@ def materialize(
         phlo materialize --select "tag:nightscout"
         phlo materialize dlt_glucose_entries --dry-run
     """
-    # Get project name for container naming
+    # Get project name and find running container
     project_name = get_project_name()
-    container_name = f"{project_name}-dagster-webserver-1"
+    container_name = find_dagster_container(project_name)
 
     # Detect host platform for executor selection in container
     import platform
