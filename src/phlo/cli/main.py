@@ -51,6 +51,9 @@ from phlo.cli.alerts import alerts_group
 # Add plugin management commands
 from phlo.cli.plugin import plugin_group
 
+# Add configuration management commands
+from phlo.cli.config import config
+
 # Import API subcommands to register with the existing api group (defined below)
 from phlo.cli.api import hasura, postgrest
 
@@ -67,6 +70,7 @@ cli.add_command(metrics_group)
 cli.add_command(lineage_group)
 cli.add_command(alerts_group)
 cli.add_command(plugin_group)
+cli.add_command(config)
 
 
 @cli.command()
@@ -262,6 +266,7 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo(f"\nSuccessfully initialized Phlo project: {project_name}\n")
         click.echo("Created structure:")
         click.echo(f"  {project_name}/")
+        click.echo("  ├── phlo.yaml            # Project configuration with infrastructure")
         click.echo("  ├── pyproject.toml       # Project dependencies")
         click.echo("  ├── .env.example         # Environment variables template")
         click.echo("  ├── workflows/           # Your workflow definitions")
@@ -274,8 +279,9 @@ def init(project_name: Optional[str], template: str, force: bool):
         if project_name != project_dir.name:
             click.echo(f"  1. cd {project_name}")
         click.echo("  2. pip install -e .              # Install Phlo and dependencies")
-        click.echo("  3. phlo create-workflow       # Create your first workflow")
-        click.echo("  4. phlo dev                   # Start Dagster UI")
+        click.echo("  3. phlo services init            # Set up infrastructure (Docker)")
+        click.echo("  4. phlo create-workflow          # Create your first workflow")
+        click.echo("  5. phlo dev                      # Start Dagster UI")
 
         click.echo("\nDocumentation: https://github.com/iamgp/phlo")
 
@@ -605,6 +611,15 @@ Phlo data workflows for {project_name}.
 - `phlo test` - Run tests
 """
     (project_dir / "README.md").write_text(readme_content)
+
+    # Create phlo.yaml with infrastructure configuration
+    from phlo.cli.services import PHLO_CONFIG_TEMPLATE
+
+    phlo_config_content = PHLO_CONFIG_TEMPLATE.format(
+        name=project_name,
+        description=f"{project_name} data workflows",
+    )
+    (project_dir / "phlo.yaml").write_text(phlo_config_content)
 
 
 @cli.group()
