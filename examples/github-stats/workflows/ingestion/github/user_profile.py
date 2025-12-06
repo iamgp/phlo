@@ -17,8 +17,19 @@ from workflows.schemas.github import RawUserProfile
     group="github",
     cron="0 */6 * * *",
     freshness_hours=(6, 24),
+    merge_strategy="merge",
+    merge_config={"deduplication_method": "last"},
 )
 def user_profile(partition_date: str):
+    """Ingest GitHub user profile data.
+
+    Uses merge strategy because profile data changes over time:
+    - User bio, location, company can be updated
+    - Follower counts change
+    - Profile picture URLs may change
+
+    The "last" dedup strategy keeps the most recent profile snapshot.
+    """
     github_token = os.getenv("GITHUB_TOKEN")
     github_username = os.getenv("GITHUB_USERNAME", "iamgp")
 
