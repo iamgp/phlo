@@ -168,6 +168,240 @@ OPENMETADATA_MYSQL_PASSWORD=<SECURE_PASSWORD>  # Change from default!
 echo ".env" >> .gitignore
 ```
 
+### Step 1b: Infrastructure Configuration (phlo.yaml)
+
+For production deployments, especially when running multiple Phlo projects or customizing service configurations, use `phlo.yaml` for project-level infrastructure settings.
+
+#### Why Infrastructure Configuration?
+
+Environment variables (`.env`) handle secrets and connection strings, but they don't handle:
+- **Multi-project deployments**: Running multiple Phlo instances on the same host
+- **Container naming patterns**: Custom naming for service discovery
+- **Port customization**: Per-project port assignments
+- **Service-specific overrides**: Custom configurations for individual services
+
+#### Creating phlo.yaml
+
+Create a `phlo.yaml` file in your project root:
+
+```yaml
+# phlo.yaml - Production infrastructure configuration
+
+name: production-lakehouse
+description: Production data lakehouse for analytics
+
+infrastructure:
+  # Container naming pattern (supports {{project}} and {{service}} variables)
+  container_naming_pattern: "{{project}}-{{service}}-1"
+
+  # Service-specific configuration
+  services:
+    dagster_webserver:
+      container_name: null  # Use pattern above
+      service_name: dagster-webserver
+      host: localhost
+      internal_host: dagster-webserver
+      port: 10006
+
+    postgres:
+      container_name: null
+      service_name: postgres
+      host: localhost
+      internal_host: postgres
+      port: 10000
+      credentials:
+        user: postgres
+        password: ${POSTGRES_PASSWORD}  # References .env
+        database: cascade
+
+    minio:
+      container_name: null
+      service_name: minio
+      host: localhost
+      internal_host: minio
+      api_port: 10001
+      console_port: 10002
+
+    nessie:
+      container_name: null
+      service_name: nessie
+      host: localhost
+      internal_host: nessie
+      port: 10003
+
+    trino:
+      container_name: null
+      service_name: trino
+      host: localhost
+      internal_host: trino
+      port: 10005
+```
+
+#### Multi-Project Example
+
+Running two Phlo projects on the same server:
+
+**Project 1: Analytics Lakehouse**
+```yaml
+# analytics/phlo.yaml
+name: analytics
+description: Analytics data lakehouse
+
+infrastructure:
+  container_naming_pattern: "{{project}}-{{service}}-1"
+  services:
+    dagster_webserver:
+      port: 11006  # Different port
+    postgres:
+      port: 11000
+    # ... other services with unique ports
+```
+
+**Project 2: ML Platform**
+```yaml
+# ml-platform/phlo.yaml
+name: ml-platform
+description: Machine learning data platform
+
+infrastructure:
+  container_naming_pattern: "{{project}}-{{service}}-1"
+  services:
+    dagster_webserver:
+      port: 12006  # Different port
+    postgres:
+      port: 12000
+    # ... other services with unique ports
+```
+
+Now you can run both simultaneously:
+
+```bash
+# Terminal 1: Analytics project
+cd analytics/
+phlo services start
+
+# Terminal 2: ML platform
+cd ml-platform/
+phlo services start
+
+# Check running containers
+docker ps
+# Shows:
+# - analytics-dagster-webserver-1 (port 11006)
+# - analytics-postgres-1 (port 11000)
+# - ml-platform-dagster-webserver-1 (port 12006)
+# - ml-platform-postgres-1 (port 12000)
+```
+
+#### Configuration Loading
+
+Phlo automatically loads configuration in this order:
+
+1. **phlo.yaml** (project-level infrastructure)
+2. **.env** (secrets and connection strings)
+3. **Environment variables** (runtime overrides)
+4. **Defaults** (built-in fallbacks)
+
+Access configuration programmatically:
+
+```python
+from phlo.infrastructure.config import (
+    load_infrastructure_config,
+    get_container_name,
+    get_service_config
+)
+
+# Load project configuration
+config = load_infrastructure_config()
+print(config.name)  # "production-lakehouse"
+
+# Get container name for a service
+container = get_container_name("dagster-webserver")
+# Returns: "production-lakehouse-dagster-webserver-1"
+
+# Get service configuration
+postgres_config = get_service_config("postgres")
+print(postgres_config["port"])  # 10000
+print(postgres_config["internal_host"])  # "postgres"
+```
+
+#### Production Best Practices
+
+**1. Use descriptive project names:**
+```yaml
+name: prod-analytics-us-east
+description: Production analytics lakehouse (US East region)
+```
+
+**2. Document service purposes:**
+```yaml
+services:
+  dagster_webserver:
+    description: Dagster UI and GraphQL API
+    port: 10006
+```
+
+**3. Reference secrets from .env:**
+```yaml
+postgres:
+  credentials:
+    password: ${POSTGRES_PASSWORD}  # Never hardcode secrets
+```
+
+**4. Version control phlo.yaml:**
+```bash
+# Commit to git (no secrets here)
+git add phlo.yaml
+git commit -m "Add infrastructure configuration"
+
+# But NOT .env (contains secrets)
+echo ".env" >> .gitignore
+```
+
+**5. Use different configs per environment:**
+```bash
+phlo.yaml              # Base configuration
+phlo.staging.yaml      # Staging overrides
+phlo.production.yaml   # Production overrides
+```
+
+#### Service Discovery
+
+With infrastructure configuration, services can discover each other:
+
+```python
+from phlo.infrastructure.config import get_service_config
+
+# Get Postgres connection from config
+pg_config = get_service_config("postgres")
+connection_string = (
+    f"postgresql://{pg_config['credentials']['user']}:"
+    f"{pg_config['credentials']['password']}@"
+    f"{pg_config['internal_host']}:{pg_config['port']}/"
+    f"{pg_config['credentials']['database']}"
+)
+
+# Get Trino endpoint
+trino_config = get_service_config("trino")
+trino_endpoint = f"http://{trino_config['internal_host']}:{trino_config['port']}"
+```
+
+#### Kubernetes Integration
+
+For Kubernetes deployments, `phlo.yaml` provides a single source of truth:
+
+```bash
+# Generate k8s manifests from phlo.yaml
+phlo k8s generate --config phlo.yaml
+
+# Deploys with:
+# - Service names from phlo.yaml
+# - Port mappings from phlo.yaml
+# - Resource limits from phlo.yaml
+```
+
+This ensures consistency between Docker Compose (dev) and Kubernetes (prod).
+
 ### Step 2: Deploy with Docker Compose
 
 Phlo includes a comprehensive `docker-compose.yml` that orchestrates all services. For production, you have options:

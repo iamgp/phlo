@@ -1,138 +1,181 @@
 # Agents Configuration for Phlo
 
-## General Rules
+Guidelines for AI agents and developers working on the Phlo codebase.
 
-- Development Philosophy:
-  - Early development: no users; no backward compatibility concerns.
-  - Keep code clean and organized; aim for zero technical debt.
-  - Do not create compatibility shims.
+## Development Philosophy
 
-- Implementation Standards:
-  - Avoid workarounds; implement features properly so they scale beyond 1,000 users.
-  - Do not present half-baked solutions.
-  - Do not present half-baked solutions.
+- Early development: no users, no backward compatibility concerns
+- Keep code clean and organized; aim for zero technical debt
+- Do not create compatibility shims or workarounds
+- Implement features properly to scale beyond 1,000 users
+- Do not present half-baked solutions
 
 ## Build/Lint/Test Commands
 
-- **Development setup**: `cd dagster && uv pip install -e .` (Python dependencies)
-- **Type checking**: `basedpyright phlo/` (from services/dagster/ dir)
-- **Linting**: `ruff check phlo/` and `ruff format phlo/` (from services/dagster/ dir)
-- **Services**: `make up` (start all), `make down` (stop), `make rebuild` (rebuild Dagster)
-- **Asset validation**: `dagster dev --workspace dagster/workspace.yaml`
-- **Single asset test**: `dagster asset materialize --select entries` (Nightscout data)
-- **dbt commands**: `docker compose exec dagster-web dbt run/test --select model_name`
-- **dbt testing**: `dbt test --select tag:dataset_name` (comprehensive schema + business logic tests)
-- **Quality tests**: `pytest tests/test_quality_decorator.py -v` (35 comprehensive tests for @phlo_quality)
+### Development Setup
+```bash
+# Install dependencies
+uv pip install -e .
 
-## Quality Framework (@phlo.quality)
+# Type checking
+basedpyright src/phlo/
 
-The `@phlo.quality` decorator reduces quality check boilerplate by 70-80%:
-
-### Quick Example
-
-```python
-import phlo
-from phlo.quality import NullCheck, RangeCheck
-
-@phlo.quality(
-    table="bronze.glucose_entries",
-    checks=[
-        NullCheck(columns=["sgv", "timestamp"]),
-        RangeCheck(column="sgv", min_value=20, max_value=600),
-    ],
-    group="nightscout",
-    blocking=True,
-)
-def glucose_quality():
-    pass
+# Linting and formatting
+ruff check src/phlo/
+ruff format src/phlo/
 ```
 
-### Available Check Types
+### Service Management
+```bash
+# Start all services
+phlo services start
 
-- **NullCheck**: Verify no null values (with tolerance threshold)
-- **RangeCheck**: Verify numeric values within bounds
-- **FreshnessCheck**: Verify data recency (max age in hours)
-- **UniqueCheck**: Verify unique/non-duplicate combinations
-- **CountCheck**: Verify row count within range
-- **SchemaCheck**: Validate against Pandera schema
-- **CustomSQLCheck**: Execute arbitrary SQL assertions (NEW)
+# Stop services
+phlo services stop
 
-### Decorator Parameters
+# View logs
+phlo services logs -f dagster-webserver
+```
 
-- `table`: Fully qualified table name (e.g., "bronze.data")
-- `checks`: List of quality checks to execute
-- `group`: Asset group (optional)
-- `blocking`: Fail downstream if check fails (default: True)
-- `warn_threshold`: Fraction of checks allowed to fail before warning (0.0 = strict)
-- `backend`: "trino" (default) or "duckdb"
+### Testing
+```bash
+# Run all tests
+phlo test
 
-See `src/phlo/quality/examples.py` for comprehensive examples.
+# Run specific tests
+phlo test tests/test_ingestion.py
 
-## CLI Commands
+# Unit tests only
+phlo test -m unit
 
-### Asset Materialization & Backfills
+# Skip integration tests (no Docker required)
+phlo test --local
+```
 
-- **Single materialization**: `phlo materialize asset_name --partition 2024-01-01`
-- **Date range backfill**: `phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31`
-- **Explicit partitions**: `phlo backfill glucose_entries --partitions 2024-01-01,2024-01-15,2024-01-31`
-- **Parallel backfill**: `phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-12-31 --parallel 4`
-- **Resume backfill**: `phlo backfill --resume` (continues after interruption)
-- **Dry-run preview**: `phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31 --dry-run`
+### Asset Operations
+```bash
+# Materialize asset
+phlo materialize dlt_glucose_entries
 
-### Log Access & Filtering
+# Materialize with partition
+phlo materialize dlt_glucose_entries --partition 2024-01-01
 
-- **View recent logs**: `phlo logs` (last 100 logs)
-- **Filter by asset**: `phlo logs --asset glucose_entries`
-- **Filter by job**: `phlo logs --job weather_pipeline`
-- **Filter by level**: `phlo logs --level ERROR` (DEBUG, INFO, WARNING, ERROR)
-- **Time-based filter**: `phlo logs --since 1h` (last hour, supports h/m/d)
-- **Tail mode**: `phlo logs --follow` (real-time updates)
-- **Specific run**: `phlo logs --run-id abc123`
-- **Full output**: `phlo logs --full` (no truncation)
-- **JSON output**: `phlo logs --json` (for scripting)
+# Materialize with downstream
+phlo materialize dlt_glucose_entries+
+```
 
-### Plugin Management
+### dbt Operations
+```bash
+# Run dbt models
+docker exec phlo-dagster-webserver-1 dbt run --select model_name
 
-- **List plugins**: `phlo plugin list` (shows all installed plugins)
-- **Filter by type**: `phlo plugin list --type sources` (sources, quality, transforms)
-- **Plugin info**: `phlo plugin info github` (detailed info about a plugin)
-- **Validate plugins**: `phlo plugin check` (checks all plugins are valid)
-- **Create plugin**: `phlo plugin create my-source --type source` (scaffolds new plugin)
+# Test dbt models
+docker exec phlo-dagster-webserver-1 dbt test --select tag:dataset_name
+
+# Compile dbt (required after model changes)
+docker exec phlo-dagster-webserver-1 dbt compile
+```
 
 ## Architecture & Structure
 
-- **Data lakehouse** with MinIO (S3-compatible), PostgreSQL, DuckDB/DuckLake for analytics
-- **Core orchestrator**: Dagster with assets in `phlo/defs/` (ingestion, transform, publishing, quality, metadata)
-- **Transform layer**: dbt models with 4-layer architecture (bronze → silver → gold → marts)
-- **Databases**: PostgreSQL for catalog/metadata, DuckDB for analytical queries and DuckLake managed tables
-- **Storage**: MinIO bucket `lake` with prefix `ducklake/` for managed tables
-- **Services**: Superset (dashboards), DataHub (metadata catalog)
-- **Configuration**: Centralized in `phlo/config.py` using Pydantic settings from `.env`
+### Core Components
+- **Orchestration**: Dagster with assets in `src/phlo/defs/`
+  - `ingestion/` - DLT-based data ingestion with `@phlo.ingestion` decorator
+  - `transform/` - dbt integration for SQL transformations
+  - `publishing/` - Publishing marts to PostgreSQL for BI
+  - `quality/` - Data quality checks with `@phlo.quality` decorator
+  - `sensors/` - Branch lifecycle automation (creation, promotion, cleanup)
+
+- **Storage**: MinIO (S3-compatible) + Nessie (Git-like catalog) + Iceberg (table format)
+- **Query Engine**: Trino for distributed SQL queries
+- **Transform Layer**: dbt with bronze → silver → gold → marts architecture
+- **Metadata**: PostgreSQL for operational metadata
+- **Configuration**: `src/phlo/config.py` using Pydantic settings from `.env`
+
+### Key Files & Directories
+```
+src/phlo/
+├── cli/                 # CLI commands (services, materialize, test, etc.)
+├── config.py            # Centralized configuration (Pydantic settings)
+├── defs/                # Dagster asset definitions
+│   ├── ingestion/       # Data ingestion assets
+│   ├── transform/       # dbt integration
+│   ├── publishing/      # Publishing to PostgreSQL
+│   ├── quality/         # Quality check assets
+│   └── sensors/         # Branch lifecycle sensors
+├── ingestion/           # Ingestion framework (@phlo.ingestion)
+│   ├── decorator.py     # Main decorator implementation
+│   └── dlt_helpers.py   # DLT and Iceberg integration
+├── quality/             # Quality framework (@phlo.quality)
+│   ├── decorator.py     # Quality decorator implementation
+│   └── checks.py        # Built-in quality checks
+├── schemas/             # Pandera validation schemas
+│   └── converter.py     # Pandera → Iceberg type mapping
+└── framework/           # Framework discovery and loading
+
+transforms/dbt/          # dbt project
+├── models/
+│   ├── bronze/          # Staging models
+│   ├── silver/          # Cleaned/conformed data
+│   ├── gold/            # Aggregated metrics
+│   └── marts/           # BI-ready tables
+└── tests/               # dbt data tests
+```
+
+## Code Style & Conventions
+
+### Python Standards
+- **Version**: Python 3.11+
+- **Line length**: 100 characters
+- **Type checking**: basedpyright with strict mode
+- **Linting**: ruff (E, F, I, N, UP, B, A, C4, SIM rules)
+- **Formatting**: ruff format
+- **Imports**: Absolute imports only, sorted with ruff
+
+### Naming Conventions
+- **Python code**: snake_case for functions, classes, variables
+- **Database objects**: lowercase for schemas, tables, columns
+- **Asset names**: Descriptive, prefixed by type (e.g., `dlt_glucose_entries`, `publish_daily_aggregates`)
+- **Decorator-generated assets**: Follow `dlt_{table_name}` convention
+
+### Code Organization
+- **One asset per file** in appropriate subdirectory
+- **Pandera schemas** in `src/phlo/schemas/{domain}.py`
+- **Configuration** via environment variables, accessed through `phlo.config.settings`
+- **Error handling**: Use Pydantic validation, structured logging
+- **No backwards compatibility shims** - clean implementation only
+
+### Dependencies
+- **Package manager**: uv (fast Python package installer)
+- **Dependencies**: Pinned in `pyproject.toml`
+- **Services**: Docker Compose for infrastructure
 
 ## Testing Strategy
 
+### Unit Tests
+```bash
+# Fast unit tests only
+phlo test -m unit
+
+# Specific module
+phlo test tests/test_schemas.py
+```
+
+### Integration Tests
+```bash
+# Full integration tests (requires Docker)
+phlo test
+
+# Skip integration tests
+phlo test --local
+```
+
 ### Data Quality Testing
-
-- **Pandera schemas**: Type-safe validation in `phlo/schemas/` with Dagster integration
-- **Dagster asset checks**: Runtime quality validation with detailed error reporting
-- **dbt tests**: Comprehensive testing across bronze/silver/gold/mart layers
-
-### dbt Test Patterns
-
-- **Schema tests**: YAML-based column validation (not_null, unique, accepted_values, relationships)
-- **Business logic tests**: Custom SQL tests for complex rules and cross-table validation
-- **Data integrity tests**: Referential integrity, range validation, statistical checks
-- **Incremental logic tests**: Proper handling of incremental updates and deduplication
-
-### Test Organization
-
-- **Bronze layer**: Basic schema validation and data type checks
-- **Silver layer**: Business logic validation and enrichment accuracy
-- **Gold layer**: Curated data integrity and incremental processing
-- **Mart layer**: Dashboard-ready data validation and aggregation accuracy
+- **Pandera schemas**: Type-safe validation in `src/phlo/schemas/`
+- **Dagster asset checks**: Generated by `@phlo.quality` decorator
+- **dbt tests**: Schema and data tests in `transforms/dbt/tests/`
 
 ### Required dbt Packages
-
 ```yaml
 packages:
   - package: dbt-labs/dbt_utils
@@ -143,19 +186,31 @@ packages:
     version: 0.10.0
 ```
 
-## Code Style & Conventions
+## Common Development Tasks
 
-- **Python 3.11+**, line length 100, ruff + basedpyright for linting/typing
-- **Imports**: Use absolute imports, organize with ruff (E, F, I, N, UP, B, A, C4, SIM rules)
-- **Asset definitions**: Modular approach in `defs/` subdirectories, auto-discovered by Dagster
-- **Configuration**: Use `phlo.config.config` singleton, environment variables from `.env`
-- **Error handling**: Use Pydantic validation, tenacity for retries, structured logging
-- **Naming**: snake_case for Python, lowercase for databases/schemas, descriptive asset names
-- **Dependencies**: Managed with `uv`, pinned versions in `pyproject.toml`, Docker for services
+### Adding a New Ingestion Workflow
+1. Define Pandera schema in `src/phlo/schemas/{domain}.py`
+2. Create ingestion asset in `src/phlo/defs/ingestion/{domain}/{workflow}.py`
+3. Use `@phlo.ingestion` decorator with schema and DLT source
+4. Register in `src/phlo/defs/ingestion/__init__.py`
+5. Test with `phlo materialize {asset_name}`
 
-To materialise assets, run the following command:
+### Adding a dbt Model
+1. Create SQL file in `transforms/dbt/models/{layer}/`
+2. Add schema YAML with tests
+3. Compile: `docker exec phlo-dagster-webserver-1 dbt compile`
+4. Test: `docker exec phlo-dagster-webserver-1 dbt test --select {model_name}`
+5. Materialize via Dagster UI or CLI
 
-```
-docker exec dagster-web dagster asset materialize --select
-      "dlt_glucose_entries,stg_glucose_entries,fct_glucose_readings,mrt_glucose_readings,fct_daily_glucose_metrics,mrt_glucose_hourly_patterns" --partition "2025-11-04" -m phlo.definitions
-```
+### Adding Quality Checks
+1. Create quality asset in `src/phlo/defs/quality/{domain}.py`
+2. Use `@phlo.quality` decorator with check types
+3. Checks automatically become Dagster asset checks
+4. View results in Dagster UI
+
+## Documentation
+
+User-facing documentation is in `docs/`:
+- See `docs/guides/developer-guide.md` for decorator usage
+- See `docs/reference/cli-reference.md` for CLI commands
+- See `docs/getting-started/core-concepts.md` for architecture overview

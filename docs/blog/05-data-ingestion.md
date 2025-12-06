@@ -114,6 +114,124 @@ The decorator handles all the complexity:
 5. **Freshness Checks**: Monitors data freshness (1-24 hours in this example)
 6. **Asset Metadata**: Tracks lineage and dependencies in Dagster
 
+### Merge Strategies
+
+Phlo supports two merge strategies, allowing you to optimize for different data patterns:
+
+#### Append Strategy (Insert-Only)
+
+Best for immutable event streams where you never update existing records:
+
+```python
+@phlo.ingestion(
+    table_name="api_events",
+    unique_key="event_id",
+    validation_schema=EventSchema,
+    merge_strategy="append",  # Insert-only, no deduplication
+    group="events",
+)
+def api_events(partition_date: str):
+    return rest_api(...)
+```
+
+**Characteristics:**
+- Fastest performance (no deduplication overhead)
+- No checking for duplicates
+- Simply appends all new records
+- **Use for**: Server logs, clickstream events, time-series sensor data, immutable audit trails
+
+**Trade-offs:**
+- If you accidentally run the same partition twice, you'll get duplicates
+- No way to update existing records
+- Requires careful pipeline design to avoid re-runs
+
+#### Merge Strategy (Upsert with Deduplication)
+
+Best for dimension tables and data that may need updates:
+
+```python
+@phlo.ingestion(
+    table_name="user_profiles",
+    unique_key="user_id",
+    validation_schema=UserSchema,
+    merge_strategy="merge",      # Upsert mode
+    dedup_strategy="last",       # Keep most recent
+    group="users",
+)
+def user_profiles(partition_date: str):
+    return rest_api(...)
+```
+
+**Deduplication Strategies:**
+
+1. **`last` (default)**: Keep the most recent occurrence
+   ```python
+   dedup_strategy="last"
+   ```
+   - Based on insertion order during the pipeline run
+   - Most common choice for dimension tables
+   - Example: User profile updates (keep latest email, phone, etc.)
+
+2. **`first`**: Keep the earliest occurrence
+   ```python
+   dedup_strategy="first"
+   ```
+   - Useful when first value is authoritative
+   - Example: Initial signup timestamp, first purchase date
+
+3. **`hash`**: Keep based on content hash
+   ```python
+   dedup_strategy="hash"
+   ```
+   - Compares full record content, not just timestamp
+   - Useful when you want to detect actual data changes
+   - Example: Configuration snapshots (only update if content differs)
+
+**Characteristics:**
+- Performs upsert: UPDATE if `unique_key` exists, INSERT if new
+- Removes duplicates within the same batch
+- Idempotent: running multiple times produces same result
+- **Use for**: User profiles, product catalogs, reference data, slowly changing dimensions
+
+**Trade-offs:**
+- Slower than append (requires deduplication logic)
+- More memory usage during merge
+- Worth it for data correctness
+
+#### Strategy Comparison
+
+| Aspect | Append | Merge (last) | Merge (first) | Merge (hash) |
+|--------|--------|--------------|---------------|--------------|
+| **Performance** | Fastest | Medium | Medium | Slowest |
+| **Deduplication** | None | By order | By order | By content |
+| **Idempotency** | No | Yes | Yes | Yes |
+| **Updates** | No | Yes (keeps latest) | No (keeps first) | Yes (if changed) |
+| **Use Case** | Logs, events | Dimensions | Historical records | Config snapshots |
+
+#### Real-World Example: Glucose Data
+
+The glucose ingestion uses merge strategy because:
+
+1. **API may return overlapping data**: Querying "last 24 hours" twice gives duplicates
+2. **Data corrections**: Nightscout allows retroactive corrections to glucose readings
+3. **Idempotency**: We want `materialize --partition 2024-10-15` to be safe to run multiple times
+
+```python
+@phlo.ingestion(
+    table_name="glucose_entries",
+    unique_key="_id",              # Nightscout's unique entry ID
+    merge_strategy="merge",        # Upsert mode
+    dedup_strategy="last",         # Keep most recent reading
+    validation_schema=RawGlucoseEntries,
+    ...
+)
+```
+
+If we used `append` strategy instead:
+- Running the same partition twice would create duplicates
+- Corrected readings wouldn't update (you'd have both old and new)
+- dbt transformations downstream would need to handle deduplication
+
 ### DLT Schema Normalization
 
 DLT normalizes messy API responses:
