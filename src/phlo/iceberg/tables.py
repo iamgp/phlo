@@ -241,7 +241,7 @@ def append_to_table(
     # Cast to handle type differences (e.g., timestamp vs timestamptz, nullability)
     try:
         arrow_table = arrow_table.cast(target_schema)
-    except (pa.ArrowInvalid, pa.ArrowTypeError) as e:
+    except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
         # If casting fails, log the issue but try appending anyway
         import logging
 
@@ -415,7 +415,7 @@ def merge_to_table(
     # Cast to handle type differences (e.g., timestamp vs timestamptz, nullability)
     try:
         arrow_table = arrow_table.cast(target_schema)
-    except (pa.ArrowInvalid, pa.ArrowTypeError) as e:
+    except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
         # If casting fails, log the issue but try appending anyway
         import logging
 
