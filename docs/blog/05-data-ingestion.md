@@ -155,7 +155,7 @@ Best for dimension tables and data that may need updates:
     unique_key="user_id",
     validation_schema=UserSchema,
     merge_strategy="merge",      # Upsert mode
-    dedup_strategy="last",       # Keep most recent
+    merge_config={"deduplication_method": "last"},  # Keep most recent
     group="users",
 )
 def user_profiles(partition_date: str):
@@ -166,7 +166,7 @@ def user_profiles(partition_date: str):
 
 1. **`last` (default)**: Keep the most recent occurrence
    ```python
-   dedup_strategy="last"
+   merge_config={"deduplication_method": "last"}
    ```
    - Based on insertion order during the pipeline run
    - Most common choice for dimension tables
@@ -174,14 +174,14 @@ def user_profiles(partition_date: str):
 
 2. **`first`**: Keep the earliest occurrence
    ```python
-   dedup_strategy="first"
+   merge_config={"deduplication_method": "first"}
    ```
    - Useful when first value is authoritative
    - Example: Initial signup timestamp, first purchase date
 
 3. **`hash`**: Keep based on content hash
    ```python
-   dedup_strategy="hash"
+   merge_config={"deduplication_method": "hash"}
    ```
    - Compares full record content, not just timestamp
    - Useful when you want to detect actual data changes
@@ -221,7 +221,7 @@ The glucose ingestion uses merge strategy because:
     table_name="glucose_entries",
     unique_key="_id",              # Nightscout's unique entry ID
     merge_strategy="merge",        # Upsert mode
-    dedup_strategy="last",         # Keep most recent reading
+    merge_config={"deduplication_method": "last"},  # Keep most recent reading
     validation_schema=RawGlucoseEntries,
     ...
 )
