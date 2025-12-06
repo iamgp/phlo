@@ -134,11 +134,11 @@ merge_strategy="merge"   # Upsert (default)
 merge_strategy="append"  # Insert-only
 ```
 
-`dedup_strategy` (str): Deduplication approach (for merge strategy)
+`merge_config` (dict): Merge and deduplication configuration
 ```python
-dedup_strategy="last"   # Keep last occurrence (default)
-dedup_strategy="first"  # Keep first occurrence
-dedup_strategy="hash"   # Keep based on content hash
+merge_config={"deduplication_method": "last"}   # Keep last occurrence (default)
+merge_config={"deduplication_method": "first"}  # Keep first occurrence
+merge_config={"deduplication_method": "hash"}   # Keep based on content hash
 ```
 
 `retry_policy` (dict): Retry configuration
@@ -259,7 +259,7 @@ def logs(partition_date: str):
     table_name="users",
     unique_key="user_id",
     merge_strategy="merge",
-    dedup_strategy="last",  # Keep most recent
+    merge_config={"deduplication_method": "last"},  # Keep most recent
     ...
 )
 def users(partition_date: str):
@@ -271,19 +271,19 @@ def users(partition_date: str):
 
 `last` (default): Keep last occurrence by partition
 ```python
-dedup_strategy="last"
+merge_config={"deduplication_method": "last"}
 # If same ID appears twice, keep the one with latest timestamp
 ```
 
 `first`: Keep first occurrence
 ```python
-dedup_strategy="first"
+merge_config={"deduplication_method": "first"}
 # If same ID appears twice, keep the one with earliest timestamp
 ```
 
 `hash`: Keep based on content hash
 ```python
-dedup_strategy="hash"
+merge_config={"deduplication_method": "hash"}
 # If same ID appears twice, keep the one with different content
 ```
 

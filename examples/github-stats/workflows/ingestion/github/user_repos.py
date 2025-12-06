@@ -17,8 +17,20 @@ from workflows.schemas.github import RawUserRepos
     group="github",
     cron="0 */6 * * *",
     freshness_hours=(6, 24),
+    merge_strategy="merge",
+    merge_config={"deduplication_method": "last"},
 )
 def user_repos(partition_date: str):
+    """Ingest GitHub repository metadata.
+
+    Uses merge strategy because repository metadata changes:
+    - Descriptions, topics, and README content can be updated
+    - Star counts and fork counts increase
+    - Language statistics change as code is added
+    - Repository settings (private/public, archived) can change
+
+    The "last" dedup strategy keeps the most recent repository snapshot.
+    """
     github_token = os.getenv("GITHUB_TOKEN")
     github_username = os.getenv("GITHUB_USERNAME", "iamgp")
 
