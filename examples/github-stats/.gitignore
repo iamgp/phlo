@@ -29,9 +29,6 @@ transforms/dbt/target/
 transforms/dbt/logs/
 transforms/dbt/dbt_packages/
 
-# Test files
-test_*.py
-
 # Temporary/working files
 WORKING.md
 context/

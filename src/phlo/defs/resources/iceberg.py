@@ -68,7 +68,7 @@ class IcebergResource(ConfigurableResource):
 
     def append_parquet(
         self, table_name: str, data_path: str, override_ref: str | None = None
-    ) -> None:
+    ) -> dict[str, int]:
         """
         Append a parquet file or directory to the Iceberg table.
 
@@ -76,9 +76,12 @@ class IcebergResource(ConfigurableResource):
             table_name: Fully qualified table name
             data_path: Path to parquet file or directory
             override_ref: Override default branch
+
+        Returns:
+            Dictionary with metrics: {"rows_inserted": int, "rows_deleted": int}
         """
         branch = override_ref or self.ref
-        append_to_table(table_name=table_name, data_path=data_path, ref=branch)
+        return append_to_table(table_name=table_name, data_path=data_path, ref=branch)
 
     def merge_parquet(
         self,
