@@ -18,6 +18,8 @@ from workflows.schemas.nightscout import RawGlucoseEntries
     group="nightscout",
     cron="0 */1 * * *",
     freshness_hours=(1, 24),
+    merge_strategy="merge",
+    merge_config={"deduplication_method": "last"},
 )
 def glucose_entries(partition_date: str):
     """
@@ -28,10 +30,17 @@ def glucose_entries(partition_date: str):
 
     Features:
     - Idempotent ingestion: safe to run multiple times without duplicates
+    - Merge strategy: Upsert mode with deduplication (keeps most recent reading)
     - Deduplication based on _id field (Nightscout's unique entry ID)
     - Daily partitioning by timestamp
     - Automatic validation with Pandera schema
     - Branch-aware writes to Iceberg
+
+    Why merge strategy?
+    - API may return overlapping data when querying time windows
+    - Nightscout allows retroactive corrections to glucose readings
+    - Running the same partition multiple times must be idempotent
+    - "last" dedup strategy keeps most recent reading if duplicates exist
 
     Args:
         partition_date: Date partition in YYYY-MM-DD format

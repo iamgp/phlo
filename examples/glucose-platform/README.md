@@ -99,6 +99,77 @@ phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-12-31 --pa
 4. **Gold**: `fct_daily_glucose_metrics` computes daily aggregates & time-in-range
 5. **Marts**: `mrt_glucose_*` tables ready for BI dashboards
 
+## Merge Strategy
+
+This project uses the **merge strategy** with **last deduplication** for glucose ingestion:
+
+```python
+@phlo.ingestion(
+    table_name="glucose_entries",
+    unique_key="_id",
+    merge_strategy="merge",     # Upsert mode
+    merge_config={"deduplication_method": "last"},  # Keep most recent reading
+    ...
+)
+```
+
+### Why Merge Strategy?
+
+Glucose data from Nightscout requires merge strategy for three key reasons:
+
+**1. Overlapping API Queries**
+- Querying "last 24 hours" multiple times returns overlapping data
+- Without merge, re-running a partition would create duplicates
+- Merge ensures idempotent pipeline runs
+
+**2. Retroactive Corrections**
+- CGM sensors can be calibrated retroactively
+- Nightscout allows editing historical glucose readings
+- Merge strategy updates existing records with corrections
+
+**3. Data Quality**
+- If a pipeline fails mid-run, re-running safely completes the load
+- No manual cleanup of partial data required
+- `unique_key="_id"` ensures each reading appears exactly once
+
+### Deduplication Strategy: "last"
+
+The `merge_config={"deduplication_method": "last"}` parameter means:
+- If duplicate `_id` values exist in a batch, keep the **last** occurrence
+- Based on insertion order during the pipeline run
+- Most appropriate for time-series data where latest reading is authoritative
+
+### Alternative: Append Strategy
+
+If glucose data were truly immutable (no corrections), we could use:
+
+```python
+@phlo.ingestion(
+    table_name="glucose_entries",
+    unique_key="_id",
+    merge_strategy="append",  # Insert-only, no deduplication
+    ...
+)
+```
+
+**Trade-offs:**
+- ✅ Faster performance (no deduplication checks)
+- ❌ Duplicates if pipeline re-run
+- ❌ No way to update corrected readings
+- ❌ Requires careful orchestration to avoid re-runs
+
+**Verdict**: Merge strategy is the right choice for CGM data reliability.
+
+### Comparison Table
+
+| Aspect | Append Strategy | Merge Strategy (used) |
+|--------|----------------|----------------------|
+| **Performance** | Faster | Slightly slower |
+| **Idempotency** | No | Yes |
+| **Updates** | Not possible | Supported |
+| **Duplicates** | Possible | Prevented |
+| **Use Case** | Immutable logs | Correctable data |
+
 ## CLI Commands
 
 ### Core Operations

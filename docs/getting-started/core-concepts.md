@@ -226,7 +226,7 @@ merge_strategy="append"
 **Merge Strategy**
 ```python
 merge_strategy="merge"
-dedup_strategy="last"  # or "first" or "hash"
+merge_config={"deduplication_method": "last"}  # or "first" or "hash"
 ```
 - Upsert based on `unique_key`
 - Deduplication strategies:
