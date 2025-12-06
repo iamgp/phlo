@@ -6,9 +6,11 @@ Modern data lakehouse platform built on Dagster, DLT, Iceberg, Nessie, and dbt.
 
 - **Write-Audit-Publish pattern** - Branch isolation with automatic promotion
 - **@phlo.ingestion decorator** - 74% less boilerplate for data ingestion
+- **Configurable merge strategies** - Append-only or upsert with deduplication (first/last/hash)
 - **@phlo.quality decorator** - Declarative quality checks
 - **Auto-publishing** - Marts automatically published to Postgres for BI
 - **CLI tools** - `phlo services`, `phlo materialize`, `phlo create-workflow`
+- **Infrastructure config** - Multi-project support with phlo.yaml
 
 ## Quick Start
 
@@ -27,18 +29,27 @@ phlo materialize --select "dlt_glucose_entries+"
 
 Full documentation at [docs/index.md](docs/index.md):
 
+- [Installation Guide](docs/getting-started/installation.md)
 - [Quickstart Guide](docs/getting-started/quickstart.md)
-- [CLI Reference](docs/guides/cli.md)
-- [Architecture](docs/reference/architecture.md)
-- [Blog Series](docs/blog/README.md) - 12-part deep dive
+- [Core Concepts](docs/getting-started/core-concepts.md)
+- [Developer Guide](docs/guides/developer-guide.md)
+- [CLI Reference](docs/reference/cli-reference.md)
+- [Configuration Reference](docs/reference/configuration-reference.md)
+- [Operations Guide](docs/operations/operations-guide.md)
+- [Blog Series](docs/blog/README.md) - 13-part deep dive
 
 ## Development
 
 ```bash
-make up          # Start services
-make down        # Stop services
-make rebuild     # Rebuild Dagster container
+# Services
+phlo services start    # Start all services
+phlo services stop     # Stop services
+phlo services logs -f  # View logs
 
-ruff check src/  # Lint
-ruff format src/ # Format
+# Development
+uv pip install -e .    # Install Phlo
+ruff check src/        # Lint
+ruff format src/       # Format
+basedpyright src/      # Type check
+phlo test              # Run tests
 ```

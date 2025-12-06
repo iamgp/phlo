@@ -74,18 +74,18 @@ Don't worry if you're missing some skills - the series is designed to teach you 
 | 2 | [Getting Started—Setup Guide](02-setup-guide.md) | Installation, services, first pipeline | 50 min |
 | 3 | [Apache Iceberg—Table Format](03-apache-iceberg-explained.md) | Snapshots, schema evolution, time travel | 20 min |
 | 4 | [Project Nessie—Git for Data](04-project-nessie-versioning.md) | Branching, versioning, governance | 15 min |
-| 5 | [Data Ingestion Patterns](05-data-ingestion.md) | DLT, PyIceberg, validation, idempotency | 18 min |
+| 5 | [Data Ingestion Patterns](05-data-ingestion.md) | DLT, PyIceberg, merge strategies, validation | 22 min |
 | 6 | [dbt Transformations](06-dbt-transformations.md) | Models, testing, layers, best practices | 22 min |
 | 7 | [Dagster Orchestration](07-orchestration-dagster.md) | Assets, partitions, scheduling, monitoring | 20 min |
 | 8 | [Real-World Example](08-real-world-example.md) | Complete glucose pipeline, end-to-end | 25 min |
 | 9 | [Data Quality with Pandera](09-data-quality-with-pandera.md) | Schemas, validation, asset checks | 20 min |
 | 10 | [Metadata and Governance](10-metadata-governance.md) | OpenMetadata, data contracts, schema evolution | 25 min |
 | 11 | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, alerting, lineage, debugging | 25 min |
-| 12 | [Production Deployment](12-production-deployment.md) | Kubernetes, HA, disaster recovery, scaling | 30 min |
+| 12 | [Production Deployment](12-production-deployment.md) | Infrastructure config, Kubernetes, HA, scaling | 35 min |
 | 13 | [Extending Phlo with Plugins](13-plugin-system.md) | Custom sources, quality checks, transforms | 20 min |
 
-**Total content**: ~7,500 lines, 250+ KB of educational material
-**Estimated reading time**: 4-6 hours (complete series)
+**Total content**: ~8,000 lines, 275+ KB of educational material
+**Estimated reading time**: 4.5-6 hours (complete series)
 
 ## Phlo Architecture
 
