@@ -1,16 +1,18 @@
 """Quality checks for GitHub data using @phlo.quality decorator.
 
-Implements data quality assurance for GitHub events and repository data.
+Demonstrates phlo's declarative quality check framework with multiple check types.
 """
 
 import phlo
-from phlo.quality import NullCheck, RangeCheck
+from phlo.quality import CountCheck, NullCheck, PatternCheck, RangeCheck, UniqueCheck
 
 
 @phlo.quality(
     table="raw.user_events",
     checks=[
         NullCheck(columns=["id", "type", "created_at"]),
+        UniqueCheck(columns=["id"]),
+        CountCheck(min_rows=1),
     ],
     group="github",
     blocking=True,
@@ -24,8 +26,10 @@ def user_events_quality():
     table="raw.user_repos",
     checks=[
         NullCheck(columns=["id", "name", "created_at"]),
+        UniqueCheck(columns=["id"]),
         RangeCheck(column="stargazers_count", min_value=0, max_value=1000000),
         RangeCheck(column="forks_count", min_value=0, max_value=100000),
+        CountCheck(min_rows=1),
     ],
     group="github",
     blocking=True,
@@ -39,6 +43,10 @@ def user_repos_quality():
     table="raw.user_profile",
     checks=[
         NullCheck(columns=["id", "login"]),
+        UniqueCheck(columns=["id"]),
+        PatternCheck(
+            column="login", pattern=r"^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$"
+        ),
         RangeCheck(column="followers", min_value=0, max_value=1000000),
         RangeCheck(column="following", min_value=0, max_value=10000),
     ],

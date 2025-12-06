@@ -26,6 +26,7 @@ Available Checks:
     - CountCheck: Verify row count bounds
     - SchemaCheck: Verify Pandera schema compliance
     - CustomSQLCheck: Execute arbitrary SQL assertions
+    - PatternCheck: Verify string values match regex patterns
 """
 
 from phlo.quality.checks import (
@@ -33,6 +34,7 @@ from phlo.quality.checks import (
     CustomSQLCheck,
     FreshnessCheck,
     NullCheck,
+    PatternCheck,
     QualityCheck,
     RangeCheck,
     SchemaCheck,
@@ -54,6 +56,7 @@ __all__ = [
     "CountCheck",
     "SchemaCheck",
     "CustomSQLCheck",
+    "PatternCheck",
 ]
 
 __version__ = "1.0.0"

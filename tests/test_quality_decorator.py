@@ -24,6 +24,7 @@ from phlo.quality import (
     UniqueCheck,
     CountCheck,
     CustomSQLCheck,
+    PatternCheck,
     get_quality_checks,
 )
 
@@ -433,6 +434,68 @@ class TestQualityCheckIntegration:
 
         assert all(r.passed for r in results)
         assert len(results) == 3
+
+
+class TestPatternCheck:
+    """Tests for PatternCheck quality check."""
+
+    def test_pattern_check_passes_with_all_matches(self):
+        """Test that PatternCheck passes when all values match pattern."""
+        check = PatternCheck(column="email", pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        df = pd.DataFrame({"email": ["test@example.com", "user@domain.org", "admin@site.net"]})
+
+        result = check.execute(df, context=None)
+
+        assert result.passed
+        assert result.metric_name == "pattern_check"
+        assert result.metadata["match_count"] == 3
+        assert result.metadata["non_match_count"] == 0
+
+    def test_pattern_check_fails_with_non_matches(self):
+        """Test that PatternCheck fails when values don't match pattern."""
+        check = PatternCheck(column="email", pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        df = pd.DataFrame({"email": ["test@example.com", "invalid-email", "another@bad"]})
+
+        result = check.execute(df, context=None)
+
+        assert not result.passed
+        assert result.metadata["non_match_count"] == 2
+        assert "invalid-email" in result.failure_message
+
+    def test_pattern_check_with_threshold(self):
+        """Test that PatternCheck respects allow_threshold."""
+        check = PatternCheck(
+            column="postal_code",
+            pattern=r"^\d{5}$",
+            allow_threshold=0.20,  # Allow 20% invalid
+        )
+        df = pd.DataFrame({"postal_code": ["12345", "67890", "ABCDE", "XYZ", "11111"]})
+
+        result = check.execute(df, context=None)
+
+        # 2 out of 5 invalid = 40%, exceeds 20% threshold
+        assert not result.passed
+        assert result.metadata["non_match_percentage"] == 0.4
+
+    def test_pattern_check_case_insensitive(self):
+        """Test that PatternCheck respects case_sensitive flag."""
+        check = PatternCheck(column="code", pattern=r"^ABC\d+$", case_sensitive=False)
+        df = pd.DataFrame({"code": ["ABC123", "abc456", "AbC789"]})
+
+        result = check.execute(df, context=None)
+
+        assert result.passed
+        assert result.metadata["match_count"] == 3
+
+    def test_pattern_check_with_missing_column(self):
+        """Test that PatternCheck handles missing column."""
+        check = PatternCheck(column="nonexistent", pattern=r".*")
+        df = pd.DataFrame({"other_column": [1, 2, 3]})
+
+        result = check.execute(df, context=None)
+
+        assert not result.passed
+        assert "not found" in result.failure_message
 
 
 class TestQualityCheckMetadata:

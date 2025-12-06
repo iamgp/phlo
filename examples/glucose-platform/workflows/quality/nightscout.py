@@ -31,14 +31,17 @@ except ImportError:
 # @phlo.quality decorator approach (declarative, reduces boilerplate by 70-80%)
 # ---------------------------------------------------------------------------
 if PHLO_QUALITY_AVAILABLE:
+    from phlo.quality import CountCheck, UniqueCheck
 
     @phlo.quality(
         table="silver.fct_glucose_readings",
         checks=[
             NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
+            UniqueCheck(columns=["entry_id"]),
             RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
             RangeCheck(column="hour_of_day", min_value=0, max_value=23),
             FreshnessCheck(timestamp_column="reading_timestamp", max_age_hours=24),
+            CountCheck(min_rows=1),
         ],
         group="nightscout",
         blocking=True,
@@ -51,8 +54,10 @@ if PHLO_QUALITY_AVAILABLE:
         table="gold.fct_daily_glucose_metrics",
         checks=[
             NullCheck(columns=["reading_date", "reading_count", "avg_glucose_mg_dl"]),
+            UniqueCheck(columns=["reading_date"]),
             RangeCheck(column="avg_glucose_mg_dl", min_value=20, max_value=600),
             RangeCheck(column="time_in_range_pct", min_value=0, max_value=100),
+            CountCheck(min_rows=1),
         ],
         group="nightscout",
         blocking=True,
