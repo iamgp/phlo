@@ -244,7 +244,7 @@ This covers:
 
 ## Learning Resources
 
-- **Concepts**: [Beginner's Guide](beginners-guide.md) - Understand lakehouse fundamentals
+- **Concepts**: [Core Concepts](core-concepts.md) - Understand lakehouse fundamentals
 - **Complete Tutorial**: [Workflow Development Guide](../guides/workflow-development.md) - Build full pipeline
 - **Best Practices**: [Best Practices Guide](../operations/best-practices.md) - Production patterns
 - **Architecture**: [Architecture](../reference/architecture.md) - System design
