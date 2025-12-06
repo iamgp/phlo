@@ -193,9 +193,11 @@ def merge_to_iceberg(
     table_config: TableConfig,
     parquet_path: Path,
     branch_name: str,
+    merge_strategy: str = "merge",
+    merge_config: dict[str, Any] | None = None,
 ) -> dict[str, int]:
     """
-    Merge parquet data to Iceberg table with idempotent deduplication.
+    Merge parquet data to Iceberg table with configurable strategy.
 
     Args:
         context: Dagster asset execution context for logging
@@ -203,10 +205,15 @@ def merge_to_iceberg(
         table_config: TableConfig with schema and unique key
         parquet_path: Path to parquet file to merge
         branch_name: Iceberg branch/reference to use
+        merge_strategy: "append" (insert-only) or "merge" (upsert). Default: "merge"
+        merge_config: Configuration dict with deduplication settings
 
     Returns:
         Merge metrics dict with rows_inserted and rows_deleted counts
     """
+    from typing import Any
+
+    merge_config = merge_config or {}
     table_name = table_config.full_table_name
 
     context.log.info(
@@ -219,19 +226,112 @@ def merge_to_iceberg(
         override_ref=branch_name,
     )
 
-    context.log.info(
-        f"Merging data to Iceberg table on branch {branch_name} (idempotent upsert)..."
-    )
-    merge_metrics = iceberg.merge_parquet(
-        table_name=table_name,
-        data_path=str(parquet_path),
-        unique_key=table_config.unique_key,
-        override_ref=branch_name,
-    )
+    # Apply source deduplication if enabled
+    if merge_config.get("deduplication", False):
+        context.log.info("Applying source-level deduplication...")
+        import pyarrow.parquet as pq
 
-    context.log.info(
-        f"Merged {merge_metrics['rows_inserted']} rows to {table_name} "
-        + f"(deleted {merge_metrics['rows_deleted']} existing duplicates)"
-    )
+        arrow_table = pq.read_table(str(parquet_path))
+        arrow_table = _deduplicate_arrow_table(
+            arrow_table=arrow_table,
+            unique_key=table_config.unique_key,
+            method=merge_config.get("deduplication_method", "last"),
+            context=context,
+        )
+        # Write deduplicated data back to parquet
+        import tempfile
+
+        temp_dir = tempfile.mkdtemp()
+        deduped_path = Path(temp_dir) / "deduped.parquet"
+        pq.write_table(arrow_table, str(deduped_path))
+        parquet_path = deduped_path
+
+    # Execute merge based on strategy
+    if merge_strategy == "append":
+        context.log.info(
+            f"Appending data to Iceberg table on branch {branch_name}..."
+        )
+        merge_metrics = iceberg.append_parquet(
+            table_name=table_name,
+            data_path=str(parquet_path),
+            override_ref=branch_name,
+        )
+        context.log.info(f"Appended {merge_metrics['rows_inserted']} rows to {table_name}")
+    elif merge_strategy == "merge":
+        context.log.info(
+            f"Merging data to Iceberg table on branch {branch_name} (idempotent upsert)..."
+        )
+        merge_metrics = iceberg.merge_parquet(
+            table_name=table_name,
+            data_path=str(parquet_path),
+            unique_key=table_config.unique_key,
+            override_ref=branch_name,
+        )
+        context.log.info(
+            f"Merged {merge_metrics['rows_inserted']} rows to {table_name} "
+            + f"(deleted {merge_metrics['rows_deleted']} existing duplicates)"
+        )
+    else:
+        raise ValueError(f"Unknown merge strategy: {merge_strategy}")
 
     return merge_metrics
+
+
+def _deduplicate_arrow_table(
+    arrow_table: Any,
+    unique_key: str,
+    method: str,
+    context: Any,
+) -> Any:
+    """
+    Deduplicate Arrow table based on unique_key.
+
+    Args:
+        arrow_table: Input Arrow table
+        unique_key: Column to deduplicate on
+        method: "first" (keep first), "last" (keep last), "hash" (content-based)
+        context: Dagster context for logging
+
+    Returns:
+        Deduplicated Arrow table
+    """
+    import pyarrow as pa
+
+    initial_rows = len(arrow_table)
+
+    if method == "first":
+        df = arrow_table.to_pandas()
+        df = df.drop_duplicates(subset=[unique_key], keep="first")
+        arrow_table = pa.Table.from_pandas(df, schema=arrow_table.schema)
+
+    elif method == "last":
+        df = arrow_table.to_pandas()
+        df = df.drop_duplicates(subset=[unique_key], keep="last")
+        arrow_table = pa.Table.from_pandas(df, schema=arrow_table.schema)
+
+    elif method == "hash":
+        import hashlib
+
+        df = arrow_table.to_pandas()
+
+        def row_hash(row):
+            meta_cols = {"_dlt_load_id", "_dlt_id"}
+            hash_cols = [c for c in df.columns if c not in meta_cols]
+            content = "|".join(str(row[c]) for c in hash_cols)
+            return hashlib.md5(content.encode()).hexdigest()
+
+        df["_content_hash"] = df.apply(row_hash, axis=1)
+        df = df.drop_duplicates(subset=["_content_hash"], keep="first")
+        df = df.drop(columns=["_content_hash"])
+        arrow_table = pa.Table.from_pandas(df, schema=arrow_table.schema)
+
+    final_rows = len(arrow_table)
+    duplicates_removed = initial_rows - final_rows
+
+    if duplicates_removed > 0:
+        context.log.info(
+            f"Source deduplication: {initial_rows} -> {final_rows} rows "
+            f"({duplicates_removed} duplicates removed using method='{method}')"
+        )
+
+    return arrow_table

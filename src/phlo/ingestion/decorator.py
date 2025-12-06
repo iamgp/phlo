@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Any
+from typing import Any, Literal, TypedDict
 
 import dagster as dg
 from dagster import FreshnessPolicy
@@ -27,6 +27,13 @@ from phlo.exceptions import (
 )
 
 _INGESTION_ASSETS: list[Any] = []
+
+
+class MergeConfig(TypedDict, total=False):
+    """Configuration for merge operations."""
+
+    deduplication: bool
+    deduplication_method: Literal["first", "last", "hash"]
 
 
 def _validate_cron_expression(cron: str | None) -> None:
@@ -131,6 +138,62 @@ def _validate_unique_key_in_schema(
         )
 
 
+def _validate_merge_config(
+    merge_strategy: str, unique_key: str, merge_config: dict[str, Any] | None
+) -> None:
+    """
+    Validate merge strategy configuration.
+
+    Args:
+        merge_strategy: Merge strategy to use
+        unique_key: Column for deduplication
+        merge_config: Merge configuration dict
+
+    Raises:
+        CascadeConfigError: If configuration is invalid
+    """
+    if merge_strategy == "merge" and not unique_key:
+        raise CascadeConfigError(
+            message="merge_strategy='merge' requires unique_key parameter",
+            suggestions=[
+                "Add unique_key parameter: unique_key='id'",
+                "Or use merge_strategy='append' for insert-only",
+            ],
+        )
+
+    if merge_config and "deduplication_method" in merge_config:
+        method = merge_config["deduplication_method"]
+        if method not in ["first", "last", "hash"]:
+            raise CascadeConfigError(
+                message=f"Invalid deduplication_method: {method}",
+                suggestions=["Use 'first', 'last', or 'hash'"],
+            )
+
+
+def _default_merge_config(
+    merge_strategy: str, merge_config: dict[str, Any] | None
+) -> dict[str, Any]:
+    """
+    Apply default merge configuration based on strategy.
+
+    Args:
+        merge_strategy: Merge strategy to use
+        merge_config: User-provided merge configuration
+
+    Returns:
+        Merge configuration with defaults applied
+    """
+    config = merge_config.copy() if merge_config else {}
+
+    if merge_strategy == "append":
+        config.setdefault("deduplication", False)
+    elif merge_strategy == "merge":
+        config.setdefault("deduplication", True)
+        config.setdefault("deduplication_method", "last")
+
+    return config
+
+
 def phlo_ingestion(
     table_name: str,
     unique_key: str,
@@ -144,6 +207,8 @@ def phlo_ingestion(
     max_retries: int = 3,
     retry_delay_seconds: int = 30,
     validate: bool = True,
+    merge_strategy: Literal["append", "merge"] = "merge",
+    merge_config: dict[str, Any] | None = None,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator for creating Cascade ingestion assets with minimal boilerplate.
@@ -174,6 +239,8 @@ def phlo_ingestion(
         max_retries: Number of retry attempts on failure
         retry_delay_seconds: Delay between retries
         validate: Whether to validate data with Pandera schema
+        merge_strategy: Merge strategy - "append" (insert-only) or "merge" (upsert). Default: "merge"
+        merge_config: Merge configuration dict with deduplication settings
 
     Returns:
         Decorator function that wraps user's fetch function
@@ -194,6 +261,10 @@ def phlo_ingestion(
     # Validate decorator parameters at definition time (fast feedback!)
     _validate_cron_expression(cron)
     _validate_unique_key_in_schema(unique_key, validation_schema)
+    _validate_merge_config(merge_strategy, unique_key, merge_config)
+
+    # Apply default merge configuration
+    merge_cfg = _default_merge_config(merge_strategy, merge_config)
 
     # Auto-generate PyIceberg schema from Pandera if not provided
     if iceberg_schema is None and validation_schema is not None:
@@ -290,6 +361,8 @@ def phlo_ingestion(
                     table_config=table_config,
                     parquet_path=parquet_path,
                     branch_name=branch_name,
+                    merge_strategy=merge_strategy,
+                    merge_config=merge_cfg,
                 )
 
                 total_elapsed = time.time() - start_time
