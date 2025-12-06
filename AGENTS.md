@@ -1,5 +1,17 @@
 # Agents Configuration for Phlo
 
+## General Rules
+
+- Development Philosophy:
+  - Early development: no users; no backward compatibility concerns.
+  - Keep code clean and organized; aim for zero technical debt.
+  - Do not create compatibility shims.
+
+- Implementation Standards:
+  - Avoid workarounds; implement features properly so they scale beyond 1,000 users.
+  - Do not present half-baked solutions.
+  - Do not present half-baked solutions.
+
 ## Build/Lint/Test Commands
 
 - **Development setup**: `cd dagster && uv pip install -e .` (Python dependencies)
@@ -17,6 +29,7 @@
 The `@phlo.quality` decorator reduces quality check boilerplate by 70-80%:
 
 ### Quick Example
+
 ```python
 import phlo
 from phlo.quality import NullCheck, RangeCheck
@@ -35,6 +48,7 @@ def glucose_quality():
 ```
 
 ### Available Check Types
+
 - **NullCheck**: Verify no null values (with tolerance threshold)
 - **RangeCheck**: Verify numeric values within bounds
 - **FreshnessCheck**: Verify data recency (max age in hours)
@@ -44,6 +58,7 @@ def glucose_quality():
 - **CustomSQLCheck**: Execute arbitrary SQL assertions (NEW)
 
 ### Decorator Parameters
+
 - `table`: Fully qualified table name (e.g., "bronze.data")
 - `checks`: List of quality checks to execute
 - `group`: Asset group (optional)
