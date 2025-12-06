@@ -577,3 +577,98 @@ class CustomSQLCheck(QualityCheck):
     @property
     def name(self) -> str:
         return f"custom_sql_{self.name_}"
+
+
+@dataclass
+class PatternCheck(QualityCheck):
+    r"""
+    Check that string column values match a regex pattern.
+
+    Example:
+        ```python
+        PatternCheck(
+            column="email",
+            pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        )
+        PatternCheck(
+            column="postal_code",
+            pattern=r"^\d{5}(-\d{4})?$",
+            allow_threshold=0.05  # Allow 5% invalid
+        )
+        ```
+    """
+
+    column: str
+    """Column to check."""
+
+    pattern: str
+    """Regex pattern that values must match."""
+
+    allow_threshold: float = 0.0
+    """Maximum fraction of non-matching values allowed."""
+
+    case_sensitive: bool = True
+    """Whether pattern matching is case sensitive."""
+
+    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+        """Execute pattern check on DataFrame."""
+        if self.column not in df.columns:
+            return QualityCheckResult(
+                passed=False,
+                metric_name="pattern_check",
+                metric_value=None,
+                failure_message=f"Column '{self.column}' not found in DataFrame",
+            )
+
+        column_data = df[self.column].dropna().astype(str)
+
+        if len(column_data) == 0:
+            return QualityCheckResult(
+                passed=True,
+                metric_name="pattern_check",
+                metric_value={"matches": 0, "non_matches": 0},
+                metadata={"note": "No non-null values to check"},
+            )
+
+        import re
+
+        flags = 0 if self.case_sensitive else re.IGNORECASE
+        pattern_compiled = re.compile(self.pattern, flags)
+
+        matches = column_data.str.match(pattern_compiled, na=False)
+        non_match_count = (~matches).sum()
+        non_match_pct = non_match_count / len(column_data)
+
+        passed = non_match_pct <= self.allow_threshold
+
+        failure_msg = None
+        if not passed:
+            sample_non_matches = column_data[~matches].head(5).tolist()
+            failure_msg = (
+                f"Column '{self.column}' has {non_match_pct:.2%} values not matching pattern "
+                f"(threshold: {self.allow_threshold:.2%}). "
+                f"Sample non-matches: {sample_non_matches}"
+            )
+
+        return QualityCheckResult(
+            passed=passed,
+            metric_name="pattern_check",
+            metric_value={
+                "matches": int(matches.sum()),
+                "non_matches": int(non_match_count),
+            },
+            metadata={
+                "pattern": self.pattern,
+                "case_sensitive": self.case_sensitive,
+                "match_count": int(matches.sum()),
+                "non_match_count": int(non_match_count),
+                "non_match_percentage": float(non_match_pct),
+                "threshold": self.allow_threshold,
+                "total_rows": len(column_data),
+            },
+            failure_message=failure_msg,
+        )
+
+    @property
+    def name(self) -> str:
+        return f"pattern_check_{self.column}"

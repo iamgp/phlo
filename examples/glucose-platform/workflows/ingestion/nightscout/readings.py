@@ -51,7 +51,7 @@ def glucose_entries(partition_date: str):
     start_time_iso = f"{partition_date}T00:00:00.000Z"
     end_time_iso = f"{partition_date}T23:59:59.999Z"
 
-    source = rest_api(
+    return rest_api(
         client={
             "base_url": "https://gwp-diabetes.fly.dev/api/v1",
         },
@@ -69,5 +69,3 @@ def glucose_entries(partition_date: str):
             }
         ],
     )
-
-    return source
