@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
-
-from dlt.sources.rest_api import rest_api
 from phlo.ingestion import phlo_ingestion
 
+from workflows.ingestion.github.helpers import github_api
 from workflows.schemas.github import RawUserProfile
 
 
@@ -30,24 +28,7 @@ def user_profile(partition_date: str):
 
     The "last" dedup strategy keeps the most recent profile snapshot.
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    github_username = os.getenv("GITHUB_USERNAME", "iamgp")
-
-    return rest_api(
-        client={
-            "base_url": "https://api.github.com",
-            "headers": {
-                "Authorization": f"Bearer {github_token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-        },
-        resources=[
-            {
-                "name": "profile",
-                "endpoint": {
-                    "path": f"users/{github_username}",
-                },
-            }
-        ],
+    return github_api(
+        resource="profile",
+        path="users/{username}",
     )

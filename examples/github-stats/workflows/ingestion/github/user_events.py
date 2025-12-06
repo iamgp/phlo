@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
-
-from dlt.sources.rest_api import rest_api
 from phlo.ingestion import phlo_ingestion
 
+from workflows.ingestion.github.helpers import github_api
 from workflows.schemas.github import RawUserEvents
 
 
@@ -21,27 +19,8 @@ from workflows.schemas.github import RawUserEvents
     merge_config={"deduplication": True, "deduplication_method": "hash"},
 )
 def user_events(partition_date: str):
-    github_token = os.getenv("GITHUB_TOKEN")
-    github_username = os.getenv("GITHUB_USERNAME", "iamgp")
-
-    return rest_api(
-        client={
-            "base_url": "https://api.github.com",
-            "headers": {
-                "Authorization": f"Bearer {github_token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-        },
-        resources=[
-            {
-                "name": "events",
-                "endpoint": {
-                    "path": f"users/{github_username}/events",
-                    "params": {
-                        "per_page": 100,
-                    },
-                },
-            }
-        ],
+    return github_api(
+        resource="events",
+        path="users/{username}/events",
+        params={"per_page": 100},
     )

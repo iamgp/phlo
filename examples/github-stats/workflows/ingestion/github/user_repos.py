@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
-
-from dlt.sources.rest_api import rest_api
 from phlo.ingestion import phlo_ingestion
 
+from workflows.ingestion.github.helpers import github_api
 from workflows.schemas.github import RawUserRepos
 
 
@@ -31,29 +29,12 @@ def user_repos(partition_date: str):
 
     The "last" dedup strategy keeps the most recent repository snapshot.
     """
-    github_token = os.getenv("GITHUB_TOKEN")
-    github_username = os.getenv("GITHUB_USERNAME", "iamgp")
-
-    return rest_api(
-        client={
-            "base_url": "https://api.github.com",
-            "headers": {
-                "Authorization": f"Bearer {github_token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
+    return github_api(
+        resource="repos",
+        path="users/{username}/repos",
+        params={
+            "per_page": 100,
+            "sort": "updated",
+            "type": "all",
         },
-        resources=[
-            {
-                "name": "repos",
-                "endpoint": {
-                    "path": f"users/{github_username}/repos",
-                    "params": {
-                        "per_page": 100,
-                        "sort": "updated",
-                        "type": "all",
-                    },
-                },
-            }
-        ],
     )
