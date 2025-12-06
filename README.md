@@ -1,6 +1,10 @@
-# Phlo
+<p align="center">
+  <img src="docs/assets/phlo.png" alt="Phlo" width="400">
+</p>
 
-Modern data lakehouse platform built on Dagster, DLT, Iceberg, Nessie, and dbt.
+<p align="center">
+  <strong>Modern data lakehouse platform built on Dagster, DLT, Iceberg, Nessie, and dbt.</strong>
+</p>
 
 ## Features
 
