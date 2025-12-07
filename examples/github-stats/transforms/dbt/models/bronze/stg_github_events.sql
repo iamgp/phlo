@@ -18,9 +18,10 @@ select
     _dlt_load_id,
     _dlt_id
 from raw_data
-where id is not null
+where
+    id is not null
     and type is not null
     and created_at is not null
     {% if var('partition_date_str', None) is not none %}
-    and date(created_at) = date('{{ var('partition_date_str') }}')
+        and date(created_at) = date('{{ var('partition_date_str') }}')
     {% endif %}
