@@ -12,8 +12,8 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
-from phlo.config import get_settings
 from phlo.catalog.openmetadata import OpenMetadataColumn, OpenMetadataTable
+from phlo.config import get_settings
 
 logger = logging.getLogger(__name__)
 

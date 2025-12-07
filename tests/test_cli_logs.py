@@ -3,12 +3,11 @@
 import json
 from datetime import datetime, timedelta
 
-import pytest
 from click.testing import CliRunner
 
 from phlo.cli.logs import (
-    _get_mock_logs,
     _get_log_level,
+    _get_mock_logs,
     _is_json,
     _parse_since,
     logs,

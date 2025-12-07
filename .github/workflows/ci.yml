@@ -73,6 +73,10 @@ jobs:
         run: uv sync --dev --group dev
 
       - name: Run tests
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
         run: uv run pytest -m "not integration" --tb=short
 
   lint-sql:

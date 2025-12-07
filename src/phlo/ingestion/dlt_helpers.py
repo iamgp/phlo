@@ -104,7 +104,7 @@ def inject_metadata_columns(
     pq.write_table(arrow_table, str(parquet_path))
 
     if context:
-        context.log.debug(f"Added _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns")
+        context.log.debug("Added _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns")
 
     return parquet_path
 
@@ -267,7 +267,6 @@ def merge_to_iceberg(
     Returns:
         Merge metrics dict with rows_inserted and rows_deleted counts
     """
-    from typing import Any
 
     merge_config = merge_config or {}
     table_name = table_config.full_table_name

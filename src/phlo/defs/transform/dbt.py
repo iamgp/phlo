@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-import shutil
 import os
+import shutil
 from collections.abc import Generator, Mapping
 from typing import Any
 

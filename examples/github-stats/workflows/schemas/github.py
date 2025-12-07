@@ -8,7 +8,6 @@ This is required because Pandera's coerce=True needs explicit nullable flag.
 """
 
 from pandera.pandas import Field
-
 from phlo.schemas import PhloSchema
 
 

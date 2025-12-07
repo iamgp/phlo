@@ -10,7 +10,6 @@ from datetime import datetime
 from pathlib import Path
 
 from pandera.pandas import Field
-
 from phlo.schemas import PhloSchema, dbt_model_to_pandera
 
 # Validation constants
@@ -46,7 +45,10 @@ class RawGlucoseEntries(PhloSchema):
 # FACT LAYER - Generated from dbt model YAML (single source of truth)
 # =============================================================================
 
-_dbt_model_path = Path(__file__).parent.parent.parent / "transforms" / "dbt" / "models" / "silver" / "fct_glucose_readings.yml"
+_dbt_model_path = (
+    Path(__file__).parent.parent.parent
+    / "transforms" / "dbt" / "models" / "silver" / "fct_glucose_readings.yml"
+)
 FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
 
 

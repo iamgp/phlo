@@ -1,8 +1,8 @@
 """Alerting integration for Phlo pipelines."""
 
 from phlo.alerting.manager import (
-    AlertManager,
     Alert,
+    AlertManager,
     AlertSeverity,
     get_alert_manager,
 )

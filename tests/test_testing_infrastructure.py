@@ -4,21 +4,22 @@ Tests for the Phlo testing infrastructure.
 Validates that all mock resources work correctly and can be used for testing assets.
 """
 
-import pytest
-import pandas as pd
-import pyarrow as pa
 from pathlib import Path
 
+import pandas as pd
+import pytest
+
 from phlo.testing import (
+    FixtureRecorder,
     MockIcebergCatalog,
     MockTrinoResource,
+    local_test_mode,
     mock_dlt_source,
     mock_dlt_source_with_error,
-    test_asset_execution as run_asset_test,  # Aliased to avoid pytest collection
-    local_test_mode,
-    FixtureRecorder,
 )
-
+from phlo.testing import (
+    test_asset_execution as run_asset_test,  # Aliased to avoid pytest collection
+)
 
 # ========== MockIcebergCatalog Tests ==========
 

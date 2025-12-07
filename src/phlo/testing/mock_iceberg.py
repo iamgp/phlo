@@ -15,11 +15,12 @@ Example:
 
 from __future__ import annotations
 
-from typing import Any, Iterator, Sequence, Optional, Union
-from dataclasses import dataclass, field
+from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Any, Iterator, Optional, Sequence, Union
+
 import duckdb
 import pandas as pd
-from contextlib import contextmanager
 
 
 def _normalize_type(dtype: str) -> str:

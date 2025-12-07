@@ -1,7 +1,6 @@
 """Tests for OpenMetadata REST API client."""
 
-import json
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
@@ -9,7 +8,6 @@ import requests
 from phlo.catalog.openmetadata import (
     OpenMetadataClient,
     OpenMetadataColumn,
-    OpenMetadataLineageEdge,
     OpenMetadataTable,
 )
 

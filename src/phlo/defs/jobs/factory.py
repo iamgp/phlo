@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-import yaml
 from pathlib import Path
 from typing import Any, Dict, List
 
 import dagster as dg
+import yaml
 from dagster import AssetKey
 
 from phlo.defs.partitions import daily_partition

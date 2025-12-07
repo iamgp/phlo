@@ -1,15 +1,12 @@
 """Tests for PostgREST view generation."""
 
 import json
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from phlo.api.postgrest.views import (
     DbtManifestParser,
-    DbtModel,
     PostgreSTViewManager,
     ViewGenerator,
     generate_views,

@@ -26,6 +26,7 @@ Usage::
 
 from phlo.quality.decorator import phlo_quality as quality
 
+
 # Lazy import for ingestion to avoid circular/heavy dependencies
 def __getattr__(name):
     if name == "ingestion":

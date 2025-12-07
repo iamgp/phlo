@@ -170,8 +170,9 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
         List of log dictionaries
     """
     try:
-        from dagster_graphql import DagsterGraphQLClient
         import os
+
+        from dagster_graphql import DagsterGraphQLClient
 
         dagster_host = os.getenv("DAGSTER_WEBSERVER_HOST", "localhost")
         dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT", "3000")

@@ -16,16 +16,15 @@ import json
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator
 
-import pytest
 import pandas as pd
+import pytest
 
+from phlo.testing.execution import MockAssetContext
+from phlo.testing.mock_dlt import MockDLTResource, mock_dlt_source
 from phlo.testing.mock_iceberg import MockIcebergCatalog
 from phlo.testing.mock_trino import MockTrinoResource
-from phlo.testing.mock_dlt import mock_dlt_source, MockDLTResource
-from phlo.testing.execution import MockAssetContext
-
 
 # --- Mock Resource Fixtures ---
 
@@ -262,7 +261,7 @@ def setup_test_catalog(
         ...     table = setup_test_catalog.load_table("raw.users")
     """
     from pyiceberg.schema import Schema
-    from pyiceberg.types import NestedField, StringType, IntegerType, DoubleType
+    from pyiceberg.types import DoubleType, IntegerType, NestedField, StringType
 
     # Create sample table
     schema = Schema(
@@ -430,7 +429,7 @@ def create_partition_dates(start: str, end: str, step_days: int = 1) -> list[str
 # --- conftest.py Template ---
 
 # Import from dedicated module per spec structure
-from phlo.testing.conftest_template import CONFTEST_TEMPLATE, get_conftest_template
+from phlo.testing.conftest_template import get_conftest_template
 
 
 @pytest.fixture

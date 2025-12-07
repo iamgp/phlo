@@ -8,8 +8,8 @@ Automated tests for Cascade REST API.
 Tests authentication, endpoints, and error handling.
 """
 
-import requests
 import pytest
+import requests
 
 # Mark entire module as integration tests (requires running API services)
 pytestmark = pytest.mark.integration

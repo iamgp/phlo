@@ -4,17 +4,15 @@ Examples of using the @phlo.quality decorator.
 This module demonstrates all quality check types and decorator patterns.
 """
 
-from datetime import datetime
 
 import phlo
 from phlo.quality import (
+    CountCheck,
+    CustomSQLCheck,
+    FreshnessCheck,
     NullCheck,
     RangeCheck,
-    FreshnessCheck,
     UniqueCheck,
-    CountCheck,
-    SchemaCheck,
-    CustomSQLCheck,
 )
 
 

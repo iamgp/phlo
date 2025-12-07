@@ -10,8 +10,8 @@ from typing import Any
 
 import dagster as dg
 from dagster import (
-    AssetKey,
     AssetExecutionContext,
+    AssetKey,
     DagsterEventType,
     EventRecordsFilter,
 )

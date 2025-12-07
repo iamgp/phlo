@@ -54,7 +54,6 @@ def show(format: str):
         console.print("\n[bold]Effective Infrastructure Configuration:[/bold]\n")
         console.print(syntax)
     else:
-        import json
         config_dict = infra_config.model_dump(exclude_none=False)
         console.print_json(data={"infrastructure": config_dict})
 
