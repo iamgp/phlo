@@ -36,5 +36,5 @@ def __getattr__(name):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__version__ = "0.1.0"
+__version__ = "1.0.0-alpha.0"
 __all__ = ["quality", "ingestion"]
