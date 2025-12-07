@@ -7,7 +7,7 @@
     tags=['github', 'int']
 ) }}
 
- /*
+/*
 Enriched GitHub user events with calculated metrics
 
 This model adds useful calculated fields:
@@ -53,7 +53,9 @@ enriched as (
         case
             when event_type in ('PushEvent', 'CommitCommentEvent') then 'code_contribution'
             when event_type in ('IssuesEvent', 'IssueCommentEvent') then 'issue_management'
-            when event_type in ('PullRequestEvent', 'PullRequestReviewEvent', 'PullRequestReviewCommentEvent') then 'pull_request'
+            when
+                event_type in ('PullRequestEvent', 'PullRequestReviewEvent', 'PullRequestReviewCommentEvent')
+                then 'pull_request'
             when event_type in ('CreateEvent', 'DeleteEvent', 'ForkEvent') then 'repository_management'
             when event_type = 'WatchEvent' then 'social'
             when event_type = 'MemberEvent' then 'collaboration'
@@ -64,16 +66,10 @@ enriched as (
         end as event_category,
 
         -- Repository visibility (public/private)
-        case
-            when json_extract_string(repo, '$.private') = 'true' then false
-            else true
-        end as is_repo_public,
+        not coalesce(json_extract_string(repo, '$.private') = 'true', false) as is_repo_public,
 
         -- Organization involvement
-        case
-            when org is not null then true
-            else false
-        end as involves_organization
+        coalesce(org is not null, false) as involves_organization
 
     from events_data
 )

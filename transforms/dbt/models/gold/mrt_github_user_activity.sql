@@ -8,7 +8,7 @@
     tags=['github', 'curated']
 ) }}
 
- /*
+/*
 Curated fact table for GitHub user activity
 
 This model provides a clean, deduplicated, production-ready dataset for
@@ -42,5 +42,5 @@ from {{ ref('fct_github_user_events') }}
 
 {% if is_incremental() %}
     -- Only process new data on incremental runs
-    where created_at > (select max(created_at) from {{ this }})
+    where created_at > (select max(prev.created_at) from {{ this }} as prev)
 {% endif %}

@@ -126,7 +126,7 @@ class TrinoResource(ConfigurableResource):
         parameters: Sequence[Any] | None = None,
         schema: str | None = None,
         branch: Literal["main", "dev"] | None = None,
-    ) -> list[tuple[Any, ...]]:
+    ) -> list[list[Any]]:
         """
         Execute SQL and fetch all rows.
 
@@ -137,7 +137,7 @@ class TrinoResource(ConfigurableResource):
             branch: Branch to use ("main" or "dev")
 
         Returns:
-            List of result tuples, or empty list for statements without a result set
+            List of result rows, or empty list for statements without a result set
         """
         with self.cursor(schema=schema, branch=branch) as cursor:
             cursor.execute(sql, parameters or [])

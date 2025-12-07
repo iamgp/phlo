@@ -8,7 +8,7 @@
     tags=['github', 'curated']
 ) }}
 
- /*
+/*
 Curated fact table for GitHub repository metrics
 
 This model provides a clean, deduplicated, production-ready dataset for
@@ -41,7 +41,7 @@ from {{ ref('fct_github_repo_stats') }}
 
 {% if is_incremental() %}
     -- Only process new data on incremental runs
-    where collection_date > (select coalesce(max(collection_date), date('1900-01-01')) from {{ this }})
+    where collection_date > (select coalesce(max(prev.collection_date), date('1900-01-01')) from {{ this }} as prev)
 {% endif %}
 
-order by collection_date desc, repo_full_name
+order by collection_date desc, repo_full_name asc

@@ -207,43 +207,52 @@ def _format_number(num: int) -> str:
     return f"{num:,}"
 
 
-def _format_bytes(bytes_val: int) -> str:
+def _format_bytes(bytes_val: int | float) -> str:
     """Format bytes as human-readable size."""
+    val = float(bytes_val)
     for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if bytes_val < 1024:
-            return f"{bytes_val:.2f} {unit}"
-        bytes_val /= 1024
-    return f"{bytes_val:.2f} PB"
+        if val < 1024:
+            return f"{val:.2f} {unit}"
+        val /= 1024
+    return f"{val:.2f} PB"
 
 
 def _export_json(metrics: object, output: Path) -> None:
     """Export metrics as JSON."""
     # Convert dataclass to dict
-    metrics_dict = _dataclass_to_dict(metrics)
-    metrics_dict["exported_at"] = datetime.utcnow().isoformat()
-
-    with open(output, "w") as f:
-        json.dump(metrics_dict, f, indent=2, default=str)
+    result = _dataclass_to_dict(metrics)
+    if isinstance(result, dict):
+        result["exported_at"] = datetime.utcnow().isoformat()
+        with open(output, "w") as f:
+            json.dump(result, f, indent=2, default=str)
+    else:
+        with open(output, "w") as f:
+            json.dump({"data": result, "exported_at": datetime.utcnow().isoformat()}, f, indent=2, default=str)
 
 
 def _export_csv(metrics: object, output: Path) -> None:
     """Export metrics as CSV."""
     import csv
 
-    metrics_dict = _dataclass_to_dict(metrics)
-    metrics_dict["exported_at"] = datetime.utcnow().isoformat()
+    result = _dataclass_to_dict(metrics)
+    if isinstance(result, dict):
+        result["exported_at"] = datetime.utcnow().isoformat()
+        with open(output, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=result.keys())
+            writer.writeheader()
+            writer.writerow(result)
+    else:
+        with open(output, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["data", "exported_at"])
+            writer.writerow([str(result), datetime.utcnow().isoformat()])
 
-    with open(output, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=metrics_dict.keys())
-        writer.writeheader()
-        writer.writerow(metrics_dict)
 
-
-def _dataclass_to_dict(obj: object) -> dict:
+def _dataclass_to_dict(obj: object) -> dict | object:
     """Recursively convert dataclass to dict."""
     if hasattr(obj, "__dataclass_fields__"):
-        result = {}
-        for field in obj.__dataclass_fields__:
+        result: dict = {}
+        for field in obj.__dataclass_fields__:  # type: ignore[attr-defined]
             value = getattr(obj, field)
             if hasattr(value, "__dataclass_fields__"):
                 result[field] = _dataclass_to_dict(value)
