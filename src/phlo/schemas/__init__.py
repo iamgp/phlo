@@ -8,9 +8,13 @@ from phlo.schemas.asset_outputs import (
     RawDataOutput,
     TablePublishStats,
 )
+from phlo.schemas.base import PhloSchema
+from phlo.schemas.dbt_schema import dbt_model_to_pandera
 
 # Public API
 __all__ = [
+    "PhloSchema",
+    "dbt_model_to_pandera",
     "PublishPostgresOutput",
     "RawDataOutput",
     "TablePublishStats",

@@ -41,7 +41,7 @@ from phlo.cli.logs import logs
 from phlo.cli.schema import schema
 from phlo.cli.catalog import catalog
 from phlo.cli.branch import branch
-from phlo.cli.contract import contract
+
 
 # Add observability commands
 from phlo.cli.metrics import metrics_group
@@ -65,7 +65,7 @@ cli.add_command(logs)
 cli.add_command(schema)
 cli.add_command(catalog)
 cli.add_command(branch)
-cli.add_command(contract)
+
 cli.add_command(metrics_group)
 cli.add_command(lineage_group)
 cli.add_command(alerts_group)
