@@ -2,6 +2,9 @@
 Pandera schemas for github domain.
 
 Schemas define data validation rules and auto-generate Iceberg schemas.
+
+Note: For optional fields (str | None), always use Field(nullable=True).
+This is required because Pandera's coerce=True needs explicit nullable flag.
 """
 
 from pandera.pandas import Field
@@ -15,8 +18,8 @@ class RawUserEvents(PhloSchema):
     id: str = Field(unique=True)
     type: str
     created_at: str
-    actor__login: str | None
-    repo__name: str | None
+    actor__login: str | None = Field(nullable=True)
+    repo__name: str | None = Field(nullable=True)
 
 
 class RawUserRepos(PhloSchema):
@@ -27,7 +30,7 @@ class RawUserRepos(PhloSchema):
     full_name: str
     stargazers_count: int = Field(ge=0)
     forks_count: int = Field(ge=0)
-    language: str | None
+    language: str | None = Field(nullable=True)
     created_at: str
     updated_at: str
 
@@ -37,7 +40,7 @@ class RawUserProfile(PhloSchema):
 
     id: int = Field(unique=True)
     login: str
-    name: str | None
+    name: str | None = Field(nullable=True)
     followers: int = Field(ge=0)
     following: int = Field(ge=0)
     public_repos: int = Field(ge=0)
