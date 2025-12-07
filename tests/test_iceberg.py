@@ -189,44 +189,75 @@ class TestIcebergTablesUnitTests:
     @patch('pyarrow.parquet.read_table')
     def test_append_to_table_adds_parquet_data_to_existing_tables(self, mock_read_table, mock_get_catalog):
         """Test that append_to_table adds parquet data to existing tables."""
+        import pyarrow as pa
+
         mock_catalog = MagicMock()
         mock_get_catalog.return_value = mock_catalog
 
+        # Create a real schema for the mock table
+        iceberg_schema = Schema(
+            NestedField(1, "id", StringType(), required=True),
+            NestedField(2, "name", StringType(), required=False),
+        )
+
         mock_table = MagicMock()
+        mock_table.schema.return_value = iceberg_schema
         mock_catalog.load_table.return_value = mock_table
 
-        mock_arrow_table = MagicMock()
+        # Create a real arrow table with matching schema
+        arrow_schema = pa.schema([
+            pa.field("id", pa.string()),
+            pa.field("name", pa.string()),
+        ])
+        mock_arrow_table = pa.table({"id": ["1"], "name": ["test"]}, schema=arrow_schema)
         mock_read_table.return_value = mock_arrow_table
 
         # Test with single file
-        append_to_table("raw.entries", "/path/to/data.parquet")
+        result = append_to_table("raw.entries", "/path/to/data.parquet")
 
         mock_catalog.load_table.assert_called_once_with("raw.entries")
         mock_read_table.assert_called_once_with("/path/to/data.parquet")
-        mock_table.append.assert_called_once_with(mock_arrow_table)
+        mock_table.append.assert_called_once()
+        assert result["rows_inserted"] == 1
 
     @patch('phlo.iceberg.tables.get_catalog')
     @patch('pyarrow.parquet.ParquetDataset')
     def test_append_to_table_handles_directories(self, mock_parquet_dataset, mock_get_catalog):
         """Test that append_to_table handles directories of parquet files."""
+        import pyarrow as pa
+
         mock_catalog = MagicMock()
         mock_get_catalog.return_value = mock_catalog
 
+        # Create a real schema for the mock table
+        iceberg_schema = Schema(
+            NestedField(1, "id", StringType(), required=True),
+            NestedField(2, "name", StringType(), required=False),
+        )
+
         mock_table = MagicMock()
+        mock_table.schema.return_value = iceberg_schema
         mock_catalog.load_table.return_value = mock_table
 
+        # Create a real arrow table with matching schema
+        arrow_schema = pa.schema([
+            pa.field("id", pa.string()),
+            pa.field("name", pa.string()),
+        ])
+        mock_arrow_table = pa.table({"id": ["1", "2"], "name": ["a", "b"]}, schema=arrow_schema)
+
         mock_dataset = MagicMock()
-        mock_arrow_table = MagicMock()
         mock_dataset.read.return_value = mock_arrow_table
         mock_parquet_dataset.return_value = mock_dataset
 
         # Mock Path.is_dir() to return True
         with patch('pathlib.Path.is_dir', return_value=True):
-            append_to_table("raw.entries", "/path/to/data_dir")
+            result = append_to_table("raw.entries", "/path/to/data_dir")
 
         mock_parquet_dataset.assert_called_once_with("/path/to/data_dir")
         mock_dataset.read.assert_called_once()
-        mock_table.append.assert_called_once_with(mock_arrow_table)
+        mock_table.append.assert_called_once()
+        assert result["rows_inserted"] == 2
 
     @patch('phlo.iceberg.tables.get_catalog')
     def test_get_table_schema_retrieves_schemas_from_existing_tables(self, mock_get_catalog):

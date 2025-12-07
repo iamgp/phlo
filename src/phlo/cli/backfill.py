@@ -15,6 +15,8 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from phlo.cli.services import find_dagster_container, get_project_name
+
 console = Console()
 
 
@@ -245,13 +247,10 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
     Returns:
         List of command components
     """
-    from phlo.cli.services import find_dagster_container, get_project_name
+    import platform
 
     project_name = get_project_name()
     container_name = find_dagster_container(project_name)
-
-    import platform
-
     host_platform = platform.system()
 
     return [
