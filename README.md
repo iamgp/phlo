@@ -10,7 +10,6 @@
   <a href="https://github.com/iamgp/phlo/actions/workflows/ci.yml"><img src="https://github.com/iamgp/phlo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/phlo/"><img src="https://img.shields.io/pypi/v/phlo" alt="PyPI"></a>
   <a href="https://pypi.org/project/phlo/"><img src="https://img.shields.io/pypi/pyversions/phlo" alt="Python"></a>
-  <a href="https://github.com/iamgp/phlo/blob/main/LICENSE"><img src="https://img.shields.io/github/license/iamgp/phlo" alt="License"></a>
 </p>
 
 ## Features
