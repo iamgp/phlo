@@ -12,7 +12,7 @@ from pandera.pandas import DataFrameModel, Field
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
-from phlo.ingestion.decorator import _INGESTION_ASSETS, phlo_ingestion, get_ingestion_assets
+from phlo.ingestion.decorator import _INGESTION_ASSETS, get_ingestion_assets, phlo_ingestion
 
 
 def get_asset_spec(asset_def):

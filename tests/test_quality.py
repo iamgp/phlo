@@ -4,11 +4,10 @@ This module contains unit, integration, and data quality tests for the
 phlo.defs.quality.nightscout module.
 """
 
-from unittest.mock import MagicMock
 from typing import cast
+from unittest.mock import MagicMock
 
 from dagster import AssetCheckResult, MetadataValue, build_asset_check_context
-
 from phlo.defs.quality.nightscout import nightscout_glucose_quality_check
 
 

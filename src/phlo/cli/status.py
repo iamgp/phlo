@@ -70,7 +70,7 @@ def status(
       phlo status --json             # JSON output for scripting
     """
     if not output_json:
-        console.print(f"\n[bold blue]📊 Status Report[/bold blue]\n")
+        console.print("\n[bold blue]📊 Status Report[/bold blue]\n")
 
     start_time = time.time()
 
@@ -117,8 +117,9 @@ def _get_asset_status(
 
     try:
         # Try to get asset info from Dagster
-        from dagster_graphql import DagsterGraphQLClient
         import os
+
+        from dagster_graphql import DagsterGraphQLClient
 
         dagster_host = os.getenv("DAGSTER_WEBSERVER_HOST", "localhost")
         dagster_port = os.getenv("DAGSTER_WEBSERVER_PORT", "3000")
@@ -176,7 +177,7 @@ def _get_asset_status(
                         "is_stale": is_stale,
                     }
                     assets.append(status_info)
-        except Exception as e:
+        except Exception:
             # If GraphQL fails, silently continue (service might be down)
             pass
 

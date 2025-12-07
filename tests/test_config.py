@@ -5,8 +5,9 @@ Tests cover configuration loading, validation, computed fields, caching, and con
 """
 
 import os
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from phlo.config import Settings, _get_config
 

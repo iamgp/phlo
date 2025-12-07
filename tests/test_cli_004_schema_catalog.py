@@ -8,14 +8,12 @@ Tests cover:
 """
 
 import json
-from pathlib import Path
-from typing import Optional
 
 import pytest
 from click.testing import CliRunner
 
 from phlo.cli.main import cli
-from phlo.cli.utils import discover_pandera_schemas, classify_schema_change
+from phlo.cli.utils import classify_schema_change, discover_pandera_schemas
 
 
 class TestSchemaCommands:

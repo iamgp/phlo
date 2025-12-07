@@ -12,11 +12,11 @@ from datetime import datetime
 
 import dagster as dg
 
-from phlo.config import get_settings
-from phlo.catalog.openmetadata import OpenMetadataClient
-from phlo.catalog.nessie import NessieTableScanner
 from phlo.catalog.dbt_sync import DbtManifestParser
 from phlo.catalog.lineage import LineageExtractor
+from phlo.catalog.nessie import NessieTableScanner
+from phlo.catalog.openmetadata import OpenMetadataClient
+from phlo.config import get_settings
 
 logger = logging.getLogger(__name__)
 

@@ -13,8 +13,8 @@ from urllib.parse import urljoin
 
 import requests
 
-from phlo.config import get_settings
 from phlo.catalog.openmetadata import OpenMetadataColumn, OpenMetadataTable
+from phlo.config import get_settings
 
 logger = logging.getLogger(__name__)
 

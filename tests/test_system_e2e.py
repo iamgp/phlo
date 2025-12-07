@@ -31,7 +31,7 @@ class TestSystemE2ETests:
                     # Single asset or try key
                     try:
                         asset_keys.append(str(asset.key))
-                    except:
+                    except Exception:
                         # Skip assets that don't have accessible keys
                         continue
         assert any('entries' in key for key in asset_keys)
@@ -53,7 +53,7 @@ class TestSystemE2ETests:
                     try:
                         if 'publish' in str(asset.key):
                             publishing_assets.append(asset)
-                    except:
+                    except Exception:
                         continue
         assert len(publishing_assets) > 0
 
@@ -178,7 +178,7 @@ class TestSystemDataQualityTests:
                     try:
                         if 'publish' in str(asset.key):
                             publishing_assets.append(asset)
-                    except:
+                    except Exception:
                         continue
         # Verify that publishing assets exist (dependency verification would be in integration tests)
         assert len(publishing_assets) > 0
@@ -271,6 +271,6 @@ class TestSystemDataQualityTests:
                     try:
                         if 'publish' in str(asset.key):
                             publishing_assets.append(asset)
-                    except:
+                    except Exception:
                         continue
         assert len(publishing_assets) > 0

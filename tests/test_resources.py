@@ -6,7 +6,6 @@ phlo.defs.resources module, focusing on IcebergResource and TrinoResource.
 
 from unittest.mock import MagicMock, patch
 
-
 from phlo.defs.resources.iceberg import IcebergResource
 from phlo.defs.resources.trino import TrinoResource
 

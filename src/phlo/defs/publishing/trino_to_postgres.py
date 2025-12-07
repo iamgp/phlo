@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import psycopg2
 import yaml
 from dagster import AssetKey, asset
-from pathlib import Path
 
 from phlo.config import config
 from phlo.defs.resources.trino import TrinoResource

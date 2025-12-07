@@ -4,8 +4,8 @@ Automated tests for Cascade GraphQL API (Hasura).
 Tests authentication, queries, and GraphQL-specific functionality.
 """
 
-import requests
 import pytest
+import requests
 
 # Mark entire module as integration tests (requires running API services)
 pytestmark = pytest.mark.integration

@@ -8,7 +8,6 @@ with tolerance levels for glucose data validation.
 from __future__ import annotations
 
 import pandas as pd
-import pandera.errors
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
 from phlo.defs.resources.trino import TrinoResource
 
