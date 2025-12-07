@@ -84,5 +84,7 @@ bump = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 norecursedirs = ["src", ".venv"]
 addopts = "--ignore=src --continue-on-collection-errors"
