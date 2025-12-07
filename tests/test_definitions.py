@@ -4,8 +4,9 @@ This module contains unit and integration tests for the
 phlo.definitions module, focusing on definition merging and executor selection.
 """
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 # Mark entire module as integration tests (requires dbt manifest)
 pytestmark = pytest.mark.integration

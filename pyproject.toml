@@ -89,3 +89,9 @@ ignore = ["E501"]  # Line too long - let the formatter handle this
 "src/phlo/cli/main.py" = ["E402"]
 # Fixtures imports at bottom for conftest template
 "src/phlo/testing/fixtures.py" = ["E402"]
+# Test files have pytestmark before imports (required for pytest collection)
+"tests/test_definitions.py" = ["E402"]
+"tests/test_system_e2e.py" = ["E402"]
+"tests/test_transform.py" = ["E402"]
+"tests/test_resources.py" = ["E402"]
+"tests/scripts/test_duckdb_iceberg.py" = ["E402"]
