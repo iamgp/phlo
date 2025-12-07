@@ -2,9 +2,9 @@
 Framework Definitions
 
 This module provides the main Dagster Definitions entry point for user projects.
-It discovers user workflows and merges them with core Cascade framework resources.
+It discovers user workflows and merges them with core Phlo framework resources.
 
-This is the new entry point for user projects using Cascade as an installable package.
+This is the new entry point for user projects using Phlo as an installable package.
 For the legacy in-package mode, use phlo.definitions instead.
 """
 
@@ -28,9 +28,9 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     Choose an executor suited to the current environment.
 
     Priority order:
-    1. CASCADE_FORCE_IN_PROCESS_EXECUTOR (explicit override)
-    2. CASCADE_FORCE_MULTIPROCESS_EXECUTOR (explicit override)
-    3. CASCADE_HOST_PLATFORM (from environment, for Docker on macOS)
+    1. PHLO_FORCE_IN_PROCESS_EXECUTOR (explicit override)
+    2. PHLO_FORCE_MULTIPROCESS_EXECUTOR (explicit override)
+    3. PHLO_HOST_PLATFORM (from environment, for Docker on macOS)
     4. platform.system() (fallback for local dev)
 
     Multiprocessing is desirable on Linux servers, but DuckDB has been crashing
@@ -43,23 +43,23 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     settings = get_settings()
 
     # Priority 1: Explicit force in-process
-    if settings.cascade_force_in_process_executor:
-        logger.info("Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)")
+    if settings.phlo_force_in_process_executor:
+        logger.info("Using in-process executor (forced via PHLO_FORCE_IN_PROCESS_EXECUTOR)")
         return dg.in_process_executor
 
     # Priority 2: Explicit force multiprocess
-    if settings.cascade_force_multiprocess_executor:
-        logger.info("Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)")
+    if settings.phlo_force_multiprocess_executor:
+        logger.info("Using multiprocess executor (forced via PHLO_FORCE_MULTIPROCESS_EXECUTOR)")
         return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
     # Priority 3: Check host platform (for Docker on macOS detection)
-    host_platform = settings.cascade_host_platform
+    host_platform = settings.phlo_host_platform
     if host_platform is None:
         # Priority 4: Fall back to container/local platform
         host_platform = platform.system()
-        logger.debug(f"CASCADE_HOST_PLATFORM not set, detected: {host_platform}")
+        logger.debug(f"PHLO_HOST_PLATFORM not set, detected: {host_platform}")
     else:
-        logger.info(f"Using CASCADE_HOST_PLATFORM: {host_platform}")
+        logger.info(f"Using PHLO_HOST_PLATFORM: {host_platform}")
 
     # Use in-process executor if host is macOS
     if host_platform == "Darwin":
@@ -199,7 +199,7 @@ def build_definitions(
 
 
 # Environment variable to control whether to include core assets
-_INCLUDE_CORE_ASSETS = os.environ.get("CASCADE_INCLUDE_CORE_ASSETS", "false").lower() in (
+_INCLUDE_CORE_ASSETS = os.environ.get("PHLO_INCLUDE_CORE_ASSETS", "false").lower() in (
     "true",
     "1",
     "yes",
