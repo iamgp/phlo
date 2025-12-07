@@ -438,9 +438,7 @@ class MockIcebergCatalog:
         """
         duckdb_name = name.replace(".", "_")
         if duckdb_name not in self.tables:
-            raise KeyError(
-                f"Table {name} not found. Available tables: {list(self.tables.keys())}"
-            )
+            raise KeyError(f"Table {name} not found. Available tables: {list(self.tables.keys())}")
         return self.tables[duckdb_name]
 
     def list_tables(self) -> List[str]:
@@ -738,8 +736,7 @@ def load_fixture(
 
     else:
         raise ValueError(
-            f"Unsupported fixture format: {suffix}. "
-            "Supported formats: .json, .csv, .parquet"
+            f"Unsupported fixture format: {suffix}. Supported formats: .json, .csv, .parquet"
         )
 
 
@@ -817,8 +814,7 @@ def save_fixture(
 
     else:
         raise ValueError(
-            f"Unsupported fixture format: {suffix}. "
-            "Supported formats: .json, .csv, .parquet"
+            f"Unsupported fixture format: {suffix}. Supported formats: .json, .csv, .parquet"
         )
 
 

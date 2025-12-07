@@ -15,11 +15,13 @@ def plugin():
 @pytest.fixture
 def sample_df():
     """Create sample DataFrame for testing."""
-    return pd.DataFrame({
-        "id": [1, 2, 3],
-        "title": ["hello world", "foo bar", "test"],
-        "body": ["this is a test", "another test", "final test"],
-    })
+    return pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "title": ["hello world", "foo bar", "test"],
+            "body": ["this is a test", "another test", "final test"],
+        }
+    )
 
 
 def test_metadata(plugin):
@@ -105,9 +107,11 @@ def test_transform_preserves_other_columns(plugin, sample_df):
 
 def test_transform_with_nulls_skip_na_true(plugin):
     """Test handling of null values with skip_na=True."""
-    df = pd.DataFrame({
-        "text": ["hello", None, "world"],
-    })
+    df = pd.DataFrame(
+        {
+            "text": ["hello", None, "world"],
+        }
+    )
 
     config = {
         "columns": ["text"],
@@ -123,9 +127,11 @@ def test_transform_with_nulls_skip_na_true(plugin):
 
 def test_transform_with_nulls_skip_na_false(plugin):
     """Test handling of null values with skip_na=False."""
-    df = pd.DataFrame({
-        "text": ["hello", None, "world"],
-    })
+    df = pd.DataFrame(
+        {
+            "text": ["hello", None, "world"],
+        }
+    )
 
     config = {
         "columns": ["text"],

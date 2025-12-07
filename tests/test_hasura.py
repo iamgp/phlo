@@ -93,10 +93,7 @@ class TestHasuraClient:
 
         # Verify permission structure
         payload = mock_request.call_args[1]["json"]
-        assert (
-            payload["args"]["permission"]["columns"]
-            == ["reading_id", "sgv"]
-        )
+        assert payload["args"]["permission"]["columns"] == ["reading_id", "sgv"]
 
     @patch("phlo.api.hasura.client.requests.request")
     def test_export_metadata(self, mock_request, sample_metadata):
@@ -130,9 +127,7 @@ class TestHasuraClient:
         """Should handle API errors."""
         mock_response = MagicMock()
         mock_response.status_code = 400
-        mock_response.json.return_value = {
-            "error": "Invalid request"
-        }
+        mock_response.json.return_value = {"error": "Invalid request"}
         mock_request.return_value = mock_response
 
         client = HasuraClient()
@@ -231,11 +226,7 @@ class TestHasuraPermissionManager:
         """Should load JSON config file."""
         config = {
             "tables": {
-                "api.glucose_readings": {
-                    "select": {
-                        "analyst": {"columns": ["*"], "filter": {}}
-                    }
-                }
+                "api.glucose_readings": {"select": {"analyst": {"columns": ["*"], "filter": {}}}}
             }
         }
 
@@ -246,20 +237,14 @@ class TestHasuraPermissionManager:
         manager = HasuraPermissionManager()
         loaded = manager.load_config(str(config_file))
 
-        assert loaded["tables"]["api.glucose_readings"] == config["tables"][
-            "api.glucose_readings"
-        ]
+        assert loaded["tables"]["api.glucose_readings"] == config["tables"]["api.glucose_readings"]
 
     @patch.object(HasuraClient, "create_select_permission")
     def test_sync_permissions(self, mock_perm):
         """Should sync permissions from config."""
         config = {
             "tables": {
-                "api.glucose_readings": {
-                    "select": {
-                        "analyst": {"columns": ["*"], "filter": {}}
-                    }
-                }
+                "api.glucose_readings": {"select": {"analyst": {"columns": ["*"], "filter": {}}}}
             }
         }
         mock_perm.return_value = {"message": "success"}
@@ -302,25 +287,15 @@ class TestRoleHierarchy:
 
     def test_expand_permissions(self):
         """Should expand permissions based on hierarchy."""
-        config = {
-            "tables": {
-                "api.data": {
-                    "select": {
-                        "analyst": {"columns": ["*"], "filter": {}}
-                    }
-                }
-            }
-        }
+        config = {"tables": {"api.data": {"select": {"analyst": {"columns": ["*"], "filter": {}}}}}}
 
         hierarchy = RoleHierarchy()
         expanded = hierarchy.expand_permissions(config)
 
         # analyst should have permission
-        assert ("analyst" in
-                expanded["tables"]["api.data"]["select"])
+        assert "analyst" in expanded["tables"]["api.data"]["select"]
         # anon should inherit analyst's permission
-        assert ("anon" in
-                expanded["tables"]["api.data"]["select"])
+        assert "anon" in expanded["tables"]["api.data"]["select"]
 
 
 class TestHasuraMetadataSync:

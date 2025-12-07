@@ -86,9 +86,7 @@ class TestSchemaCommands:
     def test_schema_diff_json(self):
         """Test phlo schema diff with JSON output."""
         runner = CliRunner()
-        result = runner.invoke(
-            cli, ["schema", "diff", "RawGlucoseEntries", "--format", "json"]
-        )
+        result = runner.invoke(cli, ["schema", "diff", "RawGlucoseEntries", "--format", "json"])
 
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -213,9 +211,7 @@ class TestCatalogCommands:
     def test_catalog_history(self):
         """Test phlo catalog history command."""
         runner = CliRunner()
-        result = runner.invoke(
-            cli, ["catalog", "history", "raw.glucose_entries", "--limit", "5"]
-        )
+        result = runner.invoke(cli, ["catalog", "history", "raw.glucose_entries", "--limit", "5"])
 
         # Would need running Iceberg catalog
         assert result.exit_code in [0, 1]

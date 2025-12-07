@@ -4,7 +4,11 @@ This module contains unit and integration tests for the
 phlo.definitions module, focusing on definition merging and executor selection.
 """
 
+import pytest
 from unittest.mock import patch
+
+# Mark entire module as integration tests (requires dbt manifest)
+pytestmark = pytest.mark.integration
 
 from phlo.definitions import _default_executor, _merged_definitions, defs
 
@@ -12,7 +16,7 @@ from phlo.definitions import _default_executor, _merged_definitions, defs
 class TestDefinitionsUnitTests:
     """Unit tests for definition merging and executor selection."""
 
-    @patch('phlo.definitions.config')
+    @patch("phlo.definitions.config")
     def test_executor_selection_works_for_different_platforms(self, mock_config):
         """Test that executor selection works for different platforms."""
         mock_config.cascade_force_in_process_executor = False
@@ -22,21 +26,21 @@ class TestDefinitionsUnitTests:
         mock_config.cascade_host_platform = "Darwin"
         executor = _default_executor()
         assert executor is not None
-        assert executor.name == 'in_process'
+        assert executor.name == "in_process"
 
         # Test Linux - should use multiprocess
         mock_config.cascade_host_platform = "Linux"
         executor = _default_executor()
         assert executor is not None
-        assert executor.name == 'multiprocess'
+        assert executor.name == "multiprocess"
 
         # Test Windows - should use multiprocess
         mock_config.cascade_host_platform = "Windows"
         executor = _default_executor()
         assert executor is not None
-        assert executor.name == 'multiprocess'
+        assert executor.name == "multiprocess"
 
-    @patch('phlo.definitions.config')
+    @patch("phlo.definitions.config")
     def test_executor_selection_respects_force_flags(self, mock_config):
         """Test that executor selection respects force flags."""
         # Test force in-process
@@ -45,7 +49,7 @@ class TestDefinitionsUnitTests:
 
         executor = _default_executor()
         assert executor is not None
-        assert executor.name == 'in_process'
+        assert executor.name == "in_process"
 
         # Test force multiprocess
         mock_config.cascade_force_in_process_executor = False
@@ -53,25 +57,34 @@ class TestDefinitionsUnitTests:
 
         executor = _default_executor()
         assert executor is not None
-        assert executor.name == 'multiprocess'
+        assert executor.name == "multiprocess"
 
-    @patch('phlo.definitions.get_quality_checks')
-    @patch('phlo.definitions.get_ingestion_assets')
-    @patch('phlo.definitions.build_sensor_defs')
-    @patch('phlo.definitions.build_schedule_defs')
-    @patch('phlo.definitions.build_validation_defs')
-    @patch('phlo.definitions.build_nessie_defs')
-    @patch('phlo.definitions.build_publishing_defs')
-    @patch('phlo.definitions.build_transform_defs')
-    @patch('phlo.definitions.build_resource_defs')
-    @patch('phlo.definitions._default_executor')
+    @patch("phlo.definitions.get_quality_checks")
+    @patch("phlo.definitions.get_ingestion_assets")
+    @patch("phlo.definitions.build_sensor_defs")
+    @patch("phlo.definitions.build_schedule_defs")
+    @patch("phlo.definitions.build_validation_defs")
+    @patch("phlo.definitions.build_nessie_defs")
+    @patch("phlo.definitions.build_publishing_defs")
+    @patch("phlo.definitions.build_transform_defs")
+    @patch("phlo.definitions.build_resource_defs")
+    @patch("phlo.definitions._default_executor")
     def test_definitions_merges_all_component_defs_correctly(
-        self, mock_executor, mock_resource_defs, mock_transform_defs,
-        mock_publishing_defs, mock_nessie_defs, mock_validation_defs,
-        mock_schedule_defs, mock_sensor_defs, mock_ingestion_assets, mock_quality_checks
+        self,
+        mock_executor,
+        mock_resource_defs,
+        mock_transform_defs,
+        mock_publishing_defs,
+        mock_nessie_defs,
+        mock_validation_defs,
+        mock_schedule_defs,
+        mock_sensor_defs,
+        mock_ingestion_assets,
+        mock_quality_checks,
     ):
         """Test that definitions merges all component defs correctly."""
         from dagster import Definitions
+
         empty_defs = Definitions(
             assets=[],
             asset_checks=[],
@@ -106,12 +119,12 @@ class TestDefinitionsUnitTests:
         mock_quality_checks.assert_called_once()
 
         # Verify result is a Definitions object
-        assert hasattr(result, 'assets')
-        assert hasattr(result, 'asset_checks')
-        assert hasattr(result, 'schedules')
-        assert hasattr(result, 'sensors')
-        assert hasattr(result, 'resources')
-        assert hasattr(result, 'jobs')
+        assert hasattr(result, "assets")
+        assert hasattr(result, "asset_checks")
+        assert hasattr(result, "schedules")
+        assert hasattr(result, "sensors")
+        assert hasattr(result, "resources")
+        assert hasattr(result, "jobs")
 
 
 class TestDefinitionsIntegrationTests:
@@ -124,12 +137,12 @@ class TestDefinitionsIntegrationTests:
         # the structure instead
 
         # Verify defs is a Definitions object with required attributes
-        assert hasattr(defs, 'assets')
-        assert hasattr(defs, 'asset_checks')
-        assert hasattr(defs, 'schedules')
-        assert hasattr(defs, 'sensors')
-        assert hasattr(defs, 'resources')
-        assert hasattr(defs, 'jobs')
+        assert hasattr(defs, "assets")
+        assert hasattr(defs, "asset_checks")
+        assert hasattr(defs, "schedules")
+        assert hasattr(defs, "sensors")
+        assert hasattr(defs, "resources")
+        assert hasattr(defs, "jobs")
 
         # Verify resources exist (these are always registered)
         assert defs.resources is not None
@@ -139,8 +152,14 @@ class TestDefinitionsIntegrationTests:
         assert len(resource_names) >= 0  # Resources may or may not be registered in test env
 
         # Verify schedules/sensors are lists (may be empty in test env)
-        assert isinstance(defs.schedules, (list, tuple, type(None))) or hasattr(defs.schedules, '__iter__')
-        assert isinstance(defs.sensors, (list, tuple, type(None))) or hasattr(defs.sensors, '__iter__')
+        assert isinstance(defs.schedules, (list, tuple, type(None))) or hasattr(
+            defs.schedules, "__iter__"
+        )
+        assert isinstance(defs.sensors, (list, tuple, type(None))) or hasattr(
+            defs.sensors, "__iter__"
+        )
 
         # Verify asset_checks is iterable
-        assert isinstance(defs.asset_checks, (list, tuple, type(None))) or hasattr(defs.asset_checks, '__iter__')
+        assert isinstance(defs.asset_checks, (list, tuple, type(None))) or hasattr(
+            defs.asset_checks, "__iter__"
+        )

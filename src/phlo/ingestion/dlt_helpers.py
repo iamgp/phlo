@@ -159,9 +159,7 @@ def validate_with_pandera(
         return False
 
 
-def setup_dlt_pipeline(
-    pipeline_name: str, dataset_name: str
-) -> tuple[dlt.Pipeline, Path]:
+def setup_dlt_pipeline(pipeline_name: str, dataset_name: str) -> tuple[dlt.Pipeline, Path]:
     """
     Setup DLT pipeline with filesystem destination for staging.
 
@@ -226,9 +224,7 @@ def stage_to_parquet(
     if not completed_jobs:
         raise RuntimeError("DLT pipeline completed without producing parquet output")
 
-    parquet_files = [
-        job for job in completed_jobs if job.file_path.endswith(".parquet")
-    ]
+    parquet_files = [job for job in completed_jobs if job.file_path.endswith(".parquet")]
     if not parquet_files:
         raise RuntimeError("DLT pipeline completed without producing parquet files")
 
@@ -271,9 +267,7 @@ def merge_to_iceberg(
     merge_config = merge_config or {}
     table_name = table_config.full_table_name
 
-    context.log.info(
-        f"Ensuring Iceberg table {table_name} exists on branch {branch_name}..."
-    )
+    context.log.info(f"Ensuring Iceberg table {table_name} exists on branch {branch_name}...")
     iceberg.ensure_table(
         table_name=table_name,
         schema=table_config.iceberg_schema,
@@ -303,9 +297,7 @@ def merge_to_iceberg(
 
     # Execute merge based on strategy
     if merge_strategy == "append":
-        context.log.info(
-            f"Appending data to Iceberg table on branch {branch_name}..."
-        )
+        context.log.info(f"Appending data to Iceberg table on branch {branch_name}...")
         merge_metrics = iceberg.append_parquet(
             table_name=table_name,
             data_path=str(parquet_path),

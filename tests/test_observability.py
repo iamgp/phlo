@@ -209,7 +209,7 @@ class TestLineageGraph:
         graph.add_asset("stage_data", asset_type="transform")
         graph.add_asset("transform_data", asset_type="transform")
         graph.add_asset("mart_data", asset_type="publish")
-        
+
         graph.add_edge("raw_data", "stage_data")
         graph.add_edge("stage_data", "transform_data")
         graph.add_edge("transform_data", "mart_data")

@@ -31,8 +31,10 @@ from phlo.quality.decorator import phlo_quality as quality
 def __getattr__(name):
     if name == "ingestion":
         from phlo.ingestion.decorator import phlo_ingestion
+
         return phlo_ingestion
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __version__ = "0.1.0"
 __all__ = ["quality", "ingestion"]

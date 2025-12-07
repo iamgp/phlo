@@ -183,8 +183,9 @@ class HasuraPermissionManager:
                         }
 
                         if perm_type == "insert":
-                            config["tables"][table_path][perm_type][role]["check"] = \
-                                permission.get("check", {})
+                            config["tables"][table_path][perm_type][role]["check"] = permission.get(
+                                "check", {}
+                            )
 
         return config
 
@@ -278,7 +279,8 @@ class RoleHierarchy:
 
                     for inherited_role in inherited_roles:
                         if inherited_role not in expanded["tables"][table_path][perm_type]:
-                            expanded["tables"][table_path][perm_type][inherited_role] = \
+                            expanded["tables"][table_path][perm_type][inherited_role] = (
                                 perm_config.copy()
+                            )
 
         return expanded

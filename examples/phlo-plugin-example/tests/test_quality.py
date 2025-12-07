@@ -15,11 +15,13 @@ def plugin():
 @pytest.fixture
 def sample_df():
     """Create sample DataFrame for testing."""
-    return pd.DataFrame({
-        "id": [1, 2, 3, 4, 5],
-        "value": [10, 50, 100, 150, 200],
-        "name": ["a", "b", "c", "d", "e"],
-    })
+    return pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "value": [10, 50, 100, 150, 200],
+            "name": ["a", "b", "c", "d", "e"],
+        }
+    )
 
 
 def test_metadata(plugin):
@@ -121,9 +123,11 @@ def test_check_missing_column(plugin, sample_df):
 
 def test_check_with_nulls(plugin):
     """Test check handles null values."""
-    df = pd.DataFrame({
-        "value": [10, 50, None, 150, 200],
-    })
+    df = pd.DataFrame(
+        {
+            "value": [10, 50, None, 150, 200],
+        }
+    )
 
     check = plugin.create_check(
         column="value",

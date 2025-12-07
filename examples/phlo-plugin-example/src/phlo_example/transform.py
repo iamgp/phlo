@@ -70,9 +70,7 @@ class UppercaseTransformPlugin(TransformationPlugin):
 
             # Apply uppercase transformation
             if skip_na:
-                result[column] = result[column].apply(
-                    lambda x: x.upper() if pd.notna(x) else x
-                )
+                result[column] = result[column].apply(lambda x: x.upper() if pd.notna(x) else x)
             else:
                 result[column] = result[column].str.upper()
 

@@ -160,9 +160,7 @@ def _register_default_destinations(manager: AlertManager) -> None:
     # Register PagerDuty if configured
     if hasattr(config, "phlo_alert_pagerduty_key") and config.phlo_alert_pagerduty_key:
         try:
-            pagerduty = PagerDutyAlertDestination(
-                integration_key=config.phlo_alert_pagerduty_key
-            )
+            pagerduty = PagerDutyAlertDestination(integration_key=config.phlo_alert_pagerduty_key)
             manager.register_destination("pagerduty", pagerduty)
         except Exception as e:
             logger.warning(f"Failed to register PagerDuty destination: {e}")

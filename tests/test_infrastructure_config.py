@@ -62,10 +62,7 @@ def test_service_config_get_container_name():
 
 def test_service_config_get_container_name_with_override():
     """Test get_container_name with explicit override."""
-    service = ServiceConfig(
-        service_name="dagster-webserver",
-        container_name="my-custom-container"
-    )
+    service = ServiceConfig(service_name="dagster-webserver", container_name="my-custom-container")
     pattern = "{project}-{service}-1"
 
     assert service.get_container_name("myproject", pattern) == "my-custom-container"
@@ -89,9 +86,7 @@ def test_infrastructure_config_pattern_validation():
 def test_infrastructure_config_get_service():
     """Test get_service method."""
     config = InfrastructureConfig(
-        services={
-            "dagster": ServiceConfig(service_name="dagster-webserver")
-        }
+        services={"dagster": ServiceConfig(service_name="dagster-webserver")}
     )
 
     service = config.get_service("dagster")
@@ -105,9 +100,7 @@ def test_infrastructure_config_get_container_name():
     """Test get_container_name method."""
     config = InfrastructureConfig(
         container_naming_pattern="{project}-{service}-1",
-        services={
-            "dagster": ServiceConfig(service_name="dagster-webserver")
-        }
+        services={"dagster": ServiceConfig(service_name="dagster-webserver")},
     )
 
     name = config.get_container_name("dagster", "myproject")
@@ -155,8 +148,8 @@ def test_load_infrastructure_config_with_file():
                         "host": "localhost",
                         "internal_host": "dagster",
                     }
-                }
-            }
+                },
+            },
         }
 
         with open(config_path, "w") as f:
@@ -196,7 +189,7 @@ def test_get_container_name_helper():
                         "internal_host": "dagster",
                     }
                 }
-            }
+            },
         }
 
         with open(config_path, "w") as f:

@@ -28,9 +28,7 @@ class LineageGraph:
     assets: dict[str, Asset] = field(default_factory=dict)
     edges: dict[str, list[str]] = field(default_factory=lambda: defaultdict(list))
 
-    def add_asset(
-        self, name: str, asset_type: str = "unknown", status: str = "unknown"
-    ) -> None:
+    def add_asset(self, name: str, asset_type: str = "unknown", status: str = "unknown") -> None:
         """Add an asset to the graph."""
         if name not in self.assets:
             self.assets[name] = Asset(name=name, asset_type=asset_type, status=status)
@@ -66,9 +64,7 @@ class LineageGraph:
 
         return upstream
 
-    def get_downstream(
-        self, asset_name: str, depth: Optional[int] = None
-    ) -> Set[str]:
+    def get_downstream(self, asset_name: str, depth: Optional[int] = None) -> Set[str]:
         """Get all downstream assets (dependents)."""
         downstream = set()
         visited = set()
@@ -98,9 +94,7 @@ class LineageGraph:
         # Categorize by type
         impact = {
             "direct_count": 0,
-            "indirect_count": len(downstream) - len(
-                self.get_downstream(asset_name, depth=1)
-            ),
+            "indirect_count": len(downstream) - len(self.get_downstream(asset_name, depth=1)),
             "publishing_affected": False,
             "affected_assets": list(downstream),
         }
@@ -131,9 +125,11 @@ class LineageGraph:
             if upstream:
                 lines.append("├── [upstream]")
                 for asset in sorted(upstream):
-                    prefix = "│   " if direction == "both" and self.get_downstream(
-                        asset_name, depth=depth
-                    ) else "    "
+                    prefix = (
+                        "│   "
+                        if direction == "both" and self.get_downstream(asset_name, depth=depth)
+                        else "    "
+                    )
                     asset_obj = self.assets.get(asset, Asset(asset))
                     lines.append(f"{prefix}└── {asset} ({asset_obj.asset_type})")
 
@@ -210,9 +206,7 @@ class LineageGraph:
         # Add edges
         for source, targets in self.edges.items():
             for target in targets:
-                lines.append(
-                    f"  {self._safe_id(source)} --> {self._safe_id(target)}"
-                )
+                lines.append(f"  {self._safe_id(source)} --> {self._safe_id(target)}")
 
         return "\n".join(lines)
 

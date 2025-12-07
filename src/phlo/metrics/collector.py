@@ -104,9 +104,7 @@ class MetricsCollector:
         # Supplement with Postgres metrics
         try:
             postgres_metrics = self._collect_from_postgres(period_hours)
-            metrics.total_rows_processed_24h = (
-                postgres_metrics.get("rows_processed", 0)
-            )
+            metrics.total_rows_processed_24h = postgres_metrics.get("rows_processed", 0)
             metrics.total_bytes_written_24h = postgres_metrics.get("bytes_written", 0)
         except Exception as e:
             logger.warning(f"Failed to collect from Postgres: {e}")
@@ -149,9 +147,7 @@ class MetricsCollector:
 
                 # Calculate averages
                 durations = [
-                    r.duration_seconds
-                    for r in run_records
-                    if r.duration_seconds is not None
+                    r.duration_seconds for r in run_records if r.duration_seconds is not None
                 ]
                 if durations:
                     metrics.average_duration = sum(durations) / len(durations)
@@ -211,16 +207,14 @@ class MetricsCollector:
                     value = data["data"]["result"][0].get("value", [None, "0"])
                     metrics.failed_runs_24h = int(float(value[1]))
 
-            metrics.total_runs_24h = (
-                metrics.successful_runs_24h + metrics.failed_runs_24h
-            )
+            metrics.total_runs_24h = metrics.successful_runs_24h + metrics.failed_runs_24h
 
             # Query for latency percentiles
             for percentile in ["0.5", "0.95", "0.99"]:
                 response = requests.get(
                     f"{self.prometheus_url}/api/v1/query",
                     params={
-                        "query": f'histogram_quantile({percentile}, dagster_run_duration_seconds[{period_hours}h])'
+                        "query": f"histogram_quantile({percentile}, dagster_run_duration_seconds[{period_hours}h])"
                     },
                     timeout=5,
                 )
@@ -319,9 +313,7 @@ class MetricsCollector:
 
         return metrics
 
-    def _get_asset_runs_from_postgres(
-        self, asset_name: str, limit: int = 10
-    ) -> list[RunMetrics]:
+    def _get_asset_runs_from_postgres(self, asset_name: str, limit: int = 10) -> list[RunMetrics]:
         """Get past runs for an asset from Postgres."""
         runs = []
 

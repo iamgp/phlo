@@ -75,11 +75,13 @@ def tables(namespace: Optional[str], ref: str, format: str):
                 # List tables in namespace
                 tables_in_ns = cat.list_tables(ns_name)
                 for table_id in tables_in_ns:
-                    all_tables.append({
-                        "namespace": ns_name,
-                        "table": table_id.name,
-                        "full_name": str(table_id),
-                    })
+                    all_tables.append(
+                        {
+                            "namespace": ns_name,
+                            "table": table_id.name,
+                            "full_name": str(table_id),
+                        }
+                    )
             except Exception as e:
                 console.print(f"[yellow]Warning: Could not list tables in {ns_name}: {e}[/yellow]")
 
@@ -146,7 +148,9 @@ def describe(table_name: str, ref: str):
         # Show basic info
         console.print(f"\n[bold blue]Table: {table_name}[/bold blue]")
         console.print(f"Location: {table.location()}")
-        console.print(f"Current Snapshot ID: {current_snapshot.snapshot_id if current_snapshot else 'None'}")
+        console.print(
+            f"Current Snapshot ID: {current_snapshot.snapshot_id if current_snapshot else 'None'}"
+        )
         console.print(f"Format Version: {table.format_version()}")
 
         # Show schema
@@ -244,13 +248,15 @@ def history(table_name: str, limit: int, ref: str, format: str):
 
             is_current = current_snapshot and snapshot.snapshot_id == current_snapshot.snapshot_id
 
-            snapshots.append({
-                "snapshot_id": snapshot.snapshot_id,
-                "timestamp": snapshot.timestamp_ms,
-                "operation": snapshot.operation,
-                "summary": snapshot.summary,
-                "is_current": is_current,
-            })
+            snapshots.append(
+                {
+                    "snapshot_id": snapshot.snapshot_id,
+                    "timestamp": snapshot.timestamp_ms,
+                    "operation": snapshot.operation,
+                    "summary": snapshot.summary,
+                    "is_current": is_current,
+                }
+            )
 
         if not snapshots:
             console.print("[yellow]No snapshots found[/yellow]")
@@ -270,6 +276,7 @@ def history(table_name: str, limit: int, ref: str, format: str):
                 ts = snapshot["timestamp"]
                 # Convert milliseconds to readable format
                 from datetime import datetime
+
                 ts_str = datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
                 table.add_row(

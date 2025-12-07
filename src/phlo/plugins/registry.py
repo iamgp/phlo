@@ -54,9 +54,7 @@ class PluginRegistry:
         self._sources[name] = plugin
         self._all_plugins[f"source:{name}"] = plugin
 
-    def register_quality_check(
-        self, plugin: QualityCheckPlugin, replace: bool = False
-    ) -> None:
+    def register_quality_check(self, plugin: QualityCheckPlugin, replace: bool = False) -> None:
         """
         Register a quality check plugin.
 
@@ -78,9 +76,7 @@ class PluginRegistry:
         self._quality_checks[name] = plugin
         self._all_plugins[f"quality:{name}"] = plugin
 
-    def register_transformation(
-        self, plugin: TransformationPlugin, replace: bool = False
-    ) -> None:
+    def register_transformation(self, plugin: TransformationPlugin, replace: bool = False) -> None:
         """
         Register a transformation plugin.
 
