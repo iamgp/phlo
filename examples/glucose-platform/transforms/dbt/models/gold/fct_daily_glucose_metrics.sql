@@ -17,36 +17,59 @@ Useful for trend analysis and long-term glucose management tracking.
 */
 
 -- Select statement: Aggregate daily glucose metrics and time dimensions
+with source_data as (
+    select * from {{ ref('fct_glucose_readings') }}
+)
+-- noqa: disable=ST06
 select
-    reading_date,
-    format_datetime(reading_date, 'EEEE') as day_name,
-    day_of_week(reading_date) as day_of_week,
-    week(reading_date) as week_of_year,
-    month(reading_date) as month,
-    year(reading_date) as year,
+    -- Simple dimensions first
+    source_data.reading_date,
+    -- Derived dimensions (calculations on dimensions)
+    format_datetime(source_data.reading_date, 'EEEE') as day_name,
+    day_of_week(source_data.reading_date) as day_of_week,
+    week(source_data.reading_date) as week_of_year,
+    month(source_data.reading_date) as month,
+    year(source_data.reading_date) as year,
 
-    -- Daily statistics
+    -- Aggregated metrics
     count(*) as reading_count,
-    cast(round(avg(glucose_mg_dl), 1) as double) as avg_glucose_mg_dl,
-    min(glucose_mg_dl) as min_glucose_mg_dl,
-    max(glucose_mg_dl) as max_glucose_mg_dl,
-    cast(round(stddev(glucose_mg_dl), 1) as double) as stddev_glucose_mg_dl,
+    cast(round(avg(source_data.glucose_mg_dl), 1) as double) as avg_glucose_mg_dl,
+    min(source_data.glucose_mg_dl) as min_glucose_mg_dl,
+    max(source_data.glucose_mg_dl) as max_glucose_mg_dl,
+    cast(round(stddev(source_data.glucose_mg_dl), 1) as double) as stddev_glucose_mg_dl,
 
     -- Time in range metrics (standard: 70-180 mg/dL)
-    cast(round(100.0 * sum(is_in_range) / count(*), 1) as double) as time_in_range_pct,
-    cast(round(100.0 * sum(case when glucose_mg_dl < 70 then 1 else 0 end) / count(*), 1) as double) as time_below_range_pct,
-    cast(round(100.0 * sum(case when glucose_mg_dl > 180 then 1 else 0 end) / count(*), 1) as double) as time_above_range_pct,
+    cast(
+        round(100.0 * sum(source_data.is_in_range) / count(*), 1) as double
+    ) as time_in_range_pct,
+    cast(
+        round(
+            100.0 * sum(case when source_data.glucose_mg_dl < 70 then 1 else 0 end)
+            / count(*), 1
+        ) as double
+    ) as time_below_range_pct,
+    cast(
+        round(
+            100.0 * sum(case when source_data.glucose_mg_dl > 180 then 1 else 0 end)
+            / count(*), 1
+        ) as double
+    ) as time_above_range_pct,
 
     -- Glucose management indicator (GMI) approximation
     -- GMI = 3.31 + 0.02392 * avg_glucose_mg_dl
-    cast(round(3.31 + (0.02392 * avg(glucose_mg_dl)), 2) as double) as estimated_a1c_pct
+    cast(
+        round(3.31 + (0.02392 * avg(source_data.glucose_mg_dl)), 2) as double
+    ) as estimated_a1c_pct
 
-from {{ ref('fct_glucose_readings') }}
+from source_data
 
 {% if is_incremental() %}
     -- Only process new dates on incremental runs
-    where reading_date > (select coalesce(max(reading_date), date('1900-01-01')) from {{ this }})
+    where source_data.reading_date > (
+        select coalesce(max(this_table.reading_date), date('1900-01-01'))
+        from {{ this }} as this_table
+    )
 {% endif %}
 
-group by reading_date
-order by reading_date desc
+group by source_data.reading_date
+order by source_data.reading_date desc

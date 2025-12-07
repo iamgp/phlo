@@ -37,9 +37,9 @@ def get_branch_from_context(context) -> str:
     return context.run_config.get("branch_name", "main")
 
 
-def add_cascade_timestamp(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def add_phlo_timestamp(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
-    Add _cascade_ingested_at timestamp to all records.
+    Add _phlo_ingested_at timestamp to all records.
 
     Args:
         records: List of dictionaries representing data records
@@ -52,7 +52,7 @@ def add_cascade_timestamp(records: list[dict[str, Any]]) -> list[dict[str, Any]]
     """
     ingestion_timestamp = datetime.now(timezone.utc)
     for record in records:
-        record["_cascade_ingested_at"] = ingestion_timestamp
+        record["_phlo_ingested_at"] = ingestion_timestamp
     return records
 
 
