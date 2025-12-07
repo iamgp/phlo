@@ -28,9 +28,7 @@ class IcebergResource(ConfigurableResource):
     or overridden per-resource instance.
     """
 
-    ref: str = (
-        config.iceberg_nessie_ref
-    )  # Default from config (typically "main" for production)
+    ref: str = config.iceberg_nessie_ref  # Default from config (typically "main" for production)
 
     def get_catalog(self, override_ref: str | None = None) -> Catalog:
         """

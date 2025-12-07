@@ -83,9 +83,7 @@ def discover_user_workflows(
     # Import all workflow modules
     imported_modules = _import_workflow_modules(workflows_path)
 
-    logger.info(
-        f"Imported {len(imported_modules)} workflow modules from {workflows_path}"
-    )
+    logger.info(f"Imported {len(imported_modules)} workflow modules from {workflows_path}")
 
     # Collect registered assets from decorators
     collected_assets = _collect_registered_assets()
@@ -195,8 +193,7 @@ def _ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
         return False
     except subprocess.TimeoutExpired:
         logger.warning(
-            "dbt compile timed out after 60 seconds. "
-            "Run 'dbt compile' manually in transforms/dbt/"
+            "dbt compile timed out after 60 seconds. Run 'dbt compile' manually in transforms/dbt/"
         )
         return False
     except Exception as e:
@@ -295,9 +292,7 @@ def _discover_dbt_assets() -> list[Any]:
 
             if context.has_partition_key:
                 partition_date = context.partition_key
-                build_args.extend(
-                    ["--vars", f'{{"partition_date_str": "{partition_date}"}}']
-                )
+                build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
                 context.log.info(f"Running dbt for partition: {partition_date}")
 
             os.environ.setdefault("TRINO_HOST", settings.trino_host)
@@ -408,9 +403,7 @@ def _discover_publishing_assets() -> list[Any]:
             logger.debug("No marts models found in dbt manifest")
             return []
 
-        logger.info(
-            f"Found {len(marts_models)} marts models to publish: {marts_models}"
-        )
+        logger.info(f"Found {len(marts_models)} marts models to publish: {marts_models}")
 
         # Create asset keys for dependencies
         deps = [AssetKey(name) for name in marts_models]

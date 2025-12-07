@@ -184,14 +184,17 @@ class DbtManifestParser:
                 # Check if this test applies to our model
                 fqn = test["fqn"]
                 if model_name in fqn or any(
-                    dep.endswith(model_unique_id) for dep in test.get("depends_on", {}).get("nodes", [])
+                    dep.endswith(model_unique_id)
+                    for dep in test.get("depends_on", {}).get("nodes", [])
                 ):
-                    tests.append({
-                        "name": test.get("name"),
-                        "type": test.get("test_metadata", {}).get("name"),
-                        "description": test.get("description"),
-                        "kwargs": test.get("test_metadata", {}).get("kwargs", {}),
-                    })
+                    tests.append(
+                        {
+                            "name": test.get("name"),
+                            "type": test.get("test_metadata", {}).get("name"),
+                            "description": test.get("description"),
+                            "kwargs": test.get("test_metadata", {}).get("kwargs", {}),
+                        }
+                    )
 
         return tests
 
@@ -254,10 +257,12 @@ class DbtManifestParser:
         # Check freshness
         freshness = model.get("freshness", {})
         if freshness:
-            tags.append({
-                "name": f"freshness-{freshness.get('warn_after', 'unknown')}",
-                "source": "dbt",
-            })
+            tags.append(
+                {
+                    "name": f"freshness-{freshness.get('warn_after', 'unknown')}",
+                    "source": "dbt",
+                }
+            )
 
         table = OpenMetadataTable(
             name=model_name,
@@ -305,14 +310,10 @@ class DbtManifestParser:
 
                 try:
                     # Get column documentation
-                    columns_info = self.get_model_columns(
-                        model_name, schema_name, catalog
-                    )
+                    columns_info = self.get_model_columns(model_name, schema_name, catalog)
 
                     # Convert to OpenMetadata format
-                    om_table = self.extract_openmetadata_table(
-                        model, schema_name, columns_info
-                    )
+                    om_table = self.extract_openmetadata_table(model, schema_name, columns_info)
 
                     # Sync to OpenMetadata
                     om_client.create_or_update_table(schema_name, om_table)

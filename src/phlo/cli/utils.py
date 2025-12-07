@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     pass
 
 
-
 @lru_cache(maxsize=1)
 def get_iceberg_catalog(ref: str = "main"):
     """
@@ -25,6 +24,7 @@ def get_iceberg_catalog(ref: str = "main"):
         PyIceberg Catalog instance
     """
     from phlo.iceberg.catalog import get_catalog
+
     return get_catalog(ref=ref)
 
 
@@ -111,9 +111,7 @@ def discover_pandera_schemas(
     return schemas
 
 
-def classify_schema_change(
-    old_schema: dict, new_schema: dict
-) -> tuple[str, list[str]]:
+def classify_schema_change(old_schema: dict, new_schema: dict) -> tuple[str, list[str]]:
     """
     Classify schema changes as SAFE, WARNING, or BREAKING.
 

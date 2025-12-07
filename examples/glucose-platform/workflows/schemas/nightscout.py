@@ -29,6 +29,7 @@ VALID_DIRECTIONS = [
 # RAW LAYER - Manual schemas (internal, not published)
 # =============================================================================
 
+
 class RawGlucoseEntries(PhloSchema):
     """Schema for raw Nightscout glucose entries from the API."""
 
@@ -47,7 +48,11 @@ class RawGlucoseEntries(PhloSchema):
 
 _dbt_model_path = (
     Path(__file__).parent.parent.parent
-    / "transforms" / "dbt" / "models" / "silver" / "fct_glucose_readings.yml"
+    / "transforms"
+    / "dbt"
+    / "models"
+    / "silver"
+    / "fct_glucose_readings.yml"
 )
 FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
 
@@ -55,6 +60,7 @@ FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_reading
 # =============================================================================
 # GOLD LAYER - Manual schema (complex aggregations)
 # =============================================================================
+
 
 class FactDailyGlucoseMetrics(PhloSchema):
     """Schema for the fct_daily_glucose_metrics table (gold layer)."""

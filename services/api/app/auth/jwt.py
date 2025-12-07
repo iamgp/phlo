@@ -70,9 +70,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(
-            minutes=settings.jwt_access_token_expire_minutes
-        )
+        expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_token_expire_minutes)
 
     to_encode.update({"exp": expire})
 

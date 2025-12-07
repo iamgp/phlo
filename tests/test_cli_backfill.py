@@ -110,8 +110,8 @@ class TestBackfillCLI:
         assert result.exit_code == 1
         assert "Must specify either --start-date/--end-date or --partitions" in result.output
 
-    @patch('phlo.cli.backfill.find_dagster_container', return_value='mock-container')
-    @patch('phlo.cli.backfill.get_project_name', return_value='mock-project')
+    @patch("phlo.cli.backfill.find_dagster_container", return_value="mock-container")
+    @patch("phlo.cli.backfill.get_project_name", return_value="mock-project")
     def test_dry_run_with_date_range(self, mock_project, mock_container):
         """Display commands in dry-run mode."""
         runner = CliRunner()
@@ -133,8 +133,8 @@ class TestBackfillCLI:
         assert "2024-01-02" in result.output
         assert "2024-01-03" in result.output
 
-    @patch('phlo.cli.backfill.find_dagster_container', return_value='mock-container')
-    @patch('phlo.cli.backfill.get_project_name', return_value='mock-project')
+    @patch("phlo.cli.backfill.find_dagster_container", return_value="mock-container")
+    @patch("phlo.cli.backfill.get_project_name", return_value="mock-project")
     def test_dry_run_with_partitions(self, mock_project, mock_container):
         """Display commands with explicit partitions."""
         runner = CliRunner()
@@ -153,8 +153,8 @@ class TestBackfillCLI:
         assert "2024-01-15" in result.output
         assert "2024-01-31" in result.output
 
-    @patch('phlo.cli.backfill.find_dagster_container', return_value='mock-container')
-    @patch('phlo.cli.backfill.get_project_name', return_value='mock-project')
+    @patch("phlo.cli.backfill.find_dagster_container", return_value="mock-container")
+    @patch("phlo.cli.backfill.get_project_name", return_value="mock-project")
     def test_parallel_option(self, mock_project, mock_container):
         """Accept parallel worker count."""
         runner = CliRunner()
@@ -201,8 +201,8 @@ class TestBackfillCLI:
             assert result.exit_code == 1
             assert "No backfill state found" in result.output
 
-    @patch('phlo.cli.backfill.find_dagster_container', return_value='mock-container')
-    @patch('phlo.cli.backfill.get_project_name', return_value='mock-project')
+    @patch("phlo.cli.backfill.find_dagster_container", return_value="mock-container")
+    @patch("phlo.cli.backfill.get_project_name", return_value="mock-project")
     def test_large_date_range(self, mock_project, mock_container):
         """Handle 365+ partitions efficiently."""
         runner = CliRunner()

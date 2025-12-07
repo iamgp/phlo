@@ -129,9 +129,7 @@ def merge_branch(
 
         result = nessie.merge_branch(source_branch, target_branch)
 
-        context.log.info(
-            f"Successfully merged '{source_branch}' into '{target_branch}'"
-        )
+        context.log.info(f"Successfully merged '{source_branch}' into '{target_branch}'")
 
         return dg.MaterializeResult(
             metadata={

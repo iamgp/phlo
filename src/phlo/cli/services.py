@@ -30,7 +30,6 @@ description: "{description}"
 """
 
 
-
 def check_docker_running() -> bool:
     """Check if Docker daemon is running."""
     try:
@@ -74,9 +73,7 @@ def get_project_config() -> dict:
 def get_project_name() -> str:
     """Get the project name for Docker Compose."""
     config = get_project_config()
-    return config.get(
-        "name", Path.cwd().name.lower().replace(" ", "-").replace("_", "-")
-    )
+    return config.get("name", Path.cwd().name.lower().replace(" ", "-").replace("_", "-"))
 
 
 def find_dagster_container(project_name: str) -> str:
@@ -108,12 +105,19 @@ def find_dagster_container(project_name: str) -> str:
         return default_name
 
     result = subprocess.run(
-        ["docker", "ps", "--filter", f"name={project_name}.*dagster.*webserver", "--format", "{{.Names}}"],
+        [
+            "docker",
+            "ps",
+            "--filter",
+            f"name={project_name}.*dagster.*webserver",
+            "--format",
+            "{{.Names}}",
+        ],
         capture_output=True,
         text=True,
     )
 
-    containers = result.stdout.strip().split('\n')
+    containers = result.stdout.strip().split("\n")
     if containers and containers[0]:
         return containers[0]
 
@@ -158,9 +162,7 @@ def _init_nessie_branches(project_name: str) -> None:
             pass
         time.sleep(1)
     else:
-        click.echo(
-            "Warning: Nessie not ready, skipping branch initialization", err=True
-        )
+        click.echo("Warning: Nessie not ready, skipping branch initialization", err=True)
         return
 
     # Get existing branches
@@ -220,9 +222,7 @@ def _init_nessie_branches(project_name: str) -> None:
                         "-H",
                         "Content-Type: application/json",
                         "-d",
-                        json.dumps(
-                            {"type": "BRANCH", "name": "dev", "hash": main_hash}
-                        ),
+                        json.dumps({"type": "BRANCH", "name": "dev", "hash": main_hash}),
                     ],
                     capture_output=True,
                     text=True,
@@ -1098,9 +1098,7 @@ def init(force: bool, project_name: Optional[str]):
     prometheus_dir = phlo_dir / "prometheus"
     prometheus_dir.mkdir(exist_ok=True)
     (prometheus_dir / "prometheus.yml").write_text(PROMETHEUS_CONFIG)
-    click.echo(
-        f"Created: {(prometheus_dir / 'prometheus.yml').relative_to(Path.cwd())}"
-    )
+    click.echo(f"Created: {(prometheus_dir / 'prometheus.yml').relative_to(Path.cwd())}")
 
     # Create Loki config (for optional observability profile)
     loki_dir = phlo_dir / "loki"
@@ -1154,9 +1152,7 @@ def init(force: bool, project_name: Optional[str]):
     type=click.Path(exists=True),
     help="Path to phlo source (default: auto-detect or use PHLO_DEV_SOURCE_PATH)",
 )
-def start(
-    detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_source: str
-):
+def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_source: str):
     """Start Phlo infrastructure services.
 
     Starts the complete Phlo data lakehouse stack.
@@ -1200,9 +1196,7 @@ def start(
                 # Try to find phlo source relative to current directory
                 # Check if we're in examples/glucose-platform -> ../../src/phlo
                 potential_paths = [
-                    Path.cwd().parent.parent
-                    / "src"
-                    / "phlo",  # examples/project -> repo root
+                    Path.cwd().parent.parent / "src" / "phlo",  # examples/project -> repo root
                     Path.cwd().parent / "src" / "phlo",  # direct child of repo
                     Path.cwd() / "src" / "phlo",  # in repo root
                 ]
@@ -1211,19 +1205,14 @@ def start(
                         phlo_source_path = p.parent.parent.resolve()  # Get repo root
                         break
 
-        if (
-            not phlo_source_path
-            or not (Path(phlo_source_path) / "src" / "phlo").exists()
-        ):
+        if not phlo_source_path or not (Path(phlo_source_path) / "src" / "phlo").exists():
             click.echo("Error: Could not find phlo source.", err=True)
             click.echo("", err=True)
             click.echo(
                 "Specify the path with --phlo-source or set PHLO_DEV_SOURCE_PATH:",
                 err=True,
             )
-            click.echo(
-                "  phlo services start --dev --phlo-source /path/to/phlo", err=True
-            )
+            click.echo("  phlo services start --dev --phlo-source /path/to/phlo", err=True)
             click.echo("  export PHLO_DEV_SOURCE_PATH=/path/to/phlo", err=True)
             sys.exit(1)
 
@@ -1313,9 +1302,7 @@ def start(
                 click.echo("Phlo infrastructure started in DEVELOPMENT mode.")
                 click.echo("")
                 click.echo(f"Local phlo source mounted from: {phlo_source_path}")
-                click.echo(
-                    "Changes to phlo code will be reflected after Dagster restart."
-                )
+                click.echo("Changes to phlo code will be reflected after Dagster restart.")
                 click.echo("")
             else:
                 click.echo("Phlo infrastructure started.")
@@ -1350,15 +1337,11 @@ def start(
             # Auto-run dbt deps + compile to generate manifest for Dagster
             _run_dbt_compile(project_name)
         else:
-            click.echo(
-                f"Error: docker compose failed with code {result.returncode}", err=True
-            )
+            click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
-        click.echo(
-            "Please install Docker: https://docs.docker.com/get-docker/", err=True
-        )
+        click.echo("Please install Docker: https://docs.docker.com/get-docker/", err=True)
         sys.exit(1)
 
 
@@ -1412,9 +1395,7 @@ def stop(volumes: bool, profile: tuple[str, ...]):
         if result.returncode == 0:
             click.echo(f"{project_name} infrastructure stopped.")
         else:
-            click.echo(
-                f"Error: docker compose failed with code {result.returncode}", err=True
-            )
+            click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)

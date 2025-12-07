@@ -85,9 +85,7 @@ def auto_promotion_sensor(
 
     # Get recent successful runs of full_pipeline
     runs = instance.get_runs(
-        filters=dg.RunsFilter(
-            job_name="full_pipeline", statuses=[dg.DagsterRunStatus.SUCCESS]
-        ),
+        filters=dg.RunsFilter(job_name="full_pipeline", statuses=[dg.DagsterRunStatus.SUCCESS]),
         limit=10,
     )
 
@@ -114,9 +112,7 @@ def auto_promotion_sensor(
         )
 
         # Filter to checks from this run
-        run_checks = [
-            check for check in check_evaluations if check.run_id == run.run_id
-        ]
+        run_checks = [check for check in check_evaluations if check.run_id == run.run_id]
 
         if not run_checks:
             context.log.debug(f"No check results found for run {run.run_id} yet")
@@ -143,9 +139,7 @@ def auto_promotion_sensor(
                     )
 
         if not all_passed:
-            context.log.warning(
-                f"Checks failed for {branch_name} (run {run.run_id}): {failures}"
-            )
+            context.log.warning(f"Checks failed for {branch_name} (run {run.run_id}): {failures}")
             continue
 
         # All checks passed - promote!
@@ -287,16 +281,12 @@ def branch_cleanup_sensor(
             try:
                 result = branch_manager.cleanup_branch(branch_name, dry_run=dry_run)
                 if result.get("dry_run"):
-                    context.log.info(
-                        f"Would delete branch: {branch_name} (dry_run=True)"
-                    )
+                    context.log.info(f"Would delete branch: {branch_name} (dry_run=True)")
                 elif result["deleted"]:
                     cleaned_branches.append(branch_name)
                     context.log.info(f"Deleted branch: {branch_name}")
                 else:
-                    context.log.warning(
-                        f"Failed to delete {branch_name}: {result.get('error')}"
-                    )
+                    context.log.warning(f"Failed to delete {branch_name}: {result.get('error')}")
             except Exception as e:
                 context.log.error(f"Failed to clean up branch {branch_name}: {e}")
 

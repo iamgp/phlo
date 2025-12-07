@@ -21,9 +21,7 @@ class BranchManagerResource(dg.ConfigurableResource):
     retention_days: int
     retention_days_failed: int
 
-    def create_pipeline_branch(
-        self, run_id: str, source_ref: str = "main"
-    ) -> dict[str, Any]:
+    def create_pipeline_branch(self, run_id: str, source_ref: str = "main") -> dict[str, Any]:
         """
         Create a new pipeline branch for this pipeline run.
 
@@ -177,9 +175,7 @@ class BranchManagerResource(dg.ConfigurableResource):
 
         # Filter for pipeline branches only
         pipeline_branches = [
-            branch
-            for branch in all_branches
-            if branch.get("name", "").startswith("pipeline/")
+            branch for branch in all_branches if branch.get("name", "").startswith("pipeline/")
         ]
 
         return pipeline_branches

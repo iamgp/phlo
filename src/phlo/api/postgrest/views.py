@@ -195,11 +195,7 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
         if model_filter:
             from fnmatch import fnmatch
 
-            models = {
-                name: model
-                for name, model in models.items()
-                if fnmatch(name, model_filter)
-            }
+            models = {name: model for name, model in models.items() if fnmatch(name, model_filter)}
 
         if not models:
             return ""
@@ -343,10 +339,13 @@ class PostgreSTViewManager:
         cursor = conn.cursor()
 
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT table_name FROM information_schema.tables
                 WHERE table_schema = %s AND table_type = 'VIEW'
-            """, (schema,))
+            """,
+                (schema,),
+            )
             return {row[0] for row in cursor.fetchall()}
         finally:
             cursor.close()
@@ -367,9 +366,7 @@ class PostgreSTViewManager:
         # Parse generated SQL to find new views
         import re
 
-        new_views = set(
-            re.findall(rf"CREATE OR REPLACE VIEW {schema}\.(\w+)", new_sql)
-        )
+        new_views = set(re.findall(rf"CREATE OR REPLACE VIEW {schema}\.(\w+)", new_sql))
 
         lines = ["Views to be created/updated:"]
         for view in sorted(new_views):

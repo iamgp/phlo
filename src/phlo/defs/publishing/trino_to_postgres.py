@@ -71,9 +71,7 @@ def _publish_marts_to_postgres(
             )
 
             # Drop existing Postgres table
-            pg_cursor.execute(
-                f'DROP TABLE IF EXISTS "{target_schema}"."{table_alias}" CASCADE'
-            )
+            pg_cursor.execute(f'DROP TABLE IF EXISTS "{target_schema}"."{table_alias}" CASCADE')
             pg_conn.commit()
 
             # Query Iceberg table via Trino
@@ -89,9 +87,7 @@ def _publish_marts_to_postgres(
             row_count = len(rows)
 
             if row_count == 0:
-                context.log.warning(
-                    "No data in source table %s, skipping", iceberg_table
-                )
+                context.log.warning("No data in source table %s, skipping", iceberg_table)
                 continue
 
             # Infer Postgres types from first row and Trino metadata
@@ -109,9 +105,7 @@ def _publish_marts_to_postgres(
             # Convert rows to proper format (handle None values)
             formatted_rows = []
             for row in rows:
-                formatted_row = tuple(
-                    str(val) if val is not None else None for val in row
-                )
+                formatted_row = tuple(str(val) if val is not None else None for val in row)
                 formatted_rows.append(formatted_row)
 
             pg_cursor.executemany(insert_sql, formatted_rows)
@@ -188,9 +182,7 @@ def create_publishing_assets(config_path: Path | None = None):
                 compute_kind="trino+postgres",
                 deps=dependencies,
             )
-            def publishing_asset(
-                context, trino: TrinoResource
-            ) -> PublishPostgresOutput:
+            def publishing_asset(context, trino: TrinoResource) -> PublishPostgresOutput:
                 return _publish_marts_to_postgres(
                     context=context,
                     trino=trino,

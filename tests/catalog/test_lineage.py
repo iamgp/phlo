@@ -106,9 +106,7 @@ class TestLineageExtractor:
         extractor = LineageExtractor()
         extractor.extract_from_dbt_manifest(sample_manifest)
 
-        lineage = extractor.build_publishing_lineage(
-            sample_manifest, postgres_schema="marts"
-        )
+        lineage = extractor.build_publishing_lineage(sample_manifest, postgres_schema="marts")
 
         # Check that we have lineage from source to published table
         assert "nightscout.glucose" in lineage

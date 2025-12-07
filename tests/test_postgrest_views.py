@@ -39,9 +39,7 @@ def sample_manifest():
                     "metric_date": {"name": "metric_date"},
                     "avg_sgv": {"name": "avg_sgv"},
                 },
-                "depends_on": {
-                    "nodes": ["model.phlo.glucose_readings"]
-                },
+                "depends_on": {"nodes": ["model.phlo.glucose_readings"]},
             },
             "model.phlo.bronze_raw_data": {
                 "name": "bronze_raw_data",
@@ -175,9 +173,7 @@ class TestViewGenerator:
         sorted_models = generator._topological_sort(models, graph)
 
         # glucose_readings should come before glucose_metrics
-        assert sorted_models.index("glucose_readings") < sorted_models.index(
-            "glucose_metrics"
-        )
+        assert sorted_models.index("glucose_readings") < sorted_models.index("glucose_metrics")
 
     def test_escape_string(self):
         """Should escape single quotes in strings."""

@@ -52,9 +52,14 @@ class TestQualityUnitTests:
 
         # Mock valid query results
         mock_cursor.description = [
-            ("entry_id",), ("glucose_mg_dl",), ("reading_timestamp",),
-            ("direction",), ("hour_of_day",), ("day_of_week",),
-            ("glucose_category",), ("is_in_range",)
+            ("entry_id",),
+            ("glucose_mg_dl",),
+            ("reading_timestamp",),
+            ("direction",),
+            ("hour_of_day",),
+            ("day_of_week",),
+            ("glucose_category",),
+            ("is_in_range",),
         ]
         mock_cursor.fetchall.return_value = [
             ("entry1", 120, "2024-01-01 12:00:00", "Flat", 12, 1, "in_range", 1),
@@ -105,9 +110,14 @@ class TestQualityUnitTests:
 
         # Mock query results with invalid data (glucose too high)
         mock_cursor.description = [
-            ("entry_id",), ("glucose_mg_dl",), ("reading_timestamp",),
-            ("direction",), ("hour_of_day",), ("day_of_week",),
-            ("glucose_category",), ("is_in_range",)
+            ("entry_id",),
+            ("glucose_mg_dl",),
+            ("reading_timestamp",),
+            ("direction",),
+            ("hour_of_day",),
+            ("day_of_week",),
+            ("glucose_category",),
+            ("is_in_range",),
         ]
         mock_cursor.fetchall.return_value = [
             ("entry1", 700, "2024-01-01 12:00:00", "Flat", 12, 1, "invalid", 1),  # Invalid glucose
@@ -161,12 +171,26 @@ class TestQualityIntegrationTests:
 
         # Mock query results with schema violations
         mock_cursor.description = [
-            ("entry_id",), ("glucose_mg_dl",), ("reading_timestamp",),
-            ("direction",), ("hour_of_day",), ("day_of_week",),
-            ("glucose_category",), ("is_in_range",)
+            ("entry_id",),
+            ("glucose_mg_dl",),
+            ("reading_timestamp",),
+            ("direction",),
+            ("hour_of_day",),
+            ("day_of_week",),
+            ("glucose_category",),
+            ("is_in_range",),
         ]
         mock_cursor.fetchall.return_value = [
-            ("entry1", 50, "2024-01-01 12:00:00", "InvalidDirection", 25, 7, "invalid", 2),  # Multiple violations
+            (
+                "entry1",
+                50,
+                "2024-01-01 12:00:00",
+                "InvalidDirection",
+                25,
+                7,
+                "invalid",
+                2,
+            ),  # Multiple violations
         ]
 
         # Execute
@@ -198,9 +222,14 @@ class TestQualityDataQualityTests:
 
         # Mock valid data within ranges
         mock_cursor.description = [
-            ("entry_id",), ("glucose_mg_dl",), ("reading_timestamp",),
-            ("direction",), ("hour_of_day",), ("day_of_week",),
-            ("glucose_category",), ("is_in_range",)
+            ("entry_id",),
+            ("glucose_mg_dl",),
+            ("reading_timestamp",),
+            ("direction",),
+            ("hour_of_day",),
+            ("day_of_week",),
+            ("glucose_category",),
+            ("is_in_range",),
         ]
         mock_cursor.fetchall.return_value = [
             ("entry1", 120, "2024-01-01 12:00:00", "Flat", 12, 1, "in_range", 1),
@@ -243,7 +272,6 @@ class TestQualityDataQualityTests:
         # This test verifies that the quality check is properly configured
         # to run after the fct_glucose_readings asset
 
-
         # The check should be configured for the correct asset
         # This is tested by verifying the decorator configuration
         # rather than runtime behavior
@@ -259,12 +287,18 @@ class TestQualityDataQualityTests:
 
         # Mock query results with all required columns
         mock_cursor.description = [
-            ("entry_id",), ("glucose_mg_dl",), ("reading_timestamp",), ("direction",),
-            ("hour_of_day",), ("day_of_week",), ("glucose_category",), ("is_in_range")
+            ("entry_id",),
+            ("glucose_mg_dl",),
+            ("reading_timestamp",),
+            ("direction",),
+            ("hour_of_day",),
+            ("day_of_week",),
+            ("glucose_category",),
+            ("is_in_range"),
         ]
-        mock_cursor.fetchall.return_value = [(
-            "entry1", 120, "2024-01-01 12:00:00", "Flat", 12, 1, "in_range", 1
-        )]
+        mock_cursor.fetchall.return_value = [
+            ("entry1", 120, "2024-01-01 12:00:00", "Flat", 12, 1, "in_range", 1)
+        ]
 
         # Execute
         result = cast(AssetCheckResult, nightscout_glucose_quality_check(mock_context, mock_trino))

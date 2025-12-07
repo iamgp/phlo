@@ -28,9 +28,7 @@ class Settings(BaseSettings):
     postgres_port: int = Field(default=10000, description="PostgreSQL port")
     postgres_user: str = Field(default="lake", description="PostgreSQL username")
     postgres_password: str = Field(description="PostgreSQL password")
-    postgres_db: str = Field(
-        default="lakehouse", description="PostgreSQL database name"
-    )
+    postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
     )
@@ -57,9 +55,7 @@ class Settings(BaseSettings):
     trino_version: str = Field(default="477", description="Trino version")
     trino_port: int = Field(default=10005, description="Trino HTTP port")
     trino_host: str = Field(default="trino", description="Trino service hostname")
-    trino_catalog: str = Field(
-        default="iceberg", description="Trino catalog name for Iceberg"
-    )
+    trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
 
     # --- Data Lake Configuration ---
     # Settings for Iceberg table format and warehouse paths
@@ -122,9 +118,7 @@ class Settings(BaseSettings):
     # Settings for Apache Superset business intelligence dashboard
     # Services - Superset
     superset_port: int = Field(default=10007, description="Superset web port")
-    superset_admin_user: str = Field(
-        default="admin", description="Superset admin username"
-    )
+    superset_admin_user: str = Field(default="admin", description="Superset admin username")
     superset_admin_password: str = Field(description="Superset admin password")
     superset_admin_email: str = Field(
         default="admin@example.com", description="Superset admin email"
@@ -187,15 +181,9 @@ class Settings(BaseSettings):
     phlo_alert_email_smtp_host: Optional[str] = Field(
         default=None, description="SMTP server hostname"
     )
-    phlo_alert_email_smtp_port: int = Field(
-        default=587, description="SMTP server port"
-    )
-    phlo_alert_email_smtp_user: Optional[str] = Field(
-        default=None, description="SMTP username"
-    )
-    phlo_alert_email_smtp_password: Optional[str] = Field(
-        default=None, description="SMTP password"
-    )
+    phlo_alert_email_smtp_port: int = Field(default=587, description="SMTP server port")
+    phlo_alert_email_smtp_user: Optional[str] = Field(default=None, description="SMTP username")
+    phlo_alert_email_smtp_password: Optional[str] = Field(default=None, description="SMTP password")
     phlo_alert_email_recipients: list[str] = Field(
         default_factory=list, description="Email recipients for alerts"
     )
@@ -205,15 +193,9 @@ class Settings(BaseSettings):
     openmetadata_host: str = Field(
         default="openmetadata-server", description="OpenMetadata server hostname"
     )
-    openmetadata_port: int = Field(
-        default=8585, description="OpenMetadata server port"
-    )
-    openmetadata_username: str = Field(
-        default="admin", description="OpenMetadata admin username"
-    )
-    openmetadata_password: str = Field(
-        default="admin", description="OpenMetadata admin password"
-    )
+    openmetadata_port: int = Field(default=8585, description="OpenMetadata server port")
+    openmetadata_username: str = Field(default="admin", description="OpenMetadata admin username")
+    openmetadata_password: str = Field(default="admin", description="OpenMetadata admin password")
     openmetadata_sync_enabled: bool = Field(
         default=True, description="Enable automatic metadata sync to OpenMetadata"
     )
@@ -234,15 +216,11 @@ class Settings(BaseSettings):
 
     # --- Nessie Configuration ---
     # Settings for Nessie catalog access
-    nessie_api_version: str = Field(
-        default="v1", description="Nessie API version"
-    )
+    nessie_api_version: str = Field(default="v1", description="Nessie API version")
 
     # --- Plugin Configuration ---
     # Settings for plugin system
-    plugins_enabled: bool = Field(
-        default=True, description="Enable plugin system"
-    )
+    plugins_enabled: bool = Field(default=True, description="Enable plugin system")
     plugins_auto_discover: bool = Field(
         default=True,
         description="Automatically discover plugins from entry points on import",

@@ -18,10 +18,7 @@ try:
     PLUGIN_AVAILABLE = True
 except ImportError:
     PLUGIN_AVAILABLE = False
-    print(
-        "Warning: phlo-plugin-example not installed. "
-        "Install with: uv sync --group plugins"
-    )
+    print("Warning: phlo-plugin-example not installed. Install with: uv sync --group plugins")
 
 
 # ---------------------------------------------------------------------------
@@ -39,9 +36,7 @@ if PLUGIN_AVAILABLE:
             "Uses plugin-based threshold check with 5% tolerance."
         ),
     )
-    def glucose_consecutive_highs_plugin_check(
-        context, trino: TrinoResource
-    ) -> AssetCheckResult:
+    def glucose_consecutive_highs_plugin_check(context, trino: TrinoResource) -> AssetCheckResult:
         """
         Check for excessive high glucose readings using plugin threshold check.
 
@@ -124,9 +119,7 @@ if PLUGIN_AVAILABLE:
         blocking=False,
         description="Check glucose variability coefficient using plugin threshold check",
     )
-    def glucose_variability_plugin_check(
-        context, trino: TrinoResource
-    ) -> AssetCheckResult:
+    def glucose_variability_plugin_check(context, trino: TrinoResource) -> AssetCheckResult:
         """
         Validate coefficient of variation stays within acceptable bounds.
 
@@ -162,7 +155,9 @@ if PLUGIN_AVAILABLE:
 
             # Check CV with plugin: should be below 40% with 10% tolerance
             check = ThresholdCheck(
-                column="cv", max_value=40.0, tolerance=0.10  # Max 40% CV  # Allow 10% of days
+                column="cv",
+                max_value=40.0,
+                tolerance=0.10,  # Max 40% CV  # Allow 10% of days
             )
 
             result = check.execute(df)

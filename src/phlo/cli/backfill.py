@@ -149,9 +149,7 @@ def backfill(
     console.print(f"[cyan]Parallel workers:[/cyan] {parallel}")
 
     if completed_partitions:
-        console.print(
-            f"[yellow]Already completed:[/yellow] {len(completed_partitions)}"
-        )
+        console.print(f"[yellow]Already completed:[/yellow] {len(completed_partitions)}")
         console.print(f"[yellow]Remaining:[/yellow] {len(partition_dates)}")
 
     if dry_run:
@@ -342,17 +340,13 @@ def _run_backfill(
                             description=f"[green]✓ Completed {completed_count}/{total}[/green]",
                         )
                     else:
-                        results["failed"].append(
-                            {"date": date, "error": output}
-                        )
+                        results["failed"].append({"date": date, "error": output})
                         progress.update(
                             task,
                             description=f"[yellow]⚠ Failed {date}[/yellow]",
                         )
                 except Exception as e:
-                    results["failed"].append(
-                        {"date": date, "error": str(e)}
-                    )
+                    results["failed"].append({"date": date, "error": str(e)})
                     progress.update(
                         task,
                         description=f"[red]✗ Error {date}[/red]",
@@ -492,9 +486,7 @@ def _display_backfill_results(results: dict[str, any]) -> None:
 
         console.print(fail_table)
 
-        console.print(
-            "\n[yellow]To resume, run: phlo backfill --resume[/yellow]"
-        )
+        console.print("\n[yellow]To resume, run: phlo backfill --resume[/yellow]")
         sys.exit(1)
 
     console.print("\n[green]✓ Backfill complete![/green]")

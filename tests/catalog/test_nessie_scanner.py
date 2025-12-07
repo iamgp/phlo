@@ -144,9 +144,7 @@ class TestNessieTableScanner:
             "properties": {"location": "s3://lake/warehouse/bronze/glucose_entries"},
         }
 
-        om_table = nessie_scanner.extract_openmetadata_table(
-            "bronze", table_metadata
-        )
+        om_table = nessie_scanner.extract_openmetadata_table("bronze", table_metadata)
 
         assert om_table.name == "glucose_entries"
         assert om_table.description == "Glucose sensor readings"

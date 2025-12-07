@@ -150,9 +150,7 @@ class LineageExtractor:
             # Find all published (marts) tables in dbt
             published_models = []
             for unique_id, node in dbt_manifest.get("nodes", {}).items():
-                if unique_id.startswith("model.") and postgres_schema in node.get(
-                    "schema", ""
-                ):
+                if unique_id.startswith("model.") and postgres_schema in node.get("schema", ""):
                     published_models.append(node.get("name"))
 
             # For each published model, trace back to sources
@@ -208,9 +206,7 @@ class LineageExtractor:
                         logger.warning(f"Failed to publish edge {source}->{target}: {e}")
                         stats["failed"] += 1
 
-            logger.info(
-                f"Published {stats['edges_published']} lineage edges to OpenMetadata"
-            )
+            logger.info(f"Published {stats['edges_published']} lineage edges to OpenMetadata")
 
         except Exception as e:
             logger.error(f"Failed to publish lineage to OpenMetadata: {e}")
@@ -235,8 +231,7 @@ class LineageExtractor:
         downstream = self.graph.get_downstream(asset_name)
 
         publishing_assets = [
-            a for a in downstream
-            if self.graph.assets.get(a, {}).asset_type == "publish"
+            a for a in downstream if self.graph.assets.get(a, {}).asset_type == "publish"
         ]
 
         return {

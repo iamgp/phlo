@@ -65,9 +65,9 @@ def metrics_summary(period: str) -> None:
 
 [cyan]Assets[/cyan]
   Active:    {metrics.active_assets_count}
-  Success:   {metrics.assets_by_status.get('success', 0)}
-  Warning:   {metrics.assets_by_status.get('warning', 0)}
-  Failure:   {metrics.assets_by_status.get('failure', 0)}
+  Success:   {metrics.assets_by_status.get("success", 0)}
+  Warning:   {metrics.assets_by_status.get("warning", 0)}
+  Failure:   {metrics.assets_by_status.get("failure", 0)}
 """
 
     console.print(Panel(summary_text, title="📊 Metrics Summary", expand=False))
@@ -102,7 +102,9 @@ def metrics_asset(asset_name: str, runs: int) -> None:
     table.add_row("Last Run Status", metrics.last_run.status if metrics.last_run else "-")
     table.add_row(
         "Last Run Duration",
-        f"{metrics.last_run.duration_seconds:.2f}s" if metrics.last_run and metrics.last_run.duration_seconds else "-",
+        f"{metrics.last_run.duration_seconds:.2f}s"
+        if metrics.last_run and metrics.last_run.duration_seconds
+        else "-",
     )
     table.add_row("Average Duration", f"{metrics.average_duration:.2f}s")
     table.add_row("Failure Rate", f"{metrics.failure_rate:.1%}")

@@ -132,9 +132,7 @@ def check_status() -> None:
     # Show configuration guidance
     if len(manager.destinations) == 0:
         console.print("\n[bold]Next Steps[/bold]")
-        console.print(
-            "1. Configure at least one alert destination via environment variables"
-        )
+        console.print("1. Configure at least one alert destination via environment variables")
         console.print("2. Run [cyan]phlo alerts test[/cyan] to verify configuration")
         console.print("3. Alerts will automatically trigger on run failures")
 

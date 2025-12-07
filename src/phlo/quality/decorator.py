@@ -86,9 +86,8 @@ def phlo_quality(
         # Auto-generate description if not provided
         if description is None:
             check_names = [check.name for check in checks]
-            description = (
-                f"Quality checks for {table}: {', '.join(check_names[:3])}"
-                + ("..." if len(check_names) > 3 else "")
+            description = f"Quality checks for {table}: {', '.join(check_names[:3])}" + (
+                "..." if len(check_names) > 3 else ""
             )
 
         # Build the SQL query
@@ -119,9 +118,7 @@ def phlo_quality(
             if partition_key and "WHERE" not in sql_query.upper():
                 # Auto-add partition filter for common timestamp columns
                 # This is a heuristic; users can override with custom query
-                final_query = (
-                    f"{sql_query}\nWHERE DATE(timestamp) = DATE '{partition_key}'"
-                )
+                final_query = f"{sql_query}\nWHERE DATE(timestamp) = DATE '{partition_key}'"
                 context.log.info(f"Validating partition: {partition_key}")
 
             # Load data based on backend
@@ -156,9 +153,7 @@ def phlo_quality(
                 )
 
             # Execute all quality checks
-            context.log.info(
-                f"Executing {len(checks)} quality checks on {len(df)} rows..."
-            )
+            context.log.info(f"Executing {len(checks)} quality checks on {len(df)} rows...")
 
             check_results: List[QualityCheckResult] = []
             all_passed = True
@@ -177,9 +172,7 @@ def phlo_quality(
                         context.log.info(f"Quality check '{check.name}' passed")
 
                 except Exception as exc:
-                    context.log.exception(
-                        f"Error executing quality check '{check.name}': {exc}"
-                    )
+                    context.log.exception(f"Error executing quality check '{check.name}': {exc}")
                     check_results.append(
                         QualityCheckResult(
                             passed=False,
@@ -203,9 +196,7 @@ def phlo_quality(
 
             if failed_count > 0:
                 failed_checks = [
-                    f"{r.metric_name}: {r.failure_message}"
-                    for r in check_results
-                    if not r.passed
+                    f"{r.metric_name}: {r.failure_message}" for r in check_results if not r.passed
                 ]
                 metadata["failures"] = MetadataValue.md(
                     "## Failed Checks\n\n" + "\n".join(f"- {f}" for f in failed_checks)
@@ -296,9 +287,7 @@ def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict:
         "columns_validated": MetadataValue.int(len(df.columns)),
         "checks_executed": MetadataValue.int(len(check_results)),
         "checks_passed": MetadataValue.int(sum(1 for r in check_results if r.passed)),
-        "checks_failed": MetadataValue.int(
-            sum(1 for r in check_results if not r.passed)
-        ),
+        "checks_failed": MetadataValue.int(sum(1 for r in check_results if not r.passed)),
     }
 
     # Add individual check results
@@ -306,9 +295,7 @@ def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict:
         # Add metric value
         if result.metric_value is not None:
             if isinstance(result.metric_value, dict):
-                metadata[f"{result.metric_name}_value"] = MetadataValue.json(
-                    result.metric_value
-                )
+                metadata[f"{result.metric_name}_value"] = MetadataValue.json(result.metric_value)
             else:
                 metadata[f"{result.metric_name}_value"] = MetadataValue.text(
                     str(result.metric_value)

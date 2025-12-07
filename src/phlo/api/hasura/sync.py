@@ -52,9 +52,7 @@ class HasuraMetadataSync:
 
         return self.client.apply_metadata(metadata)
 
-    def merge_metadata(
-        self, base: dict[str, Any], override: dict[str, Any]
-    ) -> dict[str, Any]:
+    def merge_metadata(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """Merge two metadata dictionaries (override over base).
 
         Args:
@@ -78,9 +76,7 @@ class HasuraMetadataSync:
 
         return merged
 
-    def get_diff(
-        self, current: dict[str, Any], desired: dict[str, Any]
-    ) -> dict[str, Any]:
+    def get_diff(self, current: dict[str, Any], desired: dict[str, Any]) -> dict[str, Any]:
         """Calculate diff between current and desired metadata.
 
         Args:
@@ -129,12 +125,8 @@ class HasuraMetadataSync:
         current_rels = self._extract_relationships(current)
         desired_rels = self._extract_relationships(desired)
 
-        diff["relationships"]["added"] = list(
-            set(desired_rels) - set(current_rels)
-        )
-        diff["relationships"]["removed"] = list(
-            set(current_rels) - set(desired_rels)
-        )
+        diff["relationships"]["added"] = list(set(desired_rels) - set(current_rels))
+        diff["relationships"]["removed"] = list(set(current_rels) - set(desired_rels))
 
         return diff
 
@@ -190,9 +182,7 @@ class HasuraMetadataSync:
 
         return rels
 
-    def generate_diff_report(
-        self, current: dict[str, Any], desired: dict[str, Any]
-    ) -> str:
+    def generate_diff_report(self, current: dict[str, Any], desired: dict[str, Any]) -> str:
         """Generate human-readable diff report.
 
         Args:
@@ -224,9 +214,7 @@ class HasuraMetadataSync:
                 lines.append(f"  + {table}")
 
         if diff["tables"]["removed"]:
-            lines.append(
-                f"\nTables to untrack: {len(diff['tables']['removed'])}"
-            )
+            lines.append(f"\nTables to untrack: {len(diff['tables']['removed'])}")
             for table in sorted(diff["tables"]["removed"]):
                 lines.append(f"  - {table}")
 
@@ -237,16 +225,12 @@ class HasuraMetadataSync:
 
         # Relationships
         if diff["relationships"]["added"]:
-            lines.append(
-                f"\nRelationships to add: {len(diff['relationships']['added'])}"
-            )
+            lines.append(f"\nRelationships to add: {len(diff['relationships']['added'])}")
             for table, rel, rel_type in sorted(diff["relationships"]["added"]):
                 lines.append(f"  + {table}.{rel} ({rel_type})")
 
         if diff["relationships"]["removed"]:
-            lines.append(
-                f"\nRelationships to remove: {len(diff['relationships']['removed'])}"
-            )
+            lines.append(f"\nRelationships to remove: {len(diff['relationships']['removed'])}")
             for table, rel, rel_type in sorted(diff["relationships"]["removed"]):
                 lines.append(f"  - {table}.{rel} ({rel_type})")
 

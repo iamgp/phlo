@@ -4,7 +4,11 @@ This module contains unit and integration tests for the
 phlo.defs.resources module, focusing on IcebergResource and TrinoResource.
 """
 
+import pytest
 from unittest.mock import MagicMock, patch
+
+# Mark entire module as integration tests (requires config and environment)
+pytestmark = pytest.mark.integration
 
 from phlo.defs.resources.iceberg import IcebergResource
 from phlo.defs.resources.trino import TrinoResource
@@ -13,7 +17,7 @@ from phlo.defs.resources.trino import TrinoResource
 class TestResourcesUnitTests:
     """Unit tests for resource classes with mocked dependencies."""
 
-    @patch('phlo.defs.resources.iceberg.get_catalog')
+    @patch("phlo.defs.resources.iceberg.get_catalog")
     def test_iceberg_resource_get_catalog_returns_catalog_for_ref(self, mock_get_catalog):
         """Test that IcebergResource.get_catalog returns catalog for ref."""
         mock_catalog = MagicMock()
@@ -25,7 +29,7 @@ class TestResourcesUnitTests:
         mock_get_catalog.assert_called_once_with(ref="dev")
         assert catalog == mock_catalog
 
-    @patch('phlo.defs.resources.iceberg.ensure_table')
+    @patch("phlo.defs.resources.iceberg.ensure_table")
     def test_iceberg_resource_ensure_table_calls_underlying_function(self, mock_ensure_table):
         """Test that IcebergResource.ensure_table calls underlying function."""
         mock_table = MagicMock()
@@ -37,20 +41,15 @@ class TestResourcesUnitTests:
         partition_spec = [("timestamp", "day")]
 
         result = resource.ensure_table(
-            table_name="raw.entries",
-            schema=schema,
-            partition_spec=partition_spec
+            table_name="raw.entries", schema=schema, partition_spec=partition_spec
         )
 
         mock_ensure_table.assert_called_once_with(
-            table_name="raw.entries",
-            schema=schema,
-            partition_spec=list(partition_spec),
-            ref="dev"
+            table_name="raw.entries", schema=schema, partition_spec=list(partition_spec), ref="dev"
         )
         assert result == mock_table
 
-    @patch('phlo.defs.resources.iceberg.append_to_table')
+    @patch("phlo.defs.resources.iceberg.append_to_table")
     def test_iceberg_resource_append_parquet_calls_underlying_function(self, mock_append_to_table):
         """Test that IcebergResource.append_parquet calls underlying function."""
         resource = IcebergResource(ref="dev")
@@ -58,14 +57,14 @@ class TestResourcesUnitTests:
         resource.append_parquet(table_name="raw.entries", data_path="/path/to/data.parquet")
 
         mock_append_to_table.assert_called_once_with(
-            table_name="raw.entries",
-            data_path="/path/to/data.parquet",
-            ref="dev"
+            table_name="raw.entries", data_path="/path/to/data.parquet", ref="dev"
         )
 
-    @patch('phlo.defs.resources.trino.connect')
-    @patch('phlo.defs.resources.trino.config')
-    def test_trino_resource_get_connection_creates_connections_with_correct_catalog(self, mock_config, mock_connect):
+    @patch("phlo.defs.resources.trino.connect")
+    @patch("phlo.defs.resources.trino.config")
+    def test_trino_resource_get_connection_creates_connections_with_correct_catalog(
+        self, mock_config, mock_connect
+    ):
         """Test that TrinoResource.get_connection creates connections with correct catalog."""
         mock_config.trino_host = "trino"
         mock_config.trino_port = 8080
@@ -83,11 +82,11 @@ class TestResourcesUnitTests:
             port=8080,
             user="dagster",
             catalog="iceberg_dev",  # Should use dev catalog for dev branch
-            schema="silver"
+            schema="silver",
         )
         assert connection == mock_connection
 
-    @patch('phlo.defs.resources.trino.connect')
+    @patch("phlo.defs.resources.trino.connect")
     def test_trino_resource_cursor_context_manager_works(self, mock_connect):
         """Test that TrinoResource.cursor context manager works."""
         mock_connection = MagicMock()
@@ -104,7 +103,7 @@ class TestResourcesUnitTests:
         mock_connection.close.assert_called_once()
         mock_cursor.close.assert_called_once()
 
-    @patch('phlo.defs.resources.trino.connect')
+    @patch("phlo.defs.resources.trino.connect")
     def test_trino_resource_query_executes_and_returns_results(self, mock_connect):
         """Test that TrinoResource.query executes and returns results."""
         mock_connection = MagicMock()
@@ -127,7 +126,7 @@ class TestResourcesUnitTests:
         mock_connection.close.assert_called_once()
         mock_cursor.close.assert_called_once()
 
-    @patch('phlo.defs.resources.trino.connect')
+    @patch("phlo.defs.resources.trino.connect")
     def test_trino_resource_query_handles_statements_without_results(self, mock_connect):
         """Test that TrinoResource.query handles statements without results."""
         mock_connection = MagicMock()
@@ -161,20 +160,15 @@ class TestResourcesIntegrationTests:
 
         # Test TrinoResource with explicit parameters
         trino_resource = TrinoResource(
-            host="trino-host",
-            port=8080,
-            catalog="iceberg",
-            nessie_ref="dev"
+            host="trino-host", port=8080, catalog="iceberg", nessie_ref="dev"
         )
         assert trino_resource.host == "trino-host"
         assert trino_resource.port == 8080
         assert trino_resource.catalog == "iceberg"
         assert trino_resource.nessie_ref == "dev"
 
-
-
-    @patch('phlo.defs.resources.trino.connect')
-    @patch('phlo.defs.resources.trino.config')
+    @patch("phlo.defs.resources.trino.connect")
+    @patch("phlo.defs.resources.trino.config")
     def test_trino_resource_executes_real_queries(self, mock_config, mock_connect):
         """Test that TrinoResource executes real queries."""
         # This integration test verifies that TrinoResource can execute
@@ -194,7 +188,7 @@ class TestResourcesIntegrationTests:
         mock_cursor.description = [("id",), ("glucose_mg_dl",), ("timestamp",)]
         mock_cursor.fetchall.return_value = [
             (1, 120, "2024-01-01 12:00:00"),
-            (2, 130, "2024-01-01 13:00:00")
+            (2, 130, "2024-01-01 13:00:00"),
         ]
 
         resource = TrinoResource()
@@ -205,9 +199,11 @@ class TestResourcesIntegrationTests:
         assert results[1] == (2, 130, "2024-01-01 13:00:00")
         mock_cursor.execute.assert_called_once_with("SELECT * FROM iceberg.raw.entries", [])
 
-    @patch('phlo.defs.resources.config')
-    @patch('phlo.defs.resources.DbtCliResource')
-    def test_dbt_cli_resource_is_configured_with_correct_paths(self, mock_dbt_resource, mock_config):
+    @patch("phlo.defs.resources.config")
+    @patch("phlo.defs.resources.DbtCliResource")
+    def test_dbt_cli_resource_is_configured_with_correct_paths(
+        self, mock_dbt_resource, mock_config
+    ):
         """Test that DbtCliResource is configured with correct paths."""
         from phlo.defs.resources import _build_dbt_resource
 
@@ -220,7 +216,6 @@ class TestResourcesIntegrationTests:
         resource = _build_dbt_resource()
 
         mock_dbt_resource.assert_called_once_with(
-            project_dir="/path/to/dbt/project",
-            profiles_dir="/path/to/dbt/profiles"
+            project_dir="/path/to/dbt/project", profiles_dir="/path/to/dbt/profiles"
         )
         assert resource == mock_instance
