@@ -4,8 +4,9 @@ This module contains unit and integration tests for the
 phlo.defs.resources module, focusing on IcebergResource and TrinoResource.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Mark entire module as integration tests (requires config and environment)
 pytestmark = pytest.mark.integration
