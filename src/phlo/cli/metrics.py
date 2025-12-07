@@ -227,7 +227,12 @@ def _export_json(metrics: object, output: Path) -> None:
             json.dump(result, f, indent=2, default=str)
     else:
         with open(output, "w") as f:
-            json.dump({"data": result, "exported_at": datetime.utcnow().isoformat()}, f, indent=2, default=str)
+            json.dump(
+                {"data": result, "exported_at": datetime.utcnow().isoformat()},
+                f,
+                indent=2,
+                default=str,
+            )
 
 
 def _export_csv(metrics: object, output: Path) -> None:
