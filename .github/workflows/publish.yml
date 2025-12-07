@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  contents: read   # Required to checkout private repo
   id-token: write  # Required for trusted publishing
 
 jobs:
