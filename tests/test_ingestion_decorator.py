@@ -70,8 +70,9 @@ class TestSchemaAutoGeneration:
 
     def test_error_when_no_schema_provided(self):
         """Test error raised when neither validation_schema nor iceberg_schema provided."""
+        from phlo.exceptions import CascadeConfigError
 
-        with pytest.raises(ValueError, match="Either 'validation_schema'.*or 'iceberg_schema'"):
+        with pytest.raises(CascadeConfigError, match="Missing required schema parameter"):
 
             @phlo_ingestion(
                 table_name="test_table",
@@ -353,7 +354,7 @@ class TestAssetAttributes:
         assert "Custom docstring" in spec.description
 
     def test_asset_compute_kind(self):
-        """Test asset has correct compute_kind."""
+        """Test asset has correct compute kind."""
 
         class TestSchema(DataFrameModel):
             id: str
@@ -367,8 +368,11 @@ class TestAssetAttributes:
         def test_asset(partition_date: str):
             pass
 
-        # Check compute kind
-        assert test_asset.op.tags["dagster/compute_kind"] == "dlt+pyiceberg"
+        # Check compute kind via asset's tags (dagster/kind/*)
+        asset_key = list(test_asset.tags_by_key.keys())[0]
+        tags = test_asset.tags_by_key[asset_key]
+        assert "dagster/kind/dlt" in tags
+        assert "dagster/kind/iceberg" in tags
 
     def test_asset_has_partitions_def(self):
         """Test asset has partitions_def configured."""

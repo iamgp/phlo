@@ -79,15 +79,14 @@ class TestConfigUnitTests:
             expected_pg_conn_no_db = f"postgresql://{test_config.postgres_user}:{test_config.postgres_password}@{test_config.postgres_host}:{test_config.postgres_port}"
             assert test_config.get_postgres_connection_string(include_db=False) == expected_pg_conn_no_db
 
-    @patch('os.path.exists')
-    def test_computed_fields_container_environment(self, mock_exists):
-        """Test computed fields in container environment."""
-        mock_exists.return_value = True  # Simulate /dbt exists (container)
-
+    def test_computed_fields_container_environment(self):
+        """Test computed fields can be overridden via environment variables."""
+        # Simulate container environment by setting DBT_PROJECT_DIR env var
         env_vars = {
             "POSTGRES_PASSWORD": "test_password",
             "MINIO_ROOT_PASSWORD": "minio_password",
             "SUPERSET_ADMIN_PASSWORD": "superset_password",
+            "DBT_PROJECT_DIR": "/dbt",  # Container path override
         }
 
         with patch.dict(os.environ, env_vars, clear=True):
