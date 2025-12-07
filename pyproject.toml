@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "uv-dynamic-versioning"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -65,17 +65,6 @@ dev-dependencies = [
     "ty",
 ]
 
-[tool.hatch.version]
-source = "uv-dynamic-versioning"
-# Note JSON schemas don't seem to be right for tool.hatch.version.source so
-# this may cause false warnings in IDEs.
-# https://github.com/ninoseki/uv-dynamic-versioning/issues/21
-
-[tool.uv-dynamic-versioning]
-vcs = "git"
-style = "pep440"
-bump = true
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -83,3 +72,6 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 norecursedirs = ["src", ".venv"]
 addopts = "--ignore=src --continue-on-collection-errors"
+markers = [
+    "integration: marks tests as requiring external services (deselect with '-m \"not integration\"')",
+]
