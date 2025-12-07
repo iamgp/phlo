@@ -7,6 +7,9 @@ Tests authentication, queries, and GraphQL-specific functionality.
 import requests
 import pytest
 
+# Mark entire module as integration tests (requires running API services)
+pytestmark = pytest.mark.integration
+
 BASE_URL = "http://localhost:8081"
 GRAPHQL_ENDPOINT = f"{BASE_URL}/v1/graphql"
 REST_API_URL = "http://localhost:8000/api/v1"

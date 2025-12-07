@@ -11,6 +11,9 @@ Tests authentication, endpoints, and error handling.
 import requests
 import pytest
 
+# Mark entire module as integration tests (requires running API services)
+pytestmark = pytest.mark.integration
+
 # --- Test Configuration ---
 # Base URLs and constants for API testing
 BASE_URL = "http://localhost:8000"
