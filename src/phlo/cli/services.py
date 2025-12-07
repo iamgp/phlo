@@ -465,7 +465,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       WORKFLOWS_PATH: /app/workflows
-      CASCADE_HOST_PLATFORM: ${CASCADE_HOST_PLATFORM:-$$(uname -s)}
+      PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-$$(uname -s)}
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/workspace.yaml"]
     ports:
       - "${DAGSTER_PORT:-3000}:3000"
@@ -518,7 +518,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       WORKFLOWS_PATH: /app/workflows
-      CASCADE_HOST_PLATFORM: ${CASCADE_HOST_PLATFORM:-$$(uname -s)}
+      PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-$$(uname -s)}
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
       - ./dagster:/opt/dagster
@@ -707,8 +707,8 @@ DAGSTER_PORT=3000
 
 # Host Platform Detection (auto-detected via uname -s)
 # Override if needed:
-#   CASCADE_HOST_PLATFORM=Darwin  # for in-process executor (more stable on macOS)
-#   CASCADE_HOST_PLATFORM=Linux   # for multiprocess executor (better performance)
+#   PHLO_HOST_PLATFORM=Darwin  # for in-process executor (more stable on macOS)
+#   PHLO_HOST_PLATFORM=Linux   # for multiprocess executor (better performance)
 
 # GitHub token for private repo access (required for phlo from private GitHub repo)
 # Create at: https://github.com/settings/tokens

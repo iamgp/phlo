@@ -281,17 +281,17 @@ class TestDLTMetadataFields:
         assert "_dlt_load_id" not in field_names
         assert "_dlt_id" not in field_names
 
-    def test_cascade_ingested_at_gets_special_id(self):
-        """Test _cascade_ingested_at gets ID 102."""
+    def test_phlo_ingested_at_gets_special_id(self):
+        """Test _phlo_ingested_at gets ID 102."""
 
         class SimpleSchema(DataFrameModel):
             id: str
-            _cascade_ingested_at: datetime
+            _phlo_ingested_at: datetime
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
 
-        cascade_field = next(f for f in schema.fields if f.name == "_cascade_ingested_at")
-        assert cascade_field.field_id == 102
+        phlo_field = next(f for f in schema.fields if f.name == "_phlo_ingested_at")
+        assert phlo_field.field_id == 102
 
 
 class TestErrorHandling:

@@ -71,9 +71,11 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 norecursedirs = ["src", ".venv"]
-addopts = "--ignore=src --continue-on-collection-errors"
+# Skip integration tests by default - they require dbt manifest and running services
+# Run integration tests with: pytest -m integration
+addopts = "--ignore=src --continue-on-collection-errors -m 'not integration'"
 markers = [
-    "integration: marks tests as requiring external services (deselect with '-m \"not integration\"')",
+    "integration: marks tests as requiring external services or dbt manifest (run with '-m integration')",
 ]
 
 [tool.ruff]
@@ -94,6 +96,9 @@ ignore = ["E501"]  # Line too long - let the formatter handle this
 "tests/test_system_e2e.py" = ["E402"]
 "tests/test_transform.py" = ["E402"]
 "tests/test_resources.py" = ["E402"]
+"tests/test_quality.py" = ["E402"]
+"tests/test_rest_api.py" = ["E402"]
+"tests/test_graphql_api.py" = ["E402"]
 "tests/scripts/test_duckdb_iceberg.py" = ["E402"]
 
 [tool.basedpyright]
