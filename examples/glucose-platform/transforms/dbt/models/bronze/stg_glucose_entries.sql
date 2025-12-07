@@ -21,19 +21,23 @@ with raw_data as (
 )
 
 -- Final select: Apply field mapping, type conversions, and basic validations
+-- noqa: disable=ST06
 select
+    -- Simple columns first
     _id as entry_id,
     sgv as glucose_mg_dl,
-    coalesce(date_string, from_unixtime(cast(date as double) / 1000.0)) as reading_timestamp,
     date_string as timestamp_iso,
     direction,
     trend,
     device,
     type as reading_type,
     utc_offset as utc_offset_minutes,
+    -- Calculated columns
+    coalesce(date_string, from_unixtime(cast(date as double) / 1000.0))
+        as reading_timestamp,
     -- Metadata columns
     sys_time,
-    sys_time as _cascade_ingested_at,  -- Use sys_time as proxy for ingestion timestamp
+    sys_time as _phlo_ingested_at,  -- Use sys_time as proxy for ingestion timestamp
     _dlt_load_id,
     _dlt_id
 from raw_data
@@ -43,5 +47,7 @@ where
     and sgv between 20 and 600  -- Physiologically plausible range
     {% if var('partition_date_str', None) is not none %}
     -- Filter to partition date when processing partitioned data
-        and date(coalesce(date_string, from_unixtime(cast(date as double) / 1000.0))) = date('{{ var('partition_date_str') }}')
+        and date(
+            coalesce(date_string, from_unixtime(cast(date as double) / 1000.0))
+        ) = date('{{ var('partition_date_str') }}')
     {% endif %}

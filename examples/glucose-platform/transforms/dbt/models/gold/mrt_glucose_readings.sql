@@ -21,24 +21,31 @@ Incremental Strategy:
 */
 
 -- Select statement: Retrieve all enriched glucose reading fields from silver layer
-select
-    entry_id,
-    glucose_mg_dl,
-    reading_timestamp,
-    reading_date,
-    hour_of_day,
-    day_of_week,
-    day_name,
-    glucose_category,
-    is_in_range,
-    glucose_change_mg_dl,
-    direction,
-    trend,
-    device
+with source_data as (
+    select * from {{ ref('fct_glucose_readings') }}
+)
 
-from {{ ref('fct_glucose_readings') }}
+select
+    source_data.entry_id,
+    source_data.glucose_mg_dl,
+    source_data.reading_timestamp,
+    source_data.reading_date,
+    source_data.hour_of_day,
+    source_data.day_of_week,
+    source_data.day_name,
+    source_data.glucose_category,
+    source_data.is_in_range,
+    source_data.glucose_change_mg_dl,
+    source_data.direction,
+    source_data.trend,
+    source_data.device
+
+from source_data
 
 {% if is_incremental() %}
     -- Only process new data on incremental runs
-    where reading_timestamp > (select max(reading_timestamp) from {{ this }})
+    where source_data.reading_timestamp > (
+        select max(this_table.reading_timestamp)
+        from {{ this }} as this_table
+    )
 {% endif %}
