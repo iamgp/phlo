@@ -9,7 +9,7 @@
     tags=['nightscout', 'mart']
 ) }}
 
- /*
+/*
 Glucose overview mart for BI dashboards
 
 This mart table is incrementally materialized in Iceberg for fast dashboard queries in
@@ -55,16 +55,16 @@ select
     -- Glucose variability coefficient
     case
         when avg_glucose_mg_dl > 0
-        then round(100.0 * stddev_glucose_mg_dl / avg_glucose_mg_dl, 1)
-        else null
+            then round(100.0 * stddev_glucose_mg_dl / avg_glucose_mg_dl, 1)
     end as coefficient_of_variation
 
 from {{ ref('fct_daily_glucose_metrics') }}
-where reading_date >= current_date - interval '90' day  -- Last 90 days for dashboard
+where
+    reading_date >= current_date - interval '90' day  -- Last 90 days for dashboard
 
-{% if is_incremental() %}
+    {% if is_incremental() %}
     -- Only process new dates on incremental runs
-    and reading_date >= (select coalesce(max(reading_date), date('1900-01-01')) from {{ this }})
-{% endif %}
+        and reading_date >= (select coalesce(max(reading_date), date('1900-01-01')) from {{ this }})
+    {% endif %}
 
 order by reading_date desc

@@ -44,12 +44,14 @@ enriched as (
         r.repository_updated_at,
 
         -- Age and recency calculations
-        date_diff('day',
+        date_diff(
+            'day',
             cast(r.repository_created_at as timestamp),
             c.analysis_date
         ) as repository_age_days,
 
-        date_diff('day',
+        date_diff(
+            'day',
             cast(r.repository_updated_at as timestamp),
             c.analysis_date
         ) as days_since_last_update,
@@ -60,7 +62,8 @@ enriched as (
 
         -- Activity indicators
         case
-            when date_diff('day',
+            when date_diff(
+                'day',
                 cast(r.repository_updated_at as timestamp),
                 c.analysis_date
             ) <= 30 then 1
@@ -68,7 +71,8 @@ enriched as (
         end as is_active_last_30d,
 
         case
-            when date_diff('day',
+            when date_diff(
+                'day',
                 cast(r.repository_updated_at as timestamp),
                 c.analysis_date
             ) <= 90 then 1
@@ -80,22 +84,25 @@ enriched as (
 
         -- Engagement rate (stars per day of existence)
         case
-            when date_diff('day',
-                cast(r.repository_created_at as timestamp),
-                c.analysis_date
-            ) > 0
-            then cast(r.stars_count as double) / date_diff('day',
-                cast(r.repository_created_at as timestamp),
-                c.analysis_date
-            )
+            when
+                date_diff(
+                    'day',
+                    cast(r.repository_created_at as timestamp),
+                    c.analysis_date
+                ) > 0
+                then cast(r.stars_count as double) / date_diff(
+                    'day',
+                    cast(r.repository_created_at as timestamp),
+                    c.analysis_date
+                )
             else 0.0
         end as stars_per_day,
 
         -- Metadata
         r._cascade_ingested_at
 
-    from repos_data r
-    cross join current_date_ref c
+    from repos_data as r
+    cross join current_date_ref as c
 )
 
 select * from enriched

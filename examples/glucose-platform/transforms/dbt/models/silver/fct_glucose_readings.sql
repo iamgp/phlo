@@ -7,7 +7,7 @@
     tags=['nightscout', 'int']
 ) }}
 
- /*
+/*
 Enriched glucose data with calculated metrics
 
 This model adds useful calculated fields:
@@ -63,7 +63,8 @@ enriched as (
         ) as glucose_change_mg_dl,
 
         -- Minutes since previous reading
-        date_diff('minute',
+        date_diff(
+            'minute',
             lag(reading_timestamp) over (
                 partition by device
                 order by reading_timestamp

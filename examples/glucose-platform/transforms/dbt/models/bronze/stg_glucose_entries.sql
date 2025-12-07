@@ -38,9 +38,10 @@ select
     _dlt_id
 from raw_data
 -- Apply data quality filters
-where sgv is not null
+where
+    sgv is not null
     and sgv between 20 and 600  -- Physiologically plausible range
     {% if var('partition_date_str', None) is not none %}
     -- Filter to partition date when processing partitioned data
-    and date(coalesce(date_string, from_unixtime(cast(date as double) / 1000.0))) = date('{{ var('partition_date_str') }}')
+        and date(coalesce(date_string, from_unixtime(cast(date as double) / 1000.0))) = date('{{ var('partition_date_str') }}')
     {% endif %}
