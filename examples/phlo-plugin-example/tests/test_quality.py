@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from phlo_example.quality import ThresholdCheck, ThresholdCheckPlugin
+from phlo_example.quality import ThresholdCheckPlugin
 
 
 @pytest.fixture

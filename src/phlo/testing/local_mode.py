@@ -11,16 +11,16 @@ Example:
 
 from __future__ import annotations
 
-import os
 import json
+import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
+from phlo.testing.mock_dlt import MockDLTResource, mock_dlt_source
 from phlo.testing.mock_iceberg import MockIcebergCatalog
 from phlo.testing.mock_trino import MockTrinoResource
-from phlo.testing.mock_dlt import mock_dlt_source, MockDLTResource
 
 
 class LocalTestMode:

@@ -15,8 +15,8 @@ from typing import Optional
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.syntax import Syntax
+from rich.table import Table
 
 from phlo.cli.utils import classify_schema_change, discover_pandera_schemas
 

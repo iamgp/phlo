@@ -214,10 +214,9 @@ def validate_workflow(asset_file: str, fix: bool):
       phlo validate-workflow workflows/ingestion/  # Validate directory
       phlo validate-workflow weather.py --fix     # Auto-fix where possible
     """
-    import inspect
     from pathlib import Path
 
-    console.print(f"\n[bold blue]🔍 Validating Workflow[/bold blue]\n")
+    console.print("\n[bold blue]🔍 Validating Workflow[/bold blue]\n")
 
     path = Path(asset_file)
 
@@ -264,7 +263,6 @@ def _validate_workflow_file(file_path: Path, fix: bool = False) -> bool:
     Returns:
         True if valid, False otherwise
     """
-    import inspect
 
     console.print(f"[bold cyan]{file_path.name}[/bold cyan]")
 
@@ -369,7 +367,6 @@ def _validate_workflow_function(
         True if valid, False otherwise
     """
     import inspect
-    import re
 
     console.print(f"  [dim]Function: {func_name}[/dim]")
 
@@ -397,7 +394,6 @@ def _validate_workflow_function(
             for i in range(func_line_idx - 1, max(0, func_line_idx - 20), -1):
                 if "@phlo_ingestion" in lines[i]:
                     # Extract decorator block
-                    deco_start = i
                     deco_lines = []
                     bracket_count = 0
                     for j in range(i, func_line_idx):
@@ -429,7 +425,6 @@ def _validate_workflow_function(
             try:
                 func_source = inspect.getsource(func_obj)
                 # Count occurrences excluding the parameter declaration itself
-                param_line = f"partition_date"
                 # Simple heuristic: if partition_date appears only once (in the signature),
                 # it's likely unused
                 occurrences = func_source.count("partition_date")

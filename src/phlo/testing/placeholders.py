@@ -14,25 +14,26 @@ For comprehensive testing guide, see: docs/TESTING_GUIDE.md
 """
 
 import json
-import pandas as pd
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Iterator, Union, cast
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Callable, Dict, Iterator, List, Optional, Union, cast
+
+import pandas as pd
 
 try:
     import duckdb
     import pyarrow as pa
     from pyiceberg.schema import Schema
     from pyiceberg.types import (
-        StringType,
+        BinaryType,
+        BooleanType,
+        DateType,
+        DoubleType,
+        FloatType,
         IntegerType,
         LongType,
-        FloatType,
-        DoubleType,
-        BooleanType,
+        StringType,
         TimestamptzType,
-        DateType,
-        BinaryType,
     )
 
     ICEBERG_DEPS_AVAILABLE = True

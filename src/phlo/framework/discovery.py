@@ -223,9 +223,10 @@ def _discover_dbt_assets() -> list[Any]:
         return []
 
     try:
+        from typing import Mapping
+
         from dagster import AssetKey
         from dagster_dbt import DagsterDbtTranslator, dbt_assets
-        from typing import Mapping
 
         from phlo.defs.partitions import daily_partition
 
@@ -388,7 +389,8 @@ def _discover_publishing_assets() -> list[Any]:
 
     try:
         import json
-        from dagster import asset, AssetKey
+
+        from dagster import AssetKey, asset
 
         with open(manifest_path) as f:
             manifest = json.load(f)

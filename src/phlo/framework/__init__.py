@@ -11,8 +11,8 @@ The framework supports:
 - Dagster Definitions building
 """
 
-from phlo.framework.discovery import discover_user_workflows
 from phlo.framework.definitions import build_definitions, defs
+from phlo.framework.discovery import discover_user_workflows
 
 __all__ = [
     "discover_user_workflows",

@@ -28,7 +28,6 @@ from trino.dbapi import Connection, Cursor, connect
 
 from phlo.config import config
 
-
 # Catalog names for different branches
 CATALOG_MAIN = "iceberg"  # Points to Nessie main branch
 CATALOG_DEV = "iceberg_dev"  # Points to Nessie dev branch

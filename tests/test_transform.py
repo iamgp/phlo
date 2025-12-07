@@ -4,8 +4,8 @@ This module contains unit, integration, e2e, and data quality tests for the
 phlo.defs.transform.dbt module, focusing on the CustomDbtTranslator and dbt assets.
 """
 
-from unittest.mock import MagicMock, patch
 from typing import cast
+from unittest.mock import MagicMock, patch
 
 import pytest
 from dagster import AssetKey
@@ -244,8 +244,9 @@ class TestTransformIntegrationTests:
     def test_dbt_models_transform_data_correctly_from_bronze_to_gold(self):
         """Test that dbt models transform data correctly from bronze to gold."""
         # Test the dbt asset configuration and dependencies without running actual dbt
-        from phlo.defs.transform.dbt import CustomDbtTranslator
         from dagster import AssetKey
+
+        from phlo.defs.transform.dbt import CustomDbtTranslator
 
         translator = CustomDbtTranslator()
 
@@ -334,37 +335,6 @@ class TestTransformE2ETests:
 
         # Verify both build and docs phases completed
         assert mock_dbt.cli.call_count == 2
-
-    @pytest.mark.skip(reason="Requires proper Dagster testing setup for assets")
-    def test_full_transformation_pipeline_completes(self):
-        """Test that full transformation pipeline (raw → bronze → silver → gold) completes."""
-        # This E2E test verifies the complete transformation pipeline structure
-        from phlo.defs.transform import build_defs
-        from dagster import Definitions
-
-        defs = build_defs()
-        assert isinstance(defs, Definitions)
-
-        # Verify dbt assets are included in the definitions
-        asset_keys = []
-        if defs.assets:
-            for asset in defs.assets:
-                if hasattr(asset, 'keys'):
-                    # Multi-asset definition
-                    asset_keys.extend(asset.keys)
-                else:
-                    # Single asset or try key
-                    try:
-                        asset_keys.append(asset.key)
-                    except:
-                        # Skip assets that don't have accessible keys
-                        continue
-        # The actual asset keys would be determined by dbt manifest.json
-        # For this test, we verify the build_defs function works
-
-        # Verify resources are configured
-        assert defs.resources is not None
-        assert 'dbt' in defs.resources
 
     @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
     @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')

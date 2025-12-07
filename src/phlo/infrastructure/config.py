@@ -14,7 +14,11 @@ from typing import Optional
 import yaml
 from pydantic import ValidationError
 
-from phlo.config_schema import InfrastructureConfig, ServiceConfig, get_default_infrastructure_config
+from phlo.config_schema import (
+    InfrastructureConfig,
+    ServiceConfig,
+    get_default_infrastructure_config,
+)
 
 logger = logging.getLogger(__name__)
 

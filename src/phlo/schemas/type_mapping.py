@@ -93,8 +93,8 @@ def apply_schema_types(
         df = apply_schema_types(df, FactGlucoseReadings)
         # Types are now correct for validation
     """
-    from typing import get_type_hints, get_origin, get_args
     import types
+    from typing import get_args, get_origin, get_type_hints
 
     hints = get_type_hints(schema_class)
 

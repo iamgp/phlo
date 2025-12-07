@@ -8,10 +8,11 @@ Provides sensors for:
 """
 
 import dagster as dg
+
 from phlo.defs.sensors.branch_lifecycle import (
-    branch_creation_sensor,
     auto_promotion_sensor,
     branch_cleanup_sensor,
+    branch_creation_sensor,
 )
 
 __all__ = [

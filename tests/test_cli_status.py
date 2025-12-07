@@ -5,7 +5,6 @@ Tests the status CLI command for asset and service health monitoring.
 
 import json
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -15,7 +14,6 @@ from phlo.cli.status import (
     _check_service_health,
     _get_freshness_indicator,
     _get_mock_asset_status,
-    _get_service_status,
     status,
 )
 

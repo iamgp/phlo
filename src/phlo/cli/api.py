@@ -14,7 +14,6 @@ from phlo.api.hasura.sync import HasuraMetadataSync
 from phlo.api.hasura.track import HasuraTableTracker, auto_track
 from phlo.api.postgrest.views import generate_views
 
-
 # --- PostgREST Commands ---
 
 

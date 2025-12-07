@@ -10,22 +10,20 @@ Tests cover:
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
-from dagster import AssetCheckResult, build_asset_context
 
 from phlo.quality import (
-    phlo_quality,
-    NullCheck,
-    RangeCheck,
-    FreshnessCheck,
-    UniqueCheck,
     CountCheck,
     CustomSQLCheck,
+    FreshnessCheck,
+    NullCheck,
     PatternCheck,
+    RangeCheck,
+    UniqueCheck,
     get_quality_checks,
+    phlo_quality,
 )
 
 
@@ -87,7 +85,7 @@ class TestRangeCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == True
+        assert result.passed
         assert result.metric_value["out_of_range"] == 0
 
     def test_range_check_fails_out_of_bounds(self):
@@ -97,7 +95,7 @@ class TestRangeCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == False
+        assert not result.passed
         assert result.metric_value["out_of_range"] == 2
         assert result.failure_message is not None
 
@@ -108,7 +106,7 @@ class TestRangeCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == True  # 2/5 = 40% violations < 50% threshold allowed
+        assert result.passed  # 2/5 = 40% violations < 50% threshold allowed
         assert result.metadata["violation_percentage"] == 0.4
 
     def test_range_check_min_only(self):
@@ -118,7 +116,7 @@ class TestRangeCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == True
+        assert result.passed
 
     def test_range_check_max_only(self):
         """Test RangeCheck with only max_value."""
@@ -127,7 +125,7 @@ class TestRangeCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == True
+        assert result.passed
 
 
 class TestFreshnessCheck:
@@ -180,7 +178,7 @@ class TestUniqueCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == True
+        assert result.passed
         assert result.metric_value["duplicate_count"] == 0
 
     def test_unique_check_fails_with_duplicates(self):
@@ -190,7 +188,7 @@ class TestUniqueCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == False
+        assert not result.passed
         assert result.metric_value["duplicate_count"] == 5  # All rows with duplicates
         assert result.failure_message is not None
 
@@ -204,7 +202,7 @@ class TestUniqueCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == True  # All combinations are unique
+        assert result.passed  # All combinations are unique
 
     def test_unique_check_with_threshold(self):
         """Test UniqueCheck respects allow_threshold."""
@@ -213,7 +211,7 @@ class TestUniqueCheck:
 
         result = check.execute(df, context=None)
 
-        assert result.passed == True  # 4/5 = 80% duplicates, threshold is 90%
+        assert result.passed  # 4/5 = 80% duplicates, threshold is 90%
 
 
 class TestCountCheck:

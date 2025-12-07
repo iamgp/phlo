@@ -15,10 +15,10 @@ Example:
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Iterator, Literal, Optional, Sequence
+from typing import Any, Iterator, Literal, Optional
+
 import duckdb
 import pandas as pd
-from datetime import datetime
 
 
 class MockCursor:
@@ -181,12 +181,6 @@ class MockCursor:
         common differences here.
         """
         # Replace common Trino functions with DuckDB equivalents
-        replacements = {
-            "CAST(": "CAST(",  # Same
-            "DATE_FORMAT": "strftime",
-            "FROM_ISO8601_DATE": "DATE",
-            "FROM_UNIXTIME": "to_timestamp",
-        }
 
         # For now, most Trino queries work directly in DuckDB
         return query

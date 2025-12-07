@@ -6,7 +6,6 @@ phlo.definitions module, focusing on definition merging and executor selection.
 
 from unittest.mock import patch
 
-
 from phlo.definitions import _default_executor, _merged_definitions, defs
 
 

@@ -139,9 +139,9 @@ def get_alert_manager() -> AlertManager:
 
 def _register_default_destinations(manager: AlertManager) -> None:
     """Register default alert destinations from config."""
-    from phlo.alerting.destinations.slack import SlackAlertDestination
-    from phlo.alerting.destinations.pagerduty import PagerDutyAlertDestination
     from phlo.alerting.destinations.email import EmailAlertDestination
+    from phlo.alerting.destinations.pagerduty import PagerDutyAlertDestination
+    from phlo.alerting.destinations.slack import SlackAlertDestination
     from phlo.config import get_settings
 
     config = get_settings()

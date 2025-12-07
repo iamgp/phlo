@@ -10,8 +10,8 @@ TODO: Customize this template:
 4. Add additional tests as needed
 """
 
-import pytest
 import pandas as pd
+import pytest
 
 # TODO: Update these imports to match your asset and schema
 # Example:

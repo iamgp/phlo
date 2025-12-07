@@ -13,7 +13,6 @@ from typing import Optional
 import click
 import yaml
 
-
 PHLO_CONFIG_FILE = "phlo.yaml"
 
 PHLO_CONFIG_TEMPLATE = """# Phlo Project Configuration

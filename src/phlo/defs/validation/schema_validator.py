@@ -8,8 +8,9 @@ between Nessie branches, allowing additive changes while blocking breaking chang
 from typing import Any
 
 import dagster as dg
-from phlo.iceberg.catalog import get_catalog
 from pyiceberg.schema import Schema
+
+from phlo.iceberg.catalog import get_catalog
 
 
 class SchemaCompatibilityValidatorResource(dg.ConfigurableResource):

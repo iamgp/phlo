@@ -17,17 +17,13 @@ Example:
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
-from datetime import datetime
-import time
 
 import pandas as pd
-from dagster import ExecuteInProcessResult, in_process_executor
-from dagster import DagsterInstance, DagsterEventType
 
 from phlo.testing.mock_iceberg import MockIcebergCatalog
-from phlo.testing.mock_dlt import mock_dlt_source, MockDLTResource
 from phlo.testing.mock_trino import MockTrinoResource
 
 

@@ -32,30 +32,29 @@ def cli():
 cli.add_command(services)
 
 # Add validation commands
-from phlo.cli.validate import validate_schema, validate_workflow
-from phlo.cli.status import status
+from phlo.cli.alerts import alerts_group
+
+# Import API subcommands to register with the existing api group (defined below)
+from phlo.cli.api import hasura, postgrest
 from phlo.cli.backfill import backfill
-from phlo.cli.logs import logs
-
-# Add catalog management commands
-from phlo.cli.schema import schema
-from phlo.cli.catalog import catalog
 from phlo.cli.branch import branch
+from phlo.cli.catalog import catalog
 
+# Add configuration management commands
+from phlo.cli.config import config
+from phlo.cli.lineage import lineage_group
+from phlo.cli.logs import logs
 
 # Add observability commands
 from phlo.cli.metrics import metrics_group
-from phlo.cli.lineage import lineage_group
-from phlo.cli.alerts import alerts_group
 
 # Add plugin management commands
 from phlo.cli.plugin import plugin_group
 
-# Add configuration management commands
-from phlo.cli.config import config
-
-# Import API subcommands to register with the existing api group (defined below)
-from phlo.cli.api import hasura, postgrest
+# Add catalog management commands
+from phlo.cli.schema import schema
+from phlo.cli.status import status
+from phlo.cli.validate import validate_schema, validate_workflow
 
 cli.add_command(validate_schema)
 cli.add_command(validate_workflow)

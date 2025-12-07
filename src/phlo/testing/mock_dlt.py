@@ -13,8 +13,9 @@ Example:
 
 from __future__ import annotations
 
-from typing import Any, Iterator, Sequence
 from dataclasses import dataclass, field
+from typing import Any, Iterator
+
 import pandas as pd
 
 

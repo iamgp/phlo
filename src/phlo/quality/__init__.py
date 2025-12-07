@@ -40,7 +40,7 @@ from phlo.quality.checks import (
     SchemaCheck,
     UniqueCheck,
 )
-from phlo.quality.decorator import phlo_quality, get_quality_checks
+from phlo.quality.decorator import get_quality_checks, phlo_quality
 
 __all__ = [
     # Decorator (use as @phlo.quality(...) after `import phlo`)

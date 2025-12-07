@@ -74,7 +74,7 @@ def ensure_table(
         pass
 
     # Build partition spec
-    from pyiceberg.partitioning import PartitionSpec, PartitionField
+    from pyiceberg.partitioning import PartitionField, PartitionSpec
     from pyiceberg.transforms import DayTransform, HourTransform, IdentityTransform
 
     transform_map = {
@@ -167,6 +167,7 @@ def append_to_table(
 
     if new_columns:
         # Add missing columns to the Iceberg table schema
+        import pyarrow as pa
         from pyiceberg.types import (
             BooleanType,
             DateType,
@@ -177,7 +178,6 @@ def append_to_table(
             StringType,
             TimestampType,
         )
-        import pyarrow as pa
 
         # Map PyArrow types to PyIceberg types
         type_mapping = {
@@ -354,6 +354,7 @@ def merge_to_table(
 
     if new_columns:
         # Add missing columns to the Iceberg table schema
+        import pyarrow as pa
         from pyiceberg.types import (
             BooleanType,
             DateType,
@@ -364,7 +365,6 @@ def merge_to_table(
             StringType,
             TimestampType,
         )
-        import pyarrow as pa
 
         # Map PyArrow types to PyIceberg types
         type_mapping = {

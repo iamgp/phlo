@@ -10,8 +10,8 @@ from pathlib import Path
 
 from dagster import Definitions
 
-from phlo.framework.discovery import discover_user_workflows
 from phlo.framework.definitions import build_definitions
+from phlo.framework.discovery import discover_user_workflows
 
 
 def test_discover_empty_workflows_directory():

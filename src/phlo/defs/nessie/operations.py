@@ -10,9 +10,8 @@ Provides ops for creating, merging, listing, and tagging branches.
 
 from __future__ import annotations
 
-import requests
-
 import dagster as dg
+import requests
 
 from phlo.defs.nessie import NessieResource
 

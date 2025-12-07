@@ -2,10 +2,8 @@
 
 import json
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
 
 from phlo.cli.backfill import (
@@ -228,10 +226,10 @@ class TestBackfillStateManagement:
 
     def test_state_file_creation(self, tmp_path):
         """Create state file during backfill."""
-        from phlo.cli.backfill import _save_backfill_state
-
         # Change to temp directory for test
         import os
+
+        from phlo.cli.backfill import _save_backfill_state
 
         original_cwd = os.getcwd()
         try:
@@ -255,9 +253,9 @@ class TestBackfillStateManagement:
 
     def test_state_file_format(self, tmp_path):
         """State file contains all required fields."""
-        from phlo.cli.backfill import _save_backfill_state
-
         import os
+
+        from phlo.cli.backfill import _save_backfill_state
 
         original_cwd = os.getcwd()
         try:

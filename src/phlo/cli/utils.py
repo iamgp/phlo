@@ -4,7 +4,7 @@ Shared CLI utilities for catalog, schema, and branch commands.
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from rich.table import Table
 
@@ -62,9 +62,8 @@ def discover_pandera_schemas(
     Returns:
         Dictionary mapping schema name to schema class
     """
-    from importlib import import_module
-
     import inspect
+    from importlib import import_module
 
     from pandera.pandas import DataFrameModel
 

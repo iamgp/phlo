@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from pyiceberg.schema import Schema
 from pandera.pandas import DataFrameModel
+from pyiceberg.schema import Schema
 
 from phlo.config import config
 
