@@ -18,7 +18,7 @@ class HasuraPermissionManager:
         """
         self.client = client or HasuraClient()
 
-    def load_config(self, config_path: str) -> dict[str, Any]:
+    def load_config(self, config_path: str | Path) -> dict[str, Any]:
         """Load permission config from YAML or JSON file.
 
         Args:
@@ -190,7 +190,7 @@ class HasuraPermissionManager:
         return config
 
     def save_permissions(
-        self, config: dict[str, Any], output_path: str, format: str = "json"
+        self, config: dict[str, Any], output_path: str | Path, format: str = "json"
     ) -> None:
         """Save permissions to file.
 

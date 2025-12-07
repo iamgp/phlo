@@ -33,10 +33,11 @@ select
     _cascade_ingested_at
 from raw_data
 -- Apply data quality filters
-where repo_name is not null
+where
+    repo_name is not null
     and repo_full_name is not null
     and collection_date is not null
     {% if var('partition_date_str', None) is not none %}
     -- Filter to partition date when processing partitioned data
-    and collection_date = '{{ var('partition_date_str') }}'
+        and collection_date = '{{ var('partition_date_str') }}'
     {% endif %}
