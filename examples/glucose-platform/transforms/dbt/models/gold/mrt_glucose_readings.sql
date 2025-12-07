@@ -8,7 +8,7 @@
     tags=['nightscout', 'curated']
 ) }}
 
- /*
+/*
 Curated fact table for glucose readings
 
 This model provides a clean, deduplicated, production-ready dataset for

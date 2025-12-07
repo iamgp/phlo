@@ -21,11 +21,12 @@ select
     _dlt_load_id,
     _dlt_id
 from raw_data
-where id is not null
+where
+    id is not null
     and name is not null
     and created_at is not null
     and stargazers_count >= 0
     and forks_count >= 0
     {% if var('partition_date_str', None) is not none %}
-    and date(updated_at) = date('{{ var('partition_date_str') }}')
+        and date(updated_at) = date('{{ var('partition_date_str') }}')
     {% endif %}

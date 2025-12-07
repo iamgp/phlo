@@ -65,21 +65,24 @@ select
     -- Percentage distributions
     cast(
         round(100.0 * l.repository_count / nullif(t.total_repos, 0), 2)
-    as double) as repo_count_pct,
+        as double
+    ) as repo_count_pct,
 
     cast(
         round(100.0 * l.total_stars / nullif(t.total_stars_all, 0), 2)
-    as double) as star_pct,
+        as double
+    ) as star_pct,
 
     cast(
         round(100.0 * l.total_forks / nullif(t.total_forks_all, 0), 2)
-    as double) as fork_pct,
+        as double
+    ) as fork_pct,
 
     -- Engagement ratio (stars per fork)
     cast(
         l.total_stars as double
     ) / nullif(l.total_forks, 0) as stars_per_fork_ratio
 
-from language_stats l
-cross join totals t
+from language_stats as l
+cross join totals as t
 order by l.total_popularity_score desc, l.repository_count desc

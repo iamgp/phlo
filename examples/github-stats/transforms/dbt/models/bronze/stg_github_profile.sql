@@ -20,7 +20,8 @@ select
     _dlt_load_id,
     _dlt_id
 from raw_data
-where id is not null
+where
+    id is not null
     and login is not null
     and followers >= 0
     and following >= 0

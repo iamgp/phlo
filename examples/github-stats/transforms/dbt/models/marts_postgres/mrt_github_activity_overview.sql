@@ -72,15 +72,16 @@ select
 
     -- Contribution streak (consecutive days with activity)
     case
-        when total_events > 0 then
-            row_number() over (
-                partition by
-                    sum(case when total_events = 0 then 1 else 0 end) over (
-                        order by activity_date
-                        rows unbounded preceding
-                    )
-                order by activity_date
-            )
+        when total_events > 0
+            then
+                row_number() over (
+                    partition by
+                        sum(case when total_events = 0 then 1 else 0 end) over (
+                            order by activity_date
+                            rows unbounded preceding
+                        )
+                    order by activity_date
+                )
         else 0
     end as streak_length,
 
@@ -94,11 +95,12 @@ select
     end as activity_level
 
 from {{ ref('fct_daily_github_metrics') }}
-where activity_date >= current_date - interval '90' day  -- Last 90 days for dashboard
+where
+    activity_date >= current_date - interval '90' day  -- Last 90 days for dashboard
 
-{% if is_incremental() %}
+    {% if is_incremental() %}
     -- Only process new dates on incremental runs
-    and activity_date >= (select coalesce(max(activity_date), date('1900-01-01')) from {{ this }})
-{% endif %}
+        and activity_date >= (select coalesce(max(activity_date), date('1900-01-01')) from {{ this }})
+    {% endif %}
 
 order by activity_date desc

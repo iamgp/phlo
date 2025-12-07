@@ -47,7 +47,8 @@ select
     -- Activity intensity score (normalized to 0-100 scale)
     cast(
         100.0 * count(*) / nullif(max(count(*)) over (), 0)
-    as double) as intensity_score
+        as double
+    ) as intensity_score
 
 from {{ ref('fct_github_events') }}
 where event_timestamp >= current_timestamp - interval '90' day

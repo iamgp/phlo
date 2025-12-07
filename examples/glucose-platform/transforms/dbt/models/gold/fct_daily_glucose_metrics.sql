@@ -9,7 +9,7 @@
     tags=['nightscout', 'curated']
 ) }}
 
- /*
+/*
 Daily glucose metrics fact table
 
 Provides a daily grain view with key metrics aggregated by day.
