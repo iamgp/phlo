@@ -1,4 +1,4 @@
-# definitions.py - Main entry point for Dagster definitions in the Cascade lakehouse platform
+# definitions.py - Main entry point for Dagster definitions in the Phlo lakehouse platform
 # This module aggregates all Dagster components (assets, jobs, schedules, sensors, resources, checks)
 # from various submodules and configures the executor based on the environment.
 
@@ -30,9 +30,9 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     Choose an executor suited to the current environment.
 
     Priority order:
-    1. CASCADE_FORCE_IN_PROCESS_EXECUTOR (explicit override)
-    2. CASCADE_FORCE_MULTIPROCESS_EXECUTOR (explicit override)
-    3. CASCADE_HOST_PLATFORM (from environment, for Docker on macOS)
+    1. PHLO_FORCE_IN_PROCESS_EXECUTOR (explicit override)
+    2. PHLO_FORCE_MULTIPROCESS_EXECUTOR (explicit override)
+    3. PHLO_HOST_PLATFORM (from environment, for Docker on macOS)
     4. platform.system() (fallback for local dev)
 
     Multiprocessing is desirable on Linux servers, but DuckDB has been crashing (SIGBUS) when the
@@ -40,23 +40,23 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     macOS, and allow overrides if needed.
     """
     # Priority 1: Explicit force in-process
-    if config.cascade_force_in_process_executor:
-        logger.info("Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)")
+    if config.phlo_force_in_process_executor:
+        logger.info("Using in-process executor (forced via PHLO_FORCE_IN_PROCESS_EXECUTOR)")
         return dg.in_process_executor
 
     # Priority 2: Explicit force multiprocess
-    if config.cascade_force_multiprocess_executor:
-        logger.info("Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)")
+    if config.phlo_force_multiprocess_executor:
+        logger.info("Using multiprocess executor (forced via PHLO_FORCE_MULTIPROCESS_EXECUTOR)")
         return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
     # Priority 3: Check host platform (for Docker on macOS detection)
-    host_platform = config.cascade_host_platform
+    host_platform = config.phlo_host_platform
     if host_platform is None:
         # Priority 4: Fall back to container/local platform
         host_platform = platform.system()
-        logger.debug(f"CASCADE_HOST_PLATFORM not set, detected: {host_platform}")
+        logger.debug(f"PHLO_HOST_PLATFORM not set, detected: {host_platform}")
     else:
-        logger.info(f"Using CASCADE_HOST_PLATFORM: {host_platform}")
+        logger.info(f"Using PHLO_HOST_PLATFORM: {host_platform}")
 
     # Use in-process executor if host is macOS
     if host_platform == "Darwin":

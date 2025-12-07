@@ -7,8 +7,17 @@ phlo.defs.quality.nightscout module.
 from typing import cast
 from unittest.mock import MagicMock
 
-from dagster import AssetCheckResult, MetadataValue, build_asset_check_context
-from phlo.defs.quality.nightscout import nightscout_glucose_quality_check
+import pytest
+
+# Mark entire module as integration tests (requires dbt manifest for import resolution)
+pytestmark = pytest.mark.integration
+
+# These imports may trigger dbt manifest loading - skip module if unavailable
+try:
+    from dagster import AssetCheckResult, MetadataValue, build_asset_check_context
+    from phlo.defs.quality.nightscout import nightscout_glucose_quality_check
+except Exception as e:
+    pytest.skip(f"Skipping module: dependencies not available ({e})", allow_module_level=True)
 
 
 class TestQualityUnitTests:

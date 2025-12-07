@@ -149,13 +149,13 @@ class Settings(BaseSettings):
     # Settings for Dagster data orchestration platform
     # Dagster
     dagster_port: int = Field(default=10006, description="Dagster webserver port")
-    cascade_force_in_process_executor: bool = Field(
+    phlo_force_in_process_executor: bool = Field(
         default=False, description="Force use of in-process executor"
     )
-    cascade_force_multiprocess_executor: bool = Field(
+    phlo_force_multiprocess_executor: bool = Field(
         default=False, description="Force use of multiprocess executor"
     )
-    cascade_host_platform: str | None = Field(
+    phlo_host_platform: str | None = Field(
         default=None,
         description="Host platform for executor selection (Darwin/Linux/Windows). "
         "Auto-detected in CLI; set explicitly for daemon/webserver on macOS.",

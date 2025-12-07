@@ -172,7 +172,7 @@ def materialize(
         "docker",
         "exec",
         "-e",
-        f"CASCADE_HOST_PLATFORM={host_platform}",
+        f"PHLO_HOST_PLATFORM={host_platform}",
         "-w",
         "/app",
         container_name,
@@ -323,7 +323,7 @@ def dev(host: str, port: int, workflows_path: str):
         (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
 
     # Set environment variable for workflows path
-    os.environ["CASCADE_WORKFLOWS_PATH"] = workflows_path
+    os.environ["PHLO_WORKFLOWS_PATH"] = workflows_path
 
     click.echo(f"Workflows directory: {workflows_path}")
     click.echo(f"Starting server at http://{host}:{port}\n")

@@ -391,8 +391,8 @@ def auto_discover() -> None:
 
 # Auto-discover plugins when module is imported
 # This ensures plugins are available immediately after import
-# Users can disable this by setting CASCADE_NO_AUTO_DISCOVER env var
-if not os.environ.get("CASCADE_NO_AUTO_DISCOVER"):
+# Users can disable this by setting PHLO_NO_AUTO_DISCOVER env var
+if not os.environ.get("PHLO_NO_AUTO_DISCOVER"):
     try:
         auto_discover()
     except Exception:

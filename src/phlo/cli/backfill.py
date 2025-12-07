@@ -255,7 +255,7 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
         "docker",
         "exec",
         "-e",
-        f"CASCADE_HOST_PLATFORM={host_platform}",
+        f"PHLO_HOST_PLATFORM={host_platform}",
         "-w",
         "/app",
         container_name,

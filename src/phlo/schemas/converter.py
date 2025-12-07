@@ -115,7 +115,7 @@ def pandera_to_iceberg(
         iceberg_type = _map_type(field_name, field_type)
 
         # DLT metadata fields get special IDs (100+)
-        if field_name.startswith("_dlt_") or field_name == "_cascade_ingested_at":
+        if field_name.startswith("_dlt_") or field_name == "_phlo_ingested_at":
             if field_name == "_dlt_load_id":
                 current_field_id = 100
                 description = description or "DLT load identifier"
@@ -124,7 +124,7 @@ def pandera_to_iceberg(
                 current_field_id = 101
                 description = description or "DLT record identifier"
                 nullable = False
-            elif field_name == "_cascade_ingested_at":
+            elif field_name == "_phlo_ingested_at":
                 current_field_id = 102
                 description = description or "Phlo ingestion timestamp"
                 nullable = False
