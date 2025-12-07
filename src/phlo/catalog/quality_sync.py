@@ -179,8 +179,7 @@ class QualityCheckMapper:
                 "type": "testSuite",
             },
             "parameterValues": [
-                {"name": k, "value": str(v)}
-                for k, v in dbt_test.get("kwargs", {}).items()
+                {"name": k, "value": str(v)} for k, v in dbt_test.get("kwargs", {}).items()
             ],
             "description": dbt_test.get("description"),
         }
@@ -382,9 +381,7 @@ class QualityCheckPublisher:
                 stats["created"] += 1
 
             except Exception as e:
-                logger.error(
-                    f"Failed to publish test definition for {table_fqn}: {e}"
-                )
+                logger.error(f"Failed to publish test definition for {table_fqn}: {e}")
                 stats["failed"] += 1
 
         return stats
@@ -500,9 +497,7 @@ class QualityCheckPublisher:
 
         for dbt_test in dbt_tests:
             try:
-                test_case = QualityCheckMapper.map_dbt_test_to_openmetadata(
-                    dbt_test, table_fqn
-                )
+                test_case = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, table_fqn)
 
                 # Create test case for dbt test
                 self.om_client.create_test_case(

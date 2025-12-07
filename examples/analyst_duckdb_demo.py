@@ -36,6 +36,7 @@ def main():
     print("Step 1: Checking DuckDB installation...")
     try:
         import duckdb
+
         print(f"✓ DuckDB {duckdb.__version__} installed")
     except ImportError:
         print("✗ DuckDB not installed")
@@ -99,11 +100,11 @@ def main():
     # Here's how they get it (run this inside the container):
     print("  To get the metadata location, run inside Docker:")
     print("  -------------------------------------------------------")
-    print("  docker compose exec dagster-webserver python -c \"")
+    print('  docker compose exec dagster-webserver python -c "')
     print("  from phlo.iceberg.catalog import get_catalog")
     print("  table = get_catalog(ref='main').load_table('raw.entries')")
     print("  print(table.metadata_location)")
-    print("  \"")
+    print('  "')
     print("  -------------------------------------------------------")
     print()
 
@@ -116,17 +117,23 @@ def main():
     try:
         # List metadata files in the expected location
         import subprocess
+
         result = subprocess.run(
             [
-                "docker", "compose", "exec", "-T", "dagster-webserver",
-                "python", "-c",
+                "docker",
+                "compose",
+                "exec",
+                "-T",
+                "dagster-webserver",
+                "python",
+                "-c",
                 "from phlo.iceberg.catalog import get_catalog; "
                 "table = get_catalog(ref='main').load_table('raw.entries'); "
-                "print(table.metadata_location)"
+                "print(table.metadata_location)",
             ],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         if result.returncode == 0:
@@ -226,10 +233,10 @@ def main():
         print(f"{'Date':<25} {'SGV':>5} {'Dir':<10} {'Device':<20}")
         print("-" * 60)
         for row in result:
-            date_str = row[0] if row[0] else 'N/A'
+            date_str = row[0] if row[0] else "N/A"
             sgv = row[1] if row[1] else 0
-            direction = row[2] if row[2] else 'N/A'
-            device = row[3] if row[3] else 'N/A'
+            direction = row[2] if row[2] else "N/A"
+            device = row[3] if row[3] else "N/A"
             print(f"{date_str:<25} {sgv:>5} {direction:<10} {device:<20}")
 
         print()
@@ -269,6 +276,7 @@ def main():
     except Exception as e:
         print(f"✗ Query failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

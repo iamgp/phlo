@@ -10,6 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dagster import AssetKey
 
+# Mark entire module as integration tests (requires dbt manifest)
+pytestmark = pytest.mark.integration
+
 from phlo.defs.transform.dbt import CustomDbtTranslator, all_dbt_assets
 
 
@@ -20,10 +23,7 @@ class TestTransformUnitTests:
         """Test that CustomDbtTranslator assigns correct asset keys."""
         translator = CustomDbtTranslator()
 
-        dbt_resource_props = {
-            "name": "stg_nightscout_entries",
-            "resource_type": "model"
-        }
+        dbt_resource_props = {"name": "stg_nightscout_entries", "resource_type": "model"}
 
         asset_key = translator.get_asset_key(dbt_resource_props)
         assert asset_key == AssetKey("stg_nightscout_entries")
@@ -33,10 +33,7 @@ class TestTransformUnitTests:
         translator = CustomDbtTranslator()
 
         # Bronze layer (staging models)
-        dbt_resource_props_stg = {
-            "name": "stg_nightscout_entries",
-            "resource_type": "model"
-        }
+        dbt_resource_props_stg = {"name": "stg_nightscout_entries", "resource_type": "model"}
 
         group_name = translator.get_group_name(dbt_resource_props_stg)
         assert group_name == "bronze"
@@ -46,15 +43,9 @@ class TestTransformUnitTests:
         translator = CustomDbtTranslator()
 
         # Silver layer (dimension and fact tables)
-        dbt_resource_props_dim = {
-            "name": "dim_patients",
-            "resource_type": "model"
-        }
+        dbt_resource_props_dim = {"name": "dim_patients", "resource_type": "model"}
 
-        dbt_resource_props_fct = {
-            "name": "fct_glucose_readings",
-            "resource_type": "model"
-        }
+        dbt_resource_props_fct = {"name": "fct_glucose_readings", "resource_type": "model"}
 
         assert translator.get_group_name(dbt_resource_props_dim) == "silver"
         assert translator.get_group_name(dbt_resource_props_fct) == "silver"
@@ -64,10 +55,7 @@ class TestTransformUnitTests:
         translator = CustomDbtTranslator()
 
         # Gold layer (mart tables)
-        dbt_resource_props_mrt = {
-            "name": "mrt_patient_summary",
-            "resource_type": "model"
-        }
+        dbt_resource_props_mrt = {"name": "mrt_patient_summary", "resource_type": "model"}
 
         group_name = translator.get_group_name(dbt_resource_props_mrt)
         assert group_name == "gold"
@@ -77,10 +65,7 @@ class TestTransformUnitTests:
         translator = CustomDbtTranslator()
 
         # Unknown pattern
-        dbt_resource_props_unknown = {
-            "name": "unknown_model",
-            "resource_type": "model"
-        }
+        dbt_resource_props_unknown = {"name": "unknown_model", "resource_type": "model"}
 
         group_name = translator.get_group_name(dbt_resource_props_unknown)
         assert group_name == "transform"
@@ -89,16 +74,13 @@ class TestTransformUnitTests:
         """Test that CustomDbtTranslator handles dagster_assets source correctly."""
         translator = CustomDbtTranslator()
 
-        dbt_source_props = {
-            "source_name": "dagster_assets",
-            "name": "entries"
-        }
+        dbt_source_props = {"source_name": "dagster_assets", "name": "entries"}
 
         asset_key = translator.get_asset_key(dbt_source_props)
         assert asset_key == AssetKey(["entries"])
 
-    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch("phlo.defs.transform.dbt.DBT_PROJECT_DIR")
+    @patch("phlo.defs.transform.dbt.DBT_PROFILES_DIR")
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_all_dbt_assets_runs_dbt_build_command(self, mock_profiles_dir, mock_project_dir):
         """Test that all_dbt_assets runs dbt build command."""
@@ -136,8 +118,8 @@ class TestTransformUnitTests:
         assert "--target" in call_args
         assert "dev" in call_args
 
-    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch("phlo.defs.transform.dbt.DBT_PROJECT_DIR")
+    @patch("phlo.defs.transform.dbt.DBT_PROFILES_DIR")
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_all_dbt_assets_runs_dbt_docs_generate(self, mock_profiles_dir, mock_project_dir):
         """Test that all_dbt_assets runs dbt docs generate."""
@@ -172,8 +154,8 @@ class TestTransformUnitTests:
         assert "docs" in docs_call_args
         assert "generate" in docs_call_args
 
-    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch("phlo.defs.transform.dbt.DBT_PROJECT_DIR")
+    @patch("phlo.defs.transform.dbt.DBT_PROFILES_DIR")
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
     def test_all_dbt_assets_handles_partitioned_runs(self, mock_profiles_dir, mock_project_dir):
         """Test that all_dbt_assets handles partitioned runs."""
@@ -209,10 +191,12 @@ class TestTransformUnitTests:
 class TestTransformIntegrationTests:
     """Integration tests for transform operations."""
 
-    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch("phlo.defs.transform.dbt.DBT_PROJECT_DIR")
+    @patch("phlo.defs.transform.dbt.DBT_PROFILES_DIR")
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
-    def test_all_dbt_assets_integrates_with_dbt_cli_resource(self, mock_profiles_dir, mock_project_dir):
+    def test_all_dbt_assets_integrates_with_dbt_cli_resource(
+        self, mock_profiles_dir, mock_project_dir
+    ):
         """Test that all_dbt_assets integrates with DbtCliResource."""
         # Mock paths
         mock_project_dir.__str__ = MagicMock(return_value="/path/to/dbt/project")
@@ -279,10 +263,7 @@ class TestTransformDataQualityTests:
         translator = CustomDbtTranslator()
 
         # Test that source asset keys are correctly mapped
-        dbt_source_props = {
-            "source_name": "dagster_assets",
-            "name": "entries"
-        }
+        dbt_source_props = {"source_name": "dagster_assets", "name": "entries"}
 
         asset_key = translator.get_asset_key(dbt_source_props)
         assert asset_key == AssetKey(["entries"])
@@ -295,10 +276,7 @@ class TestTransformDataQualityTests:
         translator = CustomDbtTranslator()
 
         # Test asset key generation preserves model names
-        dbt_resource_props = {
-            "name": "fct_glucose_readings",
-            "resource_type": "model"
-        }
+        dbt_resource_props = {"name": "fct_glucose_readings", "resource_type": "model"}
 
         asset_key = translator.get_asset_key(dbt_resource_props)
         assert asset_key == AssetKey("fct_glucose_readings")
@@ -307,8 +285,8 @@ class TestTransformDataQualityTests:
 class TestTransformE2ETests:
     """End-to-end tests for transform pipeline."""
 
-    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
+    @patch("phlo.defs.transform.dbt.DBT_PROJECT_DIR")
+    @patch("phlo.defs.transform.dbt.DBT_PROFILES_DIR")
     def test_full_transformation_pipeline_completes(self, mock_profiles_dir, mock_project_dir):
         """Test that full transformation pipeline (raw → bronze → silver → gold) completes."""
         # Mock paths
@@ -336,11 +314,13 @@ class TestTransformE2ETests:
         # Verify both build and docs phases completed
         assert mock_dbt.cli.call_count == 2
 
-    @patch('phlo.defs.transform.dbt.DBT_PROJECT_DIR')
-    @patch('phlo.defs.transform.dbt.DBT_PROFILES_DIR')
-    @patch('shutil.copy')
+    @patch("phlo.defs.transform.dbt.DBT_PROJECT_DIR")
+    @patch("phlo.defs.transform.dbt.DBT_PROFILES_DIR")
+    @patch("shutil.copy")
     @pytest.mark.skip(reason="Asset direct invocation requires proper Dagster testing setup")
-    def test_dbt_docs_are_generated_and_artifacts_copied_correctly(self, mock_copy, mock_profiles_dir, mock_project_dir):
+    def test_dbt_docs_are_generated_and_artifacts_copied_correctly(
+        self, mock_copy, mock_profiles_dir, mock_project_dir
+    ):
         """Test that dbt docs are generated and artifacts copied correctly."""
         # Mock paths
         mock_project_dir.__str__ = MagicMock(return_value="/path/to/dbt/project")

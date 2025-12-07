@@ -35,9 +35,7 @@ class NessieResource(dg.ConfigurableResource):
         response.raise_for_status()
         return response.json().get("references", [])
 
-    def create_branch(
-        self, branch_name: str, source_ref: str = "main"
-    ) -> dict[str, Any]:
+    def create_branch(self, branch_name: str, source_ref: str = "main") -> dict[str, Any]:
         """Create a new branch from source reference."""
         source_hash = self._get_ref_hash(source_ref)
         data = {"type": "BRANCH", "name": branch_name, "hash": source_hash}

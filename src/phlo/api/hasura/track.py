@@ -63,11 +63,14 @@ class HasuraTableTracker:
         cursor = conn.cursor()
 
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT table_name FROM information_schema.tables
                 WHERE table_schema = %s AND table_type = 'BASE TABLE'
                 ORDER BY table_name
-            """, (schema,))
+            """,
+                (schema,),
+            )
 
             return [row[0] for row in cursor.fetchall()]
         finally:
@@ -88,7 +91,8 @@ class HasuraTableTracker:
         cursor = conn.cursor()
 
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT
                     kcu.column_name,
                     ccu.table_schema,
@@ -105,16 +109,20 @@ class HasuraTableTracker:
                     AND tc.table_schema = %s
                     AND tc.table_name = %s
                 ORDER BY kcu.column_name
-            """, (schema, table))
+            """,
+                (schema, table),
+            )
 
             fks = []
             for local_col, ref_schema, ref_table, ref_col in cursor.fetchall():
-                fks.append({
-                    "local_column": local_col,
-                    "ref_schema": ref_schema,
-                    "ref_table": ref_table,
-                    "ref_column": ref_col,
-                })
+                fks.append(
+                    {
+                        "local_column": local_col,
+                        "ref_schema": ref_schema,
+                        "ref_table": ref_table,
+                        "ref_column": ref_col,
+                    }
+                )
 
             return fks
         finally:
@@ -163,9 +171,7 @@ class HasuraTableTracker:
 
         return results
 
-    def setup_relationships(
-        self, schema: str, verbose: bool = True
-    ) -> dict[tuple[str, str], bool]:
+    def setup_relationships(self, schema: str, verbose: bool = True) -> dict[tuple[str, str], bool]:
         """Auto-create relationships from foreign keys.
 
         Args:
@@ -187,8 +193,7 @@ class HasuraTableTracker:
                 try:
                     if verbose:
                         print(
-                            f"Creating relationship {table}.{rel_name} "
-                            f"-> {fk['ref_table']}...",
+                            f"Creating relationship {table}.{rel_name} -> {fk['ref_table']}...",
                             end=" ",
                         )
 
@@ -237,13 +242,9 @@ class HasuraTableTracker:
             for role, filter_expr in default_permissions:
                 try:
                     if verbose:
-                        print(
-                            f"Creating permission {table}.{role}...", end=" "
-                        )
+                        print(f"Creating permission {table}.{role}...", end=" ")
 
-                    self.client.create_select_permission(
-                        schema, table, role, filter=filter_expr
-                    )
+                    self.client.create_select_permission(schema, table, role, filter=filter_expr)
 
                     results[(table, role)] = True
                     if verbose:
@@ -293,7 +294,9 @@ def auto_track(schema: str = "api", verbose: bool = True) -> dict[str, any]:
         print()
         print("=" * 60)
         print("✓ Auto-track completed")
-        print(f"  Tables tracked: {sum(1 for v in track_results.values() if v)}/{len(track_results)}")
+        print(
+            f"  Tables tracked: {sum(1 for v in track_results.values() if v)}/{len(track_results)}"
+        )
         print(f"  Relationships: {sum(1 for v in rel_results.values() if v)}/{len(rel_results)}")
         print(f"  Permissions: {sum(1 for v in perm_results.values() if v)}/{len(perm_results)}")
         print("=" * 60)

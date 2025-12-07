@@ -195,10 +195,12 @@ class TestUniqueCheck:
     def test_unique_check_multi_column(self):
         """Test UniqueCheck with multiple columns."""
         check = UniqueCheck(columns=["id", "date"])
-        df = pd.DataFrame({
-            "id": [1, 1, 2, 2],
-            "date": ["2024-01-01", "2024-01-02", "2024-01-01", "2024-01-02"],
-        })
+        df = pd.DataFrame(
+            {
+                "id": [1, 1, 2, 2],
+                "date": ["2024-01-01", "2024-01-02", "2024-01-01", "2024-01-02"],
+            }
+        )
 
         result = check.execute(df, context=None)
 
@@ -308,7 +310,7 @@ class TestPhloQualityDecorator:
         """Test that decorator creates a valid Dagster asset check."""
         # Get baseline count
         baseline = len(get_quality_checks())
-        
+
         @phlo_quality(
             table="test.table",
             checks=[NullCheck(columns=["id"])],
@@ -322,6 +324,7 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_multiple_checks(self):
         """Test decorator with multiple quality checks."""
+
         @phlo_quality(
             table="test.table",
             checks=[
@@ -338,6 +341,7 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_warn_threshold(self):
         """Test decorator with warn_threshold parameter."""
+
         @phlo_quality(
             table="test.table",
             checks=[NullCheck(columns=["id"])],
@@ -351,6 +355,7 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_custom_description(self):
         """Test decorator with custom description."""
+
         @phlo_quality(
             table="test.table",
             checks=[NullCheck(columns=["id"])],
@@ -403,11 +408,13 @@ class TestQualityCheckIntegration:
 
     def test_quality_check_with_mixed_types(self):
         """Test quality checks handle mixed data types."""
-        df = pd.DataFrame({
-            "id": [1, 2, 3],
-            "name": ["a", "b", "c"],
-            "value": [1.5, 2.5, 3.5],
-        })
+        df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "name": ["a", "b", "c"],
+                "value": [1.5, 2.5, 3.5],
+            }
+        )
 
         check = NullCheck(columns=["id", "name", "value"])
         result = check.execute(df, context=None)
@@ -416,11 +423,13 @@ class TestQualityCheckIntegration:
 
     def test_multiple_checks_on_same_dataframe(self):
         """Test executing multiple checks on the same dataframe."""
-        df = pd.DataFrame({
-            "id": [1, 2, 3],
-            "temperature": [20, 25, 30],
-            "timestamp": [datetime.now()] * 3,
-        })
+        df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "temperature": [20, 25, 30],
+                "timestamp": [datetime.now()] * 3,
+            }
+        )
 
         checks = [
             NullCheck(columns=["id"]),
@@ -439,7 +448,9 @@ class TestPatternCheck:
 
     def test_pattern_check_passes_with_all_matches(self):
         """Test that PatternCheck passes when all values match pattern."""
-        check = PatternCheck(column="email", pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        check = PatternCheck(
+            column="email", pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        )
         df = pd.DataFrame({"email": ["test@example.com", "user@domain.org", "admin@site.net"]})
 
         result = check.execute(df, context=None)
@@ -451,7 +462,9 @@ class TestPatternCheck:
 
     def test_pattern_check_fails_with_non_matches(self):
         """Test that PatternCheck fails when values don't match pattern."""
-        check = PatternCheck(column="email", pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        check = PatternCheck(
+            column="email", pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        )
         df = pd.DataFrame({"email": ["test@example.com", "invalid-email", "another@bad"]})
 
         result = check.execute(df, context=None)

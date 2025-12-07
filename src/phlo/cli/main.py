@@ -134,9 +134,7 @@ def test(
         result = subprocess.run(pytest_args, check=False)
         sys.exit(result.returncode)
     except FileNotFoundError:
-        click.echo(
-            "Error: pytest not found. Install with: pip install pytest", err=True
-        )
+        click.echo("Error: pytest not found. Install with: pip install pytest", err=True)
         sys.exit(1)
 
 
@@ -295,9 +293,7 @@ def init(project_name: Optional[str], template: str, force: bool):
 @cli.command("dev")
 @click.option("--host", default="127.0.0.1", help="Host to bind to")
 @click.option("--port", default=3000, type=int, help="Port to bind to")
-@click.option(
-    "--workflows-path", default="workflows", help="Path to workflows directory"
-)
+@click.option("--workflows-path", default="workflows", help="Path to workflows directory")
 def dev(host: str, port: int, workflows_path: str):
     """
     Start Dagster development server with your workflows.
@@ -366,9 +362,7 @@ def dev(host: str, port: int, workflows_path: str):
     prompt="Workflow type",
     help="Type of workflow to create",
 )
-@click.option(
-    "--domain", prompt="Domain name", help="Domain name (e.g., weather, stripe, github)"
-)
+@click.option("--domain", prompt="Domain name", help="Domain name (e.g., weather, stripe, github)")
 @click.option("--table", prompt="Table name", help="Table name for ingestion")
 @click.option(
     "--unique-key",
@@ -434,9 +428,7 @@ def create_workflow(
             click.echo(f"  5. Materialize: phlo materialize {table}")
 
         else:
-            click.echo(
-                f"Error: Workflow type '{workflow_type}' not yet implemented", err=True
-            )
+            click.echo(f"Error: Workflow type '{workflow_type}' not yet implemented", err=True)
             click.echo("Currently supported: ingestion", err=True)
             sys.exit(1)
 
@@ -463,14 +455,10 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
 
     (workflows_dir / "ingestion").mkdir(exist_ok=True)
-    (workflows_dir / "ingestion" / "__init__.py").write_text(
-        '"""Ingestion workflows."""\n'
-    )
+    (workflows_dir / "ingestion" / "__init__.py").write_text('"""Ingestion workflows."""\n')
 
     (workflows_dir / "schemas").mkdir(exist_ok=True)
-    (workflows_dir / "schemas" / "__init__.py").write_text(
-        '"""Pandera validation schemas."""\n'
-    )
+    (workflows_dir / "schemas" / "__init__.py").write_text('"""Pandera validation schemas."""\n')
 
     # Create transforms/dbt structure if basic template
     if template == "basic":

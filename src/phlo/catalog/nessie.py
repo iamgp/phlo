@@ -95,9 +95,7 @@ class NessieTableScanner:
             logger.error(f"Failed to list namespaces: {e}")
             return []
 
-    def list_tables_in_namespace(
-        self, namespace: str | list[str]
-    ) -> list[dict[str, Any]]:
+    def list_tables_in_namespace(self, namespace: str | list[str]) -> list[dict[str, Any]]:
         """
         List all tables in a namespace.
 
@@ -294,9 +292,7 @@ class NessieTableScanner:
 
                 for table_metadata in tables:
                     try:
-                        table = self.extract_openmetadata_table(
-                            namespace, table_metadata
-                        )
+                        table = self.extract_openmetadata_table(namespace, table_metadata)
                         om_client.create_or_update_table(namespace, table)
                         stats["created"] += 1
 

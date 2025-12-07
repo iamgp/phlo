@@ -69,12 +69,8 @@ def validate():
     config_path = Path.cwd() / "phlo.yaml"
 
     if not config_path.exists():
-        console.print(
-            "[yellow]Warning: No phlo.yaml found in current directory[/yellow]"
-        )
-        console.print(
-            "Run [cyan]phlo services init[/cyan] to create infrastructure configuration"
-        )
+        console.print("[yellow]Warning: No phlo.yaml found in current directory[/yellow]")
+        console.print("Run [cyan]phlo services init[/cyan] to create infrastructure configuration")
         sys.exit(1)
 
     console.print(f"Validating: {config_path}\n")
@@ -87,9 +83,7 @@ def validate():
         sys.exit(1)
 
     if "infrastructure" not in project_config:
-        console.print(
-            "[yellow]Warning: No infrastructure section in phlo.yaml[/yellow]"
-        )
+        console.print("[yellow]Warning: No infrastructure section in phlo.yaml[/yellow]")
         console.print(
             "Using default configuration. Run [cyan]phlo config upgrade[/cyan] to add infrastructure section."
         )
@@ -114,9 +108,7 @@ def validate():
     table.add_column("Status", style="green")
     table.add_column("Details")
 
-    table.add_row(
-        "Schema Validation", "✓ Valid", "All fields conform to schema"
-    )
+    table.add_row("Schema Validation", "✓ Valid", "All fields conform to schema")
     table.add_row(
         "Services Defined",
         "✓ Valid",
@@ -150,9 +142,7 @@ def upgrade(force: bool):
     config_path = Path.cwd() / "phlo.yaml"
 
     if not config_path.exists():
-        console.print(
-            "[red]Error: No phlo.yaml found in current directory[/red]", err=True
-        )
+        console.print("[red]Error: No phlo.yaml found in current directory[/red]", err=True)
         console.print(
             "Run [cyan]phlo services init[/cyan] to create a new project",
             err=True,
@@ -163,16 +153,12 @@ def upgrade(force: bool):
         project_config = yaml.safe_load(f) or {}
 
     if "infrastructure" in project_config and not force:
-        console.print(
-            "[yellow]Infrastructure section already exists in phlo.yaml[/yellow]"
-        )
+        console.print("[yellow]Infrastructure section already exists in phlo.yaml[/yellow]")
         console.print("Use --force to overwrite", err=True)
         sys.exit(1)
 
     default_infra = get_default_infrastructure_config()
-    project_config["infrastructure"] = default_infra.model_dump(
-        exclude_none=False, mode="python"
-    )
+    project_config["infrastructure"] = default_infra.model_dump(exclude_none=False, mode="python")
 
     with open(config_path, "w") as f:
         yaml.dump(
@@ -184,9 +170,7 @@ def upgrade(force: bool):
         )
 
     console.print(f"[green]✓ Updated {config_path}[/green]")
-    console.print(
-        f"Added infrastructure section with {len(default_infra.services)} services\n"
-    )
+    console.print(f"Added infrastructure section with {len(default_infra.services)} services\n")
 
     clear_config_cache()
 

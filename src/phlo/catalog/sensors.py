@@ -69,10 +69,7 @@ def openmetadata_metadata_sync_sensor(context: dg.SensorEvaluationContext) -> dg
         dbt_stats = dbt_parser.sync_to_openmetadata(om_client)
         context.log.info(f"dbt sync: {dbt_stats}")
 
-        total_synced = (
-            nessie_stats.get("created", 0)
-            + dbt_stats.get("created", 0)
-        )
+        total_synced = nessie_stats.get("created", 0) + dbt_stats.get("created", 0)
 
         if total_synced > 0:
             return dg.SensorResult(
@@ -84,9 +81,7 @@ def openmetadata_metadata_sync_sensor(context: dg.SensorEvaluationContext) -> dg
 
     except Exception as e:
         logger.error(f"Metadata sync sensor failed: {e}", exc_info=True)
-        return dg.SensorResult(
-            skip_reason=f"Sync failed: {str(e)[:100]}"
-        )
+        return dg.SensorResult(skip_reason=f"Sync failed: {str(e)[:100]}")
 
 
 @dg.sensor(
@@ -152,9 +147,7 @@ def openmetadata_lineage_sync_sensor(
 
     except Exception as e:
         logger.error(f"Lineage sync sensor failed: {e}", exc_info=True)
-        return dg.SensorResult(
-            skip_reason=f"Lineage sync failed: {str(e)[:100]}"
-        )
+        return dg.SensorResult(skip_reason=f"Lineage sync failed: {str(e)[:100]}")
 
 
 @dg.sensor(
@@ -214,9 +207,7 @@ def openmetadata_quality_sync_sensor(
 
     except Exception as e:
         logger.error(f"Quality sync sensor failed: {e}", exc_info=True)
-        return dg.SensorResult(
-            skip_reason=f"Quality sync failed: {str(e)[:100]}"
-        )
+        return dg.SensorResult(skip_reason=f"Quality sync failed: {str(e)[:100]}")
 
 
 def build_catalog_sensors() -> dg.Definitions:

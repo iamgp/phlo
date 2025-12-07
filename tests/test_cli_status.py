@@ -174,7 +174,7 @@ class TestServiceHealth:
         """Test service health checks work (with or without requests)."""
         # This will test the actual code path
         result = _check_service_health("http://localhost:9999/test", "TestService")
-        
+
         # Should handle the connection error gracefully
         assert "name" in result
         assert "status" in result
@@ -183,21 +183,21 @@ class TestServiceHealth:
     def test_service_health_returns_required_fields(self):
         """Test that service health returns all required fields."""
         result = _check_service_health("http://localhost:9999/test", "TestService")
-        
+
         required_fields = {"name", "status"}
         assert required_fields.issubset(result.keys())
 
     def test_service_health_handles_invalid_url(self):
         """Test that invalid URLs are handled gracefully."""
         result = _check_service_health("not-a-valid-url", "TestService")
-        
+
         assert result["status"] in ["down", "error", "timeout"]
         assert result["name"] == "TestService"
 
     def test_all_service_statuses_valid(self):
         """Test that service health returns valid status values."""
         result = _check_service_health("http://localhost:9999/test", "TestService")
-        
+
         valid_statuses = {"healthy", "down", "timeout", "error", "unhealthy"}
         assert result["status"] in valid_statuses
 

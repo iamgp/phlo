@@ -102,9 +102,7 @@ def discover_plugins(
     }
 
     # Determine which plugin types to discover
-    types_to_discover = (
-        [plugin_type] if plugin_type else list(ENTRY_POINT_GROUPS.keys())
-    )
+    types_to_discover = [plugin_type] if plugin_type else list(ENTRY_POINT_GROUPS.keys())
 
     for ptype in types_to_discover:
         if ptype not in ENTRY_POINT_GROUPS:
@@ -113,9 +111,7 @@ def discover_plugins(
 
         entry_point_group = ENTRY_POINT_GROUPS[ptype]
 
-        logger.info(
-            f"Discovering {ptype} plugins from entry point: {entry_point_group}"
-        )
+        logger.info(f"Discovering {ptype} plugins from entry point: {entry_point_group}")
 
         # Discover entry points
         try:
@@ -132,9 +128,7 @@ def discover_plugins(
                 if not _is_plugin_allowed(entry_point.name):
                     continue
 
-                logger.info(
-                    f"Loading plugin: {entry_point.name} from {entry_point.value}"
-                )
+                logger.info(f"Loading plugin: {entry_point.name} from {entry_point.value}")
 
                 # Load the plugin class
                 plugin_class = entry_point.load()
@@ -172,8 +166,7 @@ def discover_plugins(
                 discovered[ptype].append(plugin)
 
                 logger.info(
-                    f"Successfully loaded plugin: {plugin.metadata.name} "
-                    f"v{plugin.metadata.version}"
+                    f"Successfully loaded plugin: {plugin.metadata.name} v{plugin.metadata.version}"
                 )
 
                 # Auto-register if requested
@@ -187,9 +180,7 @@ def discover_plugins(
                         registry.register_transformation(plugin, replace=True)
 
             except Exception as exc:
-                logger.error(
-                    f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True
-                )
+                logger.error(f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True)
                 continue
 
     # Log summary

@@ -65,9 +65,7 @@ def create_jobs_from_config(
         selection = _parse_asset_selection(job_config["selection"])
 
         # Parse partitions
-        partitions_def = (
-            daily_partition if job_config.get("partitions") == "daily" else None
-        )
+        partitions_def = daily_partition if job_config.get("partitions") == "daily" else None
 
         # Create job
         resources_config = job_config.get("resources", {})

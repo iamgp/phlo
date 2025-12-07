@@ -73,12 +73,14 @@ def list(all: bool, format: str):
 
         # Get branches
         for branch_ref in client.list_references(name_filter=""):
-            refs.append({
-                "name": branch_ref.name,
-                "type": "branch",
-                "hash": branch_ref.hash[:8] if branch_ref.hash else "unknown",
-                "is_default": branch_ref.name == config.iceberg_nessie_ref,
-            })
+            refs.append(
+                {
+                    "name": branch_ref.name,
+                    "type": "branch",
+                    "hash": branch_ref.hash[:8] if branch_ref.hash else "unknown",
+                    "is_default": branch_ref.name == config.iceberg_nessie_ref,
+                }
+            )
 
         if not refs:
             console.print("[yellow]No branches found[/yellow]")
