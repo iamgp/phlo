@@ -424,6 +424,22 @@ def _validate_workflow_function(
             warnings.append(
                 "Missing 'partition_date: str' parameter - ingestion functions should accept partition_date"
             )
+        else:
+            # Check if partition_date is declared but not used in the function body
+            try:
+                func_source = inspect.getsource(func_obj)
+                # Count occurrences excluding the parameter declaration itself
+                param_line = f"partition_date"
+                # Simple heuristic: if partition_date appears only once (in the signature),
+                # it's likely unused
+                occurrences = func_source.count("partition_date")
+                if occurrences <= 1:
+                    warnings.append(
+                        "partition_date is declared but appears unused - consider using it for date-based filtering or remove if not needed"
+                    )
+            except (OSError, TypeError):
+                # Can't get source, skip this check
+                pass
 
         # Check for type hints
         annotations = getattr(func_obj, "__annotations__", {})
