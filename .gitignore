@@ -154,3 +154,12 @@ context/
 # Release Please config (exception to *.json ignore)
 !release-please-config.json
 !.release-please-manifest.json
+
+# Beads issue tracker (local-only files)
+.beads/beads.db
+.beads/beads.db-*
+.beads/bd.sock
+.beads/bd.pipe
+.beads/.exclusive-lock
+.beads/daemon.*
+.git/beads-worktrees/
