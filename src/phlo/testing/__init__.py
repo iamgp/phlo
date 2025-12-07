@@ -148,77 +148,73 @@ For comprehensive testing patterns and best practices, see:
 """
 
 # Phase 1: Core Mocks
+from phlo.testing.conftest_template import (
+    CONFTEST_TEMPLATE,
+    get_conftest_template,
+)
+from phlo.testing.execution import (
+    AssetTestResult,
+    MockAssetContext,
+    TestAssetExecutor,
+    test_asset_execution,
+    test_asset_with_catalog,
+    test_asset_with_trino,
+)
+
+# Fixtures are auto-discovered by pytest from fixtures.py
+# Import here for documentation purposes
+from phlo.testing.fixtures import (
+    conftest_template,
+    create_partition_dates,
+    load_csv_fixture,
+    load_json_fixture,
+    mock_asset_context,
+    mock_dlt_source_fixture,
+    mock_iceberg_catalog,
+    mock_resources,
+    mock_trino,
+    sample_dataframe,
+    sample_dlt_data,
+    sample_partition_date,
+    sample_partition_range,
+    setup_test_catalog,
+    setup_test_trino,
+    temp_staging_dir,
+    test_config,
+    test_data_dir,
+)
+from phlo.testing.local_mode import (
+    FixtureRecorder,
+    LocalTestMode,
+    disable_local_test_mode,
+    enable_local_test_mode,
+    get_fixture_dir,
+    is_local_test_mode,
+    local_test,
+    local_test_mode,
+    set_fixture_dir,
+)
+from phlo.testing.mock_dlt import (
+    MockDLTError,
+    MockDLTResource,
+    MockDLTSource,
+    create_mock_dlt_dataframe,
+    mock_dlt_pipeline,
+    mock_dlt_source,
+    mock_dlt_source_multi,
+    mock_dlt_source_with_error,
+)
 from phlo.testing.mock_iceberg import (
     MockIcebergCatalog,
     MockTable,
     MockTableScan,
 )
 
-from phlo.testing.mock_dlt import (
-    MockDLTResource,
-    MockDLTSource,
-    mock_dlt_source,
-    mock_dlt_source_multi,
-    mock_dlt_source_with_error,
-    mock_dlt_pipeline,
-    create_mock_dlt_dataframe,
-    MockDLTError,
-)
-
 # Phase 2: Execution & Resources
 from phlo.testing.mock_trino import (
-    MockTrinoResource,
     MockConnection,
     MockCursor,
-)
-
-from phlo.testing.execution import (
-    test_asset_execution,
-    test_asset_with_catalog,
-    test_asset_with_trino,
-    AssetTestResult,
-    MockAssetContext,
-    TestAssetExecutor,
-)
-
-from phlo.testing.local_mode import (
-    LocalTestMode,
-    local_test_mode,
-    local_test,
-    FixtureRecorder,
-    is_local_test_mode,
-    enable_local_test_mode,
-    disable_local_test_mode,
-    set_fixture_dir,
-    get_fixture_dir,
-)
-
-# Fixtures are auto-discovered by pytest from fixtures.py
-# Import here for documentation purposes
-from phlo.testing.fixtures import (
-    mock_iceberg_catalog,
-    mock_trino,
-    mock_asset_context,
-    mock_resources,
-    sample_partition_date,
-    sample_partition_range,
-    sample_dlt_data,
-    sample_dataframe,
-    mock_dlt_source_fixture,
-    temp_staging_dir,
-    test_data_dir,
-    setup_test_catalog,
-    setup_test_trino,
-    load_json_fixture,
-    load_csv_fixture,
-    test_config,
-    create_partition_dates,
-    conftest_template,
-)
-
-from phlo.testing.conftest_template import (
-    CONFTEST_TEMPLATE,
-    get_conftest_template,
+    MockTrinoResource,
 )
 
 __all__ = [

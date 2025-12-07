@@ -9,9 +9,7 @@ Tests the workflow validation CLI command, including:
 
 import tempfile
 from pathlib import Path
-from typing import List
 
-import pytest
 from click.testing import CliRunner
 
 from phlo.cli.validate import (
@@ -136,7 +134,7 @@ class TestValidateCronFormat:
 
     def test_warning_for_very_frequent_cron(self):
         """Test that very frequent cron schedules are warned about."""
-        errors = _validate_cron_format("*/1 * * * *")
+        _validate_cron_format("*/1 * * * *")
         # May contain warnings about frequent execution
         # This is informational, not necessarily an error
 

@@ -315,7 +315,7 @@ class TestDbtManifestParser:
         parser = DbtManifestParser(manifest_file)
         om_client = Mock()
 
-        stats = parser.sync_to_openmetadata(
+        parser.sync_to_openmetadata(
             om_client,
             schema_name="bronze",
             model_filter=["stg_glucose_entries"],

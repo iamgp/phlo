@@ -4,14 +4,14 @@ This module contains unit and integration tests for the phlo.iceberg module.
 Tests cover catalog operations, table management, and data operations.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, TimestampType
 
-from phlo.iceberg.catalog import get_catalog, list_tables, create_namespace
-from phlo.iceberg.tables import ensure_table, append_to_table, get_table_schema, delete_table
+from phlo.iceberg.catalog import create_namespace, get_catalog, list_tables
+from phlo.iceberg.tables import append_to_table, delete_table, ensure_table, get_table_schema
 
 
 class TestIcebergCatalogUnitTests:

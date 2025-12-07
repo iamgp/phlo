@@ -2,17 +2,16 @@
 
 import json
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from phlo.alerting import Alert, AlertSeverity, get_alert_manager
-from phlo.alerting.destinations.slack import SlackAlertDestination
-from phlo.alerting.destinations.pagerduty import PagerDutyAlertDestination
 from phlo.alerting.destinations.email import EmailAlertDestination
+from phlo.alerting.destinations.pagerduty import PagerDutyAlertDestination
+from phlo.alerting.destinations.slack import SlackAlertDestination
 from phlo.lineage import LineageGraph
-from phlo.metrics import SummaryMetrics, AssetMetrics
+from phlo.metrics import AssetMetrics, SummaryMetrics
 
 
 class TestMetricsCollector:

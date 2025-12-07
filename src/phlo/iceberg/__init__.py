@@ -8,7 +8,7 @@ This module provides integration with Apache Iceberg using PyIceberg and Nessie 
 """
 
 from phlo.iceberg.catalog import get_catalog
-from phlo.iceberg.tables import ensure_table, append_to_table, merge_to_table
+from phlo.iceberg.tables import append_to_table, ensure_table, merge_to_table
 
 # Public API: Only these functions are exposed when importing the module
 __all__ = ["get_catalog", "ensure_table", "append_to_table", "merge_to_table"]

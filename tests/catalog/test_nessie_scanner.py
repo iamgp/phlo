@@ -6,7 +6,7 @@ import pytest
 import requests
 
 from phlo.catalog.nessie import NessieTableScanner
-from phlo.catalog.openmetadata import OpenMetadataColumn, OpenMetadataTable
+from phlo.catalog.openmetadata import OpenMetadataTable
 
 
 @pytest.fixture
@@ -199,7 +199,7 @@ class TestNessieTableScanner:
         om_client = Mock()
 
         # Include only bronze and silver
-        stats = nessie_scanner.sync_to_openmetadata(
+        nessie_scanner.sync_to_openmetadata(
             om_client,
             include_namespaces=["bronze", "silver"],
         )
@@ -219,7 +219,7 @@ class TestNessieTableScanner:
         om_client = Mock()
 
         # Exclude gold
-        stats = nessie_scanner.sync_to_openmetadata(
+        nessie_scanner.sync_to_openmetadata(
             om_client,
             exclude_namespaces=["gold"],
         )

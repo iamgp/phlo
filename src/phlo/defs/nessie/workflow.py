@@ -13,7 +13,6 @@ Provides assets that orchestrate dynamic branch workflows:
 
 from __future__ import annotations
 
-
 import dagster as dg
 
 

@@ -6,7 +6,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from phlo.config_schema import InfrastructureConfig, ServiceConfig, get_default_infrastructure_config
+from phlo.config_schema import (
+    InfrastructureConfig,
+    ServiceConfig,
+    get_default_infrastructure_config,
+)
 from phlo.infrastructure import clear_config_cache, get_container_name, load_infrastructure_config
 
 
