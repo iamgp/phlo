@@ -1,0 +1,41 @@
+version: 2
+updates:
+  # Python dependencies via uv
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      # Group all patch and minor updates together
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+      # Group Dagster packages
+      dagster:
+        patterns:
+          - "dagster*"
+      # Group dbt packages
+      dbt:
+        patterns:
+          - "dbt-*"
+    labels:
+      - "dependencies"
+      - "python"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "github-actions"
