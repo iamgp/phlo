@@ -46,11 +46,67 @@ def add_cascade_timestamp(records: list[dict[str, Any]]) -> list[dict[str, Any]]
 
     Returns:
         Modified list with timestamp added to each record
+
+    .. deprecated::
+        Use inject_metadata_columns() for parquet-level injection instead.
     """
     ingestion_timestamp = datetime.now(timezone.utc)
     for record in records:
         record["_cascade_ingested_at"] = ingestion_timestamp
     return records
+
+
+def inject_metadata_columns(
+    parquet_path: Path,
+    partition_date: str,
+    run_id: str,
+    context: Any = None,
+) -> Path:
+    """
+    Inject phlo metadata columns into a parquet file.
+
+    Adds the following columns:
+    - _phlo_ingested_at: UTC timestamp when phlo processed this record
+    - _phlo_partition_date: Partition date used for ingestion
+    - _phlo_run_id: Dagster run ID for traceability
+
+    Args:
+        parquet_path: Path to the parquet file to modify
+        partition_date: Partition date string (e.g., "2024-01-15")
+        run_id: Dagster run ID for traceability
+        context: Optional Dagster context for logging
+
+    Returns:
+        Path to the modified parquet file (writes in-place)
+    """
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    # Read existing parquet
+    arrow_table = pq.read_table(str(parquet_path))
+    num_rows = len(arrow_table)
+
+    if context:
+        context.log.info(f"Injecting metadata columns into {num_rows} rows")
+
+    # Create metadata columns
+    ingested_at = datetime.now(timezone.utc)
+    ingested_at_col = pa.array([ingested_at] * num_rows, type=pa.timestamp("us", tz="UTC"))
+    partition_date_col = pa.array([partition_date] * num_rows, type=pa.string())
+    run_id_col = pa.array([run_id] * num_rows, type=pa.string())
+
+    # Append columns to table
+    arrow_table = arrow_table.append_column("_phlo_ingested_at", ingested_at_col)
+    arrow_table = arrow_table.append_column("_phlo_partition_date", partition_date_col)
+    arrow_table = arrow_table.append_column("_phlo_run_id", run_id_col)
+
+    # Write back to same path
+    pq.write_table(arrow_table, str(parquet_path))
+
+    if context:
+        context.log.debug(f"Added _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns")
+
+    return parquet_path
 
 
 def validate_with_pandera(
