@@ -15,12 +15,12 @@ PROFILE_CATALOG ?= openmetadata-mysql openmetadata-elasticsearch openmetadata-se
 PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(PROFILE_OBSERVABILITY) $(PROFILE_API) $(PROFILE_CATALOG)
 
 .PHONY: up down stop restart build rebuild pull ps logs exec clean clean-all fresh-start \
-setup install install-dagster health \
-up-core up-query up-bi up-docs up-observability up-api up-catalog up-all \
-dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog \
-dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
-health-observability health-api health-catalog \
-lint lint-sql lint-python fix-sql
+	setup install install-dagster health test \
+	up-core up-query up-bi up-docs up-observability up-api up-catalog up-all \
+	dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog \
+	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
+	health-observability health-api health-catalog \
+	lint lint-sql lint-python fix-sql
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -60,8 +60,6 @@ clean:
 clean-all:
 	$(COMPOSE) down --volumes --remove-orphans
 	docker system prune -f
-	rm -rf volumes/minio/* volumes/postgres/* volumes/superset/*
-	rm -rf volumes/prometheus/* volumes/loki/* volumes/grafana/* volumes/alloy/*
 	rm -rf .venv uv.lock
 
 fresh-start: clean-all setup
@@ -76,7 +74,10 @@ install:
 	uv pip install -e src
 
 install-dagster:
-	cd services/dagster && uv venv && uv pip install -e ../../src && uv pip install dagster dagster-webserver dagster-postgres dagster-dbt dagster-pandera dbt-trino dbt-postgres pandera psycopg2-binary minio boto3 pyyaml trino pandas tenacity "dlt[parquet]" "pyiceberg[s3fs,pyarrow]" pyarrow requests
+	cd services/dagster && uv sync
+
+test:
+	uv run pytest
 
 dagster:
 	@open http://localhost:$${DAGSTER_PORT:-10006}
@@ -267,7 +268,7 @@ lint-python:
 	uv run ruff check .
 
 lint-sql:
-	uv run sqruff lint transforms/dbt
+	uv run sqlfluff lint transforms/dbt
 
 fix-sql:
-	uv run sqruff fix transforms/dbt
+	uv run sqlfluff fix transforms/dbt
