@@ -55,6 +55,7 @@ members = ["services/hub"]
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "sqlfluff>=3.5.0",
 ]
 
 [tool.uv]
@@ -62,7 +63,6 @@ dev-dependencies = [
     "ruff",
     "basedpyright",
     "ty",
-    "sqruff",
 ]
 
 [tool.ty.environment]
