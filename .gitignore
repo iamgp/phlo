@@ -150,3 +150,7 @@ PLATFORM_REVIEW.md
 # Temporary/working files
 # context/
 context/
+
+# Release Please config (exception to *.json ignore)
+!release-please-config.json
+!.release-please-manifest.json
