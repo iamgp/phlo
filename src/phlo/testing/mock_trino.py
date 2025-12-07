@@ -390,6 +390,48 @@ class MockTrinoResource:
         cursor.execute(query)
         return cursor.fetchall()
 
+    def query_with_schema(
+        self,
+        query: str,
+        schema_class: type[Any],
+        schema: Optional[str] = None,
+        branch: Optional[Literal["main", "dev"]] = None,
+    ) -> pd.DataFrame:
+        """
+        Execute a query and apply types from a Pandera schema.
+
+        This eliminates manual type conversion boilerplate in quality checks.
+        The DataFrame types are automatically coerced based on schema annotations.
+
+        Args:
+            query: SQL query
+            schema_class: Pandera DataFrameModel class with type annotations
+            schema: Schema to use
+            branch: Branch (ignored, for compatibility)
+
+        Returns:
+            DataFrame with types coerced according to schema
+
+        Example:
+            from phlo.testing import MockTrinoResource
+            from workflows.schemas.glucose import FactGlucoseReadings
+
+            trino = MockTrinoResource()
+            df = trino.query_with_schema(
+                "SELECT * FROM gold.fct_glucose_readings",
+                FactGlucoseReadings,
+            )
+            # Types are now correct for validation
+        """
+        from phlo.schemas.type_mapping import apply_schema_types
+
+        cursor = self.cursor(schema=schema, branch=branch)
+        cursor.execute(query)
+        df = cursor.fetchdf()
+
+        # Apply schema-aware type conversions
+        return apply_schema_types(df, schema_class)
+
     def load_table(self, table_name: str, df: pd.DataFrame) -> None:
         """
         Load a DataFrame as a test table.

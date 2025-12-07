@@ -10,6 +10,11 @@ from phlo.schemas.asset_outputs import (
 )
 from phlo.schemas.base import PhloSchema
 from phlo.schemas.dbt_schema import dbt_model_to_pandera
+from phlo.schemas.type_mapping import (
+    TRINO_TO_PANDAS_TYPES,
+    apply_schema_types,
+    trino_type_to_pandas,
+)
 
 # Public API
 __all__ = [
@@ -18,4 +23,8 @@ __all__ = [
     "PublishPostgresOutput",
     "RawDataOutput",
     "TablePublishStats",
+    # Type mapping utilities
+    "TRINO_TO_PANDAS_TYPES",
+    "apply_schema_types",
+    "trino_type_to_pandas",
 ]
