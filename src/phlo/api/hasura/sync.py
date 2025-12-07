@@ -18,7 +18,7 @@ class HasuraMetadataSync:
         """
         self.client = client or HasuraClient()
 
-    def export_metadata(self, output_path: Optional[str] = None) -> dict[str, Any]:
+    def export_metadata(self, output_path: Optional[str | Path] = None) -> dict[str, Any]:
         """Export Hasura metadata.
 
         Args:
@@ -36,7 +36,7 @@ class HasuraMetadataSync:
 
         return metadata
 
-    def import_metadata(self, input_path: str) -> dict[str, Any]:
+    def import_metadata(self, input_path: str | Path) -> dict[str, Any]:
         """Import Hasura metadata from file.
 
         Args:

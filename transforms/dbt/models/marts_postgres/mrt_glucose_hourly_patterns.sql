@@ -7,7 +7,7 @@
     tags=['nightscout', 'mart']
 ) }}
 
- /*
+/*
 Hourly glucose patterns for time-of-day analysis
 
 This mart aggregates glucose readings by hour of day to identify patterns

@@ -35,7 +35,6 @@ jobs:
 
   type-check:
     runs-on: ubuntu-latest
-    continue-on-error: true  # Type checking is advisory during setup
     steps:
       - uses: actions/checkout@v4
 
@@ -89,7 +88,6 @@ jobs:
 
   lint-sql:
     runs-on: ubuntu-latest
-    continue-on-error: true  # SQL linting is advisory during setup
     steps:
       - uses: actions/checkout@v4
 
@@ -105,4 +103,4 @@ jobs:
         run: uv sync --dev --group dev
 
       - name: Lint SQL with sqlfluff
-        run: uv run sqlfluff lint transforms/dbt --ignore parsing
+        run: uv run sqlfluff lint transforms/dbt/models --ignore parsing

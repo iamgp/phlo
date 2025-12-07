@@ -8,7 +8,7 @@
     tags=['github', 'mart']
 ) }}
 
- /*
+/*
 GitHub repository insights mart for BI dashboards
 
 This mart table provides repository-level analytics including contributor patterns,
@@ -50,7 +50,7 @@ select
     -- Commit velocity (commits per week)
     case
         when weeks_with_activity > 0
-        then round(total_commits_last_52_weeks::decimal / weeks_with_activity, 2)
+            then round(total_commits_last_52_weeks::decimal / weeks_with_activity, 2)
         else 0
     end as avg_commits_per_week,
 
@@ -88,11 +88,12 @@ select
 
 from {{ ref('mrt_github_repo_metrics') }}
 
-where collection_date >= current_date - interval '90' day  -- Last 90 days
+where
+    collection_date >= current_date - interval '90' day  -- Last 90 days
 
-{% if is_incremental() %}
+    {% if is_incremental() %}
     -- Only process new dates on incremental runs
-    and collection_date >= (select coalesce(max(collection_date), date('1900-01-01')) from {{ this }})
-{% endif %}
+        and collection_date >= (select coalesce(max(prev.collection_date), date('1900-01-01')) from {{ this }} as prev)
+    {% endif %}
 
-order by collection_date desc, repo_full_name
+order by collection_date desc, repo_full_name asc

@@ -141,7 +141,7 @@ class DbtManifestParser:
         # Find model in catalog using schema.table format
         catalog_key = f"{schema_name}.{model_name}"
 
-        if catalog_key not in catalog:
+        if not catalog or catalog_key not in catalog:
             logger.debug(f"Model not found in catalog: {catalog_key}")
             return {}
 

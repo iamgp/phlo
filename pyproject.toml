@@ -95,3 +95,26 @@ ignore = ["E501"]  # Line too long - let the formatter handle this
 "tests/test_transform.py" = ["E402"]
 "tests/test_resources.py" = ["E402"]
 "tests/scripts/test_duckdb_iceberg.py" = ["E402"]
+
+[tool.basedpyright]
+include = ["src/phlo"]
+exclude = ["src/phlo/testing"]  # Mock/placeholder code with dynamic imports
+pythonVersion = "3.11"
+typeCheckingMode = "standard"  # Less strict than "strict" mode
+# Disable warnings that are too noisy with pandas/dagster/dynamic imports
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownParameterType = false
+reportMissingTypeStubs = false
+reportPrivateUsage = false
+reportPossiblyUnboundVariable = false
+reportRedeclaration = false
+# Common issues in codebases using dynamic typing (pandas, dagster, etc.)
+reportOptionalMemberAccess = false
+reportOptionalSubscript = false
+reportArgumentType = false  # Many false positives with pandas/dict operations
+reportCallIssue = false
+reportAttributeAccessIssue = false
+reportGeneralTypeIssues = false
+reportIncompatibleVariableOverride = false

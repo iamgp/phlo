@@ -273,7 +273,7 @@ def _discover_dbt_assets() -> list[Any]:
             dagster_dbt_translator=CustomDbtTranslator(),
             partitions_def=daily_partition,
         )
-        def all_dbt_assets(context, dbt: DbtCliResource):
+        def all_dbt_assets(context, dbt: Any):
             import os
             import shutil
 

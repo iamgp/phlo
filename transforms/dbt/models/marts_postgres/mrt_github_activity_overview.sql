@@ -8,7 +8,7 @@
     tags=['github', 'mart']
 ) }}
 
- /*
+/*
 GitHub activity overview mart for BI dashboards
 
 This mart table is incrementally materialized in Iceberg for fast dashboard queries in
@@ -60,7 +60,7 @@ select
     -- Activity diversity score (simple measure of engagement)
     case
         when unique_actors_count > 0
-        then round(unique_repos_count::decimal / unique_actors_count, 2)
+            then round(unique_repos_count::decimal / unique_actors_count, 2)
         else 0
     end as activity_diversity_score
 
@@ -93,13 +93,14 @@ from (
 
     from {{ ref('mrt_github_user_activity') }}
     group by event_date
-) daily_metrics
+) as daily_metrics
 
-where activity_date >= current_date - interval '90' day  -- Last 90 days for dashboard
+where
+    activity_date >= current_date - interval '90' day  -- Last 90 days for dashboard
 
-{% if is_incremental() %}
+    {% if is_incremental() %}
     -- Only process new dates on incremental runs
-    and activity_date >= (select coalesce(max(activity_date), date('1900-01-01')) from {{ this }})
-{% endif %}
+        and activity_date >= (select coalesce(max(prev.activity_date), date('1900-01-01')) from {{ this }} as prev)
+    {% endif %}
 
 order by activity_date desc

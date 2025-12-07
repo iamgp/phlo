@@ -8,7 +8,7 @@
     tags=['nightscout', 'curated']
 ) }}
 
- /*
+/*
 Curated fact table for glucose readings
 
 This model provides a clean, deduplicated, production-ready dataset for
@@ -40,5 +40,5 @@ from {{ ref('fct_glucose_readings') }}
 
 {% if is_incremental() %}
     -- Only process new data on incremental runs
-    where reading_timestamp > (select max(reading_timestamp) from {{ this }})
+    where reading_timestamp > (select max(prev.reading_timestamp) from {{ this }} as prev)
 {% endif %}

@@ -7,7 +7,7 @@
     tags=['github', 'int']
 ) }}
 
- /*
+/*
 Enriched GitHub repository statistics with calculated metrics
 
 This model adds useful calculated fields:
@@ -43,54 +43,58 @@ enriched as (
 
         -- Contributors statistics summary
         case
-            when contributors_data is not null then
-                json_array_length(contributors_data)
+            when contributors_data is not null
+                then
+                    json_array_length(contributors_data)
             else 0
         end as contributor_count,
 
         -- Commit activity summary (last 52 weeks)
         case
-            when commit_activity_data is not null then
-                reduce(
-                    transform(
-                        commit_activity_data,
-                        x -> json_extract_scalar(cast(x as varchar), '$.total')
-                    ),
-                    0,
-                    (acc, x) -> acc + cast(coalesce(x, '0') as integer)
-                )
+            when commit_activity_data is not null
+                then
+                    reduce(
+                        transform(
+                            commit_activity_data,
+                            x -> json_extract_scalar(cast(x as varchar), '$.total')
+                        ),
+                        0,
+                        (acc, x) -> acc + cast(coalesce(x, '0') as integer)
+                    )
             else 0
         end as total_commits_last_52_weeks,
 
         -- Code frequency summary (additions/deletions)
         case
-            when code_frequency_data is not null and json_array_length(code_frequency_data) > 0 then
-                transform(
-                    code_frequency_data,
-                    x -> json_extract_scalar(cast(x as varchar), '$[1]')  -- deletions are at index 1
-                )[1]
-            else null
+            when code_frequency_data is not null and json_array_length(code_frequency_data) > 0
+                then
+                    transform(
+                        code_frequency_data,
+                        x -> json_extract_scalar(cast(x as varchar), '$[1]')  -- deletions are at index 1
+                    )[1]
         end as net_code_changes,
 
         -- Weekly activity indicators
         case
-            when commit_activity_data is not null then
-                json_array_length(commit_activity_data)
+            when commit_activity_data is not null
+                then
+                    json_array_length(commit_activity_data)
             else 0
         end as weeks_with_activity,
 
         -- Repository activity score (simple heuristic)
         case
-            when contributors_data is not null and commit_activity_data is not null then
-                json_array_length(contributors_data) * 10 +
-                reduce(
-                    transform(
-                        commit_activity_data,
-                        x -> json_extract_scalar(cast(x as varchar), '$.total')
-                    ),
-                    0,
-                    (acc, x) -> acc + cast(coalesce(x, '0') as integer)
-                ) / 10
+            when contributors_data is not null and commit_activity_data is not null
+                then
+                    json_array_length(contributors_data) * 10
+                    + reduce(
+                        transform(
+                            commit_activity_data,
+                            x -> json_extract_scalar(cast(x as varchar), '$.total')
+                        ),
+                        0,
+                        (acc, x) -> acc + cast(coalesce(x, '0') as integer)
+                    ) / 10
             else 0
         end as activity_score
 
@@ -98,4 +102,4 @@ enriched as (
 )
 
 select * from enriched
-order by collection_date desc, repo_full_name
+order by collection_date desc, repo_full_name asc
