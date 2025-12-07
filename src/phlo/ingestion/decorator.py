@@ -12,6 +12,7 @@ from phlo.defs.partitions import daily_partition
 from phlo.defs.resources.iceberg import IcebergResource
 from phlo.ingestion.dlt_helpers import (
     get_branch_from_context,
+    inject_metadata_columns,
     merge_to_iceberg,
     setup_dlt_pipeline,
     stage_to_parquet,
@@ -209,6 +210,7 @@ def phlo_ingestion(
     validate: bool = True,
     merge_strategy: Literal["append", "merge"] = "merge",
     merge_config: dict[str, Any] | None = None,
+    add_metadata_columns: bool = True,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator for creating Cascade ingestion assets with minimal boilerplate.
@@ -241,6 +243,8 @@ def phlo_ingestion(
         validate: Whether to validate data with Pandera schema
         merge_strategy: Merge strategy - "append" (insert-only) or "merge" (upsert). Default: "merge"
         merge_config: Merge configuration dict with deduplication settings
+        add_metadata_columns: If True (default), auto-adds _phlo_ingested_at, _phlo_partition_date,
+            _phlo_run_id columns to all ingested data for lineage and debugging.
 
     Returns:
         Decorator function that wraps user's fetch function
@@ -354,6 +358,16 @@ def phlo_ingestion(
                     dlt_source=dlt_source,
                     local_staging_root=local_staging_root,
                 )
+
+                # Inject phlo metadata columns if enabled
+                if add_metadata_columns:
+                    run_id = context.run.run_id if hasattr(context, "run") else "unknown"
+                    inject_metadata_columns(
+                        parquet_path=parquet_path,
+                        partition_date=partition_date,
+                        run_id=run_id,
+                        context=context,
+                    )
 
                 merge_metrics = merge_to_iceberg(
                     context=context,
