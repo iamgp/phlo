@@ -435,9 +435,7 @@ class SchemaCheck(QualityCheck):
                 metric_name="schema_check",
                 metric_value={"schema_valid": True},
                 metadata={
-                    "schema_name": getattr(
-                        self.schema, "__name__", str(type(self.schema))
-                    ),
+                    "schema_name": getattr(self.schema, "__name__", str(type(self.schema))),
                     "rows_validated": len(df),
                     "columns_validated": len(df.columns),
                 },
@@ -454,9 +452,7 @@ class SchemaCheck(QualityCheck):
                 metric_name="schema_check",
                 metric_value={"schema_valid": False},
                 metadata={
-                    "schema_name": getattr(
-                        self.schema, "__name__", str(type(self.schema))
-                    ),
+                    "schema_name": getattr(self.schema, "__name__", str(type(self.schema))),
                     "rows_evaluated": len(df),
                     "failed_checks": len(failure_cases),
                     "failures_by_column": failures_by_column,

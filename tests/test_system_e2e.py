@@ -4,7 +4,10 @@ This module contains end-to-end and data quality tests for the
 complete Cascade data lakehouse system.
 """
 
+import pytest
 
+# Mark entire module as integration tests (requires dbt manifest and running services)
+pytestmark = pytest.mark.integration
 
 from phlo.definitions import defs
 
@@ -24,7 +27,7 @@ class TestSystemE2ETests:
         asset_keys = []
         if defs.assets:
             for asset in defs.assets:
-                if hasattr(asset, 'keys'):
+                if hasattr(asset, "keys"):
                     # Multi-asset definition
                     asset_keys.extend([str(key) for key in asset.keys])
                 else:
@@ -34,24 +37,26 @@ class TestSystemE2ETests:
                     except Exception:
                         # Skip assets that don't have accessible keys
                         continue
-        assert any('entries' in key for key in asset_keys)
+        assert any("entries" in key for key in asset_keys)
 
         # Verify transform assets are present (dbt models)
-        transform_assets = [asset for asset in defs.assets if hasattr(asset, 'keys') and len(list(asset.keys)) > 1]
+        transform_assets = [
+            asset for asset in defs.assets if hasattr(asset, "keys") and len(list(asset.keys)) > 1
+        ]
         assert len(transform_assets) > 0
 
         # Verify publishing assets are present
         publishing_assets = []
         if defs.assets:
             for asset in defs.assets:
-                if hasattr(asset, 'keys'):
+                if hasattr(asset, "keys"):
                     # Multi-asset definition - check if any key contains 'publish'
-                    if any('publish' in str(key) for key in asset.keys):
+                    if any("publish" in str(key) for key in asset.keys):
                         publishing_assets.append(asset)
                 else:
                     # Single asset
                     try:
-                        if 'publish' in str(asset.key):
+                        if "publish" in str(asset.key):
                             publishing_assets.append(asset)
                     except Exception:
                         continue
@@ -76,15 +81,15 @@ class TestSystemE2ETests:
 
         # Verify resources support refs
         assert defs.resources is not None
-        trino_resource = defs.resources.get('trino')
-        iceberg_resource = defs.resources.get('iceberg')
+        trino_resource = defs.resources.get("trino")
+        iceberg_resource = defs.resources.get("iceberg")
 
         assert trino_resource is not None
         assert iceberg_resource is not None
 
         # Verify ref configuration exists
-        assert hasattr(trino_resource, 'nessie_ref')
-        assert hasattr(iceberg_resource, 'ref')
+        assert hasattr(trino_resource, "nessie_ref")
+        assert hasattr(iceberg_resource, "ref")
 
     def test_time_travel_queries_work_on_historical_data(self):
         """Test that time travel queries work on historical data."""
@@ -106,7 +111,9 @@ class TestSystemE2ETests:
         # This ensures transformation lineage is maintained
 
         # Check that transform assets are configured properly
-        transform_assets = [asset for asset in defs.assets if hasattr(asset, 'keys') and len(list(asset.keys)) > 1]
+        transform_assets = [
+            asset for asset in defs.assets if hasattr(asset, "keys") and len(list(asset.keys)) > 1
+        ]
         assert len(transform_assets) > 0
 
     def test_concurrent_operations_multiple_branches_dont_cause_conflicts(self):
@@ -116,8 +123,8 @@ class TestSystemE2ETests:
 
         # Verify multiple refs can be used simultaneously
         assert defs.resources is not None
-        trino_resource = defs.resources.get('trino')
-        iceberg_resource = defs.resources.get('iceberg')
+        trino_resource = defs.resources.get("trino")
+        iceberg_resource = defs.resources.get("iceberg")
 
         # Resources should support different ref configurations
         assert trino_resource is not None
@@ -162,21 +169,23 @@ class TestSystemDataQualityTests:
         # from ingestion through transformation to publishing
 
         # Check that we have a multi-asset pipeline (assets that produce multiple outputs)
-        multi_assets = [asset for asset in defs.assets if hasattr(asset, 'keys') and len(list(asset.keys)) > 1]
+        multi_assets = [
+            asset for asset in defs.assets if hasattr(asset, "keys") and len(list(asset.keys)) > 1
+        ]
         assert len(multi_assets) > 0
 
         # Verify publishing assets depend on transformation assets
         publishing_assets = []
         if defs.assets:
             for asset in defs.assets:
-                if hasattr(asset, 'keys'):
+                if hasattr(asset, "keys"):
                     # Multi-asset definition - check if any key contains 'publish'
-                    if any('publish' in str(key) for key in asset.keys):
+                    if any("publish" in str(key) for key in asset.keys):
                         publishing_assets.append(asset)
                 else:
                     # Single asset
                     try:
-                        if 'publish' in str(asset.key):
+                        if "publish" in str(asset.key):
                             publishing_assets.append(asset)
                     except Exception:
                         continue
@@ -192,7 +201,7 @@ class TestSystemDataQualityTests:
         assert len(quality_checks) > 0
 
         # Check that glucose-related validations are present
-        [check for check in quality_checks if hasattr(check, 'name') and 'glucose' in check.name]
+        [check for check in quality_checks if hasattr(check, "name") and "glucose" in check.name]
         # If no checks have names, we'll skip this assertion for now
         # assert len(glucose_checks) > 0
 
@@ -209,8 +218,11 @@ class TestSystemDataQualityTests:
         # Verify freshness policies are configured
         # Check that assets have freshness_policy defined
 
-        [asset for asset in defs.assets
-                                if hasattr(asset, 'freshness_policy') and asset.freshness_policy]
+        [
+            asset
+            for asset in defs.assets
+            if hasattr(asset, "freshness_policy") and asset.freshness_policy
+        ]
         # Note: Not all assets may have explicit freshness policies,
         # but ingestion assets should
 
@@ -241,9 +253,9 @@ class TestSystemDataQualityTests:
 
         # Verify resource configurations include security settings
         assert defs.resources is not None
-        trino_resource = defs.resources.get('trino')
+        trino_resource = defs.resources.get("trino")
         assert trino_resource is not None
-        assert hasattr(trino_resource, 'user')  # Has user configuration
+        assert hasattr(trino_resource, "user")  # Has user configuration
 
     def test_backup_and_recovery_procedures_work(self):
         """Test that backup and recovery procedures work."""
@@ -262,14 +274,14 @@ class TestSystemDataQualityTests:
         publishing_assets = []
         if defs.assets:
             for asset in defs.assets:
-                if hasattr(asset, 'keys'):
+                if hasattr(asset, "keys"):
                     # Multi-asset definition - check if any key contains 'publish'
-                    if any('publish' in str(key) for key in asset.keys):
+                    if any("publish" in str(key) for key in asset.keys):
                         publishing_assets.append(asset)
                 else:
                     # Single asset
                     try:
-                        if 'publish' in str(asset.key):
+                        if "publish" in str(asset.key):
                             publishing_assets.append(asset)
                     except Exception:
                         continue

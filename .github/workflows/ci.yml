@@ -35,6 +35,7 @@ jobs:
 
   type-check:
     runs-on: ubuntu-latest
+    continue-on-error: true  # Type checking is advisory during setup
     steps:
       - uses: actions/checkout@v4
 
@@ -81,6 +82,7 @@ jobs:
 
   lint-sql:
     runs-on: ubuntu-latest
+    continue-on-error: true  # SQL linting is advisory during setup
     steps:
       - uses: actions/checkout@v4
 

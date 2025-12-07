@@ -13,9 +13,7 @@ class HasuraClient:
     admin_secret: str
     metadata_url: str
 
-    def __init__(
-        self, hasura_url: str | None = None, admin_secret: str | None = None
-    ) -> None:
+    def __init__(self, hasura_url: str | None = None, admin_secret: str | None = None) -> None:
         """Initialize Hasura client.
 
         Args:
@@ -65,9 +63,7 @@ class HasuraClient:
 
         return response.json()
 
-    def track_table(
-        self, schema: str, table: str, alias: str | None = None
-    ) -> dict[str, Any]:
+    def track_table(self, schema: str, table: str, alias: str | None = None) -> dict[str, Any]:
         """Track a table in Hasura.
 
         Args:
@@ -164,9 +160,7 @@ class HasuraClient:
             },
         }
 
-        return self._request(
-            "POST", data, f"create_select_permission({schema}.{table}.{role})"
-        )
+        return self._request("POST", data, f"create_select_permission({schema}.{table}.{role})")
 
     def create_insert_permission(
         self,
@@ -211,9 +205,7 @@ class HasuraClient:
             },
         }
 
-        return self._request(
-            "POST", data, f"create_insert_permission({schema}.{table}.{role})"
-        )
+        return self._request("POST", data, f"create_insert_permission({schema}.{table}.{role})")
 
     def drop_permission(
         self, schema: str, table: str, role: str, permission_type: str = "select"

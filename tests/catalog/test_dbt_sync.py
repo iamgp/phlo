@@ -29,9 +29,7 @@ def sample_manifest():
                         "description": "Glucose value in mg/dL",
                     },
                 },
-                "depends_on": {
-                    "nodes": ["source.my_project.nightscout.glucose_entries"]
-                },
+                "depends_on": {"nodes": ["source.my_project.nightscout.glucose_entries"]},
                 "tags": ["glucose", "staging"],
                 "freshness": {"warn_after": {"count": 24, "period": "hour"}},
             },
@@ -42,9 +40,7 @@ def sample_manifest():
                 "columns": {
                     "reading_id": {"description": "Reading ID"},
                 },
-                "depends_on": {
-                    "nodes": ["model.my_project.stg_glucose_entries"]
-                },
+                "depends_on": {"nodes": ["model.my_project.stg_glucose_entries"]},
                 "tags": ["glucose", "fact"],
             },
         },
@@ -90,9 +86,7 @@ def sample_catalog():
 @pytest.fixture
 def manifest_file(sample_manifest):
     """Create temporary manifest file."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(sample_manifest, f)
         path = f.name
     yield path
@@ -102,9 +96,7 @@ def manifest_file(sample_manifest):
 @pytest.fixture
 def catalog_file(sample_catalog):
     """Create temporary catalog file."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(sample_catalog, f)
         path = f.name
     yield path
@@ -140,9 +132,7 @@ class TestDbtManifestParser:
 
     def test_load_manifest_invalid_json(self):
         """Test loading invalid JSON manifest."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json {")
             path = f.name
 
@@ -177,14 +167,10 @@ class TestDbtManifestParser:
         assert "stg_glucose_entries" in models["model.my_project.stg_glucose_entries"]["name"]
         assert "fct_glucose_readings" in models["model.my_project.fct_glucose_readings"]["name"]
 
-    def test_get_model_columns(
-        self, manifest_file, catalog_file, sample_catalog
-    ):
+    def test_get_model_columns(self, manifest_file, catalog_file, sample_catalog):
         """Test getting model columns."""
         parser = DbtManifestParser(manifest_file, catalog_file)
-        columns = parser.get_model_columns(
-            "stg_glucose_entries", "bronze", sample_catalog
-        )
+        columns = parser.get_model_columns("stg_glucose_entries", "bronze", sample_catalog)
 
         assert len(columns) == 3
         assert columns["id"]["type"] == "INTEGER"
@@ -212,15 +198,11 @@ class TestDbtManifestParser:
         }
 
         parser = DbtManifestParser(manifest_file)
-        tests = parser.get_model_tests(
-            "model.my_project.stg_glucose_entries", sample_manifest
-        )
+        tests = parser.get_model_tests("model.my_project.stg_glucose_entries", sample_manifest)
 
         assert len(tests) > 0
 
-    def test_extract_openmetadata_table_from_manifest(
-        self, manifest_file, sample_manifest
-    ):
+    def test_extract_openmetadata_table_from_manifest(self, manifest_file, sample_manifest):
         """Test extracting OpenMetadata table from manifest."""
         parser = DbtManifestParser(manifest_file)
         model = sample_manifest["nodes"]["model.my_project.stg_glucose_entries"]
@@ -240,9 +222,7 @@ class TestDbtManifestParser:
         model = sample_manifest["nodes"]["model.my_project.stg_glucose_entries"]
         columns_info = sample_catalog["bronze.stg_glucose_entries"]["columns"]
 
-        om_table = parser.extract_openmetadata_table(
-            model, "bronze", columns_info
-        )
+        om_table = parser.extract_openmetadata_table(model, "bronze", columns_info)
 
         # Model has 2 documented columns; catalog info supplements dataType
         assert len(om_table.columns) == 2
@@ -250,9 +230,7 @@ class TestDbtManifestParser:
         value_col = next(c for c in om_table.columns if c.name == "value")
         assert value_col.dataType == "DOUBLE"
 
-    def test_extract_openmetadata_table_with_tags(
-        self, manifest_file, sample_manifest
-    ):
+    def test_extract_openmetadata_table_with_tags(self, manifest_file, sample_manifest):
         """Test that tags are included in extracted table."""
         parser = DbtManifestParser(manifest_file)
         model = sample_manifest["nodes"]["model.my_project.stg_glucose_entries"]
@@ -264,9 +242,7 @@ class TestDbtManifestParser:
         assert "glucose" in tag_names
         assert "staging" in tag_names
 
-    def test_extract_openmetadata_table_with_freshness(
-        self, manifest_file, sample_manifest
-    ):
+    def test_extract_openmetadata_table_with_freshness(self, manifest_file, sample_manifest):
         """Test that freshness is included as tag."""
         parser = DbtManifestParser(manifest_file)
         model = sample_manifest["nodes"]["model.my_project.stg_glucose_entries"]

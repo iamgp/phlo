@@ -76,12 +76,14 @@ class RawExampleData(pa.DataFrameModel):
         strict: If True, columns not in schema will cause validation failure
         coerce: If True, attempt to coerce column types
         """
+
         strict = True  # Reject extra columns
         coerce = True  # Auto-convert types when possible
 
 
 # TODO: If you need multiple schemas (e.g., for different API endpoints),
 # define them here:
+
 
 class RawExampleDataAlternative(pa.DataFrameModel):
     """Alternative schema for different data structure."""

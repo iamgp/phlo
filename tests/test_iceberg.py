@@ -17,9 +17,11 @@ from phlo.iceberg.tables import append_to_table, delete_table, ensure_table, get
 class TestIcebergCatalogUnitTests:
     """Unit tests for catalog operations."""
 
-    @patch('phlo.iceberg.catalog.load_catalog')
-    @patch('phlo.iceberg.catalog.config')
-    def test_get_catalog_creates_and_caches_catalog_instances_for_different_refs(self, mock_config, mock_load_catalog):
+    @patch("phlo.iceberg.catalog.load_catalog")
+    @patch("phlo.iceberg.catalog.config")
+    def test_get_catalog_creates_and_caches_catalog_instances_for_different_refs(
+        self, mock_config, mock_load_catalog
+    ):
         """Test that get_catalog creates and caches catalog instances for different refs."""
         # Setup mocks
         mock_catalog_main = MagicMock()
@@ -29,7 +31,7 @@ class TestIcebergCatalogUnitTests:
         mock_config_instance = MagicMock()
         mock_config_instance.get_pyiceberg_catalog_config.side_effect = [
             {"type": "rest", "uri": "http://nessie:19120/iceberg/main"},
-            {"type": "rest", "uri": "http://nessie:19120/iceberg/dev"}
+            {"type": "rest", "uri": "http://nessie:19120/iceberg/dev"},
         ]
         mock_config.get_pyiceberg_catalog_config = mock_config_instance.get_pyiceberg_catalog_config
 
@@ -40,9 +42,7 @@ class TestIcebergCatalogUnitTests:
         catalog1 = get_catalog("main")
         assert catalog1 == mock_catalog_main
         mock_load_catalog.assert_called_once_with(
-            name="nessie_main",
-            type="rest",
-            uri="http://nessie:19120/iceberg/main"
+            name="nessie_main", type="rest", uri="http://nessie:19120/iceberg/main"
         )
 
         # Second call for main should return cached
@@ -55,13 +55,13 @@ class TestIcebergCatalogUnitTests:
         catalog3 = get_catalog("dev")
         assert catalog3 == mock_catalog_dev
         mock_load_catalog.assert_called_once_with(
-            name="nessie_dev",
-            type="rest",
-            uri="http://nessie:19120/iceberg/dev"
+            name="nessie_dev", type="rest", uri="http://nessie:19120/iceberg/dev"
         )
 
-    @patch('phlo.iceberg.catalog.get_catalog')
-    def test_list_tables_returns_correct_tables_for_namespaces_and_all_namespaces(self, mock_get_catalog):
+    @patch("phlo.iceberg.catalog.get_catalog")
+    def test_list_tables_returns_correct_tables_for_namespaces_and_all_namespaces(
+        self, mock_get_catalog
+    ):
         """Test that list_tables returns correct tables for namespaces and all namespaces."""
         mock_catalog = MagicMock()
         mock_get_catalog.return_value = mock_catalog
@@ -98,7 +98,7 @@ class TestIcebergCatalogUnitTests:
         assert all_tables == ["raw.entries", "raw.treatments", "bronze.entries"]
         assert mock_catalog.list_tables.call_count == 2  # Called for each namespace
 
-    @patch('phlo.iceberg.catalog.get_catalog')
+    @patch("phlo.iceberg.catalog.get_catalog")
     def test_create_namespace_handles_existing_namespaces_without_errors(self, mock_get_catalog):
         """Test that create_namespace handles existing namespaces without errors."""
         mock_catalog = MagicMock()
@@ -118,9 +118,11 @@ class TestIcebergCatalogUnitTests:
 class TestIcebergTablesUnitTests:
     """Unit tests for table operations."""
 
-    @patch('phlo.iceberg.tables.create_namespace')
-    @patch('phlo.iceberg.tables.get_catalog')
-    def test_ensure_table_creates_new_tables_with_correct_schema_and_partitioning(self, mock_get_catalog, mock_create_namespace):
+    @patch("phlo.iceberg.tables.create_namespace")
+    @patch("phlo.iceberg.tables.get_catalog")
+    def test_ensure_table_creates_new_tables_with_correct_schema_and_partitioning(
+        self, mock_get_catalog, mock_create_namespace
+    ):
         """Test that ensure_table creates new tables with correct schema and partitioning."""
         mock_catalog = MagicMock()
         mock_get_catalog.return_value = mock_catalog
@@ -155,9 +157,11 @@ class TestIcebergTablesUnitTests:
 
         assert table == mock_table
 
-    @patch('phlo.iceberg.catalog.get_catalog')
-    @patch('phlo.iceberg.tables.get_catalog')
-    def test_ensure_table_loads_existing_table(self, mock_get_catalog_tables, mock_get_catalog_catalog):
+    @patch("phlo.iceberg.catalog.get_catalog")
+    @patch("phlo.iceberg.tables.get_catalog")
+    def test_ensure_table_loads_existing_table(
+        self, mock_get_catalog_tables, mock_get_catalog_catalog
+    ):
         """Test that ensure_table loads existing table without creating new one."""
         mock_catalog = MagicMock()
         mock_get_catalog_tables.return_value = mock_catalog
@@ -185,9 +189,11 @@ class TestIcebergTablesUnitTests:
             if len(parts) != 2:
                 raise ValueError("Table name must be namespace.table, got: invalid_table_name")
 
-    @patch('phlo.iceberg.tables.get_catalog')
-    @patch('pyarrow.parquet.read_table')
-    def test_append_to_table_adds_parquet_data_to_existing_tables(self, mock_read_table, mock_get_catalog):
+    @patch("phlo.iceberg.tables.get_catalog")
+    @patch("pyarrow.parquet.read_table")
+    def test_append_to_table_adds_parquet_data_to_existing_tables(
+        self, mock_read_table, mock_get_catalog
+    ):
         """Test that append_to_table adds parquet data to existing tables."""
         import pyarrow as pa
 
@@ -205,10 +211,12 @@ class TestIcebergTablesUnitTests:
         mock_catalog.load_table.return_value = mock_table
 
         # Create a real arrow table with matching schema
-        arrow_schema = pa.schema([
-            pa.field("id", pa.string()),
-            pa.field("name", pa.string()),
-        ])
+        arrow_schema = pa.schema(
+            [
+                pa.field("id", pa.string()),
+                pa.field("name", pa.string()),
+            ]
+        )
         mock_arrow_table = pa.table({"id": ["1"], "name": ["test"]}, schema=arrow_schema)
         mock_read_table.return_value = mock_arrow_table
 
@@ -220,8 +228,8 @@ class TestIcebergTablesUnitTests:
         mock_table.append.assert_called_once()
         assert result["rows_inserted"] == 1
 
-    @patch('phlo.iceberg.tables.get_catalog')
-    @patch('pyarrow.parquet.ParquetDataset')
+    @patch("phlo.iceberg.tables.get_catalog")
+    @patch("pyarrow.parquet.ParquetDataset")
     def test_append_to_table_handles_directories(self, mock_parquet_dataset, mock_get_catalog):
         """Test that append_to_table handles directories of parquet files."""
         import pyarrow as pa
@@ -240,10 +248,12 @@ class TestIcebergTablesUnitTests:
         mock_catalog.load_table.return_value = mock_table
 
         # Create a real arrow table with matching schema
-        arrow_schema = pa.schema([
-            pa.field("id", pa.string()),
-            pa.field("name", pa.string()),
-        ])
+        arrow_schema = pa.schema(
+            [
+                pa.field("id", pa.string()),
+                pa.field("name", pa.string()),
+            ]
+        )
         mock_arrow_table = pa.table({"id": ["1", "2"], "name": ["a", "b"]}, schema=arrow_schema)
 
         mock_dataset = MagicMock()
@@ -251,7 +261,7 @@ class TestIcebergTablesUnitTests:
         mock_parquet_dataset.return_value = mock_dataset
 
         # Mock Path.is_dir() to return True
-        with patch('pathlib.Path.is_dir', return_value=True):
+        with patch("pathlib.Path.is_dir", return_value=True):
             result = append_to_table("raw.entries", "/path/to/data_dir")
 
         mock_parquet_dataset.assert_called_once_with("/path/to/data_dir")
@@ -259,7 +269,7 @@ class TestIcebergTablesUnitTests:
         mock_table.append.assert_called_once()
         assert result["rows_inserted"] == 2
 
-    @patch('phlo.iceberg.tables.get_catalog')
+    @patch("phlo.iceberg.tables.get_catalog")
     def test_get_table_schema_retrieves_schemas_from_existing_tables(self, mock_get_catalog):
         """Test that get_table_schema retrieves schemas from existing tables."""
         mock_catalog = MagicMock()
@@ -276,7 +286,7 @@ class TestIcebergTablesUnitTests:
         mock_table.schema.assert_called_once()
         assert schema == mock_schema
 
-    @patch('phlo.iceberg.tables.get_catalog')
+    @patch("phlo.iceberg.tables.get_catalog")
     def test_delete_table_removes_tables_correctly(self, mock_get_catalog):
         """Test that delete_table removes tables correctly."""
         mock_catalog = MagicMock()
@@ -290,8 +300,8 @@ class TestIcebergTablesUnitTests:
 class TestIcebergIntegrationTests:
     """Integration tests for iceberg operations."""
 
-    @patch('phlo.iceberg.catalog.load_catalog')
-    @patch('phlo.iceberg.catalog.config')
+    @patch("phlo.iceberg.catalog.load_catalog")
+    @patch("phlo.iceberg.catalog.config")
     def test_catalog_operations_work_with_mock_pyiceberg(self, mock_config, mock_load_catalog):
         """Test that catalog operations work with mock PyIceberg."""
         # Clear cache
@@ -303,7 +313,8 @@ class TestIcebergIntegrationTests:
 
         mock_config_instance = MagicMock()
         mock_config_instance.get_pyiceberg_catalog_config.return_value = {
-            "type": "rest", "uri": "http://nessie:19120/iceberg/main"
+            "type": "rest",
+            "uri": "http://nessie:19120/iceberg/main",
         }
         mock_config.get_pyiceberg_catalog_config = mock_config_instance.get_pyiceberg_catalog_config
 
@@ -324,9 +335,11 @@ class TestIcebergIntegrationTests:
         tables = list_tables("raw")
         assert tables == ["raw.entries"]
 
-    @patch('phlo.iceberg.tables.get_catalog')
-    @patch('phlo.iceberg.tables.create_namespace')
-    def test_table_operations_integrate_with_nessie_refs(self, mock_create_namespace, mock_get_catalog):
+    @patch("phlo.iceberg.tables.get_catalog")
+    @patch("phlo.iceberg.tables.create_namespace")
+    def test_table_operations_integrate_with_nessie_refs(
+        self, mock_create_namespace, mock_get_catalog
+    ):
         """Test that table operations integrate with Nessie refs."""
         mock_catalog = MagicMock()
         mock_get_catalog.return_value = mock_catalog

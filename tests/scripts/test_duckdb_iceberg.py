@@ -9,10 +9,15 @@ bypassing Trino for fast ad-hoc analysis.
 import os
 import sys
 
+import pytest
+
+# Mark entire module as integration tests (requires Nessie and MinIO)
+pytestmark = pytest.mark.integration
+
 # Set environment variables for localhost (when running from host)
 # Must be set before any phlo imports to affect config loading
-os.environ.setdefault('NESSIE_HOST', 'localhost')
-os.environ.setdefault('MINIO_HOST', 'localhost')
+os.environ.setdefault("NESSIE_HOST", "localhost")
+os.environ.setdefault("MINIO_HOST", "localhost")
 
 
 def test_duckdb_iceberg():
@@ -42,7 +47,9 @@ def test_duckdb_iceberg():
     print("2. Configuring S3/MinIO connection...")
     try:
         # Get credentials from environment or use defaults
-        minio_endpoint = os.getenv("MINIO_HOST", "localhost") + ":" + os.getenv("MINIO_API_PORT", "9000")
+        minio_endpoint = (
+            os.getenv("MINIO_HOST", "localhost") + ":" + os.getenv("MINIO_API_PORT", "9000")
+        )
         minio_user = os.getenv("MINIO_ROOT_USER", "minio")
         minio_password = os.getenv("MINIO_ROOT_PASSWORD", "minio123")
 
@@ -62,6 +69,7 @@ def test_duckdb_iceberg():
     try:
         # Use PyIceberg to get the actual table location
         from phlo.iceberg.catalog import get_catalog
+
         catalog = get_catalog(ref="main")
 
         # List tables to see what exists
@@ -214,5 +222,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Test failed with unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

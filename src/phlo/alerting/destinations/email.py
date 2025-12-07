@@ -81,7 +81,7 @@ Phlo Alert Notification
 
 Title: {alert.title}
 Severity: {alert.severity.value.upper()}
-Time: {alert.timestamp.isoformat() if alert.timestamp else 'N/A'}
+Time: {alert.timestamp.isoformat() if alert.timestamp else "N/A"}
 
 Message:
 {alert.message}
@@ -120,7 +120,7 @@ Message:
                         </tr>
                         <tr>
                             <td style="font-weight: bold;">Time:</td>
-                            <td>{alert.timestamp.isoformat() if alert.timestamp else 'N/A'}</td>
+                            <td>{alert.timestamp.isoformat() if alert.timestamp else "N/A"}</td>
                         </tr>
         """
 
@@ -147,9 +147,7 @@ Message:
                         <h3>Message</h3>
                         <p>{}</p>
                     </div>
-        """.format(
-            alert.message
-        )
+        """.format(alert.message)
 
         if alert.error_message:
             html += f"""

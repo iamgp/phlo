@@ -97,9 +97,7 @@ class TestQualityCheckMapper:
         """Test mapping check to test case."""
         check = NullCheck(columns=["id"])
 
-        test_case = QualityCheckMapper.map_check_to_test_case(
-            check, "schema.table", "table_suite"
-        )
+        test_case = QualityCheckMapper.map_check_to_test_case(check, "schema.table", "table_suite")
 
         assert test_case["name"] == "schema.table_null_check_id"
         assert test_case["entityLink"] == "<#schema.table>"
@@ -167,9 +165,7 @@ class TestQualityCheckMapper:
             "kwargs": {"column_name": "id"},
         }
 
-        om_test = QualityCheckMapper.map_dbt_test_to_openmetadata(
-            dbt_test, "public.users"
-        )
+        om_test = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, "public.users")
 
         assert om_test["name"] == "public.users_dbt_not_null_id"
         assert om_test["testDefinition"]["name"] == "dbt_not_null"
@@ -287,9 +283,7 @@ class TestQualityCheckPublisher:
 
         publisher.om_client.create_test_case.return_value = {"id": "456"}
 
-        stats = publisher.publish_test_cases(
-            checks, "public.users", test_suite_name="custom_suite"
-        )
+        stats = publisher.publish_test_cases(checks, "public.users", test_suite_name="custom_suite")
 
         assert stats["created"] == 1
         # Verify suite name was used

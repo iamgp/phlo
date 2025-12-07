@@ -17,7 +17,7 @@ security = HTTPBearer()
 # --- Authentication Dependencies ---
 # FastAPI dependency functions for user authentication and authorization
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> dict:
     """Get the current authenticated user from JWT token."""
     token = credentials.credentials

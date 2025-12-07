@@ -48,9 +48,7 @@ class LocalTestMode:
             fixture_dir: Directory for fixture recording/playback
             use_recorded_fixtures: Whether to use pre-recorded fixtures
         """
-        self.fixture_dir = (
-            fixture_dir or Path(tempfile.gettempdir()) / "phlo_test_fixtures"
-        )
+        self.fixture_dir = fixture_dir or Path(tempfile.gettempdir()) / "phlo_test_fixtures"
         self.fixture_dir.mkdir(exist_ok=True)
 
         self.use_recorded_fixtures = use_recorded_fixtures
@@ -238,9 +236,7 @@ class FixtureRecorder:
         Args:
             fixture_dir: Directory to store fixtures
         """
-        self.fixture_dir = (
-            fixture_dir or Path(tempfile.gettempdir()) / "phlo_fixtures"
-        )
+        self.fixture_dir = fixture_dir or Path(tempfile.gettempdir()) / "phlo_fixtures"
         self.fixture_dir.mkdir(exist_ok=True)
 
     def record_dlt_source(
@@ -339,9 +335,7 @@ class FixtureRecorder:
         if not self.fixture_dir.exists():
             return []
 
-        return sorted(
-            f.stem for f in self.fixture_dir.glob("*.*")
-        )
+        return sorted(f.stem for f in self.fixture_dir.glob("*.*"))
 
 
 # Environment variable helpers

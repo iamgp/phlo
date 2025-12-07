@@ -26,11 +26,11 @@ import pandas as pd
 def _normalize_type(dtype: str) -> str:
     """
     Normalize type string to DuckDB type.
-    
+
     Handles PyIceberg types, Python types, and plain strings.
     """
     dtype_str = str(dtype).lower()
-    
+
     # Map PyIceberg/Pandera types to DuckDB types
     type_mapping = {
         "int32": "INTEGER",
@@ -49,11 +49,11 @@ def _normalize_type(dtype: str) -> str:
         "object": "VARCHAR",
         "bytes": "BLOB",
     }
-    
+
     for key, val in type_mapping.items():
         if key in dtype_str:
             return val
-    
+
     # Default to VARCHAR for unknown types
     return "VARCHAR"
 
@@ -82,7 +82,7 @@ class MockTable:
 
         # Build CREATE TABLE statement from schema
         columns = []
-        
+
         if isinstance(self.schema, dict):
             # Simple dict schema: {"col_name": "type_string"}
             for col_name, col_type in self.schema.items():
@@ -150,7 +150,7 @@ class MockTable:
     def _validate_schema(self, df: pd.DataFrame) -> None:
         """Validate DataFrame schema against table schema."""
         df_cols = set(df.columns)
-        
+
         if isinstance(self.schema, dict):
             table_cols = set(self.schema.keys())
         else:
@@ -196,9 +196,7 @@ class MockTableScan:
             if isinstance(self.table.schema, dict):
                 return pd.DataFrame({col: [] for col in self.table.schema.keys()})
             else:
-                return pd.DataFrame(
-                    {field.name: [] for field in self.table.schema.fields}
-                )
+                return pd.DataFrame({field.name: [] for field in self.table.schema.fields})
 
         # Get column names from cursor description
         col_names = [desc[0] for desc in self.table._db.description]
@@ -213,6 +211,7 @@ class MockTableScan:
         """
         try:
             import pyarrow as pa
+
             df = self.to_pandas()
             return pa.Table.from_pandas(df)
         except ImportError:

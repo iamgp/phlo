@@ -185,9 +185,7 @@ class OpenMetadataClient:
             logger.warning(f"OpenMetadata health check failed: {e}")
             return False
 
-    def create_or_update_table(
-        self, schema_name: str, table: OpenMetadataTable
-    ) -> dict[str, Any]:
+    def create_or_update_table(self, schema_name: str, table: OpenMetadataTable) -> dict[str, Any]:
         """
         Create or update a table entity in OpenMetadata.
 
@@ -206,9 +204,7 @@ class OpenMetadataClient:
 
         try:
             # Try to get existing table first
-            existing = self._request(
-                "GET", f"/v1/tables?q={table.name}&database={schema_name}"
-            )
+            existing = self._request("GET", f"/v1/tables?q={table.name}&database={schema_name}")
 
             if existing.get("data"):
                 # Update existing table
@@ -350,9 +346,7 @@ class OpenMetadataClient:
         }
 
         if parameters:
-            data["parameterValues"] = [
-                {"name": k, "value": str(v)} for k, v in parameters.items()
-            ]
+            data["parameterValues"] = [{"name": k, "value": str(v)} for k, v in parameters.items()]
 
         try:
             logger.info(f"Creating test case: {test_case_name}")

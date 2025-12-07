@@ -234,9 +234,7 @@ def validate_workflow(asset_file: str, fix: bool):
             all_valid = all_valid and is_valid
 
         if all_valid:
-            console.print(
-                f"\n[bold green]✓ All {len(py_files)} file(s) are valid![/bold green]"
-            )
+            console.print(f"\n[bold green]✓ All {len(py_files)} file(s) are valid![/bold green]")
             sys.exit(0)
         else:
             console.print("\n[bold yellow]⚠ Some issues found (see above)[/bold yellow]")
@@ -408,9 +406,7 @@ def _validate_workflow_function(
 
             if deco_match:
                 # Validate decorator parameters
-                _validate_decorator_params(
-                    deco_match, func_line_idx, issues, warnings
-                )
+                _validate_decorator_params(deco_match, func_line_idx, issues, warnings)
 
         # Validate function signature
         sig = inspect.signature(func_obj)
@@ -475,18 +471,14 @@ def _validate_decorator_params(
     if table_match:
         table_name = table_match.group(1)
         if not _is_valid_table_name(table_name):
-            issues.append(
-                f"Invalid table_name '{table_name}' - use snake_case"
-            )
+            issues.append(f"Invalid table_name '{table_name}' - use snake_case")
 
     # Extract unique_key
     unique_key_match = re.search(r"unique_key\s*=\s*['\"]([^'\"]+)['\"]", deco_text)
     if unique_key_match:
         unique_key = unique_key_match.group(1)
         if not _is_valid_field_name(unique_key):
-            issues.append(
-                f"Invalid unique_key '{unique_key}' - use snake_case"
-            )
+            issues.append(f"Invalid unique_key '{unique_key}' - use snake_case")
 
     # Extract and validate cron
     cron_match = re.search(r'cron\s*=\s*["\']([^"\']+)["\']', deco_text)
@@ -498,15 +490,11 @@ def _validate_decorator_params(
 
     # Check for validation_schema
     if "validation_schema" not in deco_text:
-        warnings.append(
-            "No validation_schema provided - add one for data quality validation"
-        )
+        warnings.append("No validation_schema provided - add one for data quality validation")
 
     # Check for freshness_hours (optional but recommended)
     if "freshness_hours" not in deco_text:
-        warnings.append(
-            "No freshness_hours specified - consider adding SLA definition"
-        )
+        warnings.append("No freshness_hours specified - consider adding SLA definition")
 
     # Check for group
     if "group" not in deco_text:
@@ -575,10 +563,7 @@ def _is_valid_cron_field(field: str, min_val: int, max_val: int) -> bool:
             if "-" in base:
                 try:
                     start, end = base.split("-")
-                    return (
-                        min_val <= int(start) <= max_val
-                        and min_val <= int(end) <= max_val
-                    )
+                    return min_val <= int(start) <= max_val and min_val <= int(end) <= max_val
                 except (ValueError, IndexError):
                     return False
             # Check single number like "5/2"

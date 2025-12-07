@@ -94,9 +94,7 @@ class MockDLTSource:
     _current_resource: str | None = None
     _current_index: int = 0
 
-    def add_resource(
-        self, name: str, data: list[dict[str, Any]]
-    ) -> MockDLTResource:
+    def add_resource(self, name: str, data: list[dict[str, Any]]) -> MockDLTResource:
         """
         Add a resource to the source.
 

@@ -48,9 +48,7 @@ def show_lineage(asset_name: str, direction: str, depth: Optional[int]) -> None:
     graph = get_lineage_graph()
 
     if asset_name not in graph.assets:
-        console.print(
-            f"[yellow]⚠[/yellow]  Asset '{asset_name}' not found in lineage graph"
-        )
+        console.print(f"[yellow]⚠[/yellow]  Asset '{asset_name}' not found in lineage graph")
         console.print("\nAvailable assets:")
         for name in sorted(graph.assets.keys()):
             asset = graph.assets[name]
@@ -126,9 +124,7 @@ def export_lineage(asset_name: str, format: str, output: Path) -> None:
             "[cyan]dot -Tpng lineage.dot -o lineage.png[/cyan]"
         )
     elif format == "mermaid":
-        console.print(
-            "\n[dim]Tip: View in GitHub markdown or Mermaid Live Editor[/dim]"
-        )
+        console.print("\n[dim]Tip: View in GitHub markdown or Mermaid Live Editor[/dim]")
 
 
 @lineage_group.command(name="impact")
@@ -147,9 +143,7 @@ def analyze_impact(asset_name: str) -> None:
     graph = get_lineage_graph()
 
     if asset_name not in graph.assets:
-        console.print(
-            f"[yellow]⚠[/yellow]  Asset '{asset_name}' not found in lineage graph"
-        )
+        console.print(f"[yellow]⚠[/yellow]  Asset '{asset_name}' not found in lineage graph")
         return
 
     impact = graph.get_impact(asset_name)
@@ -167,15 +161,10 @@ def analyze_impact(asset_name: str) -> None:
         console.print(f"\n[bold]Affected Assets ({len(impact['affected_assets'])} total):[/bold]")
         for asset in sorted(impact["affected_assets"]):
             asset_obj = graph.assets.get(asset)
-            console.print(
-                f"  • {asset} ({asset_obj.asset_type if asset_obj else 'unknown'})"
-            )
+            console.print(f"  • {asset} ({asset_obj.asset_type if asset_obj else 'unknown'})")
 
     if impact["publishing_affected"]:
-        console.print(
-            "\n[bold red]⚠ WARNING:[/bold red] "
-            "This change would affect published data!"
-        )
+        console.print("\n[bold red]⚠ WARNING:[/bold red] This change would affect published data!")
 
 
 @lineage_group.command(name="status")

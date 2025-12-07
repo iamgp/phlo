@@ -41,16 +41,12 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     """
     # Priority 1: Explicit force in-process
     if config.cascade_force_in_process_executor:
-        logger.info(
-            "Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)"
-        )
+        logger.info("Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)")
         return dg.in_process_executor
 
     # Priority 2: Explicit force multiprocess
     if config.cascade_force_multiprocess_executor:
-        logger.info(
-            "Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)"
-        )
+        logger.info("Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)")
         return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
     # Priority 3: Check host platform (for Docker on macOS detection)

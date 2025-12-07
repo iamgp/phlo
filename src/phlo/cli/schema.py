@@ -62,9 +62,7 @@ def list(domain: Optional[str], format: str):
         # Filter by domain if specified
         if domain:
             schemas = {
-                name: schema
-                for name, schema in schemas.items()
-                if domain.lower() in name.lower()
+                name: schema for name, schema in schemas.items() if domain.lower() in name.lower()
             }
 
         if not schemas:
@@ -199,10 +197,7 @@ def diff(schema_name: str, old: str, format: str):
             sys.exit(1)
 
         schema_cls = schemas[schema_name]
-        new_schema = {
-            name: str(type_)
-            for name, type_ in schema_cls.__annotations__.items()
-        }
+        new_schema = {name: str(type_) for name, type_ in schema_cls.__annotations__.items()}
 
         # For demo purposes, show the new schema
         # In production, would load old version from git/file
@@ -290,9 +285,7 @@ def validate(schema_path: str):
         if passed_count == total_count:
             console.print(f"\n[green]All checks passed ({passed_count}/{total_count})[/green]")
         else:
-            console.print(
-                f"\n[yellow]Some checks failed ({passed_count}/{total_count})[/yellow]"
-            )
+            console.print(f"\n[yellow]Some checks failed ({passed_count}/{total_count})[/yellow]")
             sys.exit(1)
 
     except Exception as e:

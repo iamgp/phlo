@@ -284,9 +284,7 @@ def _build_logs_query(filters: dict) -> str:
             }
         }
     }
-    """ % (
-        filters.get("limit", 100)
-    )
+    """ % (filters.get("limit", 100))
     return query
 
 
@@ -362,11 +360,7 @@ def _get_mock_logs(filters: dict, show_warning: bool = False) -> list[dict]:
         filtered = [log for log in filtered if log["level"] == filters["level"]]
 
     if filters.get("asset"):
-        filtered = [
-            log
-            for log in filtered
-            if filters["asset"].lower() in log["message"].lower()
-        ]
+        filtered = [log for log in filtered if filters["asset"].lower() in log["message"].lower()]
 
     if filters.get("job"):
         filtered = [log for log in filtered if log["job_name"] == filters["job"]]

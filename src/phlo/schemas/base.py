@@ -33,4 +33,4 @@ class PhloSchema(DataFrameModel):
 
     class Config:
         strict = False  # Allow extra columns (DLT metadata)
-        coerce = True   # Auto-coerce types
+        coerce = True  # Auto-coerce types

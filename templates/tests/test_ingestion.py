@@ -28,26 +28,28 @@ class TestSchemaValidation:
         """Test that valid data passes schema validation."""
 
         # TODO: Create test data that matches your schema
-        test_data = pd.DataFrame([
-            {
-                "id": "test-001",
-                "timestamp": "2024-01-15T12:00:00.000Z",
-                "name": "Test Record",
-                "value": 42.5,
-                "count": 10,
-                "is_active": True,
-                "notes": "Test note",
-            },
-            {
-                "id": "test-002",
-                "timestamp": "2024-01-15T13:00:00.000Z",
-                "name": "Another Record",
-                "value": 100.0,
-                "count": 5,
-                "is_active": False,
-                "notes": None,  # Testing nullable field
-            },
-        ])
+        test_data = pd.DataFrame(
+            [
+                {
+                    "id": "test-001",
+                    "timestamp": "2024-01-15T12:00:00.000Z",
+                    "name": "Test Record",
+                    "value": 42.5,
+                    "count": 10,
+                    "is_active": True,
+                    "notes": "Test note",
+                },
+                {
+                    "id": "test-002",
+                    "timestamp": "2024-01-15T13:00:00.000Z",
+                    "name": "Another Record",
+                    "value": 100.0,
+                    "count": 5,
+                    "is_active": False,
+                    "notes": None,  # Testing nullable field
+                },
+            ]
+        )
 
         # Validate against schema (should not raise)
         validated = RawExampleData.validate(test_data)
@@ -59,16 +61,18 @@ class TestSchemaValidation:
         """Test that invalid data fails schema validation."""
 
         # TODO: Create test data that violates your schema constraints
-        test_data = pd.DataFrame([
-            {
-                "id": "test-001",
-                "timestamp": "2024-01-15T12:00:00.000Z",
-                "name": "Test Record",
-                "value": -10.0,  # Invalid: should be >= 0
-                "count": 5,
-                "is_active": True,
-            },
-        ])
+        test_data = pd.DataFrame(
+            [
+                {
+                    "id": "test-001",
+                    "timestamp": "2024-01-15T12:00:00.000Z",
+                    "name": "Test Record",
+                    "value": -10.0,  # Invalid: should be >= 0
+                    "count": 5,
+                    "is_active": True,
+                },
+            ]
+        )
 
         # Should raise SchemaError
         with pytest.raises(Exception):  # Pandera raises SchemaError
@@ -93,8 +97,9 @@ class TestSchemaValidation:
         # TODO: Update with your actual unique_key (must match decorator)
         unique_key = "id"
 
-        assert unique_key in schema_fields, \
+        assert unique_key in schema_fields, (
             f"unique_key '{unique_key}' not found in schema. Available: {list(schema_fields)}"
+        )
 
 
 class TestAssetConfiguration:
@@ -202,6 +207,7 @@ class TestErrorHandling:
 # Fixtures
 # ========
 
+
 @pytest.fixture
 def sample_valid_data():
     """
@@ -209,26 +215,28 @@ def sample_valid_data():
 
     TODO: Customize to match your schema.
     """
-    return pd.DataFrame([
-        {
-            "id": "fixture-001",
-            "timestamp": "2024-01-15T12:00:00.000Z",
-            "name": "Fixture Record 1",
-            "value": 50.0,
-            "count": 5,
-            "is_active": True,
-            "notes": "From fixture",
-        },
-        {
-            "id": "fixture-002",
-            "timestamp": "2024-01-15T13:00:00.000Z",
-            "name": "Fixture Record 2",
-            "value": 75.0,
-            "count": 10,
-            "is_active": True,
-            "notes": None,
-        },
-    ])
+    return pd.DataFrame(
+        [
+            {
+                "id": "fixture-001",
+                "timestamp": "2024-01-15T12:00:00.000Z",
+                "name": "Fixture Record 1",
+                "value": 50.0,
+                "count": 5,
+                "is_active": True,
+                "notes": "From fixture",
+            },
+            {
+                "id": "fixture-002",
+                "timestamp": "2024-01-15T13:00:00.000Z",
+                "name": "Fixture Record 2",
+                "value": 75.0,
+                "count": 10,
+                "is_active": True,
+                "notes": None,
+            },
+        ]
+    )
 
 
 @pytest.fixture
@@ -238,16 +246,18 @@ def sample_invalid_data():
 
     TODO: Customize to include constraint violations for your schema.
     """
-    return pd.DataFrame([
-        {
-            "id": "invalid-001",
-            "timestamp": "2024-01-15T12:00:00.000Z",
-            "name": "Invalid Record",
-            "value": -100.0,  # Violates ge=0 constraint
-            "count": -5,  # Violates ge=0 constraint
-            "is_active": True,
-        },
-    ])
+    return pd.DataFrame(
+        [
+            {
+                "id": "invalid-001",
+                "timestamp": "2024-01-15T12:00:00.000Z",
+                "name": "Invalid Record",
+                "value": -100.0,  # Violates ge=0 constraint
+                "count": -5,  # Violates ge=0 constraint
+                "is_active": True,
+            },
+        ]
+    )
 
 
 # Usage Examples:

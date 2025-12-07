@@ -93,9 +93,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
                     "failed": 0,
                     "skipped": 0,
                     "all_passed": False,
-                    "failures": [
-                        {"error": "run_results.json not found", "stderr": result.stderr}
-                    ],
+                    "failures": [{"error": "run_results.json not found", "stderr": result.stderr}],
                 }
 
             with open(results_path) as f:
@@ -121,9 +119,7 @@ class DBTValidatorResource(dg.ConfigurableResource):
                         failed += 1
                         failures.append(
                             {
-                                "test_name": result_node.get(
-                                    "unique_id", "unknown"
-                                ).split(".")[-1],
+                                "test_name": result_node.get("unique_id", "unknown").split(".")[-1],
                                 "model": self._extract_model_name(result_node),
                                 "error_message": result_node.get("message", ""),
                                 "failed_rows": result_node.get("failures", 0),

@@ -44,16 +44,12 @@ def _default_executor() -> dg.ExecutorDefinition | None:
 
     # Priority 1: Explicit force in-process
     if settings.cascade_force_in_process_executor:
-        logger.info(
-            "Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)"
-        )
+        logger.info("Using in-process executor (forced via CASCADE_FORCE_IN_PROCESS_EXECUTOR)")
         return dg.in_process_executor
 
     # Priority 2: Explicit force multiprocess
     if settings.cascade_force_multiprocess_executor:
-        logger.info(
-            "Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)"
-        )
+        logger.info("Using multiprocess executor (forced via CASCADE_FORCE_MULTIPROCESS_EXECUTOR)")
         return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
     # Priority 3: Check host platform (for Docker on macOS detection)
@@ -150,9 +146,7 @@ def build_definitions(
         user_defs = discover_user_workflows(workflows_path)
         user_assets = list(user_defs.assets or [])
         user_checks = list(user_defs.asset_checks or [])
-        logger.info(
-            "Discovered %d user assets, %d checks", len(user_assets), len(user_checks)
-        )
+        logger.info("Discovered %d user assets, %d checks", len(user_assets), len(user_checks))
     except Exception as exc:
         logger.error(f"Failed to discover user workflows: {exc}", exc_info=True)
         user_defs = dg.Definitions()
@@ -205,9 +199,7 @@ def build_definitions(
 
 
 # Environment variable to control whether to include core assets
-_INCLUDE_CORE_ASSETS = os.environ.get(
-    "CASCADE_INCLUDE_CORE_ASSETS", "false"
-).lower() in (
+_INCLUDE_CORE_ASSETS = os.environ.get("CASCADE_INCLUDE_CORE_ASSETS", "false").lower() in (
     "true",
     "1",
     "yes",

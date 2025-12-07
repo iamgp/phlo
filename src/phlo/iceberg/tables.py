@@ -85,9 +85,7 @@ def ensure_table(
 
     partition_fields = []
     if partition_spec:
-        for field_id, (source_name, transform_name) in enumerate(
-            partition_spec, start=1000
-        ):
+        for field_id, (source_name, transform_name) in enumerate(partition_spec, start=1000):
             # Find source field in schema
             source_field = None
             for field in schema.fields:

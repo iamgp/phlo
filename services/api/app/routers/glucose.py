@@ -55,9 +55,7 @@ async def get_daily_summary(
 
     Cached for 1 hour. Fast query from Postgres marts.
     """
-    readings = postgres_connector.get_glucose_readings(
-        start_date=date, end_date=date, limit=1
-    )
+    readings = postgres_connector.get_glucose_readings(start_date=date, end_date=date, limit=1)
 
     if not readings:
         return {

@@ -148,9 +148,7 @@ def pandera_to_iceberg(
         fields.append(nested_field)
 
     if not fields:
-        raise SchemaConversionError(
-            f"No fields found in Pandera schema {pandera_schema.__name__}"
-        )
+        raise SchemaConversionError(f"No fields found in Pandera schema {pandera_schema.__name__}")
 
     # Add DLT metadata fields (if not already present from Pandera schema)
     if add_dlt_metadata:

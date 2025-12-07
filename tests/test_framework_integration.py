@@ -104,9 +104,7 @@ def test_build_definitions_with_user_workflows():
         (workflows_path / "__init__.py").write_text("")
 
         # Build definitions (should work even with empty workflows)
-        defs = build_definitions(
-            workflows_path=workflows_path, include_core_assets=False
-        )
+        defs = build_definitions(workflows_path=workflows_path, include_core_assets=False)
 
         assert isinstance(defs, Definitions)
         # Should at least have resources
@@ -148,9 +146,7 @@ def test_project_type_detection():
         assert _is_user_project(project_root)
 
         # Cascade repo (has name = "phlo")
-        (project_root / "pyproject.toml").write_text(
-            '[project]\nname = "phlo"\ndependencies = []'
-        )
+        (project_root / "pyproject.toml").write_text('[project]\nname = "phlo"\ndependencies = []')
         assert not _is_user_project(project_root)
 
 

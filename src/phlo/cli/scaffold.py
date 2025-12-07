@@ -119,9 +119,7 @@ def create_ingestion_workflow(
         existing.append(str(test_file))
 
     if existing:
-        raise FileExistsError(
-            "Files already exist:\n" + "\n".join(f"  - {f}" for f in existing)
-        )
+        raise FileExistsError("Files already exist:\n" + "\n".join(f"  - {f}" for f in existing))
 
     # Create directories
     asset_dir.mkdir(parents=True, exist_ok=True)

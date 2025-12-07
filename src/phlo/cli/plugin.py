@@ -363,9 +363,9 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
 Plugin type: {plugin_type}
 """
 
-from phlo_{module_name}.plugin import {plugin_name.replace('-', '_').title().replace('_', '')}Plugin
+from phlo_{module_name}.plugin import {plugin_name.replace("-", "_").title().replace("_", "")}Plugin
 
-__all__ = ["{plugin_name.replace('-', '_').title().replace('_', '')}Plugin"]
+__all__ = ["{plugin_name.replace("-", "_").title().replace("_", "")}Plugin"]
 __version__ = "0.1.0"
 '''
 
@@ -535,7 +535,7 @@ typeCheckingMode = "standard"
     (plugin_path / "pyproject.toml").write_text(pyproject_content)
 
     # Create README.md
-    readme_content = f'''# {plugin_name}
+    readme_content = f"""# {plugin_name}
 
 A Cascade {plugin_type} plugin.
 
@@ -571,7 +571,7 @@ basedpyright .
 ## License
 
 MIT
-'''
+"""
 
     (plugin_path / "README.md").write_text(readme_content)
 

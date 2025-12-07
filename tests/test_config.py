@@ -45,7 +45,11 @@ class TestConfigUnitTests:
 
         # Test missing required fields when no .env file and no env vars
         with patch.dict(os.environ, {}, clear=True):
-            with patch.object(Settings, 'model_config', SettingsConfigDict(env_file=None, case_sensitive=False, extra="ignore")):
+            with patch.object(
+                Settings,
+                "model_config",
+                SettingsConfigDict(env_file=None, case_sensitive=False, extra="ignore"),
+            ):
                 with pytest.raises(ValidationError):
                     Settings()
 
@@ -68,9 +72,18 @@ class TestConfigUnitTests:
             assert test_config.dbt_profiles_dir == "transforms/dbt/profiles"
 
             # Test computed properties
-            assert test_config.minio_endpoint == f"{test_config.minio_host}:{test_config.minio_api_port}"
-            assert test_config.nessie_uri == f"http://{test_config.nessie_host}:{test_config.nessie_port}/api"
-            assert test_config.trino_connection_string == f"trino://{test_config.trino_host}:{test_config.trino_port}/{test_config.trino_catalog}"
+            assert (
+                test_config.minio_endpoint
+                == f"{test_config.minio_host}:{test_config.minio_api_port}"
+            )
+            assert (
+                test_config.nessie_uri
+                == f"http://{test_config.nessie_host}:{test_config.nessie_port}/api"
+            )
+            assert (
+                test_config.trino_connection_string
+                == f"trino://{test_config.trino_host}:{test_config.trino_port}/{test_config.trino_catalog}"
+            )
 
             # Test postgres connection string
             expected_pg_conn = f"postgresql://{test_config.postgres_user}:{test_config.postgres_password}@{test_config.postgres_host}:{test_config.postgres_port}/{test_config.postgres_db}"
@@ -78,7 +91,10 @@ class TestConfigUnitTests:
 
             # Test postgres connection string without db
             expected_pg_conn_no_db = f"postgresql://{test_config.postgres_user}:{test_config.postgres_password}@{test_config.postgres_host}:{test_config.postgres_port}"
-            assert test_config.get_postgres_connection_string(include_db=False) == expected_pg_conn_no_db
+            assert (
+                test_config.get_postgres_connection_string(include_db=False)
+                == expected_pg_conn_no_db
+            )
 
     def test_computed_fields_container_environment(self):
         """Test computed fields can be overridden via environment variables."""
@@ -157,14 +173,20 @@ class TestConfigUnitTests:
             test_config = Settings()
 
             # Should return the same warehouse path regardless of branch
-            assert test_config.get_iceberg_warehouse_for_branch("main") == test_config.iceberg_warehouse_path
-            assert test_config.get_iceberg_warehouse_for_branch("dev") == test_config.iceberg_warehouse_path
+            assert (
+                test_config.get_iceberg_warehouse_for_branch("main")
+                == test_config.iceberg_warehouse_path
+            )
+            assert (
+                test_config.get_iceberg_warehouse_for_branch("dev")
+                == test_config.iceberg_warehouse_path
+            )
 
 
 class TestConfigIntegrationTests:
     """Integration tests for configuration connection strings."""
 
-    @patch('psycopg2.connect')
+    @patch("psycopg2.connect")
     def test_config_provides_valid_connection_strings_for_postgres(self, mock_connect):
         """Test that config provides valid connection strings for Postgres."""
         env_vars = {
@@ -189,7 +211,7 @@ class TestConfigIntegrationTests:
             assert str(test_config.postgres_port) in conn_string
             assert test_config.postgres_db in conn_string
 
-    @patch('trino.dbapi.connect')
+    @patch("trino.dbapi.connect")
     def test_config_provides_valid_connection_strings_for_trino(self, mock_connect):
         """Test that config provides valid connection strings for Trino."""
         env_vars = {

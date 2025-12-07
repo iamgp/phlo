@@ -4,7 +4,6 @@ Examples of using the @phlo.quality decorator.
 This module demonstrates all quality check types and decorator patterns.
 """
 
-
 import phlo
 from phlo.quality import (
     CountCheck,
@@ -148,11 +147,9 @@ def test_quality_duckdb():
         # Data quality
         NullCheck(columns=["order_id", "product_id", "quantity", "unit_price"]),
         CountCheck(min_rows=0),  # Allow empty
-
         # Value validation
         RangeCheck(column="quantity", min_value=1, max_value=10000),
         RangeCheck(column="unit_price", min_value=0, max_value=1000000),
-
         # Business rules
         CustomSQLCheck(
             name_="valid_total",
@@ -162,7 +159,6 @@ def test_quality_duckdb():
             name_="valid_discount",
             sql="SELECT (discount_percent BETWEEN 0 AND 100) FROM data",
         ),
-
         # Uniqueness
         UniqueCheck(columns=["order_id", "line_item_number"]),
     ],
