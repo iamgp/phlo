@@ -16,6 +16,9 @@ class PhloSchema(DataFrameModel):
     - strict=False: Allow extra columns (DLT metadata like _dlt_id, _dlt_load_id)
     - coerce=True: Automatically coerce types to match schema
 
+    Note: For optional fields (str | None), you must use Field(nullable=True).
+    This is a Pandera requirement when coerce=True.
+
     Example:
         from phlo.schemas import PhloSchema
         from pandera.pandas import Field
@@ -23,6 +26,7 @@ class PhloSchema(DataFrameModel):
         class RawUserEvents(PhloSchema):
             id: str = Field(unique=True)
             type: str
+            actor_login: str | None = Field(nullable=True)  # Required for nullable!
             created_at: str
             # No Config needed - defaults are applied automatically
     """
