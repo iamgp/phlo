@@ -325,6 +325,40 @@ services:
       retries: 5
       start_period: 10s
 
+  # Phlo Observatory - Data Platform Visibility
+  observatory:
+    build:
+      context: ./services/observatory
+      dockerfile: Dockerfile
+    container_name: phlo-observatory
+    restart: unless-stopped
+    environment:
+      # Dagster GraphQL API (internal docker network)
+      DAGSTER_GRAPHQL_URL: http://dagster-webserver:3000/graphql
+      # Nessie REST API
+      NESSIE_URL: http://nessie:19120/api/v2
+      # Trino HTTP API
+      TRINO_URL: http://trino:8080
+      # Node environment
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "${OBSERVATORY_PORT:-10021}:3000"
+    depends_on:
+      dagster-webserver:
+        condition: service_started
+      nessie:
+        condition: service_healthy
+      trino:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   # Observability Stack
   prometheus:
     image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
