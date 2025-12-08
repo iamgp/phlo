@@ -358,88 +358,82 @@ export const getAssets = createServerFn().handler(
 )
 
 /**
- * Get details for a single asset
- * @param assetKey - Array of path segments (e.g., ['raw', 'glucose_entries'])
- */
-export async function getAssetDetailsById(assetKey: string[]): Promise<AssetDetails | { error: string }> {
-  const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
-
-  try {
-    const response = await fetch(dagsterUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: ASSET_DETAILS_QUERY,
-        variables: { assetKey: { path: assetKey } },
-      }),
-      signal: AbortSignal.timeout(10000),
-    })
-
-    if (!response.ok) {
-      return { error: `HTTP ${response.status}: ${response.statusText}` }
-    }
-
-    const result = await response.json()
-
-    if (result.errors) {
-      return { error: result.errors[0]?.message || 'GraphQL error' }
-    }
-
-    const { assetOrError } = result.data
-
-    if (assetOrError.__typename === 'AssetNotFoundError') {
-      return { error: assetOrError.message || 'Asset not found' }
-    }
-
-    const asset = assetOrError as {
-      id: string
-      key: { path: string[] }
-      definition?: {
-        description?: string
-        computeKind?: string
-        groupName?: string
-        hasMaterializePermission?: boolean
-        opNames?: string[]
-        metadata?: Array<{ key: string; value: string }>
-        partitionDefinition?: { description: string }
-      }
-      assetMaterializations?: Array<{
-        timestamp: string
-        runId: string
-      }>
-    }
-
-    return {
-      id: asset.id,
-      key: asset.key.path,
-      keyPath: asset.key.path.join('/'),
-      description: asset.definition?.description,
-      computeKind: asset.definition?.computeKind,
-      groupName: asset.definition?.groupName,
-      hasMaterializePermission: asset.definition?.hasMaterializePermission ?? false,
-      opNames: asset.definition?.opNames ?? [],
-      metadata: asset.definition?.metadata ?? [],
-      partitionDefinition: asset.definition?.partitionDefinition,
-      lastMaterialization: asset.assetMaterializations?.[0] ? {
-        timestamp: asset.assetMaterializations[0].timestamp,
-        runId: asset.assetMaterializations[0].runId,
-      } : undefined,
-    }
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Unknown error' }
-  }
-}
-
-/**
- * Server function wrapper for getAssetDetailsById
- * Used in route loaders to fetch asset details server-side
+ * Get details for a single asset (Server Function)
+ * @param assetKeyPath - Asset key as slash-separated string (e.g., 'raw/glucose_entries')
  */
 export const getAssetDetails = createServerFn().handler(
-  async (ctx: { data?: { assetKey: string[] } }) => {
-    const assetKey = ctx.data?.assetKey
-    if (!assetKey || assetKey.length === 0) {
+  async (ctx: { data?: string }): Promise<AssetDetails | { error: string }> => {
+    const assetKeyPath = ctx.data
+    if (!assetKeyPath) {
       return { error: 'Asset key is required' }
     }
-    return getAssetDetailsById(assetKey)
+
+    const assetKey = assetKeyPath.split('/')
+    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
+
+    try {
+      const response = await fetch(dagsterUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: ASSET_DETAILS_QUERY,
+          variables: { assetKey: { path: assetKey } },
+        }),
+        signal: AbortSignal.timeout(10000),
+      })
+
+      if (!response.ok) {
+        return { error: `HTTP ${response.status}: ${response.statusText}` }
+      }
+
+      const result = await response.json()
+
+      if (result.errors) {
+        return { error: result.errors[0]?.message || 'GraphQL error' }
+      }
+
+      const { assetOrError } = result.data
+
+      if (assetOrError.__typename === 'AssetNotFoundError') {
+        return { error: assetOrError.message || 'Asset not found' }
+      }
+
+      const asset = assetOrError as {
+        id: string
+        key: { path: string[] }
+        definition?: {
+          description?: string
+          computeKind?: string
+          groupName?: string
+          hasMaterializePermission?: boolean
+          opNames?: string[]
+          metadata?: Array<{ key: string; value: string }>
+          partitionDefinition?: { description: string }
+        }
+        assetMaterializations?: Array<{
+          timestamp: string
+          runId: string
+        }>
+      }
+
+      return {
+        id: asset.id,
+        key: asset.key.path,
+        keyPath: asset.key.path.join('/'),
+        description: asset.definition?.description,
+        computeKind: asset.definition?.computeKind,
+        groupName: asset.definition?.groupName,
+        hasMaterializePermission: asset.definition?.hasMaterializePermission ?? false,
+        opNames: asset.definition?.opNames ?? [],
+        metadata: asset.definition?.metadata ?? [],
+        partitionDefinition: asset.definition?.partitionDefinition,
+        lastMaterialization: asset.assetMaterializations?.[0] ? {
+          timestamp: asset.assetMaterializations[0].timestamp,
+          runId: asset.assetMaterializations[0].runId,
+        } : undefined,
+      }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' }
+    }
   }
 )

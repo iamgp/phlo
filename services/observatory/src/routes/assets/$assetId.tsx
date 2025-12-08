@@ -1,12 +1,11 @@
-import { getAssetDetailsById, type AssetDetails } from '@/server/dagster.server'
+import { getAssetDetails, type AssetDetails } from '@/server/dagster.server'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft, Calendar, Clock, Database, Info, Shield, Table } from 'lucide-react'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
-    // Split assetId by "/" to get the asset key path
-    const assetKey = params.assetId.split('/')
-    const asset = await getAssetDetailsById(assetKey)
+    // Pass assetId directly - server function will split by "/"
+    const asset = await getAssetDetails({ data: params.assetId })
     return { asset }
   },
   component: AssetDetailPage,
