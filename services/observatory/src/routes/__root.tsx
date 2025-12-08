@@ -2,7 +2,10 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { Activity, Database, GitBranch, LayoutDashboard, Search, Settings } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
+import { CommandPalette } from '@/components/CommandPalette'
+import { getAssets, type Asset } from '@/server/dagster.server'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -23,6 +26,18 @@ export const Route = createRootRoute({
 })
 
 function RootLayout() {
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [assets, setAssets] = useState<Asset[]>([])
+
+  // Load assets for command palette
+  useEffect(() => {
+    getAssets().then((result) => {
+      if (!('error' in result)) {
+        setAssets(result)
+      }
+    })
+  }, [])
+
   return (
     <html lang="en">
       <head>
@@ -45,7 +60,7 @@ function RootLayout() {
               <ul className="space-y-2">
                 <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
                 <NavItem to="/assets" icon={<Database size={20} />} label="Assets" />
-                <NavItem to="/graph" icon={<GitBranch size={20} />} label="Lineage Graph" disabled />
+                <NavItem to="/graph" icon={<GitBranch size={20} />} label="Lineage Graph" />
                 <NavItem to="/branches" icon={<GitBranch size={20} />} label="Branches" disabled />
                 <NavItem to="/search" icon={<Search size={20} />} label="Search" disabled />
                 <NavItem to="/settings" icon={<Settings size={20} />} label="Settings" disabled />
@@ -54,7 +69,7 @@ function RootLayout() {
 
             {/* Footer */}
             <div className="p-4 border-t border-slate-700 text-sm text-slate-500">
-              Phase 0 • v0.0.1
+              Phase 2 • v0.0.2
             </div>
           </aside>
 
@@ -64,6 +79,11 @@ function RootLayout() {
           </main>
         </div>
 
+        <CommandPalette
+          assets={assets}
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+        />
         <TanStackDevtools
           config={{ position: 'bottom-right' }}
           plugins={[

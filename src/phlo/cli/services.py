@@ -465,6 +465,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       WORKFLOWS_PATH: /app/workflows
+      DBT_PROJECT_DIR: /app/transforms/dbt
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-$$(uname -s)}
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/workspace.yaml"]
     ports:
@@ -472,7 +473,7 @@ services:
     volumes:
       - ./dagster:/opt/dagster
       - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
+      - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
     depends_on:
       minio:
@@ -518,12 +519,13 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       WORKFLOWS_PATH: /app/workflows
+      DBT_PROJECT_DIR: /app/transforms/dbt
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-$$(uname -s)}
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
     volumes:
       - ./dagster:/opt/dagster
       - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
+      - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
     depends_on:
       dagster-webserver:
@@ -768,7 +770,7 @@ DAGSTER_DOCKERFILE = """FROM python:3.11-slim
 
 WORKDIR /opt/dagster
 
-ARG GITHUB_TOKEN
+ARG PHLO_VERSION=""
 
 # Install system dependencies and uv
 RUN apt-get update && apt-get install -y --no-install-recommends \\
@@ -777,11 +779,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
     && rm -rf /var/lib/apt/lists/* \\
     && pip install uv
 
-# Install phlo from GitHub (uses token if provided for private repos)
-RUN if [ -n "$GITHUB_TOKEN" ]; then \\
-        uv pip install --system "phlo @ git+https://${GITHUB_TOKEN}@github.com/iamgp/phlo.git" dagster-postgres pyiceberg[s3] trino; \\
+# Install phlo from PyPI (or specific version if provided)
+RUN if [ -n "$PHLO_VERSION" ]; then \\
+        uv pip install --system "phlo==$PHLO_VERSION" dagster-postgres pyiceberg[s3]; \\
     else \\
-        uv pip install --system "phlo @ git+https://github.com/iamgp/phlo.git" dagster-postgres pyiceberg[s3] trino; \\
+        uv pip install --system phlo dagster-postgres pyiceberg[s3]; \\
     fi
 
 # Copy workspace configuration

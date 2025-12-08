@@ -148,6 +148,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       WORKFLOWS_PATH: /app/workflows
+      DBT_PROJECT_DIR: /app/transforms/dbt
       CASCADE_HOST_PLATFORM: ${CASCADE_HOST_PLATFORM:-$$(uname -s)}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_USERNAME: ${GITHUB_USERNAME:-iamgp}
@@ -157,8 +158,10 @@ services:
     volumes:
       - ./dagster:/opt/dagster
       - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
+      - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
+      # Mount local phlo source for development (comment out for production)
+      - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
     depends_on:
       minio:
         condition: service_healthy
@@ -203,6 +206,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       WORKFLOWS_PATH: /app/workflows
+      DBT_PROJECT_DIR: /app/transforms/dbt
       CASCADE_HOST_PLATFORM: ${CASCADE_HOST_PLATFORM:-$$(uname -s)}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_USERNAME: ${GITHUB_USERNAME:-iamgp}
@@ -210,11 +214,35 @@ services:
     volumes:
       - ./dagster:/opt/dagster
       - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
+      - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
+      # Mount local phlo source for development (comment out for production)
+      - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
     depends_on:
       dagster-webserver:
         condition: service_started
+
+  # --- Observatory (Data Platform UI) ---
+  observatory:
+    image: phlo/observatory:${OBSERVATORY_VERSION:-latest}
+    build:
+      context: ../../../services/observatory
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DAGSTER_GRAPHQL_URL: http://dagster-webserver:3000/graphql
+    ports:
+      - "${OBSERVATORY_PORT:-3001}:3001"
+    depends_on:
+      dagster-webserver:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # --- Business Intelligence ---
   superset:

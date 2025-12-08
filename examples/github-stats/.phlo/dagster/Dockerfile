@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /opt/dagster
 
-ARG GITHUB_TOKEN
+ARG PHLO_VERSION=""
 
 # Install system dependencies and uv
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,11 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && pip install uv
 
-# Install phlo from GitHub (uses token if provided for private repos)
-RUN if [ -n "$GITHUB_TOKEN" ]; then \
-        uv pip install --system "phlo @ git+https://${GITHUB_TOKEN}@github.com/iamgp/phlo.git" dagster-postgres pyiceberg[s3] trino; \
+# Install phlo from PyPI (or specific version if provided)
+# Note: In development, mount local phlo source to /phlo-dev and it will override
+RUN if [ -n "$PHLO_VERSION" ]; then \
+        uv pip install --system "phlo==$PHLO_VERSION" dagster-postgres pyiceberg[s3]; \
     else \
-        uv pip install --system "phlo @ git+https://github.com/iamgp/phlo.git" dagster-postgres pyiceberg[s3] trino; \
+        uv pip install --system phlo dagster-postgres pyiceberg[s3]; \
     fi
 
 # Copy workspace configuration

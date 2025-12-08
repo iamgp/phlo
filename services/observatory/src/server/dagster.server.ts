@@ -70,7 +70,7 @@ const VERSION_QUERY = `
  */
 export const checkDagsterConnection = createServerFn().handler(
   async (): Promise<DagsterConnectionStatus> => {
-    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
+    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -114,7 +114,7 @@ export const checkDagsterConnection = createServerFn().handler(
  */
 export const getHealthMetrics = createServerFn().handler(
   async (): Promise<HealthMetrics | { error: string }> => {
-    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
+    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -287,7 +287,7 @@ const ASSET_DETAILS_QUERY = `
  */
 export const getAssets = createServerFn().handler(
   async (): Promise<Asset[] | { error: string }> => {
-    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
+    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -360,7 +360,7 @@ export const getAssetDetails = createServerFn()
       }
 
       const assetKey = assetKeyPath.split('/')
-      const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
+      const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
       try {
         const response = await fetch(dagsterUrl, {
