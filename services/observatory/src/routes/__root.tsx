@@ -1,7 +1,7 @@
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { Activity, GitBranch, LayoutDashboard, Search, Settings } from 'lucide-react'
+import { Activity, Database, GitBranch, LayoutDashboard, Search, Settings } from 'lucide-react'
 
 import appCss from '../styles.css?url'
 
@@ -44,6 +44,7 @@ function RootLayout() {
             <nav className="flex-1 p-4">
               <ul className="space-y-2">
                 <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
+                <NavItem to="/assets" icon={<Database size={20} />} label="Assets" />
                 <NavItem to="/graph" icon={<GitBranch size={20} />} label="Lineage Graph" disabled />
                 <NavItem to="/branches" icon={<GitBranch size={20} />} label="Branches" disabled />
                 <NavItem to="/search" icon={<Search size={20} />} label="Search" disabled />

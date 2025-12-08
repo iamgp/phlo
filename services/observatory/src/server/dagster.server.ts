@@ -186,3 +186,260 @@ export const getHealthMetrics = createServerFn().handler(
     }
   }
 )
+
+// Types for asset list and detail views
+export interface Asset {
+  id: string
+  key: string[]
+  keyPath: string
+  description?: string
+  computeKind?: string
+  groupName?: string
+  lastMaterialization?: {
+    timestamp: string
+    runId: string
+  }
+  hasMaterializePermission: boolean
+}
+
+export interface AssetDetails extends Asset {
+  opNames: string[]
+  metadata: Array<{
+    key: string
+    value: string
+  }>
+  assetType?: string
+  partitionDefinition?: {
+    description: string
+  }
+}
+
+// GraphQL query for asset list
+const ASSETS_QUERY = `
+  query AssetsQuery {
+    assetsOrError {
+      ... on AssetConnection {
+        nodes {
+          id
+          key {
+            path
+          }
+          definition {
+            description
+            computeKind
+            groupName
+            hasMaterializePermission
+            opNames
+          }
+          assetMaterializations(limit: 1) {
+            timestamp
+            runId
+          }
+        }
+      }
+      ... on PythonError {
+        message
+      }
+    }
+  }
+`
+
+// GraphQL query for single asset details
+const ASSET_DETAILS_QUERY = `
+  query AssetDetailsQuery($assetKey: AssetKeyInput!) {
+    assetOrError(assetKey: $assetKey) {
+      ... on Asset {
+        id
+        key {
+          path
+        }
+        definition {
+          description
+          computeKind
+          groupName
+          hasMaterializePermission
+          opNames
+          metadata {
+            key
+            value
+          }
+          partitionDefinition {
+            description
+          }
+        }
+        assetMaterializations(limit: 10) {
+          timestamp
+          runId
+          metadataEntries {
+            label
+            description
+            ... on IntMetadataEntry {
+              intValue
+            }
+            ... on FloatMetadataEntry {
+              floatValue
+            }
+            ... on TextMetadataEntry {
+              text
+            }
+          }
+        }
+      }
+      ... on AssetNotFoundError {
+        message
+      }
+    }
+  }
+`
+
+/**
+ * Get all assets for list view
+ */
+export const getAssets = createServerFn().handler(
+  async (): Promise<Asset[] | { error: string }> => {
+    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
+
+    try {
+      const response = await fetch(dagsterUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: ASSETS_QUERY }),
+        signal: AbortSignal.timeout(10000),
+      })
+
+      if (!response.ok) {
+        return { error: `HTTP ${response.status}: ${response.statusText}` }
+      }
+
+      const result = await response.json()
+
+      if (result.errors) {
+        return { error: result.errors[0]?.message || 'GraphQL error' }
+      }
+
+      const { assetsOrError } = result.data
+
+      if (assetsOrError.__typename === 'PythonError') {
+        return { error: assetsOrError.message }
+      }
+
+      const assets: Asset[] = assetsOrError.nodes.map((node: {
+        id: string
+        key: { path: string[] }
+        definition?: {
+          description?: string
+          computeKind?: string
+          groupName?: string
+          hasMaterializePermission?: boolean
+        }
+        assetMaterializations?: Array<{
+          timestamp: string
+          runId: string
+        }>
+      }) => ({
+        id: node.id,
+        key: node.key.path,
+        keyPath: node.key.path.join('/'),
+        description: node.definition?.description,
+        computeKind: node.definition?.computeKind,
+        groupName: node.definition?.groupName,
+        hasMaterializePermission: node.definition?.hasMaterializePermission ?? false,
+        lastMaterialization: node.assetMaterializations?.[0] ? {
+          timestamp: node.assetMaterializations[0].timestamp,
+          runId: node.assetMaterializations[0].runId,
+        } : undefined,
+      }))
+
+      return assets
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  }
+)
+
+/**
+ * Get details for a single asset
+ * @param assetKey - Array of path segments (e.g., ['raw', 'glucose_entries'])
+ */
+export async function getAssetDetailsById(assetKey: string[]): Promise<AssetDetails | { error: string }> {
+  const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:10006/graphql'
+
+  try {
+    const response = await fetch(dagsterUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: ASSET_DETAILS_QUERY,
+        variables: { assetKey: { path: assetKey } },
+      }),
+      signal: AbortSignal.timeout(10000),
+    })
+
+    if (!response.ok) {
+      return { error: `HTTP ${response.status}: ${response.statusText}` }
+    }
+
+    const result = await response.json()
+
+    if (result.errors) {
+      return { error: result.errors[0]?.message || 'GraphQL error' }
+    }
+
+    const { assetOrError } = result.data
+
+    if (assetOrError.__typename === 'AssetNotFoundError') {
+      return { error: assetOrError.message || 'Asset not found' }
+    }
+
+    const asset = assetOrError as {
+      id: string
+      key: { path: string[] }
+      definition?: {
+        description?: string
+        computeKind?: string
+        groupName?: string
+        hasMaterializePermission?: boolean
+        opNames?: string[]
+        metadata?: Array<{ key: string; value: string }>
+        partitionDefinition?: { description: string }
+      }
+      assetMaterializations?: Array<{
+        timestamp: string
+        runId: string
+      }>
+    }
+
+    return {
+      id: asset.id,
+      key: asset.key.path,
+      keyPath: asset.key.path.join('/'),
+      description: asset.definition?.description,
+      computeKind: asset.definition?.computeKind,
+      groupName: asset.definition?.groupName,
+      hasMaterializePermission: asset.definition?.hasMaterializePermission ?? false,
+      opNames: asset.definition?.opNames ?? [],
+      metadata: asset.definition?.metadata ?? [],
+      partitionDefinition: asset.definition?.partitionDefinition,
+      lastMaterialization: asset.assetMaterializations?.[0] ? {
+        timestamp: asset.assetMaterializations[0].timestamp,
+        runId: asset.assetMaterializations[0].runId,
+      } : undefined,
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * Server function wrapper for getAssetDetailsById
+ * Used in route loaders to fetch asset details server-side
+ */
+export const getAssetDetails = createServerFn().handler(
+  async (ctx: { data?: { assetKey: string[] } }) => {
+    const assetKey = ctx.data?.assetKey
+    if (!assetKey || assetKey.length === 0) {
+      return { error: 'Asset key is required' }
+    }
+    return getAssetDetailsById(assetKey)
+  }
+)
