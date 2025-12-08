@@ -4,9 +4,11 @@
  * Sidebar panel showing details of selected graph node.
  */
 
-import type { GraphNode } from '@/server/graph.server'
+import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
+import { getAssetImpact } from '@/server/graph.server'
 import { Link } from '@tanstack/react-router'
-import { ArrowDownLeft, ArrowUpRight, Clock, Database, ExternalLink, GitBranch, X } from 'lucide-react'
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Clock, Database, ExternalLink, GitBranch, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface NodeInfoPanelProps {
   node: GraphNode | null
@@ -97,6 +99,11 @@ export function NodeInfoPanel({ node, onClose, onFocusGraph }: NodeInfoPanelProp
             </span>
           </div>
         )}
+
+        {/* Impact Analysis */}
+        {node.downstreamCount > 0 && (
+          <ImpactAnalysisSection assetKey={node.keyPath} downstreamCount={node.downstreamCount} onFocusGraph={onFocusGraph} />
+        )}
       </div>
 
       {/* Actions */}
@@ -159,4 +166,94 @@ function formatTimeAgo(date: Date): string {
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
   return date.toLocaleDateString()
+}
+
+interface ImpactAnalysisSectionProps {
+  assetKey: string
+  downstreamCount: number
+  onFocusGraph: (keyPath: string) => void
+}
+
+function ImpactAnalysisSection({ assetKey, downstreamCount, onFocusGraph }: ImpactAnalysisSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [impactedAssets, setImpactedAssets] = useState<ImpactedAsset[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (isExpanded && impactedAssets.length === 0) {
+      setLoading(true)
+      getAssetImpact({ data: { assetKey } })
+        .then(result => {
+          if (!('error' in result)) {
+            setImpactedAssets(result)
+          }
+        })
+        .finally(() => setLoading(false))
+    }
+  }, [isExpanded, assetKey, impactedAssets.length])
+
+  // Reset when asset changes
+  useEffect(() => {
+    setIsExpanded(false)
+    setImpactedAssets([])
+  }, [assetKey])
+
+  const layerColors: Record<string, string> = {
+    source: 'text-blue-400',
+    bronze: 'text-amber-400',
+    silver: 'text-slate-300',
+    gold: 'text-yellow-400',
+    publish: 'text-emerald-400',
+    unknown: 'text-slate-500',
+  }
+
+  return (
+    <div className="border border-orange-500/30 bg-orange-950/20 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center justify-between w-full p-3 hover:bg-orange-950/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-orange-400" />
+          <span className="text-sm font-medium text-orange-300">Impact Analysis</span>
+          <span className="px-1.5 py-0.5 text-xs bg-orange-500/30 text-orange-300 rounded">
+            {downstreamCount}
+          </span>
+        </div>
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 text-orange-400" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-orange-400" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="border-t border-orange-500/20 p-2 max-h-48 overflow-y-auto">
+          {loading ? (
+            <div className="text-sm text-slate-400 text-center py-2">Loading...</div>
+          ) : impactedAssets.length > 0 ? (
+            <ul className="space-y-1">
+              {impactedAssets.map(asset => (
+                <li key={asset.keyPath}>
+                  <button
+                    onClick={() => onFocusGraph(asset.keyPath)}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-left text-sm hover:bg-slate-700/50 rounded transition-colors"
+                  >
+                    <span className={`${layerColors[asset.layer]} font-medium truncate flex-1`}>
+                      {asset.label}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      +{asset.depth} hop{asset.depth > 1 ? 's' : ''}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-sm text-slate-400 text-center py-2">No downstream assets</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }

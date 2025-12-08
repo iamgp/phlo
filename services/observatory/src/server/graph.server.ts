@@ -237,3 +237,73 @@ export const getAssetNeighbors = createServerFn()
       return { nodes: filteredNodes, edges: filteredEdges }
     }
   )
+
+// Types for impact analysis
+export interface ImpactedAsset {
+  keyPath: string
+  label: string
+  layer: GraphNode['layer']
+  depth: number // hops from source asset
+}
+
+/**
+ * Get downstream impact analysis for an asset
+ * Returns all assets that would be affected if this asset fails/changes
+ */
+export const getAssetImpact = createServerFn()
+  .inputValidator((input: { assetKey: string; maxDepth?: number }) => input)
+  .handler(
+    async ({ data }): Promise<ImpactedAsset[] | { error: string }> => {
+      const { assetKey, maxDepth = 99 } = data
+
+      // Get full graph
+      const fullGraph = await getAssetGraph()
+
+      if ('error' in fullGraph) {
+        return fullGraph
+      }
+
+      const { nodes, edges } = fullGraph
+      const nodeMap = new Map(nodes.map(n => [n.keyPath, n]))
+
+      // Build downstream adjacency (parent -> children)
+      const downstream = new Map<string, string[]>()
+      for (const edge of edges) {
+        if (!downstream.has(edge.source)) downstream.set(edge.source, [])
+        downstream.get(edge.source)!.push(edge.target)
+      }
+
+      // BFS to find all downstream assets with depth
+      const impacted: ImpactedAsset[] = []
+      const visited = new Set<string>([assetKey])
+      const queue: [string, number][] = [[assetKey, 0]]
+
+      while (queue.length > 0) {
+        const [current, currentDepth] = queue.shift()!
+
+        if (currentDepth > maxDepth) continue
+
+        const children = downstream.get(current) || []
+        for (const child of children) {
+          if (!visited.has(child)) {
+            visited.add(child)
+            const node = nodeMap.get(child)
+            if (node) {
+              impacted.push({
+                keyPath: node.keyPath,
+                label: node.label,
+                layer: node.layer,
+                depth: currentDepth + 1,
+              })
+            }
+            queue.push([child, currentDepth + 1])
+          }
+        }
+      }
+
+      // Sort by depth then by label
+      impacted.sort((a, b) => a.depth - b.depth || a.label.localeCompare(b.label))
+
+      return impacted
+    }
+  )
