@@ -208,6 +208,11 @@ export interface AssetDetails extends Asset {
     key: string
     value: string
   }>
+  columns?: Array<{
+    name: string
+    type: string
+    description?: string
+  }>
   assetType?: string
   partitionDefinition?: {
     description: string
@@ -264,6 +269,15 @@ const ASSET_DETAILS_QUERY = `
             description
             ... on TextMetadataEntry {
               text
+            }
+            ... on TableSchemaMetadataEntry {
+              schema {
+                columns {
+                  name
+                  type
+                  description
+                }
+              }
             }
           }
           partitionDefinition {
@@ -398,7 +412,14 @@ export const getAssetDetails = createServerFn()
             groupName?: string
             hasMaterializePermission?: boolean
             opNames?: string[]
-            metadataEntries?: Array<{ label: string; description?: string; text?: string }>
+            metadataEntries?: Array<{
+              label: string;
+              description?: string;
+              text?: string;
+              schema?: {
+                columns: Array<{ name: string; type: string; description?: string }>
+              }
+            }>
             partitionDefinition?: { description: string }
           }
           assetMaterializations?: Array<{
@@ -406,6 +427,10 @@ export const getAssetDetails = createServerFn()
             runId: string
           }>
         }
+
+        // Extract columns from TableSchemaMetadataEntry if present
+        const tableSchemaEntry = asset.definition?.metadataEntries?.find(e => e.schema)
+        const columns = tableSchemaEntry?.schema?.columns
 
         return {
           id: asset.id,
@@ -416,7 +441,10 @@ export const getAssetDetails = createServerFn()
           groupName: asset.definition?.groupName,
           hasMaterializePermission: asset.definition?.hasMaterializePermission ?? false,
           opNames: asset.definition?.opNames ?? [],
-          metadata: (asset.definition?.metadataEntries ?? []).map(e => ({ key: e.label, value: e.text || e.description || '' })),
+          metadata: (asset.definition?.metadataEntries ?? [])
+            .filter(e => !e.schema) // Exclude TableSchema from simple metadata
+            .map(e => ({ key: e.label, value: e.text || e.description || '' })),
+          columns,
           partitionDefinition: asset.definition?.partitionDefinition,
           lastMaterialization: asset.assetMaterializations?.[0] ? {
             timestamp: asset.assetMaterializations[0].timestamp,

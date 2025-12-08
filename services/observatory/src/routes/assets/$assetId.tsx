@@ -1,6 +1,6 @@
 import { getAssetDetails, type AssetDetails } from '@/server/dagster.server'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Clock, Database, Info, Shield, Table } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, Columns2, Database, Info, Shield, Table } from 'lucide-react'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
@@ -108,6 +108,43 @@ function AssetDetailPage() {
               </div>
             ) : (
               <p className="text-slate-500">No ops defined</p>
+            )}
+          </section>
+
+          {/* Columns Section */}
+          <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Columns2 className="w-5 h-5 text-slate-400" />
+              Columns
+              {assetData?.columns && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-cyan-900/50 text-cyan-300 rounded">
+                  {assetData.columns.length}
+                </span>
+              )}
+            </h2>
+            {assetData?.columns && assetData.columns.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-2 px-3 font-medium text-slate-400">Name</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-400">Type</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-400">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assetData.columns.map((col, idx) => (
+                      <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="py-2 px-3 font-mono text-cyan-300">{col.name}</td>
+                        <td className="py-2 px-3 font-mono text-amber-300">{col.type}</td>
+                        <td className="py-2 px-3 text-slate-400">{col.description || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-slate-500">No column schema available</p>
             )}
           </section>
         </div>
