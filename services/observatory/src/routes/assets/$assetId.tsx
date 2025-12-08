@@ -4,7 +4,7 @@ import { ArrowLeft, Calendar, Clock, Database, Info, Shield, Table } from 'lucid
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
-    // Pass assetId directly - server function will split by "/"
+    // Call server function with the asset key path
     const asset = await getAssetDetails({ data: params.assetId })
     return { asset }
   },
@@ -38,7 +38,6 @@ function AssetDetailPage() {
 
   return (
     <div className="p-8">
-      {/* Back Link */}
       <Link
         to="/assets"
         className="flex items-center gap-2 text-slate-400 hover:text-slate-100 mb-6"
@@ -47,7 +46,6 @@ function AssetDetailPage() {
         Back to Assets
       </Link>
 
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-cyan-500/10 rounded-xl">
@@ -74,11 +72,8 @@ function AssetDetailPage() {
         </div>
       </div>
 
-      {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Metadata */}
           <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Info className="w-5 h-5 text-slate-400" />
@@ -98,7 +93,6 @@ function AssetDetailPage() {
             )}
           </section>
 
-          {/* Ops */}
           <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Table className="w-5 h-5 text-slate-400" />
@@ -107,10 +101,7 @@ function AssetDetailPage() {
             {assetData?.opNames && assetData.opNames.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {assetData.opNames.map((op, idx) => (
-                  <span
-                    key={idx}
-                    className="px-3 py-1 text-sm bg-slate-700 text-slate-300 rounded-lg font-mono"
-                  >
+                  <span key={idx} className="px-3 py-1 text-sm bg-slate-700 text-slate-300 rounded-lg font-mono">
                     {op}
                   </span>
                 ))}
@@ -121,9 +112,7 @@ function AssetDetailPage() {
           </section>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Status Card */}
           <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
             <h3 className="text-sm font-medium text-slate-400 mb-4">Status</h3>
             <div className="space-y-4">
@@ -133,7 +122,7 @@ function AssetDetailPage() {
                   <div className="text-sm text-slate-400">Last Materialized</div>
                   <div className="text-slate-200">
                     {assetData?.lastMaterialization
-                      ? formatTimestamp(assetData.lastMaterialization.timestamp)
+                      ? new Date(Number(assetData.lastMaterialization.timestamp)).toLocaleString()
                       : 'Never'}
                   </div>
                 </div>
@@ -142,15 +131,12 @@ function AssetDetailPage() {
                 <Calendar className="w-5 h-5 text-slate-500" />
                 <div>
                   <div className="text-sm text-slate-400">Partitioned</div>
-                  <div className="text-slate-200">
-                    {assetData?.partitionDefinition ? 'Yes' : 'No'}
-                  </div>
+                  <div className="text-slate-200">{assetData?.partitionDefinition ? 'Yes' : 'No'}</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Quality Card (Placeholder) */}
           <div className="bg-slate-800 rounded-xl border border-slate-700 border-dashed p-6">
             <h3 className="text-sm font-medium text-slate-400 mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4" />
@@ -162,9 +148,4 @@ function AssetDetailPage() {
       </div>
     </div>
   )
-}
-
-function formatTimestamp(timestamp: string): string {
-  const date = new Date(Number(timestamp))
-  return date.toLocaleString()
 }
