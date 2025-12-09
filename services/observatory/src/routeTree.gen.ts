@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QualityIndexRouteImport } from './routes/quality/index'
 import { Route as GraphIndexRouteImport } from './routes/graph/index'
+import { Route as DataIndexRouteImport } from './routes/data/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
 import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
@@ -30,6 +31,11 @@ const QualityIndexRoute = QualityIndexRouteImport.update({
 const GraphIndexRoute = GraphIndexRouteImport.update({
   id: '/graph/',
   path: '/graph/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DataIndexRoute = DataIndexRouteImport.update({
+  id: '/data/',
+  path: '/data/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BranchesIndexRoute = BranchesIndexRouteImport.update({
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
+  '/data': typeof DataIndexRoute
   '/graph': typeof GraphIndexRoute
   '/quality': typeof QualityIndexRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
+  '/data': typeof DataIndexRoute
   '/graph': typeof GraphIndexRoute
   '/quality': typeof QualityIndexRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/assets/': typeof AssetsIndexRoute
   '/branches/': typeof BranchesIndexRoute
+  '/data/': typeof DataIndexRoute
   '/graph/': typeof GraphIndexRoute
   '/quality/': typeof QualityIndexRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/branches/$branchName'
     | '/assets'
     | '/branches'
+    | '/data'
     | '/graph'
     | '/quality'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/branches/$branchName'
     | '/assets'
     | '/branches'
+    | '/data'
     | '/graph'
     | '/quality'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/branches/$branchName'
     | '/assets/'
     | '/branches/'
+    | '/data/'
     | '/graph/'
     | '/quality/'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   BranchesBranchNameRoute: typeof BranchesBranchNameRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
+  DataIndexRoute: typeof DataIndexRoute
   GraphIndexRoute: typeof GraphIndexRoute
   QualityIndexRoute: typeof QualityIndexRoute
 }
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/graph'
       fullPath: '/graph'
       preLoaderRoute: typeof GraphIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/data/': {
+      id: '/data/'
+      path: '/data'
+      fullPath: '/data'
+      preLoaderRoute: typeof DataIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/branches/': {
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   BranchesBranchNameRoute: BranchesBranchNameRoute,
   AssetsIndexRoute: AssetsIndexRoute,
   BranchesIndexRoute: BranchesIndexRoute,
+  DataIndexRoute: DataIndexRoute,
   GraphIndexRoute: GraphIndexRoute,
   QualityIndexRoute: QualityIndexRoute,
 }

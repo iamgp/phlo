@@ -15,6 +15,7 @@ import {
   Search,
   Settings,
   Shield,
+  Table,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -40,6 +41,7 @@ export const Route = createRootRoute({
   }),
 
   component: RootLayout,
+  notFoundComponent: NotFound,
 })
 
 function RootLayout() {
@@ -79,6 +81,11 @@ function RootLayout() {
                   to="/"
                   icon={<LayoutDashboard size={20} />}
                   label="Dashboard"
+                />
+                <NavItem
+                  to="/data"
+                  icon={<Table size={20} />}
+                  label="Data Explorer"
                 />
                 <NavItem
                   to="/assets"
@@ -183,5 +190,20 @@ function NavItem({ to, icon, label, disabled }: NavItemProps) {
         <span>{label}</span>
       </Link>
     </li>
+  )
+}
+
+function NotFound() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full p-8">
+      <h1 className="text-4xl font-bold text-slate-300 mb-4">404</h1>
+      <p className="text-slate-400 mb-6">Page not found</p>
+      <Link
+        to="/"
+        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors"
+      >
+        Go Home
+      </Link>
+    </div>
   )
 }

@@ -189,12 +189,17 @@ export const previewData = createServerFn()
     async ({
       data: { table, branch = 'main', limit = 100, offset = 0 },
     }): Promise<DataPreviewResult | { error: string }> => {
-      // Build query with Nessie branch reference
-      // Nessie tables are accessed via: catalog.schema@branch.table
+      // Build query - note: Trino doesn't support standard OFFSET syntax
+      // For pagination, use FETCH FIRST / OFFSET FETCH syntax if needed
+      // For simple preview, just use LIMIT
       const catalog = 'iceberg'
       const schema = branch // In Nessie, the branch is the schema
 
-      const query = `SELECT * FROM ${table} LIMIT ${limit} OFFSET ${offset}`
+      // Trino uses "OFFSET n ROWS FETCH FIRST m ROWS ONLY" syntax but for simplicity just use LIMIT
+      const query =
+        offset > 0
+          ? `SELECT * FROM ${table} OFFSET ${offset} ROWS FETCH FIRST ${limit} ROWS ONLY`
+          : `SELECT * FROM ${table} LIMIT ${limit}`
 
       const result = await executeTrinoQuery(query, catalog, schema)
 
