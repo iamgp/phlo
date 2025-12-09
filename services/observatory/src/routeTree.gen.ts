@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as QualityIndexRouteImport } from './routes/quality/index'
 import { Route as GraphIndexRouteImport } from './routes/graph/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
@@ -19,6 +20,11 @@ import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QualityIndexRoute = QualityIndexRouteImport.update({
+  id: '/quality/',
+  path: '/quality/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GraphIndexRoute = GraphIndexRouteImport.update({
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/graph': typeof GraphIndexRoute
+  '/quality': typeof QualityIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/graph': typeof GraphIndexRoute
+  '/quality': typeof QualityIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/assets/': typeof AssetsIndexRoute
   '/branches/': typeof BranchesIndexRoute
   '/graph/': typeof GraphIndexRoute
+  '/quality/': typeof QualityIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/branches'
     | '/graph'
+    | '/quality'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/assets'
     | '/branches'
     | '/graph'
+    | '/quality'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/assets/'
     | '/branches/'
     | '/graph/'
+    | '/quality/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +118,7 @@ export interface RootRouteChildren {
   AssetsIndexRoute: typeof AssetsIndexRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
   GraphIndexRoute: typeof GraphIndexRoute
+  QualityIndexRoute: typeof QualityIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -115,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quality/': {
+      id: '/quality/'
+      path: '/quality'
+      fullPath: '/quality'
+      preLoaderRoute: typeof QualityIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/graph/': {
@@ -162,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssetsIndexRoute: AssetsIndexRoute,
   BranchesIndexRoute: BranchesIndexRoute,
   GraphIndexRoute: GraphIndexRoute,
+  QualityIndexRoute: QualityIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

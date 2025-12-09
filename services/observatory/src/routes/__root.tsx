@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Search,
   Settings,
+  Shield,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -95,6 +96,11 @@ function RootLayout() {
                   label="Branches"
                 />
                 <NavItem
+                  to="/quality"
+                  icon={<Shield size={20} />}
+                  label="Quality"
+                />
+                <NavItem
                   to="/search"
                   icon={<Search size={20} />}
                   label="Search"
@@ -111,7 +117,7 @@ function RootLayout() {
 
             {/* Footer */}
             <div className="p-4 border-t border-slate-700 text-sm text-slate-500">
-              Phase 3 • v0.0.3
+              Phase 4 • v0.0.4
             </div>
           </aside>
 
