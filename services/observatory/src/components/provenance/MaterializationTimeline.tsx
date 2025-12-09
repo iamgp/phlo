@@ -14,11 +14,8 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type {MaterializationEvent} from '@/server/dagster.server';
-import {
-  
-  getMaterializationHistory
-} from '@/server/dagster.server'
+import type { MaterializationEvent } from '@/server/dagster.server'
+import { getMaterializationHistory } from '@/server/dagster.server'
 
 interface MaterializationTimelineProps {
   assetKey: string

@@ -9,14 +9,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { z } from 'zod'
 
 import { AlertCircle, Filter } from 'lucide-react'
-import type {GraphNode} from '@/server/graph.server';
+import type { GraphNode } from '@/server/graph.server'
 import { GraphCanvas, GraphLegend } from '@/components/GraphCanvas'
 import { NodeInfoPanel } from '@/components/NodeInfoPanel'
-import {
-  
-  getAssetGraph,
-  getAssetNeighbors
-} from '@/server/graph.server'
+import { getAssetGraph, getAssetNeighbors } from '@/server/graph.server'
 
 // Search params for focused view
 const graphSearchSchema = z.object({

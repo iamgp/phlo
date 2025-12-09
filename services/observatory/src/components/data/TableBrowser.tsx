@@ -13,8 +13,8 @@ import {
   Search,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type {IcebergTable} from '@/server/iceberg.server';
-import {  getTables } from '@/server/iceberg.server'
+import type { IcebergTable } from '@/server/iceberg.server'
+import { getTables } from '@/server/iceberg.server'
 
 interface TableBrowserProps {
   branch: string
@@ -82,14 +82,17 @@ export function TableBrowser({
     {} as Record<string, Array<IcebergTable>>,
   )
 
-  const layers: Array<{ key: IcebergTable['layer']; label: string; color: string }> =
-    [
-      { key: 'bronze', label: 'Bronze (Raw)', color: 'text-amber-400' },
-      { key: 'silver', label: 'Silver (Staged)', color: 'text-slate-300' },
-      { key: 'gold', label: 'Gold (Curated)', color: 'text-yellow-400' },
-      { key: 'publish', label: 'Publish (Marts)', color: 'text-green-400' },
-      { key: 'unknown', label: 'Other', color: 'text-slate-500' },
-    ]
+  const layers: Array<{
+    key: IcebergTable['layer']
+    label: string
+    color: string
+  }> = [
+    { key: 'bronze', label: 'Bronze (Raw)', color: 'text-amber-400' },
+    { key: 'silver', label: 'Silver (Staged)', color: 'text-slate-300' },
+    { key: 'gold', label: 'Gold (Curated)', color: 'text-yellow-400' },
+    { key: 'publish', label: 'Publish (Marts)', color: 'text-green-400' },
+    { key: 'unknown', label: 'Other', color: 'text-slate-500' },
+  ]
 
   if (loading) {
     return (

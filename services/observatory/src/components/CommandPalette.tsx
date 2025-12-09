@@ -17,7 +17,11 @@ interface CommandPaletteProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function CommandPalette({ assets, open, onOpenChange }: CommandPaletteProps) {
+export function CommandPalette({
+  assets,
+  open,
+  onOpenChange,
+}: CommandPaletteProps) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
 
@@ -34,25 +38,28 @@ export function CommandPalette({ assets, open, onOpenChange }: CommandPalettePro
     return () => document.removeEventListener('keydown', down)
   }, [open, onOpenChange])
 
-  const handleSelect = useCallback((value: string) => {
-    onOpenChange(false)
-    setSearch('')
+  const handleSelect = useCallback(
+    (value: string) => {
+      onOpenChange(false)
+      setSearch('')
 
-    // Parse the action from the value
-    if (value.startsWith('asset:')) {
-      const assetKey = value.replace('asset:', '')
-      navigate({ to: '/assets/$assetId', params: { assetId: assetKey } })
-    } else if (value.startsWith('graph:')) {
-      const assetKey = value.replace('graph:', '')
-      navigate({ to: '/graph', search: { focus: assetKey } })
-    } else if (value === 'nav:dashboard') {
-      navigate({ to: '/' })
-    } else if (value === 'nav:assets') {
-      navigate({ to: '/assets' })
-    } else if (value === 'nav:graph') {
-      navigate({ to: '/graph' })
-    }
-  }, [navigate, onOpenChange])
+      // Parse the action from the value
+      if (value.startsWith('asset:')) {
+        const assetKey = value.replace('asset:', '')
+        navigate({ to: '/assets/$assetId', params: { assetId: assetKey } })
+      } else if (value.startsWith('graph:')) {
+        const assetKey = value.replace('graph:', '')
+        navigate({ to: '/graph', search: { focus: assetKey } })
+      } else if (value === 'nav:dashboard') {
+        navigate({ to: '/' })
+      } else if (value === 'nav:assets') {
+        navigate({ to: '/assets' })
+      } else if (value === 'nav:graph') {
+        navigate({ to: '/graph' })
+      }
+    },
+    [navigate, onOpenChange],
+  )
 
   if (!open) return null
 
@@ -87,7 +94,10 @@ export function CommandPalette({ assets, open, onOpenChange }: CommandPalettePro
           </Command.Empty>
 
           {/* Navigation */}
-          <Command.Group heading="Navigation" className="text-xs text-slate-500 px-2 py-1.5 font-medium">
+          <Command.Group
+            heading="Navigation"
+            className="text-xs text-slate-500 px-2 py-1.5 font-medium"
+          >
             <Command.Item
               value="nav:dashboard"
               onSelect={handleSelect}
@@ -116,7 +126,10 @@ export function CommandPalette({ assets, open, onOpenChange }: CommandPalettePro
 
           {/* Assets */}
           {assets.length > 0 && (
-            <Command.Group heading="Assets" className="text-xs text-slate-500 px-2 py-1.5 font-medium mt-2">
+            <Command.Group
+              heading="Assets"
+              className="text-xs text-slate-500 px-2 py-1.5 font-medium mt-2"
+            >
               {assets.slice(0, 20).map((asset) => (
                 <Command.Item
                   key={asset.id}
@@ -128,7 +141,9 @@ export function CommandPalette({ assets, open, onOpenChange }: CommandPalettePro
                   <div className="flex-1 min-w-0">
                     <div className="truncate">{asset.keyPath}</div>
                     {asset.description && (
-                      <div className="text-xs text-slate-500 truncate">{asset.description}</div>
+                      <div className="text-xs text-slate-500 truncate">
+                        {asset.description}
+                      </div>
                     )}
                   </div>
                   {asset.groupName && (
@@ -143,7 +158,10 @@ export function CommandPalette({ assets, open, onOpenChange }: CommandPalettePro
 
           {/* Graph Focus Actions */}
           {search && assets.length > 0 && (
-            <Command.Group heading="Focus in Graph" className="text-xs text-slate-500 px-2 py-1.5 font-medium mt-2">
+            <Command.Group
+              heading="Focus in Graph"
+              className="text-xs text-slate-500 px-2 py-1.5 font-medium mt-2"
+            >
               {assets.slice(0, 5).map((asset) => (
                 <Command.Item
                   key={`graph-${asset.id}`}
@@ -161,13 +179,16 @@ export function CommandPalette({ assets, open, onOpenChange }: CommandPalettePro
 
         <div className="border-t border-slate-700 px-4 py-2 text-xs text-slate-500 flex items-center gap-4">
           <span>
-            <kbd className="px-1.5 py-0.5 bg-slate-700 rounded mr-1">↑↓</kbd> navigate
+            <kbd className="px-1.5 py-0.5 bg-slate-700 rounded mr-1">↑↓</kbd>{' '}
+            navigate
           </span>
           <span>
-            <kbd className="px-1.5 py-0.5 bg-slate-700 rounded mr-1">↵</kbd> select
+            <kbd className="px-1.5 py-0.5 bg-slate-700 rounded mr-1">↵</kbd>{' '}
+            select
           </span>
           <span>
-            <kbd className="px-1.5 py-0.5 bg-slate-700 rounded mr-1">esc</kbd> close
+            <kbd className="px-1.5 py-0.5 bg-slate-700 rounded mr-1">esc</kbd>{' '}
+            close
           </span>
         </div>
       </Command>

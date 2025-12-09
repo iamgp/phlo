@@ -20,9 +20,9 @@ import {
 import { useEffect, useState } from 'react'
 
 import appCss from '../styles.css?url'
-import type {Asset} from '@/server/dagster.server';
+import type { Asset } from '@/server/dagster.server'
 import { CommandPalette } from '@/components/CommandPalette'
-import {  getAssets } from '@/server/dagster.server'
+import { getAssets } from '@/server/dagster.server'
 
 export const Route = createRootRoute({
   head: () => ({

@@ -5,7 +5,18 @@
  */
 
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Clock, Database, ExternalLink, GitBranch, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Database,
+  ExternalLink,
+  GitBranch,
+  X,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
 import { getAssetImpact } from '@/server/graph.server'
@@ -16,7 +27,11 @@ interface NodeInfoPanelProps {
   onFocusGraph: (keyPath: string) => void
 }
 
-export function NodeInfoPanel({ node, onClose, onFocusGraph }: NodeInfoPanelProps) {
+export function NodeInfoPanel({
+  node,
+  onClose,
+  onFocusGraph,
+}: NodeInfoPanelProps) {
   if (!node) return null
 
   const lastMaterialized = node.lastMaterialization
@@ -43,8 +58,12 @@ export function NodeInfoPanel({ node, onClose, onFocusGraph }: NodeInfoPanelProp
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Name & Layer Badge */}
         <div>
-          <h3 className="text-lg font-semibold text-slate-100 break-all">{node.label}</h3>
-          <div className="text-sm text-slate-400 mt-1 break-all">{node.keyPath}</div>
+          <h3 className="text-lg font-semibold text-slate-100 break-all">
+            {node.label}
+          </h3>
+          <div className="text-sm text-slate-400 mt-1 break-all">
+            {node.keyPath}
+          </div>
           <div className="flex items-center gap-2 mt-2">
             <LayerBadge layer={node.layer} />
             {node.computeKind && (
@@ -58,7 +77,9 @@ export function NodeInfoPanel({ node, onClose, onFocusGraph }: NodeInfoPanelProp
         {/* Description */}
         {node.description && (
           <div>
-            <h4 className="text-sm font-medium text-slate-400 mb-1">Description</h4>
+            <h4 className="text-sm font-medium text-slate-400 mb-1">
+              Description
+            </h4>
             <p className="text-sm text-slate-300">{node.description}</p>
           </div>
         )}
@@ -70,14 +91,18 @@ export function NodeInfoPanel({ node, onClose, onFocusGraph }: NodeInfoPanelProp
               <ArrowUpRight className="w-4 h-4" />
               <span className="text-xs font-medium">Upstream</span>
             </div>
-            <div className="text-xl font-bold text-slate-100">{node.upstreamCount}</div>
+            <div className="text-xl font-bold text-slate-100">
+              {node.upstreamCount}
+            </div>
           </div>
           <div className="bg-slate-700/50 rounded-lg p-3">
             <div className="flex items-center gap-2 text-slate-400 mb-1">
               <ArrowDownLeft className="w-4 h-4" />
               <span className="text-xs font-medium">Downstream</span>
             </div>
-            <div className="text-xl font-bold text-slate-100">{node.downstreamCount}</div>
+            <div className="text-xl font-bold text-slate-100">
+              {node.downstreamCount}
+            </div>
           </div>
         </div>
 
@@ -102,7 +127,11 @@ export function NodeInfoPanel({ node, onClose, onFocusGraph }: NodeInfoPanelProp
 
         {/* Impact Analysis */}
         {node.downstreamCount > 0 && (
-          <ImpactAnalysisSection assetKey={node.keyPath} downstreamCount={node.downstreamCount} onFocusGraph={onFocusGraph} />
+          <ImpactAnalysisSection
+            assetKey={node.keyPath}
+            downstreamCount={node.downstreamCount}
+            onFocusGraph={onFocusGraph}
+          />
         )}
       </div>
 
@@ -148,7 +177,9 @@ function LayerBadge({ layer }: { layer: string }) {
   }
 
   return (
-    <span className={`px-2 py-0.5 text-xs font-medium border rounded ${colors[layer] || colors.unknown}`}>
+    <span
+      className={`px-2 py-0.5 text-xs font-medium border rounded ${colors[layer] || colors.unknown}`}
+    >
       {labelMap[layer] || layer}
     </span>
   )
@@ -174,7 +205,11 @@ interface ImpactAnalysisSectionProps {
   onFocusGraph: (keyPath: string) => void
 }
 
-function ImpactAnalysisSection({ assetKey, downstreamCount, onFocusGraph }: ImpactAnalysisSectionProps) {
+function ImpactAnalysisSection({
+  assetKey,
+  downstreamCount,
+  onFocusGraph,
+}: ImpactAnalysisSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [impactedAssets, setImpactedAssets] = useState<Array<ImpactedAsset>>([])
   const [loading, setLoading] = useState(false)
@@ -183,7 +218,7 @@ function ImpactAnalysisSection({ assetKey, downstreamCount, onFocusGraph }: Impa
     if (isExpanded && impactedAssets.length === 0) {
       setLoading(true)
       getAssetImpact({ data: { assetKey } })
-        .then(result => {
+        .then((result) => {
           if (!('error' in result)) {
             setImpactedAssets(result)
           }
@@ -215,7 +250,9 @@ function ImpactAnalysisSection({ assetKey, downstreamCount, onFocusGraph }: Impa
       >
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-orange-400" />
-          <span className="text-sm font-medium text-orange-300">Impact Analysis</span>
+          <span className="text-sm font-medium text-orange-300">
+            Impact Analysis
+          </span>
           <span className="px-1.5 py-0.5 text-xs bg-orange-500/30 text-orange-300 rounded">
             {downstreamCount}
           </span>
@@ -230,16 +267,20 @@ function ImpactAnalysisSection({ assetKey, downstreamCount, onFocusGraph }: Impa
       {isExpanded && (
         <div className="border-t border-orange-500/20 p-2 max-h-48 overflow-y-auto">
           {loading ? (
-            <div className="text-sm text-slate-400 text-center py-2">Loading...</div>
+            <div className="text-sm text-slate-400 text-center py-2">
+              Loading...
+            </div>
           ) : impactedAssets.length > 0 ? (
             <ul className="space-y-1">
-              {impactedAssets.map(asset => (
+              {impactedAssets.map((asset) => (
                 <li key={asset.keyPath}>
                   <button
                     onClick={() => onFocusGraph(asset.keyPath)}
                     className="flex items-center gap-2 w-full px-2 py-1.5 text-left text-sm hover:bg-slate-700/50 rounded transition-colors"
                   >
-                    <span className={`${layerColors[asset.layer]} font-medium truncate flex-1`}>
+                    <span
+                      className={`${layerColors[asset.layer]} font-medium truncate flex-1`}
+                    >
                       {asset.label}
                     </span>
                     <span className="text-xs text-slate-500">
@@ -250,7 +291,9 @@ function ImpactAnalysisSection({ assetKey, downstreamCount, onFocusGraph }: Impa
               ))}
             </ul>
           ) : (
-            <div className="text-sm text-slate-400 text-center py-2">No downstream assets</div>
+            <div className="text-sm text-slate-400 text-center py-2">
+              No downstream assets
+            </div>
           )}
         </div>
       )}

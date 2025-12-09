@@ -1,11 +1,7 @@
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type {DataPreviewResult, DataRow} from '@/server/trino.server';
-import {
-  
-  
-  previewData
-} from '@/server/trino.server'
+import type { DataPreviewResult, DataRow } from '@/server/trino.server'
+import { previewData } from '@/server/trino.server'
 
 interface DataPreviewProps {
   table: string

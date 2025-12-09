@@ -6,8 +6,8 @@
 
 import { Loader2, Play, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import type {DataPreviewResult} from '@/server/trino.server';
-import {  executeQuery } from '@/server/trino.server'
+import type { DataPreviewResult } from '@/server/trino.server'
+import { executeQuery } from '@/server/trino.server'
 
 interface QueryEditorProps {
   defaultQuery?: string

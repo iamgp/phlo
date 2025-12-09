@@ -524,19 +524,20 @@ export const getAssetDetails = createServerFn()
         const lineageData = matLineageEntry?.lineage ?? defLineageEntry?.lineage
 
         // Convert lineage array to Record<columnName, deps[]>
-        const columnLineage: Record<string, Array<ColumnLineageDep>> | undefined =
-          lineageData
-            ? lineageData.reduce(
-                (acc, entry) => {
-                  acc[entry.columnName] = entry.columnDeps.map((dep) => ({
-                    assetKey: dep.assetKey.path,
-                    columnName: dep.columnName,
-                  }))
-                  return acc
-                },
-                {} as Record<string, Array<ColumnLineageDep>>,
-              )
-            : undefined
+        const columnLineage:
+          | Record<string, Array<ColumnLineageDep>>
+          | undefined = lineageData
+          ? lineageData.reduce(
+              (acc, entry) => {
+                acc[entry.columnName] = entry.columnDeps.map((dep) => ({
+                  assetKey: dep.assetKey.path,
+                  columnName: dep.columnName,
+                }))
+                return acc
+              },
+              {} as Record<string, Array<ColumnLineageDep>>,
+            )
+          : undefined
 
         return {
           id: asset.id,

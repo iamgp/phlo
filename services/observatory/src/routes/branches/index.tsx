@@ -14,17 +14,14 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
-import type {Branch, LogEntry, NessieConfig} from '@/server/nessie.server';
+import type { Branch, LogEntry, NessieConfig } from '@/server/nessie.server'
 import {
-  
-  
-  
   checkNessieConnection,
   createBranch,
   deleteBranch,
   getBranches,
   getCommits,
-  mergeBranch
+  mergeBranch,
 } from '@/server/nessie.server'
 
 export const Route = createFileRoute('/branches/')({

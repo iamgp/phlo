@@ -1,8 +1,8 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { ArrowRight, Clock, Database, Search } from 'lucide-react'
 import { useState } from 'react'
-import type {Asset} from '@/server/dagster.server';
-import {  getAssets } from '@/server/dagster.server'
+import type { Asset } from '@/server/dagster.server'
+import { getAssets } from '@/server/dagster.server'
 
 export const Route = createFileRoute('/assets/')({
   loader: async () => {
@@ -17,10 +17,10 @@ function AssetsPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const hasError = 'error' in assets
-  const assetList = hasError ? [] : (assets)
+  const assetList = hasError ? [] : assets
 
   // Filter assets by search query
-  const filteredAssets = assetList.filter(asset => {
+  const filteredAssets = assetList.filter((asset) => {
     const query = searchQuery.toLowerCase()
     return (
       asset.keyPath.toLowerCase().includes(query) ||
@@ -37,7 +37,9 @@ function AssetsPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">Assets</h1>
           <p className="text-slate-400">
-            {hasError ? 'Error loading assets' : `${assetList.length} registered assets`}
+            {hasError
+              ? 'Error loading assets'
+              : `${assetList.length} registered assets`}
           </p>
         </div>
       </div>
@@ -106,9 +108,13 @@ function AssetRow({ asset }: { asset: Asset }) {
         <div className="flex items-center gap-3">
           <Database className="w-5 h-5 text-cyan-400 flex-shrink-0" />
           <div className="min-w-0">
-            <div className="font-medium text-slate-100 truncate">{asset.keyPath}</div>
+            <div className="font-medium text-slate-100 truncate">
+              {asset.keyPath}
+            </div>
             {asset.description && (
-              <div className="text-sm text-slate-400 truncate">{asset.description}</div>
+              <div className="text-sm text-slate-400 truncate">
+                {asset.description}
+              </div>
             )}
           </div>
         </div>

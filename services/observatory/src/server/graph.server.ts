@@ -70,10 +70,18 @@ const ASSET_GRAPH_QUERY = `
  */
 function inferLayer(keyPath: string): GraphNode['layer'] {
   const path = keyPath.toLowerCase()
-  if (path.includes('publish') || path.includes('mart') || path.startsWith('mrt_')) {
+  if (
+    path.includes('publish') ||
+    path.includes('mart') ||
+    path.startsWith('mrt_')
+  ) {
     return 'publish'
   }
-  if (path.includes('gold') || path.startsWith('dim_') || path.startsWith('fct_')) {
+  if (
+    path.includes('gold') ||
+    path.startsWith('dim_') ||
+    path.startsWith('fct_')
+  ) {
     return 'gold'
   }
   if (path.includes('silver') || path.includes('stg_')) {
@@ -93,7 +101,8 @@ function inferLayer(keyPath: string): GraphNode['layer'] {
  */
 export const getAssetGraph = createServerFn().handler(
   async (): Promise<AssetGraph | { error: string }> => {
-    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+    const dagsterUrl =
+      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -164,79 +173,87 @@ export const getAssetGraph = createServerFn().handler(
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
-  }
+  },
 )
 
 /**
  * Get neighbors of a specific asset (focused subgraph)
  */
 export const getAssetNeighbors = createServerFn()
-  .inputValidator((input: { assetKey: string; direction: 'upstream' | 'downstream' | 'both'; depth: number }) => input)
-  .handler(
-    async ({ data }): Promise<AssetGraph | { error: string }> => {
-      // First get the full graph
-      const fullGraph = await getAssetGraph()
+  .inputValidator(
+    (input: {
+      assetKey: string
+      direction: 'upstream' | 'downstream' | 'both'
+      depth: number
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<AssetGraph | { error: string }> => {
+    // First get the full graph
+    const fullGraph = await getAssetGraph()
 
-      if ('error' in fullGraph) {
-        return fullGraph
-      }
+    if ('error' in fullGraph) {
+      return fullGraph
+    }
 
-      const { assetKey, direction, depth } = data
-      const { nodes, edges } = fullGraph
+    const { assetKey, direction, depth } = data
+    const { nodes, edges } = fullGraph
 
-      // Build adjacency lists
-      const upstream = new Map<string, Array<string>>() // child -> parents
-      const downstream = new Map<string, Array<string>>() // parent -> children
+    // Build adjacency lists
+    const upstream = new Map<string, Array<string>>() // child -> parents
+    const downstream = new Map<string, Array<string>>() // parent -> children
 
-      for (const edge of edges) {
-        // upstream: who does this asset depend on?
-        if (!upstream.has(edge.target)) upstream.set(edge.target, [])
-        upstream.get(edge.target)!.push(edge.source)
+    for (const edge of edges) {
+      // upstream: who does this asset depend on?
+      if (!upstream.has(edge.target)) upstream.set(edge.target, [])
+      upstream.get(edge.target)!.push(edge.source)
 
-        // downstream: who depends on this asset?
-        if (!downstream.has(edge.source)) downstream.set(edge.source, [])
-        downstream.get(edge.source)!.push(edge.target)
-      }
+      // downstream: who depends on this asset?
+      if (!downstream.has(edge.source)) downstream.set(edge.source, [])
+      downstream.get(edge.source)!.push(edge.target)
+    }
 
-      // BFS to find neighbors within depth
-      const includedNodes = new Set<string>([assetKey])
+    // BFS to find neighbors within depth
+    const includedNodes = new Set<string>([assetKey])
 
-      const bfs = (startKey: string, adjacency: Map<string, Array<string>>, maxDepth: number) => {
-        const queue: Array<[string, number]> = [[startKey, 0]]
-        const visited = new Set<string>([startKey])
+    const bfs = (
+      startKey: string,
+      adjacency: Map<string, Array<string>>,
+      maxDepth: number,
+    ) => {
+      const queue: Array<[string, number]> = [[startKey, 0]]
+      const visited = new Set<string>([startKey])
 
-        while (queue.length > 0) {
-          const [current, currentDepth] = queue.shift()!
+      while (queue.length > 0) {
+        const [current, currentDepth] = queue.shift()!
 
-          if (currentDepth >= maxDepth) continue
+        if (currentDepth >= maxDepth) continue
 
-          const neighbors = adjacency.get(current) || []
-          for (const neighbor of neighbors) {
-            if (!visited.has(neighbor)) {
-              visited.add(neighbor)
-              includedNodes.add(neighbor)
-              queue.push([neighbor, currentDepth + 1])
-            }
+        const neighbors = adjacency.get(current) || []
+        for (const neighbor of neighbors) {
+          if (!visited.has(neighbor)) {
+            visited.add(neighbor)
+            includedNodes.add(neighbor)
+            queue.push([neighbor, currentDepth + 1])
           }
         }
       }
-
-      if (direction === 'upstream' || direction === 'both') {
-        bfs(assetKey, upstream, depth)
-      }
-      if (direction === 'downstream' || direction === 'both') {
-        bfs(assetKey, downstream, depth)
-      }
-
-      // Filter nodes and edges
-      const filteredNodes = nodes.filter(n => includedNodes.has(n.keyPath))
-      const filteredEdges = edges.filter(
-        e => includedNodes.has(e.source) && includedNodes.has(e.target)
-      )
-
-      return { nodes: filteredNodes, edges: filteredEdges }
     }
-  )
+
+    if (direction === 'upstream' || direction === 'both') {
+      bfs(assetKey, upstream, depth)
+    }
+    if (direction === 'downstream' || direction === 'both') {
+      bfs(assetKey, downstream, depth)
+    }
+
+    // Filter nodes and edges
+    const filteredNodes = nodes.filter((n) => includedNodes.has(n.keyPath))
+    const filteredEdges = edges.filter(
+      (e) => includedNodes.has(e.source) && includedNodes.has(e.target),
+    )
+
+    return { nodes: filteredNodes, edges: filteredEdges }
+  })
 
 // Types for impact analysis
 export interface ImpactedAsset {
@@ -264,7 +281,7 @@ export const getAssetImpact = createServerFn()
       }
 
       const { nodes, edges } = fullGraph
-      const nodeMap = new Map(nodes.map(n => [n.keyPath, n]))
+      const nodeMap = new Map(nodes.map((n) => [n.keyPath, n]))
 
       // Build downstream adjacency (parent -> children)
       const downstream = new Map<string, Array<string>>()
@@ -302,8 +319,10 @@ export const getAssetImpact = createServerFn()
       }
 
       // Sort by depth then by label
-      impacted.sort((a, b) => a.depth - b.depth || a.label.localeCompare(b.label))
+      impacted.sort(
+        (a, b) => a.depth - b.depth || a.label.localeCompare(b.label),
+      )
 
       return impacted
-    }
+    },
   )

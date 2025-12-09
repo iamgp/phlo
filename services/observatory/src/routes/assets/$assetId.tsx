@@ -12,20 +12,22 @@ import {
   Table,
 } from 'lucide-react'
 import { useState } from 'react'
-import type {AssetDetails} from '@/server/dagster.server';
-import type {QualityCheck} from '@/server/quality.server';
+import type { AssetDetails } from '@/server/dagster.server'
+import type { QualityCheck } from '@/server/quality.server'
 import { DataPreview } from '@/components/data/DataPreview'
 import { DataJourney } from '@/components/provenance/DataJourney'
 import { MaterializationTimeline } from '@/components/provenance/MaterializationTimeline'
-import {  getAssetDetails } from '@/server/dagster.server'
-import {  getAssetChecks } from '@/server/quality.server'
+import { getAssetDetails } from '@/server/dagster.server'
+import { getAssetChecks } from '@/server/quality.server'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
     const asset = await getAssetDetails({ data: params.assetId })
 
     // Fetch checks but don't fail the whole page if it errors
-    let checks: Array<QualityCheck> | { error: string } = { error: 'Not loaded' }
+    let checks: Array<QualityCheck> | { error: string } = {
+      error: 'Not loaded',
+    }
     try {
       checks = await getAssetChecks({
         data: { assetKey: params.assetId.split('/') },
@@ -48,8 +50,8 @@ function AssetDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
   const hasError = 'error' in asset
-  const assetData = hasError ? null : (asset)
-  const checksData = 'error' in checks ? [] : (checks)
+  const assetData = hasError ? null : asset
+  const checksData = 'error' in checks ? [] : checks
 
   if (hasError) {
     return (

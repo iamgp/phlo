@@ -10,14 +10,12 @@ import {
   Table2,
 } from 'lucide-react'
 import { useState } from 'react'
-import type {Branch, LogEntry} from '@/server/nessie.server';
+import type { Branch, LogEntry } from '@/server/nessie.server'
 import {
-  
-  
   compareBranches,
   getBranch,
   getCommits,
-  getContents
+  getContents,
 } from '@/server/nessie.server'
 
 export const Route = createFileRoute('/branches/$branchName')({
@@ -58,7 +56,9 @@ function BranchDetailPage() {
   const decodedBranchName = decodeURIComponent(branchName)
   const hasError = 'error' in branch
   const commitList = 'error' in commits ? [] : commits
-  const contentList = ('error' in contents ? [] : contents) as Array<ContentEntry>
+  const contentList = (
+    'error' in contents ? [] : contents
+  ) as Array<ContentEntry>
 
   const handleCompare = async (targetBranch: string) => {
     setCompareToBranch(targetBranch)
