@@ -10,7 +10,11 @@ import { z } from 'zod'
 
 import { GraphCanvas, GraphLegend } from '@/components/GraphCanvas'
 import { NodeInfoPanel } from '@/components/NodeInfoPanel'
-import { getAssetGraph, getAssetNeighbors, type GraphNode } from '@/server/graph.server'
+import {
+  getAssetGraph,
+  getAssetNeighbors,
+  type GraphNode,
+} from '@/server/graph.server'
 import { AlertCircle, Filter } from 'lucide-react'
 
 // Search params for focused view
@@ -26,7 +30,7 @@ export const Route = createFileRoute('/graph/')({
     if (focus) {
       // Load focused subgraph
       const graph = await getAssetNeighbors({
-        data: { assetKey: focus, direction: 'both', depth: depth ?? 2 }
+        data: { assetKey: focus, direction: 'both', depth: depth ?? 2 },
       })
       return { graph, focusedAsset: focus }
     } else {
@@ -46,17 +50,23 @@ function GraphPage() {
   const hasError = 'error' in graph
 
   // Find selected node in graph data
-  const handleAssetSelect = useCallback((keyPath: string) => {
-    if (!hasError) {
-      const node = graph.nodes.find(n => n.keyPath === keyPath)
-      setSelectedNode(node || null)
-    }
-  }, [graph, hasError])
+  const handleAssetSelect = useCallback(
+    (keyPath: string) => {
+      if (!hasError) {
+        const node = graph.nodes.find((n) => n.keyPath === keyPath)
+        setSelectedNode(node || null)
+      }
+    },
+    [graph, hasError],
+  )
 
   // Handle focus navigation
-  const handleFocusGraph = useCallback((keyPath: string) => {
-    navigate({ to: '/graph', search: { focus: keyPath, depth: 2 } })
-  }, [navigate])
+  const handleFocusGraph = useCallback(
+    (keyPath: string) => {
+      navigate({ to: '/graph', search: { focus: keyPath, depth: 2 } })
+    },
+    [navigate],
+  )
 
   // Clear focus
   const clearFocus = useCallback(() => {
@@ -72,7 +82,7 @@ function GraphPage() {
   // Set initially focused node as selected
   useEffect(() => {
     if (initialFocus && !hasError) {
-      const node = graph.nodes.find(n => n.keyPath === initialFocus)
+      const node = graph.nodes.find((n) => n.keyPath === initialFocus)
       setSelectedNode(node || null)
     }
   }, [initialFocus, graph, hasError])
@@ -114,11 +124,15 @@ function GraphPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8">
               <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-slate-100 mb-2">Failed to load graph</h2>
+              <h2 className="text-xl font-semibold text-slate-100 mb-2">
+                Failed to load graph
+              </h2>
               <p className="text-slate-400 mb-4">{graph.error}</p>
               <p className="text-sm text-slate-500">
                 Make sure Dagster is running at{' '}
-                <code className="bg-slate-800 px-1 rounded">localhost:10006</code>
+                <code className="bg-slate-800 px-1 rounded">
+                  localhost:3000
+                </code>
               </p>
             </div>
           </div>
@@ -126,12 +140,13 @@ function GraphPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8">
               <Filter className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-slate-100 mb-2">No assets found</h2>
+              <h2 className="text-xl font-semibold text-slate-100 mb-2">
+                No assets found
+              </h2>
               <p className="text-slate-400">
                 {initialFocus
                   ? `No assets found around "${initialFocus}"`
-                  : 'No assets are registered in Dagster yet.'
-                }
+                  : 'No assets are registered in Dagster yet.'}
               </p>
             </div>
           </div>

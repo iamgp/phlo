@@ -70,7 +70,8 @@ const VERSION_QUERY = `
  */
 export const checkDagsterConnection = createServerFn().handler(
   async (): Promise<DagsterConnectionStatus> => {
-    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+    const dagsterUrl =
+      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -106,7 +107,7 @@ export const checkDagsterConnection = createServerFn().handler(
         error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
-  }
+  },
 )
 
 /**
@@ -114,7 +115,8 @@ export const checkDagsterConnection = createServerFn().handler(
  */
 export const getHealthMetrics = createServerFn().handler(
   async (): Promise<HealthMetrics | { error: string }> => {
-    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+    const dagsterUrl =
+      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -184,7 +186,7 @@ export const getHealthMetrics = createServerFn().handler(
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
-  }
+  },
 )
 
 // Types for asset list and detail views
@@ -202,6 +204,12 @@ export interface Asset {
   hasMaterializePermission: boolean
 }
 
+// Column lineage dependency - shows where a column comes from
+export interface ColumnLineageDep {
+  assetKey: string[]
+  columnName: string
+}
+
 export interface AssetDetails extends Asset {
   opNames: string[]
   metadata: Array<{
@@ -213,6 +221,8 @@ export interface AssetDetails extends Asset {
     type: string
     description?: string
   }>
+  // Column lineage: maps column name -> list of upstream dependencies
+  columnLineage?: Record<string, ColumnLineageDep[]>
   assetType?: string
   partitionDefinition?: {
     description: string
@@ -279,6 +289,17 @@ const ASSET_DETAILS_QUERY = `
                 }
               }
             }
+            ... on TableColumnLineageMetadataEntry {
+              lineage {
+                columnName
+                columnDeps {
+                  assetKey {
+                    path
+                  }
+                  columnName
+                }
+              }
+            }
           }
           partitionDefinition {
             description
@@ -299,6 +320,17 @@ const ASSET_DETAILS_QUERY = `
                 }
               }
             }
+            ... on TableColumnLineageMetadataEntry {
+              lineage {
+                columnName
+                columnDeps {
+                  assetKey {
+                    path
+                  }
+                  columnName
+                }
+              }
+            }
           }
         }
       }
@@ -314,7 +346,8 @@ const ASSET_DETAILS_QUERY = `
  */
 export const getAssets = createServerFn().handler(
   async (): Promise<Asset[] | { error: string }> => {
-    const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+    const dagsterUrl =
+      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -340,38 +373,43 @@ export const getAssets = createServerFn().handler(
         return { error: assetsOrError.message }
       }
 
-      const assets: Asset[] = assetsOrError.nodes.map((node: {
-        id: string
-        key: { path: string[] }
-        definition?: {
-          description?: string
-          computeKind?: string
-          groupName?: string
-          hasMaterializePermission?: boolean
-        }
-        assetMaterializations?: Array<{
-          timestamp: string
-          runId: string
-        }>
-      }) => ({
-        id: node.id,
-        key: node.key.path,
-        keyPath: node.key.path.join('/'),
-        description: node.definition?.description,
-        computeKind: node.definition?.computeKind,
-        groupName: node.definition?.groupName,
-        hasMaterializePermission: node.definition?.hasMaterializePermission ?? false,
-        lastMaterialization: node.assetMaterializations?.[0] ? {
-          timestamp: node.assetMaterializations[0].timestamp,
-          runId: node.assetMaterializations[0].runId,
-        } : undefined,
-      }))
+      const assets: Asset[] = assetsOrError.nodes.map(
+        (node: {
+          id: string
+          key: { path: string[] }
+          definition?: {
+            description?: string
+            computeKind?: string
+            groupName?: string
+            hasMaterializePermission?: boolean
+          }
+          assetMaterializations?: Array<{
+            timestamp: string
+            runId: string
+          }>
+        }) => ({
+          id: node.id,
+          key: node.key.path,
+          keyPath: node.key.path.join('/'),
+          description: node.definition?.description,
+          computeKind: node.definition?.computeKind,
+          groupName: node.definition?.groupName,
+          hasMaterializePermission:
+            node.definition?.hasMaterializePermission ?? false,
+          lastMaterialization: node.assetMaterializations?.[0]
+            ? {
+                timestamp: node.assetMaterializations[0].timestamp,
+                runId: node.assetMaterializations[0].runId,
+              }
+            : undefined,
+        }),
+      )
 
       return assets
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
-  }
+  },
 )
 
 /**
@@ -381,13 +419,16 @@ export const getAssets = createServerFn().handler(
 export const getAssetDetails = createServerFn()
   .inputValidator((input: string) => input)
   .handler(
-    async ({ data: assetKeyPath }): Promise<AssetDetails | { error: string }> => {
+    async ({
+      data: assetKeyPath,
+    }): Promise<AssetDetails | { error: string }> => {
       if (!assetKeyPath) {
         return { error: 'Asset key is required' }
       }
 
       const assetKey = assetKeyPath.split('/')
-      const dagsterUrl = process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+      const dagsterUrl =
+        process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
       try {
         const response = await fetch(dagsterUrl, {
@@ -416,6 +457,30 @@ export const getAssetDetails = createServerFn()
           return { error: assetOrError.message || 'Asset not found' }
         }
 
+        // Type for lineage in metadata entries
+        type LineageEntry = {
+          columnName: string
+          columnDeps: Array<{
+            assetKey: { path: string[] }
+            columnName: string
+          }>
+        }
+
+        type MetadataEntry = {
+          label: string
+          description?: string
+          text?: string
+          __typename?: string
+          schema?: {
+            columns: Array<{
+              name: string
+              type: string
+              description?: string
+            }>
+          }
+          lineage?: LineageEntry[]
+        }
+
         const asset = assetOrError as {
           id: string
           key: { path: string[] }
@@ -425,37 +490,53 @@ export const getAssetDetails = createServerFn()
             groupName?: string
             hasMaterializePermission?: boolean
             opNames?: string[]
-            metadataEntries?: Array<{
-              label: string;
-              description?: string;
-              text?: string;
-              schema?: {
-                columns: Array<{ name: string; type: string; description?: string }>
-              }
-            }>
+            metadataEntries?: MetadataEntry[]
             partitionDefinition?: { description: string }
           }
           assetMaterializations?: Array<{
             timestamp: string
             runId: string
-            metadataEntries?: Array<{
-              label: string;
-              __typename?: string;
-              schema?: {
-                columns: Array<{ name: string; type: string; description?: string }>
-              }
-            }>
+            metadataEntries?: MetadataEntry[]
           }>
         }
 
-
         // Extract columns from TableSchemaMetadataEntry
         // Check materialization metadata first (from fetch_column_metadata), then definition
-        const matSchemaEntry = asset.assetMaterializations?.[0]?.metadataEntries?.find(
-          e => e.schema || e.__typename === 'TableSchemaMetadataEntry'
+        const matSchemaEntry =
+          asset.assetMaterializations?.[0]?.metadataEntries?.find(
+            (e) => e.schema || e.__typename === 'TableSchemaMetadataEntry',
+          )
+        const defSchemaEntry = asset.definition?.metadataEntries?.find(
+          (e) => e.schema,
         )
-        const defSchemaEntry = asset.definition?.metadataEntries?.find(e => e.schema)
-        const columns = matSchemaEntry?.schema?.columns ?? defSchemaEntry?.schema?.columns
+        const columns =
+          matSchemaEntry?.schema?.columns ?? defSchemaEntry?.schema?.columns
+
+        // Extract column lineage from TableColumnLineageMetadataEntry
+        const matLineageEntry =
+          asset.assetMaterializations?.[0]?.metadataEntries?.find(
+            (e) =>
+              e.lineage || e.__typename === 'TableColumnLineageMetadataEntry',
+          )
+        const defLineageEntry = asset.definition?.metadataEntries?.find(
+          (e) => e.lineage,
+        )
+        const lineageData = matLineageEntry?.lineage ?? defLineageEntry?.lineage
+
+        // Convert lineage array to Record<columnName, deps[]>
+        const columnLineage: Record<string, ColumnLineageDep[]> | undefined =
+          lineageData
+            ? lineageData.reduce(
+                (acc, entry) => {
+                  acc[entry.columnName] = entry.columnDeps.map((dep) => ({
+                    assetKey: dep.assetKey.path,
+                    columnName: dep.columnName,
+                  }))
+                  return acc
+                },
+                {} as Record<string, ColumnLineageDep[]>,
+              )
+            : undefined
 
         return {
           id: asset.id,
@@ -464,20 +545,29 @@ export const getAssetDetails = createServerFn()
           description: asset.definition?.description,
           computeKind: asset.definition?.computeKind,
           groupName: asset.definition?.groupName,
-          hasMaterializePermission: asset.definition?.hasMaterializePermission ?? false,
+          hasMaterializePermission:
+            asset.definition?.hasMaterializePermission ?? false,
           opNames: asset.definition?.opNames ?? [],
           metadata: (asset.definition?.metadataEntries ?? [])
-            .filter(e => !e.schema) // Exclude TableSchema from simple metadata
-            .map(e => ({ key: e.label, value: e.text || e.description || '' })),
+            .filter((e) => !e.schema) // Exclude TableSchema from simple metadata
+            .map((e) => ({
+              key: e.label,
+              value: e.text || e.description || '',
+            })),
           columns,
+          columnLineage,
           partitionDefinition: asset.definition?.partitionDefinition,
-          lastMaterialization: asset.assetMaterializations?.[0] ? {
-            timestamp: asset.assetMaterializations[0].timestamp,
-            runId: asset.assetMaterializations[0].runId,
-          } : undefined,
+          lastMaterialization: asset.assetMaterializations?.[0]
+            ? {
+                timestamp: asset.assetMaterializations[0].timestamp,
+                runId: asset.assetMaterializations[0].runId,
+              }
+            : undefined,
         }
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
-    }
+    },
   )

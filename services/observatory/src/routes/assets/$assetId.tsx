@@ -1,6 +1,15 @@
 import { getAssetDetails, type AssetDetails } from '@/server/dagster.server'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, Calendar, Clock, Columns2, Database, Info, Shield, Table } from 'lucide-react'
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Columns2,
+  Database,
+  Info,
+  Shield,
+  Table,
+} from 'lucide-react'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
@@ -29,7 +38,9 @@ function AssetDetailPage() {
           Back to Assets
         </Link>
         <div className="p-6 bg-red-900/20 border border-red-700/50 rounded-xl">
-          <h2 className="text-xl font-bold text-red-300 mb-2">Asset Not Found</h2>
+          <h2 className="text-xl font-bold text-red-300 mb-2">
+            Asset Not Found
+          </h2>
           <p className="text-red-400">{(asset as { error: string }).error}</p>
         </div>
       </div>
@@ -83,8 +94,12 @@ function AssetDetailPage() {
               <div className="space-y-3">
                 {assetData.metadata.map((entry, idx) => (
                   <div key={idx} className="flex items-start gap-4">
-                    <span className="text-slate-400 text-sm min-w-[120px]">{entry.key}</span>
-                    <span className="text-slate-200 text-sm font-mono break-all">{entry.value}</span>
+                    <span className="text-slate-400 text-sm min-w-[120px]">
+                      {entry.key}
+                    </span>
+                    <span className="text-slate-200 text-sm font-mono break-all">
+                      {entry.value}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -101,7 +116,10 @@ function AssetDetailPage() {
             {assetData?.opNames && assetData.opNames.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {assetData.opNames.map((op, idx) => (
-                  <span key={idx} className="px-3 py-1 text-sm bg-slate-700 text-slate-300 rounded-lg font-mono">
+                  <span
+                    key={idx}
+                    className="px-3 py-1 text-sm bg-slate-700 text-slate-300 rounded-lg font-mono"
+                  >
                     {op}
                   </span>
                 ))}
@@ -127,19 +145,59 @@ function AssetDetailPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-700">
-                      <th className="text-left py-2 px-3 font-medium text-slate-400">Name</th>
-                      <th className="text-left py-2 px-3 font-medium text-slate-400">Type</th>
-                      <th className="text-left py-2 px-3 font-medium text-slate-400">Description</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-400">
+                        Name
+                      </th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-400">
+                        Type
+                      </th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-400">
+                        Source
+                      </th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-400">
+                        Description
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {assetData.columns.map((col, idx) => (
-                      <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                        <td className="py-2 px-3 font-mono text-cyan-300">{col.name}</td>
-                        <td className="py-2 px-3 font-mono text-amber-300">{col.type}</td>
-                        <td className="py-2 px-3 text-slate-400">{col.description || '—'}</td>
-                      </tr>
-                    ))}
+                    {assetData.columns.map((col, idx) => {
+                      const deps = assetData.columnLineage?.[col.name]
+                      return (
+                        <tr
+                          key={idx}
+                          className="border-b border-slate-700/50 hover:bg-slate-700/30"
+                        >
+                          <td className="py-2 px-3 font-mono text-cyan-300">
+                            {col.name}
+                          </td>
+                          <td className="py-2 px-3 font-mono text-amber-300">
+                            {col.type}
+                          </td>
+                          <td className="py-2 px-3">
+                            {deps && deps.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {deps.map((dep, depIdx) => (
+                                  <Link
+                                    key={depIdx}
+                                    to="/assets/$assetId"
+                                    params={{ assetId: dep.assetKey.join('/') }}
+                                    className="text-xs text-purple-300 hover:text-purple-200 hover:underline"
+                                  >
+                                    {dep.assetKey[dep.assetKey.length - 1]}.
+                                    {dep.columnName}
+                                  </Link>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-slate-500 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-slate-400">
+                            {col.description || '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -156,10 +214,14 @@ function AssetDetailPage() {
               <div className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-slate-500" />
                 <div>
-                  <div className="text-sm text-slate-400">Last Materialized</div>
+                  <div className="text-sm text-slate-400">
+                    Last Materialized
+                  </div>
                   <div className="text-slate-200">
                     {assetData?.lastMaterialization
-                      ? new Date(Number(assetData.lastMaterialization.timestamp)).toLocaleString()
+                      ? new Date(
+                          Number(assetData.lastMaterialization.timestamp),
+                        ).toLocaleString()
                       : 'Never'}
                   </div>
                 </div>
@@ -168,7 +230,9 @@ function AssetDetailPage() {
                 <Calendar className="w-5 h-5 text-slate-500" />
                 <div>
                   <div className="text-sm text-slate-400">Partitioned</div>
-                  <div className="text-slate-200">{assetData?.partitionDefinition ? 'Yes' : 'No'}</div>
+                  <div className="text-slate-200">
+                    {assetData?.partitionDefinition ? 'Yes' : 'No'}
+                  </div>
                 </div>
               </div>
             </div>
