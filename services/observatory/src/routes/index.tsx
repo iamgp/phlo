@@ -1,7 +1,22 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { Activity, AlertTriangle, CheckCircle, Clock, Database, RefreshCw, Wifi, WifiOff } from 'lucide-react'
-import type {DagsterConnectionStatus, HealthMetrics} from '@/server/dagster.server';
-import {   checkDagsterConnection, getHealthMetrics } from '@/server/dagster.server'
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Database,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+} from 'lucide-react'
+import type {
+  DagsterConnectionStatus,
+  HealthMetrics,
+} from '@/server/dagster.server'
+import {
+  checkDagsterConnection,
+  getHealthMetrics,
+} from '@/server/dagster.server'
 
 export const Route = createFileRoute('/')({
   loader: async () => {
@@ -19,9 +34,8 @@ function Dashboard() {
   const { connection, metrics } = Route.useLoaderData()
   const router = useRouter()
 
-  const isConnected = connection.connected
   const hasError = 'error' in metrics
-  const healthData = hasError ? null : (metrics)
+  const healthData = hasError ? null : metrics
 
   return (
     <div className="p-8">
@@ -29,7 +43,9 @@ function Dashboard() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">Platform Health</h1>
-          <p className="text-slate-400">Overview of your data platform status</p>
+          <p className="text-slate-400">
+            Overview of your data platform status
+          </p>
         </div>
         <button
           onClick={() => router.invalidate()}
@@ -48,7 +64,11 @@ function Dashboard() {
         <HealthCard
           title="Assets"
           value={healthData?.assetsTotal?.toString() ?? '--'}
-          subtitle={healthData ? `${healthData.assetsHealthy} healthy` : 'Total registered'}
+          subtitle={
+            healthData
+              ? `${healthData.assetsHealthy} healthy`
+              : 'Total registered'
+          }
           icon={<Database className="w-6 h-6" />}
           status={getAssetStatus(healthData)}
         />
@@ -61,14 +81,22 @@ function Dashboard() {
         />
         <HealthCard
           title="Quality Checks"
-          value={healthData ? `${healthData.qualityChecksPassing}/${healthData.qualityChecksTotal}` : '--'}
+          value={
+            healthData
+              ? `${healthData.qualityChecksPassing}/${healthData.qualityChecksTotal}`
+              : '--'
+          }
           subtitle="Passing"
           icon={<CheckCircle className="w-6 h-6" />}
           status={getQualityStatus(healthData)}
         />
         <HealthCard
           title="Freshness"
-          value={healthData ? `${healthData.assetsTotal - healthData.staleAssets}/${healthData.assetsTotal}` : '--'}
+          value={
+            healthData
+              ? `${healthData.assetsTotal - healthData.staleAssets}/${healthData.assetsTotal}`
+              : '--'
+          }
           subtitle="Assets up to date"
           icon={<Clock className="w-6 h-6" />}
           status={getFreshnessStatus(healthData)}
@@ -97,13 +125,18 @@ function Dashboard() {
   )
 }
 
-function ConnectionBanner({ connection }: { connection: DagsterConnectionStatus }) {
+function ConnectionBanner({
+  connection,
+}: {
+  connection: DagsterConnectionStatus
+}) {
   if (connection.connected) {
     return (
       <div className="mb-6 p-4 bg-green-900/20 border border-green-700/50 rounded-xl flex items-center gap-3">
         <Wifi className="w-5 h-5 text-green-400" />
         <span className="text-green-300">
-          Connected to Dagster{connection.version ? ` (v${connection.version})` : ''}
+          Connected to Dagster
+          {connection.version ? ` (v${connection.version})` : ''}
         </span>
       </div>
     )
@@ -119,27 +152,36 @@ function ConnectionBanner({ connection }: { connection: DagsterConnectionStatus 
         <p className="mt-2 text-sm text-yellow-400/70">{connection.error}</p>
       )}
       <p className="mt-2 text-sm text-slate-500">
-        Make sure Dagster is running: <code className="px-2 py-0.5 bg-slate-800 rounded">docker compose up dagster-webserver</code>
+        Make sure Dagster is running:{' '}
+        <code className="px-2 py-0.5 bg-slate-800 rounded">
+          docker compose up dagster-webserver
+        </code>
       </p>
     </div>
   )
 }
 
 // Status helper functions
-function getAssetStatus(data: HealthMetrics | null): 'success' | 'warning' | 'error' | 'loading' {
+function getAssetStatus(
+  data: HealthMetrics | null,
+): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.assetsTotal === 0) return 'warning'
   return 'success'
 }
 
-function getFailedJobsStatus(data: HealthMetrics | null): 'success' | 'warning' | 'error' | 'loading' {
+function getFailedJobsStatus(
+  data: HealthMetrics | null,
+): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.failedJobs24h === 0) return 'success'
   if (data.failedJobs24h <= 2) return 'warning'
   return 'error'
 }
 
-function getQualityStatus(data: HealthMetrics | null): 'success' | 'warning' | 'error' | 'loading' {
+function getQualityStatus(
+  data: HealthMetrics | null,
+): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.qualityChecksTotal === 0) return 'loading' // Not implemented yet
   const ratio = data.qualityChecksPassing / data.qualityChecksTotal
@@ -148,7 +190,9 @@ function getQualityStatus(data: HealthMetrics | null): 'success' | 'warning' | '
   return 'error'
 }
 
-function getFreshnessStatus(data: HealthMetrics | null): 'success' | 'warning' | 'error' | 'loading' {
+function getFreshnessStatus(
+  data: HealthMetrics | null,
+): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.assetsTotal === 0) return 'loading'
   const staleRatio = data.staleAssets / data.assetsTotal

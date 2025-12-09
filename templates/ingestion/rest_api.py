@@ -13,11 +13,11 @@ TODO: Customize this template:
 
 from dlt.sources.rest_api import rest_api
 
-from phlo.ingestion import phlo_ingestion
-
 # TODO: Update this import to match your schema file
 # Example: from phlo.schemas.weather import RawWeatherObservations
 from phlo.schemas.example import RawExampleData
+
+from phlo.ingestion import phlo_ingestion
 
 
 @phlo_ingestion(
