@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import psycopg2
@@ -156,7 +157,9 @@ def create_publishing_assets(config_path: Path | None = None):
         List of dynamically created Dagster assets
     """
     if config_path is None:
-        config_path = Path(__file__).parent / "config.yaml"
+        # Use environment variable or default to publishing.yaml in current directory
+        config_filename = os.getenv("PHLO_PUBLISHING_CONFIG", "publishing.yaml")
+        config_path = Path.cwd() / config_filename
 
     if not config_path.exists():
         return []

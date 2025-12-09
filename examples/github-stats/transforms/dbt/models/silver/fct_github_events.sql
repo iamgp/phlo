@@ -32,7 +32,7 @@ enriched as (
         case when event_type = 'WatchEvent' then 1 else 0 end as is_watch,
         case when event_type = 'ForkEvent' then 1 else 0 end as is_fork,
         case when event_type = 'CreateEvent' then 1 else 0 end as is_create,
-        _cascade_ingested_at
+        _phlo_ingested_at
     from events_data
 )
 

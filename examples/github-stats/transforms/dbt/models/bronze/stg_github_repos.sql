@@ -17,7 +17,8 @@ select
     created_at as repository_created_at,
     updated_at as repository_updated_at,
     _dlt_load_id,
-    _dlt_id
+    _dlt_id,
+    _phlo_ingested_at
 from raw_data
 where
     id is not null

@@ -111,7 +111,7 @@ services:
       minio:
         condition: service_healthy
   nessie:
-    image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.99.0}
+    image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.106.0}
     restart: unless-stopped
     environment:
       NESSIE_VERSION_STORE_TYPE: JDBC
@@ -301,6 +301,7 @@ services:
       DBT_PROJECT_DIR: /app/transforms/dbt
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
+      PHLO_PUBLISHING_CONFIG: /app/publishing.yaml
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_USERNAME: ${GITHUB_USERNAME:-iamgp}
     ports:
@@ -310,6 +311,7 @@ services:
       - ../workflows:/app/workflows:ro
       - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
+      - ../publishing.yaml:/app/publishing.yaml:ro
       - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
     command:
       - dagster-webserver
@@ -427,6 +429,7 @@ services:
       DBT_PROJECT_DIR: /app/transforms/dbt
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
+      PHLO_PUBLISHING_CONFIG: /app/publishing.yaml
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_USERNAME: ${GITHUB_USERNAME:-iamgp}
     volumes:
@@ -434,6 +437,7 @@ services:
       - ../workflows:/app/workflows:ro
       - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
+      - ../publishing.yaml:/app/publishing.yaml:ro
       - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
     command:
       - dagster-daemon

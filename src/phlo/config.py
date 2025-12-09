@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # Settings for Nessie Git-like catalog for Iceberg table management
     # Catalog - Nessie
     nessie_version: str = Field(default="0.105.5", description="Nessie version")
-    nessie_port: int = Field(default=10003, description="Nessie REST API port")
+    nessie_port: int = Field(default=19120, description="Nessie REST API port")
     nessie_host: str = Field(default="nessie", description="Nessie service hostname")
 
     # --- Query Engine Configuration ---
@@ -311,7 +311,6 @@ class Settings(BaseSettings):
         return {
             "type": "rest",
             "uri": f"{self.nessie_iceberg_rest_uri}/{ref}",  # Branch in URI path
-            "warehouse": self.iceberg_warehouse_path,  # S3 warehouse location
             # S3/MinIO configuration
             "s3.endpoint": f"http://{self.minio_host}:{self.minio_api_port}",
             "s3.access-key-id": self.minio_root_user,

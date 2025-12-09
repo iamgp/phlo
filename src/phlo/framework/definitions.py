@@ -91,6 +91,22 @@ def build_core_resources() -> dg.Definitions:
         return dg.Definitions()
 
 
+def build_publishing_assets() -> dg.Definitions:
+    """
+    Build publishing assets from project configuration.
+
+    Returns:
+        Definitions with publishing assets if configured
+    """
+    try:
+        from phlo.defs.publishing import build_defs as build_publishing_defs
+
+        return build_publishing_defs()
+    except ImportError as exc:
+        logger.warning(f"Could not import phlo.defs.publishing: {exc}")
+        return dg.Definitions()
+
+
 def build_definitions(
     workflows_path: Path | str | None = None,
     include_core_assets: bool = False,
@@ -154,8 +170,11 @@ def build_definitions(
     # Build core resources
     core_resources = build_core_resources()
 
+    # Build publishing assets (if configured)
+    publishing_assets = build_publishing_assets()
+
     # Optionally include core assets (examples)
-    definitions_to_merge = [core_resources, user_defs]
+    definitions_to_merge = [core_resources, user_defs, publishing_assets]
 
     if include_core_assets:
         logger.info("Including core Cascade example assets")

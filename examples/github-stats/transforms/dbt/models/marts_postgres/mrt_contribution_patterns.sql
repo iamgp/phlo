@@ -51,6 +51,6 @@ select
     ) as intensity_score
 
 from {{ ref('fct_github_events') }}
-where event_timestamp >= current_timestamp - interval '90' day
+where cast(event_timestamp as timestamp) >= current_timestamp - interval '90' day
 group by hour_of_day, day_of_week, day_name
 order by day_of_week, hour_of_day

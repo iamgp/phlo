@@ -99,7 +99,7 @@ enriched as (
         end as stars_per_day,
 
         -- Metadata
-        r._cascade_ingested_at
+        r._phlo_ingested_at
 
     from repos_data as r
     cross join current_date_ref as c

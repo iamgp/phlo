@@ -1,5 +1,5 @@
 {{ config(
-    materialized='view',
+    materialized='ephemeral',
     tags=['github', 'stg']
 ) }}
 
@@ -14,12 +14,13 @@ select
     actor__login as actor_username,
     repo__name as repository_name,
     _dlt_load_id,
-    _dlt_id
+    _dlt_id,
+    _phlo_ingested_at
 from raw_data
 where
     id is not null
     and type is not null
     and created_at is not null
     {% if var('partition_date_str', None) is not none %}
-        and date(created_at) = date('{{ var('partition_date_str') }}')
+        and date(cast(created_at as timestamp)) = date('{{ var('partition_date_str') }}')
     {% endif %}
