@@ -1,7 +1,20 @@
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  HeadContent,
+  Link,
+  Outlet,
+  Scripts,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { Activity, Database, GitBranch, LayoutDashboard, Search, Settings } from 'lucide-react'
+import {
+  Activity,
+  Database,
+  GitBranch,
+  LayoutDashboard,
+  Search,
+  Settings,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { CommandPalette } from '@/components/CommandPalette'
@@ -14,7 +27,10 @@ export const Route = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'Phlo Observatory' },
-      { name: 'description', content: 'Unified visibility into your data platform' },
+      {
+        name: 'description',
+        content: 'Unified visibility into your data platform',
+      },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
@@ -58,18 +74,44 @@ function RootLayout() {
             {/* Navigation */}
             <nav className="flex-1 p-4">
               <ul className="space-y-2">
-                <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Dashboard" />
-                <NavItem to="/assets" icon={<Database size={20} />} label="Assets" />
-                <NavItem to="/graph" icon={<GitBranch size={20} />} label="Lineage Graph" />
-                <NavItem to="/branches" icon={<GitBranch size={20} />} label="Branches" disabled />
-                <NavItem to="/search" icon={<Search size={20} />} label="Search" disabled />
-                <NavItem to="/settings" icon={<Settings size={20} />} label="Settings" disabled />
+                <NavItem
+                  to="/"
+                  icon={<LayoutDashboard size={20} />}
+                  label="Dashboard"
+                />
+                <NavItem
+                  to="/assets"
+                  icon={<Database size={20} />}
+                  label="Assets"
+                />
+                <NavItem
+                  to="/graph"
+                  icon={<GitBranch size={20} />}
+                  label="Lineage Graph"
+                />
+                <NavItem
+                  to="/branches"
+                  icon={<GitBranch size={20} />}
+                  label="Branches"
+                />
+                <NavItem
+                  to="/search"
+                  icon={<Search size={20} />}
+                  label="Search"
+                  disabled
+                />
+                <NavItem
+                  to="/settings"
+                  icon={<Settings size={20} />}
+                  label="Settings"
+                  disabled
+                />
               </ul>
             </nav>
 
             {/* Footer */}
             <div className="p-4 border-t border-slate-700 text-sm text-slate-500">
-              Phase 2 • v0.0.2
+              Phase 3 • v0.0.3
             </div>
           </aside>
 
@@ -87,7 +129,10 @@ function RootLayout() {
         <TanStackDevtools
           config={{ position: 'bottom-right' }}
           plugins={[
-            { name: 'TanStack Router', render: <TanStackRouterDevtoolsPanel /> },
+            {
+              name: 'TanStack Router',
+              render: <TanStackRouterDevtoolsPanel />,
+            },
           ]}
         />
         <Scripts />
@@ -110,7 +155,9 @@ function NavItem({ to, icon, label, disabled }: NavItemProps) {
         <span className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 cursor-not-allowed">
           {icon}
           <span>{label}</span>
-          <span className="ml-auto text-xs bg-slate-700 px-1.5 py-0.5 rounded">Soon</span>
+          <span className="ml-auto text-xs bg-slate-700 px-1.5 py-0.5 rounded">
+            Soon
+          </span>
         </span>
       </li>
     )
@@ -122,7 +169,8 @@ function NavItem({ to, icon, label, disabled }: NavItemProps) {
         to={to}
         className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors"
         activeProps={{
-          className: 'flex items-center gap-3 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors',
+          className:
+            'flex items-center gap-3 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors',
         }}
       >
         {icon}
