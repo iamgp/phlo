@@ -11,7 +11,6 @@ import {
   Clock,
   RefreshCw,
   Shield,
-  TrendingUp,
   XCircle,
 } from 'lucide-react'
 
@@ -68,7 +67,7 @@ function QualityDashboard() {
           <div className="mb-8">
             <QualityScoreCard
               score={dashboardData!.overview.qualityScore}
-              trend={2.5}
+              totalChecks={dashboardData!.overview.totalChecks}
             />
           </div>
 
@@ -174,17 +173,19 @@ function QualityDashboard() {
 // Quality Score Card
 interface QualityScoreCardProps {
   score: number
-  trend?: number
+  totalChecks: number
 }
 
-function QualityScoreCard({ score, trend }: QualityScoreCardProps) {
+function QualityScoreCard({ score, totalChecks }: QualityScoreCardProps) {
   const getScoreColor = (score: number) => {
+    if (totalChecks === 0) return 'text-slate-400'
     if (score >= 90) return 'text-green-400'
     if (score >= 70) return 'text-yellow-400'
     return 'text-red-400'
   }
 
   const getScoreBg = (score: number) => {
+    if (totalChecks === 0) return 'bg-slate-600'
     if (score >= 90) return 'bg-green-400'
     if (score >= 70) return 'bg-yellow-400'
     return 'bg-red-400'
@@ -221,28 +222,29 @@ function QualityScoreCard({ score, trend }: QualityScoreCardProps) {
             {/* Score text */}
             <div className="absolute inset-0 flex items-center justify-center">
               <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
-                {score}%
+                {totalChecks === 0 ? '—' : `${score}%`}
               </span>
             </div>
           </div>
         </div>
         <div>
           <h3 className="text-xl font-semibold mb-1">Overall Quality Score</h3>
-          <p className="text-slate-400 mb-3">
-            Based on all configured quality checks
-          </p>
-          {trend !== undefined && (
-            <div
-              className={`inline-flex items-center gap-1 text-sm ${
-                trend >= 0 ? 'text-green-400' : 'text-red-400'
-              }`}
-            >
-              <TrendingUp
-                className={`w-4 h-4 ${trend < 0 ? 'rotate-180' : ''}`}
-              />
-              {trend >= 0 ? '+' : ''}
-              {trend}% from last week
-            </div>
+          {totalChecks === 0 ? (
+            <>
+              <p className="text-slate-400 mb-3">
+                No quality checks configured yet
+              </p>
+              <p className="text-sm text-slate-500">
+                Add{' '}
+                <code className="bg-slate-700 px-1 rounded">@phlo.quality</code>{' '}
+                decorators to your assets to enable quality monitoring
+              </p>
+            </>
+          ) : (
+            <p className="text-slate-400 mb-3">
+              Based on {totalChecks} configured quality check
+              {totalChecks !== 1 ? 's' : ''}
+            </p>
           )}
         </div>
       </div>
