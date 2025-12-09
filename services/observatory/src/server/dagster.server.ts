@@ -571,3 +571,128 @@ export const getAssetDetails = createServerFn()
       }
     },
   )
+
+// Types for materialization history
+export interface MaterializationEvent {
+  timestamp: string
+  runId: string
+  status: 'SUCCESS' | 'FAILURE' | 'IN_PROGRESS'
+  stepKey?: string
+  metadata: Array<{
+    key: string
+    value: string
+  }>
+  duration?: number
+}
+
+// GraphQL query for materialization history
+const MATERIALIZATION_HISTORY_QUERY = `
+  query MaterializationHistory($assetKey: AssetKeyInput!, $limit: Int!) {
+    assetOrError(assetKey: $assetKey) {
+      ... on Asset {
+        assetMaterializations(limit: $limit) {
+          timestamp
+          runId
+          stepKey
+          metadataEntries {
+            label
+            ... on TextMetadataEntry {
+              text
+            }
+            ... on IntMetadataEntry {
+              intValue
+            }
+            ... on FloatMetadataEntry {
+              floatValue
+            }
+          }
+        }
+      }
+      ... on AssetNotFoundError {
+        message
+      }
+    }
+  }
+`
+
+/**
+ * Get materialization history for an asset
+ */
+export const getMaterializationHistory = createServerFn()
+  .inputValidator((input: { assetKey: string; limit?: number }) => input)
+  .handler(
+    async ({
+      data: { assetKey, limit = 20 },
+    }): Promise<MaterializationEvent[] | { error: string }> => {
+      const dagsterUrl =
+        process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+
+      try {
+        const response = await fetch(dagsterUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: MATERIALIZATION_HISTORY_QUERY,
+            variables: {
+              assetKey: { path: assetKey.split('/') },
+              limit,
+            },
+          }),
+          signal: AbortSignal.timeout(10000),
+        })
+
+        if (!response.ok) {
+          return { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
+
+        const result = await response.json()
+
+        if (result.errors) {
+          return { error: result.errors[0]?.message || 'GraphQL error' }
+        }
+
+        const { assetOrError } = result.data
+
+        if (assetOrError.__typename === 'AssetNotFoundError') {
+          return { error: assetOrError.message || 'Asset not found' }
+        }
+
+        type MetadataEntry = {
+          label: string
+          text?: string
+          intValue?: string
+          floatValue?: number
+        }
+
+        type MaterializationRaw = {
+          timestamp: string
+          runId: string
+          stepKey?: string
+          metadataEntries?: MetadataEntry[]
+        }
+
+        const materializations = (assetOrError.assetMaterializations || []).map(
+          (mat: MaterializationRaw): MaterializationEvent => ({
+            timestamp: mat.timestamp,
+            runId: mat.runId,
+            status: 'SUCCESS', // Materializations are always successful (failures don't create them)
+            stepKey: mat.stepKey,
+            metadata: (mat.metadataEntries || []).map((e) => ({
+              key: e.label,
+              value:
+                e.text ||
+                (e.intValue !== undefined ? String(e.intValue) : '') ||
+                (e.floatValue !== undefined ? String(e.floatValue) : '') ||
+                '',
+            })),
+          }),
+        )
+
+        return materializations
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    },
+  )
