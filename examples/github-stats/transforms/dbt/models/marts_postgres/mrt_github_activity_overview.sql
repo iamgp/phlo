@@ -6,6 +6,7 @@
     materialized='incremental',
     unique_key='activity_date',
     incremental_strategy='merge',
+    schema='marts',
     tags=['github', 'mart']
 ) }}
 

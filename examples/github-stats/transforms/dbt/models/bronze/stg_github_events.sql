@@ -1,5 +1,6 @@
 {{ config(
     materialized='ephemeral',
+    schema='bronze',
     tags=['github', 'stg']
 ) }}
 

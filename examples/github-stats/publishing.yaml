@@ -8,6 +8,6 @@ publishing:
       - mrt_language_distribution
       - mrt_contribution_patterns
     tables:
-      github_activity_overview: iceberg.bronze.mrt_github_activity_overview
-      language_distribution: iceberg.bronze.mrt_language_distribution
-      contribution_patterns: iceberg.bronze.mrt_contribution_patterns
+      github_activity_overview: iceberg.marts.mrt_github_activity_overview
+      language_distribution: iceberg.marts.mrt_language_distribution
+      contribution_patterns: iceberg.marts.mrt_contribution_patterns

@@ -4,6 +4,7 @@
 
 {{ config(
     materialized='table',
+    schema='gold',
     tags=['github', 'curated']
 ) }}
 

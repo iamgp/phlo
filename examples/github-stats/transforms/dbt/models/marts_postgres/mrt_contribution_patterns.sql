@@ -4,6 +4,7 @@
 
 {{ config(
     materialized='table',
+    schema='marts',
     tags=['github', 'mart']
 ) }}
 
