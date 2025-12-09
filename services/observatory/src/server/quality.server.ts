@@ -46,21 +46,24 @@ export interface CheckExecution {
   metadata?: Record<string, string | number | boolean | null | undefined>
 }
 
-// GraphQL query for asset checks
+// GraphQL query for asset checks - accessed through assetNodes
 const ASSET_CHECKS_QUERY = `
   query AssetChecksQuery {
-    assetChecksOrError {
-      ... on AssetChecks {
-        checks {
-          name
-          assetKey {
-            path
-          }
-          description
-        }
+    assetNodes {
+      id
+      assetKey {
+        path
       }
-      ... on PythonError {
-        message
+      assetChecksOrError {
+        ... on AssetChecks {
+          checks {
+            name
+            description
+          }
+        }
+        ... on AssetCheckNeedsMigrationError {
+          message
+        }
       }
     }
   }
@@ -128,54 +131,47 @@ export const getQualityOverview = createServerFn().handler(
         return { error: result.errors[0]?.message || 'GraphQL error' }
       }
 
-      const { assetChecksOrError } = result.data || {}
+      const assetNodes = result.data?.assetNodes || []
 
-      if (
-        !assetChecksOrError ||
-        assetChecksOrError.__typename === 'PythonError'
-      ) {
-        return {
-          totalChecks: 0,
-          passingChecks: 0,
-          failingChecks: 0,
-          warningChecks: 0,
-          qualityScore: 100,
-          byCategory: [],
-          trend: [],
+      // Count total checks across all assets
+      let totalChecks = 0
+      for (const node of assetNodes) {
+        const checksOrError = node.assetChecksOrError
+        if (checksOrError?.checks) {
+          totalChecks += checksOrError.checks.length
         }
       }
 
-      const checks = assetChecksOrError.checks || []
-      const totalChecks = checks.length
-
-      // TODO: Fetch actual execution results to determine pass/fail status
-      // For now, return placeholder data
+      // For now, return placeholder data - actual pass/fail requires execution queries
       return {
         totalChecks,
         passingChecks: totalChecks, // Assume all passing until we fetch executions
         failingChecks: 0,
         warningChecks: 0,
-        qualityScore: 100,
-        byCategory: [
-          {
-            category: 'Completeness',
-            passing: totalChecks,
-            total: totalChecks,
-            percentage: 100,
-          },
-          {
-            category: 'Freshness',
-            passing: totalChecks,
-            total: totalChecks,
-            percentage: 100,
-          },
-          {
-            category: 'Accuracy',
-            passing: totalChecks,
-            total: totalChecks,
-            percentage: 100,
-          },
-        ],
+        qualityScore: totalChecks > 0 ? 100 : 0,
+        byCategory:
+          totalChecks > 0
+            ? [
+                {
+                  category: 'Completeness',
+                  passing: totalChecks,
+                  total: totalChecks,
+                  percentage: 100,
+                },
+                {
+                  category: 'Freshness',
+                  passing: totalChecks,
+                  total: totalChecks,
+                  percentage: 100,
+                },
+                {
+                  category: 'Accuracy',
+                  passing: totalChecks,
+                  total: totalChecks,
+                  percentage: 100,
+                },
+              ]
+            : [],
         trend: [],
       }
     } catch (error) {
