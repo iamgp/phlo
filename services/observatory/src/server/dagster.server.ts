@@ -287,6 +287,19 @@ const ASSET_DETAILS_QUERY = `
         assetMaterializations(limit: 1) {
           timestamp
           runId
+          metadataEntries {
+            label
+            __typename
+            ... on TableSchemaMetadataEntry {
+              schema {
+                columns {
+                  name
+                  type
+                  description
+                }
+              }
+            }
+          }
         }
       }
       ... on AssetNotFoundError {
@@ -425,12 +438,24 @@ export const getAssetDetails = createServerFn()
           assetMaterializations?: Array<{
             timestamp: string
             runId: string
+            metadataEntries?: Array<{
+              label: string;
+              __typename?: string;
+              schema?: {
+                columns: Array<{ name: string; type: string; description?: string }>
+              }
+            }>
           }>
         }
 
-        // Extract columns from TableSchemaMetadataEntry if present
-        const tableSchemaEntry = asset.definition?.metadataEntries?.find(e => e.schema)
-        const columns = tableSchemaEntry?.schema?.columns
+
+        // Extract columns from TableSchemaMetadataEntry
+        // Check materialization metadata first (from fetch_column_metadata), then definition
+        const matSchemaEntry = asset.assetMaterializations?.[0]?.metadataEntries?.find(
+          e => e.schema || e.__typename === 'TableSchemaMetadataEntry'
+        )
+        const defSchemaEntry = asset.definition?.metadataEntries?.find(e => e.schema)
+        const columns = matSchemaEntry?.schema?.columns ?? defSchemaEntry?.schema?.columns
 
         return {
           id: asset.id,

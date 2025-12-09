@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
     postgres_port: int = Field(default=10000, description="PostgreSQL port")
     postgres_user: str = Field(default="lake", description="PostgreSQL username")
-    postgres_password: str = Field(description="PostgreSQL password")
+    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
     postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # Storage - MinIO
     minio_host: str = Field(default="minio", description="MinIO service hostname")
     minio_root_user: str = Field(default="minio", description="MinIO root username")
-    minio_root_password: str = Field(description="MinIO root password")
+    minio_root_password: str = Field(default="minio123", description="MinIO root password")
     minio_api_port: int = Field(default=10001, description="MinIO API port")
     minio_console_port: int = Field(default=10002, description="MinIO console port")
 
@@ -119,7 +119,7 @@ class Settings(BaseSettings):
     # Services - Superset
     superset_port: int = Field(default=10007, description="Superset web port")
     superset_admin_user: str = Field(default="admin", description="Superset admin username")
-    superset_admin_password: str = Field(description="Superset admin password")
+    superset_admin_password: str = Field(default="admin", description="Superset admin password")
     superset_admin_email: str = Field(
         default="admin@example.com", description="Superset admin email"
     )

@@ -16,8 +16,6 @@ select
     language as primary_language,
     created_at as repository_created_at,
     updated_at as repository_updated_at,
-    sys_time,
-    sys_time as _cascade_ingested_at,
     _dlt_load_id,
     _dlt_id
 from raw_data

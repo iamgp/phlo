@@ -243,6 +243,29 @@ def _discover_dbt_assets() -> list[Any]:
             def get_kinds(self, dbt_resource_props: Mapping[str, Any]) -> set[str]:
                 return {"dbt", "trino"}
 
+            def get_metadata(self, dbt_resource_props: Mapping[str, Any]) -> dict[str, Any]:
+                """Extract column schema from dbt manifest as static definition metadata."""
+                from dagster import TableColumn, TableSchema
+
+                columns = dbt_resource_props.get("columns", {})
+                if not columns:
+                    return {}
+
+                # Build TableSchema from dbt manifest column definitions
+                table_columns = [
+                    TableColumn(
+                        name=col_name,
+                        type=col_info.get("data_type", "unknown"),
+                        description=col_info.get("description", ""),
+                    )
+                    for col_name, col_info in columns.items()
+                ]
+
+                if not table_columns:
+                    return {}
+
+                return {"dagster/column_schema": TableSchema(columns=table_columns)}
+
             def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
                 """Derive group from dbt model path or naming convention."""
                 model_name = dbt_resource_props["name"]
@@ -299,7 +322,9 @@ def _discover_dbt_assets() -> list[Any]:
             os.environ.setdefault("TRINO_PORT", str(settings.trino_port))
 
             build_invocation = dbt.cli(build_args, context=context)
-            yield from build_invocation.stream()
+            # fetch_column_metadata() automatically queries the warehouse for column schema
+            # after each model runs, making it available in Dagster UI and Observatory
+            yield from build_invocation.stream().fetch_column_metadata()
             build_invocation.wait()
 
             docs_args = [
