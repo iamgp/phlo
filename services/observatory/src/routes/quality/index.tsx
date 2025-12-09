@@ -1,9 +1,4 @@
-import {
-  getQualityDashboard,
-  type QualityCheck,
-  type QualityOverview,
-} from '@/server/quality.server'
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import {
   AlertTriangle,
   CheckCircle,
@@ -13,6 +8,8 @@ import {
   Shield,
   XCircle,
 } from 'lucide-react'
+import type { QualityCheck, QualityOverview } from '@/server/quality.server'
+import { getQualityDashboard } from '@/server/quality.server'
 
 export const Route = createFileRoute('/quality/')({
   loader: async () => {
@@ -31,7 +28,7 @@ function QualityDashboard() {
     ? null
     : (data as {
         overview: QualityOverview
-        failingChecks: QualityCheck[]
+        failingChecks: Array<QualityCheck>
       })
 
   return (
@@ -177,17 +174,17 @@ interface QualityScoreCardProps {
 }
 
 function QualityScoreCard({ score, totalChecks }: QualityScoreCardProps) {
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (value: number) => {
     if (totalChecks === 0) return 'text-slate-400'
-    if (score >= 90) return 'text-green-400'
-    if (score >= 70) return 'text-yellow-400'
+    if (value >= 90) return 'text-green-400'
+    if (value >= 70) return 'text-yellow-400'
     return 'text-red-400'
   }
 
-  const getScoreBg = (score: number) => {
+  const getScoreBg = (value: number) => {
     if (totalChecks === 0) return 'bg-slate-600'
-    if (score >= 90) return 'bg-green-400'
-    if (score >= 70) return 'bg-yellow-400'
+    if (value >= 90) return 'bg-green-400'
+    if (value >= 70) return 'bg-yellow-400'
     return 'bg-red-400'
   }
 

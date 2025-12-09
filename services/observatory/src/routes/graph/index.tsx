@@ -8,14 +8,15 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { z } from 'zod'
 
+import { AlertCircle, Filter } from 'lucide-react'
+import type {GraphNode} from '@/server/graph.server';
 import { GraphCanvas, GraphLegend } from '@/components/GraphCanvas'
 import { NodeInfoPanel } from '@/components/NodeInfoPanel'
 import {
+  
   getAssetGraph,
-  getAssetNeighbors,
-  type GraphNode,
+  getAssetNeighbors
 } from '@/server/graph.server'
-import { AlertCircle, Filter } from 'lucide-react'
 
 // Search params for focused view
 const graphSearchSchema = z.object({

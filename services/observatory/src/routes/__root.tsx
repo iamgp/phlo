@@ -1,10 +1,10 @@
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import {
-  createRootRoute,
   HeadContent,
   Link,
   Outlet,
   Scripts,
+  createRootRoute,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import {
@@ -19,9 +19,10 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { CommandPalette } from '@/components/CommandPalette'
-import { getAssets, type Asset } from '@/server/dagster.server'
 import appCss from '../styles.css?url'
+import type {Asset} from '@/server/dagster.server';
+import { CommandPalette } from '@/components/CommandPalette'
+import {  getAssets } from '@/server/dagster.server'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -46,7 +47,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const [assets, setAssets] = useState<Asset[]>([])
+  const [assets, setAssets] = useState<Array<Asset>>([])
 
   // Load assets for command palette
   useEffect(() => {
@@ -67,7 +68,7 @@ function RootLayout() {
           {/* Sidebar */}
           <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
             {/* Logo */}
-            <div className="p-4 border-b border-slate-700">
+            <div className="h-[72px] px-4 border-b border-slate-700 flex items-center">
               <Link to="/" className="flex items-center gap-2">
                 <Activity className="w-8 h-8 text-cyan-400" />
                 <span className="text-xl font-bold">Phlo Observatory</span>

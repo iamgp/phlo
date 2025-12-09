@@ -5,10 +5,6 @@
  */
 
 import {
-  getMaterializationHistory,
-  type MaterializationEvent,
-} from '@/server/dagster.server'
-import {
   CheckCircle,
   ChevronDown,
   ChevronRight,
@@ -18,6 +14,11 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import type {MaterializationEvent} from '@/server/dagster.server';
+import {
+  
+  getMaterializationHistory
+} from '@/server/dagster.server'
 
 interface MaterializationTimelineProps {
   assetKey: string
@@ -28,7 +29,7 @@ export function MaterializationTimeline({
   assetKey,
   limit = 10,
 }: MaterializationTimelineProps) {
-  const [events, setEvents] = useState<MaterializationEvent[]>([])
+  const [events, setEvents] = useState<Array<MaterializationEvent>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())

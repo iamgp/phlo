@@ -18,16 +18,16 @@ export interface CommitMeta {
   hash: string
   message: string
   committer: string
-  authors: string[]
+  authors: Array<string>
   commitTime: string
   authorTime: string
-  parentCommitHashes: string[]
+  parentCommitHashes: Array<string>
 }
 
 export interface LogEntry {
   commitMeta: CommitMeta
   parentCommitHash: string
-  operations: object[] | null
+  operations: Array<object> | null
 }
 
 export interface NessieConfig {
@@ -78,7 +78,7 @@ export const checkNessieConnection = createServerFn().handler(
  * Get all branches and tags
  */
 export const getBranches = createServerFn().handler(
-  async (): Promise<Branch[] | { error: string }> => {
+  async (): Promise<Array<Branch> | { error: string }> => {
     const nessieUrl = getNessieUrl()
 
     try {
@@ -144,7 +144,7 @@ export const getCommits = createServerFn()
   .handler(
     async ({
       data: { branch, limit = 50 },
-    }): Promise<LogEntry[] | { error: string }> => {
+    }): Promise<Array<LogEntry> | { error: string }> => {
       const nessieUrl = getNessieUrl()
 
       try {
@@ -182,7 +182,7 @@ export const getContents = createServerFn()
   .handler(
     async ({
       data: { branch, prefix },
-    }): Promise<object[] | { error: string }> => {
+    }): Promise<Array<object> | { error: string }> => {
       const nessieUrl = getNessieUrl()
 
       try {

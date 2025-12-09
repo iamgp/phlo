@@ -192,7 +192,7 @@ export const getHealthMetrics = createServerFn().handler(
 // Types for asset list and detail views
 export interface Asset {
   id: string
-  key: string[]
+  key: Array<string>
   keyPath: string
   description?: string
   computeKind?: string
@@ -206,12 +206,12 @@ export interface Asset {
 
 // Column lineage dependency - shows where a column comes from
 export interface ColumnLineageDep {
-  assetKey: string[]
+  assetKey: Array<string>
   columnName: string
 }
 
 export interface AssetDetails extends Asset {
-  opNames: string[]
+  opNames: Array<string>
   metadata: Array<{
     key: string
     value: string
@@ -222,7 +222,7 @@ export interface AssetDetails extends Asset {
     description?: string
   }>
   // Column lineage: maps column name -> list of upstream dependencies
-  columnLineage?: Record<string, ColumnLineageDep[]>
+  columnLineage?: Record<string, Array<ColumnLineageDep>>
   assetType?: string
   partitionDefinition?: {
     description: string
@@ -345,7 +345,7 @@ const ASSET_DETAILS_QUERY = `
  * Get all assets for list view
  */
 export const getAssets = createServerFn().handler(
-  async (): Promise<Asset[] | { error: string }> => {
+  async (): Promise<Array<Asset> | { error: string }> => {
     const dagsterUrl =
       process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
@@ -373,10 +373,10 @@ export const getAssets = createServerFn().handler(
         return { error: assetsOrError.message }
       }
 
-      const assets: Asset[] = assetsOrError.nodes.map(
+      const assets: Array<Asset> = assetsOrError.nodes.map(
         (node: {
           id: string
-          key: { path: string[] }
+          key: { path: Array<string> }
           definition?: {
             description?: string
             computeKind?: string
@@ -461,7 +461,7 @@ export const getAssetDetails = createServerFn()
         type LineageEntry = {
           columnName: string
           columnDeps: Array<{
-            assetKey: { path: string[] }
+            assetKey: { path: Array<string> }
             columnName: string
           }>
         }
@@ -478,25 +478,25 @@ export const getAssetDetails = createServerFn()
               description?: string
             }>
           }
-          lineage?: LineageEntry[]
+          lineage?: Array<LineageEntry>
         }
 
         const asset = assetOrError as {
           id: string
-          key: { path: string[] }
+          key: { path: Array<string> }
           definition?: {
             description?: string
             computeKind?: string
             groupName?: string
             hasMaterializePermission?: boolean
-            opNames?: string[]
-            metadataEntries?: MetadataEntry[]
+            opNames?: Array<string>
+            metadataEntries?: Array<MetadataEntry>
             partitionDefinition?: { description: string }
           }
           assetMaterializations?: Array<{
             timestamp: string
             runId: string
-            metadataEntries?: MetadataEntry[]
+            metadataEntries?: Array<MetadataEntry>
           }>
         }
 
@@ -524,7 +524,7 @@ export const getAssetDetails = createServerFn()
         const lineageData = matLineageEntry?.lineage ?? defLineageEntry?.lineage
 
         // Convert lineage array to Record<columnName, deps[]>
-        const columnLineage: Record<string, ColumnLineageDep[]> | undefined =
+        const columnLineage: Record<string, Array<ColumnLineageDep>> | undefined =
           lineageData
             ? lineageData.reduce(
                 (acc, entry) => {
@@ -534,7 +534,7 @@ export const getAssetDetails = createServerFn()
                   }))
                   return acc
                 },
-                {} as Record<string, ColumnLineageDep[]>,
+                {} as Record<string, Array<ColumnLineageDep>>,
               )
             : undefined
 
@@ -623,7 +623,7 @@ export const getMaterializationHistory = createServerFn()
   .handler(
     async ({
       data: { assetKey, limit = 20 },
-    }): Promise<MaterializationEvent[] | { error: string }> => {
+    }): Promise<Array<MaterializationEvent> | { error: string }> => {
       const dagsterUrl =
         process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
@@ -668,7 +668,7 @@ export const getMaterializationHistory = createServerFn()
           timestamp: string
           runId: string
           stepKey?: string
-          metadataEntries?: MetadataEntry[]
+          metadataEntries?: Array<MetadataEntry>
         }
 
         const materializations = (assetOrError.assetMaterializations || []).map(

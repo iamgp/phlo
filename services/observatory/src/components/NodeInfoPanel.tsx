@@ -4,11 +4,11 @@
  * Sidebar panel showing details of selected graph node.
  */
 
-import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
-import { getAssetImpact } from '@/server/graph.server'
 import { Link } from '@tanstack/react-router'
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Clock, Database, ExternalLink, GitBranch, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
+import { getAssetImpact } from '@/server/graph.server'
 
 interface NodeInfoPanelProps {
   node: GraphNode | null
@@ -176,7 +176,7 @@ interface ImpactAnalysisSectionProps {
 
 function ImpactAnalysisSection({ assetKey, downstreamCount, onFocusGraph }: ImpactAnalysisSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [impactedAssets, setImpactedAssets] = useState<ImpactedAsset[]>([])
+  const [impactedAssets, setImpactedAssets] = useState<Array<ImpactedAsset>>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {

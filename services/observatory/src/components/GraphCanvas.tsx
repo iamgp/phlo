@@ -5,35 +5,61 @@
  * Displays nodes colored by data layer and edges showing dependencies.
  */
 
-import {
-    Background,
-    Controls,
-    Handle,
-    MarkerType,
-    MiniMap,
-    Position,
-    ReactFlow,
-    useEdgesState,
-    useNodesState,
-    type Edge,
-    type Node,
-    type NodeTypes,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
-
-import type { GraphEdge, GraphNode } from '@/server/graph.server'
-import { useNavigate } from '@tanstack/react-router'
-import { Database } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 
+import { useNavigate } from '@tanstack/react-router'
+import {
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  MiniMap,
+  Position,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import { Database } from 'lucide-react'
+
+import type { GraphEdge, GraphNode } from '@/server/graph.server'
+import type { Edge, Node, NodeTypes } from '@xyflow/react'
+
 // Layer colors matching the design spec
-const LAYER_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  source: { bg: 'bg-blue-900/50', border: 'border-blue-500', text: 'text-blue-300' },
-  bronze: { bg: 'bg-amber-900/50', border: 'border-amber-500', text: 'text-amber-300' },
-  silver: { bg: 'bg-slate-700/50', border: 'border-slate-400', text: 'text-slate-300' },
-  gold: { bg: 'bg-yellow-900/50', border: 'border-yellow-500', text: 'text-yellow-300' },
-  publish: { bg: 'bg-emerald-900/50', border: 'border-emerald-500', text: 'text-emerald-300' },
-  unknown: { bg: 'bg-slate-800/50', border: 'border-slate-600', text: 'text-slate-400' },
+const LAYER_COLORS: Record<
+  string,
+  { bg: string; border: string; text: string }
+> = {
+  source: {
+    bg: 'bg-blue-900/50',
+    border: 'border-blue-500',
+    text: 'text-blue-300',
+  },
+  bronze: {
+    bg: 'bg-amber-900/50',
+    border: 'border-amber-500',
+    text: 'text-amber-300',
+  },
+  silver: {
+    bg: 'bg-slate-700/50',
+    border: 'border-slate-400',
+    text: 'text-slate-300',
+  },
+  gold: {
+    bg: 'bg-yellow-900/50',
+    border: 'border-yellow-500',
+    text: 'text-yellow-300',
+  },
+  publish: {
+    bg: 'bg-emerald-900/50',
+    border: 'border-emerald-500',
+    text: 'text-emerald-300',
+  },
+  unknown: {
+    bg: 'bg-slate-800/50',
+    border: 'border-slate-600',
+    text: 'text-slate-400',
+  },
 }
 
 interface AssetNodeData {
@@ -52,20 +78,30 @@ function AssetNode({ data }: { data: AssetNodeData }) {
 
   return (
     <>
-      <Handle type="target" position={Position.Left} className="!bg-slate-500" />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!bg-slate-500"
+      />
       <div
         className={`px-3 py-2 rounded-lg border-2 ${colors.bg} ${colors.border} min-w-[140px] cursor-pointer hover:brightness-110 transition-all`}
         onClick={() => data.onSelect(data.keyPath)}
       >
         <div className="flex items-center gap-2">
           <Database className={`w-4 h-4 ${colors.text}`} />
-          <span className={`text-sm font-medium ${colors.text}`}>{data.label}</span>
+          <span className={`text-sm font-medium ${colors.text}`}>
+            {data.label}
+          </span>
         </div>
         {data.computeKind && (
           <div className="mt-1 text-xs text-slate-500">{data.computeKind}</div>
         )}
       </div>
-      <Handle type="source" position={Position.Right} className="!bg-slate-500" />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!bg-slate-500"
+      />
     </>
   )
 }
@@ -75,19 +111,31 @@ const nodeTypes: NodeTypes = {
 }
 
 interface GraphCanvasProps {
-  graphNodes: GraphNode[]
-  graphEdges: GraphEdge[]
+  graphNodes: Array<GraphNode>
+  graphEdges: Array<GraphEdge>
   focusedAsset?: string
   onAssetSelect: (keyPath: string) => void
 }
 
-export function GraphCanvas({ graphNodes, graphEdges, focusedAsset, onAssetSelect }: GraphCanvasProps) {
+export function GraphCanvas({
+  graphNodes,
+  graphEdges,
+  focusedAsset,
+  onAssetSelect,
+}: GraphCanvasProps) {
   const navigate = useNavigate()
 
   // Convert graph data to React Flow format
   const initialNodes = useMemo(() => {
     // Position nodes using a simple layered layout
-    const layerOrder = ['source', 'bronze', 'silver', 'gold', 'publish', 'unknown']
+    const layerOrder = [
+      'source',
+      'bronze',
+      'silver',
+      'gold',
+      'publish',
+      'unknown',
+    ]
     const layerX: Record<string, number> = {}
     layerOrder.forEach((layer, i) => {
       layerX[layer] = i * 250
@@ -122,29 +170,37 @@ export function GraphCanvas({ graphNodes, graphEdges, focusedAsset, onAssetSelec
   }, [graphNodes, focusedAsset, onAssetSelect])
 
   const initialEdges = useMemo(() => {
-    return graphEdges.map((edge, i): Edge => ({
-      id: `edge-${i}`,
-      source: edge.source,
-      target: edge.target,
-      animated: false,
-      style: { stroke: '#475569', strokeWidth: 2 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#475569',
-      },
-    }))
+    return graphEdges.map(
+      (edge, i): Edge => ({
+        id: `edge-${i}`,
+        source: edge.source,
+        target: edge.target,
+        animated: false,
+        style: { stroke: '#475569', strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#475569',
+        },
+      }),
+    )
   }, [graphEdges])
 
   const [nodes, , onNodesChange] = useNodesState(initialNodes)
   const [edges, , onEdgesChange] = useEdgesState(initialEdges)
 
-  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    onAssetSelect(node.id)
-  }, [onAssetSelect])
+  const handleNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      onAssetSelect(node.id)
+    },
+    [onAssetSelect],
+  )
 
-  const handleNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
-    navigate({ to: '/assets/$assetId', params: { assetId: node.id } })
-  }, [navigate])
+  const handleNodeDoubleClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      navigate({ to: '/assets/$assetId', params: { assetId: node.id } })
+    },
+    [navigate],
+  )
 
   // MiniMap node color
   const miniMapNodeColor = useCallback((node: Node) => {
@@ -205,7 +261,9 @@ export function GraphLegend() {
         const colors = LAYER_COLORS[key]
         return (
           <div key={key} className="flex items-center gap-1.5">
-            <div className={`w-3 h-3 rounded ${colors.bg} ${colors.border} border`} />
+            <div
+              className={`w-3 h-3 rounded ${colors.bg} ${colors.border} border`}
+            />
             <span className={`text-xs ${colors.text}`}>{label}</span>
           </div>
         )

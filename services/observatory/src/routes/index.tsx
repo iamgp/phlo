@@ -1,6 +1,7 @@
-import { checkDagsterConnection, getHealthMetrics, type DagsterConnectionStatus, type HealthMetrics } from '@/server/dagster.server'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { Activity, AlertTriangle, CheckCircle, Clock, Database, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import type {DagsterConnectionStatus, HealthMetrics} from '@/server/dagster.server';
+import {   checkDagsterConnection, getHealthMetrics } from '@/server/dagster.server'
 
 export const Route = createFileRoute('/')({
   loader: async () => {
@@ -20,7 +21,7 @@ function Dashboard() {
 
   const isConnected = connection.connected
   const hasError = 'error' in metrics
-  const healthData = hasError ? null : (metrics as HealthMetrics)
+  const healthData = hasError ? null : (metrics)
 
   return (
     <div className="p-8">

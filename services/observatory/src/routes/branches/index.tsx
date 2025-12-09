@@ -1,15 +1,4 @@
-import {
-  checkNessieConnection,
-  createBranch,
-  deleteBranch,
-  getBranches,
-  getCommits,
-  mergeBranch,
-  type Branch,
-  type LogEntry,
-  type NessieConfig,
-} from '@/server/nessie.server'
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import {
   AlertTriangle,
   Clock,
@@ -25,11 +14,23 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import type {Branch, LogEntry, NessieConfig} from '@/server/nessie.server';
+import {
+  
+  
+  
+  checkNessieConnection,
+  createBranch,
+  deleteBranch,
+  getBranches,
+  getCommits,
+  mergeBranch
+} from '@/server/nessie.server'
 
 export const Route = createFileRoute('/branches/')({
   loader: async (): Promise<{
     connection: NessieConfig
-    branches: Branch[] | { error: string }
+    branches: Array<Branch> | { error: string }
   }> => {
     const [connection, branches] = await Promise.all([
       checkNessieConnection(),
@@ -44,7 +45,7 @@ function BranchesPage() {
   const { connection, branches } = Route.useLoaderData()
   const router = useRouter()
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
-  const [commits, setCommits] = useState<LogEntry[] | null>(null)
+  const [commits, setCommits] = useState<Array<LogEntry> | null>(null)
   const [loadingCommits, setLoadingCommits] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showMergeModal, setShowMergeModal] = useState(false)
@@ -468,7 +469,7 @@ function CommitRow({ entry, isFirst }: CommitRowProps) {
 
 // Create Branch Modal
 interface CreateBranchModalProps {
-  branches: Branch[]
+  branches: Array<Branch>
   defaultBranch: string
   loading: boolean
   error: string | null
@@ -550,7 +551,7 @@ function CreateBranchModal({
 
 // Merge Branch Modal
 interface MergeBranchModalProps {
-  branches: Branch[]
+  branches: Array<Branch>
   loading: boolean
   error: string | null
   onClose: () => void

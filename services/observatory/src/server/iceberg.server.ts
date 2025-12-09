@@ -25,7 +25,7 @@ export interface TableColumn {
 
 export interface TableMetadata {
   table: IcebergTable
-  columns: TableColumn[]
+  columns: Array<TableColumn>
   rowCount?: number
   lastModified?: string
 }
@@ -38,7 +38,7 @@ const getTrinoUrl = () => process.env.TRINO_URL || 'http://localhost:8080'
  */
 async function queryTrino<T>(
   sql: string,
-): Promise<{ data: T[]; columns: string[] } | { error: string }> {
+): Promise<{ data: Array<T>; columns: Array<string> } | { error: string }> {
   const trinoUrl = getTrinoUrl()
 
   try {
@@ -64,7 +64,7 @@ async function queryTrino<T>(
 
     // Accumulate data across all polling responses
     // Trino returns data incrementally, so we need to collect all of it
-    const allData: unknown[][] = []
+    const allData: Array<Array<unknown>> = []
     if (result.data) {
       allData.push(...result.data)
     }
@@ -96,7 +96,7 @@ async function queryTrino<T>(
     }
 
     const columns = (result.columns || []).map((c: { name: string }) => c.name)
-    const data = (result.data || []).map((row: unknown[]) => {
+    const data = (result.data || []).map((row: Array<unknown>) => {
       const obj: Record<string, unknown> = {}
       columns.forEach((col: string, idx: number) => {
         obj[col] = row[idx]
@@ -118,19 +118,22 @@ async function queryTrino<T>(
 }
 
 /**
- * Infer data layer from table name
+ * Infer data layer from table name prefix
+ * This is the primary method since Iceberg schemas may not match medallion layers
  */
 function inferLayer(name: string): IcebergTable['layer'] {
   const lower = name.toLowerCase()
-  if (lower.startsWith('dlt_') || lower.includes('raw')) return 'bronze'
-  if (lower.startsWith('stg_') || lower.includes('staging')) return 'silver'
-  if (
-    lower.startsWith('dim_') ||
-    lower.startsWith('fct_') ||
-    lower.startsWith('mrt_')
-  )
-    return 'gold'
-  if (lower.startsWith('publish_')) return 'publish'
+  // Bronze: raw ingestion tables from DLT
+  if (lower.startsWith('dlt_')) return 'bronze'
+  // Silver: staged/cleaned tables
+  if (lower.startsWith('stg_')) return 'silver'
+  // Gold: curated fact/dimension tables
+  if (lower.startsWith('fct_') || lower.startsWith('dim_')) return 'gold'
+  // Publish: mart tables for BI consumption
+  if (lower.startsWith('mrt_') || lower.startsWith('publish_')) return 'publish'
+  // Fallback checks for less common patterns
+  if (lower.includes('raw')) return 'bronze'
+  if (lower.includes('staging')) return 'silver'
   return 'unknown'
 }
 
@@ -142,12 +145,12 @@ export const getTables = createServerFn()
   .handler(
     async ({
       data: { branch = 'main' },
-    }): Promise<IcebergTable[] | { error: string }> => {
+    }): Promise<Array<IcebergTable> | { error: string }> => {
       // Query for schemas first, then tables in each schema
       // The Iceberg catalog uses schema names like 'bronze', 'raw', 'silver', 'gold', 'publish'
       const schemasToQuery = ['bronze', 'silver', 'gold', 'raw', 'publish']
-      const allTables: IcebergTable[] = []
-      const errors: string[] = []
+      const allTables: Array<IcebergTable> = []
+      const errors: Array<string> = []
 
       console.log('[getTables] Starting to query schemas:', schemasToQuery)
 
@@ -227,19 +230,27 @@ export const getTables = createServerFn()
   )
 
 /**
- * Infer layer from schema name, with fallback to table name
+ * Infer layer - TABLE NAME takes precedence over schema name
+ * This is because Iceberg schemas may not match the medallion architecture
  */
 function inferLayerFromSchema(
   schema: string,
   tableName: string,
 ): IcebergTable['layer'] {
+  // First, try to infer from table name (most reliable)
+  const fromTableName = inferLayer(tableName)
+  if (fromTableName !== 'unknown') {
+    return fromTableName
+  }
+
+  // Fall back to schema name for tables without standard prefixes
   const s = schema.toLowerCase()
   if (s === 'bronze' || s === 'raw') return 'bronze'
   if (s === 'silver' || s === 'staging') return 'silver'
   if (s === 'gold' || s === 'curated') return 'gold'
   if (s === 'publish' || s === 'marts') return 'publish'
-  // Fall back to inferring from table name
-  return inferLayer(tableName)
+
+  return 'unknown'
 }
 
 /**
@@ -250,7 +261,7 @@ export const getTableSchema = createServerFn()
   .handler(
     async ({
       data: { table, branch = 'main' },
-    }): Promise<TableColumn[] | { error: string }> => {
+    }): Promise<Array<TableColumn> | { error: string }> => {
       const sql = `DESCRIBE iceberg."${branch}"."${table}"`
       const result = await queryTrino<{
         Column: string

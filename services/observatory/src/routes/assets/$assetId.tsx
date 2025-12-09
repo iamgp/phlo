@@ -1,9 +1,4 @@
-import { DataPreview } from '@/components/data/DataPreview'
-import { DataJourney } from '@/components/provenance/DataJourney'
-import { MaterializationTimeline } from '@/components/provenance/MaterializationTimeline'
-import { getAssetDetails, type AssetDetails } from '@/server/dagster.server'
-import { getAssetChecks, type QualityCheck } from '@/server/quality.server'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Calendar,
@@ -17,13 +12,20 @@ import {
   Table,
 } from 'lucide-react'
 import { useState } from 'react'
+import type {AssetDetails} from '@/server/dagster.server';
+import type {QualityCheck} from '@/server/quality.server';
+import { DataPreview } from '@/components/data/DataPreview'
+import { DataJourney } from '@/components/provenance/DataJourney'
+import { MaterializationTimeline } from '@/components/provenance/MaterializationTimeline'
+import {  getAssetDetails } from '@/server/dagster.server'
+import {  getAssetChecks } from '@/server/quality.server'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
     const asset = await getAssetDetails({ data: params.assetId })
 
     // Fetch checks but don't fail the whole page if it errors
-    let checks: QualityCheck[] | { error: string } = { error: 'Not loaded' }
+    let checks: Array<QualityCheck> | { error: string } = { error: 'Not loaded' }
     try {
       checks = await getAssetChecks({
         data: { assetKey: params.assetId.split('/') },
@@ -46,8 +48,8 @@ function AssetDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
   const hasError = 'error' in asset
-  const assetData = hasError ? null : (asset as AssetDetails)
-  const checksData = 'error' in checks ? [] : (checks as QualityCheck[])
+  const assetData = hasError ? null : (asset)
+  const checksData = 'error' in checks ? [] : (checks)
 
   if (hasError) {
     return (
@@ -69,7 +71,7 @@ function AssetDetailPage() {
     )
   }
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: 'overview', label: 'Overview', icon: <Info className="w-4 h-4" /> },
     {
       id: 'journey',
@@ -351,7 +353,7 @@ function DataTab({ assetKey }: { assetKey: string }) {
 }
 
 // Quality Tab
-function QualityTab({ checks }: { checks: QualityCheck[] }) {
+function QualityTab({ checks }: { checks: Array<QualityCheck> }) {
   return (
     <div className="space-y-6">
       <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">

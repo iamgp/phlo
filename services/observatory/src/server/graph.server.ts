@@ -11,7 +11,7 @@ import { createServerFn } from '@tanstack/react-start'
 export interface GraphNode {
   id: string
   keyPath: string
-  key: string[]
+  key: Array<string>
   label: string
   description?: string
   computeKind?: string
@@ -28,8 +28,8 @@ export interface GraphEdge {
 }
 
 export interface AssetGraph {
-  nodes: GraphNode[]
-  edges: GraphEdge[]
+  nodes: Array<GraphNode>
+  edges: Array<GraphEdge>
 }
 
 // GraphQL query for asset dependencies
@@ -119,8 +119,8 @@ export const getAssetGraph = createServerFn().handler(
         return { error: assetsOrError.message }
       }
 
-      const nodes: GraphNode[] = []
-      const edges: GraphEdge[] = []
+      const nodes: Array<GraphNode> = []
+      const edges: Array<GraphEdge> = []
       const nodeMap = new Map<string, GraphNode>()
 
       // First pass: create all nodes
@@ -185,8 +185,8 @@ export const getAssetNeighbors = createServerFn()
       const { nodes, edges } = fullGraph
 
       // Build adjacency lists
-      const upstream = new Map<string, string[]>() // child -> parents
-      const downstream = new Map<string, string[]>() // parent -> children
+      const upstream = new Map<string, Array<string>>() // child -> parents
+      const downstream = new Map<string, Array<string>>() // parent -> children
 
       for (const edge of edges) {
         // upstream: who does this asset depend on?
@@ -201,8 +201,8 @@ export const getAssetNeighbors = createServerFn()
       // BFS to find neighbors within depth
       const includedNodes = new Set<string>([assetKey])
 
-      const bfs = (startKey: string, adjacency: Map<string, string[]>, maxDepth: number) => {
-        const queue: [string, number][] = [[startKey, 0]]
+      const bfs = (startKey: string, adjacency: Map<string, Array<string>>, maxDepth: number) => {
+        const queue: Array<[string, number]> = [[startKey, 0]]
         const visited = new Set<string>([startKey])
 
         while (queue.length > 0) {
@@ -253,7 +253,7 @@ export interface ImpactedAsset {
 export const getAssetImpact = createServerFn()
   .inputValidator((input: { assetKey: string; maxDepth?: number }) => input)
   .handler(
-    async ({ data }): Promise<ImpactedAsset[] | { error: string }> => {
+    async ({ data }): Promise<Array<ImpactedAsset> | { error: string }> => {
       const { assetKey, maxDepth = 99 } = data
 
       // Get full graph
@@ -267,16 +267,16 @@ export const getAssetImpact = createServerFn()
       const nodeMap = new Map(nodes.map(n => [n.keyPath, n]))
 
       // Build downstream adjacency (parent -> children)
-      const downstream = new Map<string, string[]>()
+      const downstream = new Map<string, Array<string>>()
       for (const edge of edges) {
         if (!downstream.has(edge.source)) downstream.set(edge.source, [])
         downstream.get(edge.source)!.push(edge.target)
       }
 
       // BFS to find all downstream assets with depth
-      const impacted: ImpactedAsset[] = []
+      const impacted: Array<ImpactedAsset> = []
       const visited = new Set<string>([assetKey])
-      const queue: [string, number][] = [[assetKey, 0]]
+      const queue: Array<[string, number]> = [[assetKey, 0]]
 
       while (queue.length > 0) {
         const [current, currentDepth] = queue.shift()!

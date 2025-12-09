@@ -1,29 +1,41 @@
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import type {DataPreviewResult, DataRow} from '@/server/trino.server';
 import {
-  previewData,
-  type DataPreviewResult,
-  type DataRow,
+  
+  
+  previewData
 } from '@/server/trino.server'
-import {
-  ChevronLeft,
-  ChevronRight,
-  Database,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react'
-import { useState } from 'react'
 
 interface DataPreviewProps {
   table: string
   branch?: string
   initialData?: DataPreviewResult
+  onShowJourney?: (
+    rowData: Record<string, unknown>,
+    columnTypes: Array<string>,
+  ) => void
 }
 
-export function DataPreview({ table, branch = 'main' }: DataPreviewProps) {
+export function DataPreview({
+  table,
+  branch = 'main',
+  onShowJourney,
+}: DataPreviewProps) {
   const [data, setData] = useState<DataPreviewResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const pageSize = 50
+
+  // Auto-load data when table changes (phlo-2m5 + phlo-bcr)
+  useEffect(() => {
+    // Reset state and load new data when table changes
+    setData(null)
+    setError(null)
+    setPage(0)
+    loadData(0)
+  }, [table, branch])
 
   const loadData = async (offset = 0) => {
     setLoading(true)
@@ -57,25 +69,18 @@ export function DataPreview({ table, branch = 'main' }: DataPreviewProps) {
     }
   }
 
-  // Initial load button
+  const handleRowClick = (row: DataRow) => {
+    if (onShowJourney && data) {
+      onShowJourney(row, data.columnTypes)
+    }
+  }
+
+  // Initial loading state (auto-loading in progress)
   if (!data && !loading && !error) {
     return (
       <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 text-center">
-        <Database className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">Data Preview</h3>
-        <p className="text-slate-400 text-sm mb-4">
-          Query Trino to preview data from this table
-        </p>
-        <button
-          onClick={() => loadData(0)}
-          className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition-colors flex items-center gap-2 mx-auto"
-        >
-          <Database className="w-4 h-4" />
-          Load Preview
-        </button>
-        <p className="text-xs text-slate-500 mt-3">
-          Branch: <code className="bg-slate-700 px-1 rounded">{branch}</code>
-        </p>
+        <Loader2 className="w-8 h-8 text-cyan-400 mx-auto mb-4 animate-spin" />
+        <p className="text-slate-400">Loading preview...</p>
       </div>
     )
   }
@@ -153,7 +158,10 @@ export function DataPreview({ table, branch = 'main' }: DataPreviewProps) {
             {data.rows.map((row, rowIdx) => (
               <tr
                 key={rowIdx}
-                className="border-b border-slate-700/50 hover:bg-slate-700/30"
+                onClick={() => handleRowClick(row)}
+                className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${
+                  onShowJourney ? 'cursor-pointer' : ''
+                }`}
               >
                 {data.columns.map((col) => (
                   <td
@@ -172,7 +180,14 @@ export function DataPreview({ table, branch = 'main' }: DataPreviewProps) {
 
       {/* Pagination */}
       <div className="p-4 border-t border-slate-700 flex items-center justify-between">
-        <div className="text-sm text-slate-400">Page {page + 1}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-slate-400">Page {page + 1}</div>
+          {onShowJourney && (
+            <div className="text-xs text-slate-500">
+              Click any row to view lineage
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrevPage}

@@ -10,7 +10,7 @@ import { createServerFn } from '@tanstack/react-start'
 // Types for quality data
 export interface QualityCheck {
   name: string
-  assetKey: string[]
+  assetKey: Array<string>
   description?: string
   severity: 'ERROR' | 'WARN'
   status: 'PASSED' | 'FAILED' | 'SKIPPED' | 'IN_PROGRESS'
@@ -27,16 +27,16 @@ export interface QualityOverview {
   failingChecks: number
   warningChecks: number
   qualityScore: number // 0-100 percentage
-  byCategory: {
+  byCategory: Array<{
     category: string
     passing: number
     total: number
     percentage: number
-  }[]
-  trend: {
+  }>
+  trend: Array<{
     date: string
     score: number
-  }[]
+  }>
 }
 
 export interface CheckExecution {
@@ -184,11 +184,11 @@ export const getQualityOverview = createServerFn().handler(
  * Get quality checks for a specific asset
  */
 export const getAssetChecks = createServerFn()
-  .inputValidator((input: { assetKey: string[] }) => input)
+  .inputValidator((input: { assetKey: Array<string> }) => input)
   .handler(
     async ({
       data: { assetKey },
-    }): Promise<QualityCheck[] | { error: string }> => {
+    }): Promise<Array<QualityCheck> | { error: string }> => {
       const dagsterUrl = getDagsterUrl()
 
       try {
@@ -257,12 +257,13 @@ export const getAssetChecks = createServerFn()
  */
 export const getCheckHistory = createServerFn()
   .inputValidator(
-    (input: { assetKey: string[]; checkName: string; limit?: number }) => input,
+    (input: { assetKey: Array<string>; checkName: string; limit?: number }) =>
+      input,
   )
   .handler(
     async ({
       data: { assetKey, limit = 20 },
-    }): Promise<CheckExecution[] | { error: string }> => {
+    }): Promise<Array<CheckExecution> | { error: string }> => {
       const dagsterUrl = getDagsterUrl()
 
       try {
@@ -297,7 +298,7 @@ export const getCheckHistory = createServerFn()
             status: string
             runId?: string
             evaluation?: {
-              metadataEntries?: { label: string; text?: string }[]
+              metadataEntries?: Array<{ label: string; text?: string }>
             }
           }) => ({
             timestamp: exec.timestamp,
@@ -330,12 +331,12 @@ export const getCheckHistory = createServerFn()
  * Get all currently failing checks
  */
 export const getFailingChecks = createServerFn().handler(
-  async (): Promise<QualityCheck[] | { error: string }> => {
+  (): Promise<Array<QualityCheck> | { error: string }> => {
     // TODO: Implement query for failing checks across all assets
     // This would require a different GraphQL query or aggregation
 
     // For now, return empty array
-    return []
+    return Promise.resolve([])
   },
 )
 
@@ -346,8 +347,8 @@ export const getQualityDashboard = createServerFn().handler(
   async (): Promise<
     | {
         overview: QualityOverview
-        failingChecks: QualityCheck[]
-        recentExecutions: CheckExecution[]
+        failingChecks: Array<QualityCheck>
+        recentExecutions: Array<CheckExecution>
       }
     | { error: string }
   > => {

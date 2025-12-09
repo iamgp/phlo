@@ -73,7 +73,6 @@ transforms/dbt/profiles/profiles.yml.bak
 transforms/dbt/package-lock.yml
 
 # Data directories
-data/
 volumes/
 *.duckdb
 *.duckdb.wal

@@ -19,9 +19,9 @@ export interface DataRow {
 }
 
 export interface DataPreviewResult {
-  columns: string[]
-  columnTypes: string[]
-  rows: DataRow[]
+  columns: Array<string>
+  columnTypes: Array<string>
+  rows: Array<DataRow>
   totalRows?: number
   hasMore: boolean
 }
@@ -34,7 +34,7 @@ export interface ColumnProfile {
   distinctCount: number
   minValue?: string
   maxValue?: string
-  sampleValues?: string[]
+  sampleValues?: Array<string>
 }
 
 export interface TableMetrics {
@@ -56,7 +56,7 @@ async function executeTrinoQuery(
   catalog: string = 'iceberg',
   schema: string = 'main',
 ): Promise<
-  | { columns: string[]; columnTypes: string[]; rows: DataRow[] }
+  | { columns: Array<string>; columnTypes: Array<string>; rows: Array<DataRow> }
   | { error: string }
 > {
   const trinoUrl = getTrinoUrl()
@@ -85,9 +85,9 @@ async function executeTrinoQuery(
     // Poll until query completes
     const maxPolls = 100
     let polls = 0
-    const allData: unknown[][] = []
-    let columns: string[] = []
-    let columnTypes: string[] = []
+    const allData: Array<Array<unknown>> = []
+    let columns: Array<string> = []
+    let columnTypes: Array<string> = []
 
     while (result.nextUri && polls < maxPolls) {
       polls++
@@ -125,10 +125,10 @@ async function executeTrinoQuery(
     }
 
     // Convert array rows to objects
-    const rows: DataRow[] = allData.map((row) => {
+    const rows: Array<DataRow> = allData.map((row) => {
       const obj: DataRow = {}
       columns.forEach((col, idx) => {
-        obj[col] = (row as (string | number | boolean | null)[])[idx]
+        obj[col] = (row as Array<string | number | boolean | null>)[idx]
       })
       return obj
     })
@@ -321,6 +321,70 @@ export const executeQuery = createServerFn()
       const schema = branch
 
       const result = await executeTrinoQuery(query, catalog, schema)
+
+      if ('error' in result) {
+        return result
+      }
+
+      return {
+        columns: result.columns,
+        columnTypes: result.columnTypes,
+        rows: result.rows,
+        hasMore: false,
+      }
+    },
+  )
+
+/**
+ * Query a table with specific column value filters
+ * Used for tracking row data across transformations
+ */
+export const queryTableWithFilters = createServerFn()
+  .inputValidator(
+    (input: {
+      tableName: string
+      schema: string
+      filters: Record<string, unknown>
+    }) => input,
+  )
+  .handler(
+    async ({
+      data: { tableName, schema, filters },
+    }): Promise<DataPreviewResult | { error: string }> => {
+      // Build WHERE clause from filters
+      const whereConditions = Object.entries(filters)
+        .map(([column, value]) => {
+          if (value === null || value === undefined) {
+            return `${column} IS NULL`
+          }
+          if (typeof value === 'string') {
+            // Escape single quotes in string values
+            const escapedValue = value.replace(/'/g, "''")
+            return `${column} = '${escapedValue}'`
+          }
+          if (typeof value === 'number') {
+            return `${column} = ${value}`
+          }
+          if (typeof value === 'boolean') {
+            return `${column} = ${value}`
+          }
+          return null
+        })
+        .filter(Boolean)
+        .join(' AND ')
+
+      if (whereConditions.length === 0) {
+        return {
+          columns: [],
+          columnTypes: [],
+          rows: [],
+          hasMore: false,
+        }
+      }
+
+      const query = `SELECT * FROM iceberg.${schema}.${tableName} WHERE ${whereConditions} LIMIT 10`
+
+      const result = await executeTrinoQuery(query, 'iceberg', schema)
 
       if ('error' in result) {
         return result

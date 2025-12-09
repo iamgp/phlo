@@ -5,14 +5,14 @@
  * Triggered with ⌘K / Ctrl+K.
  */
 
-import type { Asset } from '@/server/dagster.server'
 import { useNavigate } from '@tanstack/react-router'
 import { Command } from 'cmdk'
 import { ArrowRight, Database, GitBranch, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import type { Asset } from '@/server/dagster.server'
 
 interface CommandPaletteProps {
-  assets: Asset[]
+  assets: Array<Asset>
   open: boolean
   onOpenChange: (open: boolean) => void
 }

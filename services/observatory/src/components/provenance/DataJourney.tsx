@@ -5,7 +5,8 @@
  * Shows upstream sources → current asset → downstream consumers.
  */
 
-import { getAssetNeighbors, type GraphNode } from '@/server/graph.server'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
 import {
   Background,
   Controls,
@@ -13,13 +14,13 @@ import {
   MarkerType,
   Position,
   ReactFlow,
-  type Edge,
-  type Node,
-  type NodeProps,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { Database, GitBranch, Loader2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+
+import type { GraphNode } from '@/server/graph.server'
+import type { Edge, Node, NodeProps } from '@xyflow/react'
+import { getAssetNeighbors } from '@/server/graph.server'
 
 interface DataJourneyProps {
   assetKey: string
@@ -83,7 +84,7 @@ const nodeTypes = {
 
 export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
   const [graphData, setGraphData] = useState<{
-    nodes: GraphNode[]
+    nodes: Array<GraphNode>
     edges: Array<{ source: string; target: string }>
   } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -153,7 +154,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
     }
 
     // Group nodes by depth
-    const nodesByDepth = new Map<number, GraphNode[]>()
+    const nodesByDepth = new Map<number, Array<GraphNode>>()
     for (const node of graphData.nodes) {
       const depth = depths.get(node.keyPath) ?? 0
       if (!nodesByDepth.has(depth)) {
@@ -163,7 +164,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
     }
 
     // Position nodes
-    const flowNodes: Node[] = []
+    const flowNodes: Array<Node> = []
     const xSpacing = 280
     const ySpacing = 80
 
@@ -192,7 +193,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
     }
 
     // Create edges
-    const flowEdges: Edge[] = graphData.edges.map((edge) => ({
+    const flowEdges: Array<Edge> = graphData.edges.map((edge) => ({
       id: `${edge.source}-${edge.target}`,
       source: edge.source,
       target: edge.target,

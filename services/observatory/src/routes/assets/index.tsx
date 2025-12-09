@@ -1,7 +1,8 @@
-import { getAssets, type Asset } from '@/server/dagster.server'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { ArrowRight, Clock, Database, Search } from 'lucide-react'
 import { useState } from 'react'
+import type {Asset} from '@/server/dagster.server';
+import {  getAssets } from '@/server/dagster.server'
 
 export const Route = createFileRoute('/assets/')({
   loader: async () => {
@@ -16,7 +17,7 @@ function AssetsPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const hasError = 'error' in assets
-  const assetList = hasError ? [] : (assets as Asset[])
+  const assetList = hasError ? [] : (assets)
 
   // Filter assets by search query
   const filteredAssets = assetList.filter(asset => {

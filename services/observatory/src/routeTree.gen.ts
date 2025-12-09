@@ -17,6 +17,7 @@ import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
 import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
 import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
+import { Route as DataSchemaTableRouteImport } from './routes/data/$schema.$table'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const AssetsAssetIdRoute = AssetsAssetIdRouteImport.update({
   path: '/assets/$assetId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DataSchemaTableRoute = DataSchemaTableRouteImport.update({
+  id: '/data/$schema/$table',
+  path: '/data/$schema/$table',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/data': typeof DataIndexRoute
   '/graph': typeof GraphIndexRoute
   '/quality': typeof QualityIndexRoute
+  '/data/$schema/$table': typeof DataSchemaTableRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/data': typeof DataIndexRoute
   '/graph': typeof GraphIndexRoute
   '/quality': typeof QualityIndexRoute
+  '/data/$schema/$table': typeof DataSchemaTableRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/data/': typeof DataIndexRoute
   '/graph/': typeof GraphIndexRoute
   '/quality/': typeof QualityIndexRoute
+  '/data/$schema/$table': typeof DataSchemaTableRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/data'
     | '/graph'
     | '/quality'
+    | '/data/$schema/$table'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/data'
     | '/graph'
     | '/quality'
+    | '/data/$schema/$table'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/data/'
     | '/graph/'
     | '/quality/'
+    | '/data/$schema/$table'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   DataIndexRoute: typeof DataIndexRoute
   GraphIndexRoute: typeof GraphIndexRoute
   QualityIndexRoute: typeof QualityIndexRoute
+  DataSchemaTableRoute: typeof DataSchemaTableRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssetsAssetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/data/$schema/$table': {
+      id: '/data/$schema/$table'
+      path: '/data/$schema/$table'
+      fullPath: '/data/$schema/$table'
+      preLoaderRoute: typeof DataSchemaTableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   DataIndexRoute: DataIndexRoute,
   GraphIndexRoute: GraphIndexRoute,
   QualityIndexRoute: QualityIndexRoute,
+  DataSchemaTableRoute: DataSchemaTableRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

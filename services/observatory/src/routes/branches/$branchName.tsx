@@ -1,12 +1,4 @@
-import {
-  compareBranches,
-  getBranch,
-  getCommits,
-  getContents,
-  type Branch,
-  type LogEntry,
-} from '@/server/nessie.server'
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Clock,
@@ -18,14 +10,23 @@ import {
   Table2,
 } from 'lucide-react'
 import { useState } from 'react'
+import type {Branch, LogEntry} from '@/server/nessie.server';
+import {
+  
+  
+  compareBranches,
+  getBranch,
+  getCommits,
+  getContents
+} from '@/server/nessie.server'
 
 export const Route = createFileRoute('/branches/$branchName')({
   loader: async ({
     params,
   }): Promise<{
     branch: Branch | { error: string }
-    commits: LogEntry[] | { error: string }
-    contents: object[] | { error: string }
+    commits: Array<LogEntry> | { error: string }
+    contents: Array<object> | { error: string }
   }> => {
     const branchName = decodeURIComponent(params.branchName)
     const [branch, commits, contents] = await Promise.all([
@@ -39,7 +40,7 @@ export const Route = createFileRoute('/branches/$branchName')({
 })
 
 interface ContentEntry {
-  name: { elements: string[] }
+  name: { elements: Array<string> }
   type: string
 }
 
@@ -57,7 +58,7 @@ function BranchDetailPage() {
   const decodedBranchName = decodeURIComponent(branchName)
   const hasError = 'error' in branch
   const commitList = 'error' in commits ? [] : commits
-  const contentList = ('error' in contents ? [] : contents) as ContentEntry[]
+  const contentList = ('error' in contents ? [] : contents) as Array<ContentEntry>
 
   const handleCompare = async (targetBranch: string) => {
     setCompareToBranch(targetBranch)
@@ -253,7 +254,7 @@ function TabButton({ active, onClick, icon, label, count }: TabButtonProps) {
 }
 
 // Commits Tab
-function CommitsTab({ commits }: { commits: LogEntry[] }) {
+function CommitsTab({ commits }: { commits: Array<LogEntry> }) {
   if (commits.length === 0) {
     return (
       <div className="p-12 text-center text-slate-500">
@@ -315,7 +316,7 @@ function CommitsTab({ commits }: { commits: LogEntry[] }) {
 }
 
 // Contents Tab
-function ContentsTab({ contents }: { contents: ContentEntry[] }) {
+function ContentsTab({ contents }: { contents: Array<ContentEntry> }) {
   if (contents.length === 0) {
     return (
       <div className="p-12 text-center text-slate-500">
@@ -327,7 +328,7 @@ function ContentsTab({ contents }: { contents: ContentEntry[] }) {
   }
 
   // Group by namespace
-  const grouped: Record<string, ContentEntry[]> = {}
+  const grouped: Record<string, Array<ContentEntry>> = {}
   for (const entry of contents) {
     const namespace = entry.name.elements.slice(0, -1).join('.') || 'default'
     if (!grouped[namespace]) grouped[namespace] = []

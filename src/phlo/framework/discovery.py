@@ -291,12 +291,22 @@ def _discover_dbt_assets() -> list[Any]:
                     return "gold"
                 return "transform"
 
+            def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
+                """Return just the raw SQL for the model, not the formatted markdown."""
+                # Get the raw SQL from the dbt resource
+                raw_sql = dbt_resource_props.get("raw_sql") or dbt_resource_props.get("raw_code")
+                if raw_sql:
+                    return str(raw_sql)
+
+                # Fall back to the user-provided description if no SQL
+                return str(dbt_resource_props.get("description", ""))
+
         @dbt_assets(
             manifest=manifest_path,
             dagster_dbt_translator=CustomDbtTranslator(),
             partitions_def=daily_partition,
         )
-        def all_dbt_assets(context, dbt: DbtCliResource):
+        def all_dbt_assets(context, dbt: DbtCliResource):  # type: ignore[reportInvalidTypeForm]
             import os
             import shutil
 
