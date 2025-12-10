@@ -150,6 +150,7 @@ export const getTables = createServerFn()
       // The Iceberg catalog uses schema names like 'bronze', 'raw', 'silver', 'gold', 'publish'
       const schemasToQuery = ['bronze', 'silver', 'gold', 'raw', 'publish']
       const allTables: Array<IcebergTable> = []
+      const seenTables = new Set<string>() // Track by name to dedupe
       const errors: Array<string> = []
 
       console.log('[getTables] Starting to query schemas:', schemasToQuery)
@@ -173,13 +174,17 @@ export const getTables = createServerFn()
           schema,
         )
         for (const row of result.data) {
-          allTables.push({
-            catalog: 'iceberg',
-            schema: schema,
-            name: row.Table,
-            fullName: `iceberg.${schema}.${row.Table}`,
-            layer: inferLayerFromSchema(schema, row.Table),
-          })
+          // Dedupe by table name - prefer the first schema we find it in
+          if (!seenTables.has(row.Table)) {
+            seenTables.add(row.Table)
+            allTables.push({
+              catalog: 'iceberg',
+              schema: schema,
+              name: row.Table,
+              fullName: `iceberg.${schema}.${row.Table}`,
+              layer: inferLayerFromSchema(schema, row.Table),
+            })
+          }
         }
       }
 
