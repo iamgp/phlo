@@ -27,7 +27,7 @@ import { getAssetChecks } from '@/server/quality.server'
 import { executeQuery } from '@/server/trino.server'
 import {
   analyzeSQLTransformation,
-  buildUpstreamWhereClause,
+  buildSmartWhereClause,
 } from '@/utils/sqlParser'
 import '@xyflow/react/dist/style.css'
 
@@ -140,6 +140,13 @@ function NodeDetailPanel({
     )
   }
 
+  // Simple data row count message
+  const getDataRowMessage = () => {
+    const count = details.stageData?.length || 0
+    const countLabel = `(${count} row${count !== 1 ? 's' : ''})`
+    return { title: 'Source Data from', subtitle: countLabel }
+  }
+
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
       <div className="p-4 border-b border-slate-700">
@@ -205,18 +212,17 @@ function NodeDetailPanel({
           </div>
         )}
 
-        {/* Row Data at this Stage */}
+        {/* Row Data at this Stage - with contextual messaging (phlo-ecv) */}
         {details.stageData && details.stageData.length > 0 && (
           <div>
             <div className="flex items-center gap-2 text-sm text-slate-300 mb-2 font-medium">
               <Database className="w-4 h-4" />
-              Contributing Source Rows from{' '}
+              {getDataRowMessage().title}{' '}
               <code className="bg-slate-700 px-1.5 py-0.5 rounded text-cyan-300 ml-1">
                 {tableName}
               </code>
               <span className="text-slate-500">
-                ({details.stageData.length} row
-                {details.stageData.length !== 1 ? 's' : ''})
+                {getDataRowMessage().subtitle}
               </span>
             </div>
             <div className="bg-slate-900 rounded overflow-auto max-h-64">
@@ -371,22 +377,33 @@ export function RowJourney({
         // Query upstream data using SQL parsing
         let stageData: Array<DataRow> | undefined
 
-        if (rowData && sql) {
+        if (sql) {
           try {
             const analysis = analyzeSQLTransformation(sql)
-            const whereClause = buildUpstreamWhereClause(
-              rowData,
-              analysis.columnMappings,
-            )
 
-            if (whereClause) {
-              const query = `SELECT * FROM iceberg.${schema}.${tableName} WHERE ${whereClause} LIMIT 10`
-              const queryResult = await executeQuery({
-                data: { query, branch: schema },
-              })
+            // Query upstream data using SQL parsing (phlo-c2x: using smart WHERE)
+            if (rowData) {
+              const { whereClause, strategy } = buildSmartWhereClause(
+                rowData,
+                analysis.columnMappings,
+              )
 
-              if (!('error' in queryResult)) {
-                stageData = queryResult.rows
+              console.log(
+                '[RowJourney] Smart WHERE strategy:',
+                strategy,
+                'clause:',
+                whereClause.substring(0, 100),
+              )
+
+              if (whereClause) {
+                const query = `SELECT * FROM iceberg.${schema}.${tableName} WHERE ${whereClause} LIMIT 10`
+                const queryResult = await executeQuery({
+                  data: { query, branch: schema },
+                })
+
+                if (!('error' in queryResult)) {
+                  stageData = queryResult.rows
+                }
               }
             }
           } catch (parseErr) {
@@ -394,7 +411,11 @@ export function RowJourney({
           }
         }
 
-        setNodeDetails({ sql, checks, stageData })
+        setNodeDetails({
+          sql,
+          checks,
+          stageData,
+        })
       } catch (err) {
         console.error('Failed to load node details:', err)
         setNodeDetails(null)

@@ -524,3 +524,229 @@ export function analyzeSQLTransformation(sql: string): SQLAnalysis {
     hasJoins,
   }
 }
+
+/**
+ * Column priority type for smart matching (phlo-c2x)
+ */
+export type ColumnPriority =
+  | 'primary_key'
+  | 'id'
+  | 'timestamp'
+  | 'categorical'
+  | 'numeric'
+  | 'other'
+
+/**
+ * Key column info for smarter row matching
+ */
+export interface KeyColumnInfo {
+  name: string
+  priority: ColumnPriority
+  isId: boolean
+  isTimestamp: boolean
+  isBatchId: boolean
+}
+
+/**
+ * Detect key columns in a row based on common patterns (phlo-c2x)
+ * Looks for: id, _id, uuid, created_at, updated_at, _dlt_load_id, etc.
+ */
+export function detectKeyColumns(
+  columnNames: Array<string>,
+): Array<KeyColumnInfo> {
+  const keyColumns: Array<KeyColumnInfo> = []
+
+  for (const name of columnNames) {
+    const lower = name.toLowerCase()
+
+    // DLT batch identifiers (highest priority for batch lineage)
+    if (
+      lower === '_dlt_load_id' ||
+      lower === '_dlt_id' ||
+      lower.includes('batch_id')
+    ) {
+      keyColumns.push({
+        name,
+        priority: 'primary_key',
+        isId: true,
+        isTimestamp: false,
+        isBatchId: true,
+      })
+      continue
+    }
+
+    // Primary key patterns
+    if (lower === 'id' || lower === 'pk' || lower.endsWith('_pk')) {
+      keyColumns.push({
+        name,
+        priority: 'primary_key',
+        isId: true,
+        isTimestamp: false,
+        isBatchId: false,
+      })
+      continue
+    }
+
+    // Other ID patterns (foreign keys, UUIDs)
+    if (
+      lower.endsWith('_id') ||
+      lower.includes('uuid') ||
+      lower.includes('_key')
+    ) {
+      keyColumns.push({
+        name,
+        priority: 'id',
+        isId: true,
+        isTimestamp: false,
+        isBatchId: false,
+      })
+      continue
+    }
+
+    // Timestamp patterns
+    if (
+      lower.includes('created_at') ||
+      lower.includes('updated_at') ||
+      lower.includes('timestamp') ||
+      lower.includes('_at') ||
+      lower.includes('_date') ||
+      lower === 'date'
+    ) {
+      keyColumns.push({
+        name,
+        priority: 'timestamp',
+        isId: false,
+        isTimestamp: true,
+        isBatchId: false,
+      })
+      continue
+    }
+  }
+
+  return keyColumns
+}
+
+/**
+ * Get column priority score for sorting (phlo-c2x)
+ * Higher score = better for matching
+ */
+export function getColumnPriority(priority: ColumnPriority): number {
+  const scores: Record<ColumnPriority, number> = {
+    primary_key: 100,
+    id: 80,
+    timestamp: 60,
+    categorical: 40,
+    numeric: 20,
+    other: 0,
+  }
+  return scores[priority]
+}
+
+/**
+ * Find common columns between two sets (phlo-c2x)
+ * Used to identify columns that can be used for cross-stage matching
+ */
+export function findCommonColumns(
+  upstreamColumns: Array<string>,
+  downstreamColumns: Array<string>,
+): Array<string> {
+  const upstreamSet = new Set(upstreamColumns.map((c) => c.toLowerCase()))
+  return downstreamColumns.filter((c) => upstreamSet.has(c.toLowerCase()))
+}
+
+/**
+ * Build a smart WHERE clause using key columns preferentially (phlo-c2x)
+ *
+ * Priority order:
+ * 1. Primary keys / batch IDs (e.g., _dlt_load_id, id)
+ * 2. Regular IDs (e.g., user_id, event_id)
+ * 3. Timestamps (e.g., created_at)
+ * 4. Fall back to all available mappings
+ */
+export function buildSmartWhereClause(
+  rowData: Record<string, unknown>,
+  columnMappings: Array<ColumnMapping>,
+  maxConditions: number = 3,
+): { whereClause: string; usedColumns: Array<string>; strategy: string } {
+  const columnNames = Object.keys(rowData)
+  const keyColumns = detectKeyColumns(columnNames)
+  const conditions: Array<string> = []
+  const usedColumns: Array<string> = []
+
+  // Sort key columns by priority
+  keyColumns.sort(
+    (a, b) => getColumnPriority(b.priority) - getColumnPriority(a.priority),
+  )
+
+  // First, try to use key columns that exist in both rowData and mappings
+  for (const keyCol of keyColumns) {
+    if (conditions.length >= maxConditions) break
+
+    const value = rowData[keyCol.name]
+    if (value === undefined) continue
+
+    // Check if this column has a mapping to source
+    const mapping = columnMappings.find(
+      (m) => m.targetColumn.toLowerCase() === keyCol.name.toLowerCase(),
+    )
+
+    const sourceCol = mapping?.sourceColumn || keyCol.name
+
+    // Build condition
+    const condition = buildCondition(sourceCol, value)
+    if (condition) {
+      conditions.push(condition)
+      usedColumns.push(keyCol.name)
+    }
+  }
+
+  // If we have key conditions, use them
+  if (conditions.length > 0) {
+    return {
+      whereClause: conditions.join(' AND '),
+      usedColumns,
+      strategy:
+        conditions.length === 1 && keyColumns[0]?.isBatchId
+          ? 'batch_id'
+          : 'key_columns',
+    }
+  }
+
+  // Fall back to regular column mappings
+  const fallbackResult = buildUpstreamWhereClause(rowData, columnMappings)
+  return {
+    whereClause: fallbackResult,
+    usedColumns: columnMappings
+      .filter((m) => m.sourceColumn)
+      .map((m) => m.targetColumn),
+    strategy: 'column_mappings',
+  }
+}
+
+/**
+ * Build a single SQL condition for a column/value pair
+ */
+function buildCondition(column: string, value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return `${column} IS NULL`
+  }
+
+  if (typeof value === 'string') {
+    return `${column} = '${value.replace(/'/g, "''")}'`
+  }
+
+  if (typeof value === 'number') {
+    return `${column} = ${value}`
+  }
+
+  if (typeof value === 'boolean') {
+    return `${column} = ${value}`
+  }
+
+  // For dates/timestamps, format appropriately
+  if (value instanceof Date) {
+    return `${column} = '${value.toISOString()}'`
+  }
+
+  return null
+}

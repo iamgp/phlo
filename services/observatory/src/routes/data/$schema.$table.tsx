@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
 import { Database, GitBranch, Terminal } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { IcebergTable } from '@/server/iceberg.server'
 import type { DataPreviewResult } from '@/server/trino.server'
@@ -35,6 +35,13 @@ function DataExplorerWithTable() {
   const [journeyContext, setJourneyContext] = useState<JourneyContext | null>(
     null,
   )
+
+  // Reset state when table changes (fixes sidebar navigation bug)
+  useEffect(() => {
+    setJourneyContext(null)
+    setActiveTab('preview')
+    setQueryResults(null)
+  }, [schema, table])
 
   // Construct the selected table from URL params
   const selectedTable: IcebergTable = {
