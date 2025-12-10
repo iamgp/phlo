@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QualityIndexRouteImport } from './routes/quality/index'
+import { Route as HubIndexRouteImport } from './routes/hub/index'
 import { Route as GraphIndexRouteImport } from './routes/graph/index'
 import { Route as DataIndexRouteImport } from './routes/data/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
@@ -27,6 +28,11 @@ const IndexRoute = IndexRouteImport.update({
 const QualityIndexRoute = QualityIndexRouteImport.update({
   id: '/quality/',
   path: '/quality/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HubIndexRoute = HubIndexRouteImport.update({
+  id: '/hub/',
+  path: '/hub/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GraphIndexRoute = GraphIndexRouteImport.update({
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
   '/graph': typeof GraphIndexRoute
+  '/hub': typeof HubIndexRoute
   '/quality': typeof QualityIndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
   '/graph': typeof GraphIndexRoute
+  '/hub': typeof HubIndexRoute
   '/quality': typeof QualityIndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/branches/': typeof BranchesIndexRoute
   '/data/': typeof DataIndexRoute
   '/graph/': typeof GraphIndexRoute
+  '/hub/': typeof HubIndexRoute
   '/quality/': typeof QualityIndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/branches'
     | '/data'
     | '/graph'
+    | '/hub'
     | '/quality'
     | '/data/$schema/$table'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/branches'
     | '/data'
     | '/graph'
+    | '/hub'
     | '/quality'
     | '/data/$schema/$table'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/branches/'
     | '/data/'
     | '/graph/'
+    | '/hub/'
     | '/quality/'
     | '/data/$schema/$table'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   BranchesIndexRoute: typeof BranchesIndexRoute
   DataIndexRoute: typeof DataIndexRoute
   GraphIndexRoute: typeof GraphIndexRoute
+  HubIndexRoute: typeof HubIndexRoute
   QualityIndexRoute: typeof QualityIndexRoute
   DataSchemaTableRoute: typeof DataSchemaTableRoute
 }
@@ -161,6 +174,13 @@ declare module '@tanstack/react-router' {
       path: '/quality'
       fullPath: '/quality'
       preLoaderRoute: typeof QualityIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hub/': {
+      id: '/hub/'
+      path: '/hub'
+      fullPath: '/hub'
+      preLoaderRoute: typeof HubIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/graph/': {
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   BranchesIndexRoute: BranchesIndexRoute,
   DataIndexRoute: DataIndexRoute,
   GraphIndexRoute: GraphIndexRoute,
+  HubIndexRoute: HubIndexRoute,
   QualityIndexRoute: QualityIndexRoute,
   DataSchemaTableRoute: DataSchemaTableRoute,
 }

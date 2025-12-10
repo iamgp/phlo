@@ -9,6 +9,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import {
   Activity,
+  Boxes,
   Database,
   GitBranch,
   LayoutDashboard,
@@ -83,6 +84,7 @@ function RootLayout() {
                   icon={<LayoutDashboard size={20} />}
                   label="Dashboard"
                 />
+                <NavItem to="/hub" icon={<Boxes size={20} />} label="Hub" />
                 <NavItem
                   to="/data"
                   icon={<Table size={20} />}
