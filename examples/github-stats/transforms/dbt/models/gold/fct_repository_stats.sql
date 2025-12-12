@@ -1,10 +1,10 @@
--- fct_repository_stats.sql - Silver layer fact table for enriched repository statistics
+-- fct_repository_stats.sql - Gold layer fact table for enriched repository statistics
 -- Creates a comprehensive fact table with calculated metrics for repository analytics
 -- Transforms raw staging data into analysis-ready format with business logic
 
 {{ config(
     materialized='table',
-    schema='silver',
+    schema='gold',
     tags=['github', 'int']
 ) }}
 

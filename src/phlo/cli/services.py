@@ -713,6 +713,11 @@ def start(
         str(env_file),
     ]
 
+    # Also include project root .env for user secrets (takes precedence)
+    project_env = Path.cwd() / ".env"
+    if project_env.exists():
+        cmd.extend(["--env-file", str(project_env)])
+
     for p in profile:
         cmd.extend(["--profile", p])
 
@@ -816,6 +821,11 @@ def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
         str(env_file),
     ]
 
+    # Also include project root .env for user secrets
+    project_env = Path.cwd() / ".env"
+    if project_env.exists():
+        cmd.extend(["--env-file", str(project_env)])
+
     for p in profile:
         cmd.extend(["--profile", p])
 
@@ -914,12 +924,20 @@ def reset(service: tuple[str, ...], yes: bool):
             str(compose_file),
             "--env-file",
             str(env_file),
-            "rm",
-            "-f",  # Force removal
-            "-s",  # Stop containers if running
-            "-v",  # Remove anonymous volumes
-            *services_list,  # Specific services
         ]
+        # Also include project root .env for user secrets
+        project_env = Path.cwd() / ".env"
+        if project_env.exists():
+            cmd.extend(["--env-file", str(project_env)])
+        cmd.extend(
+            [
+                "rm",
+                "-f",  # Force removal
+                "-s",  # Stop containers if running
+                "-v",  # Remove anonymous volumes
+                *services_list,  # Specific services
+            ]
+        )
     else:
         # Stop all services
         click.echo(f"Stopping {project_name} infrastructure...")
@@ -932,9 +950,17 @@ def reset(service: tuple[str, ...], yes: bool):
             str(compose_file),
             "--env-file",
             str(env_file),
-            "down",
-            "-v",  # Remove Docker volumes
         ]
+        # Also include project root .env for user secrets
+        project_env = Path.cwd() / ".env"
+        if project_env.exists():
+            cmd.extend(["--env-file", str(project_env)])
+        cmd.extend(
+            [
+                "down",
+                "-v",  # Remove Docker volumes
+            ]
+        )
 
     try:
         result = subprocess.run(cmd, check=False)

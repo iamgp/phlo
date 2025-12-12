@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # --- Catalog Configuration ---
     # Settings for Nessie Git-like catalog for Iceberg table management
     # Catalog - Nessie
-    nessie_version: str = Field(default="0.105.5", description="Nessie version")
+    nessie_version: str = Field(default="0.106.0", description="Nessie version")
     nessie_port: int = Field(default=19120, description="Nessie REST API port")
     nessie_host: str = Field(default="nessie", description="Nessie service hostname")
 

@@ -131,6 +131,11 @@ class ComposeGenerator:
         if not config["volumes"]:
             del config["volumes"]
 
+        # Add env_file for phlo_dev services to pick up project secrets (e.g., GITHUB_TOKEN)
+        # Path is relative to .phlo/ directory where docker-compose.yml lives
+        if service.phlo_dev:
+            config["env_file"] = ["../.env"]
+
         if compose.get("command"):
             config["command"] = compose["command"]
 

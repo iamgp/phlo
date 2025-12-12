@@ -160,7 +160,7 @@ def pandera_to_iceberg(
                     field_id=100,
                     name="_dlt_load_id",
                     field_type=StringType(),
-                    required=True,
+                    required=False,  # DLT may produce this as optional
                     doc="DLT load identifier",
                 )
             )
@@ -171,7 +171,7 @@ def pandera_to_iceberg(
                     field_id=101,
                     name="_dlt_id",
                     field_type=StringType(),
-                    required=True,
+                    required=True,  # _dlt_id is always present
                     doc="DLT record identifier",
                 )
             )

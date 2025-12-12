@@ -1,6 +1,6 @@
 {{ config(
     materialized='view',
-    schema='bronze',
+    schema='silver',
     tags=['github', 'stg']
 ) }}
 

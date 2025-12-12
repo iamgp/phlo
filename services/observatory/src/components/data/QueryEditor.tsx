@@ -1,38 +1,69 @@
-/**
- * Query Editor Component
- *
- * SQL query input with execution.
- */
-
-import { Loader2, Play, Trash2 } from 'lucide-react'
-import { useState } from 'react'
 import type { DataPreviewResult } from '@/server/trino.server'
 import { executeQuery } from '@/server/trino.server'
+import { Loader2, Play, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface QueryEditorProps {
   defaultQuery?: string
   onResults: (results: DataPreviewResult | null) => void
   branch: string
+  autoRun?: boolean // Auto-execute when defaultQuery changes (phlo-gxl)
 }
 
 export function QueryEditor({
   defaultQuery = '',
   onResults,
   branch,
+  autoRun = false,
 }: QueryEditorProps) {
   const [query, setQuery] = useState(defaultQuery)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const lastAutoRunQueryRef = useRef<string | null>(null)
 
-  const runQuery = async () => {
-    if (!query.trim()) return
+  // Sync query when defaultQuery changes from external source (phlo-gxl)
+  useEffect(() => {
+    if (defaultQuery) {
+      setQuery(defaultQuery)
+    }
+  }, [defaultQuery])
+
+  // Auto-execute query when autoRun is enabled and defaultQuery changes (phlo-gxl)
+  useEffect(() => {
+    console.log('[QueryEditor] autoRun effect:', {
+      autoRun,
+      defaultQuery,
+      lastAutoRunQuery: lastAutoRunQueryRef.current,
+      loading,
+    })
+    if (
+      autoRun &&
+      defaultQuery &&
+      defaultQuery !== lastAutoRunQueryRef.current &&
+      !loading
+    ) {
+      console.log(
+        '[QueryEditor] Auto-running query:',
+        defaultQuery.substring(0, 50),
+      )
+      lastAutoRunQueryRef.current = defaultQuery
+      // Small delay to ensure render is complete
+      const timer = setTimeout(() => {
+        runQueryInternal(defaultQuery)
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [autoRun, defaultQuery, loading])
+
+  const runQueryInternal = async (queryToRun: string) => {
+    if (!queryToRun.trim()) return
 
     setLoading(true)
     setError(null)
     onResults(null)
 
     try {
-      const result = await executeQuery({ data: { query: query, branch } })
+      const result = await executeQuery({ data: { query: queryToRun, branch } })
       if ('error' in result) {
         setError(result.error)
       } else {
@@ -44,6 +75,8 @@ export function QueryEditor({
       setLoading(false)
     }
   }
+
+  const runQuery = () => runQueryInternal(query)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Cmd/Ctrl + Enter to run

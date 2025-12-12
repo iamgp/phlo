@@ -3,7 +3,7 @@ description: Git-like catalog for Iceberg tables with branch/merge support
 category: core
 default: true
 
-image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.99.0}
+image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.106.0}
 
 depends_on:
   - postgres

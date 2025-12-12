@@ -42,13 +42,33 @@ export interface SQLAnalysis {
 }
 
 /**
+ * Strip SQL comments to avoid matching keywords in comments
+ * Handles: -- line comments and block comments
+ */
+function stripSqlComments(sql: string): string {
+  return (
+    sql
+      // Remove block comments /* ... */
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      // Remove line comments -- ...
+      .replace(/--.*$/gm, '')
+      // Clean up excessive whitespace
+      .replace(/\n{2,}/g, '\n')
+      .trim()
+  )
+}
+
+/**
  * Parse SQL to extract column mappings from SELECT clause
  */
 export function parseColumnMappings(sql: string): Array<ColumnMapping> {
   const mappings: Array<ColumnMapping> = []
 
+  // Strip SQL comments before parsing to avoid matching SELECT/FROM in comments
+  const cleanedSql = stripSqlComments(sql)
+
   // Extract SELECT clause (basic approach)
-  const selectMatch = sql.match(/SELECT\s+(.*?)\s+FROM/is)
+  const selectMatch = cleanedSql.match(/SELECT\s+(.*?)\s+FROM/is)
   if (!selectMatch) return mappings
 
   const selectClause = selectMatch[1]
@@ -217,21 +237,82 @@ function isKeyword(word: string): boolean {
 
 /**
  * Extract source table names from SQL
+ * Handles:
+ * - Quoted identifiers like "iceberg"."schema"."table"
+ * - Simple unquoted table names
+ * - dbt Jinja syntax: {{ ref('table') }} and {{ source('src', 'table') }}
  */
 export function extractSourceTables(sql: string): Array<string> {
   const tables: Array<string> = []
 
-  // Extract FROM clause
-  const fromMatch = sql.match(/FROM\s+(\w+)/i)
-  if (fromMatch) {
-    tables.push(fromMatch[1])
+  // Remove EXTRACT(...FROM...) to avoid false matches
+  const cleanedSql = sql.replace(/EXTRACT\s*\([^)]*FROM[^)]*\)/gi, '')
+
+  // Pattern for dbt ref(): {{ ref('table_name') }}
+  const refPattern = /\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi
+  let match
+  while ((match = refPattern.exec(cleanedSql)) !== null) {
+    const tableName = match[1]
+    if (tableName && !tables.includes(tableName)) {
+      tables.push(tableName)
+    }
   }
 
-  // Extract JOIN clauses
-  const joinMatches = sql.matchAll(/JOIN\s+(\w+)/gi)
-  for (const match of joinMatches) {
-    tables.push(match[1])
+  // Pattern for dbt source(): {{ source('source_name', 'table_name') }}
+  const sourcePattern =
+    /\{\{\s*source\s*\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi
+  while ((match = sourcePattern.exec(cleanedSql)) !== null) {
+    const tableName = match[1]
+    if (tableName && !tables.includes(tableName)) {
+      tables.push(tableName)
+    }
   }
+
+  // Pattern for fully quoted: "catalog"."schema"."table"
+  // Captures table name (last quoted part before whitespace/newline)
+  const quotedPattern = /\bFROM\s+"[^"]+"\."[^"]+"\."([^"]+)"/gi
+  while ((match = quotedPattern.exec(cleanedSql)) !== null) {
+    const tableName = match[1]
+    if (tableName && !tables.includes(tableName)) {
+      tables.push(tableName)
+    }
+  }
+
+  // Pattern for simple unquoted: FROM tablename
+  // Only if we didn't find any matches yet
+  if (tables.length === 0) {
+    const simplePattern = /\bFROM\s+([a-z_][a-z0-9_]*)\b/gi
+    while ((match = simplePattern.exec(cleanedSql)) !== null) {
+      const tableName = match[1]
+      if (tableName && !tables.includes(tableName)) {
+        tables.push(tableName)
+      }
+    }
+  }
+
+  // Match JOIN clauses
+  const quotedJoinPattern = /\bJOIN\s+"[^"]+"\."[^"]+"\."([^"]+)"/gi
+  while ((match = quotedJoinPattern.exec(cleanedSql)) !== null) {
+    const tableName = match[1]
+    if (tableName && !tables.includes(tableName)) {
+      tables.push(tableName)
+    }
+  }
+
+  const simpleJoinPattern = /\bJOIN\s+([a-z_][a-z0-9_]*)\b/gi
+  while ((match = simpleJoinPattern.exec(cleanedSql)) !== null) {
+    const tableName = match[1]
+    if (tableName && !tables.includes(tableName)) {
+      tables.push(tableName)
+    }
+  }
+
+  console.log(
+    '[extractSourceTables] Found tables:',
+    tables,
+    'from SQL:',
+    cleanedSql.substring(0, 200),
+  )
 
   return tables
 }
@@ -690,7 +771,16 @@ export function buildSmartWhereClause(
       (m) => m.targetColumn.toLowerCase() === keyCol.name.toLowerCase(),
     )
 
+    console.log(
+      `[buildSmartWhereClause] keyCol: ${keyCol.name}, mapping found:`,
+      mapping
+        ? { target: mapping.targetColumn, source: mapping.sourceColumn }
+        : 'none',
+    )
+
     const sourceCol = mapping?.sourceColumn || keyCol.name
+
+    console.log(`[buildSmartWhereClause] Using sourceCol: ${sourceCol}`)
 
     // Build condition
     const condition = buildCondition(sourceCol, value)
@@ -732,7 +822,15 @@ function buildCondition(column: string, value: unknown): string | null {
   }
 
   if (typeof value === 'string') {
-    return `${column} = '${value.replace(/'/g, "''")}'`
+    const escaped = value.replace(/'/g, "''")
+
+    // Detect timestamp-like values and use TIMESTAMP cast for Trino
+    // Matches: 2025-12-02, 2025-12-02 00:00:00, 2025-12-02T00:00:00, etc.
+    if (/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}:\d{2})?/.test(value)) {
+      return `${column} = TIMESTAMP '${escaped}'`
+    }
+
+    return `${column} = '${escaped}'`
   }
 
   if (typeof value === 'number') {

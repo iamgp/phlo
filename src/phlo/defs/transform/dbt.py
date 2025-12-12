@@ -33,6 +33,56 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return super().get_asset_key(dbt_resource_props)
         return AssetKey(dbt_resource_props["name"])
 
+    def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str | None:
+        """Get description including compiled SQL for Observatory lineage parsing.
+
+        The compiled SQL is essential for the Observatory's Query Source Data feature
+        to correctly parse column mappings and build WHERE clauses for upstream queries.
+        Reads directly from target/compiled/ files which contain fully resolved SQL.
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+        model_name = dbt_resource_props.get("name", "")
+
+        # Get the docstring description if available
+        docstring = dbt_resource_props.get("description", "")
+
+        # Try to read compiled SQL from file (most reliable source)
+        compiled_sql = ""
+        compiled_path = dbt_resource_props.get("compiled_path")
+        logger.info(f"[CustomDbtTranslator] Model: {model_name}, compiled_path: {compiled_path}")
+
+        if compiled_path:
+            try:
+                compiled_file = DBT_PROJECT_DIR / compiled_path
+                logger.info(
+                    f"[CustomDbtTranslator] full path: {compiled_file}, exists: {compiled_file.exists()}"
+                )
+                if compiled_file.exists():
+                    compiled_sql = compiled_file.read_text()
+                    logger.info(
+                        f"[CustomDbtTranslator] Read compiled SQL, length: {len(compiled_sql)}"
+                    )
+            except Exception as e:
+                logger.warning(f"[CustomDbtTranslator] Failed to read compiled file: {e}")
+
+        # Fallback to manifest compiled_code or raw_code
+        if not compiled_sql:
+            compiled_sql = dbt_resource_props.get("compiled_code") or dbt_resource_props.get(
+                "raw_code", ""
+            )
+            logger.info(f"[CustomDbtTranslator] Using fallback, length: {len(compiled_sql)}")
+
+        # Build description with model name header and SQL
+        parts = [f"dbt model {model_name}"]
+        if docstring:
+            parts.append(docstring)
+        if compiled_sql:
+            parts.append("\n#### Raw SQL:\n```sql\n" + compiled_sql + "\n```")
+
+        return "\n\n".join(parts)
+
     def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
         """Derive group from dbt model path or naming convention."""
         model_name = dbt_resource_props["name"]
@@ -115,6 +165,38 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
         artifact_path = docs_invocation.target_path / artifact
         if artifact_path.exists():
             shutil.copy(artifact_path, default_target_dir / artifact)
+
+    # Inject _phlo_row_id to all materialized tables for lineage tracking
+    try:
+        import json
+
+        import trino
+
+        from phlo.lineage.dbt_inject import inject_row_ids_for_dbt_run
+
+        run_results_path = default_target_dir / "run_results.json"
+        if run_results_path.exists():
+            with open(run_results_path) as f:
+                run_results = json.load(f)
+
+            trino_conn = trino.dbapi.connect(
+                host=config.trino_host,
+                port=config.trino_port,
+                user="dagster",
+                catalog="iceberg",
+            )
+
+            context.log.info("[dbt] Injecting _phlo_row_id to materialized tables...")
+            injection_results = inject_row_ids_for_dbt_run(
+                trino_connection=trino_conn,
+                run_results=run_results,
+                catalog="iceberg",
+                context=context,
+            )
+            context.log.info(f"[dbt] Row ID injection results: {injection_results}")
+            trino_conn.close()
+    except Exception as e:
+        context.log.warning(f"[dbt] Row ID injection failed (non-fatal): {e}")
 
 
 def build_defs():

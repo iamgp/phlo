@@ -66,6 +66,7 @@ def inject_metadata_columns(
     Inject phlo metadata columns into a parquet file.
 
     Adds the following columns:
+    - _phlo_row_id: Unique ULID for row-level lineage tracking
     - _phlo_ingested_at: UTC timestamp when phlo processed this record
     - _phlo_partition_date: Partition date used for ingestion
     - _phlo_run_id: Dagster run ID for traceability
@@ -82,6 +83,8 @@ def inject_metadata_columns(
     import pyarrow as pa
     import pyarrow.parquet as pq
 
+    from phlo.lineage import generate_row_id
+
     # Read existing parquet
     arrow_table = pq.read_table(str(parquet_path))
     num_rows = len(arrow_table)
@@ -91,11 +94,17 @@ def inject_metadata_columns(
 
     # Create metadata columns
     ingested_at = datetime.now(timezone.utc)
-    ingested_at_col = pa.array([ingested_at] * num_rows, type=pa.timestamp("us", tz="UTC"))
+
+    # Generate unique ULID for each row (for row-level lineage tracking)
+    row_ids = [generate_row_id() for _ in range(num_rows)]
+    row_id_col = pa.array(row_ids, type=pa.string())
+
+    ingested_at_col = pa.array([ingested_at] * num_rows, type=pa.timestamp("us"))
     partition_date_col = pa.array([partition_date] * num_rows, type=pa.string())
     run_id_col = pa.array([run_id] * num_rows, type=pa.string())
 
-    # Append columns to table
+    # Append columns to table (row_id first for prominence)
+    arrow_table = arrow_table.append_column("_phlo_row_id", row_id_col)
     arrow_table = arrow_table.append_column("_phlo_ingested_at", ingested_at_col)
     arrow_table = arrow_table.append_column("_phlo_partition_date", partition_date_col)
     arrow_table = arrow_table.append_column("_phlo_run_id", run_id_col)
@@ -104,7 +113,9 @@ def inject_metadata_columns(
     pq.write_table(arrow_table, str(parquet_path))
 
     if context:
-        context.log.debug("Added _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns")
+        context.log.debug(
+            "Added _phlo_row_id, _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns"
+        )
 
     return parquet_path
 

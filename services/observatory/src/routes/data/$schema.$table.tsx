@@ -2,13 +2,13 @@ import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
 import { Database, GitBranch, Terminal } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import type { IcebergTable } from '@/server/iceberg.server'
-import type { DataPreviewResult } from '@/server/trino.server'
 import { DataPreview } from '@/components/data/DataPreview'
 import { QueryEditor } from '@/components/data/QueryEditor'
 import { QueryResults } from '@/components/data/QueryResults'
 import { RowJourney } from '@/components/data/RowJourney'
 import { TableBrowser } from '@/components/data/TableBrowser'
+import type { IcebergTable } from '@/server/iceberg.server'
+import type { DataPreviewResult } from '@/server/trino.server'
 
 export const Route = createFileRoute('/data/$schema/$table')({
   component: DataExplorerWithTable,
@@ -35,12 +35,15 @@ function DataExplorerWithTable() {
   const [journeyContext, setJourneyContext] = useState<JourneyContext | null>(
     null,
   )
+  // Pre-configured query from journey view (phlo-gxl)
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null)
 
   // Reset state when table changes (fixes sidebar navigation bug)
   useEffect(() => {
     setJourneyContext(null)
     setActiveTab('preview')
     setQueryResults(null)
+    setPendingQuery(null)
   }, [schema, table])
 
   // Construct the selected table from URL params
@@ -74,6 +77,12 @@ function DataExplorerWithTable() {
       columnTypes,
     })
     setActiveTab('journey')
+  }
+
+  // Handle "Query Source Data" from journey view (phlo-gxl)
+  const handleQuerySource = (query: string) => {
+    setPendingQuery(query)
+    setActiveTab('query')
   }
 
   return (
@@ -173,6 +182,8 @@ function DataExplorerWithTable() {
                   assetKey={journeyContext.assetKey}
                   rowData={journeyContext.rowData}
                   columnTypes={journeyContext.columnTypes}
+                  onQuerySource={handleQuerySource}
+                  schema={schema}
                 />
 
                 {/* Row Data Panel */}
@@ -256,8 +267,12 @@ function DataExplorerWithTable() {
             <div className="space-y-4">
               <QueryEditor
                 branch={selectedTable.schema}
-                defaultQuery={`SELECT * FROM ${selectedTable.fullName} LIMIT 100`}
+                defaultQuery={
+                  pendingQuery ||
+                  `SELECT * FROM ${selectedTable.fullName} LIMIT 100`
+                }
                 onResults={setQueryResults}
+                autoRun={!!pendingQuery}
               />
               {queryResults && (
                 <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">

@@ -9,6 +9,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { getAssetDetails } from '@/server/dagster.server'
+import { getAssetNeighbors } from '@/server/graph.server'
+import { getRowJourneyLineage } from '@/server/lineage.server'
+import { getAssetChecks } from '@/server/quality.server'
+import type { DataRow } from '@/server/trino.server'
+import type { Edge, Node, NodeProps } from '@xyflow/react'
 import {
   Background,
   Controls,
@@ -17,25 +23,24 @@ import {
   Position,
   ReactFlow,
 } from '@xyflow/react'
-import { AlertCircle, CheckCircle, Code, Database, Loader2 } from 'lucide-react'
-import { Highlight, themes } from 'prism-react-renderer'
-import type { DataRow } from '@/server/trino.server'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
-import { getAssetDetails } from '@/server/dagster.server'
-import { getAssetNeighbors } from '@/server/graph.server'
-import { getAssetChecks } from '@/server/quality.server'
-import { executeQuery } from '@/server/trino.server'
-import {
-  analyzeSQLTransformation,
-  buildSmartWhereClause,
-} from '@/utils/sqlParser'
 import '@xyflow/react/dist/style.css'
+import {
+  AlertCircle,
+  CheckCircle,
+  Code,
+  Database,
+  Loader2,
+  Terminal,
+} from 'lucide-react'
+import { Highlight, themes } from 'prism-react-renderer'
 
 interface RowJourneyProps {
   assetKey: string
   rowData: Record<string, unknown>
   columnTypes: Array<string>
   className?: string
+  onQuerySource?: (query: string) => void
+  schema?: string // Schema context for source queries (phlo-gxl)
 }
 
 interface AssetNodeData {
@@ -51,6 +56,8 @@ interface NodeDetails {
   sql?: string
   checks?: Array<{ name: string; status: string }>
   stageData?: Array<DataRow>
+  sourceTables?: Array<string> // phlo-gxl: tables extracted from SQL
+  whereClause?: string // phlo-gxl: computed WHERE clause for source query
 }
 
 // Simple node component - click to select (phlo-lx7)
@@ -111,12 +118,24 @@ function NodeDetailPanel({
   assetKey,
   isLoading,
   details,
+  onQuerySource,
+  schema: _schema, // Reserved for future schema-aware source queries
 }: {
   assetKey: string
   isLoading: boolean
   details: NodeDetails | null
+  onQuerySource?: (query: string) => void
+  schema?: string
 }) {
   const tableName = assetKey.split('/').pop() || assetKey
+
+  // Debug: log button condition (phlo-gxl)
+  console.log('[NodeDetailPanel] Button condition:', {
+    hasOnQuerySource: !!onQuerySource,
+    hasSql: !!details?.sql,
+    sourceTables: details?.sourceTables,
+    sourceTablesLength: details?.sourceTables?.length,
+  })
 
   if (isLoading) {
     return (
@@ -149,11 +168,33 @@ function NodeDetailPanel({
 
   return (
     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-      <div className="p-4 border-b border-slate-700">
+      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
         <h4 className="font-medium text-slate-200 flex items-center gap-2">
           <Database className="w-4 h-4 text-cyan-400" />
           {tableName}
         </h4>
+        {/* Query Source Data button (phlo-gxl) - debug: check console for logs */}
+        {onQuerySource &&
+          details?.sql &&
+          details?.sourceTables &&
+          details.sourceTables.length > 0 && (
+            <button
+              onClick={() => {
+                const sourceTable = details.sourceTables![0]
+                // Infer schema from source table name (source tables often in different schemas)
+                const querySchema = inferSchemaFromTableName(sourceTable)
+                const whereClause = details.whereClause
+
+                const query = `SELECT * FROM iceberg.${querySchema}.${sourceTable}${whereClause ? ` WHERE ${whereClause}` : ''} LIMIT 100`
+                console.log('[NodeDetailPanel] Query Source:', query)
+                onQuerySource(query)
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded text-sm font-medium transition-colors"
+            >
+              <Terminal className="w-4 h-4" />
+              Query Source Data
+            </button>
+          )}
       </div>
 
       <div className="p-4 space-y-4">
@@ -307,6 +348,8 @@ export function RowJourney({
   assetKey,
   rowData,
   className = '',
+  onQuerySource,
+  schema,
 }: RowJourneyProps) {
   const [graphData, setGraphData] = useState<{
     nodes: Array<{ keyPath: string; label: string; computeKind?: string }>
@@ -355,9 +398,6 @@ export function RowJourney({
     async function loadNodeDetails() {
       setDetailsLoading(true)
       try {
-        const tableName = selectedNode!.split('/').pop() || selectedNode!
-        const schema = inferSchemaFromTableName(tableName)
-
         // Fetch asset details and quality checks
         const [assetInfo, qualityInfo] = await Promise.all([
           getAssetDetails({ data: selectedNode! }),
@@ -374,47 +414,38 @@ export function RowJourney({
 
         const sql = 'error' in assetInfo ? undefined : assetInfo.description
 
-        // Query upstream data using SQL parsing
-        let stageData: Array<DataRow> | undefined
+        // Query lineage store if _phlo_row_id is available (phlo-81n)
+        let sourceTables: string[] = []
+        const rowId = rowData?._phlo_row_id as string | undefined
 
-        if (sql) {
+        if (rowId) {
           try {
-            const analysis = analyzeSQLTransformation(sql)
-
-            // Query upstream data using SQL parsing (phlo-c2x: using smart WHERE)
-            if (rowData) {
-              const { whereClause, strategy } = buildSmartWhereClause(
-                rowData,
-                analysis.columnMappings,
+            const lineageResult = await getRowJourneyLineage({
+              data: { rowId },
+            })
+            if (!('error' in lineageResult)) {
+              // Extract source table names from ancestors
+              sourceTables = lineageResult.ancestors.map(
+                (a: { tableName: string }) => a.tableName,
               )
-
+              console.log('[RowJourney] Lineage ancestors:', sourceTables)
+            } else {
               console.log(
-                '[RowJourney] Smart WHERE strategy:',
-                strategy,
-                'clause:',
-                whereClause.substring(0, 100),
+                '[RowJourney] Lineage query returned:',
+                lineageResult.error,
               )
-
-              if (whereClause) {
-                const query = `SELECT * FROM iceberg.${schema}.${tableName} WHERE ${whereClause} LIMIT 10`
-                const queryResult = await executeQuery({
-                  data: { query, branch: schema },
-                })
-
-                if (!('error' in queryResult)) {
-                  stageData = queryResult.rows
-                }
-              }
             }
-          } catch (parseErr) {
-            console.warn('[RowJourney] Failed to parse SQL or query:', parseErr)
+          } catch (err) {
+            console.log('[RowJourney] Lineage query failed:', err)
           }
         }
 
         setNodeDetails({
           sql,
           checks,
-          stageData,
+          stageData: undefined,
+          sourceTables,
+          whereClause: undefined,
         })
       } catch (err) {
         console.error('Failed to load node details:', err)
@@ -585,6 +616,8 @@ export function RowJourney({
         assetKey={selectedNode || assetKey}
         isLoading={detailsLoading}
         details={nodeDetails}
+        onQuerySource={onQuerySource}
+        schema={schema}
       />
     </div>
   )
