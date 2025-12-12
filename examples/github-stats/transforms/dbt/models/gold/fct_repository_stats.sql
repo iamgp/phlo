@@ -3,7 +3,10 @@
 -- Transforms raw staging data into analysis-ready format with business logic
 
 {{ config(
-    materialized='table',
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['repository_id', '_phlo_partition_date'],
+    on_schema_change='sync_all_columns',
     schema='gold',
     tags=['github', 'int']
 ) }}
@@ -24,6 +27,9 @@ These enrichments enable better analytics and visualization in downstream models
 -- CTE for source data from bronze layer staging
 with repos_data as (
     select * from {{ ref('stg_github_repos') }}
+    {% if var('partition_date_str', None) is not none %}
+        where _phlo_partition_date = '{{ var('partition_date_str') }}'
+    {% endif %}
 ),
 
 -- CTE for current date reference
@@ -100,7 +106,8 @@ enriched as (
         end as stars_per_day,
 
         -- Metadata
-        r._phlo_ingested_at
+        r._phlo_ingested_at,
+        r._phlo_partition_date
 
     from repos_data as r
     cross join current_date_ref as c

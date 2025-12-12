@@ -6,6 +6,7 @@
     materialized='incremental',
     unique_key='activity_date',
     incremental_strategy='merge',
+    on_schema_change='sync_all_columns',
     schema='marts',
     tags=['github', 'mart']
 ) }}

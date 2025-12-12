@@ -3,7 +3,10 @@
 -- Enables identification of contribution patterns and typical working hours
 
 {{ config(
-    materialized='table',
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['hour_of_day', 'day_of_week', '_phlo_partition_date'],
+    on_schema_change='sync_all_columns',
     schema='marts',
     tags=['github', 'mart']
 ) }}
@@ -23,6 +26,7 @@ select
     hour_of_day,
     day_of_week,
     day_name,
+    _phlo_partition_date,
 
     count(*) as total_events,
     count(distinct event_date) as days_with_activity,
@@ -52,6 +56,11 @@ select
     ) as intensity_score
 
 from {{ ref('fct_github_events') }}
-where cast(event_timestamp as timestamp) >= current_timestamp - interval '90' day
+{% if var('partition_date_str', None) is not none %}
+    where _phlo_partition_date = '{{ var('partition_date_str') }}'
+{% else %}
+    where cast(event_timestamp as timestamp) >= current_timestamp - interval '90' day
+{% endif %}
 group by hour_of_day, day_of_week, day_name
+    , _phlo_partition_date
 order by day_of_week, hour_of_day

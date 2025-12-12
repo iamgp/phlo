@@ -1,5 +1,8 @@
 {{ config(
-    materialized='view',
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['repository_id', '_phlo_partition_date'],
+    on_schema_change='sync_all_columns',
     schema='silver',
     tags=['github', 'stg']
 ) }}
@@ -19,7 +22,8 @@ select
     updated_at as repository_updated_at,
     _dlt_load_id,
     _dlt_id,
-    _phlo_ingested_at
+    _phlo_ingested_at,
+    _phlo_partition_date
 from raw_data
 where
     id is not null
@@ -28,5 +32,5 @@ where
     and stargazers_count >= 0
     and forks_count >= 0
     {% if var('partition_date_str', None) is not none %}
-        and date(from_iso8601_timestamp(replace(updated_at, ' ', 'T'))) = date('{{ var('partition_date_str') }}')
+        and _phlo_partition_date = '{{ var('partition_date_str') }}'
     {% endif %}

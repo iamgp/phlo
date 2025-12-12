@@ -1,11 +1,24 @@
 {{ config(
-    materialized='table',
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='event_id',
+    on_schema_change='sync_all_columns',
     schema='gold',
     tags=['github', 'int']
 ) }}
 
 with events_data as (
     select * from {{ ref('stg_github_events') }}
+    {% if var('partition_date_str', None) is not none %}
+        where _phlo_partition_date = '{{ var('partition_date_str') }}'
+    {% endif %}
+),
+
+typed as (
+    select
+        *,
+        cast(from_iso8601_timestamp(replace(event_timestamp, ' ', 'T')) as timestamp(6)) as event_ts
+    from events_data
 ),
 
 enriched as (
@@ -15,11 +28,11 @@ enriched as (
         event_timestamp,
         actor_username,
         repository_name,
-        date_trunc('day', cast(event_timestamp as timestamp)) as event_date,
-        extract(hour from cast(event_timestamp as timestamp)) as hour_of_day,
-        day_of_week(cast(event_timestamp as timestamp)) as day_of_week,
-        format_datetime(cast(event_timestamp as timestamp), 'EEEE') as day_name,
-        week_of_year(cast(event_timestamp as timestamp)) as week_of_year,
+        date_trunc('day', event_ts) as event_date,
+        extract(hour from event_ts) as hour_of_day,
+        day_of_week(event_ts) as day_of_week,
+        format_datetime(event_ts, 'EEEE') as day_name,
+        week_of_year(event_ts) as week_of_year,
         case
             when event_type in ('PushEvent', 'CreateEvent', 'DeleteEvent') then 'code_contribution'
             when event_type in ('PullRequestEvent', 'PullRequestReviewEvent', 'PullRequestReviewCommentEvent', 'IssuesEvent', 'IssueCommentEvent') then 'collaboration'
@@ -33,9 +46,30 @@ enriched as (
         case when event_type = 'WatchEvent' then 1 else 0 end as is_watch,
         case when event_type = 'ForkEvent' then 1 else 0 end as is_fork,
         case when event_type = 'CreateEvent' then 1 else 0 end as is_create,
-        _phlo_ingested_at
-    from events_data
+        _phlo_ingested_at,
+        _phlo_partition_date
+    from typed
 )
 
-select * from enriched
+select
+    event_id,
+    event_type,
+    event_timestamp,
+    actor_username,
+    repository_name,
+    event_date,
+    hour_of_day,
+    day_of_week,
+    day_name,
+    week_of_year,
+    event_category,
+    is_push,
+    is_pull_request,
+    is_issue,
+    is_watch,
+    is_fork,
+    is_create,
+    _phlo_ingested_at,
+    _phlo_partition_date
+from enriched
 order by event_timestamp desc

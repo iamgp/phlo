@@ -3,7 +3,10 @@
 -- Enables visualization of language usage, popularity, and engagement patterns
 
 {{ config(
-    materialized='table',
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key=['primary_language', '_phlo_partition_date'],
+    on_schema_change='sync_all_columns',
     schema='marts',
     tags=['github', 'mart']
 ) }}
@@ -24,6 +27,7 @@ Use case: Language distribution charts, technology stack analysis in Superset
 -- Select statement: Present language statistics in dashboard-ready format
 select
     primary_language,
+    _phlo_partition_date,
     repository_count,
     total_stars,
     total_forks,
@@ -58,4 +62,7 @@ select
     row_number() over (order by total_popularity_score desc) as popularity_rank
 
 from {{ ref('fct_repository_languages') }}
+{% if var('partition_date_str', None) is not none %}
+    where _phlo_partition_date = '{{ var('partition_date_str') }}'
+{% endif %}
 order by total_popularity_score desc, repository_count desc
