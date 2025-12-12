@@ -5,6 +5,9 @@ Manages Docker infrastructure for Phlo projects.
 Creates .phlo/ directory in user projects with docker-compose configuration.
 """
 
+import os
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -28,6 +31,70 @@ description: "{description}"
 #       host: custom-host  # Override postgres host
 #   container_naming_pattern: "{{project}}_{{service}}"  # Custom naming
 """
+
+
+def detect_phlo_source_path() -> str | None:
+    """Detect phlo source path using multiple strategies.
+
+    Tries in order:
+    1. PHLO_DEV_SOURCE environment variable
+    2. Common directory patterns relative to CWD
+    3. Returns None if not found
+
+    Returns:
+        Relative path to phlo source from .phlo/ directory, or None.
+    """
+    # Strategy 1: Environment variable
+    env_path = os.environ.get("PHLO_DEV_SOURCE")
+    if env_path:
+        candidate = Path(env_path)
+        if candidate.exists() and (candidate / "__init__.py").exists():
+            # Calculate relative path from .phlo/ to the source
+            try:
+                return os.path.relpath(candidate, Path.cwd() / ".phlo")
+            except ValueError:
+                # On Windows, relpath can fail across drives
+                return str(candidate)
+
+    # Strategy 2: Common directory patterns
+    patterns = [
+        # examples/project-name -> ../../src/phlo
+        (Path.cwd().parent.parent / "src" / "phlo", "../../../src/phlo"),
+        # src/project-name -> ../phlo
+        (Path.cwd().parent / "phlo", "../../phlo"),
+        # project-name/subdir -> ../src/phlo
+        (Path.cwd().parent / "src" / "phlo", "../../src/phlo"),
+        # At repo root -> src/phlo
+        (Path.cwd() / "src" / "phlo", "../src/phlo"),
+    ]
+
+    for candidate, rel_path in patterns:
+        if candidate.exists() and (candidate / "__init__.py").exists():
+            return rel_path
+
+    return None
+
+
+def get_compose_dev_mode(compose_file: Path) -> bool | None:
+    """Check if existing docker-compose.yml was generated in dev mode.
+
+    Returns:
+        True if dev mode, False if not, None if cannot determine.
+    """
+    if not compose_file.exists():
+        return None
+
+    try:
+        with open(compose_file) as f:
+            # Read first few lines to find the dev mode comment
+            for _ in range(5):
+                line = f.readline()
+                if match := re.match(r"^# Dev mode: (true|false)", line):
+                    return match.group(1) == "true"
+    except Exception:
+        pass
+
+    return None
 
 
 def check_docker_running() -> bool:
@@ -341,11 +408,22 @@ def services():
     help="Development mode: mount local phlo source for instant iteration",
 )
 @click.option(
+    "--no-dev",
+    is_flag=True,
+    help="Explicitly disable dev mode (useful when regenerating without dev mounts)",
+)
+@click.option(
     "--phlo-source",
     type=click.Path(exists=True),
-    help="Path to phlo source (default: auto-detect from phlo package location)",
+    help="Path to phlo source (default: auto-detect or PHLO_DEV_SOURCE env var)",
 )
-def init(force: bool, project_name: Optional[str], dev: bool, phlo_source: Optional[str]):
+def init(
+    force: bool,
+    project_name: Optional[str],
+    dev: bool,
+    no_dev: bool,
+    phlo_source: Optional[str],
+):
     """Initialize Phlo infrastructure in .phlo/ directory.
 
     Creates complete Docker Compose configuration for the full Phlo stack:
@@ -359,6 +437,7 @@ def init(force: bool, project_name: Optional[str], dev: bool, phlo_source: Optio
     - Optional: PostgREST, Hasura (--profile api)
 
     Use --dev to mount local phlo source for development iteration.
+    Use --no-dev to explicitly generate config without dev mounts.
 
     Examples:
         phlo services init
@@ -366,6 +445,7 @@ def init(force: bool, project_name: Optional[str], dev: bool, phlo_source: Optio
         phlo services init --force
         phlo services init --dev
         phlo services init --dev --phlo-source ../../src/phlo
+        phlo services init --no-dev --force  # Regenerate without dev mode
     """
     from phlo.services import ComposeGenerator, ServiceDiscovery
 
@@ -377,29 +457,39 @@ def init(force: bool, project_name: Optional[str], dev: bool, phlo_source: Optio
         click.echo("Use --force to overwrite.", err=True)
         sys.exit(1)
 
+    # Handle conflicting flags
+    if dev and no_dev:
+        click.echo("Error: Cannot specify both --dev and --no-dev.", err=True)
+        sys.exit(1)
+
+    # --no-dev takes precedence
+    if no_dev:
+        dev = False
+
     # Derive project name from directory if not specified
     if not project_name:
         project_name = Path.cwd().name.lower().replace(" ", "-").replace("_", "-")
 
-    # Auto-detect phlo source path for dev mode
+    # Auto-detect phlo source path for dev mode using flexible detection
     phlo_src_path: str | None = None
     if dev:
         if phlo_source:
             # User-provided path is relative to project root, add ../ for .phlo context
             phlo_src_path = f"../{phlo_source}"
+            click.echo(f"Dev mode: using phlo source at {phlo_source}")
         else:
-            # Try to find phlo source relative to current directory
-            # Common pattern: examples/project-name -> ../../src/phlo
-            candidate = Path.cwd().parent.parent / "src" / "phlo"
-            if candidate.exists() and (candidate / "__init__.py").exists():
-                # Path from .phlo/ directory: ../../../src/phlo
-                phlo_src_path = "../../../src/phlo"
-                click.echo(f"Dev mode: using phlo source at {candidate}")
+            # Use flexible path detection
+            phlo_src_path = detect_phlo_source_path()
+            if phlo_src_path:
+                click.echo(f"Dev mode: auto-detected phlo source (path: {phlo_src_path})")
             else:
                 click.echo(
                     "Warning: --dev specified but could not auto-detect phlo source.", err=True
                 )
-                click.echo("Use --phlo-source to specify the path.", err=True)
+                click.echo(
+                    "Set PHLO_DEV_SOURCE env var or use --phlo-source to specify the path.",
+                    err=True,
+                )
                 dev = False
 
     # Create phlo.yaml config file in project root
@@ -540,6 +630,11 @@ def list_services(show_all: bool):
     help="Enable optional profiles (e.g., observability, api)",
 )
 @click.option(
+    "--service",
+    multiple=True,
+    help="Start only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
+)
+@click.option(
     "--dev",
     is_flag=True,
     help="Development mode: mount local phlo source for instant iteration",
@@ -550,7 +645,12 @@ def list_services(show_all: bool):
     help="Path to phlo source (default: auto-detect or use PHLO_DEV_SOURCE_PATH)",
 )
 def start(
-    detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_source: Optional[str]
+    detach: bool,
+    build: bool,
+    profile: tuple[str, ...],
+    service: tuple[str, ...],
+    dev: bool,
+    phlo_source: Optional[str],
 ):
     """Start Phlo infrastructure services.
 
@@ -558,6 +658,7 @@ def start(
         phlo services start
         phlo services start --build
         phlo services start --profile observability
+        phlo services start --service postgres
         phlo services start --dev
     """
     require_docker()
@@ -571,7 +672,32 @@ def start(
         click.echo("Run 'phlo services init' first.", err=True)
         sys.exit(1)
 
-    if dev:
+    # Check for stale compose file (dev mode mismatch)
+    compose_dev_mode = get_compose_dev_mode(compose_file)
+    if compose_dev_mode is not None and compose_dev_mode != dev:
+        current_mode = "dev" if compose_dev_mode else "production"
+        requested_mode = "dev" if dev else "production"
+        click.echo("")
+        click.echo(
+            f"Warning: docker-compose.yml was generated in {current_mode} mode, "
+            f"but you're running in {requested_mode} mode.",
+            err=True,
+        )
+        click.echo(
+            f"Run 'phlo services init --force {'--dev' if dev else '--no-dev'}' to regenerate.",
+            err=True,
+        )
+        click.echo("")
+
+    # Parse comma-separated services
+    services_list = []
+    for s in service:
+        services_list.extend(s.split(","))
+    services_list = [s.strip() for s in services_list if s.strip()]
+
+    if services_list:
+        click.echo(f"Starting services: {', '.join(services_list)}...")
+    elif dev:
         click.echo(f"Starting {project_name} infrastructure in DEVELOPMENT mode...")
     else:
         click.echo(f"Starting {project_name} infrastructure...")
@@ -597,6 +723,10 @@ def start(
 
     if build:
         cmd.append("--build")
+
+    # Add specific services if specified
+    if services_list:
+        cmd.extend(services_list)
 
     try:
         result = subprocess.run(cmd, check=False)
@@ -643,13 +773,20 @@ def start(
     multiple=True,
     help="Stop optional profile services",
 )
-def stop(volumes: bool, profile: tuple[str, ...]):
+@click.option(
+    "--service",
+    multiple=True,
+    help="Stop only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
+)
+def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
     """Stop Phlo infrastructure services.
 
     Examples:
         phlo services stop
         phlo services stop --volumes
         phlo services stop --profile observability
+        phlo services stop --service postgres
+        phlo services stop --service postgres,minio
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
@@ -657,7 +794,16 @@ def stop(volumes: bool, profile: tuple[str, ...]):
     env_file = phlo_dir / ".env"
     project_name = get_project_name()
 
-    click.echo(f"Stopping {project_name} infrastructure...")
+    # Parse comma-separated services
+    services_list = []
+    for s in service:
+        services_list.extend(s.split(","))
+    services_list = [s.strip() for s in services_list if s.strip()]
+
+    if services_list:
+        click.echo(f"Stopping services: {', '.join(services_list)}...")
+    else:
+        click.echo(f"Stopping {project_name} infrastructure...")
 
     cmd = [
         "docker",
@@ -673,22 +819,155 @@ def stop(volumes: bool, profile: tuple[str, ...]):
     for p in profile:
         cmd.extend(["--profile", p])
 
-    cmd.append("down")
-
-    if volumes:
-        cmd.append("-v")
-        click.echo("Warning: Removing volumes will delete all data.")
+    if services_list:
+        # Stop specific services only
+        cmd.extend(["stop", *services_list])
+    else:
+        # Stop all services
+        cmd.append("down")
+        if volumes:
+            cmd.append("-v")
+            click.echo("Warning: Removing volumes will delete all data.")
 
     try:
         result = subprocess.run(cmd, check=False)
         if result.returncode == 0:
-            click.echo(f"{project_name} infrastructure stopped.")
+            if services_list:
+                click.echo(f"Stopped services: {', '.join(services_list)}")
+            else:
+                click.echo(f"{project_name} infrastructure stopped.")
         else:
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)
+
+
+@services.command("reset")
+@click.option(
+    "--service",
+    multiple=True,
+    help="Reset only specific service(s) volumes (e.g., --service postgres,minio or --service postgres --service minio)",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+def reset(service: tuple[str, ...], yes: bool):
+    """Reset Phlo infrastructure by stopping services and deleting volumes.
+
+    This stops all services and removes their data volumes for a clean slate.
+    Use --service to selectively reset only specific service volumes.
+
+    Examples:
+        phlo services reset                      # Reset everything
+        phlo services reset --service postgres   # Reset only postgres
+        phlo services reset --service postgres,minio  # Reset multiple
+        phlo services reset -y                   # Skip confirmation
+    """
+    require_docker()
+    phlo_dir = ensure_phlo_dir()
+    compose_file = phlo_dir / "docker-compose.yml"
+    env_file = phlo_dir / ".env"
+    project_name = get_project_name()
+    volumes_dir = phlo_dir / "volumes"
+
+    if not compose_file.exists():
+        click.echo("Error: docker-compose.yml not found.", err=True)
+        click.echo("Run 'phlo services init' first.", err=True)
+        sys.exit(1)
+
+    # Parse comma-separated services
+    services_list = []
+    for s in service:
+        services_list.extend(s.split(","))
+    services_list = [s.strip() for s in services_list if s.strip()]
+
+    # Determine what to reset
+    if services_list:
+        target = f"services: {', '.join(services_list)}"
+        volume_dirs = [volumes_dir / s for s in services_list]
+    else:
+        target = "all services"
+        volume_dirs = [volumes_dir] if volumes_dir.exists() else []
+
+    # Confirm
+    if not yes:
+        click.echo(f"This will stop {target} and DELETE their data volumes.")
+        if not click.confirm("Are you sure you want to continue?"):
+            click.echo("Aborted.")
+            return
+
+    # Stop services - selective or all
+    if services_list:
+        # Stop and remove only specific services
+        click.echo(f"Stopping services: {', '.join(services_list)}...")
+        cmd = [
+            "docker",
+            "compose",
+            "-p",
+            project_name,
+            "-f",
+            str(compose_file),
+            "--env-file",
+            str(env_file),
+            "rm",
+            "-f",  # Force removal
+            "-s",  # Stop containers if running
+            "-v",  # Remove anonymous volumes
+            *services_list,  # Specific services
+        ]
+    else:
+        # Stop all services
+        click.echo(f"Stopping {project_name} infrastructure...")
+        cmd = [
+            "docker",
+            "compose",
+            "-p",
+            project_name,
+            "-f",
+            str(compose_file),
+            "--env-file",
+            str(env_file),
+            "down",
+            "-v",  # Remove Docker volumes
+        ]
+
+    try:
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            click.echo(
+                f"Warning: docker compose command failed with code {result.returncode}", err=True
+            )
+    except FileNotFoundError:
+        click.echo("Error: docker command not found.", err=True)
+        sys.exit(1)
+
+    # Delete local volume directories
+    deleted_count = 0
+    for vol_dir in volume_dirs:
+        if vol_dir.exists():
+            try:
+                if vol_dir.is_dir():
+                    shutil.rmtree(vol_dir)
+                    deleted_count += 1
+                    click.echo(f"Deleted: {vol_dir.relative_to(phlo_dir)}")
+            except Exception as e:
+                click.echo(f"Warning: Could not delete {vol_dir}: {e}", err=True)
+
+    # Recreate volumes directory if we deleted it entirely
+    if not services_list and not volumes_dir.exists():
+        volumes_dir.mkdir(parents=True, exist_ok=True)
+
+    click.echo("")
+    if services_list:
+        click.echo(f"Reset complete for: {', '.join(services_list)}")
+    else:
+        click.echo("Full reset complete. All data volumes have been deleted.")
+    click.echo("Run 'phlo services start' to start fresh.")
 
 
 @services.command("status")
