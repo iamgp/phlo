@@ -68,6 +68,8 @@ env_vars:
 files:
   - source: Dockerfile
     dest: dagster/Dockerfile
+  - source: entrypoint.sh
+    dest: dagster/entrypoint.sh
   - source: templates/workspace.yaml
     dest: dagster/workspace.yaml
   - source: templates/dagster.yaml

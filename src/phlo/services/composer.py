@@ -110,16 +110,15 @@ class ComposeGenerator:
         else:
             config["volumes"] = []
 
-        # Dev mode: inject phlo source mount and pyproject.toml for dependency sync
+        # Dev mode: inject phlo source mount and project directory for dependency sync
         if dev_mode and service.phlo_dev and phlo_src_path:
-            # Mount phlo source code
+            # Mount phlo source code (for live code changes)
             phlo_mount = f"{phlo_src_path}:/usr/local/lib/python3.11/site-packages/phlo:ro"
             config["volumes"].append(phlo_mount)
-            # Mount pyproject.toml for dependency sync (two levels up from phlo source)
-            pyproject_mount = (
-                f"{phlo_src_path}/../../pyproject.toml:/opt/phlo-dev/pyproject.toml:ro"
-            )
-            config["volumes"].append(pyproject_mount)
+            # Mount entire phlo project directory for dependency sync with uv pip install -e .
+            # phlo_src_path points to src/phlo, so ../.. is the project root
+            project_mount = f"{phlo_src_path}/../..:/opt/phlo-dev:ro"
+            config["volumes"].append(project_mount)
             # Add environment variable to enable dev mode sync
             if "environment" not in config:
                 config["environment"] = {}

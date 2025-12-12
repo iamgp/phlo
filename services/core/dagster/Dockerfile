@@ -18,10 +18,15 @@ RUN if [ -n "$PHLO_VERSION" ]; then \
         uv pip install --system phlo dagster-postgres pyiceberg[s3]; \
     fi
 
+# Copy entrypoint script for dev mode dependency sync
+COPY dagster/entrypoint.sh /opt/dagster/entrypoint.sh
+RUN chmod +x /opt/dagster/entrypoint.sh
+
 # Copy workspace configuration
 COPY dagster/workspace.yaml /opt/dagster/workspace.yaml
 COPY dagster/dagster.yaml /opt/dagster/dagster.yaml
 
 EXPOSE 3000
 
+ENTRYPOINT ["/opt/dagster/entrypoint.sh"]
 CMD ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
