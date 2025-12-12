@@ -28,6 +28,7 @@ def pandera_to_iceberg(
     pandera_schema: type[DataFrameModel],
     start_field_id: int = 1,
     add_dlt_metadata: bool = True,
+    add_phlo_metadata: bool = True,
 ) -> Schema:
     """
     Convert Pandera DataFrameModel to PyIceberg Schema.
@@ -57,6 +58,7 @@ def pandera_to_iceberg(
         pandera_schema: Pandera DataFrameModel class to convert
         start_field_id: Starting field ID for PyIceberg (default: 1)
         add_dlt_metadata: Automatically add DLT metadata fields (default: True)
+        add_phlo_metadata: Automatically add phlo metadata fields (default: True)
 
     Returns:
         PyIceberg Schema object ready for table creation
@@ -115,7 +117,7 @@ def pandera_to_iceberg(
         iceberg_type = _map_type(field_name, field_type)
 
         # DLT metadata fields get special IDs (100+)
-        if field_name.startswith("_dlt_") or field_name == "_phlo_ingested_at":
+        if field_name.startswith("_dlt_"):
             if field_name == "_dlt_load_id":
                 current_field_id = 100
                 description = description or "DLT load identifier"
@@ -123,10 +125,6 @@ def pandera_to_iceberg(
             elif field_name == "_dlt_id":
                 current_field_id = 101
                 description = description or "DLT record identifier"
-                nullable = False
-            elif field_name == "_phlo_ingested_at":
-                current_field_id = 102
-                description = description or "Phlo ingestion timestamp"
                 nullable = False
             else:
                 # Other DLT fields start at 103
@@ -173,6 +171,53 @@ def pandera_to_iceberg(
                     field_type=StringType(),
                     required=True,  # _dlt_id is always present
                     doc="DLT record identifier",
+                )
+            )
+
+    if add_phlo_metadata:
+        existing_names = {f.name for f in fields}
+
+        if "_phlo_row_id" not in existing_names:
+            fields.append(
+                NestedField(
+                    field_id=102,
+                    name="_phlo_row_id",
+                    field_type=StringType(),
+                    required=True,
+                    doc="Phlo row-level lineage identifier (ULID)",
+                )
+            )
+
+        if "_phlo_ingested_at" not in existing_names:
+            fields.append(
+                NestedField(
+                    field_id=103,
+                    name="_phlo_ingested_at",
+                    field_type=TimestamptzType(),
+                    required=True,
+                    doc="UTC timestamp when phlo processed this record",
+                )
+            )
+
+        if "_phlo_partition_date" not in existing_names:
+            fields.append(
+                NestedField(
+                    field_id=104,
+                    name="_phlo_partition_date",
+                    field_type=StringType(),
+                    required=True,
+                    doc="Partition date used for ingestion (YYYY-MM-DD)",
+                )
+            )
+
+        if "_phlo_run_id" not in existing_names:
+            fields.append(
+                NestedField(
+                    field_id=105,
+                    name="_phlo_run_id",
+                    field_type=StringType(),
+                    required=True,
+                    doc="Dagster run ID for traceability",
                 )
             )
 

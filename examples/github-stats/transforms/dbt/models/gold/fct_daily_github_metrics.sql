@@ -55,9 +55,11 @@ select
 
 from {{ ref('fct_github_events') }}
 
-{% if is_incremental() %}
+{% if var('partition_date_str', None) is not none %}
+    where cast(event_date as date) = date '{{ var('partition_date_str') }}'
+{% elif is_incremental() %}
     -- Only process new dates on incremental runs
-    where event_date > (select coalesce(max(activity_date), date('1900-01-01')) from {{ this }})
+    where cast(event_date as date) > (select coalesce(max(activity_date), date '1900-01-01') from {{ this }})
 {% endif %}
 
 group by

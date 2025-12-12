@@ -1,5 +1,5 @@
 {{ config(
-    materialized='ephemeral',
+    materialized='view',
     schema='silver',
     tags=['github', 'stg']
 ) }}
@@ -23,5 +23,5 @@ where
     and type is not null
     and created_at is not null
     {% if var('partition_date_str', None) is not none %}
-        and date(cast(created_at as timestamp)) = date('{{ var('partition_date_str') }}')
+        and date(from_iso8601_timestamp(replace(created_at, ' ', 'T'))) = date('{{ var('partition_date_str') }}')
     {% endif %}

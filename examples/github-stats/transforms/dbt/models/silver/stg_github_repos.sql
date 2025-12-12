@@ -28,5 +28,5 @@ where
     and stargazers_count >= 0
     and forks_count >= 0
     {% if var('partition_date_str', None) is not none %}
-        and date(updated_at) = date('{{ var('partition_date_str') }}')
+        and date(from_iso8601_timestamp(replace(updated_at, ' ', 'T'))) = date('{{ var('partition_date_str') }}')
     {% endif %}

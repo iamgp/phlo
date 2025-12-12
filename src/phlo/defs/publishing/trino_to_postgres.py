@@ -87,10 +87,6 @@ def _publish_marts_to_postgres(
                 rows = trino_cursor.fetchall()
             row_count = len(rows)
 
-            if row_count == 0:
-                context.log.warning("No data in source table %s, skipping", iceberg_table)
-                continue
-
             # Infer Postgres types from first row and Trino metadata
             # For simplicity, use TEXT for all columns (Postgres will handle it)
             # In production, you'd want proper type mapping
@@ -100,17 +96,25 @@ def _publish_marts_to_postgres(
             create_sql = f'CREATE TABLE "{target_schema}"."{table_alias}" ({col_defs})'
             pg_cursor.execute(create_sql)
 
-            # Insert data in batches using executemany for performance
-            insert_sql = f'INSERT INTO "{target_schema}"."{table_alias}" ({column_list}) VALUES ({", ".join(["%s"] * len(columns))})'
+            if row_count > 0:
+                # Insert data in batches using executemany for performance
+                insert_sql = (
+                    f'INSERT INTO "{target_schema}"."{table_alias}" ({column_list}) '
+                    f"VALUES ({', '.join(['%s'] * len(columns))})"
+                )
 
-            # Convert rows to proper format (handle None values)
-            formatted_rows = []
-            for row in rows:
-                formatted_row = tuple(str(val) if val is not None else None for val in row)
-                formatted_rows.append(formatted_row)
+                # Convert rows to proper format (handle None values)
+                formatted_rows = [
+                    tuple(str(val) if val is not None else None for val in row) for row in rows
+                ]
 
-            pg_cursor.executemany(insert_sql, formatted_rows)
-            pg_conn.commit()
+                pg_cursor.executemany(insert_sql, formatted_rows)
+                pg_conn.commit()
+            else:
+                pg_conn.commit()
+                context.log.warning(
+                    "Source table %s returned 0 rows; published empty table", iceberg_table
+                )
 
             table_stats[table_alias] = TablePublishStats(
                 row_count=row_count,
@@ -157,9 +161,22 @@ def create_publishing_assets(config_path: Path | None = None):
         List of dynamically created Dagster assets
     """
     if config_path is None:
-        # Use environment variable or default to publishing.yaml in current directory
-        config_filename = os.getenv("PHLO_PUBLISHING_CONFIG", "publishing.yaml")
-        config_path = Path.cwd() / config_filename
+        # Priority 1: explicit override
+        config_filename = os.getenv("PHLO_PUBLISHING_CONFIG", "").strip()
+        if config_filename:
+            config_path = Path(config_filename)
+        else:
+            # Priority 2: project-root adjacent to workflows (works in Dagster code server)
+            from phlo.config import get_settings
+
+            settings = get_settings()
+            project_root = Path(settings.workflows_path).resolve().parent
+            candidate = project_root / "publishing.yaml"
+            if candidate.exists():
+                config_path = candidate
+            else:
+                # Priority 3: current working directory fallback
+                config_path = Path.cwd() / "publishing.yaml"
 
     if not config_path.exists():
         return []
@@ -171,14 +188,21 @@ def create_publishing_assets(config_path: Path | None = None):
 
     for data_source, config_item in config_data["publishing"].items():
         # Create asset dynamically
-        asset_name = config_item["name"]
-        group_name = config_item["group"]
-        description = config_item["description"]
+        asset_name: str = config_item["name"]
+        group_name: str = config_item["group"]
+        description: str = config_item["description"]
         dependencies = [AssetKey(dep) for dep in config_item["dependencies"]]
-        tables_to_publish = config_item["tables"]
+        tables_to_publish: dict[str, str] = config_item["tables"]
 
         # Use a factory function to properly capture variables in closure
-        def make_publishing_asset(tables, source_name):
+        def make_publishing_asset(
+            *,
+            asset_name: str,
+            group_name: str,
+            dependencies: list[AssetKey],
+            tables_to_publish: dict[str, str],
+            source_name: str,
+        ):
             @asset(
                 name=asset_name,
                 group_name=group_name,
@@ -189,13 +213,19 @@ def create_publishing_assets(config_path: Path | None = None):
                 return _publish_marts_to_postgres(
                     context=context,
                     trino=trino,
-                    tables_to_publish=tables,
+                    tables_to_publish=tables_to_publish,
                     data_source=source_name.capitalize(),
                 )
 
             return publishing_asset
 
-        publishing_asset = make_publishing_asset(tables_to_publish, data_source)
+        publishing_asset = make_publishing_asset(
+            asset_name=asset_name,
+            group_name=group_name,
+            dependencies=dependencies,
+            tables_to_publish=tables_to_publish,
+            source_name=data_source,
+        )
 
         # Set the docstring dynamically
         publishing_asset.__doc__ = f"""
@@ -213,7 +243,3 @@ def create_publishing_assets(config_path: Path | None = None):
         assets.append(publishing_asset)
 
     return assets
-
-
-# Create the assets
-PUBLISHING_ASSETS = create_publishing_assets()

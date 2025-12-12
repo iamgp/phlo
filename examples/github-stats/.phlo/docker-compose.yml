@@ -338,6 +338,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-phlo}
       WORKFLOWS_PATH: /app/workflows
       DBT_PROJECT_DIR: /app/transforms/dbt
+      PHLO_PUBLISHING_CONFIG: /app/publishing.yaml
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
       PHLO_DEV_MODE: "true"
@@ -348,6 +349,8 @@ services:
       - ../workflows:/app/workflows:ro
       - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
+      - ../publishing.yaml:/app/publishing.yaml:ro
+      - ../phlo.yaml:/app/phlo.yaml:ro
       - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
       - ../../../src/phlo/../..:/opt/phlo-dev:ro
     command:
@@ -430,6 +433,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-phlo}
       WORKFLOWS_PATH: /app/workflows
       DBT_PROJECT_DIR: /app/transforms/dbt
+      PHLO_PUBLISHING_CONFIG: /app/publishing.yaml
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
       PHLO_DEV_MODE: "true"
@@ -438,6 +442,8 @@ services:
       - ../workflows:/app/workflows:ro
       - ../transforms:/app/transforms
       - ../tests:/app/tests:ro
+      - ../publishing.yaml:/app/publishing.yaml:ro
+      - ../phlo.yaml:/app/phlo.yaml:ro
       - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
       - ../../../src/phlo/../..:/opt/phlo-dev:ro
     command:

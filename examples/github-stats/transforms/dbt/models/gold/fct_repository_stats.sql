@@ -47,13 +47,13 @@ enriched as (
         -- Age and recency calculations
         date_diff(
             'day',
-            cast(r.repository_created_at as timestamp),
+            from_iso8601_timestamp(replace(r.repository_created_at, ' ', 'T')),
             c.analysis_date
         ) as repository_age_days,
 
         date_diff(
             'day',
-            cast(r.repository_updated_at as timestamp),
+            from_iso8601_timestamp(replace(r.repository_updated_at, ' ', 'T')),
             c.analysis_date
         ) as days_since_last_update,
 
@@ -65,7 +65,7 @@ enriched as (
         case
             when date_diff(
                 'day',
-                cast(r.repository_updated_at as timestamp),
+                from_iso8601_timestamp(replace(r.repository_updated_at, ' ', 'T')),
                 c.analysis_date
             ) <= 30 then 1
             else 0
@@ -74,7 +74,7 @@ enriched as (
         case
             when date_diff(
                 'day',
-                cast(r.repository_updated_at as timestamp),
+                from_iso8601_timestamp(replace(r.repository_updated_at, ' ', 'T')),
                 c.analysis_date
             ) <= 90 then 1
             else 0
@@ -88,12 +88,12 @@ enriched as (
             when
                 date_diff(
                     'day',
-                    cast(r.repository_created_at as timestamp),
+                    from_iso8601_timestamp(replace(r.repository_created_at, ' ', 'T')),
                     c.analysis_date
                 ) > 0
                 then cast(r.stars_count as double) / date_diff(
                     'day',
-                    cast(r.repository_created_at as timestamp),
+                    from_iso8601_timestamp(replace(r.repository_created_at, ' ', 'T')),
                     c.analysis_date
                 )
             else 0.0
