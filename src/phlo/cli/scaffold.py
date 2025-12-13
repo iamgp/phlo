@@ -4,7 +4,10 @@ Workflow Scaffolding
 Generates Cascade workflow files from templates.
 """
 
+from __future__ import annotations
+
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
@@ -53,12 +56,84 @@ def _is_user_project(project_root: Path) -> bool:
         return False  # Cascade repo
 
 
+@dataclass(frozen=True, slots=True)
+class FieldSpec:
+    name: str
+    type_name: str
+    nullable: bool
+
+
+_TYPE_IMPORTS: dict[str, tuple[str, str] | None] = {
+    "str": None,
+    "int": None,
+    "float": None,
+    "bool": None,
+    "datetime": ("datetime", "datetime"),
+    "date": ("datetime", "date"),
+}
+
+
+def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
+    if not raw_specs:
+        return []
+
+    fields: list[FieldSpec] = []
+    for raw in raw_specs:
+        raw = raw.strip()
+        if not raw:
+            continue
+
+        if ":" not in raw:
+            raise ValueError(f"Invalid field spec '{raw}'. Expected format name:type or name:type?")
+
+        name, type_part = raw.split(":", 1)
+        name = _to_snake_case(name)
+        type_part = type_part.strip().lower()
+
+        nullable = True
+        if type_part.endswith("?"):
+            nullable = True
+            type_part = type_part[:-1]
+        elif type_part.endswith("!"):
+            nullable = False
+            type_part = type_part[:-1]
+
+        if type_part not in _TYPE_IMPORTS:
+            allowed = ", ".join(sorted(_TYPE_IMPORTS.keys()))
+            raise ValueError(f"Invalid field type '{type_part}' for '{name}'. Allowed: {allowed}")
+
+        fields.append(FieldSpec(name=name, type_name=type_part, nullable=nullable))
+
+    seen: set[str] = set()
+    deduped: list[FieldSpec] = []
+    for field in fields:
+        if not field.name or field.name in seen:
+            continue
+        seen.add(field.name)
+        deduped.append(field)
+
+    return deduped
+
+
+def _series_type(type_name: str) -> str:
+    mapping = {
+        "str": "str",
+        "int": "int",
+        "float": "float",
+        "bool": "bool",
+        "datetime": "datetime",
+        "date": "date",
+    }
+    return mapping[type_name]
+
+
 def create_ingestion_workflow(
     domain: str,
     table_name: str,
     unique_key: str,
     cron: str = "0 */1 * * *",
     api_base_url: Optional[str] = None,
+    fields: list[str] | None = None,
 ) -> List[str]:
     """
     Create ingestion workflow files.
@@ -85,6 +160,7 @@ def create_ingestion_workflow(
     domain_snake = _to_snake_case(domain)
     table_snake = _to_snake_case(table_name)
     schema_class = f"Raw{_to_pascal_case(table_name)}"
+    field_specs = parse_field_specs(fields)
 
     project_root = Path.cwd()
 
@@ -131,61 +207,59 @@ def create_ingestion_workflow(
         domain_init.write_text(f'"""Domain: {domain}"""\n')
 
     # Generate schema file
+    type_import_lines: list[str] = []
+    for field in field_specs:
+        import_spec = _TYPE_IMPORTS[field.type_name]
+        if import_spec is not None:
+            module, symbol = import_spec
+            type_import_lines.append(f"from {module} import {symbol}")
+
+    type_imports = "\n".join(sorted(set(type_import_lines)))
+    if type_imports:
+        type_imports = f"{type_imports}\n\n"
+
+    schema_fields_lines = [
+        f'    {unique_key}: Series[str] = pa.Field(description="Unique key", nullable=False)'
+    ]
+    for field in field_specs:
+        if field.name == unique_key:
+            continue
+        schema_fields_lines.append(
+            f"    {field.name}: Series[{_series_type(field.type_name)}] = "
+            f"pa.Field(nullable={field.nullable})"
+        )
+
+    schema_fields = "\n".join(schema_fields_lines)
+
     schema_content = f'''"""
 Pandera schemas for {domain} domain.
 
-Schemas define data validation rules and auto-generate Iceberg schemas.
+Extend this schema with additional fields as you stabilize the source contract.
 """
 
 import pandera as pa
 from pandera.typing import Series
 
-
-class {schema_class}(pa.DataFrameModel):
-    """
-    Raw {table_name} data schema.
-
-    TODO: Add your schema fields here. Examples:
-
-    # String field (required)
-    {unique_key}: Series[str] = pa.Field(description="Unique identifier", nullable=False)
-
-    # Numeric field with constraints
-    # value: Series[float] = pa.Field(ge=0, le=100, description="Value between 0-100")
-
-    # Timestamp field
-    # timestamp: Series[str] = pa.Field(description="ISO 8601 timestamp")
-
-    # Optional field
-    # notes: Series[str] = pa.Field(nullable=True, description="Optional notes")
-
-    # Boolean field
-    # is_active: Series[bool] = pa.Field(description="Active status")
-    """
-
-    {unique_key}: Series[str] = pa.Field(
-        description="Unique identifier for deduplication",
-        nullable=False,
-    )
-
-    # TODO: Add your fields below
+{type_imports}class {schema_class}(pa.DataFrameModel):
+{schema_fields}
 
     class Config:
-        """Pandera config."""
-        strict = True  # Reject extra columns
-        coerce = True  # Coerce types when possible
+        strict = False
+        coerce = True
 '''
 
     schema_file.write_text(schema_content)
 
     # Generate asset file
+    base_url_literal = api_base_url or ""
     asset_content = f'''"""
 {domain.capitalize()} {table_name} ingestion asset.
 
-Ingests {table_name} from REST API to Iceberg.
+Ingests {table_name} from a REST API via `dlt.sources.rest_api`.
 """
 
 from dlt.sources.rest_api import rest_api
+
 from phlo.ingestion import phlo_ingestion
 from {schema_import_path} import {schema_class}
 
@@ -196,122 +270,60 @@ from {schema_import_path} import {schema_class}
     validation_schema={schema_class},
     group="{domain_snake}",
     cron="{cron}",
-    freshness_hours=(1, 24),  # Warn if > 1 hour old, fail if > 24 hours
+    freshness_hours=(1, 24),
 )
 def {table_snake}(partition_date: str):
-    """
-    Ingest {table_name} for a given partition date.
-
-    Args:
-        partition_date: Date in YYYY-MM-DD format
-
-    Returns:
-        DLT source containing {table_name} data
-    """
-    # Format date range for partition
     start_time = f"{{partition_date}}T00:00:00.000Z"
     end_time = f"{{partition_date}}T23:59:59.999Z"
 
-    # TODO: Configure your REST API source
-    source = rest_api({{
-        "client": {{
-            "base_url": "{api_base_url or "https://api.example.com/v1"}",
+    base_url = "{base_url_literal}"
+    if not base_url:
+        raise RuntimeError(
+            "Missing API base URL. Re-run scaffold with --api-base-url or set it in the asset."
+        )
 
-            # TODO: Add authentication
-            # "auth": {{
-            #     "token": os.getenv("API_TOKEN"),
-            # }},
-        }},
-        "resources": [{{
-            "name": "{table_snake}",
-            "endpoint": {{
-                "path": "{table_name}",  # TODO: Update API endpoint path
-                "params": {{
-                    "start_date": start_time,
-                    "end_date": end_time,
-                    # TODO: Add other parameters
-                }},
+    return rest_api(
+        {{
+            "client": {{
+                "base_url": base_url,
             }},
-            # TODO: Add pagination if needed
-            # "paginator": {{
-            #     "type": "offset",
-            #     "limit": 1000,
-            # }},
-        }}],
-    }})
-
-    return source
+            "resources": [
+                {{
+                    "name": "{table_snake}",
+                    "endpoint": {{
+                        "path": "{table_name}",
+                        "params": {{
+                            "start_date": start_time,
+                            "end_date": end_time,
+                        }},
+                    }},
+                }}
+            ],
+        }}
+    )
 '''
 
     asset_file.write_text(asset_content)
 
     # Generate test file
     test_content = f'''"""
-Tests for {domain} {table_name} workflow.
+Tests for {domain} {table_name} scaffolded workflow.
 """
 
-import pytest
 import pandas as pd
+
 from {schema_import_path} import {schema_class}
 
 
-class TestSchema:
-    """Test Pandera schema validation."""
-
-    def test_valid_data_passes_validation(self):
-        """Test that valid data passes schema validation."""
-
-        test_data = pd.DataFrame([
-            {{
-                "{unique_key}": "test-001",
-                # TODO: Add test data for your fields
-            }},
-        ])
-
-        # Should not raise
-        validated = {schema_class}.validate(test_data)
-        assert len(validated) == 1
-        assert validated["{unique_key}"].iloc[0] == "test-001"
-
-    def test_unique_key_field_exists(self):
-        """Test that unique_key field exists in schema."""
-
-        schema_fields = {schema_class}.to_schema().columns.keys()
-        assert "{unique_key}" in schema_fields, \\
-            f"unique_key '{unique_key}' not found. Available: {{list(schema_fields)}}"
-
-    # TODO: Add more schema tests
-    # def test_invalid_data_fails_validation(self):
-    #     \"\"\"Test that invalid data fails validation.\"\"\"
-    #     test_data = pd.DataFrame([{{
-    #         "{unique_key}": "test",
-    #         "value": -10,  # Violates constraints
-    #     }}])
-    #
-    #     with pytest.raises(Exception):
-    #         {schema_class}.validate(test_data)
+def test_schema_contains_unique_key() -> None:
+    schema_fields = {schema_class}.to_schema().columns.keys()
+    assert "{unique_key}" in schema_fields
 
 
-# TODO: Add asset execution tests
-# from phlo.testing import test_asset_execution
-# from phlo.defs.ingestion.{domain_snake}.{table_snake} import {table_snake}
-#
-# def test_asset_with_mock_data():
-#     \"\"\"Test asset execution with mock data.\"\"\"
-#     test_data = [{{"
-#         "{unique_key}": "1",
-#         # Add fields
-#     }}]
-#
-#     result = test_asset_execution(
-#         asset_fn={table_snake},
-#         partition="2024-01-15",
-#         mock_data=test_data,
-#         validation_schema={schema_class},
-#     )
-#
-#     assert result.success
-#     assert len(result.data) == 1
+def test_schema_validates_minimal_row() -> None:
+    df = pd.DataFrame([{{"{unique_key}": "test-001"}}])
+    validated = {schema_class}.validate(df)
+    assert validated["{unique_key}"].iloc[0] == "test-001"
 '''
 
     test_file.write_text(test_content)
