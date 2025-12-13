@@ -8,13 +8,17 @@ Creates .phlo/ directory in user projects with docker-compose configuration.
 import os
 import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
+from subprocess import TimeoutExpired
 from typing import Optional
 
 import click
 import yaml
+
+from phlo.cli._services.command import CommandError, run_command
+from phlo.cli._services.compose import compose_base_cmd
+from phlo.cli._services.containers import dagster_container_candidates, select_first_existing
 
 PHLO_CONFIG_FILE = "phlo.yaml"
 
@@ -86,13 +90,12 @@ def get_compose_dev_mode(compose_file: Path) -> bool | None:
 
     try:
         with open(compose_file) as f:
-            # Read first few lines to find the dev mode comment
             for _ in range(5):
                 line = f.readline()
                 if match := re.match(r"^# Dev mode: (true|false)", line):
                     return match.group(1) == "true"
-    except Exception:
-        pass
+    except OSError:
+        return None
 
     return None
 
@@ -100,13 +103,9 @@ def get_compose_dev_mode(compose_file: Path) -> bool | None:
 def check_docker_running() -> bool:
     """Check if Docker daemon is running."""
     try:
-        result = subprocess.run(
-            ["docker", "info"],
-            capture_output=True,
-            timeout=10,
-        )
-        return result.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+        run_command(["docker", "info"], timeout_seconds=10, check=True)
+        return True
+    except (CommandError, FileNotFoundError, TimeoutExpired, OSError):
         return False
 
 
@@ -147,58 +146,27 @@ def find_dagster_container(project_name: str) -> str:
     """Find the running Dagster webserver container for the project."""
     from phlo.infrastructure import get_container_name
 
-    # Try configured name first
     configured_name = get_container_name("dagster_webserver", project_name)
-    if configured_name:
-        result = subprocess.run(
-            ["docker", "ps", "--filter", f"name={configured_name}", "--format", "{{.Names}}"],
-            capture_output=True,
-            text=True,
-        )
-        if result.stdout.strip():
-            return configured_name
+    candidates = dagster_container_candidates(project_name, configured_name)
+    preferred = [candidates.configured, candidates.new, candidates.legacy]
 
-    # Try new naming convention: {project}-dagster-1
-    new_name = f"{project_name}-dagster-1"
-    result = subprocess.run(
-        ["docker", "ps", "--filter", f"name={new_name}", "--format", "{{.Names}}"],
-        capture_output=True,
-        text=True,
-    )
-    if result.stdout.strip():
-        return new_name
+    existing = run_command(["docker", "ps", "--format", "{{.Names}}"]).stdout.splitlines()
+    chosen = select_first_existing(preferred, existing)
+    if chosen:
+        return chosen
 
-    # Try legacy naming convention: {project}-dagster-webserver-1
-    legacy_name = f"{project_name}-dagster-webserver-1"
-    result = subprocess.run(
-        ["docker", "ps", "--filter", f"name={legacy_name}", "--format", "{{.Names}}"],
-        capture_output=True,
-        text=True,
-    )
-    if result.stdout.strip():
-        return legacy_name
-
-    # Try regex pattern match
-    result = subprocess.run(
-        [
-            "docker",
-            "ps",
-            "--filter",
-            f"name={project_name}.*dagster",
-            "--format",
-            "{{.Names}}",
-        ],
-        capture_output=True,
-        text=True,
-    )
-
-    containers = [c for c in result.stdout.strip().split("\n") if c and "daemon" not in c]
-    if containers:
-        return containers[0]
+    # Last resort: choose any container matching project + dagster, excluding daemon
+    fallback_matches = [
+        name
+        for name in existing
+        if re.search(rf"{re.escape(project_name)}.*dagster", name) and "daemon" not in name
+    ]
+    if fallback_matches:
+        return fallback_matches[0]
 
     raise RuntimeError(
         f"Could not find running Dagster webserver container for project '{project_name}'. "
-        f"Expected container name: {new_name} or {legacy_name}"
+        f"Expected container name: {candidates.new} or {candidates.legacy}"
     )
 
 
@@ -213,23 +181,15 @@ def _init_nessie_branches(project_name: str) -> None:
     # Wait for Nessie to be ready
     for _ in range(30):
         try:
-            result = subprocess.run(
-                [
-                    "docker",
-                    "exec",
-                    container_name,
-                    "curl",
-                    "-s",
-                    f"{nessie_url}/api/v1/trees",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
+            result = run_command(
+                ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
+                timeout_seconds=5,
+                check=False,
             )
             if result.returncode == 0 and "references" in result.stdout:
                 break
-        except Exception:
-            pass
+        except (FileNotFoundError, TimeoutExpired, OSError):
+            continue
         time.sleep(1)
     else:
         click.echo("Warning: Nessie not ready, skipping branch initialization", err=True)
@@ -237,22 +197,13 @@ def _init_nessie_branches(project_name: str) -> None:
 
     # Get existing branches
     try:
-        result = subprocess.run(
-            [
-                "docker",
-                "exec",
-                container_name,
-                "curl",
-                "-s",
-                f"{nessie_url}/api/v1/trees",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
+        result = run_command(
+            ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
+            timeout_seconds=10,
         )
         data = json.loads(result.stdout)
         existing = {r["name"] for r in data.get("references", [])}
-    except Exception as e:
+    except (CommandError, json.JSONDecodeError, KeyError, TimeoutExpired, OSError) as e:
         click.echo(f"Warning: Could not check Nessie branches: {e}", err=True)
         return
 
@@ -260,7 +211,7 @@ def _init_nessie_branches(project_name: str) -> None:
     if "dev" not in existing and "main" in existing:
         click.echo("Creating Nessie 'dev' branch from 'main'...")
         try:
-            result = subprocess.run(
+            result = run_command(
                 [
                     "docker",
                     "exec",
@@ -269,15 +220,13 @@ def _init_nessie_branches(project_name: str) -> None:
                     "-s",
                     f"{nessie_url}/api/v1/trees/tree/main",
                 ],
-                capture_output=True,
-                text=True,
-                timeout=10,
+                timeout_seconds=10,
             )
             main_data = json.loads(result.stdout)
             main_hash = main_data.get("hash", "")
 
             if main_hash:
-                result = subprocess.run(
+                result = run_command(
                     [
                         "docker",
                         "exec",
@@ -292,9 +241,8 @@ def _init_nessie_branches(project_name: str) -> None:
                         "-d",
                         json.dumps({"type": "BRANCH", "name": "dev", "hash": main_hash}),
                     ],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
+                    timeout_seconds=10,
+                    check=False,
                 )
                 if "dev" in result.stdout:
                     click.echo("Created Nessie 'dev' branch.")
@@ -303,7 +251,7 @@ def _init_nessie_branches(project_name: str) -> None:
                         f"Warning: Could not create dev branch: {result.stdout}",
                         err=True,
                     )
-        except Exception as e:
+        except (CommandError, json.JSONDecodeError, TimeoutExpired, OSError) as e:
             click.echo(f"Warning: Could not create dev branch: {e}", err=True)
     elif "dev" in existing:
         click.echo("Nessie branches ready (main, dev).")
@@ -325,7 +273,7 @@ def _run_dbt_compile(project_name: str) -> None:
     container_name = find_dagster_container(project_name)
 
     try:
-        result = subprocess.run(
+        result = run_command(
             [
                 "docker",
                 "exec",
@@ -334,14 +282,13 @@ def _run_dbt_compile(project_name: str) -> None:
                 "-c",
                 "cd /app/transforms/dbt && dbt deps --profiles-dir profiles",
             ],
-            capture_output=True,
-            text=True,
-            timeout=60,
+            timeout_seconds=60,
+            check=False,
         )
         if result.returncode != 0:
             click.echo(f"Warning: dbt deps failed: {result.stderr}", err=True)
 
-        result = subprocess.run(
+        result = run_command(
             [
                 "docker",
                 "exec",
@@ -350,29 +297,28 @@ def _run_dbt_compile(project_name: str) -> None:
                 "-c",
                 "cd /app/transforms/dbt && dbt compile --profiles-dir profiles --target dev",
             ],
-            capture_output=True,
-            text=True,
-            timeout=120,
+            timeout_seconds=120,
+            check=False,
         )
         if result.returncode == 0:
             click.echo("dbt models compiled successfully.")
             click.echo("Restarting Dagster to pick up dbt manifest...")
-            subprocess.run(
+            run_command(
                 [
                     "docker",
                     "restart",
                     container_name,
                     f"{project_name}-dagster-daemon-1",
                 ],
-                capture_output=True,
-                timeout=30,
+                timeout_seconds=30,
+                check=False,
             )
         else:
             click.echo(f"Warning: dbt compile failed: {result.stderr}", err=True)
             click.echo("You may need to run 'dbt compile' manually.", err=True)
-    except subprocess.TimeoutExpired:
+    except TimeoutExpired:
         click.echo("Warning: dbt compile timed out.", err=True)
-    except Exception as e:
+    except (CommandError, OSError) as e:
         click.echo(f"Warning: Could not compile dbt: {e}", err=True)
 
 
@@ -664,7 +610,7 @@ def start(
     require_docker()
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
-    env_file = phlo_dir / ".env"
+    phlo_dir / ".env"
     project_name = get_project_name()
 
     if not compose_file.exists():
@@ -702,25 +648,7 @@ def start(
     else:
         click.echo(f"Starting {project_name} infrastructure...")
 
-    cmd = [
-        "docker",
-        "compose",
-        "-p",
-        project_name,
-        "-f",
-        str(compose_file),
-        "--env-file",
-        str(env_file),
-    ]
-
-    # Also include project root .env for user secrets (takes precedence)
-    project_env = Path.cwd() / ".env"
-    if project_env.exists():
-        cmd.extend(["--env-file", str(project_env)])
-
-    for p in profile:
-        cmd.extend(["--profile", p])
-
+    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
     cmd.append("up")
 
     if detach:
@@ -734,7 +662,7 @@ def start(
         cmd.extend(services_list)
 
     try:
-        result = subprocess.run(cmd, check=False)
+        result = run_command(cmd, check=False, capture_output=False)
         if result.returncode == 0:
             click.echo("")
             click.echo("Phlo infrastructure started.")
@@ -764,10 +692,15 @@ def start(
             _run_dbt_compile(project_name)
         else:
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
+            click.echo(f"Command: {' '.join(cmd)}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
         click.echo("Please install Docker: https://docs.docker.com/get-docker/", err=True)
+        sys.exit(1)
+    except TimeoutExpired:
+        click.echo("Error: docker compose timed out.", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
         sys.exit(1)
 
 
@@ -795,8 +728,8 @@ def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
-    compose_file = phlo_dir / "docker-compose.yml"
-    env_file = phlo_dir / ".env"
+    phlo_dir / "docker-compose.yml"
+    phlo_dir / ".env"
     project_name = get_project_name()
 
     # Parse comma-separated services
@@ -810,24 +743,7 @@ def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
     else:
         click.echo(f"Stopping {project_name} infrastructure...")
 
-    cmd = [
-        "docker",
-        "compose",
-        "-p",
-        project_name,
-        "-f",
-        str(compose_file),
-        "--env-file",
-        str(env_file),
-    ]
-
-    # Also include project root .env for user secrets
-    project_env = Path.cwd() / ".env"
-    if project_env.exists():
-        cmd.extend(["--env-file", str(project_env)])
-
-    for p in profile:
-        cmd.extend(["--profile", p])
+    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
 
     if services_list:
         # Stop specific services only
@@ -840,7 +756,7 @@ def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
             click.echo("Warning: Removing volumes will delete all data.")
 
     try:
-        result = subprocess.run(cmd, check=False)
+        result = run_command(cmd, check=False, capture_output=False)
         if result.returncode == 0:
             if services_list:
                 click.echo(f"Stopped services: {', '.join(services_list)}")
@@ -848,9 +764,14 @@ def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
                 click.echo(f"{project_name} infrastructure stopped.")
         else:
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
+            click.echo(f"Command: {' '.join(cmd)}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
+        sys.exit(1)
+    except TimeoutExpired:
+        click.echo("Error: docker compose timed out.", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
         sys.exit(1)
 
 
@@ -881,7 +802,7 @@ def reset(service: tuple[str, ...], yes: bool):
     require_docker()
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
-    env_file = phlo_dir / ".env"
+    phlo_dir / ".env"
     project_name = get_project_name()
     volumes_dir = phlo_dir / "volumes"
 
@@ -915,20 +836,7 @@ def reset(service: tuple[str, ...], yes: bool):
     if services_list:
         # Stop and remove only specific services
         click.echo(f"Stopping services: {', '.join(services_list)}...")
-        cmd = [
-            "docker",
-            "compose",
-            "-p",
-            project_name,
-            "-f",
-            str(compose_file),
-            "--env-file",
-            str(env_file),
-        ]
-        # Also include project root .env for user secrets
-        project_env = Path.cwd() / ".env"
-        if project_env.exists():
-            cmd.extend(["--env-file", str(project_env)])
+        cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
         cmd.extend(
             [
                 "rm",
@@ -941,20 +849,7 @@ def reset(service: tuple[str, ...], yes: bool):
     else:
         # Stop all services
         click.echo(f"Stopping {project_name} infrastructure...")
-        cmd = [
-            "docker",
-            "compose",
-            "-p",
-            project_name,
-            "-f",
-            str(compose_file),
-            "--env-file",
-            str(env_file),
-        ]
-        # Also include project root .env for user secrets
-        project_env = Path.cwd() / ".env"
-        if project_env.exists():
-            cmd.extend(["--env-file", str(project_env)])
+        cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
         cmd.extend(
             [
                 "down",
@@ -963,14 +858,18 @@ def reset(service: tuple[str, ...], yes: bool):
         )
 
     try:
-        result = subprocess.run(cmd, check=False)
+        result = run_command(cmd, check=False, capture_output=False)
         if result.returncode != 0:
             click.echo(
                 f"Warning: docker compose command failed with code {result.returncode}", err=True
             )
+            click.echo(f"Command: {' '.join(cmd)}", err=True)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)
+    except TimeoutExpired:
+        click.echo("Warning: docker compose command timed out.", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
 
     # Delete local volume directories
     deleted_count = 0
@@ -981,7 +880,7 @@ def reset(service: tuple[str, ...], yes: bool):
                     shutil.rmtree(vol_dir)
                     deleted_count += 1
                     click.echo(f"Deleted: {vol_dir.relative_to(phlo_dir)}")
-            except Exception as e:
+            except OSError as e:
                 click.echo(f"Warning: Could not delete {vol_dir}: {e}", err=True)
 
     # Recreate volumes directory if we deleted it entirely
@@ -1005,30 +904,23 @@ def status():
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
-    compose_file = phlo_dir / "docker-compose.yml"
-    env_file = phlo_dir / ".env"
+    phlo_dir / "docker-compose.yml"
+    phlo_dir / ".env"
     project_name = get_project_name()
 
-    cmd = [
-        "docker",
-        "compose",
-        "-p",
-        project_name,
-        "-f",
-        str(compose_file),
-        "--env-file",
-        str(env_file),
-        "ps",
-        "--format",
-        "table {{.Name}}\t{{.Status}}\t{{.Ports}}",
-    ]
+    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+    cmd.extend(["ps", "--format", "table {{.Name}}\t{{.Status}}\t{{.Ports}}"])
 
     try:
-        result = subprocess.run(cmd, check=False)
+        result = run_command(cmd, check=False, capture_output=False)
         if result.returncode != 0:
             click.echo("No services running or error checking status.", err=True)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
+        sys.exit(1)
+    except TimeoutExpired:
+        click.echo("Error: docker compose timed out.", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
         sys.exit(1)
 
 
@@ -1106,37 +998,23 @@ def add_service(service_name: str, no_start: bool):
         click.echo("")
         click.echo(f"Starting {service_name}...")
         project_name = get_project_name()
-        compose_file = phlo_dir / "docker-compose.yml"
-        env_file = phlo_dir / ".env"
 
-        # Determine if we need to enable a profile
-        profiles = []
-        if service.profile:
-            profiles = ["--profile", service.profile]
-
-        cmd = [
-            "docker",
-            "compose",
-            "-p",
-            project_name,
-            "-f",
-            str(compose_file),
-            "--env-file",
-            str(env_file),
-            *profiles,
-            "up",
-            "-d",
-            service_name,
-        ]
-
+        cmd = compose_base_cmd(
+            phlo_dir=phlo_dir,
+            project_name=project_name,
+            profiles=() if not service.profile else (service.profile,),
+        )
+        cmd.extend(["up", "-d", service_name])
         try:
-            result = subprocess.run(cmd, check=False)
+            result = run_command(cmd, check=False, capture_output=False)
             if result.returncode == 0:
                 click.echo(f"Service '{service_name}' started.")
             else:
                 click.echo(f"Warning: Could not start {service_name}.", err=True)
-        except Exception as e:
+                click.echo(f"Command: {' '.join(cmd)}", err=True)
+        except (FileNotFoundError, TimeoutExpired, OSError) as e:
             click.echo(f"Warning: Could not start {service_name}: {e}", err=True)
+            click.echo(f"Command: {' '.join(cmd)}", err=True)
 
 
 @services.command("remove")
@@ -1189,33 +1067,19 @@ def remove_service(service_name: str, keep_running: bool):
     # Stop the service first if running
     if not keep_running:
         project_name = get_project_name()
-        compose_file = phlo_dir / "docker-compose.yml"
-        env_file = phlo_dir / ".env"
 
         click.echo(f"Stopping {service_name}...")
 
-        profiles = []
-        if service.profile:
-            profiles = ["--profile", service.profile]
-
-        cmd = [
-            "docker",
-            "compose",
-            "-p",
-            project_name,
-            "-f",
-            str(compose_file),
-            "--env-file",
-            str(env_file),
-            *profiles,
-            "stop",
-            service_name,
-        ]
-
         try:
-            subprocess.run(cmd, capture_output=True, check=False)
-        except Exception:
-            pass
+            cmd = compose_base_cmd(
+                phlo_dir=phlo_dir,
+                project_name=project_name,
+                profiles=() if not service.profile else (service.profile,),
+            )
+            cmd.extend(["stop", service_name])
+            run_command(cmd, check=False, capture_output=False)
+        except (FileNotFoundError, TimeoutExpired, OSError):
+            click.echo(f"Warning: Could not stop {service_name}.", err=True)
 
     # Update config
     if "services" not in config:
@@ -1250,6 +1114,7 @@ def remove_service(service_name: str, keep_running: bool):
 
 def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
     """Regenerate docker-compose.yml based on current config."""
+    from phlo.cli._services.selection import select_services_to_install
     from phlo.services import ComposeGenerator
 
     all_services = discovery.discover()
@@ -1261,23 +1126,12 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
     enabled_names = config.get("services", {}).get("enabled", [])
     disabled_names = config.get("services", {}).get("disabled", [])
 
-    # Build final service list
-    services_to_install = []
-    for svc in default_services:
-        if svc.name not in disabled_names:
-            services_to_install.append(svc)
-
-    # Add explicitly enabled services
-    for name in enabled_names:
-        if name in all_services and name not in disabled_names:
-            svc = all_services[name]
-            if svc not in services_to_install:
-                services_to_install.append(svc)
-
-    # Also include profile services (they're in compose but inactive unless profile enabled)
-    for svc in all_services.values():
-        if svc.profile and svc not in services_to_install and svc.name not in disabled_names:
-            services_to_install.append(svc)
+    services_to_install = select_services_to_install(
+        all_services=all_services,
+        default_services=default_services,
+        enabled_names=enabled_names,
+        disabled_names=disabled_names,
+    )
 
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
@@ -1313,23 +1167,10 @@ def logs(service: Optional[str], follow: bool, tail: int):
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
-    compose_file = phlo_dir / "docker-compose.yml"
-    env_file = phlo_dir / ".env"
     project_name = get_project_name()
 
-    cmd = [
-        "docker",
-        "compose",
-        "-p",
-        project_name,
-        "-f",
-        str(compose_file),
-        "--env-file",
-        str(env_file),
-        "logs",
-        "--tail",
-        str(tail),
-    ]
+    cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+    cmd.extend(["logs", "--tail", str(tail)])
 
     if follow:
         cmd.append("-f")
@@ -1338,9 +1179,13 @@ def logs(service: Optional[str], follow: bool, tail: int):
         cmd.append(service)
 
     try:
-        subprocess.run(cmd, check=False)
+        run_command(cmd, check=False, capture_output=False)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
+        sys.exit(1)
+    except TimeoutExpired:
+        click.echo("Error: docker logs timed out.", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
         sys.exit(1)
     except KeyboardInterrupt:
         pass
