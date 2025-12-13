@@ -9,6 +9,7 @@ import dlt
 import pandas as pd
 import pandera.errors
 from dlt.common.pipeline import LoadInfo
+from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
 
 from phlo.defs.resources.iceberg import IcebergResource
@@ -146,12 +147,24 @@ def validate_with_pandera(
         if column_mapping:
             df = df.rename(columns=column_mapping)
 
-        for col in df.columns:
-            if df[col].dtype == "object":
-                try:
-                    df[col] = pd.to_datetime(df[col])
-                except (ValueError, TypeError):
-                    pass
+        schema = schema_class.to_schema()
+        datetime_columns = [
+            name
+            for name, column in schema.columns.items()
+            if isinstance(column.dtype, pandas_engine.DateTime)
+        ]
+        for column_name in datetime_columns:
+            if column_name not in df.columns:
+                continue
+            series = df[column_name]
+            if pd.api.types.is_datetime64_any_dtype(series):
+                continue
+            if not (pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)):
+                continue
+            try:
+                df[column_name] = pd.to_datetime(series)
+            except (ValueError, TypeError):
+                pass
 
         schema_class.validate(df, lazy=True)
         context.log.info(f"Validation passed for {len(df)} records")
