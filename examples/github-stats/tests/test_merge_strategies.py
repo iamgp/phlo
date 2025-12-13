@@ -13,11 +13,12 @@ from pathlib import Path
 import pandas as pd
 import pyarrow as pa
 import pytest
+from pyiceberg.schema import Schema
+from pyiceberg.types import IntegerType, NestedField, StringType
+
 from phlo.defs.resources.iceberg import IcebergResource
 from phlo.iceberg.tables import append_to_table, delete_table, ensure_table, merge_to_table
 from phlo.ingestion.dlt_helpers import _deduplicate_arrow_table
-from pyiceberg.schema import Schema
-from pyiceberg.types import IntegerType, NestedField, StringType
 
 
 @pytest.fixture

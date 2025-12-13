@@ -33,7 +33,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return super().get_asset_key(dbt_resource_props)
         return AssetKey(dbt_resource_props["name"])
 
-    def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str | None:
+    def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
         """Get description including compiled SQL for Observatory lineage parsing.
 
         The compiled SQL is essential for the Observatory's Query Source Data feature
@@ -49,19 +49,19 @@ class CustomDbtTranslator(DagsterDbtTranslator):
         docstring = dbt_resource_props.get("description", "")
 
         # Try to read compiled SQL from file (most reliable source)
-        compiled_sql = ""
+        compiled_sql: str = ""
         compiled_path = dbt_resource_props.get("compiled_path")
-        logger.info(f"[CustomDbtTranslator] Model: {model_name}, compiled_path: {compiled_path}")
+        logger.debug(f"[CustomDbtTranslator] Model: {model_name}, compiled_path: {compiled_path}")
 
         if compiled_path:
             try:
                 compiled_file = DBT_PROJECT_DIR / compiled_path
-                logger.info(
+                logger.debug(
                     f"[CustomDbtTranslator] full path: {compiled_file}, exists: {compiled_file.exists()}"
                 )
                 if compiled_file.exists():
                     compiled_sql = compiled_file.read_text()
-                    logger.info(
+                    logger.debug(
                         f"[CustomDbtTranslator] Read compiled SQL, length: {len(compiled_sql)}"
                     )
             except Exception as e:
@@ -72,7 +72,7 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             compiled_sql = dbt_resource_props.get("compiled_code") or dbt_resource_props.get(
                 "raw_code", ""
             )
-            logger.info(f"[CustomDbtTranslator] Using fallback, length: {len(compiled_sql)}")
+            logger.debug(f"[CustomDbtTranslator] Using fallback, length: {len(compiled_sql)}")
 
         # Build description with model name header and SQL
         parts = [f"dbt model {model_name}"]

@@ -54,6 +54,7 @@ class TestInjectRowIdsToTable:
         assert any("ALTER TABLE" in call for call in calls)
         assert any("_phlo_row_id" in call for call in calls)
         assert any("UPDATE" in call for call in calls)
+        assert result["rows_updated"] == 100
 
     def test_logs_progress(self):
         """Should log progress when context is provided."""

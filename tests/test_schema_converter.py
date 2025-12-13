@@ -32,7 +32,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             name: str
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "name"
@@ -44,7 +44,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             count: int
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "count"
@@ -56,7 +56,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             value: float
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "value"
@@ -68,7 +68,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             active: bool
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "active"
@@ -80,7 +80,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             created_at: datetime
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "created_at"
@@ -92,7 +92,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             birth_date: date
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "birth_date"
@@ -104,7 +104,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             data: bytes
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "data"
@@ -116,7 +116,7 @@ class TestBasicTypeMapping:
         class SimpleSchema(DataFrameModel):
             price: Decimal
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "price"
@@ -132,7 +132,7 @@ class TestOptionalTypes:
         class SimpleSchema(DataFrameModel):
             nickname: str | None
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert len(schema.fields) == 1
         assert schema.fields[0].name == "nickname"
@@ -148,7 +148,7 @@ class TestNullableMapping:
         class SimpleSchema(DataFrameModel):
             id: str = Field(nullable=False)
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert schema.fields[0].required is True
 
@@ -158,7 +158,7 @@ class TestNullableMapping:
         class SimpleSchema(DataFrameModel):
             nickname: str = Field(nullable=True)
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert schema.fields[0].required is False
 
@@ -168,7 +168,7 @@ class TestNullableMapping:
         class SimpleSchema(DataFrameModel):
             value: int
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         # Pandera's default is nullable=False -> required=True
         assert schema.fields[0].required is True
@@ -183,7 +183,7 @@ class TestFieldDescriptions:
         class SimpleSchema(DataFrameModel):
             user_id: str = Field(description="Unique user identifier")
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         assert schema.fields[0].doc == "Unique user identifier"
 
@@ -221,7 +221,9 @@ class TestFieldOrdering:
         class SimpleSchema(DataFrameModel):
             name: str
 
-        schema = pandera_to_iceberg(SimpleSchema, start_field_id=10, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(
+            SimpleSchema, start_field_id=10, add_dlt_metadata=False, add_phlo_metadata=False
+        )
 
         assert schema.fields[0].field_id == 10
 
@@ -235,7 +237,7 @@ class TestDLTMetadataFields:
         class SimpleSchema(DataFrameModel):
             id: str
 
-        schema = pandera_to_iceberg(SimpleSchema)
+        schema = pandera_to_iceberg(SimpleSchema, add_phlo_metadata=False)
 
         field_names = {f.name for f in schema.fields}
         assert "_dlt_load_id" in field_names
@@ -247,7 +249,7 @@ class TestDLTMetadataFields:
         class SimpleSchema(DataFrameModel):
             id: str
 
-        schema = pandera_to_iceberg(SimpleSchema)
+        schema = pandera_to_iceberg(SimpleSchema, add_phlo_metadata=False)
 
         dlt_load_id = next(f for f in schema.fields if f.name == "_dlt_load_id")
         dlt_id = next(f for f in schema.fields if f.name == "_dlt_id")
@@ -261,7 +263,7 @@ class TestDLTMetadataFields:
         class SimpleSchema(DataFrameModel):
             id: str
 
-        schema = pandera_to_iceberg(SimpleSchema)
+        schema = pandera_to_iceberg(SimpleSchema, add_phlo_metadata=False)
 
         dlt_load_id = next(f for f in schema.fields if f.name == "_dlt_load_id")
         dlt_id = next(f for f in schema.fields if f.name == "_dlt_id")
@@ -275,7 +277,7 @@ class TestDLTMetadataFields:
         class SimpleSchema(DataFrameModel):
             id: str
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         field_names = {f.name for f in schema.fields}
         assert "_dlt_load_id" not in field_names
@@ -288,7 +290,7 @@ class TestDLTMetadataFields:
             id: str
             _phlo_ingested_at: datetime
 
-        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
 
         phlo_field = next(f for f in schema.fields if f.name == "_phlo_ingested_at")
         assert phlo_field.field_id == 102
@@ -331,7 +333,7 @@ class TestComplexSchemas:
             created_at: datetime = Field(nullable=False)
             public: bool = Field(nullable=False)
 
-        schema = pandera_to_iceberg(GitHubEvents)
+        schema = pandera_to_iceberg(GitHubEvents, add_phlo_metadata=False)
 
         # Should have 6 data fields + 2 DLT fields
         assert len(schema.fields) == 8
@@ -357,7 +359,7 @@ class TestComplexSchemas:
             date_string: datetime = Field(nullable=False)
             direction: str | None = Field(nullable=True)
 
-        schema = pandera_to_iceberg(GlucoseEntries)
+        schema = pandera_to_iceberg(GlucoseEntries, add_phlo_metadata=False)
 
         # 5 data fields + 2 DLT fields
         assert len(schema.fields) == 7
@@ -386,7 +388,9 @@ class TestConfigClassHandling:
                 strict = True
                 coerce = True
 
-        schema = pandera_to_iceberg(SchemaWithConfig, add_dlt_metadata=False)
+        schema = pandera_to_iceberg(
+            SchemaWithConfig, add_dlt_metadata=False, add_phlo_metadata=False
+        )
 
         # Should only have 'id' field, not 'Config'
         field_names = [f.name for f in schema.fields]

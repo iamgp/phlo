@@ -69,9 +69,8 @@ class TestLineageStore:
             source_type="dlt",
         )
 
-        mock_cursor.execute.assert_called_once()
-        call_args = mock_cursor.execute.call_args
-        assert "INSERT INTO phlo.row_lineage" in call_args[0][0]
+        calls = [args[0][0] for args in mock_cursor.execute.call_args_list]
+        assert any("INSERT INTO phlo.row_lineage" in sql for sql in calls)
 
     @patch("phlo.lineage.store.psycopg2")
     def test_record_row_with_parents(self, mock_psycopg2, mock_connection):
@@ -87,10 +86,9 @@ class TestLineageStore:
             parent_row_ids=["01KC7SKJE0PARENT1", "01KC7SKJE0PARENT2"],
         )
 
-        mock_cursor.execute.assert_called_once()
-        call_args = mock_cursor.execute.call_args
-        # Verify parent IDs were passed
-        assert "01KC7SKJE0PARENT1" in str(call_args)
+        calls = [str(call) for call in mock_cursor.execute.call_args_list]
+        assert any("INSERT INTO phlo.row_lineage" in call for call in calls)
+        assert any("01KC7SKJE0PARENT1" in call for call in calls)
 
     @patch("phlo.lineage.store.psycopg2")
     def test_record_row_with_metadata(self, mock_psycopg2, mock_connection):
@@ -106,7 +104,8 @@ class TestLineageStore:
             metadata={"run_id": "abc123", "partition": "2024-01-01"},
         )
 
-        mock_cursor.execute.assert_called_once()
+        calls = [str(call) for call in mock_cursor.execute.call_args_list]
+        assert any("INSERT INTO phlo.row_lineage" in call for call in calls)
 
     @patch("phlo.lineage.store.psycopg2")
     def test_get_row_returns_none_when_not_found(self, mock_psycopg2, mock_connection):
@@ -187,7 +186,7 @@ class TestRecordRowsBatch:
     def test_batch_skips_rows_without_row_id(self):
         """Batch recording should skip rows missing _phlo_row_id."""
         with patch("phlo.lineage.store.psycopg2") as mock_psycopg2:
-            with patch("psycopg2.extras.execute_values") as mock_execute_values:
+            with patch("psycopg2.extras.execute_values"):
                 mock_conn = MagicMock()
                 mock_cursor = MagicMock()
                 mock_conn.__enter__ = MagicMock(return_value=mock_conn)

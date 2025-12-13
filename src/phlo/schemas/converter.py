@@ -116,7 +116,10 @@ def pandera_to_iceberg(
         # Map Pandera type to PyIceberg type
         iceberg_type = _map_type(field_name, field_type)
 
-        # DLT metadata fields get special IDs (100+)
+        # Reserve metadata IDs:
+        # - DLT: 100-101
+        # - Phlo: 102-105
+        # - Other metadata: 106+
         if field_name.startswith("_dlt_"):
             if field_name == "_dlt_load_id":
                 current_field_id = 100
@@ -127,8 +130,26 @@ def pandera_to_iceberg(
                 description = description or "DLT record identifier"
                 nullable = False
             else:
-                # Other DLT fields start at 103
-                current_field_id = 103 + len([f for f in fields if f.field_id >= 103])
+                current_field_id = 106 + len([f for f in fields if f.field_id >= 106])
+        elif field_name.startswith("_phlo_"):
+            if field_name == "_phlo_ingested_at":
+                current_field_id = 102
+                description = description or "UTC timestamp when phlo processed this record"
+                nullable = False
+            elif field_name == "_phlo_row_id":
+                current_field_id = 103
+                description = description or "Phlo row-level lineage identifier (ULID)"
+                nullable = False
+            elif field_name == "_phlo_partition_date":
+                current_field_id = 104
+                description = description or "Partition date used for ingestion (YYYY-MM-DD)"
+                nullable = False
+            elif field_name == "_phlo_run_id":
+                current_field_id = 105
+                description = description or "Dagster run ID for traceability"
+                nullable = False
+            else:
+                current_field_id = 106 + len([f for f in fields if f.field_id >= 106])
         else:
             # Regular data fields
             current_field_id = field_id
@@ -158,7 +179,7 @@ def pandera_to_iceberg(
                     field_id=100,
                     name="_dlt_load_id",
                     field_type=StringType(),
-                    required=False,  # DLT may produce this as optional
+                    required=True,
                     doc="DLT load identifier",
                 )
             )
@@ -180,7 +201,7 @@ def pandera_to_iceberg(
         if "_phlo_row_id" not in existing_names:
             fields.append(
                 NestedField(
-                    field_id=102,
+                    field_id=103,
                     name="_phlo_row_id",
                     field_type=StringType(),
                     required=True,
@@ -191,7 +212,7 @@ def pandera_to_iceberg(
         if "_phlo_ingested_at" not in existing_names:
             fields.append(
                 NestedField(
-                    field_id=103,
+                    field_id=102,
                     name="_phlo_ingested_at",
                     field_type=TimestamptzType(),
                     required=True,
