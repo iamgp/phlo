@@ -19,8 +19,10 @@ select
     repo__name as repository_name,
     _dlt_load_id,
     _dlt_id,
+    _phlo_row_id,
     _phlo_ingested_at,
-    _phlo_partition_date
+    _phlo_partition_date,
+    _phlo_run_id
 from raw_data
 where
     id is not null

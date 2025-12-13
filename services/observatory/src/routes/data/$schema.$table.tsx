@@ -2,13 +2,13 @@ import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
 import { Database, GitBranch, Terminal } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import type { IcebergTable } from '@/server/iceberg.server'
+import type { DataPreviewResult } from '@/server/trino.server'
 import { DataPreview } from '@/components/data/DataPreview'
 import { QueryEditor } from '@/components/data/QueryEditor'
 import { QueryResults } from '@/components/data/QueryResults'
 import { RowJourney } from '@/components/data/RowJourney'
 import { TableBrowser } from '@/components/data/TableBrowser'
-import type { IcebergTable } from '@/server/iceberg.server'
-import type { DataPreviewResult } from '@/server/trino.server'
 
 export const Route = createFileRoute('/data/$schema/$table')({
   component: DataExplorerWithTable,
@@ -183,7 +183,6 @@ function DataExplorerWithTable() {
                   rowData={journeyContext.rowData}
                   columnTypes={journeyContext.columnTypes}
                   onQuerySource={handleQuerySource}
-                  schema={schema}
                 />
 
                 {/* Row Data Panel */}

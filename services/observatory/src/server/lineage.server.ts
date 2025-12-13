@@ -14,14 +14,14 @@ export interface RowLineageInfo {
   rowId: string
   tableName: string
   sourceType: string
-  parentRowIds: string[]
+  parentRowIds: Array<string>
   createdAt: string | null
 }
 
 export interface LineageJourney {
   current: RowLineageInfo | null
-  ancestors: RowLineageInfo[]
-  descendants: RowLineageInfo[]
+  ancestors: Array<RowLineageInfo>
+  descendants: Array<RowLineageInfo>
 }
 
 // PostgreSQL connection for lineage store
@@ -91,7 +91,7 @@ export const getRowAncestors = createServerFn()
   .handler(
     async ({
       data: { rowId, maxDepth = 10 },
-    }): Promise<RowLineageInfo[] | { error: string }> => {
+    }): Promise<Array<RowLineageInfo> | { error: string }> => {
       const client = await getLineageConnection()
 
       try {
@@ -130,7 +130,7 @@ export const getRowAncestors = createServerFn()
             row_id: string
             table_name: string
             source_type: string
-            parent_row_ids: string[] | null
+            parent_row_ids: Array<string> | null
             created_at: Date | null
           }) => ({
             rowId: row.row_id,
@@ -159,7 +159,7 @@ export const getRowDescendants = createServerFn()
   .handler(
     async ({
       data: { rowId, maxDepth = 10 },
-    }): Promise<RowLineageInfo[] | { error: string }> => {
+    }): Promise<Array<RowLineageInfo> | { error: string }> => {
       const client = await getLineageConnection()
 
       try {
@@ -194,7 +194,7 @@ export const getRowDescendants = createServerFn()
             row_id: string
             table_name: string
             source_type: string
-            parent_row_ids: string[] | null
+            parent_row_ids: Array<string> | null
             created_at: Date | null
           }) => ({
             rowId: row.row_id,
@@ -279,7 +279,7 @@ export const getRowJourneyLineage = createServerFn()
               row_id: string
               table_name: string
               source_type: string
-              parent_row_ids: string[] | null
+              parent_row_ids: Array<string> | null
               created_at: Date | null
             }) => ({
               rowId: row.row_id,
@@ -294,7 +294,7 @@ export const getRowJourneyLineage = createServerFn()
               row_id: string
               table_name: string
               source_type: string
-              parent_row_ids: string[] | null
+              parent_row_ids: Array<string> | null
               created_at: Date | null
             }) => ({
               rowId: row.row_id,

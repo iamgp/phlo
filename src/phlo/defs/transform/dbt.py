@@ -166,38 +166,6 @@ def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None
         if artifact_path.exists():
             shutil.copy(artifact_path, default_target_dir / artifact)
 
-    # Inject _phlo_row_id to all materialized tables for lineage tracking
-    try:
-        import json
-
-        import trino
-
-        from phlo.lineage.dbt_inject import inject_row_ids_for_dbt_run
-
-        run_results_path = default_target_dir / "run_results.json"
-        if run_results_path.exists():
-            with open(run_results_path) as f:
-                run_results = json.load(f)
-
-            trino_conn = trino.dbapi.connect(
-                host=config.trino_host,
-                port=config.trino_port,
-                user="dagster",
-                catalog="iceberg",
-            )
-
-            context.log.info("[dbt] Injecting _phlo_row_id to materialized tables...")
-            injection_results = inject_row_ids_for_dbt_run(
-                trino_connection=trino_conn,
-                run_results=run_results,
-                catalog="iceberg",
-                context=context,
-            )
-            context.log.info(f"[dbt] Row ID injection results: {injection_results}")
-            trino_conn.close()
-    except Exception as e:
-        context.log.warning(f"[dbt] Row ID injection failed (non-fatal): {e}")
-
 
 def build_defs():
     """Build dbt transform definitions."""

@@ -9,21 +9,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { getAssetDetails } from '@/server/dagster.server'
-import { getAssetNeighbors } from '@/server/graph.server'
-import { getRowJourneyLineage } from '@/server/lineage.server'
-import { getAssetChecks } from '@/server/quality.server'
-import type { DataRow } from '@/server/trino.server'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
-import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 import {
   AlertCircle,
   CheckCircle,
@@ -33,6 +18,22 @@ import {
   Terminal,
 } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
+import {
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+} from '@xyflow/react'
+import type { Edge, Node, NodeProps } from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+
+import type { DataRow } from '@/server/trino.server'
+import { getContributingRowsQuery } from '@/server/contributing.server'
+import { getAssetDetails } from '@/server/dagster.server'
+import { getAssetNeighbors } from '@/server/graph.server'
+import { getAssetChecks } from '@/server/quality.server'
 
 interface RowJourneyProps {
   assetKey: string
@@ -40,7 +41,6 @@ interface RowJourneyProps {
   columnTypes: Array<string>
   className?: string
   onQuerySource?: (query: string) => void
-  schema?: string // Schema context for source queries (phlo-gxl)
 }
 
 interface AssetNodeData {
@@ -56,8 +56,7 @@ interface NodeDetails {
   sql?: string
   checks?: Array<{ name: string; status: string }>
   stageData?: Array<DataRow>
-  sourceTables?: Array<string> // phlo-gxl: tables extracted from SQL
-  whereClause?: string // phlo-gxl: computed WHERE clause for source query
+  upstreamAssetKeys?: Array<string>
 }
 
 // Simple node component - click to select (phlo-lx7)
@@ -118,24 +117,16 @@ function NodeDetailPanel({
   assetKey,
   isLoading,
   details,
+  rowData,
   onQuerySource,
-  schema: _schema, // Reserved for future schema-aware source queries
 }: {
   assetKey: string
   isLoading: boolean
   details: NodeDetails | null
+  rowData: Record<string, unknown>
   onQuerySource?: (query: string) => void
-  schema?: string
 }) {
   const tableName = assetKey.split('/').pop() || assetKey
-
-  // Debug: log button condition (phlo-gxl)
-  console.log('[NodeDetailPanel] Button condition:', {
-    hasOnQuerySource: !!onQuerySource,
-    hasSql: !!details?.sql,
-    sourceTables: details?.sourceTables,
-    sourceTablesLength: details?.sourceTables?.length,
-  })
 
   if (isLoading) {
     return (
@@ -173,28 +164,6 @@ function NodeDetailPanel({
           <Database className="w-4 h-4 text-cyan-400" />
           {tableName}
         </h4>
-        {/* Query Source Data button (phlo-gxl) - debug: check console for logs */}
-        {onQuerySource &&
-          details?.sql &&
-          details?.sourceTables &&
-          details.sourceTables.length > 0 && (
-            <button
-              onClick={() => {
-                const sourceTable = details.sourceTables![0]
-                // Infer schema from source table name (source tables often in different schemas)
-                const querySchema = inferSchemaFromTableName(sourceTable)
-                const whereClause = details.whereClause
-
-                const query = `SELECT * FROM iceberg.${querySchema}.${sourceTable}${whereClause ? ` WHERE ${whereClause}` : ''} LIMIT 100`
-                console.log('[NodeDetailPanel] Query Source:', query)
-                onQuerySource(query)
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded text-sm font-medium transition-colors"
-            >
-              <Terminal className="w-4 h-4" />
-              Query Source Data
-            </button>
-          )}
       </div>
 
       <div className="p-4 space-y-4">
@@ -227,6 +196,49 @@ function NodeDetailPanel({
             </Highlight>
           </div>
         )}
+
+        {/* Contributing rows (aggregates) / upstream lookup (1:1) */}
+        {onQuerySource &&
+          details.upstreamAssetKeys &&
+          details.upstreamAssetKeys.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 text-sm text-slate-300 mb-2 font-medium">
+                <Terminal className="w-4 h-4" />
+                Contributing rows
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {details.upstreamAssetKeys.map((upstreamAssetKey) => {
+                  const upstreamLabel = upstreamAssetKey.split('/').pop()
+                  return (
+                    <button
+                      key={upstreamAssetKey}
+                      type="button"
+                      className="text-xs bg-slate-900 px-3 py-1.5 rounded text-cyan-300 hover:bg-slate-800"
+                      onClick={async () => {
+                        const result = await getContributingRowsQuery({
+                          data: {
+                            downstreamAssetKey: assetKey,
+                            upstreamAssetKey,
+                            rowData,
+                            limit: 100,
+                          },
+                        })
+
+                        if ('error' in result) {
+                          console.error('[ContributingRows] Error:', result.error)
+                          return
+                        }
+
+                        onQuerySource(result.query)
+                      }}
+                    >
+                      Query {upstreamLabel}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
         {/* Quality Checks */}
         {details.checks && details.checks.length > 0 && (
@@ -334,22 +346,11 @@ function cleanSqlForDisplay(sql: string): string {
   return cleaned
 }
 
-// Infer schema from table name prefixes
-function inferSchemaFromTableName(tableName: string): string {
-  const lower = tableName.toLowerCase()
-  if (lower.startsWith('dlt_')) return 'bronze'
-  if (lower.startsWith('stg_')) return 'silver'
-  if (lower.startsWith('fct_') || lower.startsWith('dim_')) return 'gold'
-  if (lower.startsWith('mrt_') || lower.startsWith('publish_')) return 'publish'
-  return 'bronze' // default
-}
-
 export function RowJourney({
   assetKey,
   rowData,
   className = '',
   onQuerySource,
-  schema,
 }: RowJourneyProps) {
   const [graphData, setGraphData] = useState<{
     nodes: Array<{ keyPath: string; label: string; computeKind?: string }>
@@ -414,38 +415,17 @@ export function RowJourney({
 
         const sql = 'error' in assetInfo ? undefined : assetInfo.description
 
-        // Query lineage store if _phlo_row_id is available (phlo-81n)
-        let sourceTables: string[] = []
-        const rowId = rowData?._phlo_row_id as string | undefined
-
-        if (rowId) {
-          try {
-            const lineageResult = await getRowJourneyLineage({
-              data: { rowId },
-            })
-            if (!('error' in lineageResult)) {
-              // Extract source table names from ancestors
-              sourceTables = lineageResult.ancestors.map(
-                (a: { tableName: string }) => a.tableName,
-              )
-              console.log('[RowJourney] Lineage ancestors:', sourceTables)
-            } else {
-              console.log(
-                '[RowJourney] Lineage query returned:',
-                lineageResult.error,
-              )
-            }
-          } catch (err) {
-            console.log('[RowJourney] Lineage query failed:', err)
-          }
-        }
+        const upstreamAssetKeys = graphData
+          ? graphData.edges
+              .filter((e) => e.target === selectedNode)
+              .map((e) => e.source)
+          : []
 
         setNodeDetails({
           sql,
           checks,
           stageData: undefined,
-          sourceTables,
-          whereClause: undefined,
+          upstreamAssetKeys,
         })
       } catch (err) {
         console.error('Failed to load node details:', err)
@@ -456,7 +436,7 @@ export function RowJourney({
     }
 
     loadNodeDetails()
-  }, [selectedNode, rowData])
+  }, [selectedNode, rowData, graphData])
 
   // Handle node selection
   const handleNodeSelect = useCallback((nodeKey: string) => {
@@ -616,8 +596,8 @@ export function RowJourney({
         assetKey={selectedNode || assetKey}
         isLoading={detailsLoading}
         details={nodeDetails}
+        rowData={rowData}
         onQuerySource={onQuerySource}
-        schema={schema}
       />
     </div>
   )

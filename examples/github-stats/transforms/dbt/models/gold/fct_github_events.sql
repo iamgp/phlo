@@ -46,8 +46,10 @@ enriched as (
         case when event_type = 'WatchEvent' then 1 else 0 end as is_watch,
         case when event_type = 'ForkEvent' then 1 else 0 end as is_fork,
         case when event_type = 'CreateEvent' then 1 else 0 end as is_create,
+        _phlo_row_id,
         _phlo_ingested_at,
-        _phlo_partition_date
+        _phlo_partition_date,
+        _phlo_run_id
     from typed
 )
 
@@ -69,7 +71,9 @@ select
     is_watch,
     is_fork,
     is_create,
+    _phlo_row_id,
     _phlo_ingested_at,
-    _phlo_partition_date
+    _phlo_partition_date,
+    _phlo_run_id
 from enriched
 order by event_timestamp desc

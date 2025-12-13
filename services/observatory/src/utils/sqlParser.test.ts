@@ -3,7 +3,12 @@
  * Run with: npx tsx src/utils/sqlParser.test.ts
  */
 
-import { extractSourceTables } from './sqlParser'
+import {
+  analyzeSQLTransformation,
+  buildSmartWhereClause,
+  extractSourceTables,
+  parseColumnMappings,
+} from './sqlParser'
 
 // Test case 1: Compiled dbt SQL with quoted identifiers
 const compiledDbtSql = `
@@ -117,13 +122,6 @@ console.log('Expected: ["my_source_table"]')
 console.log('Got:', result6)
 console.log('Pass:', result6.includes('my_source_table'))
 console.log()
-
-// Import additional functions for testing
-import {
-  analyzeSQLTransformation,
-  buildSmartWhereClause,
-  parseColumnMappings,
-} from './sqlParser'
 
 // Test 7: Column mapping extraction from compiled dbt SQL
 console.log('=== Test 7: Column mapping extraction ===')

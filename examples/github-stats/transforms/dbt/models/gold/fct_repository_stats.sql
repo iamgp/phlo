@@ -49,6 +49,7 @@ enriched as (
         r.primary_language,
         r.repository_created_at,
         r.repository_updated_at,
+        r._phlo_row_id,
 
         -- Age and recency calculations
         date_diff(
@@ -107,7 +108,8 @@ enriched as (
 
         -- Metadata
         r._phlo_ingested_at,
-        r._phlo_partition_date
+        r._phlo_partition_date,
+        r._phlo_run_id
 
     from repos_data as r
     cross join current_date_ref as c
