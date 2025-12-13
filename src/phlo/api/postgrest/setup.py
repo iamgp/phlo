@@ -16,12 +16,15 @@ Usage:
         >>> setup_postgrest()
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Optional
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+
+logger = logging.getLogger(__name__)
 
 
 def get_db_connection(
@@ -65,7 +68,7 @@ def execute_sql_file(conn, filepath: Path, verbose: bool = True):
         verbose: Print progress messages
     """
     if verbose:
-        print(f"Executing: {filepath.name}")
+        logger.info("Executing: %s", filepath.name)
 
     with open(filepath, "r") as f:
         sql_content = f.read()
@@ -74,9 +77,9 @@ def execute_sql_file(conn, filepath: Path, verbose: bool = True):
     try:
         cursor.execute(sql_content)
         if verbose:
-            print(f"✓ {filepath.name} completed successfully")
+            logger.info("✓ %s completed successfully", filepath.name)
     except Exception as e:
-        print(f"✗ {filepath.name} failed: {e}")
+        logger.error("✗ %s failed: %s", filepath.name, e)
         raise
     finally:
         cursor.close()
@@ -145,9 +148,9 @@ def setup_postgrest(
         ✓ PostgREST setup completed successfully!
     """
     if verbose:
-        print("=" * 50)
-        print("PostgREST Authentication Infrastructure Setup")
-        print("=" * 50)
+        logger.info("=" * 50)
+        logger.info("PostgREST Authentication Infrastructure Setup")
+        logger.info("=" * 50)
 
     # Get database connection
     conn = get_db_connection(host, port, database, user, password)
@@ -156,17 +159,16 @@ def setup_postgrest(
         cursor = conn.cursor()
         cursor.execute("SELECT current_database(), current_user;")
         db, usr = cursor.fetchone()
-        print(f"Database: {db}")
-        print(f"User: {usr}")
+        logger.info("Database: %s", db)
+        logger.info("User: %s", usr)
         cursor.close()
-        print("=" * 50)
-        print()
+        logger.info("=" * 50)
 
     # Check if already setup
     if not force and check_if_setup_complete(conn):
         if verbose:
-            print("✓ PostgREST infrastructure already set up.")
-            print("  Use force=True to re-apply setup.")
+            logger.info("✓ PostgREST infrastructure already set up.")
+            logger.info("  Use force=True to re-apply setup.")
         conn.close()
         return
 
@@ -179,21 +181,20 @@ def setup_postgrest(
     for sql_file in sql_files:
         execute_sql_file(conn, sql_file, verbose)
         if verbose:
-            print()
+            logger.info("")
 
     conn.close()
 
     if verbose:
-        print("=" * 50)
-        print("✓ PostgREST setup completed successfully!")
-        print("=" * 50)
-        print()
-        print("Next steps:")
-        print("  1. Create your API views in the 'api' schema")
-        print("  2. Start PostgREST: docker-compose up -d postgrest")
-        print("  3. Test login: curl -X POST http://localhost:10018/rpc/login \\")
-        print("       -H 'Content-Type: application/json' \\")
-        print('       -d \'{"username": "analyst", "password": "analyst123"}\'')
+        logger.info("=" * 50)
+        logger.info("✓ PostgREST setup completed successfully!")
+        logger.info("=" * 50)
+        logger.info("Next steps:")
+        logger.info("  1. Create your API views in the 'api' schema")
+        logger.info("  2. Start PostgREST: docker-compose up -d postgrest")
+        logger.info("  3. Test login: curl -X POST http://localhost:10018/rpc/login \\")
+        logger.info("       -H 'Content-Type: application/json' \\")
+        logger.info('       -d \'{"username": "analyst", "password": "analyst123"}\'')
 
 
 if __name__ == "__main__":

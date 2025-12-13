@@ -24,11 +24,17 @@ Usage::
         return fetch_weather_data(partition_date)
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 from phlo.quality.decorator import phlo_quality as quality
+
+ingestion: Any
 
 
 # Lazy import for ingestion to avoid circular/heavy dependencies
-def __getattr__(name):
+def __getattr__(name: str) -> Any:
     if name == "ingestion":
         from phlo.ingestion.decorator import phlo_ingestion
 
@@ -37,4 +43,4 @@ def __getattr__(name):
 
 
 __version__ = "0.1.0-alpha.1"
-__all__ = ["quality"]
+__all__ = ["ingestion", "quality"]
