@@ -50,6 +50,7 @@ from phlo.cli.metrics import metrics_group
 
 # Add plugin management commands
 from phlo.cli.plugin import plugin_group
+from phlo.cli.publishing import publishing
 
 # Add catalog management commands
 from phlo.cli.schema import schema
@@ -70,6 +71,7 @@ cli.add_command(lineage_group)
 cli.add_command(alerts_group)
 cli.add_command(plugin_group)
 cli.add_command(config)
+cli.add_command(publishing)
 
 
 @cli.command()
