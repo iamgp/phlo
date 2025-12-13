@@ -1,0 +1,29 @@
+storage:
+  postgres:
+    postgres_db:
+      hostname:
+        env: POSTGRES_HOST
+      port:
+        env: POSTGRES_PORT
+      username:
+        env: POSTGRES_USER
+      password:
+        env: POSTGRES_PASSWORD
+      db_name:
+        env: POSTGRES_DB
+
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+
+run_launcher:
+  module: dagster.core.launcher
+  class: DefaultRunLauncher
+
+sensors:
+  use_threads: true
+  num_workers: 4
+
+schedules:
+  use_threads: true
+  num_workers: 4

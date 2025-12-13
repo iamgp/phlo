@@ -7,7 +7,6 @@ without Docker dependencies.
 
 import pandas as pd
 import pytest
-
 from workflows.schemas.github import RawUserEvents
 
 

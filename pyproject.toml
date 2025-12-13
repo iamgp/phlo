@@ -23,7 +23,7 @@ dependencies = [
     "dbt-trino",
     "pydantic-settings",
     "dlt",
-    "pyiceberg[s3fs,pyarrow]",
+    "pyiceberg[s3fs,pyarrow]==0.10.0",
     "pandas",
     "pandera",
     "trino",
@@ -33,6 +33,7 @@ dependencies = [
     "rich>=13.0",
     "duckdb>=0.9.0",
     "pyarrow",
+    "python-ulid>=2.0.0",
 ]
 
 [project.scripts]

@@ -7,7 +7,7 @@ phlo:
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: dbt
       catalog: iceberg
-      schema: bronze
+      schema: public
       threads: 8
 
     prod:
@@ -16,7 +16,7 @@ phlo:
       port: "{{ env_var('TRINO_PORT', '8080') | int }}"
       user: dbt
       catalog: iceberg
-      schema: bronze
+      schema: public
       threads: 8
 
     postgres:

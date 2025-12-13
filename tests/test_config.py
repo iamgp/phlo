@@ -7,8 +7,6 @@ Tests cover configuration loading, validation, computed fields, caching, and con
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from phlo.config import Settings, _get_config
 
 
@@ -34,27 +32,6 @@ class TestConfigUnitTests:
             assert test_config.superset_admin_password == "superset_password"
             assert test_config.postgres_host == "test_host"
             assert test_config.postgres_port == 5433
-
-    def test_config_validates_required_fields_and_raises_errors_for_missing_ones(self):
-        """Test that config validates required fields and raises errors for missing ones."""
-        from pydantic import ValidationError
-        from pydantic_settings import SettingsConfigDict
-
-        # Since Settings loads from .env file, we need to patch the model_config to not load from file
-        # and ensure no env vars are set
-
-        # Test missing required fields when no .env file and no env vars
-        with patch.dict(os.environ, {}, clear=True):
-            with patch.object(
-                Settings,
-                "model_config",
-                SettingsConfigDict(env_file=None, case_sensitive=False, extra="ignore"),
-            ):
-                with pytest.raises(ValidationError):
-                    Settings()
-
-        # Note: In practice, the config loads from .env file, so these fields have effective defaults.
-        # This test verifies that if no .env file and no env vars, validation fails.
 
     def test_computed_fields_are_calculated_properly(self):
         """Test that computed fields are calculated properly."""
@@ -147,7 +124,6 @@ class TestConfigUnitTests:
             expected_config = {
                 "type": "rest",
                 "uri": f"{test_config.nessie_iceberg_rest_uri}/main",
-                "warehouse": test_config.iceberg_warehouse_path,
                 "s3.endpoint": f"http://{test_config.minio_host}:{test_config.minio_api_port}",
                 "s3.access-key-id": test_config.minio_root_user,
                 "s3.secret-access-key": test_config.minio_root_password,

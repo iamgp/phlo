@@ -1,0 +1,35 @@
+name: postgrest
+description: RESTful API automatically generated from PostgreSQL schema
+category: api
+default: false
+profile: api
+
+image: postgrest/postgrest:${POSTGREST_VERSION:-v12.2.3}
+
+depends_on:
+  - postgres
+
+compose:
+  restart: unless-stopped
+  environment:
+    PGRST_DB_URI: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
+    PGRST_DB_SCHEMAS: api,public
+    PGRST_DB_ANON_ROLE: ${POSTGRES_USER:-phlo}
+    PGRST_SERVER_HOST: 0.0.0.0
+    PGRST_SERVER_PORT: 3000
+    PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:${POSTGREST_PORT:-3002}
+  ports:
+    - "${POSTGREST_PORT:-3002}:3000"
+  healthcheck:
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+env_vars:
+  POSTGREST_VERSION:
+    default: v12.2.3
+    description: PostgREST version
+  POSTGREST_PORT:
+    default: 3002
+    description: PostgREST API port

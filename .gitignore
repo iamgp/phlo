@@ -73,7 +73,6 @@ transforms/dbt/profiles/profiles.yml.bak
 transforms/dbt/package-lock.yml
 
 # Data directories
-data/
 volumes/
 *.duckdb
 *.duckdb.wal
@@ -99,7 +98,6 @@ logs/
 # Data files and formats
 *.parquet
 *.csv
-*.json
 *.pkl
 *.pickle
 *.h5
@@ -150,10 +148,6 @@ PLATFORM_REVIEW.md
 # Temporary/working files
 # context/
 context/
-
-# Release Please config (exception to *.json ignore)
-!release-please-config.json
-!.release-please-manifest.json
 
 # Beads issue tracker (local-only files)
 .beads/beads.db

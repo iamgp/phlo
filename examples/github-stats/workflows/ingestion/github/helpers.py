@@ -38,6 +38,9 @@ def github_api(
     return rest_api(
         client={
             "base_url": "https://api.github.com",
+            # GitHub paginates most collection endpoints using the `Link` header.
+            # Without this, we only fetch the first page (often 30/100 items).
+            "paginator": "header_link",
             "headers": {
                 "Authorization": f"Bearer {github_token}",
                 "Accept": "application/vnd.github+json",
