@@ -37,11 +37,13 @@ function toSqlEquality(
   const normalizedType = columnType.toLowerCase()
 
   // Timestamps are annoying to literal-type reliably across precisions; compare by varchar.
-  if (normalizedType.startsWith('timestamp') || normalizedType.startsWith('time')) {
+  if (
+    normalizedType.startsWith('timestamp') ||
+    normalizedType.startsWith('time')
+  ) {
     const raw = String(value)
-    const normalized = raw.replace(
-      /(\.\d{1,6})$/,
-      (match) => match.padEnd(7, '0'),
+    const normalized = raw.replace(/(\.\d{1,6})$/, (match) =>
+      match.padEnd(7, '0'),
     )
     const padded = normalized.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
       ? `${normalized}.000000`
@@ -62,15 +64,18 @@ function toSqlEquality(
     normalizedType.startsWith('real') ||
     normalizedType.startsWith('decimal')
   ) {
-    const numeric = typeof value === 'number' ? String(value) : String(value).trim()
+    const numeric =
+      typeof value === 'number' ? String(value) : String(value).trim()
     if (!numeric || Number.isNaN(Number(numeric))) return null
     return `"${columnName}" = ${numeric}`
   }
 
   if (normalizedType === 'boolean') {
-    if (typeof value === 'boolean') return `"${columnName}" = ${value ? 'true' : 'false'}`
+    if (typeof value === 'boolean')
+      return `"${columnName}" = ${value ? 'true' : 'false'}`
     const lower = String(value).toLowerCase()
-    if (lower === 'true' || lower === 'false') return `"${columnName}" = ${lower}`
+    if (lower === 'true' || lower === 'false')
+      return `"${columnName}" = ${lower}`
     return null
   }
 
@@ -154,7 +159,9 @@ async function executeTrinoQuery(
   return { columns, columnTypes, rows }
 }
 
-async function resolveIcebergTable(tableName: string): Promise<ResolveTableResult | null> {
+async function resolveIcebergTable(
+  tableName: string,
+): Promise<ResolveTableResult | null> {
   const safe = escapeSqlString(tableName)
   const schemasResult = await executeTrinoQuery(
     `select table_schema from iceberg.information_schema.tables where table_name = '${safe}'`,
@@ -168,7 +175,15 @@ async function resolveIcebergTable(tableName: string): Promise<ResolveTableResul
 
   if (schemas.length === 0) return null
 
-  const preference = ['raw', 'bronze', 'silver', 'gold', 'marts', 'publish', 'main']
+  const preference = [
+    'raw',
+    'bronze',
+    'silver',
+    'gold',
+    'marts',
+    'publish',
+    'main',
+  ]
   schemas.sort((a, b) => preference.indexOf(a) - preference.indexOf(b))
   const schema = schemas[0] ?? 'main'
 
@@ -241,8 +256,18 @@ function shouldUseAsDimension(columnName: string): boolean {
   if (lower.endsWith('_date')) return true
   if (lower.endsWith('_name')) return true
   if (lower.endsWith('_id')) return true
-  if (lower.includes('count') || lower.includes('total') || lower.includes('avg')) return false
-  if (lower.includes('score') || lower.includes('ratio') || lower.includes('pct')) return false
+  if (
+    lower.includes('count') ||
+    lower.includes('total') ||
+    lower.includes('avg')
+  )
+    return false
+  if (
+    lower.includes('score') ||
+    lower.includes('ratio') ||
+    lower.includes('pct')
+  )
+    return false
   if (lower.includes('rank')) return false
   if (lower.startsWith('is_')) return false
   return true
@@ -264,7 +289,9 @@ export const getContributingRowsQuery = createServerFn()
 
     const upstream = await resolveIcebergTable(upstreamTableName)
     if (!upstream) {
-      return { error: `Could not resolve upstream table for ${upstreamTableName}` }
+      return {
+        error: `Could not resolve upstream table for ${upstreamTableName}`,
+      }
     }
 
     const rowData = data.rowData as Record<string, Primitive>
@@ -308,5 +335,8 @@ export const getContributingRowsQuery = createServerFn()
     const where = uniquePredicates.join(' and ')
     const query = `SELECT * FROM ${upstream.fullName} WHERE ${where} LIMIT ${limit}`
 
-    return { query, upstream: { schema: upstream.schema, table: upstream.table } }
+    return {
+      query,
+      upstream: { schema: upstream.schema, table: upstream.table },
+    }
   })

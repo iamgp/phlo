@@ -225,7 +225,10 @@ function NodeDetailPanel({
                         })
 
                         if ('error' in result) {
-                          console.error('[ContributingRows] Error:', result.error)
+                          console.error(
+                            '[ContributingRows] Error:',
+                            result.error,
+                          )
                           return
                         }
 

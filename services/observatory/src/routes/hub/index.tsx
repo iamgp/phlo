@@ -8,14 +8,13 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { Boxes, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react'
 import { useState } from 'react'
 
-import type {ServiceWithStatus} from '@/server/services.server';
+import type { ServiceWithStatus } from '@/server/services.server'
 import { ServiceCard } from '@/components/hub/ServiceCard'
 import {
-  
   getServices,
   restartService,
   startService,
-  stopService
+  stopService,
 } from '@/server/services.server'
 
 export const Route = createFileRoute('/hub/')({
