@@ -14,6 +14,7 @@ from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValu
 
 from phlo.quality.checks import QualityCheck, QualityCheckResult, SchemaCheck
 from phlo.quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
+from phlo.quality.partitioning import PartitionScope, apply_partition_scope, get_partition_key
 from phlo.quality.severity import severity_for_pandera_contract, severity_for_quality_check
 
 _QUALITY_CHECKS: list[Any] = []
@@ -26,6 +27,9 @@ def phlo_quality(
     group: Optional[str] = None,
     blocking: bool = True,
     warn_threshold: float = 0.0,
+    partition_column: str = "_phlo_partition_date",
+    rolling_window_days: int | None = 7,
+    full_table: bool = False,
     description: Optional[str] = None,
     query: Optional[str] = None,
     backend: str = "trino",
@@ -43,6 +47,9 @@ def phlo_quality(
         group: Optional asset group
         blocking: Whether check failures block downstream assets (default: True)
         warn_threshold: Max fraction of failed checks to mark as WARN (otherwise ERROR)
+        partition_column: Partition column name used for scoping queries
+        rolling_window_days: When unpartitioned, optionally scope to last N days
+        full_table: Disable partition scoping (use with care)
         description: Optional description (auto-generated if not provided)
         query: Optional custom SQL query (defaults to SELECT * FROM {table})
         backend: Backend to use ("trino" or "duckdb", default: "trino")
@@ -109,13 +116,15 @@ def phlo_quality(
             )
             @wraps(func)
             def pandera_contract_check(context, **resources) -> AssetCheckResult:
-                partition_key = getattr(context, "partition_key", None)
-                if partition_key is None:
-                    partition_key = getattr(context, "asset_partition_key", None)
-
-                final_query = sql_query
-                if partition_key:
-                    final_query = f"{sql_query} WHERE partition_date = '{partition_key}'"
+                partition_key = get_partition_key(context)
+                scope = PartitionScope(
+                    partition_key=partition_key,
+                    partition_column=partition_column,
+                    rolling_window_days=rolling_window_days,
+                    full_table=full_table,
+                )
+                final_query = apply_partition_scope(sql_query, scope=scope)
+                if partition_key and not full_table:
                     context.log.info(f"Validating partition: {partition_key}")
 
                 try:
@@ -133,6 +142,7 @@ def phlo_quality(
                         failed_count=1,
                         total_count=None,
                         query_or_sql=final_query,
+                        repro_sql=_repro_sql(final_query),
                         sample=[{"error": str(exc)}],
                     )
                     return AssetCheckResult(
@@ -152,6 +162,7 @@ def phlo_quality(
                         failed_count=0,
                         total_count=0,
                         query_or_sql=final_query,
+                        repro_sql=_repro_sql(final_query),
                         sample=[],
                     )
                     return AssetCheckResult(
@@ -185,6 +196,7 @@ def phlo_quality(
                     failed_count=failed_count,
                     total_count=len(df),
                     query_or_sql=final_query,
+                    repro_sql=_repro_sql(final_query),
                     sample=failures,
                 )
                 return AssetCheckResult(
@@ -212,13 +224,15 @@ def phlo_quality(
                 Pandera schema checks are emitted as a separate ``pandera_contract`` asset check when
                 ``SchemaCheck`` is included in the decorator's check list.
                 """
-                partition_key = getattr(context, "partition_key", None)
-                if partition_key is None:
-                    partition_key = getattr(context, "asset_partition_key", None)
-
-                final_query = sql_query
-                if partition_key and "WHERE" not in sql_query.upper():
-                    final_query = f"{sql_query}\nWHERE DATE(timestamp) = DATE '{partition_key}'"
+                partition_key = get_partition_key(context)
+                scope = PartitionScope(
+                    partition_key=partition_key,
+                    partition_column=partition_column,
+                    rolling_window_days=rolling_window_days,
+                    full_table=full_table,
+                )
+                final_query = apply_partition_scope(sql_query, scope=scope)
+                if partition_key and not full_table:
                     context.log.info(f"Validating partition: {partition_key}")
 
                 try:
@@ -285,6 +299,16 @@ def phlo_quality(
                         all_passed = False
 
                 metadata = _build_metadata(df, check_results)
+                contract = QualityCheckContract(
+                    source="phlo",
+                    partition_key=str(partition_key) if partition_key else None,
+                    failed_count=_estimate_failed_count(check_results),
+                    total_count=len(df),
+                    query_or_sql=final_query,
+                    repro_sql=_repro_sql(final_query),
+                    sample=_collect_failure_sample(check_results),
+                )
+                metadata.update(contract.to_dagster_metadata())
 
                 passed_count = sum(1 for r in check_results if r.passed)
                 failed_count = sum(1 for r in check_results if not r.passed)
@@ -435,3 +459,46 @@ def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict:
         metadata["quality_summary"] = MetadataValue.md(summary_table)
 
     return metadata
+
+
+def _estimate_failed_count(check_results: List[QualityCheckResult]) -> int:
+    failed_count = 0
+    for result in check_results:
+        if result.passed:
+            continue
+        metadata = result.metadata or {}
+        for key in (
+            "failed_rows",
+            "failure_count",
+            "duplicate_count",
+            "out_of_range",
+            "non_match_count",
+        ):
+            value = metadata.get(key)
+            if isinstance(value, int):
+                failed_count += value
+                break
+    if failed_count > 0:
+        return failed_count
+    return sum(1 for r in check_results if not r.passed)
+
+
+def _collect_failure_sample(check_results: List[QualityCheckResult]) -> list[dict[str, Any]]:
+    sample: list[dict[str, Any]] = []
+    for result in check_results:
+        if result.passed:
+            continue
+        rows = result.metadata.get("sample_rows") if result.metadata else None
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            sample.append({"check": result.metric_name, **row})
+            if len(sample) >= 20:
+                return sample
+    return sample
+
+
+def _repro_sql(query: str) -> str:
+    return f"SELECT *\nFROM (\n{query}\n) AS phlo_quality\nLIMIT 100"

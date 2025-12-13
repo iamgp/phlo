@@ -87,6 +87,7 @@ class NullCheck(QualityCheck):
         null_counts = {}
         null_percentages = {}
         failures = []
+        sample_rows: list[dict[str, Any]] = []
 
         for column in self.columns:
             if column not in df.columns:
@@ -105,6 +106,14 @@ class NullCheck(QualityCheck):
                     f"(threshold: {self.allow_threshold:.2%})"
                 )
 
+                if not sample_rows:
+                    mask = df[column].isna()
+                    rows = df.loc[mask, self.columns].head(20)
+                    sample_rows = [
+                        {"row_index": idx if isinstance(idx, int) else str(idx), **row.to_dict()}
+                        for idx, row in rows.iterrows()
+                    ]
+
         passed = len(failures) == 0
 
         return QualityCheckResult(
@@ -116,6 +125,7 @@ class NullCheck(QualityCheck):
                 "null_percentages": null_percentages,
                 "threshold": self.allow_threshold,
                 "columns_checked": self.columns,
+                "sample_rows": sample_rows,
             },
             failure_message="; ".join(failures) if failures else None,
         )
@@ -209,7 +219,14 @@ class RangeCheck(QualityCheck):
                 "actual_max": actual_max,
                 "violation_count": int(violation_count),
                 "violation_percentage": float(violation_pct),
+                "out_of_range": int(violation_count),
                 "threshold": self.allow_threshold,
+                "sample_rows": [
+                    {"row_index": idx if isinstance(idx, int) else str(idx), self.column: value}
+                    for idx, value in df.loc[violations[violations].index, self.column]
+                    .head(20)
+                    .items()
+                ],
             },
             failure_message=failure_msg,
         )
@@ -348,6 +365,10 @@ class UniqueCheck(QualityCheck):
                 "threshold": self.allow_threshold,
                 "columns_checked": self.columns,
                 "total_rows": len(df),
+                "sample_rows": [
+                    {"row_index": idx if isinstance(idx, int) else str(idx), **row.to_dict()}
+                    for idx, row in df.loc[duplicates, self.columns].head(20).iterrows()
+                ],
             },
             failure_message=failure_msg,
         )
@@ -661,6 +682,10 @@ class PatternCheck(QualityCheck):
                 "non_match_percentage": float(non_match_pct),
                 "threshold": self.allow_threshold,
                 "total_rows": len(column_data),
+                "sample_rows": [
+                    {"row_index": idx if isinstance(idx, int) else str(idx), self.column: value}
+                    for idx, value in column_data[~matches].head(20).items()
+                ],
             },
             failure_message=failure_msg,
         )
