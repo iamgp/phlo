@@ -1,0 +1,38 @@
+name: minio
+description: S3-compatible object storage for data lake
+category: core
+default: true
+
+image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+
+compose:
+  restart: unless-stopped
+  environment:
+    MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+    MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
+  command: ["server", "/data", "--console-address", ":9001"]
+  ports:
+    - "${MINIO_API_PORT:-9000}:9000"
+    - "${MINIO_CONSOLE_PORT:-9001}:9001"
+  volumes:
+    - ./volumes/minio:/data
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+
+env_vars:
+  MINIO_ROOT_USER:
+    default: minio
+    description: MinIO root username
+  MINIO_ROOT_PASSWORD:
+    default: minio123
+    description: MinIO root password
+    secret: true
+  MINIO_API_PORT:
+    default: 9000
+    description: MinIO API port
+  MINIO_CONSOLE_PORT:
+    default: 9001
+    description: MinIO console port

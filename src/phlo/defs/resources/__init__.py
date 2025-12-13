@@ -17,7 +17,7 @@ from phlo.defs.validation.freshness_validator import FreshnessValidatorResource
 from phlo.defs.validation.schema_validator import SchemaCompatibilityValidatorResource
 
 # Public API exports
-__all__ = ["IcebergResource", "TrinoResource", "NessieResource"]
+__all__ = ["IcebergResource", "TrinoResource"]
 
 
 # --- Re-exports and Lazy Imports ---

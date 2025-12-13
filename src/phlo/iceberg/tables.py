@@ -157,59 +157,25 @@ def append_to_table(
         # Read single parquet file
         arrow_table = pq.read_table(str(data_path))
 
-    # Step 1: Evolve schema if there are new columns
-    # Check for columns in arrow_table that don't exist in the Iceberg schema
+    # Step 1: Filter arrow table to only include columns that exist in Iceberg schema
+    # Note: We don't attempt in-flight schema evolution as pyiceberg's update_schema()
+    # has compatibility issues with Nessie REST API (missing lastColumnId in AddSchema).
+    # New columns will be ignored until the table is recreated or schema is evolved manually.
     iceberg_column_names = {field.name for field in table.schema().fields}
     arrow_column_names = set(arrow_table.schema.names)
     new_columns = arrow_column_names - iceberg_column_names
 
     if new_columns:
-        # Add missing columns to the Iceberg table schema
-        import pyarrow as pa
-        from pyiceberg.types import (
-            BooleanType,
-            DateType,
-            DoubleType,
-            FloatType,
-            IntegerType,
-            LongType,
-            StringType,
-            TimestampType,
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Arrow data has {len(new_columns)} columns not in Iceberg schema: {new_columns}. "
+            f"These columns will be dropped. To include them, recreate the table."
         )
-
-        # Map PyArrow types to PyIceberg types
-        type_mapping = {
-            pa.types.is_boolean: BooleanType(),
-            pa.types.is_int8: IntegerType(),
-            pa.types.is_int16: IntegerType(),
-            pa.types.is_int32: IntegerType(),
-            pa.types.is_int64: LongType(),
-            pa.types.is_uint8: IntegerType(),
-            pa.types.is_uint16: IntegerType(),
-            pa.types.is_uint32: LongType(),
-            pa.types.is_uint64: LongType(),
-            pa.types.is_float32: FloatType(),
-            pa.types.is_float64: DoubleType(),
-            pa.types.is_string: StringType(),
-            pa.types.is_large_string: StringType(),
-            pa.types.is_date: DateType(),
-            pa.types.is_timestamp: TimestampType(),
-        }
-
-        with table.update_schema(allow_incompatible_changes=False) as update:
-            for col_name in new_columns:
-                arrow_field = arrow_table.schema.field(col_name)
-                arrow_type = arrow_field.type
-
-                # Find matching Iceberg type
-                iceberg_type = StringType()  # Default to string if no match
-                for type_check, ice_type in type_mapping.items():
-                    if type_check(arrow_type):
-                        iceberg_type = ice_type
-                        break
-
-                # Add the new column as optional
-                update.add_column(col_name, iceberg_type, required=False)
+        # Drop columns that don't exist in Iceberg schema
+        existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
+        arrow_table = arrow_table.select(existing_columns)
 
     # Step 2: Add missing columns to Arrow table (columns that exist in Iceberg but not in data)
     import pyarrow as pa
@@ -344,59 +310,24 @@ def merge_to_table(
             # If delete fails (e.g., no matching records), continue
             pass
 
-    # Step 2: Evolve schema if there are new columns
-    # Check for columns in arrow_table that don't exist in the Iceberg schema
+    # Step 2: Filter arrow table to only include columns that exist in Iceberg schema
+    # Note: We don't attempt in-flight schema evolution as pyiceberg's update_schema()
+    # has compatibility issues with Nessie REST API (missing lastColumnId in AddSchema).
     iceberg_column_names = {field.name for field in table.schema().fields}
     arrow_column_names = set(arrow_table.schema.names)
     new_columns = arrow_column_names - iceberg_column_names
 
     if new_columns:
-        # Add missing columns to the Iceberg table schema
-        import pyarrow as pa
-        from pyiceberg.types import (
-            BooleanType,
-            DateType,
-            DoubleType,
-            FloatType,
-            IntegerType,
-            LongType,
-            StringType,
-            TimestampType,
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Arrow data has {len(new_columns)} columns not in Iceberg schema: {new_columns}. "
+            f"These columns will be dropped. To include them, recreate the table."
         )
-
-        # Map PyArrow types to PyIceberg types
-        type_mapping = {
-            pa.types.is_boolean: BooleanType(),
-            pa.types.is_int8: IntegerType(),
-            pa.types.is_int16: IntegerType(),
-            pa.types.is_int32: IntegerType(),
-            pa.types.is_int64: LongType(),
-            pa.types.is_uint8: IntegerType(),
-            pa.types.is_uint16: IntegerType(),
-            pa.types.is_uint32: LongType(),
-            pa.types.is_uint64: LongType(),
-            pa.types.is_float32: FloatType(),
-            pa.types.is_float64: DoubleType(),
-            pa.types.is_string: StringType(),
-            pa.types.is_large_string: StringType(),
-            pa.types.is_date: DateType(),
-            pa.types.is_timestamp: TimestampType(),
-        }
-
-        with table.update_schema(allow_incompatible_changes=False) as update:
-            for col_name in new_columns:
-                arrow_field = arrow_table.schema.field(col_name)
-                arrow_type = arrow_field.type
-
-                # Find matching Iceberg type
-                iceberg_type = StringType()  # Default to string if no match
-                for type_check, ice_type in type_mapping.items():
-                    if type_check(arrow_type):
-                        iceberg_type = ice_type
-                        break
-
-                # Add the new column as optional
-                update.add_column(col_name, iceberg_type, required=False)
+        # Drop columns that don't exist in Iceberg schema
+        existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
+        arrow_table = arrow_table.select(existing_columns)
 
     # Step 3: Reorder and cast arrow table to match Iceberg schema
     # Iceberg requires exact column order matching

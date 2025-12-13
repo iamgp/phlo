@@ -66,6 +66,7 @@ def inject_metadata_columns(
     Inject phlo metadata columns into a parquet file.
 
     Adds the following columns:
+    - _phlo_row_id: Unique ULID for row-level lineage tracking
     - _phlo_ingested_at: UTC timestamp when phlo processed this record
     - _phlo_partition_date: Partition date used for ingestion
     - _phlo_run_id: Dagster run ID for traceability
@@ -82,6 +83,8 @@ def inject_metadata_columns(
     import pyarrow as pa
     import pyarrow.parquet as pq
 
+    from phlo.lineage import generate_row_id
+
     # Read existing parquet
     arrow_table = pq.read_table(str(parquet_path))
     num_rows = len(arrow_table)
@@ -91,11 +94,17 @@ def inject_metadata_columns(
 
     # Create metadata columns
     ingested_at = datetime.now(timezone.utc)
-    ingested_at_col = pa.array([ingested_at] * num_rows, type=pa.timestamp("us", tz="UTC"))
+
+    # Generate unique ULID for each row (for row-level lineage tracking)
+    row_ids = [generate_row_id() for _ in range(num_rows)]
+    row_id_col = pa.array(row_ids, type=pa.string())
+
+    ingested_at_col = pa.array([ingested_at] * num_rows, type=pa.timestamp("us"))
     partition_date_col = pa.array([partition_date] * num_rows, type=pa.string())
     run_id_col = pa.array([run_id] * num_rows, type=pa.string())
 
-    # Append columns to table
+    # Append columns to table (row_id first for prominence)
+    arrow_table = arrow_table.append_column("_phlo_row_id", row_id_col)
     arrow_table = arrow_table.append_column("_phlo_ingested_at", ingested_at_col)
     arrow_table = arrow_table.append_column("_phlo_partition_date", partition_date_col)
     arrow_table = arrow_table.append_column("_phlo_run_id", run_id_col)
@@ -104,7 +113,9 @@ def inject_metadata_columns(
     pq.write_table(arrow_table, str(parquet_path))
 
     if context:
-        context.log.debug("Added _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns")
+        context.log.debug(
+            "Added _phlo_row_id, _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns"
+        )
 
     return parquet_path
 
@@ -275,6 +286,67 @@ def merge_to_iceberg(
         override_ref=branch_name,
     )
 
+    def _coerce_parquet_to_table_schema(parquet_file: Path) -> Path:
+        import tempfile
+
+        import pyarrow as pa
+        import pyarrow.compute as pc
+        import pyarrow.parquet as pq
+        from pyiceberg.types import (
+            BooleanType,
+            DateType,
+            DoubleType,
+            LongType,
+            StringType,
+            TimestamptzType,
+        )
+
+        arrow_table = pq.read_table(str(parquet_file))
+        num_rows = len(arrow_table)
+
+        def iceberg_type_to_arrow_type(iceberg_type: object) -> pa.DataType:
+            if isinstance(iceberg_type, StringType):
+                return pa.string()
+            if isinstance(iceberg_type, LongType):
+                return pa.int64()
+            if isinstance(iceberg_type, DoubleType):
+                return pa.float64()
+            if isinstance(iceberg_type, BooleanType):
+                return pa.bool_()
+            if isinstance(iceberg_type, TimestamptzType):
+                # Use UTC to match phlo metadata injection (timezone-aware timestamps)
+                return pa.timestamp("us", tz="UTC")
+            if isinstance(iceberg_type, DateType):
+                return pa.date32()
+            # Fallback: keep as string rather than dropping data
+            return pa.string()
+
+        desired_fields = list(table_config.iceberg_schema.fields)  # type: ignore[attr-defined]
+        desired_names = [f.name for f in desired_fields]
+
+        columns: list[pa.Array] = []
+        for field in desired_fields:
+            name = field.name
+            target_type = iceberg_type_to_arrow_type(field.field_type)
+
+            if name in arrow_table.column_names:
+                col = arrow_table[name]
+                try:
+                    casted = pc.cast(col, target_type)
+                except Exception:
+                    # Last-resort: cast via string
+                    casted = pc.cast(pc.cast(col, pa.string()), target_type)
+                columns.append(casted)
+            else:
+                columns.append(pa.nulls(num_rows, type=target_type))
+
+        projected = pa.table(columns, names=desired_names)
+
+        temp_dir = tempfile.mkdtemp()
+        coerced_path = Path(temp_dir) / "coerced.parquet"
+        pq.write_table(projected, str(coerced_path))
+        return coerced_path
+
     # Apply source deduplication if enabled
     if merge_config.get("deduplication", False):
         context.log.info("Applying source-level deduplication...")
@@ -294,6 +366,12 @@ def merge_to_iceberg(
         deduped_path = Path(temp_dir) / "deduped.parquet"
         pq.write_table(arrow_table, str(deduped_path))
         parquet_path = deduped_path
+
+    # Normalize parquet to match the Iceberg table schema:
+    # - drop extra columns
+    # - order columns to match schema
+    # - cast types (prevents silent nulls on append/merge)
+    parquet_path = _coerce_parquet_to_table_schema(parquet_path)
 
     # Execute merge based on strategy
     if merge_strategy == "append":
