@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 from dagster_dbt import DbtCliResource
@@ -17,7 +17,10 @@ from phlo.defs.validation.freshness_validator import FreshnessValidatorResource
 from phlo.defs.validation.schema_validator import SchemaCompatibilityValidatorResource
 
 # Public API exports
-__all__ = ["IcebergResource", "TrinoResource"]
+__all__ = ["IcebergResource", "NessieResource", "TrinoResource"]
+
+if TYPE_CHECKING:
+    from phlo.defs.nessie import NessieResource
 
 
 # --- Re-exports and Lazy Imports ---
