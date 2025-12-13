@@ -160,6 +160,8 @@ def events_quality():
 - Pandera schema contract checks use the name `pandera_contract`
 - dbt test checks use the name `dbt__<test_type>__<target>`
 - Checks should emit metadata keys: `source`, `partition_key` (if applicable), `failed_count`, `total_count` (if available), `query_or_sql` (if applicable), `sample` (<= 20 rows/ids)
+- Checks may also emit `repro_sql` (a safe SQL snippet, e.g. with `LIMIT`, for Trino reproduction).
+ - Partitioned runs scope checks to the run partition by default (using `_phlo_partition_date` unless overridden).
 
 ### 3. Schema-First Development
 
