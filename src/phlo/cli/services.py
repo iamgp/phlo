@@ -610,7 +610,6 @@ def start(
     require_docker()
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
-    phlo_dir / ".env"
     project_name = get_project_name()
 
     if not compose_file.exists():
@@ -728,8 +727,6 @@ def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
-    phlo_dir / "docker-compose.yml"
-    phlo_dir / ".env"
     project_name = get_project_name()
 
     # Parse comma-separated services
@@ -802,7 +799,6 @@ def reset(service: tuple[str, ...], yes: bool):
     require_docker()
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
-    phlo_dir / ".env"
     project_name = get_project_name()
     volumes_dir = phlo_dir / "volumes"
 
@@ -904,8 +900,6 @@ def status():
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
-    phlo_dir / "docker-compose.yml"
-    phlo_dir / ".env"
     project_name = get_project_name()
 
     cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
