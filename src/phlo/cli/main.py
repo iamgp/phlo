@@ -381,6 +381,12 @@ def dev(host: str, port: int, workflows_path: str):
     default="",
     help="REST API base URL",
 )
+@click.option(
+    "--field",
+    "fields",
+    multiple=True,
+    help="Additional schema field (name:type, name:type?, name:type!)",
+)
 def create_workflow(
     workflow_type: str,
     domain: str,
@@ -388,6 +394,7 @@ def create_workflow(
     unique_key: str,
     cron: str,
     api_base_url: str,
+    fields: tuple[str, ...],
 ):
     """
     Interactive workflow scaffolding.
@@ -414,6 +421,7 @@ def create_workflow(
                 unique_key=unique_key,
                 cron=cron,
                 api_base_url=api_base_url or None,
+                fields=list(fields),
             )
 
             click.echo("Created files:\n")
