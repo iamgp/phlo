@@ -157,8 +157,8 @@ def events_quality():
 - `CustomSQLCheck`: Arbitrary SQL validation
 
 **Quality check contract (for Observatory)**:
-- Pandera schema contract checks use the name `pandera/contract`
-- dbt test checks use the name `dbt/<test_type>/<target>`
+- Pandera schema contract checks use the name `pandera_contract`
+- dbt test checks use the name `dbt__<test_type>__<target>`
 - Checks should emit metadata keys: `source`, `partition_key` (if applicable), `failed_count`, `total_count` (if available), `query_or_sql` (if applicable), `sample` (<= 20 rows/ids)
 
 ### 3. Schema-First Development
