@@ -5,7 +5,6 @@ Demonstrates phlo's declarative quality check framework with multiple check type
 
 import phlo
 from phlo.quality import CountCheck, NullCheck, PatternCheck, RangeCheck, SchemaCheck, UniqueCheck
-
 from workflows.schemas.github import RawUserEvents
 
 
