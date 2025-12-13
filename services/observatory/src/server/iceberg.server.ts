@@ -147,8 +147,9 @@ export const getTables = createServerFn()
       data: { branch = 'main' },
     }): Promise<Array<IcebergTable> | { error: string }> => {
       // Query for schemas first, then tables in each schema
-      // The Iceberg catalog uses schema names like 'bronze', 'raw', 'silver', 'gold', 'publish'
-      const schemasToQuery = ['bronze', 'silver', 'gold', 'raw', 'publish']
+      // The Iceberg catalog uses schema names like 'bronze', 'raw', 'silver', 'gold', 'marts'
+      // (some projects also use 'publish' as an alias for marts).
+      const schemasToQuery = ['bronze', 'silver', 'gold', 'raw', 'marts', 'publish']
       const allTables: Array<IcebergTable> = []
       const seenTables = new Set<string>() // Track by name to dedupe
       const errors: Array<string> = []
