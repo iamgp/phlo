@@ -4,6 +4,8 @@ Examples of using the @phlo.quality decorator.
 This module demonstrates all quality check types and decorator patterns.
 """
 
+from pandera.pandas import Field
+
 import phlo
 from phlo.quality import (
     CountCheck,
@@ -11,8 +13,17 @@ from phlo.quality import (
     FreshnessCheck,
     NullCheck,
     RangeCheck,
+    SchemaCheck,
     UniqueCheck,
 )
+from phlo.schemas import PhloSchema
+
+
+class CustomerDimensionsSchema(PhloSchema):
+    """Example Pandera schema used by SchemaCheck."""
+
+    customer_id: int = Field(gt=0)
+    email: str | None = Field(nullable=True)
 
 
 # Example 1: Basic quality checks with NullCheck and RangeCheck
@@ -98,8 +109,7 @@ def transaction_quality_custom():
 @phlo.quality(
     table="silver.customer_dimensions",
     checks=[
-        # Note: Requires schema to be defined in phlo.schemas
-        # SchemaCheck(schema=CustomerDimensionsSchema),
+        SchemaCheck(schema=CustomerDimensionsSchema),
     ],
     group="dimensions",
     blocking=True,
