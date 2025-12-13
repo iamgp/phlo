@@ -148,7 +148,7 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
 
 def _ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
     """
-    Attempt to generate dbt manifest if it doesn't exist.
+    Ensure a dbt manifest exists and is up-to-date.
 
     Args:
         dbt_project_path: Path to dbt project directory
@@ -161,10 +161,46 @@ def _ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
 
     manifest_path = dbt_project_path / "target" / "manifest.json"
 
-    if manifest_path.exists():
+    def _latest_project_mtime() -> float:
+        candidates: list[Path] = [
+            dbt_project_path / "dbt_project.yml",
+            dbt_project_path / "packages.yml",
+            dbt_project_path / "package-lock.yml",
+        ]
+        candidate_dirs = [
+            dbt_project_path / "models",
+            dbt_project_path / "macros",
+            dbt_project_path / "seeds",
+            dbt_project_path / "snapshots",
+            dbt_project_path / "tests",
+            dbt_project_path / "analysis",
+        ]
+
+        latest = 0.0
+        for path in candidates:
+            if path.exists():
+                latest = max(latest, path.stat().st_mtime)
+
+        for directory in candidate_dirs:
+            if not directory.exists():
+                continue
+            for file_path in directory.rglob("*"):
+                if file_path.is_file():
+                    latest = max(latest, file_path.stat().st_mtime)
+
+        return latest
+
+    needs_compile = not manifest_path.exists()
+    if not needs_compile:
+        try:
+            needs_compile = _latest_project_mtime() > manifest_path.stat().st_mtime
+        except OSError:
+            needs_compile = True
+
+    if not needs_compile:
         return True
 
-    logger.info(f"dbt manifest not found at {manifest_path}, attempting to generate...")
+    logger.info("Generating dbt manifest via `dbt compile`...")
 
     try:
         result = subprocess.run(
@@ -243,6 +279,29 @@ def _discover_dbt_assets() -> list[Any]:
             def get_kinds(self, dbt_resource_props: Mapping[str, Any]) -> set[str]:
                 return {"dbt", "trino"}
 
+            def get_metadata(self, dbt_resource_props: Mapping[str, Any]) -> dict[str, Any]:
+                """Extract column schema from dbt manifest as static definition metadata."""
+                from dagster import TableColumn, TableSchema
+
+                columns = dbt_resource_props.get("columns", {})
+                if not columns:
+                    return {}
+
+                # Build TableSchema from dbt manifest column definitions
+                table_columns = [
+                    TableColumn(
+                        name=col_name,
+                        type=col_info.get("data_type", "unknown"),
+                        description=col_info.get("description", ""),
+                    )
+                    for col_name, col_info in columns.items()
+                ]
+
+                if not table_columns:
+                    return {}
+
+                return {"dagster/column_schema": TableSchema(columns=table_columns)}
+
             def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
                 """Derive group from dbt model path or naming convention."""
                 model_name = dbt_resource_props["name"]
@@ -268,12 +327,22 @@ def _discover_dbt_assets() -> list[Any]:
                     return "gold"
                 return "transform"
 
+            def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
+                """Return just the raw SQL for the model, not the formatted markdown."""
+                # Get the raw SQL from the dbt resource
+                raw_sql = dbt_resource_props.get("raw_sql") or dbt_resource_props.get("raw_code")
+                if raw_sql:
+                    return str(raw_sql)
+
+                # Fall back to the user-provided description if no SQL
+                return str(dbt_resource_props.get("description", ""))
+
         @dbt_assets(
             manifest=manifest_path,
             dagster_dbt_translator=CustomDbtTranslator(),
             partitions_def=daily_partition,
         )
-        def all_dbt_assets(context, dbt: Any):
+        def all_dbt_assets(context, dbt: DbtCliResource):  # type: ignore[reportInvalidTypeForm]
             import os
             import shutil
 
@@ -299,7 +368,9 @@ def _discover_dbt_assets() -> list[Any]:
             os.environ.setdefault("TRINO_PORT", str(settings.trino_port))
 
             build_invocation = dbt.cli(build_args, context=context)
-            yield from build_invocation.stream()
+            # fetch_column_metadata() automatically queries the warehouse for column schema
+            # after each model runs, making it available in Dagster UI and Observatory
+            yield from build_invocation.stream().fetch_column_metadata()
             build_invocation.wait()
 
             docs_args = [
@@ -355,115 +426,7 @@ def _collect_registered_assets() -> list[Any]:
     dbt_assets = _discover_dbt_assets()
     assets.extend(dbt_assets)
 
-    # Auto-discover publishing assets for marts
-    publishing_assets = _discover_publishing_assets()
-    assets.extend(publishing_assets)
-
     return assets
-
-
-def _discover_publishing_assets() -> list[Any]:
-    """
-    Auto-discover dbt marts and create publishing assets to copy them to Postgres.
-
-    Scans the dbt manifest for models in the 'marts' schema and creates
-    a publishing asset that copies them from Iceberg to Postgres.
-
-    Returns:
-        List containing publishing asset if marts found, empty list otherwise
-    """
-    from phlo.config import get_settings
-
-    settings = get_settings()
-    dbt_project_path = settings.dbt_project_path
-    manifest_path = dbt_project_path / "target" / "manifest.json"
-
-    if not manifest_path.exists():
-        logger.debug("No dbt manifest found, skipping publishing assets")
-        return []
-
-    try:
-        import json
-
-        from dagster import AssetKey, asset
-
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-
-        # Find all models in marts schema
-        marts_models = []
-        for node_id, node in manifest.get("nodes", {}).items():
-            if node.get("resource_type") == "model":
-                schema = node.get("schema", "")
-                if schema == "marts":
-                    table_name = node.get("name")
-                    marts_models.append(table_name)
-
-        if not marts_models:
-            logger.debug("No marts models found in dbt manifest")
-            return []
-
-        logger.info(f"Found {len(marts_models)} marts models to publish: {marts_models}")
-
-        # Create asset keys for dependencies
-        deps = [AssetKey(name) for name in marts_models]
-
-        @asset(
-            name="publish_marts_to_postgres",
-            group_name="publishing",
-            deps=deps,
-            kinds={"trino", "postgres"},
-            description=f"Publish {len(marts_models)} mart tables from Iceberg to PostgreSQL for BI",
-        )
-        def publish_marts_to_postgres(context):
-            """Auto-generated publishing asset for dbt marts."""
-            from phlo.defs.resources.trino import TrinoResource
-
-            trino = TrinoResource()
-            conn = trino.get_connection()
-            cursor = conn.cursor()
-
-            total_rows = 0
-            published_tables = []
-
-            # Create marts schema in postgres if not exists
-            cursor.execute("CREATE SCHEMA IF NOT EXISTS postgres.marts")
-
-            for table_name in marts_models:
-                source = f"iceberg.marts.{table_name}"
-                target = f"postgres.marts.{table_name}"
-
-                context.log.info(f"Publishing {source} -> {target}")
-
-                try:
-                    # Drop and recreate (simple refresh)
-                    cursor.execute(f"DROP TABLE IF EXISTS {target}")
-                    cursor.execute(f"CREATE TABLE {target} AS SELECT * FROM {source}")
-
-                    # Get row count
-                    cursor.execute(f"SELECT COUNT(*) FROM {target}")
-                    row_count = cursor.fetchone()[0]
-                    total_rows += row_count
-                    published_tables.append(table_name)
-
-                    context.log.info(f"Published {row_count} rows to {target}")
-                except Exception as e:
-                    context.log.error(f"Failed to publish {table_name}: {e}")
-
-            cursor.close()
-            conn.close()
-
-            return {
-                "tables_published": len(published_tables),
-                "total_rows": total_rows,
-                "tables": published_tables,
-            }
-
-        return [publish_marts_to_postgres]
-
-    except Exception as exc:
-        logger.error(f"Error creating publishing assets: {exc}", exc_info=True)
-        return []
 
 
 def _clear_asset_registries() -> None:

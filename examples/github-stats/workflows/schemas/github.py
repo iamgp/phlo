@@ -8,15 +8,16 @@ This is required because Pandera's coerce=True needs explicit nullable flag.
 """
 
 from pandera.pandas import Field
+
 from phlo.schemas import PhloSchema
 
 
 class RawUserEvents(PhloSchema):
     """Raw user events data schema."""
 
-    id: str = Field(unique=True)
-    type: str
-    created_at: str
+    id: int = Field(unique=True)  # GitHub event IDs are integers
+    type: str | None = Field(nullable=True)
+    created_at: str | None = Field(nullable=True)
     actor__login: str | None = Field(nullable=True)
     repo__name: str | None = Field(nullable=True)
 

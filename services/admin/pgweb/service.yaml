@@ -1,0 +1,21 @@
+name: pgweb
+description: Web-based PostgreSQL database browser
+category: admin
+default: true
+
+image: sosedoff/pgweb
+
+depends_on:
+  - postgres
+
+compose:
+  restart: unless-stopped
+  environment:
+    DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}?sslmode=disable
+  ports:
+    - "${PGWEB_PORT:-8081}:8081"
+
+env_vars:
+  PGWEB_PORT:
+    default: 8081
+    description: pgweb UI port

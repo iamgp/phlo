@@ -1,0 +1,75 @@
+# Phlo Service Definition Schema
+# This schema defines the structure for service.yaml files in services/
+#
+# Each service directory should contain a service.yaml that follows this schema.
+# The CLI uses these definitions to compose docker-compose.yml for lakehouses.
+
+# ============================================================================
+# SCHEMA DEFINITION
+# ============================================================================
+
+# Required fields
+name: string                    # Unique service identifier (e.g., "postgres", "observatory")
+description: string             # Human-readable description
+
+# Optional metadata
+version: string                 # Service version (default: "latest")
+category: string                # One of: core, orchestration, api, bi, observability, admin
+
+# Installation behavior
+default: boolean                # Install by default with `phlo services init` (default: false)
+profile: string | null          # Docker compose profile name (e.g., "observability", "api")
+                                # If null, service is always included when installed
+
+# Dependencies
+depends_on:                     # List of service names this service requires
+  - string                      # e.g., ["postgres", "dagster"]
+
+# Container configuration (choose ONE of: image OR build)
+image: string                   # Docker image reference (e.g., "postgres:16-alpine")
+
+build:                          # Build configuration (mutually exclusive with image)
+  context: string               # Build context path relative to service directory (default: ".")
+  dockerfile: string            # Dockerfile path relative to context (default: "Dockerfile")
+  args:                         # Build arguments
+    ARG_NAME: string | env_ref
+
+# Docker Compose service definition
+compose:
+  container_name: string        # Optional custom container name
+  restart: string               # Restart policy (default: "unless-stopped")
+
+  environment:                  # Environment variables
+    VAR_NAME: string | env_ref  # Can be literal or "${ENV_VAR:-default}"
+
+  ports:                        # Port mappings
+    - string                    # Format: "${HOST_PORT:-default}:container_port"
+
+  volumes:                      # Volume mounts
+    - string                    # Format: "./path:/container/path" or "volume:/path"
+
+  command: string | list        # Override container command
+
+  healthcheck:                  # Health check configuration
+    test: list                  # e.g., ["CMD", "curl", "-f", "http://localhost:8080/health"]
+    interval: string            # e.g., "10s"
+    timeout: string             # e.g., "5s"
+    retries: integer            # e.g., 5
+    start_period: string        # e.g., "30s"
+
+# Environment variables to add to .phlo/.env
+env_vars:
+  VAR_NAME:                     # Variable name
+    default: string | integer   # Default value
+    description: string         # Optional description for comments in .env
+    secret: boolean             # If true, marked as sensitive (default: false)
+
+# Additional files to copy to .phlo/ during init
+files:                          # List of files/directories to copy
+  - source: string              # Path relative to service directory
+    dest: string                # Path relative to .phlo/ directory
+
+# Post-install hooks (future)
+hooks:
+  post_init: string             # Command to run after service is added
+  post_start: string            # Command to run after service starts

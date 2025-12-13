@@ -1,12 +1,9 @@
-# Environment and secrets
+# Phlo infrastructure files
 .env
-
-# Runtime data
 volumes/
+
+# Dagster runtime data
 dagster/storage/
-
-# Backup files
-*.bak
-
-# macOS
-.DS_Store
+dagster/history/
+dagster/schedules/
+dagster/logs/

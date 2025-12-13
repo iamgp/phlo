@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import dagster as dg
 
-from phlo.defs.publishing.trino_to_postgres import PUBLISHING_ASSETS
+from phlo.defs.publishing.trino_to_postgres import create_publishing_assets
 
 
 # --- Aggregation Function ---
 # Builds publishing asset definitions
 def build_defs() -> dg.Definitions:
-    return dg.Definitions(assets=PUBLISHING_ASSETS)
+    return dg.Definitions(assets=create_publishing_assets())

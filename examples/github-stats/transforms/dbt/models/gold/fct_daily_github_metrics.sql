@@ -6,6 +6,8 @@
     materialized='incremental',
     unique_key='activity_date',
     incremental_strategy='merge',
+    on_schema_change='sync_all_columns',
+    schema='gold',
     tags=['github', 'curated']
 ) }}
 
@@ -19,6 +21,7 @@ Useful for trend analysis and long-term contribution tracking.
 -- Select statement: Aggregate daily GitHub metrics and time dimensions
 select
     event_date as activity_date,
+    max(_phlo_partition_date) as _phlo_partition_date,
     day_name,
     day_of_week,
     week_of_year,
@@ -54,9 +57,11 @@ select
 
 from {{ ref('fct_github_events') }}
 
-{% if is_incremental() %}
+{% if var('partition_date_str', None) is not none %}
+    where _phlo_partition_date = '{{ var('partition_date_str') }}'
+{% elif is_incremental() %}
     -- Only process new dates on incremental runs
-    where event_date > (select coalesce(max(activity_date), date('1900-01-01')) from {{ this }})
+    where cast(event_date as date) > (select coalesce(max(activity_date), date '1900-01-01') from {{ this }})
 {% endif %}
 
 group by
