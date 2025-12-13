@@ -14,6 +14,7 @@ from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValu
 
 from phlo.quality.checks import QualityCheck, QualityCheckResult, SchemaCheck
 from phlo.quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
+from phlo.quality.severity import severity_for_pandera_contract, severity_for_quality_check
 
 _QUALITY_CHECKS: list[Any] = []
 
@@ -41,7 +42,7 @@ def phlo_quality(
         asset_key: Optional Dagster AssetKey (derived from table if not provided)
         group: Optional asset group
         blocking: Whether check failures block downstream assets (default: True)
-        warn_threshold: Fraction of checks that can fail before marking as WARN (0.0 = fail immediately)
+        warn_threshold: Max fraction of failed checks to mark as WARN (otherwise ERROR)
         description: Optional description (auto-generated if not provided)
         query: Optional custom SQL query (defaults to SELECT * FROM {table})
         backend: Backend to use ("trino" or "duckdb", default: "trino")
@@ -103,7 +104,7 @@ def phlo_quality(
             @asset_check(
                 name=PANDERA_CONTRACT_CHECK_NAME,
                 asset=asset_key,
-                blocking=blocking,
+                blocking=True,
                 description=f"Pandera schema contract for {table}",
             )
             @wraps(func)
@@ -136,6 +137,7 @@ def phlo_quality(
                     )
                     return AssetCheckResult(
                         passed=False,
+                        severity=AssetCheckSeverity.ERROR,
                         metadata={
                             **contract.to_dagster_metadata(),
                             "reason": MetadataValue.text("query_failed"),
@@ -187,6 +189,7 @@ def phlo_quality(
                 )
                 return AssetCheckResult(
                     passed=all_passed,
+                    severity=severity_for_pandera_contract(passed=all_passed),
                     metadata={
                         **contract.to_dagster_metadata(),
                         "schemas": MetadataValue.json(schema_names),
@@ -206,7 +209,7 @@ def phlo_quality(
                 """
                 Execute all non-Pandera quality checks on the table.
 
-                Pandera schema checks are emitted as a separate ``pandera/contract`` asset check when
+                Pandera schema checks are emitted as a separate ``pandera_contract`` asset check when
                 ``SchemaCheck`` is included in the decorator's check list.
                 """
                 partition_key = getattr(context, "partition_key", None)
@@ -229,6 +232,7 @@ def phlo_quality(
                     context.log.error(f"Failed to load data: {exc}")
                     return AssetCheckResult(
                         passed=False,
+                        severity=AssetCheckSeverity.ERROR,
                         metadata={
                             "reason": MetadataValue.text("query_failed"),
                             "error": MetadataValue.text(str(exc)),
@@ -298,17 +302,20 @@ def phlo_quality(
                     )
                 metadata["summary"] = MetadataValue.text(summary)
 
-                severity = AssetCheckSeverity.SUCCESS if all_passed else AssetCheckSeverity.FAILURE
-                if failure_fraction > 0 and failure_fraction <= warn_threshold:
-                    severity = AssetCheckSeverity.WARN
+                severity = severity_for_quality_check(
+                    passed=all_passed,
+                    failure_fraction=failure_fraction,
+                    warn_threshold=warn_threshold,
+                )
+                if severity == AssetCheckSeverity.WARN:
                     context.log.warning(
                         f"Quality check warning: {failure_fraction:.1%} of checks failed "
                         f"(within warn threshold of {warn_threshold:.1%})"
                     )
 
                 return AssetCheckResult(
-                    passed=all_passed or (failure_fraction <= warn_threshold),
-                    severity=severity if all_passed else None,
+                    passed=all_passed,
+                    severity=severity,
                     metadata=metadata,
                 )
 
