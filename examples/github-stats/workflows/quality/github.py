@@ -4,7 +4,8 @@ Demonstrates phlo's declarative quality check framework with multiple check type
 """
 
 import phlo
-from phlo.quality import CountCheck, NullCheck, PatternCheck, RangeCheck, UniqueCheck
+from phlo.quality import CountCheck, NullCheck, PatternCheck, RangeCheck, SchemaCheck, UniqueCheck
+from workflows.schemas.github import RawUserEvents
 
 
 @phlo.quality(
@@ -12,6 +13,7 @@ from phlo.quality import CountCheck, NullCheck, PatternCheck, RangeCheck, Unique
     checks=[
         NullCheck(columns=["id", "type", "created_at"]),
         UniqueCheck(columns=["id"]),
+        SchemaCheck(schema=RawUserEvents),
         CountCheck(min_rows=1),
     ],
     group="github",
