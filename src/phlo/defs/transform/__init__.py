@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import dagster as dg
 
-from phlo.defs.transform.dbt import all_dbt_assets
+from phlo.defs.transform.dbt import build_defs as build_dbt_defs
 
 
 # --- Aggregation Function ---
 # Builds transformation asset definitions
 def build_defs() -> dg.Definitions:
-    return dg.Definitions(assets=[all_dbt_assets])
+    return build_dbt_defs()
