@@ -4,6 +4,7 @@ Compose Generator Module
 Generates docker-compose.yml and .env files from service definitions.
 """
 
+import logging
 import shutil
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,8 @@ from typing import Any
 import yaml
 
 from phlo.services.discovery import ServiceDefinition, ServiceDiscovery
+
+logger = logging.getLogger(__name__)
 
 
 class ComposeGenerator:
@@ -244,7 +247,7 @@ class ComposeGenerator:
                 dest = output_dir / file_spec["dest"]
 
                 if not source.exists():
-                    print(f"Warning: Source file not found: {source}")
+                    logger.warning("Source file not found: %s", source)
                     continue
 
                 # Create parent directories

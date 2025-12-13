@@ -1,10 +1,15 @@
 """Hasura table tracking and auto-discovery."""
 
+import logging
+from typing import Any
+
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 from phlo.api.hasura.client import HasuraClient
 from phlo.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class HasuraTableTracker:
@@ -143,31 +148,30 @@ class HasuraTableTracker:
             Dictionary of table_name -> success
         """
         if verbose:
-            print(f"Discovering tables in schema '{schema}'...")
+            logger.info("Discovering tables in schema '%s'...", schema)
 
         tables = self.get_tables_in_schema(schema)
         exclude = exclude or []
         tables = [t for t in tables if t not in exclude]
 
         if verbose:
-            print(f"Found {len(tables)} tables")
-            print()
+            logger.info("Found %s tables", len(tables))
 
         results = {}
         for table in tables:
             try:
                 if verbose:
-                    print(f"Tracking {schema}.{table}...", end=" ")
+                    logger.info("Tracking %s.%s...", schema, table)
 
                 self.client.track_table(schema, table)
                 results[table] = True
 
                 if verbose:
-                    print("✓")
+                    logger.info("Tracking %s.%s ✓", schema, table)
             except Exception as e:
                 results[table] = False
                 if verbose:
-                    print(f"✗ ({str(e)[:50]})")
+                    logger.warning("Tracking %s.%s ✗ (%s)", schema, table, str(e)[:200])
 
         return results
 
@@ -192,9 +196,11 @@ class HasuraTableTracker:
 
                 try:
                     if verbose:
-                        print(
-                            f"Creating relationship {table}.{rel_name} -> {fk['ref_table']}...",
-                            end=" ",
+                        logger.info(
+                            "Creating relationship %s.%s -> %s...",
+                            table,
+                            rel_name,
+                            fk["ref_table"],
                         )
 
                     self.client.create_object_relationship(
@@ -208,11 +214,13 @@ class HasuraTableTracker:
 
                     results[(table, rel_name)] = True
                     if verbose:
-                        print("✓")
+                        logger.info("Creating relationship %s.%s ✓", table, rel_name)
                 except Exception as e:
                     results[(table, rel_name)] = False
                     if verbose:
-                        print(f"✗ ({str(e)[:50]})")
+                        logger.warning(
+                            "Creating relationship %s.%s ✗ (%s)", table, rel_name, str(e)[:200]
+                        )
 
         return results
 
@@ -242,22 +250,24 @@ class HasuraTableTracker:
             for role, filter_expr in default_permissions:
                 try:
                     if verbose:
-                        print(f"Creating permission {table}.{role}...", end=" ")
+                        logger.info("Creating permission %s.%s...", table, role)
 
                     self.client.create_select_permission(schema, table, role, filter=filter_expr)
 
                     results[(table, role)] = True
                     if verbose:
-                        print("✓")
+                        logger.info("Creating permission %s.%s ✓", table, role)
                 except Exception as e:
                     results[(table, role)] = False
                     if verbose:
-                        print(f"✗ ({str(e)[:50]})")
+                        logger.warning(
+                            "Creating permission %s.%s ✗ (%s)", table, role, str(e)[:200]
+                        )
 
         return results
 
 
-def auto_track(schema: str = "api", verbose: bool = True) -> dict[str, any]:
+def auto_track(schema: str = "api", verbose: bool = True) -> dict[str, Any]:
     """Convenience function to auto-track all tables in a schema.
 
     Args:
@@ -268,38 +278,48 @@ def auto_track(schema: str = "api", verbose: bool = True) -> dict[str, any]:
         Summary of tracking results
     """
     if verbose:
-        print("=" * 60)
-        print("Hasura Auto-Track")
-        print("=" * 60)
-        print()
+        logger.info("=" * 60)
+        logger.info("Hasura Auto-Track")
+        logger.info("=" * 60)
 
     tracker = HasuraTableTracker()
 
     # Track tables
     track_results = tracker.track_tables(schema, verbose=verbose)
     if verbose:
-        print()
+        logger.info("")
 
     # Setup relationships
-    print("Setting up relationships...")
+    if verbose:
+        logger.info("Setting up relationships...")
     rel_results = tracker.setup_relationships(schema, verbose=verbose)
     if verbose:
-        print()
+        logger.info("")
 
     # Setup default permissions
-    print("Setting up default permissions...")
+    if verbose:
+        logger.info("Setting up default permissions...")
     perm_results = tracker.setup_default_permissions(schema, verbose=verbose)
 
     if verbose:
-        print()
-        print("=" * 60)
-        print("✓ Auto-track completed")
-        print(
-            f"  Tables tracked: {sum(1 for v in track_results.values() if v)}/{len(track_results)}"
+        logger.info("=" * 60)
+        logger.info("✓ Auto-track completed")
+        logger.info(
+            "  Tables tracked: %s/%s",
+            sum(1 for v in track_results.values() if v),
+            len(track_results),
         )
-        print(f"  Relationships: {sum(1 for v in rel_results.values() if v)}/{len(rel_results)}")
-        print(f"  Permissions: {sum(1 for v in perm_results.values() if v)}/{len(perm_results)}")
-        print("=" * 60)
+        logger.info(
+            "  Relationships: %s/%s",
+            sum(1 for v in rel_results.values() if v),
+            len(rel_results),
+        )
+        logger.info(
+            "  Permissions: %s/%s",
+            sum(1 for v in perm_results.values() if v),
+            len(perm_results),
+        )
+        logger.info("=" * 60)
 
     return {
         "tables": track_results,

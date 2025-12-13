@@ -332,8 +332,8 @@ def get_plugin_info(plugin_type: str, name: str) -> dict | None:
         ```python
         info = get_plugin_info("source_connectors", "github")
         if info:
-            print(f"Version: {info['version']}")
-            print(f"Author: {info['author']}")
+            version = info["version"]
+            author = info["author"]
         ```
     """
     registry = get_global_registry()
