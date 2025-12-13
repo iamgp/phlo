@@ -7,8 +7,18 @@ Contract
 --------
 
 Naming:
-- Pandera schema contract check name: ``pandera/contract``
-- dbt test check name: ``dbt/<test_type>/<target>``
+- Pandera schema contract check name: ``pandera_contract``
+- dbt test check name: ``dbt__<test_type>__<target>``
+
+Severity policy
+---------------
+
+- Pandera schema contract checks are blocking and emit ``ERROR`` on failure.
+- dbt tests default to ``ERROR`` for ``not_null``, ``unique``, and ``relationships``; other test
+  types default to ``WARN``.
+- dbt tag overrides:
+  - ``tag:blocking`` forces ``ERROR``
+  - ``tag:warn`` or ``tag:anomaly`` forces ``WARN``
 
 Required metadata keys:
 - ``source``: ``pandera`` or ``dbt``
@@ -26,11 +36,17 @@ from typing import Any, Literal
 
 from dagster import MetadataValue
 
-PANDERA_CONTRACT_CHECK_NAME = "pandera/contract"
+PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
 
 
 def dbt_check_name(test_type: str, target: str) -> str:
-    return f"dbt/{test_type}/{target}"
+    return f"dbt__{_sanitize_dagster_name(test_type)}__{_sanitize_dagster_name(target)}"
+
+
+def _sanitize_dagster_name(value: str) -> str:
+    cleaned = "".join(char if char.isalnum() else "_" for char in value.strip())
+    cleaned = "_".join(part for part in cleaned.split("_") if part)
+    return cleaned or "unknown"
 
 
 @dataclass(frozen=True, slots=True)
