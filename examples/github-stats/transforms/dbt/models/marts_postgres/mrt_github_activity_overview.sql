@@ -6,6 +6,8 @@
     materialized='incremental',
     unique_key='activity_date',
     incremental_strategy='merge',
+    on_schema_change='sync_all_columns',
+    schema='marts',
     tags=['github', 'mart']
 ) }}
 
@@ -19,6 +21,44 @@ visualization and reporting.
 Target: Iceberg (incrementally updated), then published to PostgreSQL
 Refresh: Every 6 hours via Dagster schedule, only new data
 */
+
+-- CTE to compute streak groups (avoid nested window functions)
+with base_metrics as (
+    select
+        activity_date,
+        day_name,
+        week_of_year,
+        month,
+        year,
+        total_events,
+        unique_repos_count,
+        push_events,
+        pr_events,
+        issue_events,
+        watch_events,
+        fork_events,
+        code_contribution_events,
+        collaboration_events,
+        social_events,
+        events_per_repo
+    from {{ ref('fct_daily_github_metrics') }}
+    where
+        activity_date >= current_date - interval '90' day
+
+        {% if is_incremental() %}
+            and activity_date >= (select coalesce(max(activity_date), date('1900-01-01')) from {{ this }})
+        {% endif %}
+),
+
+streak_groups as (
+    select
+        *,
+        sum(case when total_events = 0 then 1 else 0 end) over (
+            order by activity_date
+            rows unbounded preceding
+        ) as streak_group
+    from base_metrics
+)
 
 -- Select statement: Enrich daily GitHub data with rolling averages and trend indicators
 select
@@ -73,15 +113,7 @@ select
     -- Contribution streak (consecutive days with activity)
     case
         when total_events > 0
-            then
-                row_number() over (
-                    partition by
-                        sum(case when total_events = 0 then 1 else 0 end) over (
-                            order by activity_date
-                            rows unbounded preceding
-                        )
-                    order by activity_date
-                )
+            then row_number() over (partition by streak_group order by activity_date)
         else 0
     end as streak_length,
 
@@ -94,13 +126,5 @@ select
         else 'inactive'
     end as activity_level
 
-from {{ ref('fct_daily_github_metrics') }}
-where
-    activity_date >= current_date - interval '90' day  -- Last 90 days for dashboard
-
-    {% if is_incremental() %}
-    -- Only process new dates on incremental runs
-        and activity_date >= (select coalesce(max(activity_date), date('1900-01-01')) from {{ this }})
-    {% endif %}
-
+from streak_groups
 order by activity_date desc

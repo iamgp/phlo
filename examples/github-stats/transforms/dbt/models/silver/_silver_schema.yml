@@ -1,0 +1,92 @@
+version: 2
+
+models:
+  - name: stg_github_repos
+    description: Staged GitHub repository data with standardized column names
+    columns:
+      - name: repository_id
+        description: Unique repository identifier
+        data_type: bigint
+      - name: repository_name
+        description: Repository name
+        data_type: varchar
+      - name: repository_full_name
+        description: Full repository name (owner/repo)
+        data_type: varchar
+      - name: stars_count
+        description: Number of stars
+        data_type: bigint
+      - name: forks_count
+        description: Number of forks
+        data_type: bigint
+      - name: primary_language
+        description: Primary programming language
+        data_type: varchar
+      - name: repository_created_at
+        description: Repository creation timestamp
+        data_type: varchar
+      - name: repository_updated_at
+        description: Last update timestamp
+        data_type: varchar
+      - name: _dlt_load_id
+        description: DLT load identifier
+        data_type: varchar
+      - name: _dlt_id
+        description: DLT record identifier
+        data_type: varchar
+
+  - name: stg_github_profile
+    description: Staged GitHub user profile data
+    columns:
+      - name: user_id
+        description: Unique user identifier
+        data_type: bigint
+      - name: username
+        description: GitHub username (login)
+        data_type: varchar
+      - name: display_name
+        description: User's display name
+        data_type: varchar
+      - name: followers_count
+        description: Number of followers
+        data_type: bigint
+      - name: following_count
+        description: Number of users being followed
+        data_type: bigint
+      - name: public_repos_count
+        description: Number of public repositories
+        data_type: bigint
+      - name: account_created_at
+        description: Account creation timestamp
+        data_type: varchar
+      - name: _dlt_load_id
+        description: DLT load identifier
+        data_type: varchar
+      - name: _dlt_id
+        description: DLT record identifier
+        data_type: varchar
+
+  - name: stg_github_events
+    description: Staged GitHub events data
+    columns:
+      - name: event_id
+        description: Unique event identifier
+        data_type: varchar
+      - name: event_type
+        description: Type of GitHub event (PushEvent, PullRequestEvent, etc.)
+        data_type: varchar
+      - name: event_timestamp
+        description: Event creation timestamp
+        data_type: varchar
+      - name: actor_username
+        description: Username of the actor who triggered the event
+        data_type: varchar
+      - name: repository_name
+        description: Repository where the event occurred
+        data_type: varchar
+      - name: _dlt_load_id
+        description: DLT load identifier
+        data_type: varchar
+      - name: _dlt_id
+        description: DLT record identifier
+        data_type: varchar

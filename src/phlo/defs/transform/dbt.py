@@ -33,6 +33,56 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             return super().get_asset_key(dbt_resource_props)
         return AssetKey(dbt_resource_props["name"])
 
+    def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
+        """Get description including compiled SQL for Observatory lineage parsing.
+
+        The compiled SQL is essential for the Observatory's Query Source Data feature
+        to correctly parse column mappings and build WHERE clauses for upstream queries.
+        Reads directly from target/compiled/ files which contain fully resolved SQL.
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+        model_name = dbt_resource_props.get("name", "")
+
+        # Get the docstring description if available
+        docstring = dbt_resource_props.get("description", "")
+
+        # Try to read compiled SQL from file (most reliable source)
+        compiled_sql: str = ""
+        compiled_path = dbt_resource_props.get("compiled_path")
+        logger.debug(f"[CustomDbtTranslator] Model: {model_name}, compiled_path: {compiled_path}")
+
+        if compiled_path:
+            try:
+                compiled_file = DBT_PROJECT_DIR / compiled_path
+                logger.debug(
+                    f"[CustomDbtTranslator] full path: {compiled_file}, exists: {compiled_file.exists()}"
+                )
+                if compiled_file.exists():
+                    compiled_sql = compiled_file.read_text()
+                    logger.debug(
+                        f"[CustomDbtTranslator] Read compiled SQL, length: {len(compiled_sql)}"
+                    )
+            except Exception as e:
+                logger.warning(f"[CustomDbtTranslator] Failed to read compiled file: {e}")
+
+        # Fallback to manifest compiled_code or raw_code
+        if not compiled_sql:
+            compiled_sql = dbt_resource_props.get("compiled_code") or dbt_resource_props.get(
+                "raw_code", ""
+            )
+            logger.debug(f"[CustomDbtTranslator] Using fallback, length: {len(compiled_sql)}")
+
+        # Build description with model name header and SQL
+        parts = [f"dbt model {model_name}"]
+        if docstring:
+            parts.append(docstring)
+        if compiled_sql:
+            parts.append("\n#### Raw SQL:\n```sql\n" + compiled_sql + "\n```")
+
+        return "\n\n".join(parts)
+
     def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
         """Derive group from dbt model path or naming convention."""
         model_name = dbt_resource_props["name"]

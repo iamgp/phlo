@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr view:*)",
+      "Bash(git log:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git branch:*)",
+      "Bash(cat:*)",
+      "Bash(git config:*)",
+      "Bash(git show:*)",
+      "Bash(tree:*)",
+      "WebFetch(domain:docs.github.com)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "mcp__context7__resolve-library-id",
+      "WebSearch",
+      "mcp__context7__get-library-docs"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from phlo.ingestion import phlo_ingestion
-
 from workflows.ingestion.github.helpers import github_api
 from workflows.schemas.github import RawUserRepos
 
@@ -31,10 +30,14 @@ def user_repos(partition_date: str):
     """
     return github_api(
         resource="repos",
-        path="users/{username}/repos",
+        # Use the authenticated endpoint so we get all accessible repos (owner, org, collaborator),
+        # not just the public repos for a username.
+        path="user/repos",
         params={
             "per_page": 100,
             "sort": "updated",
-            "type": "all",
+            "direction": "desc",
+            "visibility": "all",
+            "affiliation": "owner,collaborator,organization_member",
         },
     )

@@ -5,6 +5,9 @@ Manages Docker infrastructure for Phlo projects.
 Creates .phlo/ directory in user projects with docker-compose configuration.
 """
 
+import os
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -28,6 +31,70 @@ description: "{description}"
 #       host: custom-host  # Override postgres host
 #   container_naming_pattern: "{{project}}_{{service}}"  # Custom naming
 """
+
+
+def detect_phlo_source_path() -> str | None:
+    """Detect phlo source path using multiple strategies.
+
+    Tries in order:
+    1. PHLO_DEV_SOURCE environment variable
+    2. Common directory patterns relative to CWD
+    3. Returns None if not found
+
+    Returns:
+        Relative path to phlo source from .phlo/ directory, or None.
+    """
+    # Strategy 1: Environment variable
+    env_path = os.environ.get("PHLO_DEV_SOURCE")
+    if env_path:
+        candidate = Path(env_path)
+        if candidate.exists() and (candidate / "__init__.py").exists():
+            # Calculate relative path from .phlo/ to the source
+            try:
+                return os.path.relpath(candidate, Path.cwd() / ".phlo")
+            except ValueError:
+                # On Windows, relpath can fail across drives
+                return str(candidate)
+
+    # Strategy 2: Common directory patterns
+    patterns = [
+        # examples/project-name -> ../../src/phlo
+        (Path.cwd().parent.parent / "src" / "phlo", "../../../src/phlo"),
+        # src/project-name -> ../phlo
+        (Path.cwd().parent / "phlo", "../../phlo"),
+        # project-name/subdir -> ../src/phlo
+        (Path.cwd().parent / "src" / "phlo", "../../src/phlo"),
+        # At repo root -> src/phlo
+        (Path.cwd() / "src" / "phlo", "../src/phlo"),
+    ]
+
+    for candidate, rel_path in patterns:
+        if candidate.exists() and (candidate / "__init__.py").exists():
+            return rel_path
+
+    return None
+
+
+def get_compose_dev_mode(compose_file: Path) -> bool | None:
+    """Check if existing docker-compose.yml was generated in dev mode.
+
+    Returns:
+        True if dev mode, False if not, None if cannot determine.
+    """
+    if not compose_file.exists():
+        return None
+
+    try:
+        with open(compose_file) as f:
+            # Read first few lines to find the dev mode comment
+            for _ in range(5):
+                line = f.readline()
+                if match := re.match(r"^# Dev mode: (true|false)", line):
+                    return match.group(1) == "true"
+    except Exception:
+        pass
+
+    return None
 
 
 def check_docker_running() -> bool:
@@ -77,14 +144,11 @@ def get_project_name() -> str:
 
 
 def find_dagster_container(project_name: str) -> str:
-    """Find the running Dagster webserver container for the project.
-
-    Checks phlo.yaml infrastructure config first, then falls back to dynamic discovery.
-    """
+    """Find the running Dagster webserver container for the project."""
     from phlo.infrastructure import get_container_name
 
+    # Try configured name first
     configured_name = get_container_name("dagster_webserver", project_name)
-
     if configured_name:
         result = subprocess.run(
             ["docker", "ps", "--filter", f"name={configured_name}", "--format", "{{.Names}}"],
@@ -94,22 +158,33 @@ def find_dagster_container(project_name: str) -> str:
         if result.stdout.strip():
             return configured_name
 
-    default_name = f"{project_name}-dagster-webserver-1"
+    # Try new naming convention: {project}-dagster-1
+    new_name = f"{project_name}-dagster-1"
     result = subprocess.run(
-        ["docker", "ps", "--filter", f"name={default_name}", "--format", "{{.Names}}"],
+        ["docker", "ps", "--filter", f"name={new_name}", "--format", "{{.Names}}"],
         capture_output=True,
         text=True,
     )
-
     if result.stdout.strip():
-        return default_name
+        return new_name
 
+    # Try legacy naming convention: {project}-dagster-webserver-1
+    legacy_name = f"{project_name}-dagster-webserver-1"
+    result = subprocess.run(
+        ["docker", "ps", "--filter", f"name={legacy_name}", "--format", "{{.Names}}"],
+        capture_output=True,
+        text=True,
+    )
+    if result.stdout.strip():
+        return legacy_name
+
+    # Try regex pattern match
     result = subprocess.run(
         [
             "docker",
             "ps",
             "--filter",
-            f"name={project_name}.*dagster.*webserver",
+            f"name={project_name}.*dagster",
             "--format",
             "{{.Names}}",
         ],
@@ -117,23 +192,18 @@ def find_dagster_container(project_name: str) -> str:
         text=True,
     )
 
-    containers = result.stdout.strip().split("\n")
-    if containers and containers[0]:
+    containers = [c for c in result.stdout.strip().split("\n") if c and "daemon" not in c]
+    if containers:
         return containers[0]
 
     raise RuntimeError(
         f"Could not find running Dagster webserver container for project '{project_name}'. "
-        f"Expected container name: {configured_name or default_name}"
+        f"Expected container name: {new_name} or {legacy_name}"
     )
 
 
 def _init_nessie_branches(project_name: str) -> None:
-    """Initialize Nessie branches (main, dev) if they don't exist.
-
-    Creates the branch structure needed for Write-Audit-Publish pattern:
-    - main: production data (validated, published to BI)
-    - dev: development/feature work (isolated transforms)
-    """
+    """Initialize Nessie branches (main, dev) if they don't exist."""
     import json
     import time
 
@@ -190,7 +260,6 @@ def _init_nessie_branches(project_name: str) -> None:
     if "dev" not in existing and "main" in existing:
         click.echo("Creating Nessie 'dev' branch from 'main'...")
         try:
-            # Get main branch hash
             result = subprocess.run(
                 [
                     "docker",
@@ -208,7 +277,6 @@ def _init_nessie_branches(project_name: str) -> None:
             main_hash = main_data.get("hash", "")
 
             if main_hash:
-                # Create dev branch
                 result = subprocess.run(
                     [
                         "docker",
@@ -242,27 +310,21 @@ def _init_nessie_branches(project_name: str) -> None:
 
 
 def _run_dbt_compile(project_name: str) -> None:
-    """Run dbt deps + compile to generate manifest.json for Dagster.
-
-    This runs after services start to ensure Dagster can discover dbt models.
-    """
+    """Run dbt deps + compile to generate manifest.json for Dagster."""
     import time
 
-    # Check if dbt project exists
     dbt_project = Path.cwd() / "transforms" / "dbt"
     if not (dbt_project / "dbt_project.yml").exists():
-        return  # No dbt project, skip
+        return
 
     click.echo("")
     click.echo("Compiling dbt models...")
 
-    # Wait for services to be ready
     time.sleep(5)
 
     container_name = find_dagster_container(project_name)
 
     try:
-        # Run dbt deps
         result = subprocess.run(
             [
                 "docker",
@@ -279,7 +341,6 @@ def _run_dbt_compile(project_name: str) -> None:
         if result.returncode != 0:
             click.echo(f"Warning: dbt deps failed: {result.stderr}", err=True)
 
-        # Run dbt compile
         result = subprocess.run(
             [
                 "docker",
@@ -315,683 +376,6 @@ def _run_dbt_compile(project_name: str) -> None:
         click.echo(f"Warning: Could not compile dbt: {e}", err=True)
 
 
-DOCKER_COMPOSE_CONTENT = """# Phlo Infrastructure Stack
-# Generated by: phlo services init
-# Complete data lakehouse platform with orchestration and BI
-
-services:
-  # --- Storage Layer ---
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - ./volumes/postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-phlo}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    restart: unless-stopped
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
-    command: ["server", "/data", "--console-address", ":9001"]
-    ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    volumes:
-      - ./volumes/minio:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  minio-setup:
-    image: minio/mc:latest
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
-    entrypoint: >
-      /bin/sh -c "
-      sleep 5 &&
-      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing myminio/lake &&
-      mc mb --ignore-existing myminio/lake/warehouse &&
-      mc mb --ignore-existing myminio/lake/stage &&
-      echo 'Buckets created successfully'
-      "
-    depends_on:
-      minio:
-        condition: service_healthy
-    restart: "no"
-
-  # --- Iceberg Catalog ---
-  nessie:
-    image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION:-0.99.0}
-    restart: unless-stopped
-    environment:
-      NESSIE_VERSION_STORE_TYPE: JDBC
-      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-phlo}
-      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER:-phlo}
-      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-      nessie.catalog.default-warehouse: warehouse
-      nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse
-      nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/
-      nessie.catalog.service.s3.default-options.path-style-access: "true"
-      nessie.catalog.service.s3.default-options.region: us-east-1
-      nessie.catalog.service.s3.default-options.access-key: urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
-      nessie.catalog.secrets.access-key.name: ${MINIO_ROOT_USER:-minio}
-      nessie.catalog.secrets.access-key.secret: ${MINIO_ROOT_PASSWORD:-minio123}
-    ports:
-      - "${NESSIE_PORT:-19120}:19120"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:19120/api/v1/config"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-
-  # --- Query Engine ---
-  trino:
-    image: trinodb/trino:${TRINO_VERSION:-467}
-    restart: unless-stopped
-    ports:
-      - "${TRINO_PORT:-8080}:8080"
-    volumes:
-      - ./trino/catalog:/etc/trino/catalog:ro
-    environment:
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}
-      AWS_REGION: us-east-1
-      S3_ENDPOINT: http://minio:9000
-      S3_PATH_STYLE_ACCESS: "true"
-    depends_on:
-      nessie:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 45s
-
-  # --- Orchestration ---
-  dagster-webserver:
-    image: phlo/dagster:${DAGSTER_VERSION:-latest}
-    build:
-      context: .
-      dockerfile: dagster/Dockerfile
-      args:
-        GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-    restart: unless-stopped
-    environment:
-      DAGSTER_HOME: /opt/dagster
-      PYTHONPATH: /opt/dagster:/app
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}
-      AWS_REGION: us-east-1
-      AWS_S3_ENDPOINT: http://minio:9000
-      AWS_S3_USE_SSL: "false"
-      AWS_S3_URL_STYLE: "path"
-      NESSIE_HOST: nessie
-      NESSIE_PORT: 19120
-      TRINO_HOST: trino
-      TRINO_PORT: 8080
-      TRINO_CATALOG: iceberg
-      ICEBERG_WAREHOUSE_PATH: s3://lake/warehouse
-      ICEBERG_STAGING_PATH: s3://lake/stage
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
-      WORKFLOWS_PATH: /app/workflows
-      PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-$$(uname -s)}
-    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/workspace.yaml"]
-    ports:
-      - "${DAGSTER_PORT:-3000}:3000"
-    volumes:
-      - ./dagster:/opt/dagster
-      - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
-      - ../tests:/app/tests:ro
-    depends_on:
-      minio:
-        condition: service_healthy
-      minio-setup:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      nessie:
-        condition: service_healthy
-      trino:
-        condition: service_healthy
-
-  dagster-daemon:
-    image: phlo/dagster:${DAGSTER_VERSION:-latest}
-    build:
-      context: .
-      dockerfile: dagster/Dockerfile
-      args:
-        GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-    restart: unless-stopped
-    environment:
-      DAGSTER_HOME: /opt/dagster
-      PYTHONPATH: /opt/dagster:/app
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}
-      AWS_REGION: us-east-1
-      AWS_S3_ENDPOINT: http://minio:9000
-      AWS_S3_USE_SSL: "false"
-      AWS_S3_URL_STYLE: "path"
-      NESSIE_HOST: nessie
-      NESSIE_PORT: 19120
-      TRINO_HOST: trino
-      TRINO_PORT: 8080
-      TRINO_CATALOG: iceberg
-      ICEBERG_WAREHOUSE_PATH: s3://lake/warehouse
-      ICEBERG_STAGING_PATH: s3://lake/stage
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
-      WORKFLOWS_PATH: /app/workflows
-      PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-$$(uname -s)}
-    command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
-    volumes:
-      - ./dagster:/opt/dagster
-      - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms:ro
-      - ../tests:/app/tests:ro
-    depends_on:
-      dagster-webserver:
-        condition: service_started
-
-  # --- Business Intelligence ---
-  superset:
-    image: apache/superset:${SUPERSET_VERSION:-4.0.0}
-    restart: unless-stopped
-    environment:
-      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
-      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
-    command: >
-      /bin/sh -c "
-      superset db upgrade &&
-      superset fab create-admin --username $${SUPERSET_ADMIN_USER} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL} --password $${SUPERSET_ADMIN_PASSWORD} || true &&
-      superset init &&
-      superset run -h 0.0.0.0 -p 8088 --with-threads
-      "
-    ports:
-      - "${SUPERSET_PORT:-8088}:8088"
-    volumes:
-      - ./volumes/superset:/app/superset_home
-    depends_on:
-      postgres:
-        condition: service_healthy
-      trino:
-        condition: service_healthy
-
-  # --- Database Admin ---
-  pgweb:
-    image: sosedoff/pgweb
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}?sslmode=disable
-    ports:
-      - "${PGWEB_PORT:-8081}:8081"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # --- Observability (optional, use --profile observability) ---
-  prometheus:
-    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
-    restart: unless-stopped
-    profiles: ["observability", "all"]
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.enable-lifecycle"
-      - "--storage.tsdb.retention.time=30d"
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    volumes:
-      - ./prometheus:/etc/prometheus:ro
-      - ./volumes/prometheus:/prometheus
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  loki:
-    image: grafana/loki:${LOKI_VERSION:-3.2.1}
-    restart: unless-stopped
-    profiles: ["observability", "all"]
-    command: -config.file=/etc/loki/loki-config.yml
-    ports:
-      - "${LOKI_PORT:-3100}:3100"
-    volumes:
-      - ./loki:/etc/loki:ro
-      - ./volumes/loki:/loki
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  grafana:
-    image: grafana/grafana:${GRAFANA_VERSION:-11.3.1}
-    restart: unless-stopped
-    profiles: ["observability", "all"]
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    ports:
-      - "${GRAFANA_PORT:-3003}:3000"
-    volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./volumes/grafana:/var/lib/grafana
-    depends_on:
-      prometheus:
-        condition: service_healthy
-      loki:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # --- API Layer (optional, use --profile api) ---
-  postgrest:
-    image: postgrest/postgrest:${POSTGREST_VERSION:-v12.2.3}
-    restart: unless-stopped
-    profiles: ["api", "all"]
-    environment:
-      PGRST_DB_URI: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
-      PGRST_DB_SCHEMAS: api,public
-      PGRST_DB_ANON_ROLE: ${POSTGRES_USER:-phlo}
-      PGRST_SERVER_HOST: 0.0.0.0
-      PGRST_SERVER_PORT: 3000
-      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:${POSTGREST_PORT:-3002}
-    ports:
-      - "${POSTGREST_PORT:-3002}:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  hasura:
-    image: hasura/graphql-engine:${HASURA_VERSION:-v2.46.0}
-    restart: unless-stopped
-    profiles: ["api", "all"]
-    environment:
-      HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
-      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
-      HASURA_GRAPHQL_DEV_MODE: "true"
-      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
-      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-phlo-hasura-admin-secret}
-      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
-    ports:
-      - "${HASURA_PORT:-8080}:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-"""
-
-ENV_CONTENT = """# Phlo Infrastructure Configuration
-# Generated by: phlo services init
-
-# PostgreSQL
-POSTGRES_USER=phlo
-POSTGRES_PASSWORD=phlo
-POSTGRES_DB=phlo
-POSTGRES_PORT=5432
-
-# MinIO (S3-compatible storage)
-MINIO_ROOT_USER=minio
-MINIO_ROOT_PASSWORD=minio123
-MINIO_API_PORT=9000
-MINIO_CONSOLE_PORT=9001
-
-# Nessie (Iceberg catalog)
-NESSIE_VERSION=0.99.0
-NESSIE_PORT=19120
-
-# Trino (Query engine)
-TRINO_VERSION=467
-TRINO_PORT=8080
-
-# Dagster (Orchestration)
-DAGSTER_PORT=3000
-
-# Host Platform Detection (auto-detected via uname -s)
-# Override if needed:
-#   PHLO_HOST_PLATFORM=Darwin  # for in-process executor (more stable on macOS)
-#   PHLO_HOST_PLATFORM=Linux   # for multiprocess executor (better performance)
-
-# GitHub token for private repo access (required for phlo from private GitHub repo)
-# Create at: https://github.com/settings/tokens
-GITHUB_TOKEN=
-
-# Superset (BI)
-SUPERSET_VERSION=4.0.0
-SUPERSET_PORT=8088
-SUPERSET_SECRET_KEY=phlo-superset-secret-change-me
-SUPERSET_ADMIN_USER=admin
-SUPERSET_ADMIN_PASSWORD=admin
-SUPERSET_ADMIN_EMAIL=admin@example.com
-
-# pgweb (Database admin)
-PGWEB_PORT=8081
-
-# Observability (optional, use --profile observability)
-PROMETHEUS_VERSION=v3.1.0
-PROMETHEUS_PORT=9090
-LOKI_VERSION=3.2.1
-LOKI_PORT=3100
-GRAFANA_VERSION=11.3.1
-GRAFANA_PORT=3003
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=admin
-
-# API Layer (optional, use --profile api)
-POSTGREST_VERSION=v12.2.3
-POSTGREST_PORT=3002
-HASURA_VERSION=v2.46.0
-HASURA_PORT=8080
-HASURA_ADMIN_SECRET=phlo-hasura-admin-secret
-
-# Iceberg configuration (used by Phlo)
-ICEBERG_WAREHOUSE_PATH=s3://lake/warehouse
-ICEBERG_STAGING_PATH=s3://lake/stage
-"""
-
-GITIGNORE_CONTENT = """# Phlo infrastructure files
-.env
-volumes/
-"""
-
-# Trino catalog configuration for Iceberg
-TRINO_ICEBERG_PROPERTIES = """connector.name=iceberg
-iceberg.catalog.type=rest
-iceberg.rest-catalog.uri=http://nessie:19120/iceberg
-iceberg.rest-catalog.warehouse=warehouse
-fs.native-s3.enabled=true
-s3.endpoint=http://minio:9000
-s3.path-style-access=true
-s3.region=us-east-1
-"""
-
-# Dagster Dockerfile
-DAGSTER_DOCKERFILE = """FROM python:3.11-slim
-
-WORKDIR /opt/dagster
-
-ARG GITHUB_TOKEN
-
-# Install system dependencies and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \\
-    curl \\
-    git \\
-    && rm -rf /var/lib/apt/lists/* \\
-    && pip install uv
-
-# Install phlo from GitHub (uses token if provided for private repos)
-RUN if [ -n "$GITHUB_TOKEN" ]; then \\
-        uv pip install --system "phlo @ git+https://${GITHUB_TOKEN}@github.com/iamgp/phlo.git" dagster-postgres pyiceberg[s3] trino; \\
-    else \\
-        uv pip install --system "phlo @ git+https://github.com/iamgp/phlo.git" dagster-postgres pyiceberg[s3] trino; \\
-    fi
-
-# Copy workspace configuration
-COPY dagster/workspace.yaml /opt/dagster/workspace.yaml
-COPY dagster/dagster.yaml /opt/dagster/dagster.yaml
-
-EXPOSE 3000
-
-CMD ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
-"""
-
-# Dagster workspace.yaml
-DAGSTER_WORKSPACE_YAML = """load_from:
-  - python_module:
-      module_name: phlo.framework.definitions
-      working_directory: /app
-"""
-
-# Dagster dagster.yaml
-DAGSTER_YAML = """storage:
-  postgres:
-    postgres_db:
-      hostname:
-        env: POSTGRES_HOST
-      port:
-        env: POSTGRES_PORT
-      username:
-        env: POSTGRES_USER
-      password:
-        env: POSTGRES_PASSWORD
-      db_name:
-        env: POSTGRES_DB
-
-run_coordinator:
-  module: dagster.core.run_coordinator
-  class: QueuedRunCoordinator
-
-run_launcher:
-  module: dagster.core.launcher
-  class: DefaultRunLauncher
-
-sensors:
-  use_threads: true
-  num_workers: 4
-
-schedules:
-  use_threads: true
-  num_workers: 4
-"""
-
-# Dev mode Dockerfile - installs deps but not phlo (mounted via volume)
-DAGSTER_DOCKERFILE_DEV = """FROM python:3.11-slim
-
-WORKDIR /opt/dagster
-
-# Install system dependencies and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \\
-    curl \\
-    git \\
-    && rm -rf /var/lib/apt/lists/* \\
-    && pip install uv
-
-# Install all phlo dependencies (but not phlo itself - that's mounted)
-RUN uv pip install --system \\
-    dagster \\
-    dagster-webserver \\
-    dagster-postgres \\
-    dagster-dbt \\
-    dagster-pandera \\
-    dagster-aws \\
-    dbt-core \\
-    dbt-trino \\
-    dbt-postgres \\
-    "pyiceberg[s3fs,pyarrow]" \\
-    s3fs \\
-    trino \\
-    pandas \\
-    pandera \\
-    "dlt[parquet]" \\
-    pydantic-settings \\
-    requests \\
-    tenacity \\
-    pyarrow \\
-    click \\
-    rich
-
-# Copy workspace configuration
-COPY dagster/workspace.yaml /opt/dagster/workspace.yaml
-COPY dagster/dagster.yaml /opt/dagster/dagster.yaml
-
-EXPOSE 3000
-
-CMD ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
-"""
-
-# Dev mode docker-compose override - mounts local phlo source
-DOCKER_COMPOSE_DEV_CONTENT = """# Development mode override - mounts local phlo source
-# Auto-generated by: phlo services start --dev
-#
-# This file is used automatically when --dev flag is passed.
-# It mounts local phlo source into containers for instant iteration.
-
-services:
-  dagster-webserver:
-    build:
-      dockerfile: dagster/Dockerfile.dev
-    volumes:
-      - ./dagster:/opt/dagster
-      - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms
-      - ../tests:/app/tests:ro
-      # Mount local phlo source (path set via PHLO_DEV_SOURCE_PATH env var)
-      - ${PHLO_DEV_SOURCE_PATH}/src/phlo:/opt/phlo-src/phlo:ro
-    environment:
-      PYTHONPATH: /opt/dagster:/app:/opt/phlo-src
-
-  dagster-daemon:
-    build:
-      dockerfile: dagster/Dockerfile.dev
-    volumes:
-      - ./dagster:/opt/dagster
-      - ../workflows:/app/workflows:ro
-      - ../transforms:/app/transforms
-      - ../tests:/app/tests:ro
-      # Mount local phlo source
-      - ${PHLO_DEV_SOURCE_PATH}/src/phlo:/opt/phlo-src/phlo:ro
-    environment:
-      PYTHONPATH: /opt/dagster:/app:/opt/phlo-src
-"""
-
-# Prometheus configuration
-PROMETHEUS_CONFIG = """global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-
-  - job_name: 'dagster'
-    static_configs:
-      - targets: ['dagster-webserver:3000']
-    metrics_path: /metrics
-
-  - job_name: 'trino'
-    static_configs:
-      - targets: ['trino:8080']
-"""
-
-# Loki configuration
-LOKI_CONFIG = """auth_enabled: false
-
-server:
-  http_listen_port: 3100
-  grpc_listen_port: 9096
-
-common:
-  instance_addr: 127.0.0.1
-  path_prefix: /loki
-  storage:
-    filesystem:
-      chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
-  replication_factor: 1
-  ring:
-    kvstore:
-      store: inmemory
-
-query_range:
-  results_cache:
-    cache:
-      embedded_cache:
-        enabled: true
-        max_size_mb: 100
-
-schema_config:
-  configs:
-    - from: 2020-10-24
-      store: tsdb
-      object_store: filesystem
-      schema: v13
-      index:
-        prefix: index_
-        period: 24h
-
-ruler:
-  alertmanager_url: http://localhost:9093
-
-analytics:
-  reporting_enabled: false
-"""
-
-# Grafana datasources provisioning
-GRAFANA_DATASOURCES = """apiVersion: 1
-
-datasources:
-  - name: Prometheus
-    type: prometheus
-    access: proxy
-    url: http://prometheus:9090
-    isDefault: true
-
-  - name: Loki
-    type: loki
-    access: proxy
-    url: http://loki:3100
-"""
-
-
 def get_phlo_dir() -> Path:
     """Get the .phlo directory path in current project."""
     return Path.cwd() / ".phlo"
@@ -1018,23 +402,53 @@ def services():
 @services.command("init")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")
 @click.option("--name", "project_name", help="Project name (default: directory name)")
-def init(force: bool, project_name: Optional[str]):
+@click.option(
+    "--dev",
+    is_flag=True,
+    help="Development mode: mount local phlo source for instant iteration",
+)
+@click.option(
+    "--no-dev",
+    is_flag=True,
+    help="Explicitly disable dev mode (useful when regenerating without dev mounts)",
+)
+@click.option(
+    "--phlo-source",
+    type=click.Path(exists=True),
+    help="Path to phlo source (default: auto-detect or PHLO_DEV_SOURCE env var)",
+)
+def init(
+    force: bool,
+    project_name: Optional[str],
+    dev: bool,
+    no_dev: bool,
+    phlo_source: Optional[str],
+):
     """Initialize Phlo infrastructure in .phlo/ directory.
 
     Creates complete Docker Compose configuration for the full Phlo stack:
     - PostgreSQL, MinIO, Nessie (storage layer)
     - Trino (query engine)
     - Dagster (orchestration)
+    - Observatory (data platform UI)
     - Superset (BI)
     - pgweb (database admin)
-    - Optional: Prometheus, Loki, Grafana (observability)
-    - Optional: PostgREST (API layer)
+    - Optional: Prometheus, Loki, Grafana (--profile observability)
+    - Optional: PostgREST, Hasura (--profile api)
+
+    Use --dev to mount local phlo source for development iteration.
+    Use --no-dev to explicitly generate config without dev mounts.
 
     Examples:
         phlo services init
         phlo services init --name my-lakehouse
         phlo services init --force
+        phlo services init --dev
+        phlo services init --dev --phlo-source ../../src/phlo
+        phlo services init --no-dev --force  # Regenerate without dev mode
     """
+    from phlo.services import ComposeGenerator, ServiceDiscovery
+
     phlo_dir = get_phlo_dir()
     config_file = Path.cwd() / PHLO_CONFIG_FILE
 
@@ -1043,9 +457,40 @@ def init(force: bool, project_name: Optional[str]):
         click.echo("Use --force to overwrite.", err=True)
         sys.exit(1)
 
+    # Handle conflicting flags
+    if dev and no_dev:
+        click.echo("Error: Cannot specify both --dev and --no-dev.", err=True)
+        sys.exit(1)
+
+    # --no-dev takes precedence
+    if no_dev:
+        dev = False
+
     # Derive project name from directory if not specified
     if not project_name:
         project_name = Path.cwd().name.lower().replace(" ", "-").replace("_", "-")
+
+    # Auto-detect phlo source path for dev mode using flexible detection
+    phlo_src_path: str | None = None
+    if dev:
+        if phlo_source:
+            # User-provided path is relative to project root, add ../ for .phlo context
+            phlo_src_path = f"../{phlo_source}"
+            click.echo(f"Dev mode: using phlo source at {phlo_source}")
+        else:
+            # Use flexible path detection
+            phlo_src_path = detect_phlo_source_path()
+            if phlo_src_path:
+                click.echo(f"Dev mode: auto-detected phlo source (path: {phlo_src_path})")
+            else:
+                click.echo(
+                    "Warning: --dev specified but could not auto-detect phlo source.", err=True
+                )
+                click.echo(
+                    "Set PHLO_DEV_SOURCE env var or use --phlo-source to specify the path.",
+                    err=True,
+                )
+                dev = False
 
     # Create phlo.yaml config file in project root
     config_content = PHLO_CONFIG_TEMPLATE.format(
@@ -1058,79 +503,122 @@ def init(force: bool, project_name: Optional[str]):
     # Create .phlo directory
     phlo_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write docker-compose.yml
+    # Discover services
+    discovery = ServiceDiscovery()
+    all_services = discovery.discover()
+
+    if not all_services:
+        click.echo("Error: No services found. Check services/ directory.", err=True)
+        sys.exit(1)
+
+    # Get default services + all profile services (they're included but inactive)
+    default_services = discovery.get_default_services()
+    profile_services = [s for s in all_services.values() if s.profile]
+    services_to_install = default_services + profile_services
+
+    # Generate docker-compose.yml
+    composer = ComposeGenerator(discovery)
+    compose_content = composer.generate_compose(
+        services_to_install,
+        phlo_dir,
+        dev_mode=dev,
+        phlo_src_path=phlo_src_path,
+    )
+
     compose_file = phlo_dir / "docker-compose.yml"
-    compose_file.write_text(DOCKER_COMPOSE_CONTENT)
+    compose_file.write_text(compose_content)
     click.echo(f"Created: {compose_file.relative_to(Path.cwd())}")
 
-    # Write .env
+    # Generate .env
+    env_content = composer.generate_env(services_to_install)
     env_file = phlo_dir / ".env"
-    env_file.write_text(ENV_CONTENT)
+    env_file.write_text(env_content)
     click.echo(f"Created: {env_file.relative_to(Path.cwd())}")
 
-    # Write .gitignore
+    # Generate .gitignore
     gitignore_file = phlo_dir / ".gitignore"
-    gitignore_file.write_text(GITIGNORE_CONTENT)
+    gitignore_file.write_text(composer.generate_gitignore())
     click.echo(f"Created: {gitignore_file.relative_to(Path.cwd())}")
 
     # Create volumes directory
     volumes_dir = phlo_dir / "volumes"
     volumes_dir.mkdir(exist_ok=True)
 
-    # Create Trino catalog directory and config
-    trino_dir = phlo_dir / "trino" / "catalog"
-    trino_dir.mkdir(parents=True, exist_ok=True)
-    iceberg_props = trino_dir / "iceberg.properties"
-    iceberg_props.write_text(TRINO_ICEBERG_PROPERTIES)
-    click.echo(f"Created: {iceberg_props.relative_to(Path.cwd())}")
+    # Copy service files (Dockerfiles, configs, etc.)
+    copied_files = composer.copy_service_files(services_to_install, phlo_dir)
+    for f in copied_files:
+        click.echo(f"Created: .phlo/{f}")
 
-    # Create Dagster directory and config
-    dagster_dir = phlo_dir / "dagster"
-    dagster_dir.mkdir(exist_ok=True)
-    (dagster_dir / "Dockerfile").write_text(DAGSTER_DOCKERFILE)
-    click.echo(f"Created: {(dagster_dir / 'Dockerfile').relative_to(Path.cwd())}")
-    (dagster_dir / "workspace.yaml").write_text(DAGSTER_WORKSPACE_YAML)
-    click.echo(f"Created: {(dagster_dir / 'workspace.yaml').relative_to(Path.cwd())}")
-    (dagster_dir / "dagster.yaml").write_text(DAGSTER_YAML)
-    click.echo(f"Created: {(dagster_dir / 'dagster.yaml').relative_to(Path.cwd())}")
-
-    # Create Prometheus config (for optional observability profile)
-    prometheus_dir = phlo_dir / "prometheus"
-    prometheus_dir.mkdir(exist_ok=True)
-    (prometheus_dir / "prometheus.yml").write_text(PROMETHEUS_CONFIG)
-    click.echo(f"Created: {(prometheus_dir / 'prometheus.yml').relative_to(Path.cwd())}")
-
-    # Create Loki config (for optional observability profile)
-    loki_dir = phlo_dir / "loki"
-    loki_dir.mkdir(exist_ok=True)
-    (loki_dir / "loki-config.yml").write_text(LOKI_CONFIG)
-    click.echo(f"Created: {(loki_dir / 'loki-config.yml').relative_to(Path.cwd())}")
-
-    # Create Grafana provisioning (for optional observability profile)
-    grafana_dir = phlo_dir / "grafana" / "provisioning" / "datasources"
-    grafana_dir.mkdir(parents=True, exist_ok=True)
-    (grafana_dir / "datasources.yml").write_text(GRAFANA_DATASOURCES)
-    click.echo(f"Created: {(grafana_dir / 'datasources.yml').relative_to(Path.cwd())}")
-
+    # Summary
     click.echo("")
     click.echo("Phlo infrastructure initialized.")
     click.echo("")
-    click.echo("Services included:")
-    click.echo("  Core:        PostgreSQL, MinIO, Nessie, Trino")
-    click.echo("  Orchestration: Dagster (webserver + daemon)")
-    click.echo("  BI:          Superset, pgweb")
-    click.echo("  Optional:    Prometheus, Loki, Grafana (--profile observability)")
-    click.echo("  Optional:    PostgREST (--profile api)")
+
+    default_names = sorted([s.name for s in default_services])
+    click.echo(f"Default services: {', '.join(default_names)}")
+
+    profiles = discovery.get_available_profiles()
+    if profiles:
+        click.echo(f"Optional profiles: {', '.join(sorted(profiles))}")
+
     click.echo("")
     click.echo("Next steps:")
     click.echo("  1. Review .phlo/.env and adjust settings if needed")
     click.echo("  2. Run: phlo services start")
     click.echo("  3. Access services:")
-    click.echo("     - Dagster:  http://localhost:3000")
-    click.echo("     - Superset: http://localhost:8088")
-    click.echo("     - Trino:    http://localhost:8080")
-    click.echo("     - MinIO:    http://localhost:9001")
-    click.echo("     - pgweb:    http://localhost:8081")
+    click.echo("     - Dagster:     http://localhost:3000")
+    click.echo("     - Observatory: http://localhost:3001")
+    click.echo("     - Superset:    http://localhost:8088")
+    click.echo("     - Trino:       http://localhost:8080")
+    click.echo("     - MinIO:       http://localhost:9001")
+    click.echo("     - pgweb:       http://localhost:8081")
+
+
+@services.command("list")
+@click.option("--all", "show_all", is_flag=True, help="Show all services including optional")
+def list_services(show_all: bool):
+    """List available services.
+
+    Examples:
+        phlo services list
+        phlo services list --all
+    """
+    from phlo.services import ServiceDiscovery
+
+    discovery = ServiceDiscovery()
+    all_services = discovery.list_all()
+
+    if not all_services:
+        click.echo("No services found.")
+        return
+
+    # Group by category
+    categories: dict[str, list[dict]] = {}
+    for svc in all_services:
+        cat = svc["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(svc)
+
+    category_order = ["core", "orchestration", "bi", "admin", "api", "observability"]
+
+    for cat in category_order:
+        if cat not in categories:
+            continue
+
+        svcs = categories[cat]
+        click.echo(f"\n{cat.upper()}:")
+
+        for svc in svcs:
+            default_marker = "*" if svc["default"] else " "
+            profile_info = f" [{svc['profile']}]" if svc["profile"] else ""
+
+            if show_all or svc["default"] or not svc["profile"]:
+                click.echo(f"  {default_marker} {svc['name']}: {svc['description']}{profile_info}")
+
+    click.echo("")
+    click.echo("* = installed by default")
+    click.echo("[profile] = optional, enable with --profile")
 
 
 @services.command("start")
@@ -1139,8 +627,12 @@ def init(force: bool, project_name: Optional[str]):
 @click.option(
     "--profile",
     multiple=True,
-    type=click.Choice(["observability", "api", "all"]),
-    help="Enable optional profiles",
+    help="Enable optional profiles (e.g., observability, api)",
+)
+@click.option(
+    "--service",
+    multiple=True,
+    help="Start only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
 )
 @click.option(
     "--dev",
@@ -1152,17 +644,22 @@ def init(force: bool, project_name: Optional[str]):
     type=click.Path(exists=True),
     help="Path to phlo source (default: auto-detect or use PHLO_DEV_SOURCE_PATH)",
 )
-def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_source: str):
+def start(
+    detach: bool,
+    build: bool,
+    profile: tuple[str, ...],
+    service: tuple[str, ...],
+    dev: bool,
+    phlo_source: Optional[str],
+):
     """Start Phlo infrastructure services.
-
-    Starts the complete Phlo data lakehouse stack.
 
     Examples:
         phlo services start
         phlo services start --build
         phlo services start --profile observability
-        phlo services start --dev  # Mount local phlo source
-        phlo services start --dev --phlo-source /path/to/phlo
+        phlo services start --service postgres
+        phlo services start --dev
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
@@ -1175,97 +672,35 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
         click.echo("Run 'phlo services init' first.", err=True)
         sys.exit(1)
 
-    # Handle dev mode
-    dev_compose_file = None
-    phlo_source_path = None
+    # Check for stale compose file (dev mode mismatch)
+    compose_dev_mode = get_compose_dev_mode(compose_file)
+    if compose_dev_mode is not None and compose_dev_mode != dev:
+        current_mode = "dev" if compose_dev_mode else "production"
+        requested_mode = "dev" if dev else "production"
+        click.echo("")
+        click.echo(
+            f"Warning: docker-compose.yml was generated in {current_mode} mode, "
+            f"but you're running in {requested_mode} mode.",
+            err=True,
+        )
+        click.echo(
+            f"Run 'phlo services init --force {'--dev' if dev else '--no-dev'}' to regenerate.",
+            err=True,
+        )
+        click.echo("")
 
-    if dev:
+    # Parse comma-separated services
+    services_list = []
+    for s in service:
+        services_list.extend(s.split(","))
+    services_list = [s.strip() for s in services_list if s.strip()]
+
+    if services_list:
+        click.echo(f"Starting services: {', '.join(services_list)}...")
+    elif dev:
         click.echo(f"Starting {project_name} infrastructure in DEVELOPMENT mode...")
-
-        # Determine phlo source path
-        if phlo_source:
-            phlo_source_path = Path(phlo_source).resolve()
-        else:
-            # Try to auto-detect: check PHLO_DEV_SOURCE_PATH env var
-            import os
-
-            phlo_source_path = os.environ.get("PHLO_DEV_SOURCE_PATH")
-            if phlo_source_path:
-                phlo_source_path = Path(phlo_source_path).resolve()
-            else:
-                # Try to find phlo source relative to current directory
-                # Check if we're in examples/glucose-platform -> ../../src/phlo
-                potential_paths = [
-                    Path.cwd().parent.parent / "src" / "phlo",  # examples/project -> repo root
-                    Path.cwd().parent / "src" / "phlo",  # direct child of repo
-                    Path.cwd() / "src" / "phlo",  # in repo root
-                ]
-                for p in potential_paths:
-                    if p.exists() and (p / "__init__.py").exists():
-                        phlo_source_path = p.parent.parent.resolve()  # Get repo root
-                        break
-
-        if not phlo_source_path or not (Path(phlo_source_path) / "src" / "phlo").exists():
-            click.echo("Error: Could not find phlo source.", err=True)
-            click.echo("", err=True)
-            click.echo(
-                "Specify the path with --phlo-source or set PHLO_DEV_SOURCE_PATH:",
-                err=True,
-            )
-            click.echo("  phlo services start --dev --phlo-source /path/to/phlo", err=True)
-            click.echo("  export PHLO_DEV_SOURCE_PATH=/path/to/phlo", err=True)
-            sys.exit(1)
-
-        click.echo(f"Using phlo source: {phlo_source_path}")
-
-        # Create dev Dockerfile if it doesn't exist
-        dev_dockerfile = phlo_dir / "dagster" / "Dockerfile.dev"
-        if not dev_dockerfile.exists():
-            dev_dockerfile.write_text(DAGSTER_DOCKERFILE_DEV)
-            click.echo(f"Created: {dev_dockerfile.relative_to(Path.cwd())}")
-
-        # Create dev compose override
-        dev_compose_file = phlo_dir / "docker-compose.dev.yml"
-        dev_compose_file.write_text(DOCKER_COMPOSE_DEV_CONTENT)
-        click.echo(f"Created: {dev_compose_file.relative_to(Path.cwd())}")
-
-        # Set env var for compose interpolation
-        import os
-
-        os.environ["PHLO_DEV_SOURCE_PATH"] = str(phlo_source_path)
-
-        # Force rebuild in dev mode to use dev Dockerfile
-        build = True
     else:
         click.echo(f"Starting {project_name} infrastructure...")
-
-    # Check Docker memory on macOS
-    import platform
-    import subprocess as sp
-
-    if platform.system() == "Darwin":
-        try:
-            result = sp.run(
-                ["docker", "info", "--format", "{{.MemTotal}}"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                mem_bytes = int(result.stdout.strip())
-                mem_gb = mem_bytes / (1024**3)
-                if mem_gb < 16:
-                    click.echo(
-                        f"\nWarning: Docker has {mem_gb:.1f}GB memory allocated. "
-                        f"Recommend 16GB+ for Dagster stability.",
-                        err=True,
-                    )
-                    click.echo(
-                        "Increase in Docker Desktop -> Settings -> Resources -> Memory\n",
-                        err=True,
-                    )
-        except Exception:
-            pass  # Silently ignore if docker info fails
 
     cmd = [
         "docker",
@@ -1274,15 +709,15 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
         project_name,
         "-f",
         str(compose_file),
+        "--env-file",
+        str(env_file),
     ]
 
-    # Add dev compose override if in dev mode
-    if dev and dev_compose_file:
-        cmd.extend(["-f", str(dev_compose_file)])
+    # Also include project root .env for user secrets (takes precedence)
+    project_env = Path.cwd() / ".env"
+    if project_env.exists():
+        cmd.extend(["--env-file", str(project_env)])
 
-    cmd.extend(["--env-file", str(env_file)])
-
-    # Add profiles
     for p in profile:
         cmd.extend(["--profile", p])
 
@@ -1294,47 +729,38 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
     if build:
         cmd.append("--build")
 
+    # Add specific services if specified
+    if services_list:
+        cmd.extend(services_list)
+
     try:
         result = subprocess.run(cmd, check=False)
         if result.returncode == 0:
             click.echo("")
-            if dev:
-                click.echo("Phlo infrastructure started in DEVELOPMENT mode.")
-                click.echo("")
-                click.echo(f"Local phlo source mounted from: {phlo_source_path}")
-                click.echo("Changes to phlo code will be reflected after Dagster restart.")
-                click.echo("")
-            else:
-                click.echo("Phlo infrastructure started.")
+            click.echo("Phlo infrastructure started.")
             click.echo("")
-            click.echo("Core Services:")
-            click.echo("  - PostgreSQL: localhost:5432")
-            click.echo("  - MinIO API:  localhost:9000")
-            click.echo("  - MinIO UI:   localhost:9001")
-            click.echo("  - Nessie:     localhost:19120")
-            click.echo("  - Trino:      localhost:8080")
-            click.echo("  - Dagster:    localhost:3000")
-            click.echo("  - Superset:   localhost:8088")
-            click.echo("  - pgweb:      localhost:8081")
-            if "observability" in profile or "all" in profile:
+            click.echo("Services:")
+            click.echo("  - Dagster:     http://localhost:3000")
+            click.echo("  - Observatory: http://localhost:3001")
+            click.echo("  - Superset:    http://localhost:8088")
+            click.echo("  - Trino:       http://localhost:8080")
+            click.echo("  - MinIO:       http://localhost:9001")
+            click.echo("  - pgweb:       http://localhost:8081")
+
+            if "observability" in profile:
                 click.echo("")
                 click.echo("Observability:")
-                click.echo("  - Prometheus: localhost:9090")
-                click.echo("  - Loki:       localhost:3100")
-                click.echo("  - Grafana:    localhost:3003")
-            if "api" in profile or "all" in profile:
-                click.echo("")
-                click.echo("API Layer:")
-                click.echo("  - PostgREST:  localhost:3002")
-            if dev:
-                click.echo("")
-                click.echo("To apply phlo code changes, restart Dagster:")
-                click.echo("  docker restart dagster-webserver dagster-daemon")
+                click.echo("  - Prometheus: http://localhost:9090")
+                click.echo("  - Grafana:    http://localhost:3003")
+                click.echo("  - Loki:       http://localhost:3100")
 
-            # Initialize Nessie branches (main, dev)
+            if "api" in profile:
+                click.echo("")
+                click.echo("API:")
+                click.echo("  - PostgREST: http://localhost:3002")
+                click.echo("  - Hasura:    http://localhost:8082")
+
             _init_nessie_branches(project_name)
-
-            # Auto-run dbt deps + compile to generate manifest for Dagster
             _run_dbt_compile(project_name)
         else:
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
@@ -1350,16 +776,22 @@ def start(detach: bool, build: bool, profile: tuple[str, ...], dev: bool, phlo_s
 @click.option(
     "--profile",
     multiple=True,
-    type=click.Choice(["observability", "api", "all"]),
     help="Stop optional profile services",
 )
-def stop(volumes: bool, profile: tuple[str, ...]):
+@click.option(
+    "--service",
+    multiple=True,
+    help="Stop only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
+)
+def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
     """Stop Phlo infrastructure services.
 
     Examples:
         phlo services stop
-        phlo services stop --volumes  # Also remove data
-        phlo services stop --profile all  # Stop all including optional services
+        phlo services stop --volumes
+        phlo services stop --profile observability
+        phlo services stop --service postgres
+        phlo services stop --service postgres,minio
     """
     require_docker()
     phlo_dir = ensure_phlo_dir()
@@ -1367,7 +799,16 @@ def stop(volumes: bool, profile: tuple[str, ...]):
     env_file = phlo_dir / ".env"
     project_name = get_project_name()
 
-    click.echo(f"Stopping {project_name} infrastructure...")
+    # Parse comma-separated services
+    services_list = []
+    for s in service:
+        services_list.extend(s.split(","))
+    services_list = [s.strip() for s in services_list if s.strip()]
+
+    if services_list:
+        click.echo(f"Stopping services: {', '.join(services_list)}...")
+    else:
+        click.echo(f"Stopping {project_name} infrastructure...")
 
     cmd = [
         "docker",
@@ -1380,26 +821,179 @@ def stop(volumes: bool, profile: tuple[str, ...]):
         str(env_file),
     ]
 
-    # Add profiles to ensure profile services are also stopped
+    # Also include project root .env for user secrets
+    project_env = Path.cwd() / ".env"
+    if project_env.exists():
+        cmd.extend(["--env-file", str(project_env)])
+
     for p in profile:
         cmd.extend(["--profile", p])
 
-    cmd.append("down")
-
-    if volumes:
-        cmd.append("-v")
-        click.echo("Warning: Removing volumes will delete all data.")
+    if services_list:
+        # Stop specific services only
+        cmd.extend(["stop", *services_list])
+    else:
+        # Stop all services
+        cmd.append("down")
+        if volumes:
+            cmd.append("-v")
+            click.echo("Warning: Removing volumes will delete all data.")
 
     try:
         result = subprocess.run(cmd, check=False)
         if result.returncode == 0:
-            click.echo(f"{project_name} infrastructure stopped.")
+            if services_list:
+                click.echo(f"Stopped services: {', '.join(services_list)}")
+            else:
+                click.echo(f"{project_name} infrastructure stopped.")
         else:
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)
+
+
+@services.command("reset")
+@click.option(
+    "--service",
+    multiple=True,
+    help="Reset only specific service(s) volumes (e.g., --service postgres,minio or --service postgres --service minio)",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+def reset(service: tuple[str, ...], yes: bool):
+    """Reset Phlo infrastructure by stopping services and deleting volumes.
+
+    This stops all services and removes their data volumes for a clean slate.
+    Use --service to selectively reset only specific service volumes.
+
+    Examples:
+        phlo services reset                      # Reset everything
+        phlo services reset --service postgres   # Reset only postgres
+        phlo services reset --service postgres,minio  # Reset multiple
+        phlo services reset -y                   # Skip confirmation
+    """
+    require_docker()
+    phlo_dir = ensure_phlo_dir()
+    compose_file = phlo_dir / "docker-compose.yml"
+    env_file = phlo_dir / ".env"
+    project_name = get_project_name()
+    volumes_dir = phlo_dir / "volumes"
+
+    if not compose_file.exists():
+        click.echo("Error: docker-compose.yml not found.", err=True)
+        click.echo("Run 'phlo services init' first.", err=True)
+        sys.exit(1)
+
+    # Parse comma-separated services
+    services_list = []
+    for s in service:
+        services_list.extend(s.split(","))
+    services_list = [s.strip() for s in services_list if s.strip()]
+
+    # Determine what to reset
+    if services_list:
+        target = f"services: {', '.join(services_list)}"
+        volume_dirs = [volumes_dir / s for s in services_list]
+    else:
+        target = "all services"
+        volume_dirs = [volumes_dir] if volumes_dir.exists() else []
+
+    # Confirm
+    if not yes:
+        click.echo(f"This will stop {target} and DELETE their data volumes.")
+        if not click.confirm("Are you sure you want to continue?"):
+            click.echo("Aborted.")
+            return
+
+    # Stop services - selective or all
+    if services_list:
+        # Stop and remove only specific services
+        click.echo(f"Stopping services: {', '.join(services_list)}...")
+        cmd = [
+            "docker",
+            "compose",
+            "-p",
+            project_name,
+            "-f",
+            str(compose_file),
+            "--env-file",
+            str(env_file),
+        ]
+        # Also include project root .env for user secrets
+        project_env = Path.cwd() / ".env"
+        if project_env.exists():
+            cmd.extend(["--env-file", str(project_env)])
+        cmd.extend(
+            [
+                "rm",
+                "-f",  # Force removal
+                "-s",  # Stop containers if running
+                "-v",  # Remove anonymous volumes
+                *services_list,  # Specific services
+            ]
+        )
+    else:
+        # Stop all services
+        click.echo(f"Stopping {project_name} infrastructure...")
+        cmd = [
+            "docker",
+            "compose",
+            "-p",
+            project_name,
+            "-f",
+            str(compose_file),
+            "--env-file",
+            str(env_file),
+        ]
+        # Also include project root .env for user secrets
+        project_env = Path.cwd() / ".env"
+        if project_env.exists():
+            cmd.extend(["--env-file", str(project_env)])
+        cmd.extend(
+            [
+                "down",
+                "-v",  # Remove Docker volumes
+            ]
+        )
+
+    try:
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            click.echo(
+                f"Warning: docker compose command failed with code {result.returncode}", err=True
+            )
+    except FileNotFoundError:
+        click.echo("Error: docker command not found.", err=True)
+        sys.exit(1)
+
+    # Delete local volume directories
+    deleted_count = 0
+    for vol_dir in volume_dirs:
+        if vol_dir.exists():
+            try:
+                if vol_dir.is_dir():
+                    shutil.rmtree(vol_dir)
+                    deleted_count += 1
+                    click.echo(f"Deleted: {vol_dir.relative_to(phlo_dir)}")
+            except Exception as e:
+                click.echo(f"Warning: Could not delete {vol_dir}: {e}", err=True)
+
+    # Recreate volumes directory if we deleted it entirely
+    if not services_list and not volumes_dir.exists():
+        volumes_dir.mkdir(parents=True, exist_ok=True)
+
+    click.echo("")
+    if services_list:
+        click.echo(f"Reset complete for: {', '.join(services_list)}")
+    else:
+        click.echo("Full reset complete. All data volumes have been deleted.")
+    click.echo("Run 'phlo services start' to start fresh.")
 
 
 @services.command("status")
@@ -1438,16 +1032,283 @@ def status():
         sys.exit(1)
 
 
+@services.command("add")
+@click.argument("service_name")
+@click.option("--no-start", is_flag=True, help="Don't start the service after adding")
+def add_service(service_name: str, no_start: bool):
+    """Add an optional service to the project.
+
+    Examples:
+        phlo services add prometheus
+        phlo services add grafana --no-start
+        phlo services add hasura
+    """
+    from phlo.services import ServiceDiscovery
+
+    phlo_dir = get_phlo_dir()
+    config_file = Path.cwd() / PHLO_CONFIG_FILE
+
+    if not phlo_dir.exists():
+        click.echo("Error: .phlo directory not found.", err=True)
+        click.echo("Run 'phlo services init' first.", err=True)
+        sys.exit(1)
+
+    # Load project config
+    if config_file.exists():
+        with open(config_file) as f:
+            config = yaml.safe_load(f) or {}
+    else:
+        click.echo("Error: phlo.yaml not found.", err=True)
+        sys.exit(1)
+
+    # Discover available services
+    discovery = ServiceDiscovery()
+    all_services = discovery.discover()
+
+    if service_name not in all_services:
+        click.echo(f"Error: Service '{service_name}' not found.", err=True)
+        click.echo("")
+        click.echo("Available services:")
+        for name in sorted(all_services.keys()):
+            svc = all_services[name]
+            marker = "[optional]" if svc.profile or not svc.default else "[default]"
+            click.echo(f"  {name} {marker}")
+        sys.exit(1)
+
+    service = all_services[service_name]
+
+    # Update config
+    if "services" not in config:
+        config["services"] = {}
+    if "enabled" not in config["services"]:
+        config["services"]["enabled"] = []
+
+    enabled = config["services"]["enabled"]
+    if service_name in enabled:
+        click.echo(f"Service '{service_name}' is already enabled.")
+        return
+
+    enabled.append(service_name)
+    config["services"]["enabled"] = sorted(set(enabled))
+
+    # Write updated config
+    with open(config_file, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+    click.echo(f"Added '{service_name}' to phlo.yaml")
+
+    # Regenerate docker-compose.yml
+    _regenerate_compose(discovery, config, phlo_dir)
+
+    click.echo(f"Service '{service_name}' added.")
+
+    if not no_start:
+        click.echo("")
+        click.echo(f"Starting {service_name}...")
+        project_name = get_project_name()
+        compose_file = phlo_dir / "docker-compose.yml"
+        env_file = phlo_dir / ".env"
+
+        # Determine if we need to enable a profile
+        profiles = []
+        if service.profile:
+            profiles = ["--profile", service.profile]
+
+        cmd = [
+            "docker",
+            "compose",
+            "-p",
+            project_name,
+            "-f",
+            str(compose_file),
+            "--env-file",
+            str(env_file),
+            *profiles,
+            "up",
+            "-d",
+            service_name,
+        ]
+
+        try:
+            result = subprocess.run(cmd, check=False)
+            if result.returncode == 0:
+                click.echo(f"Service '{service_name}' started.")
+            else:
+                click.echo(f"Warning: Could not start {service_name}.", err=True)
+        except Exception as e:
+            click.echo(f"Warning: Could not start {service_name}: {e}", err=True)
+
+
+@services.command("remove")
+@click.argument("service_name")
+@click.option("--keep-running", is_flag=True, help="Don't stop the service")
+def remove_service(service_name: str, keep_running: bool):
+    """Remove a service from the project.
+
+    This removes the service from your configuration. Core services
+    cannot be removed as they are required for the lakehouse to function.
+
+    Examples:
+        phlo services remove prometheus
+        phlo services remove grafana --keep-running
+    """
+    from phlo.services import ServiceDiscovery
+
+    phlo_dir = get_phlo_dir()
+    config_file = Path.cwd() / PHLO_CONFIG_FILE
+
+    if not phlo_dir.exists():
+        click.echo("Error: .phlo directory not found.", err=True)
+        sys.exit(1)
+
+    # Load project config
+    if config_file.exists():
+        with open(config_file) as f:
+            config = yaml.safe_load(f) or {}
+    else:
+        click.echo("Error: phlo.yaml not found.", err=True)
+        sys.exit(1)
+
+    # Discover available services
+    discovery = ServiceDiscovery()
+    all_services = discovery.discover()
+
+    if service_name not in all_services:
+        click.echo(f"Error: Service '{service_name}' not found.", err=True)
+        sys.exit(1)
+
+    service = all_services[service_name]
+
+    # Prevent removing core default services
+    core_services = {"postgres", "minio", "nessie", "trino", "dagster", "dagster-daemon"}
+    if service_name in core_services:
+        click.echo(f"Error: Cannot remove core service '{service_name}'.", err=True)
+        click.echo("Core services are required for the lakehouse to function.", err=True)
+        sys.exit(1)
+
+    # Stop the service first if running
+    if not keep_running:
+        project_name = get_project_name()
+        compose_file = phlo_dir / "docker-compose.yml"
+        env_file = phlo_dir / ".env"
+
+        click.echo(f"Stopping {service_name}...")
+
+        profiles = []
+        if service.profile:
+            profiles = ["--profile", service.profile]
+
+        cmd = [
+            "docker",
+            "compose",
+            "-p",
+            project_name,
+            "-f",
+            str(compose_file),
+            "--env-file",
+            str(env_file),
+            *profiles,
+            "stop",
+            service_name,
+        ]
+
+        try:
+            subprocess.run(cmd, capture_output=True, check=False)
+        except Exception:
+            pass
+
+    # Update config
+    if "services" not in config:
+        config["services"] = {}
+    if "disabled" not in config["services"]:
+        config["services"]["disabled"] = []
+    if "enabled" not in config["services"]:
+        config["services"]["enabled"] = []
+
+    # Remove from enabled if present
+    enabled = config["services"]["enabled"]
+    if service_name in enabled:
+        enabled.remove(service_name)
+
+    # Add to disabled
+    disabled = config["services"]["disabled"]
+    if service_name not in disabled:
+        disabled.append(service_name)
+        config["services"]["disabled"] = sorted(set(disabled))
+
+    # Write updated config
+    with open(config_file, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+    click.echo(f"Removed '{service_name}' from phlo.yaml")
+
+    # Regenerate docker-compose.yml
+    _regenerate_compose(discovery, config, phlo_dir)
+
+    click.echo(f"Service '{service_name}' removed.")
+
+
+def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
+    """Regenerate docker-compose.yml based on current config."""
+    from phlo.services import ComposeGenerator
+
+    all_services = discovery.discover()
+
+    # Get default services
+    default_services = discovery.get_default_services()
+
+    # Get enabled services from config
+    enabled_names = config.get("services", {}).get("enabled", [])
+    disabled_names = config.get("services", {}).get("disabled", [])
+
+    # Build final service list
+    services_to_install = []
+    for svc in default_services:
+        if svc.name not in disabled_names:
+            services_to_install.append(svc)
+
+    # Add explicitly enabled services
+    for name in enabled_names:
+        if name in all_services and name not in disabled_names:
+            svc = all_services[name]
+            if svc not in services_to_install:
+                services_to_install.append(svc)
+
+    # Also include profile services (they're in compose but inactive unless profile enabled)
+    for svc in all_services.values():
+        if svc.profile and svc not in services_to_install and svc.name not in disabled_names:
+            services_to_install.append(svc)
+
+    # Generate docker-compose.yml
+    composer = ComposeGenerator(discovery)
+    compose_content = composer.generate_compose(services_to_install, phlo_dir)
+
+    compose_file = phlo_dir / "docker-compose.yml"
+    compose_file.write_text(compose_content)
+    click.echo("Updated: .phlo/docker-compose.yml")
+
+    # Regenerate .env
+    env_content = composer.generate_env(services_to_install)
+    env_file = phlo_dir / ".env"
+    env_file.write_text(env_content)
+    click.echo("Updated: .phlo/.env")
+
+    # Copy any new service files
+    copied_files = composer.copy_service_files(services_to_install, phlo_dir)
+    for f in copied_files:
+        click.echo(f"Updated: .phlo/{f}")
+
+
 @services.command("logs")
 @click.argument("service", required=False)
 @click.option("-f", "--follow", is_flag=True, help="Follow log output")
 @click.option("-n", "--tail", default=100, help="Number of lines to show")
-def logs(service: str, follow: bool, tail: int):
+def logs(service: Optional[str], follow: bool, tail: int):
     """View logs from Phlo infrastructure services.
 
     Examples:
         phlo services logs
-        phlo services logs nessie
+        phlo services logs dagster
         phlo services logs -f
     """
     require_docker()

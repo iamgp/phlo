@@ -1,4 +1,0 @@
-load_from:
-  - python_module:
-      module_name: phlo.definitions
-      location_name: phlo
