@@ -1,0 +1,63 @@
+"""Quality check naming + metadata contract.
+
+This module defines a small contract for asset checks so downstream consumers (e.g. Observatory)
+can render results consistently without special-casing check implementations.
+
+Contract
+--------
+
+Naming:
+- Pandera schema contract check name: ``pandera/contract``
+- dbt test check name: ``dbt/<test_type>/<target>``
+
+Required metadata keys:
+- ``source``: ``pandera`` or ``dbt``
+- ``partition_key``: partition key string (when applicable)
+- ``failed_count``: number of failures (schema errors, failed tests, etc.)
+- ``total_count``: total evaluated (rows, tests run, etc.) when available
+- ``query_or_sql``: SQL/query/command string that produced the evaluation (when applicable)
+- ``sample``: <= 20 sample rows/ids/errors (when available)
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Literal
+
+from dagster import MetadataValue
+
+PANDERA_CONTRACT_CHECK_NAME = "pandera/contract"
+
+
+def dbt_check_name(test_type: str, target: str) -> str:
+    return f"dbt/{test_type}/{target}"
+
+
+@dataclass(frozen=True, slots=True)
+class QualityCheckContract:
+    source: Literal["pandera", "dbt"]
+    failed_count: int
+    partition_key: str | None = None
+    total_count: int | None = None
+    query_or_sql: str | None = None
+    sample: list[Any] | None = None
+
+    def to_dagster_metadata(self) -> dict[str, MetadataValue]:
+        metadata: dict[str, MetadataValue] = {
+            "source": MetadataValue.text(self.source),
+            "failed_count": MetadataValue.int(self.failed_count),
+        }
+
+        if self.partition_key is not None:
+            metadata["partition_key"] = MetadataValue.text(self.partition_key)
+
+        if self.total_count is not None:
+            metadata["total_count"] = MetadataValue.int(self.total_count)
+
+        if self.query_or_sql is not None:
+            metadata["query_or_sql"] = MetadataValue.text(self.query_or_sql)
+
+        if self.sample is not None:
+            metadata["sample"] = MetadataValue.json(self.sample[:20])
+
+        return metadata

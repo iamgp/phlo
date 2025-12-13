@@ -40,6 +40,7 @@ from phlo.quality.checks import (
     SchemaCheck,
     UniqueCheck,
 )
+from phlo.quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract, dbt_check_name
 from phlo.quality.decorator import get_quality_checks, phlo_quality
 
 __all__ = [
@@ -57,6 +58,10 @@ __all__ = [
     "SchemaCheck",
     "CustomSQLCheck",
     "PatternCheck",
+    # Contract helpers
+    "PANDERA_CONTRACT_CHECK_NAME",
+    "QualityCheckContract",
+    "dbt_check_name",
 ]
 
 __version__ = "1.0.0"
