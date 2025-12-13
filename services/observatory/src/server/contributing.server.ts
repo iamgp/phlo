@@ -38,7 +38,15 @@ function toSqlEquality(
 
   // Timestamps are annoying to literal-type reliably across precisions; compare by varchar.
   if (normalizedType.startsWith('timestamp') || normalizedType.startsWith('time')) {
-    return `cast("${columnName}" as varchar) = '${escapeSqlString(String(value))}'`
+    const raw = String(value)
+    const normalized = raw.replace(
+      /(\.\d{1,6})$/,
+      (match) => match.padEnd(7, '0'),
+    )
+    const padded = normalized.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
+      ? `${normalized}.000000`
+      : normalized
+    return `cast("${columnName}" as varchar) = '${escapeSqlString(padded)}'`
   }
 
   if (normalizedType.startsWith('varchar') || normalizedType === 'varbinary') {
