@@ -6,14 +6,13 @@ from __future__ import annotations
 import logging
 import os
 import shutil
-from collections.abc import Generator, Mapping
-from typing import Any
+from collections.abc import Generator
 
-from dagster import AssetKey
-from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
+from dagster_dbt import DbtCliResource, dbt_assets
 
 from phlo.config import config
 from phlo.defs.partitions import daily_partition
+from phlo.defs.transform.dbt_translator import CustomDbtTranslator
 
 # --- Configuration ---
 DBT_PROJECT_DIR = config.dbt_project_path
@@ -22,166 +21,68 @@ DBT_PROFILES_DIR = config.dbt_profiles_path
 logger = logging.getLogger(__name__)
 
 
-class CustomDbtTranslator(DagsterDbtTranslator):
-    """Custom translator for mapping dbt models to Dagster assets."""
+def build_all_dbt_assets(*, manifest_path) -> object:
+    @dbt_assets(
+        manifest=manifest_path,
+        dagster_dbt_translator=CustomDbtTranslator(),
+        partitions_def=daily_partition,
+    )
+    def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None]:
+        target = context.op_config.get("target") if context.op_config else None
+        target = target or "dev"
 
-    def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> AssetKey:
-        resource_type = dbt_resource_props.get("resource_type")
-        if resource_type == "source":
-            source_name = dbt_resource_props["source_name"]
-            table_name = dbt_resource_props["name"]
-            if source_name == "dagster_assets":
-                # Convention: dbt sources map to dlt_<table_name> assets
-                return AssetKey([f"dlt_{table_name}"])
-            return super().get_asset_key(dbt_resource_props)
-        return AssetKey(dbt_resource_props["name"])
+        build_args = [
+            "build",
+            "--project-dir",
+            str(DBT_PROJECT_DIR),
+            "--profiles-dir",
+            str(DBT_PROFILES_DIR),
+            "--target",
+            target,
+        ]
 
-    def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
-        """Get description including compiled SQL for Observatory lineage parsing.
+        if context.has_partition_key:
+            partition_date = context.partition_key
+            build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
+            context.log.info(f"Running dbt for partition: {partition_date}")
 
-        The compiled SQL is essential for the Observatory's Query Source Data feature
-        to correctly parse column mappings and build WHERE clauses for upstream queries.
-        Reads directly from target/compiled/ files which contain fully resolved SQL.
-        """
-        debug_enabled = os.getenv("PHLO_DBT_TRANSLATOR_DEBUG", "").lower() in {"1", "true", "yes"}
-        model_name = dbt_resource_props.get("name", "")
+        os.environ.setdefault("TRINO_HOST", config.trino_host)
+        os.environ.setdefault("TRINO_PORT", str(config.trino_port))
 
-        # Get the docstring description if available
-        docstring = str(dbt_resource_props.get("description") or "")
+        build_invocation = dbt.cli(build_args, context=context)
+        yield from build_invocation.stream()
+        build_invocation.wait()
 
-        # Try to read compiled SQL from file (most reliable source)
-        compiled_sql: str = ""
-        compiled_path = dbt_resource_props.get("compiled_path")
-        if debug_enabled:
-            logger.debug(
-                "[CustomDbtTranslator] model=%s compiled_path=%s", model_name, compiled_path
-            )
+        docs_args = [
+            "docs",
+            "generate",
+            "--project-dir",
+            str(DBT_PROJECT_DIR),
+            "--profiles-dir",
+            str(DBT_PROFILES_DIR),
+            "--target",
+            target,
+        ]
+        docs_invocation = dbt.cli(docs_args, context=context).wait()
 
-        if compiled_path:
-            try:
-                compiled_file = DBT_PROJECT_DIR / compiled_path
-                if compiled_file.exists():
-                    compiled_sql = compiled_file.read_text()
-                    if debug_enabled:
-                        logger.debug(
-                            "[CustomDbtTranslator] model=%s compiled_sql_length=%s",
-                            model_name,
-                            len(compiled_sql),
-                        )
-            except Exception as e:
-                logger.warning(
-                    "[CustomDbtTranslator] failed to read compiled file model=%s: %s",
-                    model_name,
-                    e,
-                )
+        default_target_dir = DBT_PROJECT_DIR / "target"
+        default_target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Fallback to manifest compiled_code or raw_code
-        if not compiled_sql:
-            compiled_sql = str(
-                dbt_resource_props.get("compiled_code") or dbt_resource_props.get("raw_code") or ""
-            )
-            if debug_enabled:
-                logger.debug(
-                    "[CustomDbtTranslator] model=%s using_fallback_sql_length=%s",
-                    model_name,
-                    len(compiled_sql),
-                )
+        for artifact in ("manifest.json", "catalog.json", "run_results.json"):
+            artifact_path = docs_invocation.target_path / artifact
+            if artifact_path.exists():
+                shutil.copy(artifact_path, default_target_dir / artifact)
 
-        # Build description with model name header and SQL
-        parts = [f"dbt model {model_name}"]
-        if docstring:
-            parts.append(docstring)
-        if compiled_sql:
-            parts.append("\n#### Raw SQL:\n```sql\n" + compiled_sql + "\n```")
-
-        return "\n\n".join(parts)
-
-    def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
-        """Derive group from dbt model path or naming convention."""
-        model_name = dbt_resource_props["name"]
-
-        # Try to get group from dbt model config/meta
-        meta = dbt_resource_props.get("meta", {})
-        if "group" in meta:
-            return meta["group"]
-
-        # Try to derive from fqn (folder path)
-        fqn = dbt_resource_props.get("fqn", [])
-        if len(fqn) > 2:
-            # fqn is like ['project', 'folder', 'model']
-            folder = fqn[1]
-            if folder in ("bronze", "silver", "gold", "marts", "staging"):
-                # Use folder as group
-                return folder
-
-        # Fallback: group by naming convention (layer prefix)
-        if model_name.startswith("stg_"):
-            return "bronze"
-        if model_name.startswith(("dim_", "fct_")):
-            return "silver"
-        if model_name.startswith("mrt_"):
-            return "gold"
-        return "transform"
-
-    def get_kinds(self, dbt_resource_props: Mapping[str, Any]) -> set[str]:
-        """Return kinds for the asset."""
-        return {"dbt", "trino"}
-
-
-@dbt_assets(
-    manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
-    dagster_dbt_translator=CustomDbtTranslator(),
-    partitions_def=daily_partition,
-)
-def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None]:
-    target = context.op_config.get("target") if context.op_config else None
-    target = target or "dev"
-
-    build_args = [
-        "build",
-        "--project-dir",
-        str(DBT_PROJECT_DIR),
-        "--profiles-dir",
-        str(DBT_PROFILES_DIR),
-        "--target",
-        target,
-    ]
-
-    if context.has_partition_key:
-        partition_date = context.partition_key
-        build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
-        context.log.info(f"Running dbt for partition: {partition_date}")
-
-    os.environ.setdefault("TRINO_HOST", config.trino_host)
-    os.environ.setdefault("TRINO_PORT", str(config.trino_port))
-
-    build_invocation = dbt.cli(build_args, context=context)
-    yield from build_invocation.stream()
-    build_invocation.wait()
-
-    docs_args = [
-        "docs",
-        "generate",
-        "--project-dir",
-        str(DBT_PROJECT_DIR),
-        "--profiles-dir",
-        str(DBT_PROFILES_DIR),
-        "--target",
-        target,
-    ]
-    docs_invocation = dbt.cli(docs_args, context=context).wait()
-
-    default_target_dir = DBT_PROJECT_DIR / "target"
-    default_target_dir.mkdir(parents=True, exist_ok=True)
-
-    for artifact in ("manifest.json", "catalog.json", "run_results.json"):
-        artifact_path = docs_invocation.target_path / artifact
-        if artifact_path.exists():
-            shutil.copy(artifact_path, default_target_dir / artifact)
+    return all_dbt_assets
 
 
 def build_defs():
     """Build dbt transform definitions."""
     import dagster as dg
 
-    return dg.Definitions(assets=[all_dbt_assets])
+    manifest_path = DBT_PROJECT_DIR / "target" / "manifest.json"
+    if not manifest_path.exists():
+        logger.debug("No dbt manifest at %s; skipping dbt asset definitions", manifest_path)
+        return dg.Definitions(assets=[])
+
+    return dg.Definitions(assets=[build_all_dbt_assets(manifest_path=manifest_path)])

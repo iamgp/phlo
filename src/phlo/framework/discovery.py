@@ -256,86 +256,10 @@ def _discover_dbt_assets() -> list[Any]:
         return []
 
     try:
-        from typing import Mapping
-
-        from dagster import AssetKey
-        from dagster_dbt import DagsterDbtTranslator, dbt_assets
+        from dagster_dbt import dbt_assets
 
         from phlo.defs.partitions import daily_partition
-
-        # Use generic translator - maps sources to dlt_<name> assets
-        class CustomDbtTranslator(DagsterDbtTranslator):
-            def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> AssetKey:
-                resource_type = dbt_resource_props.get("resource_type")
-                if resource_type == "source":
-                    source_name = dbt_resource_props["source_name"]
-                    table_name = dbt_resource_props["name"]
-                    if source_name == "dagster_assets":
-                        # Convention: dbt sources map to dlt_<table_name> assets
-                        return AssetKey([f"dlt_{table_name}"])
-                    return super().get_asset_key(dbt_resource_props)
-                return AssetKey(dbt_resource_props["name"])
-
-            def get_kinds(self, dbt_resource_props: Mapping[str, Any]) -> set[str]:
-                return {"dbt", "trino"}
-
-            def get_metadata(self, dbt_resource_props: Mapping[str, Any]) -> dict[str, Any]:
-                """Extract column schema from dbt manifest as static definition metadata."""
-                from dagster import TableColumn, TableSchema
-
-                columns = dbt_resource_props.get("columns", {})
-                if not columns:
-                    return {}
-
-                # Build TableSchema from dbt manifest column definitions
-                table_columns = [
-                    TableColumn(
-                        name=col_name,
-                        type=col_info.get("data_type", "unknown"),
-                        description=col_info.get("description", ""),
-                    )
-                    for col_name, col_info in columns.items()
-                ]
-
-                if not table_columns:
-                    return {}
-
-                return {"dagster/column_schema": TableSchema(columns=table_columns)}
-
-            def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
-                """Derive group from dbt model path or naming convention."""
-                model_name = dbt_resource_props["name"]
-
-                # Try to get group from dbt model config/meta
-                meta = dbt_resource_props.get("meta", {})
-                if "group" in meta:
-                    return meta["group"]
-
-                # Try to derive from fqn (folder path)
-                fqn = dbt_resource_props.get("fqn", [])
-                if len(fqn) > 2:
-                    folder = fqn[1]
-                    if folder in ("bronze", "silver", "gold", "marts", "staging"):
-                        return folder
-
-                # Fallback: group by naming convention
-                if model_name.startswith("stg_"):
-                    return "bronze"
-                if model_name.startswith(("dim_", "fct_")):
-                    return "silver"
-                if model_name.startswith("mrt_"):
-                    return "gold"
-                return "transform"
-
-            def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
-                """Return just the raw SQL for the model, not the formatted markdown."""
-                # Get the raw SQL from the dbt resource
-                raw_sql = dbt_resource_props.get("raw_sql") or dbt_resource_props.get("raw_code")
-                if raw_sql:
-                    return str(raw_sql)
-
-                # Fall back to the user-provided description if no SQL
-                return str(dbt_resource_props.get("description", ""))
+        from phlo.defs.transform.dbt_translator import CustomDbtTranslator
 
         @dbt_assets(
             manifest=manifest_path,
