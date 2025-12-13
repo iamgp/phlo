@@ -1,10 +1,13 @@
 """Hasura permission management and synchronization."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Optional
 
 from phlo.api.hasura.client import HasuraClient
+
+logger = logging.getLogger(__name__)
 
 
 class HasuraPermissionManager:
@@ -60,10 +63,9 @@ class HasuraPermissionManager:
             Summary of applied permissions
         """
         if verbose:
-            print("=" * 60)
-            print("Hasura Permission Sync")
-            print("=" * 60)
-            print()
+            logger.info("=" * 60)
+            logger.info("Hasura Permission Sync")
+            logger.info("=" * 60)
 
         results = {
             "select": {},
@@ -78,7 +80,7 @@ class HasuraPermissionManager:
             schema, table = table_path.rsplit(".", 1)
 
             if verbose:
-                print(f"Syncing {table_path}...")
+                logger.info("Syncing %s...", table_path)
 
             # Sync SELECT permissions
             select_perms = permissions.get("select", {})
@@ -89,7 +91,7 @@ class HasuraPermissionManager:
 
                 try:
                     if verbose:
-                        print(f"  SELECT for {role}...", end=" ")
+                        logger.info("  SELECT for %s...", role)
 
                     filter_expr = perm_config.get("filter", {})
                     columns = perm_config.get("columns", None)
@@ -100,11 +102,11 @@ class HasuraPermissionManager:
 
                     results["select"][(table_path, role)] = True
                     if verbose:
-                        print("✓")
+                        logger.info("  SELECT for %s ✓", role)
                 except Exception as e:
                     results["select"][(table_path, role)] = False
                     if verbose:
-                        print(f"✗ ({str(e)[:50]})")
+                        logger.warning("  SELECT for %s ✗ (%s)", role, str(e)[:200])
 
             # Sync INSERT permissions
             insert_perms = permissions.get("insert", {})
@@ -114,7 +116,7 @@ class HasuraPermissionManager:
 
                 try:
                     if verbose:
-                        print(f"  INSERT for {role}...", end=" ")
+                        logger.info("  INSERT for %s...", role)
 
                     check = perm_config.get("check", {})
                     columns = perm_config.get("columns", None)
@@ -126,19 +128,19 @@ class HasuraPermissionManager:
 
                     results["insert"][(table_path, role)] = True
                     if verbose:
-                        print("✓")
+                        logger.info("  INSERT for %s ✓", role)
                 except Exception as e:
                     results["insert"][(table_path, role)] = False
                     if verbose:
-                        print(f"✗ ({str(e)[:50]})")
+                        logger.warning("  INSERT for %s ✗ (%s)", role, str(e)[:200])
 
         if verbose:
-            print()
-            print("=" * 60)
-            success_count = sum(1 for v in results.values() if v)
-            total_count = sum(len(v) for v in results.values())
-            print(f"✓ Permission sync completed ({success_count}/{total_count})")
-            print("=" * 60)
+            logger.info("=" * 60)
+            flat_results = [ok for group in results.values() for ok in group.values()]
+            success_count = sum(1 for ok in flat_results if ok)
+            total_count = len(flat_results)
+            logger.info("✓ Permission sync completed (%s/%s)", success_count, total_count)
+            logger.info("=" * 60)
 
         return results
 

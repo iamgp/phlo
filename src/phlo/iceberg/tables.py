@@ -251,7 +251,8 @@ def merge_to_table(
             "/tmp/entries.parquet",
             unique_key="_id"
         )
-        print(f"Deleted {metrics['rows_deleted']}, inserted {metrics['rows_inserted']}")
+        deleted_rows = metrics["rows_deleted"]
+        inserted_rows = metrics["rows_inserted"]
     """
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
@@ -376,7 +377,6 @@ def get_table_schema(table_name: str, ref: str = "main") -> Schema:
 
     Example:
         schema = get_table_schema("raw.nightscout_entries")
-        print(schema)
     """
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)

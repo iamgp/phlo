@@ -1,10 +1,13 @@
 """Hasura metadata export, import and schema management."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Optional
 
 from phlo.api.hasura.client import HasuraClient
+
+logger = logging.getLogger(__name__)
 
 
 class HasuraMetadataSync:
@@ -252,18 +255,18 @@ def export_metadata(output_path: Optional[str] = None, verbose: bool = True) -> 
         Path where metadata was saved (if output_path provided)
     """
     if verbose:
-        print("Exporting Hasura metadata...")
+        logger.info("Exporting Hasura metadata...")
 
     syncer = HasuraMetadataSync()
     metadata = syncer.export_metadata(output_path)
 
     if output_path:
         if verbose:
-            print(f"✓ Metadata exported to {output_path}")
+            logger.info("✓ Metadata exported to %s", output_path)
         return output_path
     else:
         if verbose:
-            print("✓ Metadata exported")
+            logger.info("✓ Metadata exported")
         return json.dumps(metadata, indent=2)
 
 
@@ -275,10 +278,10 @@ def apply_metadata(input_path: str, verbose: bool = True) -> None:
         verbose: Print progress messages
     """
     if verbose:
-        print(f"Applying metadata from {input_path}...")
+        logger.info("Applying metadata from %s...", input_path)
 
     syncer = HasuraMetadataSync()
     syncer.import_metadata(input_path)
 
     if verbose:
-        print("✓ Metadata applied")
+        logger.info("✓ Metadata applied")

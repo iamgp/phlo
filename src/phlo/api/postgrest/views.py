@@ -8,6 +8,7 @@ This module automates the generation of PostgREST API views from dbt models:
 """
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -16,6 +17,8 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 from phlo.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -315,12 +318,12 @@ class PostgreSTViewManager:
 
         try:
             if verbose:
-                print(f"Executing {len(sql)} characters of SQL...")
+                logger.info("Executing %s characters of SQL...", len(sql))
             cursor.execute(sql)
             if verbose:
-                print("✓ SQL executed successfully")
+                logger.info("✓ SQL executed successfully")
         except Exception as e:
-            print(f"✗ SQL execution failed: {e}")
+            logger.error("✗ SQL execution failed: %s", e)
             raise
         finally:
             cursor.close()
@@ -406,40 +409,36 @@ def generate_views(
         Generated SQL or diff summary
     """
     if verbose:
-        print("=" * 60)
-        print("PostgREST API View Generation")
-        print("=" * 60)
-        print()
+        logger.info("=" * 60)
+        logger.info("PostgREST API View Generation")
+        logger.info("=" * 60)
 
     # Generate SQL
     generator = ViewGenerator(manifest_path, api_schema)
     sql = generator.generate_all_views(models)
 
     if not sql:
-        print("No models found matching filter")
+        if verbose:
+            logger.info("No models found matching filter")
         return ""
 
     if verbose:
-        print(f"Generated SQL for {len(sql)} characters")
-        print()
+        logger.info("Generated SQL for %s characters", len(sql))
 
     # Handle diff
     if diff:
         manager = PostgreSTViewManager()
         diff_output = manager.generate_diff(sql, api_schema)
         if verbose:
-            print(diff_output)
+            logger.info("\n%s", diff_output)
         return diff_output
 
     # Handle apply
     if apply:
         if verbose:
-            print("Applying to database...")
-            print()
+            logger.info("Applying to database...")
         manager = PostgreSTViewManager()
         manager.execute_sql(sql, verbose=verbose)
-        if verbose:
-            print()
         return "Views applied successfully"
 
     # Handle output file
@@ -447,8 +446,7 @@ def generate_views(
         output_path = Path(output)
         output_path.write_text(sql)
         if verbose:
-            print(f"✓ SQL written to {output}")
-            print()
+            logger.info("✓ SQL written to %s", output)
         return f"SQL written to {output}"
 
     # Default: print to stdout

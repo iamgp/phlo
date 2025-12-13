@@ -4,11 +4,14 @@ Service Discovery Module
 Discovers and loads service definitions from the services/ directory.
 """
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -108,8 +111,7 @@ class ServiceDiscovery:
                 service = ServiceDefinition.from_yaml(yaml_path)
                 self._services[service.name] = service
             except (yaml.YAMLError, KeyError) as e:
-                # Log warning but continue discovering other services
-                print(f"Warning: Failed to load {yaml_path}: {e}")
+                logger.warning("Failed to load %s: %s", yaml_path, e)
 
         self._loaded = True
         return self._services
