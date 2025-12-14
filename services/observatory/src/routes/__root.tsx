@@ -69,7 +69,7 @@ function RootLayout() {
           <SidebarInset>
             <header className="flex h-14 items-center gap-2 border-b px-4">
               <SidebarTrigger />
-              <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6 self-center" />
               <div className="flex items-center gap-2">
                 <Link to="/" className="text-sm font-semibold tracking-tight">
                   Phlo Observatory

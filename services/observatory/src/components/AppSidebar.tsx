@@ -17,7 +17,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from '@/components/ui/sidebar'
 
 type NavItem = {
@@ -44,14 +43,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="px-2 py-1 text-xs text-muted-foreground">Phlo</div>
-        <div className="px-2 text-sm font-semibold tracking-tight">
+      <SidebarHeader className="h-14 px-4 py-0 justify-center border-b border-border">
+        <div className="text-xs text-muted-foreground leading-none">Phlo</div>
+        <div className="text-sm font-semibold tracking-tight leading-none">
           Observatory
         </div>
       </SidebarHeader>
-
-      <SidebarSeparator />
 
       <SidebarContent>
         <SidebarMenu>
