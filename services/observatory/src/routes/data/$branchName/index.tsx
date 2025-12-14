@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Database } from 'lucide-react'
+import { Database, Table } from 'lucide-react'
 
 import type { IcebergTable } from '@/server/iceberg.server'
 import { BranchSelector } from '@/components/data/BranchSelector'
@@ -40,8 +40,8 @@ function DataExplorerLanding() {
   return (
     <div className="flex h-full">
       {/* Left sidebar - Table Browser */}
-      <aside className="w-72 border-r bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="p-4 border-b">
+      <aside className="w-72 border-r border-border bg-sidebar text-sidebar-foreground flex flex-col">
+        <div className="px-4 py-3 border-b border-border">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -78,7 +78,7 @@ function DataExplorerLanding() {
       {/* Main content area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="p-4 border-b bg-card">
+        <header className="px-4 py-3 border-b border-border bg-card">
           <h1 className="text-xl font-bold">Data Explorer</h1>
           <p className="text-sm text-muted-foreground">
             Browse, query, and explore your Iceberg tables
@@ -86,19 +86,28 @@ function DataExplorerLanding() {
         </header>
 
         {/* Content - placeholder when no table selected */}
-        <div className="flex-1 flex items-center justify-center">
-          <Card size="sm" className="max-w-md">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Database className="size-4 text-primary" />
-                No table selected
-              </CardTitle>
-              <CardDescription>
-                Select a table from the sidebar to preview its data
-              </CardDescription>
-            </CardHeader>
-            <CardContent />
-          </Card>
+        <div className="flex-1 overflow-auto">
+          <div className="mx-auto w-full max-w-2xl px-6 py-10">
+            <Card size="sm" className="w-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Table className="size-4 text-primary" />
+                  Select a table to start
+                </CardTitle>
+                <CardDescription>
+                  Choose a table from the left to preview data, run SQL, and
+                  explore lineage.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Use the search box to filter tables.</li>
+                  <li>Switch branches with the selector in the sidebar.</li>
+                  <li>Click a row in Preview to open the Journey view.</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
