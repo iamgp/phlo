@@ -570,6 +570,7 @@ def _ensure_imports_in_module(content: str, import_lines: list[str]) -> str:
     required=True,
     help="Python reference to a callable or @phlo.ingestion asset (module:attr).",
 )
+@click.option("--dry-run", is_flag=True, help="Print generated schema without writing files.")
 @click.option(
     "--domain",
     required=True,
@@ -600,7 +601,6 @@ def _ensure_imports_in_module(content: str, import_lines: list[str]) -> str:
     default=None,
     help="Output schema file path (default: workflows/schemas/<domain>.py).",
 )
-@click.option("--write", is_flag=True, help="Write generated schema to disk.")
 @click.option(
     "--update",
     is_flag=True,
@@ -613,13 +613,13 @@ def _ensure_imports_in_module(content: str, import_lines: list[str]) -> str:
 )
 def generate(
     from_ref: str,
+    dry_run: bool,
     domain: str,
     table_name: str | None,
     class_name: str | None,
     partition_date: str | None,
     max_records: int,
     out_path: str | None,
-    write: bool,
     update: bool,
     overwrite: bool,
 ):
@@ -749,7 +749,7 @@ def generate(
         Path(out_path) if out_path else (_DEFAULT_SCHEMA_OUT_DIR / f"{_snake_case(domain)}.py")
     )
 
-    if not write:
+    if dry_run:
         click.echo(module_code)
         return
 
@@ -757,15 +757,20 @@ def generate(
         raise click.ClickException("Use only one of --update or --overwrite.")
 
     _ensure_parent_dir(output_path)
-    if output_path.exists() and not (overwrite or update):
-        raise click.ClickException(
-            f"Refusing to overwrite existing file: {output_path}. Use --update or --overwrite."
-        )
-
-    if overwrite or not output_path.exists():
+    if not output_path.exists():
         output_path.write_text(module_code)
         console.print(f"[green]Wrote[/green] {output_path}")
         return
+
+    if overwrite:
+        output_path.write_text(module_code)
+        console.print(f"[green]Overwrote[/green] {output_path}")
+        return
+
+    if not update:
+        raise click.ClickException(
+            f"Refusing to overwrite existing file: {output_path}. Use --update or --overwrite."
+        )
 
     existing = output_path.read_text()
     class_block = _class_block_only(module_code, schema_class)

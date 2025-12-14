@@ -61,6 +61,7 @@ def user_events(partition_date: str):
                 "workflows.ingestion.github.user_events:user_events",
                 "--domain",
                 "github",
+                "--dry-run",
             ],
         )
 
@@ -111,7 +112,6 @@ def user_events(partition_date: str):
                 "workflows.ingestion.github.user_events:user_events",
                 "--domain",
                 "github",
-                "--write",
             ],
         )
 
@@ -162,7 +162,6 @@ def user_events(partition_date: str):
                 "workflows.ingestion.github.user_events:user_events",
                 "--domain",
                 "github",
-                "--write",
             ],
         )
 
@@ -226,7 +225,6 @@ class RawUserEvents(PhloSchema):
                 "workflows.ingestion.github.user_events:user_events",
                 "--domain",
                 "github",
-                "--write",
                 "--update",
             ],
         )
