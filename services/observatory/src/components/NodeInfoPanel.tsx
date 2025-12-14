@@ -161,6 +161,7 @@ function LayerBadge({ layer }: { layer: string }) {
     bronze: 'Bronze',
     silver: 'Silver',
     gold: 'Gold',
+    marts: 'Marts',
     publish: 'Published',
     unknown: 'Unknown',
   }
@@ -225,7 +226,8 @@ function ImpactAnalysisSection({
     bronze: 'text-amber-400',
     silver: 'text-muted-foreground',
     gold: 'text-primary',
-    publish: 'text-emerald-400',
+    marts: 'text-emerald-400',
+    publish: 'text-lime-400',
     unknown: 'text-muted-foreground',
   }
 

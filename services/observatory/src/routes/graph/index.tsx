@@ -92,10 +92,10 @@ function GraphPage() {
       <div className="flex-1 flex flex-col">
         {/* Header Bar */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <h1 className="text-xl font-bold">Lineage Graph</h1>
             {initialFocus && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="text-sm text-muted-foreground">
                   Focused on:
                 </span>
