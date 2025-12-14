@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
 import { Database, GitBranch, Terminal } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { z } from 'zod'
 
 import type { IcebergTable } from '@/server/iceberg.server'
 import type { DataPreviewResult } from '@/server/trino.server'
@@ -11,6 +12,10 @@ import { RowJourney } from '@/components/data/RowJourney'
 import { TableBrowser } from '@/components/data/TableBrowser'
 
 export const Route = createFileRoute('/data/$schema/$table')({
+  validateSearch: z.object({
+    sql: z.string().optional(),
+    tab: z.enum(['preview', 'query', 'journey']).optional(),
+  }),
   component: DataExplorerWithTable,
 })
 
@@ -27,6 +32,7 @@ interface JourneyContext {
 function DataExplorerWithTable() {
   const { schema, table } = useParams({ from: '/data/$schema/$table' })
   const navigate = useNavigate()
+  const { sql: sqlFromSearch, tab: tabFromSearch } = Route.useSearch()
 
   const [queryResults, setQueryResults] = useState<DataPreviewResult | null>(
     null,
@@ -45,6 +51,16 @@ function DataExplorerWithTable() {
     setQueryResults(null)
     setPendingQuery(null)
   }, [schema, table])
+
+  useEffect(() => {
+    if (tabFromSearch) {
+      setActiveTab(tabFromSearch)
+    }
+    if (sqlFromSearch) {
+      setPendingQuery(sqlFromSearch)
+      setActiveTab('query')
+    }
+  }, [sqlFromSearch, tabFromSearch])
 
   // Construct the selected table from URL params
   const selectedTable: IcebergTable = {

@@ -1,4 +1,11 @@
-export type MetadataValue = string | number | boolean | null | undefined
+export type MetadataValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | { [key: string]: {} }
+  | Array<{}>
 
 export interface QualityCheck {
   name: string

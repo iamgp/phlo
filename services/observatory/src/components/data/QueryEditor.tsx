@@ -31,22 +31,12 @@ export function QueryEditor({
 
   // Auto-execute query when autoRun is enabled and defaultQuery changes (phlo-gxl)
   useEffect(() => {
-    console.log('[QueryEditor] autoRun effect:', {
-      autoRun,
-      defaultQuery,
-      lastAutoRunQuery: lastAutoRunQueryRef.current,
-      loading,
-    })
     if (
       autoRun &&
       defaultQuery &&
       defaultQuery !== lastAutoRunQueryRef.current &&
       !loading
     ) {
-      console.log(
-        '[QueryEditor] Auto-running query:',
-        defaultQuery.substring(0, 50),
-      )
       lastAutoRunQueryRef.current = defaultQuery
       // Small delay to ensure render is complete
       const timer = setTimeout(() => {
