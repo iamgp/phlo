@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from 'react'
 import type { MaterializationEvent } from '@/server/dagster.server'
 import { getMaterializationHistory } from '@/server/dagster.server'
+import { Badge } from '@/components/ui/badge'
 
 interface MaterializationTimelineProps {
   assetKey: string
@@ -68,14 +69,14 @@ export function MaterializationTimeline({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-center py-8 text-red-400">
+      <div className="text-center py-8 text-destructive">
         <XCircle className="w-8 h-8 mx-auto mb-2" />
         <p>{error}</p>
       </div>
@@ -84,7 +85,7 @@ export function MaterializationTimeline({
 
   if (events.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-500">
+      <div className="text-center py-8 text-muted-foreground">
         <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
         <p>No materializations yet</p>
         <p className="text-sm mt-1">Run a materialization to see history</p>
@@ -103,7 +104,7 @@ export function MaterializationTimeline({
           <div key={`${event.runId}-${event.timestamp}`} className="relative">
             {/* Timeline line */}
             {idx < events.length - 1 && (
-              <div className="absolute left-3.5 top-8 bottom-0 w-0.5 bg-slate-700" />
+              <div className="absolute left-3.5 top-8 bottom-0 w-0.5 bg-border" />
             )}
 
             {/* Event */}
@@ -131,18 +132,16 @@ export function MaterializationTimeline({
               <div className="flex-1 min-w-0">
                 <button
                   onClick={() => toggleExpand(event.runId)}
-                  className="flex items-center gap-2 w-full text-left hover:bg-slate-800/50 rounded px-2 py-1 -mx-2 -my-1"
+                  className="flex items-center gap-2 w-full text-left hover:bg-muted/50 rounded px-2 py-1 -mx-2 -my-1"
                 >
                   {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`font-medium ${isFirst ? 'text-cyan-300' : 'text-slate-200'}`}
-                      >
+                      <span className="font-medium text-foreground">
                         {timestamp.toLocaleDateString()}{' '}
                         {timestamp.toLocaleTimeString([], {
                           hour: '2-digit',
@@ -150,12 +149,12 @@ export function MaterializationTimeline({
                         })}
                       </span>
                       {isFirst && (
-                        <span className="text-xs px-1.5 py-0.5 bg-cyan-900/50 text-cyan-300 rounded">
+                        <Badge variant="secondary" className="text-xs">
                           Latest
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500 truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       Run: {event.runId.slice(0, 8)}...
                     </div>
                   </div>
@@ -172,16 +171,16 @@ export function MaterializationTimeline({
                             key={midx}
                             className="flex items-start gap-2 text-xs"
                           >
-                            <span className="text-slate-500 min-w-[80px]">
+                            <span className="text-muted-foreground min-w-[80px]">
                               {m.key}:
                             </span>
-                            <span className="text-slate-300 font-mono truncate">
+                            <span className="text-foreground font-mono truncate">
                               {m.value}
                             </span>
                           </div>
                         ))}
                         {event.metadata.length > 5 && (
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-muted-foreground">
                             +{event.metadata.length - 5} more...
                           </div>
                         )}
@@ -193,7 +192,7 @@ export function MaterializationTimeline({
                       href={`http://localhost:3000/runs/${event.runId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
                     >
                       View in Dagster
                       <ExternalLink className="w-3 h-3" />

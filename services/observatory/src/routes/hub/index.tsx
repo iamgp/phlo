@@ -122,7 +122,7 @@ function HubPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
@@ -157,7 +157,7 @@ function HubPage() {
           label="Stopped"
           value={stoppedServices}
           icon={<Loader2 className="w-5 h-5" />}
-          color="text-slate-400"
+          color="text-muted-foreground"
         />
         <StatCard
           label="Unhealthy"
@@ -200,7 +200,7 @@ function StatCard({
   label,
   value,
   icon,
-  color = 'text-cyan-400',
+  color = 'text-primary',
 }: StatCardProps) {
   return (
     <Card>

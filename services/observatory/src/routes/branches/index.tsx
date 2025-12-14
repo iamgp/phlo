@@ -154,7 +154,7 @@ function BranchesPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
@@ -591,7 +591,7 @@ function MergeBranchModal({
             ))}
           </select>
         </div>
-        <div className="text-center text-slate-500">
+        <div className="text-center text-muted-foreground">
           <GitMerge className="w-5 h-5 mx-auto" />
         </div>
         <div>

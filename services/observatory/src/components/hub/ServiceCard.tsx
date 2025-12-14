@@ -55,12 +55,12 @@ export function ServiceCard({
 
   // Category badge colors
   const categoryColors: Record<string, string> = {
-    core: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    api: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    bi: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    observability: 'bg-green-500/20 text-green-300 border-green-500/30',
-    admin: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-    orchestration: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    core: 'bg-muted text-muted-foreground border-border',
+    api: 'bg-muted text-muted-foreground border-border',
+    bi: 'bg-muted text-muted-foreground border-border',
+    observability: 'bg-muted text-muted-foreground border-border',
+    admin: 'bg-muted text-muted-foreground border-border',
+    orchestration: 'bg-primary/10 text-primary border-primary/20',
   }
 
   // Status indicator colors
@@ -74,7 +74,7 @@ export function ServiceCard({
       label: 'Running',
     },
     stopped: {
-      color: 'text-slate-400',
+      color: 'text-muted-foreground',
       icon: <Circle className="w-4 h-4" />,
       label: 'Stopped',
     },
@@ -89,7 +89,7 @@ export function ServiceCard({
       label: 'Starting',
     },
     unknown: {
-      color: 'text-slate-500',
+      color: 'text-muted-foreground',
       icon: <Circle className="w-4 h-4" />,
       label: 'Unknown',
     },

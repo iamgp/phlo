@@ -48,7 +48,7 @@ function AssetsPage() {
   })
 
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       <Card>
         <CardHeader className="gap-1">
           <CardTitle className="text-3xl">Assets</CardTitle>

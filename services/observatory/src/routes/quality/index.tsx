@@ -19,7 +19,7 @@ import type {
   RecentCheckExecution,
 } from '@/server/quality.server'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -27,6 +27,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import { getCheckHistory, getQualityDashboard } from '@/server/quality.server'
 
 export const Route = createFileRoute('/quality/')({
@@ -52,7 +62,7 @@ function QualityDashboard() {
       })
 
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
@@ -94,7 +104,7 @@ function QualityDashboard() {
             <StatCard
               title="Total Checks"
               value={dashboardData!.overview.totalChecks}
-              icon={<Shield className="w-5 h-5 text-cyan-400" />}
+              icon={<Shield className="w-5 h-5 text-primary" />}
             />
             <StatCard
               title="Passing"
@@ -236,78 +246,52 @@ interface QualityScoreCardProps {
 }
 
 function QualityScoreCard({ score, totalChecks }: QualityScoreCardProps) {
-  const getScoreColor = (value: number) => {
-    if (totalChecks === 0) return 'text-slate-400'
-    if (value >= 90) return 'text-green-400'
-    if (value >= 70) return 'text-yellow-400'
-    return 'text-red-400'
-  }
-
-  const getScoreBg = (value: number) => {
-    if (totalChecks === 0) return 'bg-slate-600'
-    if (value >= 90) return 'bg-green-400'
-    if (value >= 70) return 'bg-yellow-400'
-    return 'bg-red-400'
-  }
+  const scoreLabel = totalChecks === 0 ? '—' : `${score}%`
+  const scoreTone =
+    totalChecks === 0
+      ? 'text-muted-foreground'
+      : score >= 90
+        ? 'text-green-400'
+        : score >= 70
+          ? 'text-yellow-400'
+          : 'text-red-400'
 
   return (
-    <div className="bg-gradient-to-r from-slate-800 to-slate-800/50 rounded-xl border border-slate-700 p-6">
-      <div className="flex items-center gap-8">
-        <div className="flex-shrink-0">
-          <div className="relative w-32 h-32">
-            {/* Background circle */}
-            <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="64"
-                cy="64"
-                r="56"
-                stroke="currentColor"
-                strokeWidth="12"
-                fill="none"
-                className="text-slate-700"
-              />
-              <circle
-                cx="64"
-                cy="64"
-                r="56"
-                stroke="currentColor"
-                strokeWidth="12"
-                fill="none"
-                strokeDasharray={`${(score / 100) * 352} 352`}
-                strokeLinecap="round"
-                className={getScoreBg(score)}
-              />
-            </svg>
-            {/* Score text */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className={`text-3xl font-bold ${getScoreColor(score)}`}>
-                {totalChecks === 0 ? '—' : `${score}%`}
-              </span>
-            </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl">Overall Quality Score</CardTitle>
+        <CardDescription>
+          {totalChecks === 0
+            ? 'No quality checks configured yet.'
+            : `Based on ${totalChecks} configured quality check${totalChecks !== 1 ? 's' : ''}.`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-baseline justify-between gap-4">
+          <div className={cn('text-3xl font-bold', scoreTone)}>
+            {scoreLabel}
           </div>
-        </div>
-        <div>
-          <h3 className="text-xl font-semibold mb-1">Overall Quality Score</h3>
-          {totalChecks === 0 ? (
-            <>
-              <p className="text-slate-400 mb-3">
-                No quality checks configured yet
-              </p>
-              <p className="text-sm text-slate-500">
-                Add{' '}
-                <code className="bg-slate-700 px-1 rounded">@phlo.quality</code>{' '}
-                decorators to your assets to enable quality monitoring
-              </p>
-            </>
-          ) : (
-            <p className="text-slate-400 mb-3">
-              Based on {totalChecks} configured quality check
-              {totalChecks !== 1 ? 's' : ''}
-            </p>
+          {totalChecks === 0 && (
+            <div className="text-sm text-muted-foreground">
+              Add{' '}
+              <code className="bg-muted px-1 rounded-none">@phlo.quality</code>{' '}
+              to enable checks
+            </div>
           )}
         </div>
-      </div>
-    </div>
+        <div className="h-2 bg-muted overflow-hidden">
+          <div
+            className={cn(
+              'h-full',
+              totalChecks === 0 ? 'bg-muted-foreground/40' : 'bg-primary',
+            )}
+            style={{
+              width: `${totalChecks === 0 ? 0 : Math.max(0, Math.min(100, score))}%`,
+            }}
+          />
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -332,23 +316,23 @@ function RecentExecutionRow({ exec }: { exec: RecentCheckExecution }) {
   const assetLabel = exec.assetKey[exec.assetKey.length - 1] || assetId
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-700/40 transition-colors">
+    <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 transition-colors">
       {icon}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <Link
             to="/assets/$assetId"
             params={{ assetId }}
-            className="text-sm font-medium text-slate-200 hover:text-cyan-300 transition-colors truncate"
+            className="text-sm font-medium hover:underline transition-colors truncate"
           >
             {assetLabel}
           </Link>
-          <ChevronRight className="w-3 h-3 text-slate-500 flex-shrink-0" />
-          <span className="text-sm text-slate-300 truncate">
+          <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+          <span className="text-sm text-muted-foreground truncate">
             {exec.checkName}
           </span>
         </div>
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-muted-foreground">
           {new Date(exec.timestamp).toLocaleString()}
         </div>
       </div>
@@ -412,20 +396,20 @@ function ChecksTable({ checks }: { checks: Array<QualityCheck> }) {
     <>
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
         <div className="flex-1 relative">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
+          <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by asset or check name"
-            className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+            className="pl-9"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-500" />
+          <Filter className="w-4 h-4 text-muted-foreground" />
           <select
             value={kind}
             onChange={(e) => setKind(e.target.value as CheckKind)}
-            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+            className="h-8 px-3 bg-input/30 border border-input text-xs outline-none"
           >
             <option value="all">All</option>
             <option value="pandera">Pandera</option>
@@ -435,7 +419,7 @@ function ChecksTable({ checks }: { checks: Array<QualityCheck> }) {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as CheckStatusFilter)}
-            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+            className="h-8 px-3 bg-input/30 border border-input text-xs outline-none"
           >
             <option value="all">All statuses</option>
             <option value="PASSED">Passed</option>
@@ -445,7 +429,7 @@ function ChecksTable({ checks }: { checks: Array<QualityCheck> }) {
           <select
             value={layer}
             onChange={(e) => setLayer(e.target.value as LayerFilter)}
-            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+            className="h-8 px-3 bg-input/30 border border-input text-xs outline-none"
           >
             <option value="all">All layers</option>
             <option value="bronze">Bronze</option>
@@ -457,59 +441,49 @@ function ChecksTable({ checks }: { checks: Array<QualityCheck> }) {
       </div>
 
       {filtered.length > 0 ? (
-        <div className="overflow-x-auto border border-slate-700 rounded-lg">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-900/60">
-              <tr className="border-b border-slate-700">
-                <th className="text-left py-2 px-3 font-medium text-slate-400">
-                  Status
-                </th>
-                <th className="text-left py-2 px-3 font-medium text-slate-400">
-                  Asset
-                </th>
-                <th className="text-left py-2 px-3 font-medium text-slate-400">
-                  Check
-                </th>
-                <th className="text-left py-2 px-3 font-medium text-slate-400">
-                  Partition
-                </th>
-                <th className="text-left py-2 px-3 font-medium text-slate-400">
-                  Last run
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="overflow-x-auto border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Status</TableHead>
+                <TableHead>Asset</TableHead>
+                <TableHead>Check</TableHead>
+                <TableHead>Partition</TableHead>
+                <TableHead>Last run</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map((check) => (
-                <tr
+                <TableRow
                   key={`${check.assetKey.join('/')}::${check.name}`}
-                  className="border-b border-slate-700/50 hover:bg-slate-700/30 cursor-pointer"
+                  className="cursor-pointer"
                   onClick={() => setSelected(check)}
                 >
-                  <td className="py-2 px-3">
+                  <TableCell>
                     <StatusPill
                       status={check.status}
                       severity={check.severity}
                     />
-                  </td>
-                  <td className="py-2 px-3 font-mono text-xs text-cyan-300">
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-primary">
                     {check.assetKey.join('/')}
-                  </td>
-                  <td className="py-2 px-3 text-slate-200">{check.name}</td>
-                  <td className="py-2 px-3 font-mono text-xs text-slate-400">
+                  </TableCell>
+                  <TableCell>{check.name}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
                     {String(check.lastResult?.metadata?.partition_key ?? '—')}
-                  </td>
-                  <td className="py-2 px-3 text-xs text-slate-400">
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
                     {check.lastExecutionTime
                       ? new Date(check.lastExecutionTime).toLocaleString()
                       : '—'}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : (
-        <div className="text-center text-slate-500 py-10">
+        <div className="text-center text-muted-foreground py-10">
           <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
           <p>No checks match your filters</p>
         </div>
@@ -536,19 +510,15 @@ function StatusPill({
   const label = isWarn ? 'WARN' : status
   const className =
     status === 'PASSED'
-      ? 'bg-green-600/20 text-green-300 border-green-700/40'
+      ? 'bg-green-500/10 text-green-400 border-green-500/30'
       : isWarn
-        ? 'bg-yellow-600/20 text-yellow-300 border-yellow-700/40'
-        : status === 'FAILED'
-          ? 'bg-red-600/20 text-red-300 border-red-700/40'
-          : 'bg-slate-600/20 text-slate-300 border-slate-700/40'
+        ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+        : 'bg-destructive/10 text-destructive border-destructive/30'
 
   return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 border rounded text-xs ${className}`}
-    >
+    <Badge variant="outline" className={className}>
       {label}
-    </span>
+    </Badge>
   )
 }
 
@@ -609,25 +579,20 @@ function CheckDetailsDrawer({
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative ml-auto w-full max-w-xl h-full bg-slate-900 border-l border-slate-700 p-6 overflow-y-auto">
+      <div className="relative ml-auto w-full max-w-xl h-full bg-card border-l border-border p-6 overflow-y-auto">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <div className="text-xs text-slate-500 font-mono">
+            <div className="text-xs text-muted-foreground font-mono">
               {check.assetKey.join('/')}
             </div>
-            <h3 className="text-lg font-semibold text-slate-100">
-              {check.name}
-            </h3>
+            <h3 className="text-lg font-semibold">{check.name}</h3>
             <div className="mt-2">
               <StatusPill status={check.status} severity={check.severity} />
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-800"
-          >
+          <Button variant="outline" size="sm" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
 
         {sql && (
@@ -638,27 +603,31 @@ function CheckDetailsDrawer({
                   to={openInSqlLink.to}
                   params={openInSqlLink.params}
                   search={openInSqlLink.search}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
+                  className={cn(
+                    buttonVariants({ variant: 'outline', size: 'sm' }),
+                    'gap-2',
+                  )}
                 >
                   Open in SQL
                   <ChevronRight className="w-4 h-4" />
                 </Link>
               )}
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => void navigator.clipboard.writeText(sql)}
-                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
               >
                 <Copy className="w-4 h-4" />
                 Copy
-              </button>
+              </Button>
               {sql.length > 1500 && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-muted-foreground">
                   (Too large to embed in URL)
                 </span>
               )}
             </div>
-            <pre className="text-xs text-slate-200 whitespace-pre-wrap break-words bg-slate-800/60 border border-slate-700 rounded-lg p-3 max-h-64 overflow-auto">
+            <pre className="text-xs whitespace-pre-wrap break-words bg-muted border border-border p-3 max-h-64 overflow-auto">
               {sql}
             </pre>
           </Section>
@@ -668,27 +637,24 @@ function CheckDetailsDrawer({
           {Object.keys(metadata).length > 0 ? (
             <div className="space-y-2">
               {Object.entries(metadata).map(([key, value]) => (
-                <div
-                  key={key}
-                  className="bg-slate-800/60 border border-slate-700 rounded-lg p-3"
-                >
-                  <div className="text-xs text-slate-400 font-mono mb-1">
+                <div key={key} className="bg-muted border border-border p-3">
+                  <div className="text-xs text-muted-foreground font-mono mb-1">
                     {key}
                   </div>
-                  <pre className="text-xs text-slate-200 whitespace-pre-wrap break-words">
+                  <pre className="text-xs whitespace-pre-wrap break-words">
                     {formatMetadataValue(value)}
                   </pre>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-sm text-slate-500">No metadata.</div>
+            <div className="text-sm text-muted-foreground">No metadata.</div>
           )}
         </Section>
 
         <Section title="History">
           {loading ? (
-            <div className="text-sm text-slate-500">Loading…</div>
+            <div className="text-sm text-muted-foreground">Loading…</div>
           ) : error ? (
             <div className="text-sm text-red-400">{error}</div>
           ) : history.length > 0 ? (
@@ -696,13 +662,13 @@ function CheckDetailsDrawer({
               {history.map((item) => (
                 <div
                   key={`${item.runId ?? 'run'}::${item.timestamp}`}
-                  className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded-lg p-3"
+                  className="flex items-center justify-between bg-muted border border-border p-3"
                 >
-                  <div className="text-sm text-slate-200">
+                  <div className="text-sm">
                     {new Date(item.timestamp).toLocaleString()}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500 font-mono">
+                    <span className="text-xs text-muted-foreground font-mono">
                       {item.runId ?? '—'}
                     </span>
                     <span
@@ -717,7 +683,9 @@ function CheckDetailsDrawer({
               ))}
             </div>
           ) : (
-            <div className="text-sm text-slate-500">No history found.</div>
+            <div className="text-sm text-muted-foreground">
+              No history found.
+            </div>
           )}
         </Section>
       </div>
@@ -728,7 +696,7 @@ function CheckDetailsDrawer({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mb-6">
-      <h4 className="text-sm font-semibold text-slate-200 mb-2">{title}</h4>
+      <h4 className="text-sm font-semibold mb-2">{title}</h4>
       {children}
     </div>
   )
@@ -789,22 +757,26 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, variant = 'default' }: StatCardProps) {
   const variantStyles = {
-    default: 'border-slate-700',
-    success: 'border-green-700/50 bg-green-900/10',
-    warning: 'border-yellow-700/50 bg-yellow-900/10',
-    error: 'border-red-700/50 bg-red-900/10',
+    default: 'border-border',
+    success: 'border-green-500/30 bg-green-500/5',
+    warning: 'border-yellow-500/30 bg-yellow-500/5',
+    error: 'border-destructive/30 bg-destructive/5',
   }
 
   return (
-    <div
-      className={`bg-slate-800 rounded-xl border p-4 ${variantStyles[variant]}`}
-    >
-      <div className="flex items-center gap-3 mb-2">
-        {icon}
-        <span className="text-slate-400 text-sm">{title}</span>
-      </div>
-      <div className="text-2xl font-bold">{value}</div>
-    </div>
+    <Card className={variantStyles[variant]}>
+      <CardHeader className="pb-2">
+        <CardDescription className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            {icon}
+            {title}
+          </span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <CardTitle className="text-2xl">{value}</CardTitle>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -832,13 +804,13 @@ function CategoryBar({
     <div>
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium">{category}</span>
-        <span className="text-sm text-slate-400">
+        <span className="text-sm text-muted-foreground">
           {passing}/{total} ({percentage.toFixed(1)}%)
         </span>
       </div>
-      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+      <div className="h-2 bg-muted overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${getBarColor(percentage)}`}
+          className={`h-full transition-all ${getBarColor(percentage)}`}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -858,18 +830,20 @@ function FailingCheckCard({ check }: FailingCheckCardProps) {
     <Link
       to="/assets/$assetId"
       params={{ assetId: assetPath }}
-      className="block p-3 bg-red-900/20 hover:bg-red-900/30 border border-red-700/50 rounded-lg transition-colors"
+      className="block p-3 bg-destructive/10 hover:bg-destructive/15 border border-destructive/30 transition-colors"
     >
       <div className="flex items-center gap-3">
         <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="font-medium text-red-300 truncate">{check.name}</div>
-          <div className="text-xs text-slate-400 truncate">{assetPath}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {assetPath}
+          </div>
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
+        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
       </div>
       {check.lastExecutionTime && (
-        <div className="mt-2 text-xs text-slate-500 flex items-center gap-1">
+        <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
           <Clock className="w-3 h-3" />
           Failed {formatRelativeTime(new Date(check.lastExecutionTime))}
         </div>

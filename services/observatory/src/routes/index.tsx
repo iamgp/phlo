@@ -47,7 +47,7 @@ function Dashboard() {
   const healthData = hasError ? null : metrics
 
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>

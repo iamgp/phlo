@@ -19,6 +19,9 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { GraphNode, ImpactedAsset } from '@/server/graph.server'
+import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { getAssetImpact } from '@/server/graph.server'
 
 interface NodeInfoPanelProps {
@@ -39,37 +42,30 @@ export function NodeInfoPanel({
     : 'Never'
 
   return (
-    <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col h-full">
+    <div className="w-80 bg-card border-l border-border flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-700">
+      <div className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <Database className="w-5 h-5 text-cyan-400" />
-          <span className="font-medium text-slate-100">Asset Details</span>
+          <Database className="w-5 h-5 text-primary" />
+          <span className="font-medium">Asset Details</span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-slate-700 rounded transition-colors"
-        >
-          <X className="w-4 h-4 text-slate-400" />
-        </button>
+        <Button variant="ghost" size="icon-sm" onClick={onClose}>
+          <X className="w-4 h-4 text-muted-foreground" />
+        </Button>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Name & Layer Badge */}
         <div>
-          <h3 className="text-lg font-semibold text-slate-100 break-all">
-            {node.label}
-          </h3>
-          <div className="text-sm text-slate-400 mt-1 break-all">
+          <h3 className="text-lg font-semibold break-all">{node.label}</h3>
+          <div className="text-sm text-muted-foreground mt-1 break-all">
             {node.keyPath}
           </div>
           <div className="flex items-center gap-2 mt-2">
             <LayerBadge layer={node.layer} />
             {node.computeKind && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-purple-900/50 text-purple-300 rounded">
-                {node.computeKind}
-              </span>
+              <Badge variant="outline">{node.computeKind}</Badge>
             )}
           </div>
         </div>
@@ -77,51 +73,49 @@ export function NodeInfoPanel({
         {/* Description */}
         {node.description && (
           <div>
-            <h4 className="text-sm font-medium text-slate-400 mb-1">
+            <h4 className="text-sm font-medium text-muted-foreground mb-1">
               Description
             </h4>
-            <p className="text-sm text-slate-300">{node.description}</p>
+            <p className="text-sm">{node.description}</p>
           </div>
         )}
 
         {/* Dependencies */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-700/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="bg-muted/50 border border-border p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <ArrowUpRight className="w-4 h-4" />
               <span className="text-xs font-medium">Upstream</span>
             </div>
-            <div className="text-xl font-bold text-slate-100">
-              {node.upstreamCount}
-            </div>
+            <div className="text-xl font-bold">{node.upstreamCount}</div>
           </div>
-          <div className="bg-slate-700/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="bg-muted/50 border border-border p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <ArrowDownLeft className="w-4 h-4" />
               <span className="text-xs font-medium">Downstream</span>
             </div>
-            <div className="text-xl font-bold text-slate-100">
-              {node.downstreamCount}
-            </div>
+            <div className="text-xl font-bold">{node.downstreamCount}</div>
           </div>
         </div>
 
         {/* Last Materialization */}
-        <div className="bg-slate-700/50 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-slate-400 mb-1">
+        <div className="bg-muted/50 border border-border p-3">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Clock className="w-4 h-4" />
             <span className="text-xs font-medium">Last Materialized</span>
           </div>
-          <div className="text-slate-100">{lastMaterialized}</div>
+          <div>{lastMaterialized}</div>
         </div>
 
         {/* Group */}
         {node.groupName && (
           <div>
-            <h4 className="text-sm font-medium text-slate-400 mb-1">Group</h4>
-            <span className="px-2 py-1 text-sm bg-slate-700 text-slate-300 rounded">
+            <h4 className="text-sm font-medium text-muted-foreground mb-1">
+              Group
+            </h4>
+            <Badge variant="secondary" className="text-muted-foreground">
               {node.groupName}
-            </span>
+            </Badge>
           </div>
         )}
 
@@ -136,37 +130,32 @@ export function NodeInfoPanel({
       </div>
 
       {/* Actions */}
-      <div className="p-4 border-t border-slate-700 space-y-2">
+      <div className="p-4 border-t border-border space-y-2">
         <Link
           to="/assets/$assetId"
           params={{ assetId: node.keyPath }}
-          className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
+          className={cn(
+            buttonVariants({ size: 'sm' }),
+            'w-full justify-center gap-2',
+          )}
         >
           <ExternalLink className="w-4 h-4" />
           View Details
         </Link>
-        <button
+        <Button
+          variant="outline"
+          className="w-full justify-center gap-2"
           onClick={() => onFocusGraph(node.keyPath)}
-          className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-colors"
         >
           <GitBranch className="w-4 h-4" />
           Focus on This Asset
-        </button>
+        </Button>
       </div>
     </div>
   )
 }
 
 function LayerBadge({ layer }: { layer: string }) {
-  const colors: Record<string, string> = {
-    source: 'bg-blue-900/50 text-blue-300 border-blue-500',
-    bronze: 'bg-amber-900/50 text-amber-300 border-amber-500',
-    silver: 'bg-slate-700/50 text-slate-300 border-slate-400',
-    gold: 'bg-yellow-900/50 text-yellow-300 border-yellow-500',
-    publish: 'bg-emerald-900/50 text-emerald-300 border-emerald-500',
-    unknown: 'bg-slate-800/50 text-slate-400 border-slate-600',
-  }
-
   const labelMap: Record<string, string> = {
     source: 'Source',
     bronze: 'Bronze',
@@ -177,11 +166,9 @@ function LayerBadge({ layer }: { layer: string }) {
   }
 
   return (
-    <span
-      className={`px-2 py-0.5 text-xs font-medium border rounded ${colors[layer] || colors.unknown}`}
-    >
+    <Badge variant="outline" className="text-muted-foreground">
       {labelMap[layer] || layer}
-    </span>
+    </Badge>
   )
 }
 
@@ -234,40 +221,38 @@ function ImpactAnalysisSection({
   }, [assetKey])
 
   const layerColors: Record<string, string> = {
-    source: 'text-blue-400',
+    source: 'text-emerald-400',
     bronze: 'text-amber-400',
-    silver: 'text-slate-300',
-    gold: 'text-yellow-400',
+    silver: 'text-muted-foreground',
+    gold: 'text-primary',
     publish: 'text-emerald-400',
-    unknown: 'text-slate-500',
+    unknown: 'text-muted-foreground',
   }
 
   return (
-    <div className="border border-orange-500/30 bg-orange-950/20 rounded-lg overflow-hidden">
+    <div className="border border-primary/20 bg-primary/5 overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center justify-between w-full p-3 hover:bg-orange-950/30 transition-colors"
+        className="flex items-center justify-between w-full p-3 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-orange-400" />
-          <span className="text-sm font-medium text-orange-300">
-            Impact Analysis
-          </span>
-          <span className="px-1.5 py-0.5 text-xs bg-orange-500/30 text-orange-300 rounded">
+          <AlertTriangle className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium">Impact Analysis</span>
+          <Badge variant="secondary" className="text-muted-foreground">
             {downstreamCount}
-          </span>
+          </Badge>
         </div>
         {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-orange-400" />
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-orange-400" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
         )}
       </button>
 
       {isExpanded && (
-        <div className="border-t border-orange-500/20 p-2 max-h-48 overflow-y-auto">
+        <div className="border-t border-border p-2 max-h-48 overflow-y-auto">
           {loading ? (
-            <div className="text-sm text-slate-400 text-center py-2">
+            <div className="text-sm text-muted-foreground text-center py-2">
               Loading...
             </div>
           ) : impactedAssets.length > 0 ? (
@@ -276,14 +261,14 @@ function ImpactAnalysisSection({
                 <li key={asset.keyPath}>
                   <button
                     onClick={() => onFocusGraph(asset.keyPath)}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-left text-sm hover:bg-slate-700/50 rounded transition-colors"
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-left text-sm hover:bg-muted/50 transition-colors"
                   >
                     <span
                       className={`${layerColors[asset.layer]} font-medium truncate flex-1`}
                     >
                       {asset.label}
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       +{asset.depth} hop{asset.depth > 1 ? 's' : ''}
                     </span>
                   </button>
@@ -291,7 +276,7 @@ function ImpactAnalysisSection({
               ))}
             </ul>
           ) : (
-            <div className="text-sm text-slate-400 text-center py-2">
+            <div className="text-sm text-muted-foreground text-center py-2">
               No downstream assets
             </div>
           )}

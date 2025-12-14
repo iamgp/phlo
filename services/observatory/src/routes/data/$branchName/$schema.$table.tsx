@@ -62,7 +62,7 @@ function DataExplorerWithTable() {
   const [journeyContext, setJourneyContext] = useState<JourneyContext | null>(
     null,
   )
-  // Pre-configured query from journey view (phlo-gxl)
+  // Pre-configured query from journey view
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
 
   // Reset state when table changes (fixes sidebar navigation bug)
@@ -125,7 +125,7 @@ function DataExplorerWithTable() {
     setActiveTab('journey')
   }
 
-  // Handle "Query Source Data" from journey view (phlo-gxl)
+  // Handle "Query Source Data" from journey view
   const handleQuerySource = (query: string) => {
     setPendingQuery(query)
     setActiveTab('query')
@@ -135,7 +135,7 @@ function DataExplorerWithTable() {
     <div className="flex h-full">
       {/* Left sidebar - Table Browser */}
       <aside className="w-72 border-r bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="h-[72px] p-4 border-b flex flex-col justify-center">
+        <div className="px-4 py-3 border-b">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -179,7 +179,7 @@ function DataExplorerWithTable() {
       {/* Main content area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-[72px] px-4 border-b bg-card flex items-center justify-between">
+        <header className="px-4 py-3 border-b bg-card flex items-center justify-between">
           <div className="flex flex-col justify-center">
             <h1 className="text-lg font-semibold">{table}</h1>
             <p className="text-xs text-muted-foreground mt-1">
@@ -315,7 +315,7 @@ function DataExplorerWithTable() {
                 autoRun={!!pendingQuery}
               />
               {queryResults && (
-                <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                <Card className="overflow-hidden">
                   <QueryResults
                     results={queryResults}
                     onShowJourney={(rowData, columnTypes) =>
@@ -327,7 +327,7 @@ function DataExplorerWithTable() {
                       )
                     }
                   />
-                </div>
+                </Card>
               )}
             </div>
           )}

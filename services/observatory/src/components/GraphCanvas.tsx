@@ -23,42 +23,41 @@ import '@xyflow/react/dist/style.css'
 import { Database } from 'lucide-react'
 
 import type { GraphEdge, GraphNode } from '@/server/graph.server'
-import type { Edge, Node, NodeTypes } from '@xyflow/react'
+import type { Edge, Node, NodeProps, NodeTypes } from '@xyflow/react'
 
-// Layer colors matching the design spec
-const LAYER_COLORS: Record<
+const LAYER_STYLES: Record<
   string,
-  { bg: string; border: string; text: string }
+  { accentBorder: string; icon: string; label: string }
 > = {
   source: {
-    bg: 'bg-blue-900/50',
-    border: 'border-blue-500',
-    text: 'text-blue-300',
+    accentBorder: 'border-l-emerald-400/60',
+    icon: 'text-emerald-400',
+    label: 'text-foreground',
   },
   bronze: {
-    bg: 'bg-amber-900/50',
-    border: 'border-amber-500',
-    text: 'text-amber-300',
+    accentBorder: 'border-l-amber-400/70',
+    icon: 'text-amber-400',
+    label: 'text-foreground',
   },
   silver: {
-    bg: 'bg-slate-700/50',
-    border: 'border-slate-400',
-    text: 'text-slate-300',
+    accentBorder: 'border-l-border',
+    icon: 'text-muted-foreground',
+    label: 'text-foreground',
   },
   gold: {
-    bg: 'bg-yellow-900/50',
-    border: 'border-yellow-500',
-    text: 'text-yellow-300',
+    accentBorder: 'border-l-primary',
+    icon: 'text-primary',
+    label: 'text-foreground',
   },
   publish: {
-    bg: 'bg-emerald-900/50',
-    border: 'border-emerald-500',
-    text: 'text-emerald-300',
+    accentBorder: 'border-l-emerald-400/60',
+    icon: 'text-emerald-400',
+    label: 'text-foreground',
   },
   unknown: {
-    bg: 'bg-slate-800/50',
-    border: 'border-slate-600',
-    text: 'text-slate-400',
+    accentBorder: 'border-l-border',
+    icon: 'text-muted-foreground',
+    label: 'text-foreground',
   },
 }
 
@@ -73,35 +72,34 @@ interface AssetNodeData {
 }
 
 // Custom node component for assets
-function AssetNode({ data }: { data: AssetNodeData }) {
-  const colors = LAYER_COLORS[data.layer] || LAYER_COLORS.unknown
+function AssetNode({ data, selected }: NodeProps<AssetNodeData>) {
+  const styles = LAYER_STYLES[data.layer] || LAYER_STYLES.unknown
 
   return (
     <>
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!bg-slate-500"
-      />
+      <Handle type="target" position={Position.Left} className="!bg-border" />
       <div
-        className={`px-3 py-2 rounded-lg border-2 ${colors.bg} ${colors.border} min-w-[140px] cursor-pointer hover:brightness-110 transition-all`}
+        className={[
+          'min-w-[160px] cursor-pointer border border-border border-l-4 bg-card px-3 py-2 shadow-sm transition-colors',
+          'hover:bg-muted/50',
+          styles.accentBorder,
+          selected ? 'ring-2 ring-primary/40' : '',
+        ].join(' ')}
         onClick={() => data.onSelect(data.keyPath)}
       >
         <div className="flex items-center gap-2">
-          <Database className={`w-4 h-4 ${colors.text}`} />
-          <span className={`text-sm font-medium ${colors.text}`}>
+          <Database className={`w-4 h-4 ${styles.icon}`} />
+          <span className={`text-sm font-medium ${styles.label}`}>
             {data.label}
           </span>
         </div>
         {data.computeKind && (
-          <div className="mt-1 text-xs text-slate-500">{data.computeKind}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {data.computeKind}
+          </div>
         )}
       </div>
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!bg-slate-500"
-      />
+      <Handle type="source" position={Position.Right} className="!bg-border" />
     </>
   )
 }
@@ -176,10 +174,10 @@ export function GraphCanvas({
         source: edge.source,
         target: edge.target,
         animated: false,
-        style: { stroke: '#475569', strokeWidth: 2 },
+        style: { stroke: 'var(--border)', strokeWidth: 2 },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: '#475569',
+          color: 'var(--border)',
         },
       }),
     )
@@ -206,18 +204,18 @@ export function GraphCanvas({
   const miniMapNodeColor = useCallback((node: Node) => {
     const layer = (node.data as AssetNodeData)?.layer || 'unknown'
     const colorMap: Record<string, string> = {
-      source: '#3b82f6',
-      bronze: '#d97706',
-      silver: '#64748b',
-      gold: '#eab308',
-      publish: '#10b981',
-      unknown: '#475569',
+      source: '#34d399',
+      bronze: '#f59e0b',
+      silver: '#a1a1aa',
+      gold: '#fbbf24',
+      publish: '#34d399',
+      unknown: '#a1a1aa',
     }
     return colorMap[layer] || colorMap.unknown
   }, [])
 
   return (
-    <div className="w-full h-full bg-slate-900">
+    <div className="w-full h-full bg-background">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -230,14 +228,14 @@ export function GraphCanvas({
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={2}
-        className="bg-slate-900"
+        className="bg-background"
       >
-        <Background color="#334155" gap={20} />
-        <Controls className="!bg-slate-800 !border-slate-700 !rounded-lg [&>button]:!bg-slate-700 [&>button]:!border-slate-600 [&>button]:!fill-slate-300 [&>button:hover]:!bg-slate-600" />
+        <Background color="var(--border)" gap={20} />
+        <Controls className="!bg-card !border-border !rounded-none [&>button]:!bg-card [&>button]:!border-border [&>button]:!fill-muted-foreground [&>button:hover]:!bg-muted" />
         <MiniMap
           nodeColor={miniMapNodeColor}
-          maskColor="rgba(15, 23, 42, 0.8)"
-          className="!bg-slate-800 !border-slate-700 !rounded-lg"
+          maskColor="rgba(0, 0, 0, 0.6)"
+          className="!bg-card !border-border !rounded-none"
         />
       </ReactFlow>
     </div>
@@ -255,16 +253,19 @@ export function GraphLegend() {
   ]
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-slate-800/80 backdrop-blur-sm rounded-lg border border-slate-700">
-      <span className="text-xs text-slate-400 font-medium">Layers:</span>
+    <div className="flex items-center gap-4 px-4 py-2 bg-card/80 backdrop-blur-sm border border-border">
+      <span className="text-xs text-muted-foreground font-medium">Layers:</span>
       {layers.map(({ key, label }) => {
-        const colors = LAYER_COLORS[key]
+        const styles = LAYER_STYLES[key] || LAYER_STYLES.unknown
         return (
           <div key={key} className="flex items-center gap-1.5">
             <div
-              className={`w-3 h-3 rounded ${colors.bg} ${colors.border} border`}
+              className={[
+                'h-3 w-3 border border-border bg-card',
+                styles.accentBorder,
+              ].join(' ')}
             />
-            <span className={`text-xs ${colors.text}`}>{label}</span>
+            <span className="text-xs text-muted-foreground">{label}</span>
           </div>
         )
       })}

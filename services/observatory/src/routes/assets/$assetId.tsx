@@ -9,7 +9,7 @@ import {
   History,
   Info,
   Shield,
-  Table,
+  Table as TableIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
@@ -20,6 +20,21 @@ import { DataJourney } from '@/components/provenance/DataJourney'
 import { MaterializationTimeline } from '@/components/provenance/MaterializationTimeline'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { getAssetDetails } from '@/server/dagster.server'
@@ -60,7 +75,7 @@ function AssetDetailPage() {
 
   if (hasError) {
     return (
-      <div className="p-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
         <Link
           to="/assets"
           className={cn(
@@ -93,7 +108,7 @@ function AssetDetailPage() {
   ]
 
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       <Link
         to="/assets"
         className={cn(
@@ -165,7 +180,7 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <section className="bg-card border p-6">
+        <Card>
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Info className="w-5 h-5 text-muted-foreground" />
             Metadata
@@ -186,11 +201,11 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
           ) : (
             <p className="text-muted-foreground">No metadata available</p>
           )}
-        </section>
+        </Card>
 
-        <section className="bg-card border p-6">
+        <Card>
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Table className="w-5 h-5 text-muted-foreground" />
+            <TableIcon className="w-5 h-5 text-muted-foreground" />
             Ops
           </h2>
           {assetData?.opNames && assetData.opNames.length > 0 ? (
@@ -207,95 +222,96 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
           ) : (
             <p className="text-muted-foreground">No ops defined</p>
           )}
-        </section>
+        </Card>
 
         {/* Columns Section */}
-        <section className="bg-card border p-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Columns2 className="w-5 h-5 text-muted-foreground" />
-            Columns
-            {assetData?.columns && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
-                {assetData.columns.length}
-              </span>
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Columns2 className="w-5 h-5 text-muted-foreground" />
+              Columns
+              {assetData?.columns && (
+                <Badge variant="secondary" className="text-muted-foreground">
+                  {assetData.columns.length}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {assetData?.columns && assetData.columns.length > 0 ? (
+              <div className="overflow-x-auto border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {assetData.columns.map((col, idx) => {
+                      const deps = assetData.columnLineage?.[col.name]
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono text-xs text-primary">
+                            {col.name}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {col.type}
+                          </TableCell>
+                          <TableCell>
+                            {deps && deps.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {deps.map((dep, depIdx) => (
+                                  <Link
+                                    key={depIdx}
+                                    to="/assets/$assetId"
+                                    params={{ assetId: dep.assetKey.join('/') }}
+                                    className="text-xs text-primary hover:underline"
+                                  >
+                                    {dep.assetKey[dep.assetKey.length - 1]}.
+                                    {dep.columnName}
+                                  </Link>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {col.description || '—'}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                No column schema available
+              </p>
             )}
-          </h2>
-          {assetData?.columns && assetData.columns.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-3 font-medium text-slate-400">
-                      Name
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-400">
-                      Type
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-400">
-                      Source
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-400">
-                      Description
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assetData.columns.map((col, idx) => {
-                    const deps = assetData.columnLineage?.[col.name]
-                    return (
-                      <tr
-                        key={idx}
-                        className="border-b border-slate-700/50 hover:bg-slate-700/30"
-                      >
-                        <td className="py-2 px-3 font-mono text-cyan-300">
-                          {col.name}
-                        </td>
-                        <td className="py-2 px-3 font-mono text-amber-300">
-                          {col.type}
-                        </td>
-                        <td className="py-2 px-3">
-                          {deps && deps.length > 0 ? (
-                            <div className="flex flex-col gap-1">
-                              {deps.map((dep, depIdx) => (
-                                <Link
-                                  key={depIdx}
-                                  to="/assets/$assetId"
-                                  params={{ assetId: dep.assetKey.join('/') }}
-                                  className="text-xs text-purple-300 hover:text-purple-200 hover:underline"
-                                >
-                                  {dep.assetKey[dep.assetKey.length - 1]}.
-                                  {dep.columnName}
-                                </Link>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-slate-500 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="py-2 px-3 text-slate-400">
-                          {col.description || '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-slate-500">No column schema available</p>
-          )}
-        </section>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="space-y-6">
-        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-          <h3 className="text-sm font-medium text-slate-400 mb-4">Status</h3>
-          <div className="space-y-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-slate-500" />
+              <Clock className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm text-slate-400">Last Materialized</div>
-                <div className="text-slate-200">
+                <div className="text-sm text-muted-foreground">
+                  Last Materialized
+                </div>
+                <div>
                   {assetData?.lastMaterialization
                     ? new Date(
                         Number(assetData.lastMaterialization.timestamp),
@@ -305,16 +321,14 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-slate-500" />
+              <Calendar className="w-5 h-5 text-muted-foreground" />
               <div>
-                <div className="text-sm text-slate-400">Partitioned</div>
-                <div className="text-slate-200">
-                  {assetData?.partitionDefinition ? 'Yes' : 'No'}
-                </div>
+                <div className="text-sm text-muted-foreground">Partitioned</div>
+                <div>{assetData?.partitionDefinition ? 'Yes' : 'No'}</div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
@@ -324,24 +338,32 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
 function JourneyTab({ assetKey }: { assetKey: string }) {
   return (
     <div className="space-y-6">
-      <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <GitBranch className="w-5 h-5 text-cyan-400" />
-          Data Lineage
-        </h2>
-        <p className="text-sm text-slate-400 mb-4">
-          Shows where this data comes from and where it goes
-        </p>
-        <DataJourney assetKey={assetKey} />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <GitBranch className="w-5 h-5 text-primary" />
+            Data Lineage
+          </CardTitle>
+          <CardDescription>
+            Shows where this data comes from and where it goes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataJourney assetKey={assetKey} />
+        </CardContent>
+      </Card>
 
-      <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <History className="w-5 h-5 text-cyan-400" />
-          Materialization History
-        </h2>
-        <MaterializationTimeline assetKey={assetKey} limit={10} />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <History className="w-5 h-5 text-primary" />
+            Materialization History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MaterializationTimeline assetKey={assetKey} limit={10} />
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -355,7 +377,7 @@ function DataTab({ assetKey }: { assetKey: string }) {
     <div className="space-y-6">
       <section>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Database className="w-5 h-5 text-cyan-400" />
+          <Database className="w-5 h-5 text-primary" />
           Data Preview
         </h2>
         <DataPreview table={tableName} />
@@ -368,63 +390,61 @@ function DataTab({ assetKey }: { assetKey: string }) {
 function QualityTab({ checks }: { checks: Array<QualityCheck> }) {
   return (
     <div className="space-y-6">
-      <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-cyan-400" />
-          Quality Checks
-          {checks.length > 0 && (
-            <span className="text-xs px-2 py-0.5 bg-cyan-900/50 text-cyan-300 rounded">
-              {checks.length}
-            </span>
-          )}
-        </h2>
-        {checks.length > 0 ? (
-          <div className="space-y-3">
-            {checks.map((check) => (
-              <div
-                key={check.name}
-                className={`p-3 rounded-lg border ${
-                  check.status === 'PASSED'
-                    ? 'bg-green-900/20 border-green-700/50'
-                    : check.status === 'FAILED'
-                      ? 'bg-red-900/20 border-red-700/50'
-                      : 'bg-slate-700/50 border-slate-600'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{check.name}</span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded ${
-                      check.status === 'PASSED'
-                        ? 'bg-green-800 text-green-300'
-                        : check.status === 'FAILED'
-                          ? 'bg-red-800 text-red-300'
-                          : 'bg-slate-600 text-slate-300'
-                    }`}
-                  >
-                    {check.status}
-                  </span>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            Quality Checks
+            {checks.length > 0 && (
+              <Badge variant="secondary" className="text-muted-foreground ml-1">
+                {checks.length}
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {checks.length > 0 ? (
+            <div className="space-y-3">
+              {checks.map((check) => (
+                <div key={check.name} className="p-3 border">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{check.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        check.status === 'PASSED'
+                          ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                          : check.status === 'FAILED'
+                            ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                            : 'border-border bg-muted text-muted-foreground'
+                      }
+                    >
+                      {check.status}
+                    </Badge>
+                  </div>
+                  {check.description && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {check.description}
+                    </p>
+                  )}
                 </div>
-                {check.description && (
-                  <p className="text-sm text-slate-400 mt-1">
-                    {check.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-slate-500">
-            <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No quality checks configured</p>
-            <p className="text-sm mt-1">
-              Add{' '}
-              <code className="bg-slate-700 px-1 rounded">@phlo.quality</code>{' '}
-              decorators to enable checks
-            </p>
-          </div>
-        )}
-      </section>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>No quality checks configured</p>
+              <p className="text-sm mt-1">
+                Add{' '}
+                <code className="bg-muted px-1 rounded-none">
+                  @phlo.quality
+                </code>{' '}
+                decorators to enable checks
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
