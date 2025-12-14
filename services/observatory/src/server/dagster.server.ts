@@ -7,6 +7,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { fetchQualitySnapshot } from '@/server/quality.dagster'
+
 // Types for health metrics
 export interface HealthMetrics {
   assetsTotal: number
@@ -174,12 +176,14 @@ export const getHealthMetrics = createServerFn().handler(
         }
       }
 
+      const qc = await qualityCounts()
+
       return {
         assetsTotal,
         assetsHealthy: assetsTotal - staleAssets,
         failedJobs24h,
-        qualityChecksPassing: 0, // TODO: Implement quality checks query
-        qualityChecksTotal: 0,
+        qualityChecksPassing: qc.passing,
+        qualityChecksTotal: qc.total,
         staleAssets,
         lastUpdated: new Date().toISOString(),
       }
@@ -188,6 +192,14 @@ export const getHealthMetrics = createServerFn().handler(
     }
   },
 )
+
+async function qualityCounts(): Promise<{ passing: number; total: number }> {
+  const snapshot = await fetchQualitySnapshot({ recentLimit: 0 })
+  if ('error' in snapshot) {
+    return { passing: 0, total: 0 }
+  }
+  return { passing: snapshot.passingChecks, total: snapshot.totalChecks }
+}
 
 // Types for asset list and detail views
 export interface Asset {
