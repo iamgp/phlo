@@ -1,16 +1,17 @@
 import {
-  
-  
-  
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  useReactTable
+  useReactTable,
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, MoreVertical, Pin, PinOff } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import type {ColumnDef, ColumnPinningState, SortingState} from '@tanstack/react-table';
+import type {
+  ColumnDef,
+  ColumnPinningState,
+  SortingState,
+} from '@tanstack/react-table'
 
 import {
   DropdownMenu,
@@ -173,7 +174,11 @@ export function ObservatoryTable({
       >
         <div style={{ width: table.getTotalSize() }}>
           <div
-            className="sticky top-0 z-20 border-b border-border/70 bg-muted/20"
+            className={cn(
+              'sticky top-0 z-30 border-b border-border/80',
+              'bg-muted/50 supports-[backdrop-filter]:bg-muted/40 supports-[backdrop-filter]:backdrop-blur',
+              'shadow-sm',
+            )}
             role="rowgroup"
           >
             <div className="flex" role="row">
@@ -205,7 +210,7 @@ export function ObservatoryTable({
                     className={cn(
                       'group flex items-stretch border-r border-border/60 last:border-r-0',
                       pinState
-                        ? 'bg-muted/20 shadow-[1px_0_0_0_var(--border)]'
+                        ? 'bg-muted/50 shadow-[1px_0_0_0_var(--border)]'
                         : '',
                     )}
                     style={{ width: header.getSize(), ...stickyStyles }}
@@ -218,7 +223,7 @@ export function ObservatoryTable({
                           : 'none'
                     }
                   >
-                    <div className="flex-1 min-w-0 px-2 py-2 h-10">
+                    <div className="flex-1 min-w-0 px-2 py-2 h-10 bg-muted/50">
                       <div className="flex items-start justify-between gap-2">
                         <button
                           type="button"
