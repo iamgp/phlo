@@ -12,6 +12,8 @@ import { AlertCircle, Filter } from 'lucide-react'
 import type { GraphNode } from '@/server/graph.server'
 import { GraphCanvas, GraphLegend } from '@/components/GraphCanvas'
 import { NodeInfoPanel } from '@/components/NodeInfoPanel'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { getAssetGraph, getAssetNeighbors } from '@/server/graph.server'
 
 // Search params for focused view
@@ -85,31 +87,30 @@ function GraphPage() {
   }, [initialFocus, graph, hasError])
 
   return (
-    <div className="flex h-[calc(100vh-0px)] overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* Main Graph Area */}
       <div className="flex-1 flex flex-col">
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-slate-100">Lineage Graph</h1>
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
+          <div className="flex items-center gap-4 min-w-0">
+            <h1 className="text-xl font-bold">Lineage Graph</h1>
             {initialFocus && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-400">Focused on:</span>
-                <span className="px-2 py-1 text-sm bg-cyan-600/20 text-cyan-300 rounded">
-                  {initialFocus}
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm text-muted-foreground">
+                  Focused on:
                 </span>
-                <button
-                  onClick={clearFocus}
-                  className="text-xs text-slate-400 hover:text-slate-300 underline"
-                >
+                <Badge variant="outline" className="max-w-[40ch] truncate">
+                  {initialFocus}
+                </Badge>
+                <Button variant="link" size="sm" onClick={clearFocus}>
                   Show all
-                </button>
+                </Button>
               </div>
             )}
           </div>
           <div className="flex items-center gap-2">
             {!hasError && (
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-muted-foreground">
                 {graph.nodes.length} assets • {graph.edges.length} connections
               </span>
             )}
@@ -120,14 +121,14 @@ function GraphPage() {
         {hasError ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8">
-              <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-slate-100 mb-2">
+              <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">
                 Failed to load graph
               </h2>
-              <p className="text-slate-400 mb-4">{graph.error}</p>
-              <p className="text-sm text-slate-500">
+              <p className="text-muted-foreground mb-4">{graph.error}</p>
+              <p className="text-sm text-muted-foreground">
                 Make sure Dagster is running at{' '}
-                <code className="bg-slate-800 px-1 rounded">
+                <code className="bg-muted px-1 rounded-none">
                   localhost:3000
                 </code>
               </p>
@@ -136,11 +137,9 @@ function GraphPage() {
         ) : graph.nodes.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8">
-              <Filter className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-slate-100 mb-2">
-                No assets found
-              </h2>
-              <p className="text-slate-400">
+              <Filter className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">No assets found</h2>
+              <p className="text-muted-foreground">
                 {initialFocus
                   ? `No assets found around "${initialFocus}"`
                   : 'No assets are registered in Dagster yet.'}
