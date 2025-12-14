@@ -7,82 +7,36 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-// Types for quality data
-export interface QualityCheck {
-  name: string
-  assetKey: Array<string>
-  description?: string
-  severity: 'ERROR' | 'WARN'
-  status: 'PASSED' | 'FAILED' | 'SKIPPED' | 'IN_PROGRESS'
-  lastExecutionTime?: string
-  lastResult?: {
-    passed: boolean
-    metadata?: Record<string, string | number | boolean | null | undefined>
-  }
-}
+import type {
+  CheckExecution,
+  QualityCheck,
+  QualityOverview,
+  RecentCheckExecution,
+} from './quality.types'
 
-export interface QualityOverview {
-  totalChecks: number
-  passingChecks: number
-  failingChecks: number
-  warningChecks: number
-  qualityScore: number // 0-100 percentage
-  byCategory: Array<{
-    category: string
-    passing: number
-    total: number
-    percentage: number
-  }>
-  trend: Array<{
-    date: string
-    score: number
-  }>
-}
+import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
-export interface CheckExecution {
-  timestamp: string
-  passed: boolean
-  runId?: string
-  metadata?: Record<string, string | number | boolean | null | undefined>
-}
+export type {
+  CheckExecution,
+  QualityCheck,
+  QualityOverview,
+  RecentCheckExecution,
+} from './quality.types'
 
-// GraphQL query for asset checks - accessed through assetNodes
-const ASSET_CHECKS_QUERY = `
-  query AssetChecksQuery {
-    assetNodes {
-      id
-      assetKey {
-        path
-      }
-      assetChecksOrError {
-        ... on AssetChecks {
-          checks {
-            name
-            description
-          }
-        }
-        ... on AssetCheckNeedsMigrationError {
-          message
-        }
-      }
-    }
-  }
-`
+const getDagsterUrl = () =>
+  process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
-// GraphQL query for check executions for a specific asset
 const ASSET_CHECK_EXECUTIONS_QUERY = `
   query AssetCheckExecutionsQuery($assetKey: AssetKeyInput!, $limit: Int!) {
     assetCheckExecutions(assetKey: $assetKey, limit: $limit) {
-      id
       status
       runId
       timestamp
       checkName
       evaluation {
-        targetMaterialization {
-          timestamp
-        }
+        severity
         metadataEntries {
+          __typename
           label
           ... on TextMetadataEntry {
             text
@@ -102,80 +56,138 @@ const ASSET_CHECK_EXECUTIONS_QUERY = `
   }
 `
 
-// Get Dagster URL from environment
-const getDagsterUrl = () =>
-  process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+type DagsterMetadataEntry =
+  | { label: string; __typename: 'TextMetadataEntry'; text: string }
+  | { label: string; __typename: 'IntMetadataEntry'; intValue: number }
+  | { label: string; __typename: 'FloatMetadataEntry'; floatValue: number }
+  | { label: string; __typename: 'BoolMetadataEntry'; boolValue: boolean }
+  | { label: string; __typename: string }
+
+function normalizeExecutionStatus(status: string): QualityCheck['status'] {
+  const normalized = status.trim().toUpperCase()
+  if (normalized === 'SUCCEEDED') return 'PASSED'
+  if (normalized === 'FAILED') return 'FAILED'
+  if (normalized === 'IN_PROGRESS') return 'IN_PROGRESS'
+  return 'SKIPPED'
+}
+
+function normalizeSeverity(
+  severity: string | null | undefined,
+): QualityCheck['severity'] {
+  return severity === 'WARN' ? 'WARN' : 'ERROR'
+}
+
+function toEpochMs(value: string | number): number {
+  if (typeof value === 'number') {
+    if (value > 1_000_000_000_000) return value
+    return value * 1000
+  }
+  const trimmed = value.trim()
+  if (!trimmed) return 0
+  const asNum = Number(trimmed)
+  if (!Number.isNaN(asNum) && Number.isFinite(asNum)) {
+    if (asNum > 1_000_000_000_000) return asNum
+    return asNum * 1000
+  }
+  const asDateMs = Date.parse(trimmed)
+  if (!Number.isNaN(asDateMs)) return asDateMs
+  return 0
+}
+
+function toIsoTimestamp(value: string | number): string {
+  return new Date(toEpochMs(value)).toISOString()
+}
+
+function metadataEntriesToRecord(
+  entries: Array<DagsterMetadataEntry> | null | undefined,
+): Record<string, string | number | boolean | null | undefined> {
+  const record: Record<string, string | number | boolean | null | undefined> =
+    {}
+  if (!entries) return record
+  for (const entry of entries) {
+    if (!entry.label) continue
+    if (entry.__typename === 'TextMetadataEntry' && 'text' in entry) {
+      record[entry.label] = entry.text
+      continue
+    }
+    if (entry.__typename === 'IntMetadataEntry' && 'intValue' in entry) {
+      record[entry.label] = entry.intValue
+      continue
+    }
+    if (entry.__typename === 'FloatMetadataEntry' && 'floatValue' in entry) {
+      record[entry.label] = entry.floatValue
+      continue
+    }
+    if (entry.__typename === 'BoolMetadataEntry' && 'boolValue' in entry) {
+      record[entry.label] = entry.boolValue
+      continue
+    }
+  }
+  return record
+}
 
 /**
  * Get overview of all quality metrics
  */
 export const getQualityOverview = createServerFn().handler(
   async (): Promise<QualityOverview | { error: string }> => {
-    const dagsterUrl = getDagsterUrl()
+    const snapshot = await fetchQualitySnapshot()
+    if ('error' in snapshot) return snapshot
 
-    try {
-      const response = await fetch(dagsterUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: ASSET_CHECKS_QUERY }),
-        signal: AbortSignal.timeout(10000),
-      })
+    const evaluated =
+      snapshot.passingChecks + snapshot.failingChecks + snapshot.warningChecks
+    const qualityScore =
+      evaluated > 0
+        ? Math.round(
+            ((snapshot.passingChecks + snapshot.warningChecks) / evaluated) *
+              100,
+          )
+        : 0
 
-      if (!response.ok) {
-        return { error: `HTTP ${response.status}: ${response.statusText}` }
-      }
+    const categories = [
+      {
+        category: 'Contract (Pandera)',
+        predicate: (check: QualityCheck) => check.name === 'pandera_contract',
+      },
+      {
+        category: 'dbt tests',
+        predicate: (check: QualityCheck) => check.name.startsWith('dbt__'),
+      },
+      {
+        category: 'Custom',
+        predicate: (check: QualityCheck) =>
+          check.name !== 'pandera_contract' && !check.name.startsWith('dbt__'),
+      },
+    ]
 
-      const result = await response.json()
-
-      if (result.errors) {
-        return { error: result.errors[0]?.message || 'GraphQL error' }
-      }
-
-      const assetNodes = result.data?.assetNodes || []
-
-      // Count total checks across all assets
-      let totalChecks = 0
-      for (const node of assetNodes) {
-        const checksOrError = node.assetChecksOrError
-        if (checksOrError?.checks) {
-          totalChecks += checksOrError.checks.length
+    const byCategory = categories
+      .map((category) => {
+        const relevant = snapshot.latestChecks.filter(category.predicate)
+        if (!relevant.length) return null
+        const passing = relevant.filter(
+          (check) => check.status === 'PASSED',
+        ).length
+        const total = relevant.length
+        return {
+          category: category.category,
+          passing,
+          total,
+          percentage: Math.round((passing / total) * 100),
         }
-      }
+      })
+      .filter(
+        (category): category is NonNullable<typeof category> =>
+          category !== null,
+      )
 
-      // For now, return placeholder data - actual pass/fail requires execution queries
-      return {
-        totalChecks,
-        passingChecks: totalChecks, // Assume all passing until we fetch executions
-        failingChecks: 0,
-        warningChecks: 0,
-        qualityScore: totalChecks > 0 ? 100 : 0,
-        byCategory:
-          totalChecks > 0
-            ? [
-                {
-                  category: 'Completeness',
-                  passing: totalChecks,
-                  total: totalChecks,
-                  percentage: 100,
-                },
-                {
-                  category: 'Freshness',
-                  passing: totalChecks,
-                  total: totalChecks,
-                  percentage: 100,
-                },
-                {
-                  category: 'Accuracy',
-                  passing: totalChecks,
-                  total: totalChecks,
-                  percentage: 100,
-                },
-              ]
-            : [],
-        trend: [],
-      }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
+    return {
+      totalChecks: snapshot.totalChecks,
+      passingChecks: snapshot.passingChecks,
+      failingChecks: snapshot.failingChecks,
+      warningChecks: snapshot.warningChecks,
+      qualityScore,
+      byCategory,
+      trend: [],
     }
   },
 )
@@ -192,7 +204,6 @@ export const getAssetChecks = createServerFn()
       const dagsterUrl = getDagsterUrl()
 
       try {
-        // Fetch check executions for this asset
         const response = await fetch(dagsterUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -200,7 +211,7 @@ export const getAssetChecks = createServerFn()
             query: ASSET_CHECK_EXECUTIONS_QUERY,
             variables: {
               assetKey: { path: assetKey },
-              limit: 50,
+              limit: 200,
             },
           }),
           signal: AbortSignal.timeout(10000),
@@ -217,33 +228,39 @@ export const getAssetChecks = createServerFn()
         }
 
         const executions = result.data?.assetCheckExecutions || []
+        const newestByCheck = new Map<string, (typeof executions)[number]>()
 
-        // Group by check name and get latest result
-        const checkMap = new Map<string, QualityCheck>()
-
-        for (const execution of executions) {
-          const checkName = execution.checkName
-          if (!checkMap.has(checkName)) {
-            checkMap.set(checkName, {
-              name: checkName,
-              assetKey,
-              severity: 'ERROR',
-              status:
-                execution.status === 'SUCCEEDED'
-                  ? 'PASSED'
-                  : execution.status === 'FAILED'
-                    ? 'FAILED'
-                    : 'SKIPPED',
-              lastExecutionTime: execution.timestamp,
-              lastResult: {
-                passed: execution.status === 'SUCCEEDED',
-                metadata: {},
-              },
-            })
+        for (const exec of executions) {
+          const existing = newestByCheck.get(exec.checkName)
+          if (!existing) {
+            newestByCheck.set(exec.checkName, exec)
+            continue
+          }
+          if (toEpochMs(exec.timestamp) > toEpochMs(existing.timestamp)) {
+            newestByCheck.set(exec.checkName, exec)
           }
         }
 
-        return Array.from(checkMap.values())
+        return Array.from(newestByCheck.values())
+          .map((exec) => {
+            const status = normalizeExecutionStatus(exec.status)
+            const severity = normalizeSeverity(exec.evaluation?.severity)
+            return {
+              name: exec.checkName,
+              assetKey,
+              description: undefined,
+              severity,
+              status,
+              lastExecutionTime: toIsoTimestamp(exec.timestamp),
+              lastResult: {
+                passed: status === 'PASSED',
+                metadata: metadataEntriesToRecord(
+                  exec.evaluation?.metadataEntries,
+                ),
+              },
+            } satisfies QualityCheck
+          })
+          .sort((a, b) => (a.name < b.name ? -1 : 1))
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -262,11 +279,12 @@ export const getCheckHistory = createServerFn()
   )
   .handler(
     async ({
-      data: { assetKey, limit = 20 },
+      data: { assetKey, checkName, limit = 20 },
     }): Promise<Array<CheckExecution> | { error: string }> => {
       const dagsterUrl = getDagsterUrl()
 
       try {
+        const fetchLimit = Math.max(50, limit * 3)
         const response = await fetch(dagsterUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -274,7 +292,7 @@ export const getCheckHistory = createServerFn()
             query: ASSET_CHECK_EXECUTIONS_QUERY,
             variables: {
               assetKey: { path: assetKey },
-              limit,
+              limit: fetchLimit,
             },
           }),
           signal: AbortSignal.timeout(10000),
@@ -290,33 +308,30 @@ export const getCheckHistory = createServerFn()
           return { error: result.errors[0]?.message || 'GraphQL error' }
         }
 
-        const executions = result.data?.assetCheckExecutions || []
+        const executions = (result.data?.assetCheckExecutions || []).filter(
+          (exec: { checkName: string }) => exec.checkName === checkName,
+        )
 
-        return executions.map(
+        executions.sort(
+          (
+            a: { timestamp: string | number },
+            b: { timestamp: string | number },
+          ) => toEpochMs(b.timestamp) - toEpochMs(a.timestamp),
+        )
+
+        return executions.slice(0, limit).map(
           (exec: {
-            timestamp: string
+            timestamp: string | number
             status: string
-            runId?: string
+            runId?: string | null
             evaluation?: {
-              metadataEntries?: Array<{ label: string; text?: string }>
-            }
+              metadataEntries?: Array<DagsterMetadataEntry> | null
+            } | null
           }) => ({
-            timestamp: exec.timestamp,
-            passed: exec.status === 'SUCCEEDED',
-            runId: exec.runId,
-            metadata: exec.evaluation?.metadataEntries?.reduce(
-              (
-                acc: Record<
-                  string,
-                  string | number | boolean | null | undefined
-                >,
-                entry: { label: string; text?: string },
-              ) => {
-                acc[entry.label] = entry.text
-                return acc
-              },
-              {},
-            ),
+            timestamp: toIsoTimestamp(exec.timestamp),
+            passed: normalizeExecutionStatus(exec.status) === 'PASSED',
+            runId: exec.runId ?? undefined,
+            metadata: metadataEntriesToRecord(exec.evaluation?.metadataEntries),
           }),
         )
       } catch (error) {
@@ -331,12 +346,10 @@ export const getCheckHistory = createServerFn()
  * Get all currently failing checks
  */
 export const getFailingChecks = createServerFn().handler(
-  (): Promise<Array<QualityCheck> | { error: string }> => {
-    // TODO: Implement query for failing checks across all assets
-    // This would require a different GraphQL query or aggregation
-
-    // For now, return empty array
-    return Promise.resolve([])
+  async (): Promise<Array<QualityCheck> | { error: string }> => {
+    const snapshot = await fetchQualitySnapshot()
+    if ('error' in snapshot) return snapshot
+    return snapshot.failingChecksList
   },
 )
 
@@ -348,28 +361,23 @@ export const getQualityDashboard = createServerFn().handler(
     | {
         overview: QualityOverview
         failingChecks: Array<QualityCheck>
-        recentExecutions: Array<CheckExecution>
+        recentExecutions: Array<RecentCheckExecution>
       }
     | { error: string }
   > => {
     try {
-      const [overviewResult, failingResult] = await Promise.all([
+      const [overviewResult, snapshot] = await Promise.all([
         getQualityOverview(),
-        getFailingChecks(),
+        fetchQualitySnapshot(),
       ])
 
-      if ('error' in overviewResult) {
-        return overviewResult
-      }
-
-      if ('error' in failingResult) {
-        return failingResult
-      }
+      if ('error' in overviewResult) return overviewResult
+      if ('error' in snapshot) return snapshot
 
       return {
         overview: overviewResult,
-        failingChecks: failingResult,
-        recentExecutions: [], // TODO: Fetch recent executions across all assets
+        failingChecks: snapshot.failingChecksList,
+        recentExecutions: snapshot.recentExecutions,
       }
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }

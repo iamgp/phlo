@@ -8,7 +8,11 @@ import {
   Shield,
   XCircle,
 } from 'lucide-react'
-import type { QualityCheck, QualityOverview } from '@/server/quality.server'
+import type {
+  QualityCheck,
+  QualityOverview,
+  RecentCheckExecution,
+} from '@/server/quality.server'
 import { getQualityDashboard } from '@/server/quality.server'
 
 export const Route = createFileRoute('/quality/')({
@@ -29,6 +33,7 @@ function QualityDashboard() {
     : (data as {
         overview: QualityOverview
         failingChecks: Array<QualityCheck>
+        recentExecutions: Array<RecentCheckExecution>
       })
 
   return (
@@ -155,11 +160,24 @@ function QualityDashboard() {
               <Clock className="w-5 h-5 text-cyan-400" />
               Recent Check Executions
             </h2>
-            <div className="text-center text-slate-500 py-8">
-              <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>Check execution history will appear here</p>
-              <p className="text-sm mt-1">Run quality checks to see results</p>
-            </div>
+            {dashboardData!.recentExecutions.length > 0 ? (
+              <div className="space-y-2">
+                {dashboardData!.recentExecutions.map((exec) => (
+                  <RecentExecutionRow
+                    key={`${exec.assetKey.join('/')}::${exec.checkName}::${exec.timestamp}`}
+                    exec={exec}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-slate-500 py-8">
+                <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No check executions yet</p>
+                <p className="text-sm mt-1">
+                  Run a materialization or check to see results
+                </p>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -245,6 +263,54 @@ function QualityScoreCard({ score, totalChecks }: QualityScoreCardProps) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function RecentExecutionRow({ exec }: { exec: RecentCheckExecution }) {
+  const statusColor =
+    exec.status === 'PASSED'
+      ? 'text-green-400'
+      : exec.severity === 'WARN'
+        ? 'text-yellow-400'
+        : 'text-red-400'
+
+  const icon =
+    exec.status === 'PASSED' ? (
+      <CheckCircle className="w-4 h-4 text-green-400" />
+    ) : exec.severity === 'WARN' ? (
+      <AlertTriangle className="w-4 h-4 text-yellow-400" />
+    ) : (
+      <XCircle className="w-4 h-4 text-red-400" />
+    )
+
+  const assetId = exec.assetKey.join('/')
+  const assetLabel = exec.assetKey[exec.assetKey.length - 1] || assetId
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-700/40 transition-colors">
+      {icon}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <Link
+            to="/assets/$assetId"
+            params={{ assetId }}
+            className="text-sm font-medium text-slate-200 hover:text-cyan-300 transition-colors truncate"
+          >
+            {assetLabel}
+          </Link>
+          <ChevronRight className="w-3 h-3 text-slate-500 flex-shrink-0" />
+          <span className="text-sm text-slate-300 truncate">
+            {exec.checkName}
+          </span>
+        </div>
+        <div className="text-xs text-slate-500">
+          {new Date(exec.timestamp).toLocaleString()}
+        </div>
+      </div>
+      <span className={`text-xs font-semibold ${statusColor}`}>
+        {exec.status}
+      </span>
     </div>
   )
 }
