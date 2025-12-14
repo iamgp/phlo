@@ -52,7 +52,7 @@ function DataExplorerLanding() {
               branch={decodedBranchName}
               onChange={(nextBranch) => {
                 navigate({
-                  to: '/data/$branchName/',
+                  to: '/data/$branchName',
                   params: { branchName: encodeURIComponent(nextBranch) },
                 })
               }}

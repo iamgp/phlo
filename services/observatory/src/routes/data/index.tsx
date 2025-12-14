@@ -7,7 +7,7 @@ export const Route = createFileRoute('/data/')({
     const connection = await checkNessieConnection()
     const defaultBranch = connection.defaultBranch || 'main'
     throw redirect({
-      to: '/data/$branchName/',
+      to: '/data/$branchName',
       params: { branchName: encodeURIComponent(defaultBranch) },
     })
   },
