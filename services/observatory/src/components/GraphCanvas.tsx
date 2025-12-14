@@ -76,8 +76,10 @@ interface AssetNodeData {
   [key: string]: unknown // Index signature for React Flow compatibility
 }
 
+type AssetNodeType = Node<AssetNodeData, 'asset'>
+
 // Custom node component for assets
-function AssetNode({ data, selected }: NodeProps<AssetNodeData>) {
+function AssetNode({ data, selected }: NodeProps<AssetNodeType>) {
   const styles = LAYER_STYLES[data.layer] || LAYER_STYLES.unknown
 
   return (

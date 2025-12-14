@@ -61,6 +61,8 @@ interface AssetNodeData {
   [key: string]: unknown // Allow index signature for React Flow
 }
 
+type JourneyNodeType = Node<AssetNodeData, 'journey'>
+
 interface NodeDetails {
   sql?: string
   checks?: Array<{ name: string; status: string }>
@@ -69,7 +71,7 @@ interface NodeDetails {
 }
 
 // Simple node component - click to select
-function JourneyNode({ data }: NodeProps<AssetNodeData>) {
+function JourneyNode({ data }: NodeProps<JourneyNodeType>) {
   const isCurrent = data.isCurrent
   const assetKey = data.assetKey
   const onSelect = data.onSelect
@@ -95,7 +97,7 @@ function JourneyNode({ data }: NodeProps<AssetNodeData>) {
             )}
           />
           <span className="font-medium text-sm text-foreground">
-            {data.label as string}
+            {data.label}
           </span>
         </div>
 
