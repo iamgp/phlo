@@ -9,6 +9,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type {
   CheckExecution,
+  MetadataValue,
   QualityCheck,
   QualityOverview,
   RecentCheckExecution,
@@ -50,6 +51,9 @@ const ASSET_CHECK_EXECUTIONS_QUERY = `
           ... on BoolMetadataEntry {
             boolValue
           }
+          ... on JsonMetadataEntry {
+            jsonString
+          }
         }
       }
     }
@@ -61,6 +65,7 @@ type DagsterMetadataEntry =
   | { label: string; __typename: 'IntMetadataEntry'; intValue: number }
   | { label: string; __typename: 'FloatMetadataEntry'; floatValue: number }
   | { label: string; __typename: 'BoolMetadataEntry'; boolValue: boolean }
+  | { label: string; __typename: 'JsonMetadataEntry'; jsonString: string }
   | { label: string; __typename: string }
 
 function normalizeExecutionStatus(status: string): QualityCheck['status'] {
@@ -100,9 +105,8 @@ function toIsoTimestamp(value: string | number): string {
 
 function metadataEntriesToRecord(
   entries: Array<DagsterMetadataEntry> | null | undefined,
-): Record<string, string | number | boolean | null | undefined> {
-  const record: Record<string, string | number | boolean | null | undefined> =
-    {}
+): Record<string, MetadataValue> {
+  const record: Record<string, MetadataValue> = {}
   if (!entries) return record
   for (const entry of entries) {
     if (!entry.label) continue
@@ -120,6 +124,14 @@ function metadataEntriesToRecord(
     }
     if (entry.__typename === 'BoolMetadataEntry' && 'boolValue' in entry) {
       record[entry.label] = entry.boolValue
+      continue
+    }
+    if (entry.__typename === 'JsonMetadataEntry' && 'jsonString' in entry) {
+      try {
+        record[entry.label] = JSON.parse(entry.jsonString) as MetadataValue
+      } catch {
+        record[entry.label] = entry.jsonString
+      }
       continue
     }
   }
@@ -362,6 +374,7 @@ export const getQualityDashboard = createServerFn().handler(
         overview: QualityOverview
         failingChecks: Array<QualityCheck>
         recentExecutions: Array<RecentCheckExecution>
+        checks: Array<QualityCheck>
       }
     | { error: string }
   > => {
@@ -378,6 +391,7 @@ export const getQualityDashboard = createServerFn().handler(
         overview: overviewResult,
         failingChecks: snapshot.failingChecksList,
         recentExecutions: snapshot.recentExecutions,
+        checks: snapshot.latestChecks,
       }
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
