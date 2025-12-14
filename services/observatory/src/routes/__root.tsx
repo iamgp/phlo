@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 
 import appCss from '../styles.css?url'
 import type { Asset } from '@/server/dagster.server'
+import type { ResolvedTheme, ThemeMode } from '@/components/ThemeToggle'
 import { AppSidebar } from '@/components/AppSidebar'
 import { CommandPalette } from '@/components/CommandPalette'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/sidebar'
 import { getAssets } from '@/server/dagster.server'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -45,9 +47,13 @@ export const Route = createRootRoute({
   notFoundComponent: NotFound,
 })
 
+const THEME_STORAGE_KEY = 'phlo-observatory-theme'
+
 function RootLayout() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [assets, setAssets] = useState<Array<Asset>>([])
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system')
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>('dark')
 
   // Load assets for command palette
   useEffect(() => {
@@ -76,8 +82,40 @@ function RootLayout() {
     }
   }, [])
 
+  // Theme: light/dark/system persisted in localStorage.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const stored = window.localStorage.getItem(
+      THEME_STORAGE_KEY,
+    ) as ThemeMode | null
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
+      setThemeMode(stored)
+    }
+
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!media) return
+
+    const update = () => setSystemTheme(media.matches ? 'dark' : 'light')
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode)
+  }, [themeMode])
+
+  const resolvedTheme: ResolvedTheme =
+    themeMode === 'system' ? systemTheme : themeMode
+
   return (
-    <html lang="en" className="dark">
+    <html
+      lang="en"
+      className={resolvedTheme === 'dark' ? 'dark' : ''}
+      suppressHydrationWarning
+    >
       <head>
         <HeadContent />
       </head>
@@ -94,6 +132,11 @@ function RootLayout() {
                 </Link>
               </div>
               <div className="ml-auto flex items-center gap-2">
+                <ThemeToggle
+                  mode={themeMode}
+                  resolvedTheme={resolvedTheme}
+                  onModeChange={setThemeMode}
+                />
                 <Button
                   variant="outline"
                   size="sm"
