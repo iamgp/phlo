@@ -18,6 +18,15 @@ import type {
   QualityOverview,
   RecentCheckExecution,
 } from '@/server/quality.server'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { getCheckHistory, getQualityDashboard } from '@/server/quality.server'
 
 export const Route = createFileRoute('/quality/')({
@@ -43,32 +52,33 @@ function QualityDashboard() {
       })
 
   return (
-    <div className="p-8">
+    <div className="p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Quality Center</h1>
-          <p className="text-slate-400">
+          <h1 className="text-3xl font-bold">Quality Center</h1>
+          <p className="text-muted-foreground">
             Centralized data quality monitoring and management
           </p>
         </div>
-        <button
-          onClick={() => router.invalidate()}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
+        <Button variant="outline" onClick={() => router.invalidate()}>
+          <RefreshCw className="size-4" />
           Refresh
-        </button>
+        </Button>
       </div>
 
       {hasError ? (
-        <div className="p-6 bg-yellow-900/20 border border-yellow-700/50 rounded-xl">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-400" />
-            <span className="text-yellow-300">Unable to load quality data</span>
-          </div>
-          <p className="mt-2 text-sm text-yellow-400/70">{data.error}</p>
-        </div>
+        <Card className="border-yellow-500/30 bg-yellow-500/5">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              <span className="text-yellow-300">
+                Unable to load quality data
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-yellow-400/80">{data.error}</p>
+          </CardContent>
+        </Card>
       ) : (
         <>
           {/* Quality Score */}
@@ -115,88 +125,104 @@ function QualityDashboard() {
           {/* Categories and Failing Checks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* By Category */}
-            <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-cyan-400" />
-                Quality by Category
-              </h2>
-              {dashboardData!.overview.byCategory.length > 0 ? (
-                <div className="space-y-4">
-                  {dashboardData!.overview.byCategory.map((cat) => (
-                    <CategoryBar key={cat.category} {...cat} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-slate-500 py-8">
-                  <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No quality categories defined</p>
-                </div>
-              )}
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  Quality by Category
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dashboardData!.overview.byCategory.length > 0 ? (
+                  <div className="space-y-4">
+                    {dashboardData!.overview.byCategory.map((cat) => (
+                      <CategoryBar key={cat.category} {...cat} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No quality categories defined</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Failing Checks */}
-            <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <XCircle className="w-5 h-5 text-red-400" />
-                Failing Checks
-                {dashboardData!.failingChecks.length > 0 && (
-                  <span className="ml-auto text-sm bg-red-600 text-white px-2 py-0.5 rounded">
-                    {dashboardData!.failingChecks.length}
-                  </span>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <XCircle className="w-5 h-5 text-destructive" />
+                  Failing Checks
+                  {dashboardData!.failingChecks.length > 0 && (
+                    <Badge variant="destructive" className="ml-auto">
+                      {dashboardData!.failingChecks.length}
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dashboardData!.failingChecks.length > 0 ? (
+                  <div className="space-y-3">
+                    {dashboardData!.failingChecks.map((check) => (
+                      <FailingCheckCard key={check.name} check={check} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400 opacity-50" />
+                    <p className="text-green-400">All checks passing!</p>
+                  </div>
                 )}
-              </h2>
-              {dashboardData!.failingChecks.length > 0 ? (
-                <div className="space-y-3">
-                  {dashboardData!.failingChecks.map((check) => (
-                    <FailingCheckCard key={check.name} check={check} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-slate-500 py-8">
-                  <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400 opacity-50" />
-                  <p className="text-green-400">All checks passing!</p>
-                </div>
-              )}
-            </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Recent Activity */}
-          <div className="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-cyan-400" />
-              Recent Check Executions
-            </h2>
-            {dashboardData!.recentExecutions.length > 0 ? (
-              <div className="space-y-2">
-                {dashboardData!.recentExecutions.map((exec) => (
-                  <RecentExecutionRow
-                    key={`${exec.assetKey.join('/')}::${exec.checkName}::${exec.timestamp}`}
-                    exec={exec}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-slate-500 py-8">
-                <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No check executions yet</p>
-                <p className="text-sm mt-1">
-                  Run a materialization or check to see results
-                </p>
-              </div>
-            )}
-          </div>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="w-5 h-5 text-primary" />
+                Recent Check Executions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dashboardData!.recentExecutions.length > 0 ? (
+                <div className="space-y-2">
+                  {dashboardData!.recentExecutions.map((exec) => (
+                    <RecentExecutionRow
+                      key={`${exec.assetKey.join('/')}::${exec.checkName}::${exec.timestamp}`}
+                      exec={exec}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No check executions yet</p>
+                  <p className="text-sm mt-1">
+                    Run a materialization or check to see results
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* All Checks */}
-          <div className="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Shield className="w-5 h-5 text-cyan-400" />
-              All Checks
-              <span className="ml-auto text-sm text-slate-400">
-                {dashboardData!.checks.length}
-              </span>
-            </h2>
-            <ChecksTable checks={dashboardData!.checks} />
-          </div>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                All Checks
+                <span className="ml-auto text-sm text-muted-foreground">
+                  {dashboardData!.checks.length}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChecksTable checks={dashboardData!.checks} />
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

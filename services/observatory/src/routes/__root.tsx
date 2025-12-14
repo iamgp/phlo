@@ -7,23 +7,22 @@ import {
   createRootRoute,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import {
-  Activity,
-  Boxes,
-  Database,
-  GitBranch,
-  LayoutDashboard,
-  Search,
-  Settings,
-  Shield,
-  Table,
-} from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import appCss from '../styles.css?url'
 import type { Asset } from '@/server/dagster.server'
+import { AppSidebar } from '@/components/AppSidebar'
 import { CommandPalette } from '@/components/CommandPalette'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 import { getAssets } from '@/server/dagster.server'
+import { cn } from '@/lib/utils'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -60,82 +59,41 @@ function RootLayout() {
   }, [])
 
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <HeadContent />
       </head>
-      <body className="bg-slate-900 text-slate-100 min-h-screen">
-        <div className="flex min-h-screen">
-          {/* Sidebar */}
-          <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
-            {/* Logo */}
-            <div className="h-[72px] px-4 border-b border-slate-700 flex items-center">
-              <Link to="/" className="flex items-center gap-2">
-                <Activity className="w-8 h-8 text-cyan-400" />
-                <span className="text-xl font-bold">Phlo Observatory</span>
-              </Link>
+      <body className="min-h-screen bg-background text-foreground">
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <header className="flex h-14 items-center gap-2 border-b px-4">
+              <SidebarTrigger />
+              <Separator orientation="vertical" className="h-6" />
+              <div className="flex items-center gap-2">
+                <Link to="/" className="text-sm font-semibold tracking-tight">
+                  Phlo Observatory
+                </Link>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCommandPaletteOpen(true)}
+                >
+                  <Search className="size-4" />
+                  Search
+                  <span className="text-muted-foreground ml-2 hidden sm:inline">
+                    ⌘K
+                  </span>
+                </Button>
+              </div>
+            </header>
+            <div className="flex-1 overflow-auto">
+              <Outlet />
             </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 p-4">
-              <ul className="space-y-2">
-                <NavItem
-                  to="/"
-                  icon={<LayoutDashboard size={20} />}
-                  label="Dashboard"
-                />
-                <NavItem to="/hub" icon={<Boxes size={20} />} label="Hub" />
-                <NavItem
-                  to="/data"
-                  icon={<Table size={20} />}
-                  label="Data Explorer"
-                />
-                <NavItem
-                  to="/assets"
-                  icon={<Database size={20} />}
-                  label="Assets"
-                />
-                <NavItem
-                  to="/graph"
-                  icon={<GitBranch size={20} />}
-                  label="Lineage Graph"
-                />
-                <NavItem
-                  to="/branches"
-                  icon={<GitBranch size={20} />}
-                  label="Branches"
-                />
-                <NavItem
-                  to="/quality"
-                  icon={<Shield size={20} />}
-                  label="Quality"
-                />
-                <NavItem
-                  to="/search"
-                  icon={<Search size={20} />}
-                  label="Search"
-                  disabled
-                />
-                <NavItem
-                  to="/settings"
-                  icon={<Settings size={20} />}
-                  label="Settings"
-                  disabled
-                />
-              </ul>
-            </nav>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-slate-700 text-sm text-slate-500">
-              Phase 4 • v0.0.4
-            </div>
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
-        </div>
+          </SidebarInset>
+        </SidebarProvider>
 
         <CommandPalette
           assets={assets}
@@ -157,54 +115,12 @@ function RootLayout() {
   )
 }
 
-interface NavItemProps {
-  to: string
-  icon: React.ReactNode
-  label: string
-  disabled?: boolean
-}
-
-function NavItem({ to, icon, label, disabled }: NavItemProps) {
-  if (disabled) {
-    return (
-      <li>
-        <span className="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-500 cursor-not-allowed">
-          {icon}
-          <span>{label}</span>
-          <span className="ml-auto text-xs bg-slate-700 px-1.5 py-0.5 rounded">
-            Soon
-          </span>
-        </span>
-      </li>
-    )
-  }
-
-  return (
-    <li>
-      <Link
-        to={to}
-        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors"
-        activeProps={{
-          className:
-            'flex items-center gap-3 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors',
-        }}
-      >
-        {icon}
-        <span>{label}</span>
-      </Link>
-    </li>
-  )
-}
-
 function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center h-full p-8">
-      <h1 className="text-4xl font-bold text-slate-300 mb-4">404</h1>
-      <p className="text-slate-400 mb-6">Page not found</p>
-      <Link
-        to="/"
-        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors"
-      >
+    <div className="flex flex-col items-center justify-center h-full p-8 gap-4">
+      <h1 className="text-4xl font-bold">404</h1>
+      <p className="text-muted-foreground">Page not found</p>
+      <Link to="/" className={cn(buttonVariants({ size: 'sm' }))}>
         Go Home
       </Link>
     </div>

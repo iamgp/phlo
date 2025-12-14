@@ -11,6 +11,23 @@ import { QueryEditor } from '@/components/data/QueryEditor'
 import { QueryResults } from '@/components/data/QueryResults'
 import { RowJourney } from '@/components/data/RowJourney'
 import { TableBrowser } from '@/components/data/TableBrowser'
+import { Badge } from '@/components/ui/badge'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export const Route = createFileRoute('/data/$branchName/$schema/$table')({
   validateSearch: z.object({
@@ -117,21 +134,21 @@ function DataExplorerWithTable() {
   return (
     <div className="flex h-full">
       {/* Left sidebar - Table Browser */}
-      <aside className="w-72 border-r border-slate-700 bg-slate-800/50 flex flex-col">
-        <div className="h-[72px] p-4 border-b border-slate-700 flex flex-col justify-center">
+      <aside className="w-72 border-r bg-sidebar text-sidebar-foreground flex flex-col">
+        <div className="h-[72px] p-4 border-b flex flex-col justify-center">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Database className="w-5 h-5 text-cyan-400" />
+                <Database className="w-5 h-5 text-sidebar-primary" />
                 Tables
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Branch:{' '}
-                <code className="bg-slate-700 px-1 rounded">
+                <code className="bg-muted px-1 rounded-none">
                   {decodedBranchName}
                 </code>{' '}
                 · Schema:{' '}
-                <code className="bg-slate-700 px-1 rounded">{schema}</code>
+                <code className="bg-muted px-1 rounded-none">{schema}</code>
               </p>
             </div>
             <BranchSelector
@@ -162,49 +179,34 @@ function DataExplorerWithTable() {
       {/* Main content area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-[72px] px-4 border-b border-slate-700 bg-slate-800/30 flex items-center justify-between">
+        <header className="h-[72px] px-4 border-b bg-card flex items-center justify-between">
           <div className="flex flex-col justify-center">
             <h1 className="text-lg font-semibold">{table}</h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {schema}.{table} · Click rows to explore lineage
             </p>
           </div>
           {/* Tab switcher */}
-          <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab('preview')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
-                activeTab === 'preview'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Database className="w-4 h-4" />
-              Preview
-            </button>
-            <button
-              onClick={() => setActiveTab('query')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
-                activeTab === 'query'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Terminal className="w-4 h-4" />
-              SQL Query
-            </button>
-            <button
-              onClick={() => setActiveTab('journey')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition-colors ${
-                activeTab === 'journey'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <GitBranch className="w-4 h-4" />
-              Journey
-            </button>
-          </div>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as TabType)}
+            className="gap-0"
+          >
+            <TabsList>
+              <TabsTrigger value="preview">
+                <Database className="w-4 h-4" />
+                Preview
+              </TabsTrigger>
+              <TabsTrigger value="query">
+                <Terminal className="w-4 h-4" />
+                SQL Query
+              </TabsTrigger>
+              <TabsTrigger value="journey">
+                <GitBranch className="w-4 h-4" />
+                Journey
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </header>
 
         {/* Content */}
@@ -214,20 +216,17 @@ function DataExplorerWithTable() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-medium text-slate-200">
+                    <h3 className="text-lg font-medium">
                       Data Journey: {journeyContext.tableName}
                     </h3>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted-foreground">
                       Lineage visualization showing transformations, ingestions,
                       and quality checks
                     </p>
                   </div>
-                  <div className="text-xs text-slate-500">
-                    Asset key:{' '}
-                    <code className="bg-slate-700 px-2 py-1 rounded">
-                      {journeyContext.assetKey}
-                    </code>
-                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {journeyContext.assetKey}
+                  </Badge>
                 </div>
                 <RowJourney
                   assetKey={journeyContext.assetKey}
@@ -237,63 +236,54 @@ function DataExplorerWithTable() {
                 />
 
                 {/* Row Data Panel */}
-                <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                  <div className="p-4 border-b border-slate-700">
-                    <h4 className="font-medium text-slate-200 flex items-center gap-2">
-                      <Database className="w-4 h-4 text-cyan-400" />
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Database className="size-4 text-primary" />
                       Selected Row Data
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-1">
+                    </CardTitle>
+                    <CardDescription>
                       Data from {journeyContext.tableName}
-                    </p>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-slate-900/50">
-                        <tr className="border-b border-slate-700">
-                          <th className="text-left py-2 px-3 font-medium text-slate-400">
-                            Column
-                          </th>
-                          <th className="text-left py-2 px-3 font-medium text-slate-400">
-                            Type
-                          </th>
-                          <th className="text-left py-2 px-3 font-medium text-slate-400">
-                            Value
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(journeyContext.rowData).map(
-                          ([key, value], idx) => (
-                            <tr
-                              key={key}
-                              className="border-b border-slate-700/50 hover:bg-slate-700/30"
-                            >
-                              <td className="py-2 px-3 font-mono text-xs text-cyan-400">
-                                {key}
-                              </td>
-                              <td className="py-2 px-3 text-xs text-slate-500">
-                                {journeyContext.columnTypes[idx]}
-                              </td>
-                              <td className="py-2 px-3 font-mono text-xs">
-                                {value === null || value === undefined
-                                  ? '—'
-                                  : String(value)}
-                              </td>
-                            </tr>
-                          ),
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Column</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Value</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(journeyContext.rowData).map(
+                            ([key, value], idx) => (
+                              <TableRow key={key}>
+                                <TableCell className="font-mono text-primary text-xs">
+                                  {key}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-xs">
+                                  {journeyContext.columnTypes[idx]}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs">
+                                  {value === null || value === undefined
+                                    ? '—'
+                                    : String(value)}
+                                </TableCell>
+                              </TableRow>
+                            ),
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500">
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <GitBranch className="w-16 h-16 mb-4 opacity-30" />
-                <h3 className="text-lg font-medium text-slate-400">
-                  No journey selected
-                </h3>
+                <h3 className="text-lg font-medium">No journey selected</h3>
                 <p className="text-sm mt-1">
                   Click on any data row in Preview or SQL Query to view its
                   lineage

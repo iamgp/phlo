@@ -2,6 +2,23 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { ArrowRight, Clock, Database, Search } from 'lucide-react'
 import { useState } from 'react'
 import type { Asset } from '@/server/dagster.server'
+import { Badge } from '@/components/ui/badge'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { getAssets } from '@/server/dagster.server'
 
 export const Route = createFileRoute('/assets/')({
@@ -31,64 +48,70 @@ function AssetsPage() {
   })
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Assets</h1>
-          <p className="text-slate-400">
+    <div className="p-6">
+      <Card>
+        <CardHeader className="gap-1">
+          <CardTitle className="text-3xl">Assets</CardTitle>
+          <CardDescription>
             {hasError
               ? 'Error loading assets'
               : `${assetList.length} registered assets`}
-          </p>
-        </div>
-      </div>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Error Banner */}
+          {hasError && (
+            <div className="p-4 bg-destructive/10 text-destructive border border-destructive/30">
+              <p>{(assets as { error: string }).error}</p>
+            </div>
+          )}
 
-      {/* Error Banner */}
-      {hasError && (
-        <div className="mb-6 p-4 bg-red-900/20 border border-red-700/50 rounded-xl">
-          <p className="text-red-300">{(assets as { error: string }).error}</p>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search assets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-          />
-        </div>
-      </div>
-
-      {/* Asset List */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-750 border-b border-slate-700 text-sm font-medium text-slate-400">
-          <div className="col-span-5">Asset</div>
-          <div className="col-span-2">Group</div>
-          <div className="col-span-2">Kind</div>
-          <div className="col-span-2">Last Materialized</div>
-          <div className="col-span-1"></div>
-        </div>
-
-        {/* Table Body */}
-        {filteredAssets.length === 0 ? (
-          <div className="px-6 py-12 text-center text-slate-500">
-            {searchQuery ? 'No assets match your search' : 'No assets found'}
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search assets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
-        ) : (
-          <div className="divide-y divide-slate-700">
-            {filteredAssets.map((asset) => (
-              <AssetRow key={asset.id} asset={asset} />
-            ))}
+
+          {/* Asset Table */}
+          <div className="border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Asset</TableHead>
+                  <TableHead>Group</TableHead>
+                  <TableHead>Kind</TableHead>
+                  <TableHead>Last Materialized</TableHead>
+                  <TableHead className="w-[64px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAssets.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-10"
+                    >
+                      {searchQuery
+                        ? 'No assets match your search'
+                        : 'No assets found'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredAssets.map((asset) => (
+                    <AssetRow key={asset.id} asset={asset} />
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -99,52 +122,52 @@ function AssetRow({ asset }: { asset: Asset }) {
     : 'Never'
 
   return (
-    <Link
-      to="/assets/$assetId"
-      params={{ assetId: asset.keyPath }}
-      className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-slate-700/50 transition-colors items-center group"
-    >
-      <div className="col-span-5">
-        <div className="flex items-center gap-3">
-          <Database className="w-5 h-5 text-cyan-400 flex-shrink-0" />
-          <div className="min-w-0">
-            <div className="font-medium text-slate-100 truncate">
-              {asset.keyPath}
+    <TableRow className="group">
+      <TableCell>
+        <Link
+          to="/assets/$assetId"
+          params={{ assetId: asset.keyPath }}
+          className="block"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <Database className="size-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="font-medium truncate">{asset.keyPath}</div>
+              {asset.description && (
+                <div className="text-sm text-muted-foreground truncate">
+                  {asset.description}
+                </div>
+              )}
             </div>
-            {asset.description && (
-              <div className="text-sm text-slate-400 truncate">
-                {asset.description}
-              </div>
-            )}
           </div>
-        </div>
-      </div>
-      <div className="col-span-2">
+        </Link>
+      </TableCell>
+      <TableCell>
         {asset.groupName ? (
-          <span className="px-2 py-1 text-xs font-medium bg-slate-700 text-slate-300 rounded">
+          <Badge variant="secondary" className="text-muted-foreground">
             {asset.groupName}
-          </span>
+          </Badge>
         ) : (
-          <span className="text-slate-500">—</span>
+          <span className="text-muted-foreground">—</span>
         )}
-      </div>
-      <div className="col-span-2">
+      </TableCell>
+      <TableCell>
         {asset.computeKind ? (
-          <span className="px-2 py-1 text-xs font-medium bg-purple-900/50 text-purple-300 rounded">
-            {asset.computeKind}
-          </span>
+          <Badge variant="outline">{asset.computeKind}</Badge>
         ) : (
-          <span className="text-slate-500">—</span>
+          <span className="text-muted-foreground">—</span>
         )}
-      </div>
-      <div className="col-span-2 flex items-center gap-2 text-slate-400">
-        <Clock className="w-4 h-4" />
-        <span className="text-sm">{lastMaterialized}</span>
-      </div>
-      <div className="col-span-1 flex justify-end">
-        <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition-colors" />
-      </div>
-    </Link>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Clock className="size-4" />
+          <span className="text-sm">{lastMaterialized}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <ArrowRight className="size-4 text-muted-foreground group-hover:text-foreground transition-colors inline-block" />
+      </TableCell>
+    </TableRow>
   )
 }
 

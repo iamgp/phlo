@@ -12,11 +12,16 @@ import {
   Table,
 } from 'lucide-react'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import type { AssetDetails } from '@/server/dagster.server'
 import type { QualityCheck } from '@/server/quality.server'
 import { DataPreview } from '@/components/data/DataPreview'
 import { DataJourney } from '@/components/provenance/DataJourney'
 import { MaterializationTimeline } from '@/components/provenance/MaterializationTimeline'
+import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import { getAssetDetails } from '@/server/dagster.server'
 import { getAssetChecks } from '@/server/quality.server'
 
@@ -55,25 +60,28 @@ function AssetDetailPage() {
 
   if (hasError) {
     return (
-      <div className="p-8">
+      <div className="p-6">
         <Link
           to="/assets"
-          className="flex items-center gap-2 text-slate-400 hover:text-slate-100 mb-6"
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'sm' }),
+            'gap-2 mb-6',
+          )}
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Assets
         </Link>
-        <div className="p-6 bg-red-900/20 border border-red-700/50 rounded-xl">
-          <h2 className="text-xl font-bold text-red-300 mb-2">
-            Asset Not Found
-          </h2>
-          <p className="text-red-400">{(asset as { error: string }).error}</p>
+        <div className="p-6 bg-destructive/10 border border-destructive/30">
+          <h2 className="text-xl font-bold mb-2">Asset Not Found</h2>
+          <p className="text-destructive">
+            {(asset as { error: string }).error}
+          </p>
         </div>
       </div>
     )
   }
 
-  const tabs: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
+  const tabs: Array<{ id: Tab; label: string; icon: ReactNode }> = [
     { id: 'overview', label: 'Overview', icon: <Info className="w-4 h-4" /> },
     {
       id: 'journey',
@@ -85,10 +93,13 @@ function AssetDetailPage() {
   ]
 
   return (
-    <div className="p-8">
+    <div className="p-6">
       <Link
         to="/assets"
-        className="flex items-center gap-2 text-slate-400 hover:text-slate-100 mb-6"
+        className={cn(
+          buttonVariants({ variant: 'ghost', size: 'sm' }),
+          'gap-2 mb-6',
+        )}
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Assets
@@ -97,55 +108,54 @@ function AssetDetailPage() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-cyan-500/10 rounded-xl">
-            <Database className="w-8 h-8 text-cyan-400" />
+          <div className="p-3 bg-primary/10">
+            <Database className="w-8 h-8 text-primary" />
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-2">{params.assetId}</h1>
             {assetData?.description && (
-              <p className="text-slate-400">{assetData.description}</p>
+              <p className="text-muted-foreground">{assetData.description}</p>
             )}
             <div className="flex items-center gap-4 mt-3">
               {assetData?.groupName && (
-                <span className="px-2 py-1 text-xs font-medium bg-slate-700 text-slate-300 rounded">
+                <Badge variant="secondary" className="text-muted-foreground">
                   {assetData.groupName}
-                </span>
+                </Badge>
               )}
               {assetData?.computeKind && (
-                <span className="px-2 py-1 text-xs font-medium bg-purple-900/50 text-purple-300 rounded">
-                  {assetData.computeKind}
-                </span>
+                <Badge variant="outline">{assetData.computeKind}</Badge>
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-slate-700 mb-6">
-        <nav className="flex gap-1">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as Tab)}
+      >
+        <TabsList variant="line" className="mb-6">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-cyan-400 text-cyan-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
-              }`}
-            >
+            <TabsTrigger key={tab.id} value={tab.id}>
               {tab.icon}
               {tab.label}
-            </button>
+            </TabsTrigger>
           ))}
-        </nav>
-      </div>
+        </TabsList>
 
-      {/* Tab Content */}
-      {activeTab === 'overview' && <OverviewTab assetData={assetData} />}
-      {activeTab === 'journey' && <JourneyTab assetKey={params.assetId} />}
-      {activeTab === 'data' && <DataTab assetKey={params.assetId} />}
-      {activeTab === 'quality' && <QualityTab checks={checksData} />}
+        <TabsContent value="overview">
+          <OverviewTab assetData={assetData} />
+        </TabsContent>
+        <TabsContent value="journey">
+          <JourneyTab assetKey={params.assetId} />
+        </TabsContent>
+        <TabsContent value="data">
+          <DataTab assetKey={params.assetId} />
+        </TabsContent>
+        <TabsContent value="quality">
+          <QualityTab checks={checksData} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
@@ -155,32 +165,32 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <section className="bg-card border p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Info className="w-5 h-5 text-slate-400" />
+            <Info className="w-5 h-5 text-muted-foreground" />
             Metadata
           </h2>
           {assetData?.metadata && assetData.metadata.length > 0 ? (
             <div className="space-y-3">
               {assetData.metadata.map((entry, idx) => (
                 <div key={idx} className="flex items-start gap-4">
-                  <span className="text-slate-400 text-sm min-w-[120px]">
+                  <span className="text-muted-foreground text-sm min-w-[120px]">
                     {entry.key}
                   </span>
-                  <span className="text-slate-200 text-sm font-mono break-all">
+                  <span className="text-sm font-mono break-all">
                     {entry.value}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-slate-500">No metadata available</p>
+            <p className="text-muted-foreground">No metadata available</p>
           )}
         </section>
 
-        <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <section className="bg-card border p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Table className="w-5 h-5 text-slate-400" />
+            <Table className="w-5 h-5 text-muted-foreground" />
             Ops
           </h2>
           {assetData?.opNames && assetData.opNames.length > 0 ? (
@@ -188,24 +198,24 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
               {assetData.opNames.map((op, idx) => (
                 <span
                   key={idx}
-                  className="px-3 py-1 text-sm bg-slate-700 text-slate-300 rounded-lg font-mono"
+                  className="px-3 py-1 text-sm bg-muted text-foreground font-mono"
                 >
                   {op}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-slate-500">No ops defined</p>
+            <p className="text-muted-foreground">No ops defined</p>
           )}
         </section>
 
         {/* Columns Section */}
-        <section className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <section className="bg-card border p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Columns2 className="w-5 h-5 text-slate-400" />
+            <Columns2 className="w-5 h-5 text-muted-foreground" />
             Columns
             {assetData?.columns && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-cyan-900/50 text-cyan-300 rounded">
+              <span className="px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
                 {assetData.columns.length}
               </span>
             )}
@@ -214,7 +224,7 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-700">
+                  <tr className="border-b">
                     <th className="text-left py-2 px-3 font-medium text-slate-400">
                       Name
                     </th>

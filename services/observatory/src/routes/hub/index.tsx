@@ -10,6 +10,14 @@ import { useState } from 'react'
 
 import type { ServiceWithStatus } from '@/server/services.server'
 import { ServiceCard } from '@/components/hub/ServiceCard'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   getServices,
   restartService,
@@ -114,29 +122,26 @@ function HubPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Boxes className="w-8 h-8 text-cyan-400" />
+            <Boxes className="size-7 text-primary" />
             <h1 className="text-3xl font-bold">Service Hub</h1>
           </div>
-          <p className="text-slate-400">
+          <p className="text-muted-foreground">
             Manage and monitor all Phlo platform services
           </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
+        <Button variant="outline" onClick={handleRefresh}>
+          <RefreshCw className="size-4" />
           Refresh
-        </button>
+        </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard
           label="Total Services"
           value={totalServices}
@@ -165,9 +170,7 @@ function HubPage() {
       {/* Services by Category */}
       {sortedCategories.map((category) => (
         <div key={category} className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 capitalize text-slate-200">
-            {category}
-          </h2>
+          <h2 className="text-xl font-semibold mb-4 capitalize">{category}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {servicesByCategory[category].map((service) => (
               <ServiceCard
@@ -200,12 +203,16 @@ function StatCard({
   color = 'text-cyan-400',
 }: StatCardProps) {
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-slate-400">{label}</span>
-        <div className={color}>{icon}</div>
-      </div>
-      <div className="text-2xl font-bold">{value}</div>
-    </div>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardDescription className="flex items-center justify-between gap-2">
+          <span>{label}</span>
+          <span className={color}>{icon}</span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <CardTitle className="text-2xl">{value}</CardTitle>
+      </CardContent>
+    </Card>
   )
 }

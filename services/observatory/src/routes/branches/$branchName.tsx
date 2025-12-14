@@ -11,6 +11,17 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import type { Branch, LogEntry } from '@/server/nessie.server'
+import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 import {
   compareBranches,
   getBranch,
@@ -77,58 +88,57 @@ function BranchDetailPage() {
 
   if (hasError) {
     return (
-      <div className="p-8">
+      <div className="p-6">
         <Link
           to="/branches"
-          className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 mb-6"
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'sm' }),
+            'gap-2 mb-6',
+          )}
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Branches
         </Link>
-        <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-8 text-center">
-          <GitBranch className="w-12 h-12 mx-auto mb-4 text-red-400 opacity-50" />
-          <h2 className="text-xl font-semibold text-red-300 mb-2">
-            Branch Not Found
-          </h2>
-          <p className="text-slate-400">{branch.error}</p>
-        </div>
+        <Card className="border-destructive/30 bg-destructive/10">
+          <CardContent className="p-8 text-center">
+            <GitBranch className="w-12 h-12 mx-auto mb-4 text-destructive opacity-60" />
+            <h2 className="text-xl font-semibold mb-2">Branch Not Found</h2>
+            <p className="text-muted-foreground">{branch.error}</p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="p-8">
+    <div className="p-6">
       {/* Header */}
       <div className="mb-6">
         <Link
           to="/branches"
-          className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 mb-4"
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'sm' }),
+            'gap-2 mb-4',
+          )}
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Branches
         </Link>
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <GitBranch className="w-8 h-8 text-cyan-400" />
+              <GitBranch className="w-6 h-6 text-primary" />
               <h1 className="text-3xl font-bold">{decodedBranchName}</h1>
-              {branch.type === 'TAG' && (
-                <span className="text-sm bg-purple-600 text-white px-2 py-1 rounded">
-                  tag
-                </span>
-              )}
+              {branch.type === 'TAG' && <Badge variant="outline">tag</Badge>}
             </div>
-            <p className="text-slate-400 mt-2 font-mono text-sm">
+            <p className="text-muted-foreground mt-2 font-mono text-sm">
               Hash: {branch.hash}
             </p>
           </div>
-          <button
-            onClick={() => router.invalidate()}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-          >
+          <Button variant="outline" onClick={() => router.invalidate()}>
             <RefreshCw className="w-4 h-4" />
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -156,44 +166,51 @@ function BranchDetailPage() {
         />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-slate-800 rounded-lg p-1 mb-6">
-        <TabButton
-          active={activeTab === 'commits'}
-          onClick={() => setActiveTab('commits')}
-          icon={<GitCommit className="w-4 h-4" />}
-          label="Commits"
-          count={commitList.length}
-        />
-        <TabButton
-          active={activeTab === 'contents'}
-          onClick={() => setActiveTab('contents')}
-          icon={<Table2 className="w-4 h-4" />}
-          label="Contents"
-          count={contentList.length}
-        />
-        <TabButton
-          active={activeTab === 'compare'}
-          onClick={() => setActiveTab('compare')}
-          icon={<GitCompare className="w-4 h-4" />}
-          label="Compare"
-        />
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(value as 'commits' | 'contents' | 'compare')
+        }
+      >
+        <TabsList>
+          <TabsTrigger value="commits">
+            <GitCommit className="size-4" />
+            Commits
+            <Badge variant="secondary" className="text-muted-foreground ml-1">
+              {commitList.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="contents">
+            <Table2 className="size-4" />
+            Contents
+            <Badge variant="secondary" className="text-muted-foreground ml-1">
+              {contentList.length}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="compare">
+            <GitCompare className="size-4" />
+            Compare
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab Content */}
-      <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-        {activeTab === 'commits' && <CommitsTab commits={commitList} />}
-        {activeTab === 'contents' && <ContentsTab contents={contentList} />}
-        {activeTab === 'compare' && (
-          <CompareTab
-            branchName={decodedBranchName}
-            compareToBranch={compareToBranch}
-            diffData={diffData}
-            loading={loadingDiff}
-            onCompare={handleCompare}
-          />
-        )}
-      </div>
+        <Card className="overflow-hidden">
+          <TabsContent value="commits">
+            <CommitsTab commits={commitList} />
+          </TabsContent>
+          <TabsContent value="contents">
+            <ContentsTab contents={contentList} />
+          </TabsContent>
+          <TabsContent value="compare">
+            <CompareTab
+              branchName={decodedBranchName}
+              compareToBranch={compareToBranch}
+              diffData={diffData}
+              loading={loadingDiff}
+              onCompare={handleCompare}
+            />
+          </TabsContent>
+        </Card>
+      </Tabs>
     </div>
   )
 }
@@ -208,48 +225,18 @@ interface StatCardProps {
 
 function StatCard({ icon, label, value, subtitle }: StatCardProps) {
   return (
-    <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-      <div className="flex items-center gap-3 mb-2">
-        {icon}
-        <span className="text-slate-400 text-sm">{label}</span>
-      </div>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-slate-500">{subtitle}</div>
-    </div>
-  )
-}
-
-// Tab Button Component
-interface TabButtonProps {
-  active: boolean
-  onClick: () => void
-  icon: React.ReactNode
-  label: string
-  count?: number
-}
-
-function TabButton({ active, onClick, icon, label, count }: TabButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-        active
-          ? 'bg-cyan-600 text-white'
-          : 'text-slate-400 hover:text-white hover:bg-slate-700'
-      }`}
-    >
-      {icon}
-      {label}
-      {count !== undefined && (
-        <span
-          className={`text-xs px-1.5 py-0.5 rounded ${
-            active ? 'bg-cyan-500' : 'bg-slate-700'
-          }`}
-        >
-          {count}
-        </span>
-      )}
-    </button>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardDescription className="flex items-center gap-2">
+          {icon}
+          <span>{label}</span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <CardTitle className="text-2xl">{value}</CardTitle>
+        <div className="text-xs text-muted-foreground mt-1">{subtitle}</div>
+      </CardContent>
+    </Card>
   )
 }
 
