@@ -43,6 +43,24 @@ export interface ObservatoryTableProps {
   ) => string
 }
 
+function isNumericType(columnType: string | undefined) {
+  if (!columnType) return false
+  const normalized = columnType.toLowerCase()
+  return (
+    normalized.includes('int') ||
+    normalized.includes('decimal') ||
+    normalized.includes('double') ||
+    normalized.includes('real') ||
+    normalized.includes('float')
+  )
+}
+
+function estimateColumnWidthPx(columnId: string, columnType?: string) {
+  const contentChars = Math.max(columnId.length, columnType?.length ?? 0)
+  const px = contentChars * 8 + 44
+  return Math.min(340, Math.max(140, px))
+}
+
 function defaultFormatCellValue(value: unknown): string {
   if (value === null || value === undefined) return '—'
   if (typeof value === 'boolean') return value ? 'true' : 'false'
@@ -70,10 +88,19 @@ export function ObservatoryTable({
     return columns.map((columnId, index) => ({
       accessorKey: columnId,
       enableSorting,
+      size: estimateColumnWidthPx(columnId, columnTypes?.[index]),
+      minSize: 120,
+      maxSize: 520,
       header: () => {
         const typeLabel = columnTypes?.[index]
+        const numeric = isNumericType(typeLabel)
         return (
-          <div className="flex flex-col gap-0.5">
+          <div
+            className={cn(
+              'flex flex-col gap-0.5 min-w-0',
+              numeric ? 'items-end' : '',
+            )}
+          >
             <span className="truncate">{columnId}</span>
             {typeLabel ? (
               <span className="text-xs font-normal text-muted-foreground truncate">
@@ -86,9 +113,13 @@ export function ObservatoryTable({
       cell: (ctx) => {
         const value = ctx.getValue<unknown>()
         const typeLabel = columnTypes?.[index]
+        const numeric = isNumericType(typeLabel)
         const formatted = formatCellValue(value, columnId, typeLabel)
         return (
-          <div className="truncate" title={formatted}>
+          <div
+            className={cn('truncate', numeric ? 'text-right tabular-nums' : '')}
+            title={formatted}
+          >
             {formatted}
           </div>
         )
@@ -129,7 +160,7 @@ export function ObservatoryTable({
   return (
     <div
       className={cn(
-        'rounded-md border border-border bg-card overflow-hidden',
+        'rounded-md border border-border/70 bg-card overflow-hidden text-xs',
         onRowClick ? 'select-none' : '',
       )}
     >
@@ -142,7 +173,7 @@ export function ObservatoryTable({
       >
         <div style={{ width: table.getTotalSize() }}>
           <div
-            className="sticky top-0 z-20 border-b border-border bg-card"
+            className="sticky top-0 z-20 border-b border-border/70 bg-muted/20"
             role="rowgroup"
           >
             <div className="flex" role="row">
@@ -172,9 +203,9 @@ export function ObservatoryTable({
                   <div
                     key={header.id}
                     className={cn(
-                      'group flex items-stretch border-r border-border last:border-r-0',
+                      'group flex items-stretch border-r border-border/60 last:border-r-0',
                       pinState
-                        ? 'bg-card shadow-[1px_0_0_0_var(--border)]'
+                        ? 'bg-muted/20 shadow-[1px_0_0_0_var(--border)]'
                         : '',
                     )}
                     style={{ width: header.getSize(), ...stickyStyles }}
@@ -187,14 +218,14 @@ export function ObservatoryTable({
                           : 'none'
                     }
                   >
-                    <div className="flex-1 min-w-0 px-3 py-2">
+                    <div className="flex-1 min-w-0 px-2 py-2 h-10">
                       <div className="flex items-start justify-between gap-2">
                         <button
                           type="button"
                           className={cn(
-                            'min-w-0 flex-1 text-left text-sm font-medium',
+                            'min-w-0 flex-1 text-left font-medium',
                             enableSorting
-                              ? 'hover:bg-muted/40 rounded-sm px-1 -mx-1'
+                              ? 'hover:bg-muted/40 rounded-sm px-1 -mx-1 transition-colors'
                               : '',
                           )}
                           onClick={
@@ -223,7 +254,7 @@ export function ObservatoryTable({
                               <DropdownMenuTrigger
                                 className={cn(
                                   'inline-flex h-7 w-7 items-center justify-center rounded hover:bg-muted/60',
-                                  'opacity-0 group-hover:opacity-100 focus:opacity-100',
+                                  'opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity',
                                 )}
                                 aria-label={`Column actions for ${String(column.id)}`}
                               >
@@ -258,7 +289,7 @@ export function ObservatoryTable({
                         onTouchStart={header.getResizeHandler()}
                         className={cn(
                           'w-1 cursor-col-resize select-none touch-none',
-                          'bg-transparent hover:bg-primary/30',
+                          'bg-transparent hover:bg-primary/25',
                           column.getIsResizing() ? 'bg-primary/40' : '',
                         )}
                         aria-hidden="true"
@@ -281,8 +312,11 @@ export function ObservatoryTable({
                 <div
                   key={row.id}
                   className={cn(
-                    'absolute left-0 right-0 flex border-b border-border last:border-b-0',
-                    onRowClick ? 'hover:bg-muted/30 cursor-pointer' : '',
+                    'absolute left-0 right-0 flex border-b border-border/60 last:border-b-0',
+                    virtualRow.index % 2 === 1 ? 'bg-muted/10' : 'bg-card',
+                    onRowClick
+                      ? 'hover:bg-muted/30 cursor-pointer transition-colors'
+                      : '',
                   )}
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                   role="row"
@@ -326,11 +360,11 @@ export function ObservatoryTable({
                       <div
                         key={cell.id}
                         className={cn(
-                          'px-3 py-2 text-sm text-foreground border-r border-border last:border-r-0',
-                          'min-w-0 whitespace-nowrap',
-                          monospace ? 'font-mono text-xs' : '',
+                          'p-2 text-foreground border-r border-border/60 last:border-r-0',
+                          'min-w-0 whitespace-nowrap align-middle',
+                          monospace ? 'font-mono' : '',
                           pinState
-                            ? 'bg-card shadow-[1px_0_0_0_var(--border)]'
+                            ? 'bg-muted/10 shadow-[1px_0_0_0_var(--border)]'
                             : '',
                         )}
                         style={{ width: column.getSize(), ...stickyStyles }}
