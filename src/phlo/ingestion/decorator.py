@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import timedelta
 from typing import Any, Literal, TypedDict
 
@@ -23,6 +23,10 @@ from phlo.ingestion.dlt_helpers import (
     merge_to_iceberg,
     setup_dlt_pipeline,
     stage_to_parquet,
+)
+from phlo.quality.pandera_asset_checks import (
+    evaluate_pandera_contract_parquet,
+    pandera_contract_asset_check_result,
 )
 from phlo.schemas.converter import pandera_to_iceberg
 from phlo.schemas.registry import TableConfig
@@ -308,7 +312,9 @@ def phlo_ingestion(
                 else None
             ),
         )
-        def wrapper(context, iceberg: IcebergResource) -> dg.MaterializeResult:
+        def wrapper(
+            context, iceberg: IcebergResource
+        ) -> Iterator[dg.AssetCheckResult | dg.MaterializeResult]:
             partition_date = context.partition_key
             pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
             branch_name = get_branch_from_context(context)
@@ -356,6 +362,26 @@ def phlo_ingestion(
                         context=context,
                     )
 
+                if validate and table_config.validation_schema is not None:
+                    evaluation = evaluate_pandera_contract_parquet(
+                        parquet_path,
+                        schema_class=table_config.validation_schema,
+                    )
+                    check_result = pandera_contract_asset_check_result(
+                        evaluation,
+                        partition_key=partition_date,
+                        schema_class=table_config.validation_schema,
+                        query_or_sql=f"parquet:{parquet_path}",
+                    )
+                    yield check_result
+                    if not evaluation.passed:
+                        raise dg.Failure(
+                            description=(
+                                f"Pandera contract failed for {table_config.table_name} "
+                                f"partition {partition_date}"
+                            )
+                        )
+
                 merge_metrics = merge_to_iceberg(
                     context=context,
                     iceberg=iceberg,
@@ -369,7 +395,7 @@ def phlo_ingestion(
                 total_elapsed = time.time() - start_time
                 context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
 
-                return dg.MaterializeResult(
+                yield dg.MaterializeResult(
                     metadata={
                         "branch": branch_name,
                         "partition_date": dg.MetadataValue.text(partition_date),
@@ -381,6 +407,7 @@ def phlo_ingestion(
                         "total_elapsed_seconds": dg.MetadataValue.float(total_elapsed),
                     }
                 )
+                return
 
             except Exception as e:
                 context.log.error(f"Ingestion failed for partition {partition_date}: {e}")
