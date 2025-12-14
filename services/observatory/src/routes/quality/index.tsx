@@ -4,16 +4,21 @@ import {
   CheckCircle,
   ChevronRight,
   Clock,
+  Copy,
+  Filter,
   RefreshCw,
+  Search,
   Shield,
   XCircle,
 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type {
   QualityCheck,
   QualityOverview,
   RecentCheckExecution,
 } from '@/server/quality.server'
-import { getQualityDashboard } from '@/server/quality.server'
+import { getCheckHistory, getQualityDashboard } from '@/server/quality.server'
 
 export const Route = createFileRoute('/quality/')({
   loader: async () => {
@@ -34,6 +39,7 @@ function QualityDashboard() {
         overview: QualityOverview
         failingChecks: Array<QualityCheck>
         recentExecutions: Array<RecentCheckExecution>
+        checks: Array<QualityCheck>
       })
 
   return (
@@ -179,6 +185,18 @@ function QualityDashboard() {
               </div>
             )}
           </div>
+
+          {/* All Checks */}
+          <div className="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-cyan-400" />
+              All Checks
+              <span className="ml-auto text-sm text-slate-400">
+                {dashboardData!.checks.length}
+              </span>
+            </h2>
+            <ChecksTable checks={dashboardData!.checks} />
+          </div>
         </>
       )}
     </div>
@@ -313,6 +331,426 @@ function RecentExecutionRow({ exec }: { exec: RecentCheckExecution }) {
       </span>
     </div>
   )
+}
+
+type CheckKind = 'all' | 'pandera' | 'dbt' | 'custom'
+type CheckStatusFilter = 'all' | 'PASSED' | 'FAILED' | 'WARN'
+type LayerFilter = 'all' | 'bronze' | 'silver' | 'gold' | 'marts'
+
+function ChecksTable({ checks }: { checks: Array<QualityCheck> }) {
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<CheckStatusFilter>('all')
+  const [kind, setKind] = useState<CheckKind>('all')
+  const [layer, setLayer] = useState<LayerFilter>('all')
+  const [selected, setSelected] = useState<QualityCheck | null>(null)
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return checks
+      .filter((check) => {
+        if (!query) return true
+        const asset = check.assetKey.join('/').toLowerCase()
+        return check.name.toLowerCase().includes(query) || asset.includes(query)
+      })
+      .filter((check) => {
+        if (kind === 'all') return true
+        if (kind === 'pandera') return check.name === 'pandera_contract'
+        if (kind === 'dbt') return check.name.startsWith('dbt__')
+        return (
+          check.name !== 'pandera_contract' && !check.name.startsWith('dbt__')
+        )
+      })
+      .filter((check) => {
+        if (status === 'all') return true
+        if (status === 'WARN')
+          return check.status === 'FAILED' && check.severity === 'WARN'
+        return check.status === status
+      })
+      .filter((check) => {
+        if (layer === 'all') return true
+        const asset = check.assetKey[check.assetKey.length - 1] || ''
+        const inferred = asset.startsWith('dlt_')
+          ? 'bronze'
+          : inferSchemaFromAssetName(asset)
+        return inferred === layer
+      })
+      .sort((a, b) => {
+        const aKey = a.assetKey.join('/')
+        const bKey = b.assetKey.join('/')
+        if (aKey !== bKey) return aKey < bKey ? -1 : 1
+        return a.name < b.name ? -1 : 1
+      })
+  }, [checks, kind, layer, search, status])
+
+  return (
+    <>
+      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+        <div className="flex-1 relative">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by asset or check name"
+            className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-slate-500" />
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as CheckKind)}
+            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+          >
+            <option value="all">All</option>
+            <option value="pandera">Pandera</option>
+            <option value="dbt">dbt</option>
+            <option value="custom">Custom</option>
+          </select>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as CheckStatusFilter)}
+            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+          >
+            <option value="all">All statuses</option>
+            <option value="PASSED">Passed</option>
+            <option value="FAILED">Failed</option>
+            <option value="WARN">Warn</option>
+          </select>
+          <select
+            value={layer}
+            onChange={(e) => setLayer(e.target.value as LayerFilter)}
+            className="px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm"
+          >
+            <option value="all">All layers</option>
+            <option value="bronze">Bronze</option>
+            <option value="silver">Silver</option>
+            <option value="gold">Gold</option>
+            <option value="marts">Marts</option>
+          </select>
+        </div>
+      </div>
+
+      {filtered.length > 0 ? (
+        <div className="overflow-x-auto border border-slate-700 rounded-lg">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-900/60">
+              <tr className="border-b border-slate-700">
+                <th className="text-left py-2 px-3 font-medium text-slate-400">
+                  Status
+                </th>
+                <th className="text-left py-2 px-3 font-medium text-slate-400">
+                  Asset
+                </th>
+                <th className="text-left py-2 px-3 font-medium text-slate-400">
+                  Check
+                </th>
+                <th className="text-left py-2 px-3 font-medium text-slate-400">
+                  Partition
+                </th>
+                <th className="text-left py-2 px-3 font-medium text-slate-400">
+                  Last run
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((check) => (
+                <tr
+                  key={`${check.assetKey.join('/')}::${check.name}`}
+                  className="border-b border-slate-700/50 hover:bg-slate-700/30 cursor-pointer"
+                  onClick={() => setSelected(check)}
+                >
+                  <td className="py-2 px-3">
+                    <StatusPill
+                      status={check.status}
+                      severity={check.severity}
+                    />
+                  </td>
+                  <td className="py-2 px-3 font-mono text-xs text-cyan-300">
+                    {check.assetKey.join('/')}
+                  </td>
+                  <td className="py-2 px-3 text-slate-200">{check.name}</td>
+                  <td className="py-2 px-3 font-mono text-xs text-slate-400">
+                    {String(check.lastResult?.metadata?.partition_key ?? '—')}
+                  </td>
+                  <td className="py-2 px-3 text-xs text-slate-400">
+                    {check.lastExecutionTime
+                      ? new Date(check.lastExecutionTime).toLocaleString()
+                      : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="text-center text-slate-500 py-10">
+          <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p>No checks match your filters</p>
+        </div>
+      )}
+
+      {selected && (
+        <CheckDetailsDrawer
+          check={selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
+    </>
+  )
+}
+
+function StatusPill({
+  status,
+  severity,
+}: {
+  status: QualityCheck['status']
+  severity: QualityCheck['severity']
+}) {
+  const isWarn = status === 'FAILED' && severity === 'WARN'
+  const label = isWarn ? 'WARN' : status
+  const className =
+    status === 'PASSED'
+      ? 'bg-green-600/20 text-green-300 border-green-700/40'
+      : isWarn
+        ? 'bg-yellow-600/20 text-yellow-300 border-yellow-700/40'
+        : status === 'FAILED'
+          ? 'bg-red-600/20 text-red-300 border-red-700/40'
+          : 'bg-slate-600/20 text-slate-300 border-slate-700/40'
+
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 border rounded text-xs ${className}`}
+    >
+      {label}
+    </span>
+  )
+}
+
+function CheckDetailsDrawer({
+  check,
+  onClose,
+}: {
+  check: QualityCheck
+  onClose: () => void
+}) {
+  const [history, setHistory] = useState<
+    Array<{ timestamp: string; passed: boolean; runId?: string }>
+  >([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const assetKeyPath = check.assetKey.join('/')
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    void getCheckHistory({
+      data: { assetKey: check.assetKey, checkName: check.name, limit: 20 },
+    })
+      .then((result) => {
+        if (cancelled) return
+        if ('error' in result) {
+          setError(result.error)
+          setHistory([])
+          return
+        }
+        setHistory(result)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Failed to load history')
+      })
+      .finally(() => {
+        if (cancelled) return
+        setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [assetKeyPath, check.name])
+
+  const metadata = check.lastResult?.metadata ?? {}
+  const sql =
+    (metadata.repro_sql as string | undefined) ||
+    (metadata.query_or_sql as string | undefined)
+
+  const openInSqlLink =
+    sql && sql.length <= 1500 ? buildOpenInSqlLink(check.assetKey, sql) : null
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative ml-auto w-full max-w-xl h-full bg-slate-900 border-l border-slate-700 p-6 overflow-y-auto">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <div className="text-xs text-slate-500 font-mono">
+              {check.assetKey.join('/')}
+            </div>
+            <h3 className="text-lg font-semibold text-slate-100">
+              {check.name}
+            </h3>
+            <div className="mt-2">
+              <StatusPill status={check.status} severity={check.severity} />
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-800"
+          >
+            Close
+          </button>
+        </div>
+
+        {sql && (
+          <Section title="SQL">
+            <div className="flex items-center gap-2 mb-2">
+              {openInSqlLink && (
+                <Link
+                  to={openInSqlLink.to}
+                  params={openInSqlLink.params}
+                  search={openInSqlLink.search}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
+                >
+                  Open in SQL
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard.writeText(sql)}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
+              >
+                <Copy className="w-4 h-4" />
+                Copy
+              </button>
+              {sql.length > 1500 && (
+                <span className="text-xs text-slate-500">
+                  (Too large to embed in URL)
+                </span>
+              )}
+            </div>
+            <pre className="text-xs text-slate-200 whitespace-pre-wrap break-words bg-slate-800/60 border border-slate-700 rounded-lg p-3 max-h-64 overflow-auto">
+              {sql}
+            </pre>
+          </Section>
+        )}
+
+        <Section title="Metadata">
+          {Object.keys(metadata).length > 0 ? (
+            <div className="space-y-2">
+              {Object.entries(metadata).map(([key, value]) => (
+                <div
+                  key={key}
+                  className="bg-slate-800/60 border border-slate-700 rounded-lg p-3"
+                >
+                  <div className="text-xs text-slate-400 font-mono mb-1">
+                    {key}
+                  </div>
+                  <pre className="text-xs text-slate-200 whitespace-pre-wrap break-words">
+                    {formatMetadataValue(value)}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-slate-500">No metadata.</div>
+          )}
+        </Section>
+
+        <Section title="History">
+          {loading ? (
+            <div className="text-sm text-slate-500">Loading…</div>
+          ) : error ? (
+            <div className="text-sm text-red-400">{error}</div>
+          ) : history.length > 0 ? (
+            <div className="space-y-2">
+              {history.map((item) => (
+                <div
+                  key={`${item.runId ?? 'run'}::${item.timestamp}`}
+                  className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded-lg p-3"
+                >
+                  <div className="text-sm text-slate-200">
+                    {new Date(item.timestamp).toLocaleString()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 font-mono">
+                      {item.runId ?? '—'}
+                    </span>
+                    <span
+                      className={`text-xs font-semibold ${
+                        item.passed ? 'text-green-300' : 'text-red-300'
+                      }`}
+                    >
+                      {item.passed ? 'PASSED' : 'FAILED'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-slate-500">No history found.</div>
+          )}
+        </Section>
+      </div>
+    </div>
+  )
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mb-6">
+      <h4 className="text-sm font-semibold text-slate-200 mb-2">{title}</h4>
+      {children}
+    </div>
+  )
+}
+
+function formatMetadataValue(value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function buildOpenInSqlLink(
+  assetKey: Array<string>,
+  sql: string,
+): {
+  to: '/data/$schema/$table'
+  params: { schema: string; table: string }
+  search: { sql: string; tab: 'query' }
+} | null {
+  if (!assetKey.length) return null
+  const name = assetKey[assetKey.length - 1] || ''
+  if (!name) return null
+
+  if (name.startsWith('dlt_')) {
+    return {
+      to: '/data/$schema/$table',
+      params: { schema: 'bronze', table: name.slice(4) },
+      search: { sql, tab: 'query' },
+    }
+  }
+
+  const schema = inferSchemaFromAssetName(name)
+  return {
+    to: '/data/$schema/$table',
+    params: { schema, table: name },
+    search: { sql, tab: 'query' },
+  }
+}
+
+function inferSchemaFromAssetName(name: string): string {
+  if (name.startsWith('stg_')) return 'silver'
+  if (name.startsWith('dim_') || name.startsWith('fct_')) return 'gold'
+  if (name.startsWith('mrt_')) return 'marts'
+  return 'bronze'
 }
 
 // Stat Card
