@@ -58,6 +58,24 @@ function RootLayout() {
     })
   }, [])
 
+  // Ensure we don't have a stale PWA/service worker controlling the app (dev-only).
+  // This can happen if the app previously ran with Vite PWA/Workbox and will cause 404s
+  // for old entrypoints (e.g. /main.tsx, /manifest.webmanifest).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    if (!('serviceWorker' in navigator)) return
+
+    void navigator.serviceWorker.getRegistrations().then((registrations) => {
+      void Promise.all(registrations.map((r) => r.unregister()))
+    })
+
+    if ('caches' in window) {
+      void caches
+        .keys()
+        .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+    }
+  }, [])
+
   return (
     <html lang="en" className="dark">
       <head>
