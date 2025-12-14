@@ -3,16 +3,19 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
 from collections.abc import Generator
 
+import dagster as dg
 from dagster_dbt import DbtCliResource, dbt_assets
 
 from phlo.config import config
 from phlo.defs.partitions import daily_partition
 from phlo.defs.transform.dbt_translator import CustomDbtTranslator
+from phlo.quality.dbt_asset_checks import extract_dbt_asset_checks
 
 # --- Configuration ---
 DBT_PROJECT_DIR = config.dbt_project_path
@@ -22,9 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 def build_all_dbt_assets(*, manifest_path) -> object:
+    translator = CustomDbtTranslator()
+
     @dbt_assets(
         manifest=manifest_path,
-        dagster_dbt_translator=CustomDbtTranslator(),
+        dagster_dbt_translator=translator,
         partitions_def=daily_partition,
     )
     def all_dbt_assets(context, dbt: DbtCliResource) -> Generator[object, None, None]:
@@ -53,6 +58,13 @@ def build_all_dbt_assets(*, manifest_path) -> object:
         yield from build_invocation.stream()
         build_invocation.wait()
 
+        default_target_dir = DBT_PROJECT_DIR / "target"
+        default_target_dir.mkdir(parents=True, exist_ok=True)
+
+        build_run_results = build_invocation.target_path / "run_results.json"
+        if build_run_results.exists():
+            shutil.copy(build_run_results, default_target_dir / "run_results.json")
+
         docs_args = [
             "docs",
             "generate",
@@ -65,21 +77,33 @@ def build_all_dbt_assets(*, manifest_path) -> object:
         ]
         docs_invocation = dbt.cli(docs_args, context=context).wait()
 
-        default_target_dir = DBT_PROJECT_DIR / "target"
-        default_target_dir.mkdir(parents=True, exist_ok=True)
-
-        for artifact in ("manifest.json", "catalog.json", "run_results.json"):
+        for artifact in ("manifest.json", "catalog.json"):
             artifact_path = docs_invocation.target_path / artifact
             if artifact_path.exists():
                 shutil.copy(artifact_path, default_target_dir / artifact)
+
+        manifest_json = default_target_dir / "manifest.json"
+        run_results_json = default_target_dir / "run_results.json"
+        if manifest_json.exists() and run_results_json.exists():
+            with open(manifest_json) as handle:
+                manifest_data = json.load(handle)
+            with open(run_results_json) as handle:
+                run_results_data = json.load(handle)
+
+            partition_key = context.partition_key if context.has_partition_key else None
+            for check in extract_dbt_asset_checks(
+                run_results_data,
+                manifest_data,
+                translator=translator,
+                partition_key=partition_key,
+            ):
+                yield check
 
     return all_dbt_assets
 
 
 def build_defs():
     """Build dbt transform definitions."""
-    import dagster as dg
-
     manifest_path = DBT_PROJECT_DIR / "target" / "manifest.json"
     if not manifest_path.exists():
         logger.debug("No dbt manifest at %s; skipping dbt asset definitions", manifest_path)
