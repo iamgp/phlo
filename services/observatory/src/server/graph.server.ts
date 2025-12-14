@@ -16,7 +16,14 @@ export interface GraphNode {
   description?: string
   computeKind?: string
   groupName?: string
-  layer: 'source' | 'bronze' | 'silver' | 'gold' | 'publish' | 'unknown'
+  layer:
+    | 'source'
+    | 'bronze'
+    | 'silver'
+    | 'gold'
+    | 'marts'
+    | 'publish'
+    | 'unknown'
   lastMaterialization?: string
   upstreamCount: number
   downstreamCount: number
@@ -70,12 +77,11 @@ const ASSET_GRAPH_QUERY = `
  */
 function inferLayer(keyPath: string): GraphNode['layer'] {
   const path = keyPath.toLowerCase()
-  if (
-    path.includes('publish') ||
-    path.includes('mart') ||
-    path.startsWith('mrt_')
-  ) {
+  if (path.includes('publish') || path.startsWith('publish_')) {
     return 'publish'
+  }
+  if (path.includes('mart') || path.startsWith('mrt_')) {
+    return 'marts'
   }
   if (
     path.includes('gold') ||
@@ -91,6 +97,9 @@ function inferLayer(keyPath: string): GraphNode['layer'] {
     return 'bronze'
   }
   if (path.startsWith('dlt_') || path.includes('ingest')) {
+    return 'bronze'
+  }
+  if (path.startsWith('src_') || path.includes('source')) {
     return 'source'
   }
   return 'unknown'

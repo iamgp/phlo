@@ -19,6 +19,18 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import type { ServiceWithStatus } from '@/server/services.server'
+import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
 interface ServiceCardProps {
   service: ServiceWithStatus
@@ -43,12 +55,12 @@ export function ServiceCard({
 
   // Category badge colors
   const categoryColors: Record<string, string> = {
-    core: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    api: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    bi: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    observability: 'bg-green-500/20 text-green-300 border-green-500/30',
-    admin: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-    orchestration: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    core: 'bg-muted text-muted-foreground border-border',
+    api: 'bg-muted text-muted-foreground border-border',
+    bi: 'bg-muted text-muted-foreground border-border',
+    observability: 'bg-muted text-muted-foreground border-border',
+    admin: 'bg-muted text-muted-foreground border-border',
+    orchestration: 'bg-primary/10 text-primary border-primary/20',
   }
 
   // Status indicator colors
@@ -62,7 +74,7 @@ export function ServiceCard({
       label: 'Running',
     },
     stopped: {
-      color: 'text-slate-400',
+      color: 'text-muted-foreground',
       icon: <Circle className="w-4 h-4" />,
       label: 'Stopped',
     },
@@ -77,7 +89,7 @@ export function ServiceCard({
       label: 'Starting',
     },
     unknown: {
-      color: 'text-slate-500',
+      color: 'text-muted-foreground',
       icon: <Circle className="w-4 h-4" />,
       label: 'Unknown',
     },
@@ -125,133 +137,152 @@ export function ServiceCard({
   const hasCredentials = credentials.length > 0
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden hover:border-slate-600 transition-colors">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-700">
-        <div className="flex items-start justify-between mb-2">
+    <Card className={cn(isUnhealthy && 'border-destructive/40')}>
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span
-              className={`px-2 py-0.5 text-xs rounded-full border ${categoryColors[service.category] ?? categoryColors.core}`}
+            <Badge
+              variant="outline"
+              className={
+                categoryColors[service.category] ?? categoryColors.core
+              }
             >
               {service.category}
-            </span>
+            </Badge>
             {service.default && (
-              <span className="px-2 py-0.5 text-xs bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-full">
+              <Badge variant="secondary" className="text-muted-foreground">
                 default
-              </span>
+              </Badge>
             )}
           </div>
-          <div className={`flex items-center gap-1.5 ${currentStatus.color}`}>
+          <div
+            className={cn(
+              'flex items-center gap-1.5 text-xs',
+              currentStatus.color,
+            )}
+          >
             {currentStatus.icon}
-            <span className="text-xs font-medium">{currentStatus.label}</span>
+            <span className="font-medium">{currentStatus.label}</span>
           </div>
         </div>
 
-        <h3 className="text-lg font-semibold text-slate-100">{service.name}</h3>
-        <p className="text-sm text-slate-400 mt-1 line-clamp-2">
-          {service.description}
-        </p>
-      </div>
+        <div>
+          <CardTitle className="text-lg">{service.name}</CardTitle>
+          <CardDescription className="line-clamp-2">
+            {service.description}
+          </CardDescription>
+        </div>
+      </CardHeader>
 
-      {/* Port & Link */}
-      {service.ports.length > 0 && (
-        <div className="px-4 py-3 border-b border-slate-700/50 bg-slate-800/50">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-500">
+      <CardContent className="space-y-3">
+        {service.ports.length > 0 && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">
               Port:{' '}
-              <span className="text-slate-300">{service.ports[0].host}</span>
-            </span>
+              <span className="text-foreground">{service.ports[0].host}</span>
+            </div>
             {service.url && isRunning && (
               <a
                 href={service.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'xs' }),
+                  'gap-1',
+                )}
               >
-                <ExternalLink className="w-3 h-3" />
+                <ExternalLink className="size-3" />
                 Open
               </a>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Credentials (collapsible) */}
-      {hasCredentials && (
-        <div className="border-b border-slate-700/50">
-          <button
-            onClick={() => setShowCredentials(!showCredentials)}
-            className="w-full px-4 py-2 flex items-center justify-between text-sm text-slate-400 hover:bg-slate-700/30 transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <Key className="w-4 h-4" />
-              Credentials ({credentials.length})
-            </span>
-            {showCredentials ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </button>
-          {showCredentials && (
-            <div className="px-4 pb-3 space-y-2">
-              {credentials.map((cred) => (
-                <div
-                  key={cred.name}
-                  className="text-xs bg-slate-900/50 rounded p-2"
-                >
-                  <div className="text-slate-500 mb-0.5">{cred.name}</div>
-                  <code className="text-slate-300 font-mono">{cred.value}</code>
+        {hasCredentials && (
+          <>
+            <Separator />
+            <div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-between"
+                onClick={() => setShowCredentials(!showCredentials)}
+              >
+                <span className="flex items-center gap-2">
+                  <Key className="size-4" />
+                  Credentials ({credentials.length})
+                </span>
+                {showCredentials ? (
+                  <ChevronUp className="size-4" />
+                ) : (
+                  <ChevronDown className="size-4" />
+                )}
+              </Button>
+
+              {showCredentials && (
+                <div className="mt-3 space-y-2">
+                  {credentials.map((cred) => (
+                    <div
+                      key={cred.name}
+                      className="text-xs bg-muted rounded-none p-2"
+                    >
+                      <div className="text-muted-foreground mb-0.5">
+                        {cred.name}
+                      </div>
+                      <code className="text-foreground">{cred.value}</code>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </CardContent>
 
-      {/* Actions */}
-      <div className="p-3 flex gap-2">
+      <CardFooter className="gap-2">
         {isRunning || isUnhealthy ? (
           <>
-            <button
+            <Button
+              variant="destructive"
+              className="flex-1"
               onClick={() => onStop(service.name)}
               disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors disabled:opacity-50"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <Power className="w-4 h-4" />
+                <Power className="size-4" />
               )}
-              <span className="text-sm">Stop</span>
-            </button>
-            <button
+              Stop
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={() => onRestart(service.name)}
               disabled={isLoading}
-              className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-700/50 text-slate-300 hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="size-4" />
               )}
-            </button>
+            </Button>
           </>
         ) : (
-          <button
+          <Button
+            className="flex-1"
             onClick={() => onStart(service.name)}
             disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg transition-colors disabled:opacity-50"
           >
             {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Play className="w-4 h-4" />
+              <Play className="size-4" />
             )}
-            <span className="text-sm">Start</span>
-          </button>
+            Start
+          </Button>
         )}
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   )
 }

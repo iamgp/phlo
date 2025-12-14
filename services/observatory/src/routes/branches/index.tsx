@@ -11,10 +11,21 @@ import {
   Trash2,
   Wifi,
   WifiOff,
-  X,
 } from 'lucide-react'
 import { useState } from 'react'
 import type { Branch, LogEntry, NessieConfig } from '@/server/nessie.server'
+import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import {
   checkNessieConnection,
   createBranch,
@@ -143,39 +154,35 @@ function BranchesPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Version Control</h1>
-          <p className="text-slate-400">
+          <h1 className="text-3xl font-bold">Version Control</h1>
+          <p className="text-muted-foreground">
             Git-like branching for your data lakehouse
           </p>
         </div>
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => setShowMergeModal(true)}
             disabled={!isConnected || branchList.length < 2}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
-            <GitMerge className="w-4 h-4" />
+            <GitMerge className="size-4" />
             Merge
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowCreateModal(true)}
             disabled={!isConnected}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg transition-colors"
+            variant="outline"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="size-4" />
             New Branch
-          </button>
-          <button
-            onClick={() => router.invalidate()}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" onClick={() => router.invalidate()}>
+            <RefreshCw className="size-4" />
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -186,28 +193,31 @@ function BranchesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Branch List */}
         <div className="lg:col-span-1">
-          <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-            <div className="p-4 border-b border-slate-700">
-              <h2 className="font-semibold flex items-center gap-2">
-                <GitBranch className="w-5 h-5 text-cyan-400" />
+          <Card className="overflow-hidden">
+            <CardHeader className="py-4">
+              <CardTitle className="text-base flex items-center gap-2">
+                <GitBranch className="size-4 text-primary" />
                 Branches
-                <span className="ml-auto text-sm text-slate-400 bg-slate-700 px-2 py-0.5 rounded">
+                <Badge
+                  variant="secondary"
+                  className="ml-auto text-muted-foreground"
+                >
                   {branchList.length}
-                </span>
-              </h2>
-            </div>
+                </Badge>
+              </CardTitle>
+            </CardHeader>
             {!isConnected ? (
-              <div className="p-8 text-center text-slate-500">
+              <div className="p-8 text-center text-muted-foreground">
                 <WifiOff className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p>Connect to Nessie to view branches</p>
               </div>
             ) : branchList.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
+              <div className="p-8 text-center text-muted-foreground">
                 <GitBranch className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p>No branches found</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-700">
+              <div className="divide-y">
                 {branchList.map((branch) => (
                   <BranchRow
                     key={branch.name}
@@ -220,25 +230,25 @@ function BranchesPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Commit History */}
         <div className="lg:col-span-2">
-          <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-            <div className="p-4 border-b border-slate-700">
-              <h2 className="font-semibold flex items-center gap-2">
-                <GitCommit className="w-5 h-5 text-cyan-400" />
+          <Card className="overflow-hidden">
+            <CardHeader className="py-4">
+              <CardTitle className="text-base flex items-center gap-2">
+                <GitCommit className="size-4 text-primary" />
                 Commit History
                 {selectedBranch && (
-                  <span className="text-sm text-cyan-400 ml-2">
+                  <span className="text-sm text-muted-foreground ml-2">
                     • {selectedBranch}
                   </span>
                 )}
-              </h2>
-            </div>
+              </CardTitle>
+            </CardHeader>
             {!selectedBranch ? (
-              <div className="p-12 text-center text-slate-500">
+              <div className="p-12 text-center text-muted-foreground">
                 <GitCommit className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-lg mb-1">Select a branch</p>
                 <p className="text-sm">
@@ -246,17 +256,17 @@ function BranchesPage() {
                 </p>
               </div>
             ) : loadingCommits ? (
-              <div className="p-12 text-center text-slate-500">
+              <div className="p-12 text-center text-muted-foreground">
                 <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
                 <p>Loading commits...</p>
               </div>
             ) : !commits || commits.length === 0 ? (
-              <div className="p-12 text-center text-slate-500">
+              <div className="p-12 text-center text-muted-foreground">
                 <GitCommit className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p>No commits found</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-700">
+              <div className="divide-y">
                 {commits.map((entry, index) => (
                   <CommitRow
                     key={entry.commitMeta.hash}
@@ -266,7 +276,7 @@ function BranchesPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         </div>
       </div>
 
@@ -320,32 +330,36 @@ function BranchesPage() {
 function NessieConnectionBanner({ connection }: { connection: NessieConfig }) {
   if (connection.connected) {
     return (
-      <div className="mb-6 p-4 bg-green-900/20 border border-green-700/50 rounded-xl flex items-center gap-3">
-        <Wifi className="w-5 h-5 text-green-400" />
-        <span className="text-green-300">
-          Connected to Nessie • Default branch:{' '}
-          <strong>{connection.defaultBranch}</strong>
-        </span>
-      </div>
+      <Card className="mb-6 border-green-500/30 bg-green-500/5">
+        <CardContent className="p-4 flex items-center gap-3">
+          <Wifi className="size-5 text-green-400" />
+          <span className="text-green-300">
+            Connected to Nessie • Default branch:{' '}
+            <strong>{connection.defaultBranch}</strong>
+          </span>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-xl">
-      <div className="flex items-center gap-3">
-        <WifiOff className="w-5 h-5 text-yellow-400" />
-        <span className="text-yellow-300">Cannot connect to Nessie</span>
-      </div>
-      {connection.error && (
-        <p className="mt-2 text-sm text-yellow-400/70">{connection.error}</p>
-      )}
-      <p className="mt-2 text-sm text-slate-500">
-        Make sure Nessie is running:{' '}
-        <code className="px-2 py-0.5 bg-slate-800 rounded">
-          docker compose up nessie
-        </code>
-      </p>
-    </div>
+    <Card className="mb-6 border-yellow-500/30 bg-yellow-500/5">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3">
+          <WifiOff className="size-5 text-yellow-400" />
+          <span className="text-yellow-300">Cannot connect to Nessie</span>
+        </div>
+        {connection.error && (
+          <p className="mt-2 text-sm text-yellow-400/70">{connection.error}</p>
+        )}
+        <p className="mt-2 text-sm text-muted-foreground">
+          Make sure Nessie is running:{' '}
+          <code className="px-2 py-0.5 bg-muted rounded-none">
+            docker compose up nessie
+          </code>
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -368,52 +382,53 @@ function BranchRow({
   return (
     <div
       className={`group p-4 cursor-pointer transition-colors ${
-        isSelected ? 'bg-cyan-900/30' : 'hover:bg-slate-700/50'
+        isSelected ? 'bg-muted' : 'hover:bg-muted/50'
       }`}
       onClick={onSelect}
     >
       <div className="flex items-center gap-3">
         <GitBranch
-          className={`w-4 h-4 ${isSelected ? 'text-cyan-400' : 'text-slate-500'}`}
+          className={`w-4 h-4 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`}
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium truncate">{branch.name}</span>
             {isDefault && (
-              <span className="text-xs bg-cyan-600 text-white px-1.5 py-0.5 rounded">
+              <Badge variant="secondary" className="text-muted-foreground">
                 default
-              </span>
+              </Badge>
             )}
-            {branch.type === 'TAG' && (
-              <span className="text-xs bg-purple-600 text-white px-1.5 py-0.5 rounded">
-                tag
-              </span>
-            )}
+            {branch.type === 'TAG' && <Badge variant="outline">tag</Badge>}
           </div>
-          <p className="text-xs text-slate-500 font-mono mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {branch.hash.slice(0, 12)}
           </p>
         </div>
         {!isDefault && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={(e) => {
               e.stopPropagation()
               onDelete()
             }}
-            className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-600/20 rounded transition-all"
+            className="opacity-0 group-hover:opacity-100 transition-all"
             title="Delete branch"
           >
-            <Trash2 className="w-4 h-4 text-red-400" />
-          </button>
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
         )}
         <Link
           to="/branches/$branchName"
           params={{ branchName: encodeURIComponent(branch.name) }}
           onClick={(e) => e.stopPropagation()}
-          className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-cyan-600/20 rounded transition-all"
+          className={cn(
+            'opacity-0 group-hover:opacity-100 transition-all',
+            buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
+          )}
           title="View branch details"
         >
-          <ExternalLink className="w-4 h-4 text-cyan-400" />
+          <ExternalLink className="w-4 h-4" />
         </Link>
       </div>
     </div>
@@ -431,23 +446,23 @@ function CommitRow({ entry, isFirst }: CommitRowProps) {
   const date = new Date(commitMeta.commitTime)
 
   return (
-    <div className="p-4 hover:bg-slate-700/30 transition-colors">
+    <div className="p-4 hover:bg-muted/50 transition-colors">
       <div className="flex items-start gap-3">
         <div className="mt-1">
           <div
             className={`w-3 h-3 rounded-full border-2 ${
               isFirst
-                ? 'bg-cyan-400 border-cyan-400'
-                : 'bg-slate-800 border-slate-500'
+                ? 'bg-primary border-primary'
+                : 'bg-card border-muted-foreground'
             }`}
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-slate-200">
+          <p className="font-medium">
             {commitMeta.message || 'No commit message'}
           </p>
-          <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-            <span className="font-mono text-cyan-400">
+          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+            <span className="font-mono text-primary">
               {commitMeta.hash.slice(0, 8)}
             </span>
             <span className="flex items-center gap-1">
@@ -489,26 +504,21 @@ function CreateBranchModal({
     <Modal title="Create New Branch" onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
-            Branch Name
-          </label>
-          <input
+          <Label>Branch Name</Label>
+          <Input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="feature/my-new-branch"
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
             autoFocus
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
-            From Branch
-          </label>
+          <Label>From Branch</Label>
           <select
             value={fromBranch}
             onChange={(e) => setFromBranch(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="w-full h-8 px-3 bg-input/30 border border-input text-xs outline-none"
           >
             {branches.map((b) => (
               <option key={b.name} value={b.name}>
@@ -519,27 +529,23 @@ function CreateBranchModal({
         </div>
 
         {error && (
-          <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg flex items-center gap-2 text-red-300">
+          <div className="p-3 bg-destructive/10 border border-destructive/30 flex items-center gap-2 text-destructive">
             <AlertTriangle className="w-4 h-4" />
             {error}
           </div>
         )}
 
         <div className="flex gap-3 justify-end pt-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-          >
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => onCreate(name, fromBranch)}
             disabled={!name.trim() || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
             Create Branch
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>
@@ -572,13 +578,11 @@ function MergeBranchModal({
     <Modal title="Merge Branches" onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
-            From Branch
-          </label>
+          <Label>From Branch</Label>
           <select
             value={fromBranch}
             onChange={(e) => setFromBranch(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="w-full h-8 px-3 bg-input/30 border border-input text-xs outline-none"
           >
             {branches.map((b) => (
               <option key={b.name} value={b.name}>
@@ -587,17 +591,15 @@ function MergeBranchModal({
             ))}
           </select>
         </div>
-        <div className="text-center text-slate-500">
+        <div className="text-center text-muted-foreground">
           <GitMerge className="w-5 h-5 mx-auto" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
-            Into Branch
-          </label>
+          <Label>Into Branch</Label>
           <select
             value={intoBranch}
             onChange={(e) => setIntoBranch(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="w-full h-8 px-3 bg-input/30 border border-input text-xs outline-none"
           >
             {branches.map((b) => (
               <option key={b.name} value={b.name}>
@@ -607,49 +609,42 @@ function MergeBranchModal({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-1">
-            Commit Message (optional)
-          </label>
-          <input
+          <Label>Commit Message (optional)</Label>
+          <Input
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={`Merge ${fromBranch} into ${intoBranch}`}
-            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
           />
         </div>
 
         {error && (
-          <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg flex items-center gap-2 text-red-300">
+          <div className="p-3 bg-destructive/10 border border-destructive/30 flex items-center gap-2 text-destructive">
             <AlertTriangle className="w-4 h-4" />
             {error}
           </div>
         )}
 
         {fromBranch === intoBranch && (
-          <div className="p-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg flex items-center gap-2 text-yellow-300">
+          <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 flex items-center gap-2 text-yellow-400">
             <AlertTriangle className="w-4 h-4" />
             Cannot merge a branch into itself
           </div>
         )}
 
         <div className="flex gap-3 justify-end pt-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-          >
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => onMerge(fromBranch, intoBranch, message)}
             disabled={
               !fromBranch || !intoBranch || fromBranch === intoBranch || loading
             }
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
             Merge
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>
@@ -675,37 +670,30 @@ function DeleteBranchModal({
   return (
     <Modal title="Delete Branch" onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-slate-300">
+        <p>
           Are you sure you want to delete the branch{' '}
-          <strong className="text-white">{branch.name}</strong>?
+          <strong>{branch.name}</strong>?
         </p>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           This action cannot be undone. All commits on this branch that are not
           merged will be lost.
         </p>
 
         {error && (
-          <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg flex items-center gap-2 text-red-300">
+          <div className="p-3 bg-destructive/10 border border-destructive/30 flex items-center gap-2 text-destructive">
             <AlertTriangle className="w-4 h-4" />
             {error}
           </div>
         )}
 
         <div className="flex gap-3 justify-end pt-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
-          >
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-slate-600 disabled:cursor-not-allowed rounded-lg transition-colors"
-          >
+          </Button>
+          <Button onClick={onConfirm} disabled={loading} variant="destructive">
             {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
             Delete Branch
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>
@@ -721,24 +709,19 @@ interface ModalProps {
 
 function Modal({ title, children, onClose }: ModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-slate-700 rounded transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-4">{children}</div>
-      </div>
-    </div>
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
   )
 }
 

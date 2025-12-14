@@ -23,42 +23,46 @@ import '@xyflow/react/dist/style.css'
 import { Database } from 'lucide-react'
 
 import type { GraphEdge, GraphNode } from '@/server/graph.server'
-import type { Edge, Node, NodeTypes } from '@xyflow/react'
+import type { Edge, Node, NodeProps, NodeTypes } from '@xyflow/react'
 
-// Layer colors matching the design spec
-const LAYER_COLORS: Record<
+const LAYER_STYLES: Record<
   string,
-  { bg: string; border: string; text: string }
+  { accentBorder: string; icon: string; label: string }
 > = {
   source: {
-    bg: 'bg-blue-900/50',
-    border: 'border-blue-500',
-    text: 'text-blue-300',
+    accentBorder: 'border-l-emerald-400/60',
+    icon: 'text-emerald-400',
+    label: 'text-foreground',
   },
   bronze: {
-    bg: 'bg-amber-900/50',
-    border: 'border-amber-500',
-    text: 'text-amber-300',
+    accentBorder: 'border-l-amber-400/70',
+    icon: 'text-amber-400',
+    label: 'text-foreground',
   },
   silver: {
-    bg: 'bg-slate-700/50',
-    border: 'border-slate-400',
-    text: 'text-slate-300',
+    accentBorder: 'border-l-border',
+    icon: 'text-muted-foreground',
+    label: 'text-foreground',
   },
   gold: {
-    bg: 'bg-yellow-900/50',
-    border: 'border-yellow-500',
-    text: 'text-yellow-300',
+    accentBorder: 'border-l-primary',
+    icon: 'text-primary',
+    label: 'text-foreground',
+  },
+  marts: {
+    accentBorder: 'border-l-emerald-400/60',
+    icon: 'text-emerald-400',
+    label: 'text-foreground',
   },
   publish: {
-    bg: 'bg-emerald-900/50',
-    border: 'border-emerald-500',
-    text: 'text-emerald-300',
+    accentBorder: 'border-l-lime-400/70',
+    icon: 'text-lime-400',
+    label: 'text-foreground',
   },
   unknown: {
-    bg: 'bg-slate-800/50',
-    border: 'border-slate-600',
-    text: 'text-slate-400',
+    accentBorder: 'border-l-border',
+    icon: 'text-muted-foreground',
+    label: 'text-foreground',
   },
 }
 
@@ -72,36 +76,37 @@ interface AssetNodeData {
   [key: string]: unknown // Index signature for React Flow compatibility
 }
 
+type AssetNodeType = Node<AssetNodeData, 'asset'>
+
 // Custom node component for assets
-function AssetNode({ data }: { data: AssetNodeData }) {
-  const colors = LAYER_COLORS[data.layer] || LAYER_COLORS.unknown
+function AssetNode({ data, selected }: NodeProps<AssetNodeType>) {
+  const styles = LAYER_STYLES[data.layer] || LAYER_STYLES.unknown
 
   return (
     <>
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!bg-slate-500"
-      />
+      <Handle type="target" position={Position.Left} className="!bg-border" />
       <div
-        className={`px-3 py-2 rounded-lg border-2 ${colors.bg} ${colors.border} min-w-[140px] cursor-pointer hover:brightness-110 transition-all`}
+        className={[
+          'min-w-[160px] cursor-pointer border border-border border-l-4 bg-card px-3 py-2 shadow-sm transition-colors',
+          'hover:bg-muted/50',
+          styles.accentBorder,
+          selected ? 'ring-2 ring-primary/40' : '',
+        ].join(' ')}
         onClick={() => data.onSelect(data.keyPath)}
       >
         <div className="flex items-center gap-2">
-          <Database className={`w-4 h-4 ${colors.text}`} />
-          <span className={`text-sm font-medium ${colors.text}`}>
+          <Database className={`w-4 h-4 ${styles.icon}`} />
+          <span className={`text-sm font-medium ${styles.label}`}>
             {data.label}
           </span>
         </div>
         {data.computeKind && (
-          <div className="mt-1 text-xs text-slate-500">{data.computeKind}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {data.computeKind}
+          </div>
         )}
       </div>
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!bg-slate-500"
-      />
+      <Handle type="source" position={Position.Right} className="!bg-border" />
     </>
   )
 }
@@ -117,6 +122,149 @@ interface GraphCanvasProps {
   onAssetSelect: (keyPath: string) => void
 }
 
+const LAYER_X: Record<string, number> = {
+  source: 0,
+  bronze: 240,
+  // Keep DLT → STG visually tighter.
+  silver: 440,
+  gold: 690,
+  marts: 930,
+  // Make publishing feel separate from marts/warehouse.
+  publish: 1280,
+  unknown: 1520,
+}
+
+const LAYER_ORDER = [
+  'source',
+  'bronze',
+  'silver',
+  'gold',
+  'marts',
+  'publish',
+  'unknown',
+] as const
+
+type LayerKey = (typeof LAYER_ORDER)[number]
+
+function computeLayeredNodeOrder({
+  nodes,
+  edges,
+}: {
+  nodes: Array<GraphNode>
+  edges: Array<GraphEdge>
+}): Record<string, number> {
+  const layerById = new Map<string, LayerKey>()
+  const layerIndex = new Map<LayerKey, number>()
+  LAYER_ORDER.forEach((layer, idx) => layerIndex.set(layer, idx))
+
+  for (const node of nodes) {
+    layerById.set(node.keyPath, node.layer)
+  }
+
+  const byLayer = new Map<LayerKey, Array<string>>()
+  for (const layer of LAYER_ORDER) byLayer.set(layer, [])
+
+  for (const node of nodes) {
+    const layer = node.layer ?? 'unknown'
+    byLayer.get(layer)?.push(node.keyPath)
+  }
+
+  // Start deterministic (so layout doesn't "jump" between refreshes)
+  for (const layer of LAYER_ORDER) {
+    byLayer.get(layer)!.sort((a, b) => a.localeCompare(b))
+  }
+
+  const incoming = new Map<string, Array<string>>()
+  const outgoing = new Map<string, Array<string>>()
+  for (const { source, target } of edges) {
+    if (!incoming.has(target)) incoming.set(target, [])
+    incoming.get(target)!.push(source)
+    if (!outgoing.has(source)) outgoing.set(source, [])
+    outgoing.get(source)!.push(target)
+  }
+
+  const positionsInLayer = () => {
+    const pos = new Map<string, number>()
+    for (const layer of LAYER_ORDER) {
+      byLayer.get(layer)!.forEach((id, idx) => pos.set(id, idx))
+    }
+    return pos
+  }
+
+  const orderByBarycenter = (
+    layer: LayerKey,
+    neighborLayerPredicate: (
+      neighborLayerIndex: number,
+      thisLayerIndex: number,
+    ) => boolean,
+    neighborGetter: (id: string) => Array<string>,
+  ) => {
+    const thisLayerIndex = layerIndex.get(layer) ?? 0
+    const pos = positionsInLayer()
+
+    const scored = byLayer.get(layer)!.map((id, originalIndex) => {
+      const neighbors = neighborGetter(id)
+      const neighborPositions: Array<number> = []
+      for (const n of neighbors) {
+        const nLayer = layerById.get(n)
+        if (!nLayer) continue
+        const nLayerIndex = layerIndex.get(nLayer) ?? 0
+        if (!neighborLayerPredicate(nLayerIndex, thisLayerIndex)) continue
+        const p = pos.get(n)
+        if (p !== undefined) neighborPositions.push(p)
+      }
+
+      if (neighborPositions.length === 0) {
+        return { id, score: Number.POSITIVE_INFINITY, originalIndex }
+      }
+
+      const avg =
+        neighborPositions.reduce((sum, v) => sum + v, 0) /
+        neighborPositions.length
+      return { id, score: avg, originalIndex }
+    })
+
+    scored.sort((a, b) => {
+      if (a.score === b.score) return a.originalIndex - b.originalIndex
+      if (a.score === Number.POSITIVE_INFINITY) return 1
+      if (b.score === Number.POSITIVE_INFINITY) return -1
+      return a.score - b.score
+    })
+
+    byLayer.set(
+      layer,
+      scored.map((s) => s.id),
+    )
+  }
+
+  // A couple of sweeps is enough for our scale (< ~1k nodes) without a full layout engine.
+  for (let i = 0; i < 3; i += 1) {
+    // Left-to-right (use upstream / incoming)
+    for (const layer of LAYER_ORDER) {
+      orderByBarycenter(
+        layer,
+        (nLayerIndex, thisLayerIndex) => nLayerIndex < thisLayerIndex,
+        (id) => incoming.get(id) ?? [],
+      )
+    }
+    // Right-to-left (use downstream / outgoing)
+    for (const layer of [...LAYER_ORDER].reverse()) {
+      orderByBarycenter(
+        layer,
+        (nLayerIndex, thisLayerIndex) => nLayerIndex > thisLayerIndex,
+        (id) => outgoing.get(id) ?? [],
+      )
+    }
+  }
+
+  const finalOrderIndex = new Map<string, number>()
+  for (const layer of LAYER_ORDER) {
+    byLayer.get(layer)!.forEach((id, idx) => finalOrderIndex.set(id, idx))
+  }
+
+  return Object.fromEntries(finalOrderIndex.entries())
+}
+
 export function GraphCanvas({
   graphNodes,
   graphEdges,
@@ -127,33 +275,20 @@ export function GraphCanvas({
 
   // Convert graph data to React Flow format
   const initialNodes = useMemo(() => {
-    // Position nodes using a simple layered layout
-    const layerOrder = [
-      'source',
-      'bronze',
-      'silver',
-      'gold',
-      'publish',
-      'unknown',
-    ]
-    const layerX: Record<string, number> = {}
-    layerOrder.forEach((layer, i) => {
-      layerX[layer] = i * 250
+    const orderIndexById = computeLayeredNodeOrder({
+      nodes: graphNodes,
+      edges: graphEdges,
     })
-
-    // Count nodes per layer to position vertically
-    const layerCounts: Record<string, number> = {}
 
     return graphNodes.map((node): Node<AssetNodeData> => {
       const layer = node.layer
-      if (!layerCounts[layer]) layerCounts[layer] = 0
-      const yIndex = layerCounts[layer]++
+      const yIndex = orderIndexById[node.keyPath] ?? 0
 
       return {
         id: node.keyPath,
         type: 'asset',
         position: {
-          x: layerX[layer] || 0,
+          x: LAYER_X[layer] ?? LAYER_X.unknown,
           y: yIndex * 80,
         },
         data: {
@@ -175,11 +310,12 @@ export function GraphCanvas({
         id: `edge-${i}`,
         source: edge.source,
         target: edge.target,
+        type: 'smoothstep',
         animated: false,
-        style: { stroke: '#475569', strokeWidth: 2 },
+        style: { stroke: 'var(--border)', strokeWidth: 2 },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: '#475569',
+          color: 'var(--border)',
         },
       }),
     )
@@ -206,18 +342,19 @@ export function GraphCanvas({
   const miniMapNodeColor = useCallback((node: Node) => {
     const layer = (node.data as AssetNodeData)?.layer || 'unknown'
     const colorMap: Record<string, string> = {
-      source: '#3b82f6',
-      bronze: '#d97706',
-      silver: '#64748b',
-      gold: '#eab308',
-      publish: '#10b981',
-      unknown: '#475569',
+      source: '#34d399',
+      bronze: '#f59e0b',
+      silver: '#a1a1aa',
+      gold: '#fbbf24',
+      marts: '#34d399',
+      publish: '#a3e635',
+      unknown: '#a1a1aa',
     }
     return colorMap[layer] || colorMap.unknown
   }, [])
 
   return (
-    <div className="w-full h-full bg-slate-900">
+    <div className="w-full h-full bg-background">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -230,14 +367,14 @@ export function GraphCanvas({
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.1}
         maxZoom={2}
-        className="bg-slate-900"
+        className="bg-background"
       >
-        <Background color="#334155" gap={20} />
-        <Controls className="!bg-slate-800 !border-slate-700 !rounded-lg [&>button]:!bg-slate-700 [&>button]:!border-slate-600 [&>button]:!fill-slate-300 [&>button:hover]:!bg-slate-600" />
+        <Background color="var(--border)" gap={20} />
+        <Controls className="!bg-card !border-border !rounded-none [&>button]:!bg-card [&>button]:!border-border [&>button]:!fill-muted-foreground [&>button:hover]:!bg-muted" />
         <MiniMap
           nodeColor={miniMapNodeColor}
-          maskColor="rgba(15, 23, 42, 0.8)"
-          className="!bg-slate-800 !border-slate-700 !rounded-lg"
+          maskColor="rgba(0, 0, 0, 0.6)"
+          className="!bg-card !border-border !rounded-none"
         />
       </ReactFlow>
     </div>
@@ -251,20 +388,24 @@ export function GraphLegend() {
     { key: 'bronze', label: 'Bronze' },
     { key: 'silver', label: 'Silver' },
     { key: 'gold', label: 'Gold' },
-    { key: 'publish', label: 'Published' },
+    { key: 'marts', label: 'Marts' },
+    { key: 'publish', label: 'Publishing' },
   ]
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-slate-800/80 backdrop-blur-sm rounded-lg border border-slate-700">
-      <span className="text-xs text-slate-400 font-medium">Layers:</span>
+    <div className="flex items-center gap-4 px-4 py-2 bg-card/80 backdrop-blur-sm border border-border">
+      <span className="text-xs text-muted-foreground font-medium">Layers:</span>
       {layers.map(({ key, label }) => {
-        const colors = LAYER_COLORS[key]
+        const styles = LAYER_STYLES[key] || LAYER_STYLES.unknown
         return (
           <div key={key} className="flex items-center gap-1.5">
             <div
-              className={`w-3 h-3 rounded ${colors.bg} ${colors.border} border`}
+              className={[
+                'h-3 w-3 border border-border bg-card',
+                styles.accentBorder,
+              ].join(' ')}
             />
-            <span className={`text-xs ${colors.text}`}>{label}</span>
+            <span className="text-xs text-muted-foreground">{label}</span>
           </div>
         )
       })}

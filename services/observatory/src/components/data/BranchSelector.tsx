@@ -44,20 +44,20 @@ export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
   }, [branches, branch, connection?.defaultBranch])
 
   return (
-    <div className="flex items-center gap-2 text-xs text-slate-400">
-      <GitBranch className="w-4 h-4 text-cyan-400" />
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <GitBranch className="w-4 h-4 text-primary" />
       {loading ? (
         <span className="inline-flex items-center gap-2">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
           Loading branches…
         </span>
       ) : connection?.connected === false ? (
-        <span className="text-slate-500">Offline</span>
+        <span className="text-muted-foreground">Offline</span>
       ) : (
         <select
           value={branch}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-cyan-500"
+          className="h-8 bg-input/30 border border-input px-2 text-xs text-foreground outline-none"
         >
           {options.map((name) => (
             <option key={name} value={name}>

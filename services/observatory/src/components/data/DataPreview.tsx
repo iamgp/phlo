@@ -1,6 +1,17 @@
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { DataPreviewResult, DataRow } from '@/server/trino.server'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { previewData } from '@/server/trino.server'
 
 interface DataPreviewProps {
@@ -24,7 +35,7 @@ export function DataPreview({
   const [page, setPage] = useState(0)
   const pageSize = 50
 
-  // Auto-load data when table changes (phlo-2m5 + phlo-bcr)
+  // Auto-load data when table changes
   useEffect(() => {
     // Reset state and load new data when table changes
     setData(null)
@@ -74,134 +85,137 @@ export function DataPreview({
   // Initial loading state (auto-loading in progress)
   if (!data && !loading && !error) {
     return (
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 text-center">
-        <Loader2 className="w-8 h-8 text-cyan-400 mx-auto mb-4 animate-spin" />
-        <p className="text-slate-400">Loading preview...</p>
-      </div>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Loader2 className="w-8 h-8 text-primary mx-auto mb-4 animate-spin" />
+          <p className="text-muted-foreground">Loading preview...</p>
+        </CardContent>
+      </Card>
     )
   }
 
   // Loading state
   if (loading) {
     return (
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 text-center">
-        <Loader2 className="w-8 h-8 text-cyan-400 mx-auto mb-4 animate-spin" />
-        <p className="text-slate-400">Querying Trino...</p>
-      </div>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Loader2 className="w-8 h-8 text-primary mx-auto mb-4 animate-spin" />
+          <p className="text-muted-foreground">Querying Trino...</p>
+        </CardContent>
+      </Card>
     )
   }
 
   // Error state
   if (error) {
     return (
-      <div className="bg-slate-800 rounded-xl border border-red-700/50 p-6">
-        <div className="text-red-400 mb-4">{error}</div>
-        <button
-          onClick={() => loadData(page * pageSize)}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Retry
-        </button>
-      </div>
+      <Card className="border-destructive/30 bg-destructive/10">
+        <CardContent className="p-6">
+          <div className="text-destructive mb-4">{error}</div>
+          <Button onClick={() => loadData(page * pageSize)} variant="outline">
+            <RefreshCw className="w-4 h-4" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 
   if (!data) return null
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <Card>
       {/* Header */}
-      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h3 className="font-medium">Data Preview</h3>
-          <span className="text-xs text-slate-400 bg-slate-700 px-2 py-0.5 rounded">
-            {data.rows.length} rows
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
+      <CardHeader className="py-4">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            Data Preview
+            <Badge variant="secondary" className="text-muted-foreground">
+              {data.rows.length} rows
+            </Badge>
+          </CardTitle>
+          <Button
             onClick={() => loadData(page * pageSize)}
-            className="p-2 hover:bg-slate-700 rounded transition-colors"
+            variant="ghost"
+            size="icon-sm"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
-      </div>
+      </CardHeader>
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-700 bg-slate-900/50">
+        <Table>
+          <TableHeader className="sticky top-0 bg-card">
+            <TableRow>
               {data.columns.map((col, idx) => (
-                <th
-                  key={col}
-                  className="text-left py-2 px-3 font-medium text-slate-400 whitespace-nowrap"
-                >
+                <TableHead key={col} className="whitespace-nowrap">
                   <div className="flex flex-col gap-0.5">
                     <span>{col}</span>
-                    <span className="text-xs font-normal text-slate-500">
+                    <span className="text-xs font-normal text-muted-foreground">
                       {data.columnTypes[idx]}
                     </span>
                   </div>
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {data.rows.map((row, rowIdx) => (
-              <tr
+              <TableRow
                 key={rowIdx}
                 onClick={() => handleRowClick(row)}
-                className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${
+                className={`transition-colors ${
                   onShowJourney ? 'cursor-pointer' : ''
                 }`}
               >
                 {data.columns.map((col) => (
-                  <td
+                  <TableCell
                     key={col}
                     className="py-2 px-3 whitespace-nowrap max-w-xs truncate"
                     title={String(row[col] ?? '')}
                   >
                     {formatCellValue(row[col])}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}
-      <div className="p-4 border-t border-slate-700 flex items-center justify-between">
+      <div className="p-4 border-t flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="text-sm text-slate-400">Page {page + 1}</div>
+          <div className="text-sm text-muted-foreground">Page {page + 1}</div>
           {onShowJourney && (
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-muted-foreground">
               Click any row to view lineage
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={handlePrevPage}
             disabled={page === 0}
-            className="p-2 hover:bg-slate-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={handleNextPage}
             disabled={!data.hasMore}
-            className="p-2 hover:bg-slate-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
 
