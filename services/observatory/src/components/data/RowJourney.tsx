@@ -3,8 +3,6 @@
  *
  * Enhanced journey visualization that shows row data, transformation SQL,
  * and quality checks for each asset in the lineage.
- *
- * phlo-lx7: Node details now shown in panel below flow instead of inline expansion.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -34,6 +32,17 @@ import { getContributingRowsQuery } from '@/server/contributing.server'
 import { getAssetDetails } from '@/server/dagster.server'
 import { getAssetNeighbors } from '@/server/graph.server'
 import { getAssetChecks } from '@/server/quality.server'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 
 interface RowJourneyProps {
   assetKey: string
@@ -52,6 +61,8 @@ interface AssetNodeData {
   [key: string]: unknown // Allow index signature for React Flow
 }
 
+type JourneyNodeType = Node<AssetNodeData, 'journey'>
+
 interface NodeDetails {
   sql?: string
   checks?: Array<{ name: string; status: string }>
@@ -59,51 +70,45 @@ interface NodeDetails {
   upstreamAssetKeys?: Array<string>
 }
 
-// Simple node component - click to select (phlo-lx7)
-function JourneyNode({ data }: NodeProps) {
-  const isCurrent = data.isCurrent as boolean
-  const assetKey = data.assetKey as string
-  const onSelect = data.onSelect as (key: string) => void
+// Simple node component - click to select
+function JourneyNode({ data }: NodeProps<JourneyNodeType>) {
+  const isCurrent = data.isCurrent
+  const assetKey = data.assetKey
+  const onSelect = data.onSelect
 
   return (
     <div
       onClick={() => onSelect(assetKey)}
-      className={`rounded-lg border-2 transition-all cursor-pointer ${
+      className={cn(
+        'rounded-lg border-2 transition-colors cursor-pointer bg-card',
         isCurrent
-          ? 'bg-cyan-900/50 border-cyan-400 shadow-lg shadow-cyan-500/20'
-          : 'bg-slate-800 border-slate-600 hover:border-cyan-500 hover:bg-slate-700'
-      }`}
+          ? 'border-primary shadow-sm ring-1 ring-primary/20'
+          : 'border-border hover:border-primary/50 hover:bg-muted/50',
+      )}
     >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!bg-slate-500"
-      />
+      <Handle type="target" position={Position.Left} className="!bg-border" />
 
       <div className="px-4 py-3">
         <div className="flex items-center gap-2">
           <Database
-            className={`w-4 h-4 ${isCurrent ? 'text-cyan-400' : 'text-slate-400'}`}
+            className={cn(
+              'w-4 h-4',
+              isCurrent ? 'text-primary' : 'text-muted-foreground',
+            )}
           />
-          <span
-            className={`font-medium text-sm ${isCurrent ? 'text-cyan-100' : 'text-slate-200'}`}
-          >
-            {data.label as string}
+          <span className="font-medium text-sm text-foreground">
+            {data.label}
           </span>
         </div>
 
         {data.computeKind ? (
-          <span className="mt-1 inline-block px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded text-xs">
+          <Badge variant="secondary" className="mt-2 text-xs">
             {String(data.computeKind)}
-          </span>
+          </Badge>
         ) : null}
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!bg-slate-500"
-      />
+      <Handle type="source" position={Position.Right} className="!bg-border" />
     </div>
   )
 }
@@ -112,7 +117,7 @@ const nodeTypes = {
   journey: JourneyNode,
 }
 
-// Detail panel component shown below the flow (phlo-lx7)
+// Detail panel component shown below the flow
 function NodeDetailPanel({
   assetKey,
   isLoading,
@@ -130,10 +135,10 @@ function NodeDetailPanel({
 
   if (isLoading) {
     return (
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+      <div className="bg-card rounded-xl border border-border p-6">
         <div className="flex items-center gap-3">
-          <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-          <span className="text-slate-400">
+          <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          <span className="text-muted-foreground">
             Loading details for {tableName}...
           </span>
         </div>
@@ -143,7 +148,7 @@ function NodeDetailPanel({
 
   if (!details) {
     return (
-      <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center text-slate-500">
+      <div className="bg-card rounded-xl border border-border p-6 text-center text-muted-foreground">
         <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
         <p>Click a node above to view its details</p>
       </div>
@@ -158,10 +163,10 @@ function NodeDetailPanel({
   }
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-        <h4 className="font-medium text-slate-200 flex items-center gap-2">
-          <Database className="w-4 h-4 text-cyan-400" />
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <div className="p-4 border-b border-border flex items-center justify-between">
+        <h4 className="font-medium text-foreground flex items-center gap-2">
+          <Database className="w-4 h-4 text-primary" />
           {tableName}
         </h4>
       </div>
@@ -170,28 +175,34 @@ function NodeDetailPanel({
         {/* Transformation SQL */}
         {details.sql && (
           <div>
-            <div className="flex items-center gap-2 text-sm text-slate-300 mb-2 font-medium">
+            <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
               <Code className="w-4 h-4" />
               Transformation SQL
             </div>
             <Highlight
-              theme={themes.nightOwl}
+              theme={themes.vsDark}
               code={cleanSqlForDisplay(details.sql)}
               language="sql"
             >
               {({ style, tokens, getLineProps, getTokenProps }) => (
-                <pre
-                  style={{ ...style, margin: 0 }}
-                  className="p-3 rounded-lg text-xs overflow-x-auto max-h-64 leading-relaxed"
-                >
-                  {tokens.map((line, i) => (
-                    <div key={i} {...getLineProps({ line })}>
-                      {line.map((token, key) => (
-                        <span key={key} {...getTokenProps({ token })} />
-                      ))}
-                    </div>
-                  ))}
-                </pre>
+                <div className="rounded-md border border-border bg-muted/30 overflow-x-auto max-h-64">
+                  <pre
+                    style={{
+                      ...style,
+                      margin: 0,
+                      backgroundColor: 'transparent',
+                    }}
+                    className="p-3 text-xs leading-relaxed"
+                  >
+                    {tokens.map((line, i) => (
+                      <div key={i} {...getLineProps({ line })}>
+                        {line.map((token, key) => (
+                          <span key={key} {...getTokenProps({ token })} />
+                        ))}
+                      </div>
+                    ))}
+                  </pre>
+                </div>
               )}
             </Highlight>
           </div>
@@ -202,7 +213,7 @@ function NodeDetailPanel({
           details.upstreamAssetKeys &&
           details.upstreamAssetKeys.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 text-sm text-slate-300 mb-2 font-medium">
+              <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
                 <Terminal className="w-4 h-4" />
                 Contributing rows
               </div>
@@ -210,10 +221,12 @@ function NodeDetailPanel({
                 {details.upstreamAssetKeys.map((upstreamAssetKey) => {
                   const upstreamLabel = upstreamAssetKey.split('/').pop()
                   return (
-                    <button
+                    <Button
                       key={upstreamAssetKey}
                       type="button"
-                      className="text-xs bg-slate-900 px-3 py-1.5 rounded text-cyan-300 hover:bg-slate-800"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
                       onClick={async () => {
                         const result = await getContributingRowsQuery({
                           data: {
@@ -236,7 +249,7 @@ function NodeDetailPanel({
                       }}
                     >
                       Query {upstreamLabel}
-                    </button>
+                    </Button>
                   )
                 })}
               </div>
@@ -246,7 +259,7 @@ function NodeDetailPanel({
         {/* Quality Checks */}
         {details.checks && details.checks.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 text-sm text-slate-300 mb-2 font-medium">
+            <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
               <CheckCircle className="w-4 h-4" />
               Quality Checks
             </div>
@@ -254,67 +267,61 @@ function NodeDetailPanel({
               {details.checks.map((check) => (
                 <div
                   key={check.name}
-                  className="flex items-center gap-2 text-xs bg-slate-900 px-3 py-1.5 rounded"
+                  className="flex items-center gap-2 text-xs bg-muted/30 border border-border px-3 py-1.5 rounded"
                 >
                   {check.status === 'PASSED' ? (
                     <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                   ) : (
                     <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
                   )}
-                  <span className="text-slate-200">{check.name}</span>
+                  <span className="text-foreground">{check.name}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Row Data at this Stage - with contextual messaging (phlo-ecv) */}
+        {/* Row Data at this Stage */}
         {details.stageData && details.stageData.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 text-sm text-slate-300 mb-2 font-medium">
+            <div className="flex items-center gap-2 text-sm text-foreground mb-2 font-medium">
               <Database className="w-4 h-4" />
               {getDataRowMessage().title}{' '}
-              <code className="bg-slate-700 px-1.5 py-0.5 rounded text-cyan-300 ml-1">
+              <code className="bg-muted px-1.5 py-0.5 rounded text-primary ml-1">
                 {tableName}
               </code>
-              <span className="text-slate-500">
+              <span className="text-muted-foreground">
                 {getDataRowMessage().subtitle}
               </span>
             </div>
-            <div className="bg-slate-900 rounded overflow-auto max-h-64">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-900">
-                  <tr className="border-b border-slate-700">
+            <div className="rounded-md border border-border bg-card overflow-auto max-h-64">
+              <Table className="text-xs">
+                <TableHeader className="sticky top-0 bg-card">
+                  <TableRow>
                     {Object.keys(details.stageData[0]).map((col) => (
-                      <th
-                        key={col}
-                        className="text-left py-2 px-3 font-medium text-slate-300 whitespace-nowrap"
-                      >
+                      <TableHead key={col} className="whitespace-nowrap">
                         {col}
-                      </th>
+                      </TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {details.stageData.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b border-slate-700/50 hover:bg-slate-800/50"
-                    >
+                    <TableRow key={idx}>
                       {Object.values(row).map((val, colIdx) => (
-                        <td
+                        <TableCell
                           key={colIdx}
-                          className="py-2 px-3 text-slate-200 font-mono whitespace-nowrap"
+                          className="font-mono whitespace-nowrap"
                         >
                           {val === null || val === undefined
                             ? '—'
                             : String(val)}
-                        </td>
+                        </TableCell>
                       ))}
-                    </tr>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}
@@ -323,7 +330,7 @@ function NodeDetailPanel({
         {!details.sql &&
           (!details.checks || details.checks.length === 0) &&
           (!details.stageData || details.stageData.length === 0) && (
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-muted-foreground">
               No additional details available for this asset.
             </div>
           )}
@@ -362,7 +369,7 @@ export function RowJourney({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Selected node for detail panel (phlo-lx7)
+  // Selected node for detail panel
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [nodeDetails, setNodeDetails] = useState<NodeDetails | null>(null)
   const [detailsLoading, setDetailsLoading] = useState(false)
@@ -392,7 +399,7 @@ export function RowJourney({
     loadGraph()
   }, [assetKey])
 
-  // Load details when node is selected (phlo-lx7)
+  // Load details when node is selected
   useEffect(() => {
     if (!selectedNode) {
       setNodeDetails(null)
@@ -532,7 +539,7 @@ export function RowJourney({
       source: edge.source,
       target: edge.target,
       markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: '#475569', strokeWidth: 2 },
+      style: { stroke: 'var(--border)', strokeWidth: 2 },
       animated: edge.source === assetKey || edge.target === assetKey,
     }))
 
@@ -546,7 +553,7 @@ export function RowJourney({
   if (loading) {
     return (
       <div className={`flex items-center justify-center h-64 ${className}`}>
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     )
   }
@@ -564,7 +571,7 @@ export function RowJourney({
   if (nodes.length === 0) {
     return (
       <div
-        className={`flex flex-col items-center justify-center h-64 text-slate-500 ${className}`}
+        className={`flex flex-col items-center justify-center h-64 text-muted-foreground ${className}`}
       >
         <Database className="w-8 h-8 mb-2 opacity-50" />
         <p>No lineage data available</p>
@@ -575,7 +582,7 @@ export function RowJourney({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Flow visualization */}
-      <div className="h-72 bg-slate-900 rounded-xl border border-slate-700">
+      <div className="h-72 bg-background rounded-xl border border-border">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -589,12 +596,15 @@ export function RowJourney({
           panOnDrag
           zoomOnScroll
         >
-          <Background color="#334155" gap={16} />
-          <Controls showInteractive={false} />
+          <Background color="var(--border)" gap={16} />
+          <Controls
+            showInteractive={false}
+            className="!bg-card !border-border !rounded-none [&>button]:!bg-card [&>button]:!border-border [&>button]:!fill-muted-foreground [&>button:hover]:!bg-muted"
+          />
         </ReactFlow>
       </div>
 
-      {/* Detail panel below flow (phlo-lx7) */}
+      {/* Detail panel below flow */}
       <NodeDetailPanel
         assetKey={selectedNode || assetKey}
         isLoading={detailsLoading}
