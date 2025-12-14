@@ -20,6 +20,8 @@ import { Database, GitBranch, Loader2 } from 'lucide-react'
 
 import type { GraphNode } from '@/server/graph.server'
 import type { Edge, Node, NodeProps } from '@xyflow/react'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { getAssetNeighbors } from '@/server/graph.server'
 
 interface DataJourneyProps {
@@ -35,45 +37,34 @@ function JourneyNode({ data }: NodeProps) {
 
   return (
     <div
-      className={`px-4 py-3 rounded-lg border-2 transition-all ${
+      className={cn(
+        'px-4 py-3 border border-border border-l-4 bg-card shadow-sm',
+        'transition-colors hover:bg-muted/50',
         isCurrent
-          ? 'bg-cyan-900/50 border-cyan-400 shadow-lg shadow-cyan-500/20'
-          : 'bg-slate-800 border-slate-600 hover:border-slate-500'
-      }`}
+          ? 'border-l-primary ring-2 ring-primary/40'
+          : 'border-l-border',
+      )}
     >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!bg-slate-500"
-      />
+      <Handle type="target" position={Position.Left} className="!bg-border" />
 
       <div className="flex items-center gap-2 mb-1">
         <Database
-          className={`w-4 h-4 ${isCurrent ? 'text-cyan-400' : 'text-slate-400'}`}
+          className={cn(
+            'w-4 h-4',
+            isCurrent ? 'text-primary' : 'text-muted-foreground',
+          )}
         />
-        <span
-          className={`font-medium text-sm ${isCurrent ? 'text-cyan-100' : 'text-slate-200'}`}
-        >
-          {data.label as string}
-        </span>
+        <span className="font-medium text-sm">{data.label as string}</span>
       </div>
 
       <div className="flex items-center gap-2 text-xs">
-        {computeKind && (
-          <span className="px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
-            {computeKind}
-          </span>
-        )}
+        {computeKind && <Badge variant="outline">{computeKind}</Badge>}
         {lastMaterialized && (
-          <span className="text-slate-500">{lastMaterialized}</span>
+          <span className="text-muted-foreground">{lastMaterialized}</span>
         )}
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!bg-slate-500"
-      />
+      <Handle type="source" position={Position.Right} className="!bg-border" />
     </div>
   )
 }
@@ -198,7 +189,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
       source: edge.source,
       target: edge.target,
       markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: '#475569', strokeWidth: 2 },
+      style: { stroke: 'var(--border)', strokeWidth: 2 },
       animated: edge.source === assetKey || edge.target === assetKey,
     }))
 
@@ -211,8 +202,8 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center h-64 ${className}`}>
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+      <div className={cn('flex items-center justify-center h-64', className)}>
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     )
   }
@@ -230,7 +221,10 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
   if (nodes.length === 0) {
     return (
       <div
-        className={`flex flex-col items-center justify-center h-64 text-slate-500 ${className}`}
+        className={cn(
+          'flex flex-col items-center justify-center h-64 text-muted-foreground',
+          className,
+        )}
       >
         <GitBranch className="w-8 h-8 mb-2 opacity-50" />
         <p>No lineage data available</p>
@@ -239,9 +233,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
   }
 
   return (
-    <div
-      className={`h-80 bg-slate-900 rounded-xl border border-slate-700 ${className}`}
-    >
+    <div className={cn('h-80 bg-background border border-border', className)}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -255,7 +247,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
         panOnDrag
         zoomOnScroll
       >
-        <Background color="#334155" gap={16} />
+        <Background color="var(--border)" gap={16} />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>

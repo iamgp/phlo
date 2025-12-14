@@ -607,7 +607,7 @@ export function analyzeSQLTransformation(sql: string): SQLAnalysis {
 }
 
 /**
- * Column priority type for smart matching (phlo-c2x)
+ * Column priority type for smart matching
  */
 export type ColumnPriority =
   | 'primary_key'
@@ -629,7 +629,7 @@ export interface KeyColumnInfo {
 }
 
 /**
- * Detect key columns in a row based on common patterns (phlo-c2x)
+ * Detect key columns in a row based on common patterns
  * Looks for: id, _id, uuid, created_at, updated_at, _dlt_load_id, etc.
  */
 export function detectKeyColumns(
@@ -708,7 +708,7 @@ export function detectKeyColumns(
 }
 
 /**
- * Get column priority score for sorting (phlo-c2x)
+ * Get column priority score for sorting
  * Higher score = better for matching
  */
 export function getColumnPriority(priority: ColumnPriority): number {
@@ -724,7 +724,7 @@ export function getColumnPriority(priority: ColumnPriority): number {
 }
 
 /**
- * Find common columns between two sets (phlo-c2x)
+ * Find common columns between two sets
  * Used to identify columns that can be used for cross-stage matching
  */
 export function findCommonColumns(
@@ -736,7 +736,7 @@ export function findCommonColumns(
 }
 
 /**
- * Build a smart WHERE clause using key columns preferentially (phlo-c2x)
+ * Build a smart WHERE clause using key columns preferentially
  *
  * Priority order:
  * 1. Primary keys / batch IDs (e.g., _dlt_load_id, id)

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { IcebergTable } from '@/server/iceberg.server'
+import { Input } from '@/components/ui/input'
 import { getTables } from '@/server/iceberg.server'
 
 interface TableBrowserProps {
@@ -88,16 +89,16 @@ export function TableBrowser({
     color: string
   }> = [
     { key: 'bronze', label: 'Bronze (Raw)', color: 'text-amber-400' },
-    { key: 'silver', label: 'Silver (Staged)', color: 'text-slate-300' },
-    { key: 'gold', label: 'Gold (Curated)', color: 'text-yellow-400' },
-    { key: 'publish', label: 'Publish (Marts)', color: 'text-green-400' },
-    { key: 'unknown', label: 'Other', color: 'text-slate-500' },
+    { key: 'silver', label: 'Silver (Staged)', color: 'text-muted-foreground' },
+    { key: 'gold', label: 'Gold (Curated)', color: 'text-primary' },
+    { key: 'publish', label: 'Publish (Marts)', color: 'text-emerald-400' },
+    { key: 'unknown', label: 'Other', color: 'text-muted-foreground' },
   ]
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
+        <Loader2 className="w-6 h-6 text-primary animate-spin" />
       </div>
     )
   }
@@ -114,15 +115,15 @@ export function TableBrowser({
   return (
     <div className="flex flex-col h-full">
       {/* Search */}
-      <div className="p-3 border-b border-slate-700">
+      <div className="p-3 border-b">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tables..."
-            className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+            className="pl-9"
           />
         </div>
       </div>
@@ -139,16 +140,16 @@ export function TableBrowser({
             <div key={layer.key} className="mb-2">
               <button
                 onClick={() => toggleLayer(layer.key)}
-                className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-slate-800 rounded text-sm"
+                className="flex items-center gap-2 w-full px-2 py-1.5 hover:bg-muted/50 text-sm"
               >
                 {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 )}
                 <Folder className={`w-4 h-4 ${layer.color}`} />
                 <span className={layer.color}>{layer.label}</span>
-                <span className="ml-auto text-xs text-slate-500">
+                <span className="ml-auto text-xs text-muted-foreground">
                   {layerTables.length}
                 </span>
               </button>
@@ -161,11 +162,11 @@ export function TableBrowser({
                       onClick={() => onSelectTable(table)}
                       className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-sm transition-colors ${
                         selectedTable === table.name
-                          ? 'bg-cyan-900/50 text-cyan-300'
-                          : 'hover:bg-slate-800 text-slate-300'
+                          ? 'bg-muted text-foreground'
+                          : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      <Database className="w-4 h-4 text-slate-500" />
+                      <Database className="w-4 h-4 text-muted-foreground" />
                       <span className="truncate">{table.name}</span>
                     </button>
                   ))}
@@ -176,7 +177,7 @@ export function TableBrowser({
         })}
 
         {filteredTables.length === 0 && (
-          <div className="text-center py-8 text-slate-500 text-sm">
+          <div className="text-center py-8 text-muted-foreground text-sm">
             <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p>{search ? 'No matching tables' : 'No tables found'}</p>
           </div>
