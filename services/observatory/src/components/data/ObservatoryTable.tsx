@@ -1,3 +1,8 @@
+import type {
+  ColumnDef,
+  ColumnPinningState,
+  SortingState,
+} from '@tanstack/react-table'
 import {
   flexRender,
   getCoreRowModel,
@@ -7,11 +12,6 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, MoreVertical, Pin, PinOff } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import type {
-  ColumnDef,
-  ColumnPinningState,
-  SortingState,
-} from '@tanstack/react-table'
 
 import {
   DropdownMenu,
@@ -180,7 +180,7 @@ export function ObservatoryTable({
       >
         <div style={{ width: table.getTotalSize() }}>
           <div
-            className="sticky top-0 z-30 border-b border-border bg-muted/40"
+            className="sticky top-0 z-30 border-b border-border bg-muted/95"
             role="rowgroup"
           >
             <div className="flex" role="row">

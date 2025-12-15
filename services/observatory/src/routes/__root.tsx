@@ -10,21 +10,20 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import appCss from '../styles.css?url'
-import type { Asset } from '@/server/dagster.server'
-import type { ResolvedTheme, ThemeMode } from '@/components/ThemeToggle'
 import { AppSidebar } from '@/components/AppSidebar'
 import { CommandPalette } from '@/components/CommandPalette'
+import type { ResolvedTheme, ThemeMode } from '@/components/ThemeToggle'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { getAssets } from '@/server/dagster.server'
 import { cn } from '@/lib/utils'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import type { Asset } from '@/server/dagster.server'
+import { getAssets } from '@/server/dagster.server'
+import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -123,17 +122,8 @@ function RootLayout() {
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <header className="flex h-14 items-center gap-2 border-b px-4">
+            <header className="flex h-14 items-center gap-2 border-b bg-sidebar px-4">
               <SidebarTrigger />
-              <Separator orientation="vertical" className="h-6 self-center" />
-              <div className="flex items-center gap-2 min-w-0">
-                <Link
-                  to="/"
-                  className="text-sm font-semibold tracking-tight truncate"
-                >
-                  Phlo Observatory
-                </Link>
-              </div>
               <div className="ml-auto flex items-center gap-2">
                 <ThemeToggle
                   mode={themeMode}

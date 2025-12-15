@@ -1,25 +1,7 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
-import {
-  ArrowLeft,
-  Calendar,
-  Clock,
-  Columns2,
-  Database,
-  GitBranch,
-  History,
-  Info,
-  Shield,
-  Table as TableIcon,
-} from 'lucide-react'
-import { useState } from 'react'
-import type { ReactNode } from 'react'
-import type { AssetDetails } from '@/server/dagster.server'
-import type { QualityCheck } from '@/server/quality.server'
 import { DataPreview } from '@/components/data/DataPreview'
 import { DataJourney } from '@/components/provenance/DataJourney'
 import { MaterializationTimeline } from '@/components/provenance/MaterializationTimeline'
 import { Badge } from '@/components/ui/badge'
-import { buttonVariants } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -27,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -35,13 +18,35 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { getAssetDetails } from '@/server/dagster.server'
+import type { Asset, AssetDetails } from '@/server/dagster.server'
+import { getAssetDetails, getAssets } from '@/server/dagster.server'
+import type { QualityCheck } from '@/server/quality.server'
 import { getAssetChecks } from '@/server/quality.server'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import {
+  Calendar,
+  Clock,
+  Columns2,
+  Database,
+  GitBranch,
+  History,
+  Info,
+  Layers,
+  Search,
+  Shield,
+  Table as TableIcon,
+} from 'lucide-react'
+import type { ReactNode } from 'react'
+import { useState } from 'react'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
+    // Load all assets for the sidebar
+    const assets = await getAssets()
+
+    // Load the selected asset details
     const asset = await getAssetDetails({ data: params.assetId })
 
     // Fetch checks but don't fail the whole page if it errors
@@ -57,7 +62,7 @@ export const Route = createFileRoute('/assets/$assetId')({
       checks = { error: 'Failed to load checks' }
     }
 
-    return { asset, checks }
+    return { assets, asset, checks }
   },
   component: AssetDetailPage,
 })
@@ -65,38 +70,51 @@ export const Route = createFileRoute('/assets/$assetId')({
 type Tab = 'overview' | 'journey' | 'data' | 'quality'
 
 function AssetDetailPage() {
-  const { asset, checks } = Route.useLoaderData()
+  const { assets, asset, checks } = Route.useLoaderData()
   const params = Route.useParams()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const hasAssetsError = 'error' in assets
+  const assetList = hasAssetsError ? [] : assets
 
   const hasError = 'error' in asset
   const assetData = hasError ? null : asset
   const checksData = 'error' in checks ? [] : checks
 
-  if (hasError) {
-    return (
-      <div className="h-full overflow-auto">
-        <div className="mx-auto w-full max-w-6xl px-4 py-6">
-          <Link
-            to="/assets"
-            className={cn(
-              buttonVariants({ variant: 'ghost', size: 'sm' }),
-              'gap-2 mb-6',
-            )}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Assets
-          </Link>
-          <div className="p-6 bg-destructive/10 border border-destructive/30">
-            <h2 className="text-xl font-bold mb-2">Asset Not Found</h2>
-            <p className="text-destructive">
-              {(asset as { error: string }).error}
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Group assets by group name
+  const groupedAssets = assetList.reduce(
+    (acc, a) => {
+      const group = a.groupName || 'Ungrouped'
+      if (!acc[group]) {
+        acc[group] = []
+      }
+      acc[group].push(a)
+      return acc
+    },
+    {} as Record<string, Array<Asset>>,
+  )
+
+  // Filter assets by search query
+  const filteredGroups = Object.entries(groupedAssets).reduce(
+    (acc, [group, groupAssets]) => {
+      const filtered = groupAssets.filter((a) => {
+        const query = searchQuery.toLowerCase()
+        return (
+          a.keyPath.toLowerCase().includes(query) ||
+          a.description?.toLowerCase().includes(query) ||
+          a.groupName?.toLowerCase().includes(query) ||
+          a.computeKind?.toLowerCase().includes(query)
+        )
+      })
+      if (filtered.length > 0) {
+        acc[group] = filtered
+      }
+      return acc
+    },
+    {} as Record<string, Array<Asset>>,
+  )
 
   const tabs: Array<{ id: Tab; label: string; icon: ReactNode }> = [
     { id: 'overview', label: 'Overview', icon: <Info className="w-4 h-4" /> },
@@ -110,129 +128,279 @@ function AssetDetailPage() {
   ]
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6">
-        <Link
-          to="/assets"
-          className={cn(
-            buttonVariants({ variant: 'ghost', size: 'sm' }),
-            'gap-2 mb-6',
-          )}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Assets
-        </Link>
-
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-primary/10">
-              <Database className="w-8 h-8 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold mb-2">{params.assetId}</h1>
-              {assetData?.description && (
-                <p className="text-muted-foreground">{assetData.description}</p>
-              )}
-              <div className="flex items-center gap-4 mt-3">
-                {assetData?.groupName && (
-                  <Badge variant="secondary" className="text-muted-foreground">
-                    {assetData.groupName}
-                  </Badge>
-                )}
-                {assetData?.computeKind && (
-                  <Badge variant="outline">{assetData.computeKind}</Badge>
-                )}
-              </div>
+    <div className="flex h-full">
+      {/* Left sidebar - Asset Browser */}
+      <aside className="w-72 border-r bg-sidebar text-sidebar-foreground flex flex-col">
+        <div className="px-4 py-3 border-b">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Database className="w-5 h-5 text-sidebar-primary" />
+                Assets
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                {hasAssetsError
+                  ? 'Error loading assets'
+                  : `${assetList.length} registered assets`}
+              </p>
             </div>
           </div>
         </div>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as Tab)}
-        >
-          <TabsList variant="line" className="mb-6">
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id}>
-                {tab.icon}
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        {/* Search */}
+        <div className="p-3 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search assets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-8 text-sm"
+            />
+          </div>
+        </div>
 
-          <TabsContent value="overview">
-            <OverviewTab assetData={assetData} />
-          </TabsContent>
-          <TabsContent value="journey">
-            <JourneyTab assetKey={params.assetId} />
-          </TabsContent>
-          <TabsContent value="data">
-            <DataTab assetKey={params.assetId} />
-          </TabsContent>
-          <TabsContent value="quality">
-            <QualityTab checks={checksData} />
-          </TabsContent>
-        </Tabs>
-      </div>
+        {/* Asset List */}
+        <div className="flex-1 overflow-auto">
+          {Object.keys(filteredGroups).length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground text-sm">
+              {searchQuery ? 'No assets match your search' : 'No assets found'}
+            </div>
+          ) : (
+            <div className="py-1">
+              {Object.entries(filteredGroups)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([group, groupAssets]) => (
+                  <div key={group}>
+                    <div className="px-3 py-2 text-xs font-medium text-muted-foreground flex items-center gap-2">
+                      <Layers className="size-3" />
+                      {group}
+                      <Badge
+                        variant="secondary"
+                        className="text-muted-foreground ml-auto text-[10px] px-1.5"
+                      >
+                        {groupAssets.length}
+                      </Badge>
+                    </div>
+                    {groupAssets.map((a) => (
+                      <AssetListItem
+                        key={a.id}
+                        asset={a}
+                        isSelected={a.keyPath === params.assetId}
+                        onClick={() =>
+                          navigate({
+                            to: '/assets/$assetId',
+                            params: { assetId: a.keyPath },
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+        {/* Header */}
+        <header className="px-4 py-2 border-b bg-card">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-lg font-semibold truncate">
+                {params.assetId}
+              </h1>
+              {assetData?.groupName && (
+                <Badge variant="secondary" className="text-muted-foreground">
+                  {assetData.groupName}
+                </Badge>
+              )}
+              {assetData?.computeKind && (
+                <Badge variant="outline">{assetData.computeKind}</Badge>
+              )}
+            </div>
+
+            <div className="flex-1 flex justify-center">
+              <Tabs
+                value={activeTab}
+                onValueChange={(value) => setActiveTab(value as Tab)}
+                className="gap-0"
+              >
+                <TabsList>
+                  {tabs.map((tab) => (
+                    <TabsTrigger key={tab.id} value={tab.id}>
+                      {tab.icon}
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto min-h-0">
+          {hasError ? (
+            <div className="p-6">
+              <div className="p-6 bg-destructive/10 border border-destructive/30">
+                <h2 className="text-xl font-bold mb-2">Asset Not Found</h2>
+                <p className="text-destructive">
+                  {(asset as { error: string }).error}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4">
+              {activeTab === 'overview' && (
+                <OverviewTab assetData={assetData} />
+              )}
+              {activeTab === 'journey' && (
+                <JourneyTab assetKey={params.assetId} />
+              )}
+              {activeTab === 'data' && <DataTab assetKey={params.assetId} />}
+              {activeTab === 'quality' && <QualityTab checks={checksData} />}
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   )
 }
 
-// Overview Tab (existing content)
+function AssetListItem({
+  asset,
+  isSelected,
+  onClick,
+}: {
+  asset: Asset
+  isSelected: boolean
+  onClick: () => void
+}) {
+  const lastMaterialized = asset.lastMaterialization
+    ? formatTimeAgo(new Date(Number(asset.lastMaterialization.timestamp)))
+    : null
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-full px-3 py-2 text-left transition-colors',
+        'flex items-center gap-2 min-w-0',
+        isSelected
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+          : 'hover:bg-sidebar-accent/50',
+      )}
+    >
+      <Database className="size-4 text-sidebar-primary shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">{asset.keyPath}</div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {asset.computeKind && (
+            <span className="truncate">{asset.computeKind}</span>
+          )}
+          {lastMaterialized && (
+            <>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <Clock className="size-3" />
+                {lastMaterialized}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
+}
+
+// Overview Tab
 function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="lg:col-span-2 space-y-4">
+        {assetData?.description && (
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-muted-foreground">{assetData.description}</p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Info className="w-5 h-5 text-muted-foreground" />
-            Metadata
-          </h2>
-          {assetData?.metadata && assetData.metadata.length > 0 ? (
-            <div className="space-y-3">
-              {assetData.metadata.map((entry, idx) => (
-                <div key={idx} className="flex items-start gap-4">
-                  <span className="text-muted-foreground text-sm min-w-[120px]">
-                    {entry.key}
-                  </span>
-                  <span className="text-sm font-mono break-all">
-                    {entry.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">No metadata available</p>
-          )}
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              Metadata
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {assetData?.metadata && assetData.metadata.length > 0 ? (
+              <div className="space-y-2">
+                {assetData.metadata.map((entry, idx) => (
+                  <div key={idx} className="flex items-start gap-4 text-sm">
+                    <span className="text-muted-foreground min-w-[120px]">
+                      {entry.key}
+                    </span>
+                    <span className="font-mono break-all">{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No metadata available
+              </p>
+            )}
+          </CardContent>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <TableIcon className="w-5 h-5 text-muted-foreground" />
-            Ops
-          </h2>
-          {assetData?.opNames && assetData.opNames.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {assetData.opNames.map((op, idx) => (
-                <span
-                  key={idx}
-                  className="px-3 py-1 text-sm bg-muted text-foreground font-mono"
-                >
-                  {op}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">No ops defined</p>
-          )}
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TableIcon className="w-4 h-4 text-muted-foreground" />
+              Ops
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {assetData?.opNames && assetData.opNames.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {assetData.opNames.map((op, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-1 text-xs bg-muted text-foreground font-mono"
+                  >
+                    {op}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">No ops defined</p>
+            )}
+          </CardContent>
         </Card>
 
         {/* Columns Section */}
-        <Card className="overflow-hidden">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Columns2 className="w-5 h-5 text-muted-foreground" />
+              <Columns2 className="w-4 h-4 text-muted-foreground" />
               Columns
               {assetData?.columns && (
                 <Badge variant="secondary" className="text-muted-foreground">
@@ -285,7 +453,7 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="text-muted-foreground text-sm">
                             {col.description || '—'}
                           </TableCell>
                         </TableRow>
@@ -295,7 +463,7 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
                 </Table>
               </div>
             ) : (
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 No column schema available
               </p>
             )}
@@ -303,7 +471,7 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
         </Card>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Status</CardTitle>
@@ -315,7 +483,7 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
                 <div className="text-sm text-muted-foreground">
                   Last Materialized
                 </div>
-                <div>
+                <div className="text-sm">
                   {assetData?.lastMaterialization
                     ? new Date(
                         Number(assetData.lastMaterialization.timestamp),
@@ -328,7 +496,9 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
               <Calendar className="w-5 h-5 text-muted-foreground" />
               <div>
                 <div className="text-sm text-muted-foreground">Partitioned</div>
-                <div>{assetData?.partitionDefinition ? 'Yes' : 'No'}</div>
+                <div className="text-sm">
+                  {assetData?.partitionDefinition ? 'Yes' : 'No'}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -341,11 +511,11 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
 // Journey Tab
 function JourneyTab({ assetKey }: { assetKey: string }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <GitBranch className="w-5 h-5 text-primary" />
+          <CardTitle className="text-base flex items-center gap-2">
+            <GitBranch className="w-4 h-4 text-primary" />
             Data Lineage
           </CardTitle>
           <CardDescription>
@@ -359,8 +529,8 @@ function JourneyTab({ assetKey }: { assetKey: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" />
+          <CardTitle className="text-base flex items-center gap-2">
+            <History className="w-4 h-4 text-primary" />
             Materialization History
           </CardTitle>
         </CardHeader>
@@ -378,10 +548,10 @@ function DataTab({ assetKey }: { assetKey: string }) {
   const tableName = assetKey.split('/').pop() || assetKey
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Database className="w-5 h-5 text-primary" />
+        <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+          <Database className="w-4 h-4 text-primary" />
           Data Preview
         </h2>
         <DataPreview table={tableName} />
@@ -393,11 +563,11 @@ function DataTab({ assetKey }: { assetKey: string }) {
 // Quality Tab
 function QualityTab({ checks }: { checks: Array<QualityCheck> }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="w-4 h-4 text-primary" />
             Quality Checks
             {checks.length > 0 && (
               <Badge variant="secondary" className="text-muted-foreground ml-1">
