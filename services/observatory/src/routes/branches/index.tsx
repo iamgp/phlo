@@ -154,174 +154,176 @@ function BranchesPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Version Control</h1>
-          <p className="text-muted-foreground">
-            Git-like branching for your data lakehouse
-          </p>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Version Control</h1>
+            <p className="text-muted-foreground">
+              Git-like branching for your data lakehouse
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowMergeModal(true)}
+              disabled={!isConnected || branchList.length < 2}
+            >
+              <GitMerge className="size-4" />
+              Merge
+            </Button>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              disabled={!isConnected}
+              variant="outline"
+            >
+              <Plus className="size-4" />
+              New Branch
+            </Button>
+            <Button variant="outline" onClick={() => router.invalidate()}>
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setShowMergeModal(true)}
-            disabled={!isConnected || branchList.length < 2}
-          >
-            <GitMerge className="size-4" />
-            Merge
-          </Button>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            disabled={!isConnected}
-            variant="outline"
-          >
-            <Plus className="size-4" />
-            New Branch
-          </Button>
-          <Button variant="outline" onClick={() => router.invalidate()}>
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
+
+        {/* Connection Banner */}
+        <NessieConnectionBanner connection={connection} />
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Branch List */}
+          <div className="lg:col-span-1">
+            <Card className="overflow-hidden">
+              <CardHeader className="py-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <GitBranch className="size-4 text-primary" />
+                  Branches
+                  <Badge
+                    variant="secondary"
+                    className="ml-auto text-muted-foreground"
+                  >
+                    {branchList.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              {!isConnected ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <WifiOff className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>Connect to Nessie to view branches</p>
+                </div>
+              ) : branchList.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <GitBranch className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No branches found</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {branchList.map((branch) => (
+                    <BranchRow
+                      key={branch.name}
+                      branch={branch}
+                      isDefault={branch.name === connection.defaultBranch}
+                      isSelected={selectedBranch === branch.name}
+                      onSelect={() => handleSelectBranch(branch.name)}
+                      onDelete={() => setShowDeleteModal(branch)}
+                    />
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Commit History */}
+          <div className="lg:col-span-2">
+            <Card className="overflow-hidden">
+              <CardHeader className="py-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <GitCommit className="size-4 text-primary" />
+                  Commit History
+                  {selectedBranch && (
+                    <span className="text-sm text-muted-foreground ml-2">
+                      • {selectedBranch}
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              {!selectedBranch ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <GitCommit className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-lg mb-1">Select a branch</p>
+                  <p className="text-sm">
+                    View the commit history for any branch
+                  </p>
+                </div>
+              ) : loadingCommits ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
+                  <p>Loading commits...</p>
+                </div>
+              ) : !commits || commits.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  <GitCommit className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No commits found</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {commits.map((entry, index) => (
+                    <CommitRow
+                      key={entry.commitMeta.hash}
+                      entry={entry}
+                      isFirst={index === 0}
+                    />
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
+
+        {/* Create Branch Modal */}
+        {showCreateModal && (
+          <CreateBranchModal
+            branches={branchList}
+            defaultBranch={connection.defaultBranch || 'main'}
+            loading={actionLoading}
+            error={actionError}
+            onClose={() => {
+              setShowCreateModal(false)
+              setActionError(null)
+            }}
+            onCreate={handleCreateBranch}
+          />
+        )}
+
+        {/* Merge Modal */}
+        {showMergeModal && (
+          <MergeBranchModal
+            branches={branchList}
+            loading={actionLoading}
+            error={actionError}
+            onClose={() => {
+              setShowMergeModal(false)
+              setActionError(null)
+            }}
+            onMerge={handleMergeBranch}
+          />
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <DeleteBranchModal
+            branch={showDeleteModal}
+            loading={actionLoading}
+            error={actionError}
+            onClose={() => {
+              setShowDeleteModal(null)
+              setActionError(null)
+            }}
+            onConfirm={() => handleDeleteBranch(showDeleteModal)}
+          />
+        )}
       </div>
-
-      {/* Connection Banner */}
-      <NessieConnectionBanner connection={connection} />
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Branch List */}
-        <div className="lg:col-span-1">
-          <Card className="overflow-hidden">
-            <CardHeader className="py-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <GitBranch className="size-4 text-primary" />
-                Branches
-                <Badge
-                  variant="secondary"
-                  className="ml-auto text-muted-foreground"
-                >
-                  {branchList.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            {!isConnected ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <WifiOff className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>Connect to Nessie to view branches</p>
-              </div>
-            ) : branchList.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <GitBranch className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No branches found</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {branchList.map((branch) => (
-                  <BranchRow
-                    key={branch.name}
-                    branch={branch}
-                    isDefault={branch.name === connection.defaultBranch}
-                    isSelected={selectedBranch === branch.name}
-                    onSelect={() => handleSelectBranch(branch.name)}
-                    onDelete={() => setShowDeleteModal(branch)}
-                  />
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Commit History */}
-        <div className="lg:col-span-2">
-          <Card className="overflow-hidden">
-            <CardHeader className="py-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <GitCommit className="size-4 text-primary" />
-                Commit History
-                {selectedBranch && (
-                  <span className="text-sm text-muted-foreground ml-2">
-                    • {selectedBranch}
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            {!selectedBranch ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <GitCommit className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p className="text-lg mb-1">Select a branch</p>
-                <p className="text-sm">
-                  View the commit history for any branch
-                </p>
-              </div>
-            ) : loadingCommits ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
-                <p>Loading commits...</p>
-              </div>
-            ) : !commits || commits.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">
-                <GitCommit className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No commits found</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {commits.map((entry, index) => (
-                  <CommitRow
-                    key={entry.commitMeta.hash}
-                    entry={entry}
-                    isFirst={index === 0}
-                  />
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
-      </div>
-
-      {/* Create Branch Modal */}
-      {showCreateModal && (
-        <CreateBranchModal
-          branches={branchList}
-          defaultBranch={connection.defaultBranch || 'main'}
-          loading={actionLoading}
-          error={actionError}
-          onClose={() => {
-            setShowCreateModal(false)
-            setActionError(null)
-          }}
-          onCreate={handleCreateBranch}
-        />
-      )}
-
-      {/* Merge Modal */}
-      {showMergeModal && (
-        <MergeBranchModal
-          branches={branchList}
-          loading={actionLoading}
-          error={actionError}
-          onClose={() => {
-            setShowMergeModal(false)
-            setActionError(null)
-          }}
-          onMerge={handleMergeBranch}
-        />
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <DeleteBranchModal
-          branch={showDeleteModal}
-          loading={actionLoading}
-          error={actionError}
-          onClose={() => {
-            setShowDeleteModal(null)
-            setActionError(null)
-          }}
-          onConfirm={() => handleDeleteBranch(showDeleteModal)}
-        />
-      )}
     </div>
   )
 }

@@ -62,179 +62,183 @@ function QualityDashboard() {
       })
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Quality Center</h1>
-          <p className="text-muted-foreground">
-            Centralized data quality monitoring and management
-          </p>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Quality Center</h1>
+            <p className="text-muted-foreground">
+              Centralized data quality monitoring and management
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => router.invalidate()}>
+            <RefreshCw className="size-4" />
+            Refresh
+          </Button>
         </div>
-        <Button variant="outline" onClick={() => router.invalidate()}>
-          <RefreshCw className="size-4" />
-          Refresh
-        </Button>
-      </div>
 
-      {hasError ? (
-        <Card className="border-yellow-500/30 bg-yellow-500/5">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-400" />
-              <span className="text-yellow-300">
-                Unable to load quality data
-              </span>
+        {hasError ? (
+          <Card className="border-yellow-500/30 bg-yellow-500/5">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                <span className="text-yellow-300">
+                  Unable to load quality data
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-yellow-400/80">{data.error}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Quality Score */}
+            <div className="mb-8">
+              <QualityScoreCard
+                score={dashboardData!.overview.qualityScore}
+                totalChecks={dashboardData!.overview.totalChecks}
+              />
             </div>
-            <p className="mt-2 text-sm text-yellow-400/80">{data.error}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {/* Quality Score */}
-          <div className="mb-8">
-            <QualityScoreCard
-              score={dashboardData!.overview.qualityScore}
-              totalChecks={dashboardData!.overview.totalChecks}
-            />
-          </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <StatCard
-              title="Total Checks"
-              value={dashboardData!.overview.totalChecks}
-              icon={<Shield className="w-5 h-5 text-primary" />}
-            />
-            <StatCard
-              title="Passing"
-              value={dashboardData!.overview.passingChecks}
-              icon={<CheckCircle className="w-5 h-5 text-green-400" />}
-              variant="success"
-            />
-            <StatCard
-              title="Failing"
-              value={dashboardData!.overview.failingChecks}
-              icon={<XCircle className="w-5 h-5 text-red-400" />}
-              variant={
-                dashboardData!.overview.failingChecks > 0 ? 'error' : 'default'
-              }
-            />
-            <StatCard
-              title="Warnings"
-              value={dashboardData!.overview.warningChecks}
-              icon={<AlertTriangle className="w-5 h-5 text-yellow-400" />}
-              variant={
-                dashboardData!.overview.warningChecks > 0
-                  ? 'warning'
-                  : 'default'
-              }
-            />
-          </div>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              <StatCard
+                title="Total Checks"
+                value={dashboardData!.overview.totalChecks}
+                icon={<Shield className="w-5 h-5 text-primary" />}
+              />
+              <StatCard
+                title="Passing"
+                value={dashboardData!.overview.passingChecks}
+                icon={<CheckCircle className="w-5 h-5 text-green-400" />}
+                variant="success"
+              />
+              <StatCard
+                title="Failing"
+                value={dashboardData!.overview.failingChecks}
+                icon={<XCircle className="w-5 h-5 text-red-400" />}
+                variant={
+                  dashboardData!.overview.failingChecks > 0
+                    ? 'error'
+                    : 'default'
+                }
+              />
+              <StatCard
+                title="Warnings"
+                value={dashboardData!.overview.warningChecks}
+                icon={<AlertTriangle className="w-5 h-5 text-yellow-400" />}
+                variant={
+                  dashboardData!.overview.warningChecks > 0
+                    ? 'warning'
+                    : 'default'
+                }
+              />
+            </div>
 
-          {/* Categories and Failing Checks */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* By Category */}
-            <Card>
+            {/* Categories and Failing Checks */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* By Category */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    Quality by Category
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData!.overview.byCategory.length > 0 ? (
+                    <div className="space-y-4">
+                      {dashboardData!.overview.byCategory.map((cat) => (
+                        <CategoryBar key={cat.category} {...cat} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No quality categories defined</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Failing Checks */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <XCircle className="w-5 h-5 text-destructive" />
+                    Failing Checks
+                    {dashboardData!.failingChecks.length > 0 && (
+                      <Badge variant="destructive" className="ml-auto">
+                        {dashboardData!.failingChecks.length}
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData!.failingChecks.length > 0 ? (
+                    <div className="space-y-3">
+                      {dashboardData!.failingChecks.map((check) => (
+                        <FailingCheckCard key={check.name} check={check} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400 opacity-50" />
+                      <p className="text-green-400">All checks passing!</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Activity */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  Recent Check Executions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {dashboardData!.recentExecutions.length > 0 ? (
+                  <div className="space-y-2">
+                    {dashboardData!.recentExecutions.map((exec) => (
+                      <RecentExecutionRow
+                        key={`${exec.assetKey.join('/')}::${exec.checkName}::${exec.timestamp}`}
+                        exec={exec}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No check executions yet</p>
+                    <p className="text-sm mt-1">
+                      Run a materialization or check to see results
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* All Checks */}
+            <Card className="mt-6">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Shield className="w-5 h-5 text-primary" />
-                  Quality by Category
+                  All Checks
+                  <span className="ml-auto text-sm text-muted-foreground">
+                    {dashboardData!.checks.length}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {dashboardData!.overview.byCategory.length > 0 ? (
-                  <div className="space-y-4">
-                    {dashboardData!.overview.byCategory.map((cat) => (
-                      <CategoryBar key={cat.category} {...cat} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    <Shield className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No quality categories defined</p>
-                  </div>
-                )}
+                <ChecksTable checks={dashboardData!.checks} />
               </CardContent>
             </Card>
-
-            {/* Failing Checks */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <XCircle className="w-5 h-5 text-destructive" />
-                  Failing Checks
-                  {dashboardData!.failingChecks.length > 0 && (
-                    <Badge variant="destructive" className="ml-auto">
-                      {dashboardData!.failingChecks.length}
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dashboardData!.failingChecks.length > 0 ? (
-                  <div className="space-y-3">
-                    {dashboardData!.failingChecks.map((check) => (
-                      <FailingCheckCard key={check.name} check={check} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-400 opacity-50" />
-                    <p className="text-green-400">All checks passing!</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Activity */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
-                Recent Check Executions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {dashboardData!.recentExecutions.length > 0 ? (
-                <div className="space-y-2">
-                  {dashboardData!.recentExecutions.map((exec) => (
-                    <RecentExecutionRow
-                      key={`${exec.assetKey.join('/')}::${exec.checkName}::${exec.timestamp}`}
-                      exec={exec}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No check executions yet</p>
-                  <p className="text-sm mt-1">
-                    Run a materialization or check to see results
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* All Checks */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Shield className="w-5 h-5 text-primary" />
-                All Checks
-                <span className="ml-auto text-sm text-muted-foreground">
-                  {dashboardData!.checks.length}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChecksTable checks={dashboardData!.checks} />
-            </CardContent>
-          </Card>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
