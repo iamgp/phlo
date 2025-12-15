@@ -1,10 +1,3 @@
-/**
- * Row Journey Component
- *
- * Enhanced journey visualization that shows row data, transformation SQL,
- * and quality checks for each asset in the lineage.
- */
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
@@ -34,14 +27,7 @@ import { getAssetNeighbors } from '@/server/graph.server'
 import { getAssetChecks } from '@/server/quality.server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { cn } from '@/lib/utils'
 
 interface RowJourneyProps {
@@ -294,35 +280,16 @@ function NodeDetailPanel({
                 {getDataRowMessage().subtitle}
               </span>
             </div>
-            <div className="rounded-md border border-border bg-card overflow-auto max-h-64">
-              <Table className="text-xs">
-                <TableHeader className="sticky top-0 bg-card">
-                  <TableRow>
-                    {Object.keys(details.stageData[0]).map((col) => (
-                      <TableHead key={col} className="whitespace-nowrap">
-                        {col}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {details.stageData.map((row, idx) => (
-                    <TableRow key={idx}>
-                      {Object.values(row).map((val, colIdx) => (
-                        <TableCell
-                          key={colIdx}
-                          className="font-mono whitespace-nowrap"
-                        >
-                          {val === null || val === undefined
-                            ? '—'
-                            : String(val)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <ObservatoryTable
+              columns={Object.keys(details.stageData[0])}
+              rows={details.stageData}
+              getRowId={(_, index) => String(index)}
+              maxHeightClassName="max-h-64"
+              enableSorting
+              enableColumnResizing
+              enableColumnPinning
+              monospace
+            />
           </div>
         )}
 
