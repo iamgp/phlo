@@ -122,69 +122,73 @@ function HubPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Boxes className="size-7 text-primary" />
-            <h1 className="text-3xl font-bold">Service Hub</h1>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Boxes className="size-7 text-primary" />
+              <h1 className="text-3xl font-bold">Service Hub</h1>
+            </div>
+            <p className="text-muted-foreground">
+              Manage and monitor all Phlo platform services
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Manage and monitor all Phlo platform services
-          </p>
+          <Button variant="outline" onClick={handleRefresh}>
+            <RefreshCw className="size-4" />
+            Refresh
+          </Button>
         </div>
-        <Button variant="outline" onClick={handleRefresh}>
-          <RefreshCw className="size-4" />
-          Refresh
-        </Button>
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          label="Total Services"
-          value={totalServices}
-          icon={<Boxes className="w-5 h-5" />}
-        />
-        <StatCard
-          label="Running"
-          value={runningServices}
-          icon={<CheckCircle className="w-5 h-5" />}
-          color="text-green-400"
-        />
-        <StatCard
-          label="Stopped"
-          value={stoppedServices}
-          icon={<Loader2 className="w-5 h-5" />}
-          color="text-muted-foreground"
-        />
-        <StatCard
-          label="Unhealthy"
-          value={unhealthyServices}
-          icon={<XCircle className="w-5 h-5" />}
-          color="text-red-400"
-        />
-      </div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <StatCard
+            label="Total Services"
+            value={totalServices}
+            icon={<Boxes className="w-5 h-5" />}
+          />
+          <StatCard
+            label="Running"
+            value={runningServices}
+            icon={<CheckCircle className="w-5 h-5" />}
+            color="text-green-400"
+          />
+          <StatCard
+            label="Stopped"
+            value={stoppedServices}
+            icon={<Loader2 className="w-5 h-5" />}
+            color="text-muted-foreground"
+          />
+          <StatCard
+            label="Unhealthy"
+            value={unhealthyServices}
+            icon={<XCircle className="w-5 h-5" />}
+            color="text-red-400"
+          />
+        </div>
 
-      {/* Services by Category */}
-      {sortedCategories.map((category) => (
-        <div key={category} className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 capitalize">{category}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {servicesByCategory[category].map((service) => (
-              <ServiceCard
-                key={service.name}
-                service={service}
-                onStart={handleStart}
-                onStop={handleStop}
-                onRestart={handleRestart}
-                isLoading={loadingServices.has(service.name)}
-              />
-            ))}
+        {/* Services by Category */}
+        {sortedCategories.map((category) => (
+          <div key={category} className="mb-8">
+            <h2 className="text-xl font-semibold mb-4 capitalize">
+              {category}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {servicesByCategory[category].map((service) => (
+                <ServiceCard
+                  key={service.name}
+                  service={service}
+                  onStart={handleStart}
+                  onStop={handleStop}
+                  onRestart={handleRestart}
+                  isLoading={loadingServices.has(service.name)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
