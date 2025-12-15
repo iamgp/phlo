@@ -4,7 +4,7 @@
  * This layout route handles the shared sidebar with table browser.
  * Tables are loaded once here and passed to child routes via context.
  */
-import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
+import { Outlet, createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
   ChevronDown,
   ChevronRight,
@@ -14,9 +14,9 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
+import type { IcebergTable } from '@/server/iceberg.server'
 import { BranchSelector } from '@/components/data/BranchSelector'
 import { Input } from '@/components/ui/input'
-import type { IcebergTable } from '@/server/iceberg.server'
 import { getTables } from '@/server/iceberg.server'
 
 export const Route = createFileRoute('/data/$branchName')({

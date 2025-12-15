@@ -10,9 +10,11 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import appCss from '../styles.css?url'
+import type { ResolvedTheme, ThemeMode } from '@/components/ThemeToggle'
+import type { Asset } from '@/server/dagster.server'
 import { AppSidebar } from '@/components/AppSidebar'
 import { CommandPalette } from '@/components/CommandPalette'
-import type { ResolvedTheme, ThemeMode } from '@/components/ThemeToggle'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -21,9 +23,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
-import type { Asset } from '@/server/dagster.server'
 import { getAssets } from '@/server/dagster.server'
-import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
   head: () => ({

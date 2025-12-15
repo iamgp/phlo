@@ -1,8 +1,3 @@
-import type {
-  ColumnDef,
-  ColumnPinningState,
-  SortingState,
-} from '@tanstack/react-table'
 import {
   flexRender,
   getCoreRowModel,
@@ -12,6 +7,11 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowDown, ArrowUp, MoreVertical, Pin, PinOff } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
+import type {
+  ColumnDef,
+  ColumnPinningState,
+  SortingState,
+} from '@tanstack/react-table'
 
 import {
   DropdownMenu,

@@ -1,11 +1,11 @@
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
-import type { Asset } from '@/server/dagster.server'
-import { getAssets } from '@/server/dagster.server'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, Clock, Database, Layers, Search } from 'lucide-react'
 import { useState } from 'react'
+import type { Asset } from '@/server/dagster.server'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+import { getAssets } from '@/server/dagster.server'
 
 export const Route = createFileRoute('/assets/')({
   loader: async () => {
