@@ -48,70 +48,72 @@ function AssetsPage() {
   })
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      <Card>
-        <CardHeader className="gap-1">
-          <CardTitle className="text-3xl">Assets</CardTitle>
-          <CardDescription>
-            {hasError
-              ? 'Error loading assets'
-              : `${assetList.length} registered assets`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Error Banner */}
-          {hasError && (
-            <div className="p-4 bg-destructive/10 text-destructive border border-destructive/30">
-              <p>{(assets as { error: string }).error}</p>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <Card>
+          <CardHeader className="gap-1">
+            <CardTitle className="text-3xl">Assets</CardTitle>
+            <CardDescription>
+              {hasError
+                ? 'Error loading assets'
+                : `${assetList.length} registered assets`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Error Banner */}
+            {hasError && (
+              <div className="p-4 bg-destructive/10 text-destructive border border-destructive/30">
+                <p>{(assets as { error: string }).error}</p>
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search assets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
             </div>
-          )}
 
-          {/* Search */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search assets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          {/* Asset Table */}
-          <div className="border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Asset</TableHead>
-                  <TableHead>Group</TableHead>
-                  <TableHead>Kind</TableHead>
-                  <TableHead>Last Materialized</TableHead>
-                  <TableHead className="w-[64px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAssets.length === 0 ? (
+            {/* Asset Table */}
+            <div className="border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center text-muted-foreground py-10"
-                    >
-                      {searchQuery
-                        ? 'No assets match your search'
-                        : 'No assets found'}
-                    </TableCell>
+                    <TableHead>Asset</TableHead>
+                    <TableHead>Group</TableHead>
+                    <TableHead>Kind</TableHead>
+                    <TableHead>Last Materialized</TableHead>
+                    <TableHead className="w-[64px]"></TableHead>
                   </TableRow>
-                ) : (
-                  filteredAssets.map((asset) => (
-                    <AssetRow key={asset.id} asset={asset} />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredAssets.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center text-muted-foreground py-10"
+                      >
+                        {searchQuery
+                          ? 'No assets match your search'
+                          : 'No assets found'}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredAssets.map((asset) => (
+                      <AssetRow key={asset.id} asset={asset} />
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

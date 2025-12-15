@@ -67,6 +67,7 @@ export function QueryResults({ results, onShowJourney }: QueryResultsProps) {
           onRowClick={
             onShowJourney ? (row) => handleRowClick(row as DataRow) : undefined
           }
+          containerClassName="h-full"
           maxHeightClassName="h-full"
           enableSorting
           enableColumnResizing

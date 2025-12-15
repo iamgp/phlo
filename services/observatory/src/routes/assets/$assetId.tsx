@@ -75,22 +75,24 @@ function AssetDetailPage() {
 
   if (hasError) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6">
-        <Link
-          to="/assets"
-          className={cn(
-            buttonVariants({ variant: 'ghost', size: 'sm' }),
-            'gap-2 mb-6',
-          )}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Assets
-        </Link>
-        <div className="p-6 bg-destructive/10 border border-destructive/30">
-          <h2 className="text-xl font-bold mb-2">Asset Not Found</h2>
-          <p className="text-destructive">
-            {(asset as { error: string }).error}
-          </p>
+      <div className="h-full overflow-auto">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6">
+          <Link
+            to="/assets"
+            className={cn(
+              buttonVariants({ variant: 'ghost', size: 'sm' }),
+              'gap-2 mb-6',
+            )}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Assets
+          </Link>
+          <div className="p-6 bg-destructive/10 border border-destructive/30">
+            <h2 className="text-xl font-bold mb-2">Asset Not Found</h2>
+            <p className="text-destructive">
+              {(asset as { error: string }).error}
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -108,69 +110,71 @@ function AssetDetailPage() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      <Link
-        to="/assets"
-        className={cn(
-          buttonVariants({ variant: 'ghost', size: 'sm' }),
-          'gap-2 mb-6',
-        )}
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Assets
-      </Link>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <Link
+          to="/assets"
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'sm' }),
+            'gap-2 mb-6',
+          )}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Assets
+        </Link>
 
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-primary/10">
-            <Database className="w-8 h-8 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-2">{params.assetId}</h1>
-            {assetData?.description && (
-              <p className="text-muted-foreground">{assetData.description}</p>
-            )}
-            <div className="flex items-center gap-4 mt-3">
-              {assetData?.groupName && (
-                <Badge variant="secondary" className="text-muted-foreground">
-                  {assetData.groupName}
-                </Badge>
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-primary/10">
+              <Database className="w-8 h-8 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold mb-2">{params.assetId}</h1>
+              {assetData?.description && (
+                <p className="text-muted-foreground">{assetData.description}</p>
               )}
-              {assetData?.computeKind && (
-                <Badge variant="outline">{assetData.computeKind}</Badge>
-              )}
+              <div className="flex items-center gap-4 mt-3">
+                {assetData?.groupName && (
+                  <Badge variant="secondary" className="text-muted-foreground">
+                    {assetData.groupName}
+                  </Badge>
+                )}
+                {assetData?.computeKind && (
+                  <Badge variant="outline">{assetData.computeKind}</Badge>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as Tab)}
+        >
+          <TabsList variant="line" className="mb-6">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.id} value={tab.id}>
+                {tab.icon}
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="overview">
+            <OverviewTab assetData={assetData} />
+          </TabsContent>
+          <TabsContent value="journey">
+            <JourneyTab assetKey={params.assetId} />
+          </TabsContent>
+          <TabsContent value="data">
+            <DataTab assetKey={params.assetId} />
+          </TabsContent>
+          <TabsContent value="quality">
+            <QualityTab checks={checksData} />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as Tab)}
-      >
-        <TabsList variant="line" className="mb-6">
-          {tabs.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id}>
-              {tab.icon}
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="overview">
-          <OverviewTab assetData={assetData} />
-        </TabsContent>
-        <TabsContent value="journey">
-          <JourneyTab assetKey={params.assetId} />
-        </TabsContent>
-        <TabsContent value="data">
-          <DataTab assetKey={params.assetId} />
-        </TabsContent>
-        <TabsContent value="quality">
-          <QualityTab checks={checksData} />
-        </TabsContent>
-      </Tabs>
     </div>
   )
 }

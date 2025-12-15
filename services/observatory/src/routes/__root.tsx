@@ -119,7 +119,7 @@ function RootLayout() {
       <head>
         <HeadContent />
       </head>
-      <body className="min-h-screen bg-background text-foreground">
+      <body className="h-svh overflow-hidden bg-background text-foreground">
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
@@ -153,7 +153,7 @@ function RootLayout() {
                 </Button>
               </div>
             </header>
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-hidden min-h-0">
               <Outlet />
             </div>
           </SidebarInset>

@@ -89,129 +89,133 @@ function BranchDetailPage() {
 
   if (hasError) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-6">
-        <Link
-          to="/branches"
-          className={cn(
-            buttonVariants({ variant: 'ghost', size: 'sm' }),
-            'gap-2 mb-6',
-          )}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Branches
-        </Link>
-        <Card className="border-destructive/30 bg-destructive/10">
-          <CardContent className="p-8 text-center">
-            <GitBranch className="w-12 h-12 mx-auto mb-4 text-destructive opacity-60" />
-            <h2 className="text-xl font-semibold mb-2">Branch Not Found</h2>
-            <p className="text-muted-foreground">{branch.error}</p>
-          </CardContent>
-        </Card>
+      <div className="h-full overflow-auto">
+        <div className="mx-auto w-full max-w-6xl px-4 py-6">
+          <Link
+            to="/branches"
+            className={cn(
+              buttonVariants({ variant: 'ghost', size: 'sm' }),
+              'gap-2 mb-6',
+            )}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Branches
+          </Link>
+          <Card className="border-destructive/30 bg-destructive/10">
+            <CardContent className="p-8 text-center">
+              <GitBranch className="w-12 h-12 mx-auto mb-4 text-destructive opacity-60" />
+              <h2 className="text-xl font-semibold mb-2">Branch Not Found</h2>
+              <p className="text-muted-foreground">{branch.error}</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      {/* Header */}
-      <div className="mb-6">
-        <Link
-          to="/branches"
-          className={cn(
-            buttonVariants({ variant: 'ghost', size: 'sm' }),
-            'gap-2 mb-4',
-          )}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Branches
-        </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <GitBranch className="w-6 h-6 text-primary" />
-              <h1 className="text-3xl font-bold">{decodedBranchName}</h1>
-              {branch.type === 'TAG' && <Badge variant="outline">tag</Badge>}
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
+          <Link
+            to="/branches"
+            className={cn(
+              buttonVariants({ variant: 'ghost', size: 'sm' }),
+              'gap-2 mb-4',
+            )}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Branches
+          </Link>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <GitBranch className="w-6 h-6 text-primary" />
+                <h1 className="text-3xl font-bold">{decodedBranchName}</h1>
+                {branch.type === 'TAG' && <Badge variant="outline">tag</Badge>}
+              </div>
+              <p className="text-muted-foreground mt-2 font-mono text-sm">
+                Hash: {branch.hash}
+              </p>
             </div>
-            <p className="text-muted-foreground mt-2 font-mono text-sm">
-              Hash: {branch.hash}
-            </p>
+            <Button variant="outline" onClick={() => router.invalidate()}>
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </Button>
           </div>
-          <Button variant="outline" onClick={() => router.invalidate()}>
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </Button>
         </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <StatCard
+            icon={<GitCommit className="w-5 h-5 text-primary" />}
+            label="Commits"
+            value={commitList.length.toString()}
+            subtitle="In history"
+          />
+          <StatCard
+            icon={<Table2 className="w-5 h-5 text-green-400" />}
+            label="Tables"
+            value={contentList
+              .filter((c) => c.type === 'ICEBERG_TABLE')
+              .length.toString()}
+            subtitle="Iceberg tables"
+          />
+          <StatCard
+            icon={<Database className="w-5 h-5 text-primary" />}
+            label="Total Entries"
+            value={contentList.length.toString()}
+            subtitle="Objects in catalog"
+          />
+        </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(value as 'commits' | 'contents' | 'compare')
+          }
+        >
+          <TabsList>
+            <TabsTrigger value="commits">
+              <GitCommit className="size-4" />
+              Commits
+              <Badge variant="secondary" className="text-muted-foreground ml-1">
+                {commitList.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="contents">
+              <Table2 className="size-4" />
+              Contents
+              <Badge variant="secondary" className="text-muted-foreground ml-1">
+                {contentList.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="compare">
+              <GitCompare className="size-4" />
+              Compare
+            </TabsTrigger>
+          </TabsList>
+
+          <Card className="overflow-hidden">
+            <TabsContent value="commits">
+              <CommitsTab commits={commitList} />
+            </TabsContent>
+            <TabsContent value="contents">
+              <ContentsTab contents={contentList} />
+            </TabsContent>
+            <TabsContent value="compare">
+              <CompareTab
+                branchName={decodedBranchName}
+                compareToBranch={compareToBranch}
+                diffData={diffData}
+                loading={loadingDiff}
+                onCompare={handleCompare}
+              />
+            </TabsContent>
+          </Card>
+        </Tabs>
       </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <StatCard
-          icon={<GitCommit className="w-5 h-5 text-primary" />}
-          label="Commits"
-          value={commitList.length.toString()}
-          subtitle="In history"
-        />
-        <StatCard
-          icon={<Table2 className="w-5 h-5 text-green-400" />}
-          label="Tables"
-          value={contentList
-            .filter((c) => c.type === 'ICEBERG_TABLE')
-            .length.toString()}
-          subtitle="Iceberg tables"
-        />
-        <StatCard
-          icon={<Database className="w-5 h-5 text-primary" />}
-          label="Total Entries"
-          value={contentList.length.toString()}
-          subtitle="Objects in catalog"
-        />
-      </div>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) =>
-          setActiveTab(value as 'commits' | 'contents' | 'compare')
-        }
-      >
-        <TabsList>
-          <TabsTrigger value="commits">
-            <GitCommit className="size-4" />
-            Commits
-            <Badge variant="secondary" className="text-muted-foreground ml-1">
-              {commitList.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="contents">
-            <Table2 className="size-4" />
-            Contents
-            <Badge variant="secondary" className="text-muted-foreground ml-1">
-              {contentList.length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="compare">
-            <GitCompare className="size-4" />
-            Compare
-          </TabsTrigger>
-        </TabsList>
-
-        <Card className="overflow-hidden">
-          <TabsContent value="commits">
-            <CommitsTab commits={commitList} />
-          </TabsContent>
-          <TabsContent value="contents">
-            <ContentsTab contents={contentList} />
-          </TabsContent>
-          <TabsContent value="compare">
-            <CompareTab
-              branchName={decodedBranchName}
-              compareToBranch={compareToBranch}
-              diffData={diffData}
-              loading={loadingDiff}
-              onCompare={handleCompare}
-            />
-          </TabsContent>
-        </Card>
-      </Tabs>
     </div>
   )
 }
