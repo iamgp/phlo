@@ -4,20 +4,12 @@ import type { DataPreviewResult, DataRow } from '@/server/trino.server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { previewData } from '@/server/trino.server'
 
 interface DataPreviewProps {
   table: string
   branch?: string
-  initialData?: DataPreviewResult
   onShowJourney?: (
     rowData: Record<string, unknown>,
     columnTypes: Array<string>,
@@ -146,44 +138,23 @@ export function DataPreview({
       </CardHeader>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader className="sticky top-0 bg-card">
-            <TableRow>
-              {data.columns.map((col, idx) => (
-                <TableHead key={col} className="whitespace-nowrap">
-                  <div className="flex flex-col gap-0.5">
-                    <span>{col}</span>
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {data.columnTypes[idx]}
-                    </span>
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.rows.map((row, rowIdx) => (
-              <TableRow
-                key={rowIdx}
-                onClick={() => handleRowClick(row)}
-                className={`transition-colors ${
-                  onShowJourney ? 'cursor-pointer' : ''
-                }`}
-              >
-                {data.columns.map((col) => (
-                  <TableCell
-                    key={col}
-                    className="py-2 px-3 whitespace-nowrap max-w-xs truncate"
-                    title={String(row[col] ?? '')}
-                  >
-                    {formatCellValue(row[col])}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="px-4 pb-4">
+        <ObservatoryTable
+          columns={data.columns}
+          columnTypes={data.columnTypes}
+          rows={data.rows}
+          getRowId={(_, index) => `${page * pageSize}-${index}`}
+          onRowClick={
+            onShowJourney ? (row) => handleRowClick(row as DataRow) : undefined
+          }
+          maxHeightClassName="max-h-[360px]"
+          enableSorting
+          enableColumnResizing
+          enableColumnPinning
+          formatCellValue={(value) =>
+            formatCellValue(value as DataRow[keyof DataRow])
+          }
+        />
       </div>
 
       {/* Pagination */}

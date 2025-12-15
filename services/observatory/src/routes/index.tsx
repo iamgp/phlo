@@ -47,86 +47,88 @@ function Dashboard() {
   const healthData = hasError ? null : metrics
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Platform Health</h1>
-          <p className="text-muted-foreground">
-            Overview of your data platform status
-          </p>
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Platform Health</h1>
+            <p className="text-muted-foreground">
+              Overview of your data platform status
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => router.invalidate()}>
+            <RefreshCw className="size-4" />
+            Refresh
+          </Button>
         </div>
-        <Button variant="outline" onClick={() => router.invalidate()}>
-          <RefreshCw className="size-4" />
-          Refresh
-        </Button>
-      </div>
 
-      {/* Connection Status Banner */}
-      <ConnectionBanner connection={connection} />
+        {/* Connection Status Banner */}
+        <ConnectionBanner connection={connection} />
 
-      {/* Health Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <HealthCard
-          title="Assets"
-          value={healthData?.assetsTotal?.toString() ?? '--'}
-          subtitle={
-            healthData
-              ? `${healthData.assetsHealthy} healthy`
-              : 'Total registered'
-          }
-          icon={<Database className="w-6 h-6" />}
-          status={getAssetStatus(healthData)}
-        />
-        <HealthCard
-          title="Failed Jobs"
-          value={healthData?.failedJobs24h?.toString() ?? '--'}
-          subtitle="Last 24 hours"
-          icon={<AlertTriangle className="w-6 h-6" />}
-          status={getFailedJobsStatus(healthData)}
-        />
-        <HealthCard
-          title="Quality Checks"
-          value={
-            healthData
-              ? `${healthData.qualityChecksPassing}/${healthData.qualityChecksTotal}`
-              : '--'
-          }
-          subtitle="Passing"
-          icon={<CheckCircle className="w-6 h-6" />}
-          status={getQualityStatus(healthData)}
-        />
-        <HealthCard
-          title="Freshness"
-          value={
-            healthData
-              ? `${healthData.assetsTotal - healthData.staleAssets}/${healthData.assetsTotal}`
-              : '--'
-          }
-          subtitle="Assets up to date"
-          icon={<Clock className="w-6 h-6" />}
-          status={getFreshnessStatus(healthData)}
-        />
-      </div>
-
-      {/* Placeholder Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <PlaceholderSection
-          title="Recent Activity"
-          description="Pipeline runs and data changes will appear here"
-        />
-        <PlaceholderSection
-          title="Attention Needed"
-          description="Failures, stale data, and quality issues will appear here"
-        />
-      </div>
-
-      {/* Last Updated */}
-      {healthData && (
-        <div className="mt-6 text-sm text-muted-foreground text-right">
-          Last updated: {new Date(healthData.lastUpdated).toLocaleString()}
+        {/* Health Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <HealthCard
+            title="Assets"
+            value={healthData?.assetsTotal?.toString() ?? '--'}
+            subtitle={
+              healthData
+                ? `${healthData.assetsHealthy} healthy`
+                : 'Total registered'
+            }
+            icon={<Database className="w-6 h-6" />}
+            status={getAssetStatus(healthData)}
+          />
+          <HealthCard
+            title="Failed Jobs"
+            value={healthData?.failedJobs24h?.toString() ?? '--'}
+            subtitle="Last 24 hours"
+            icon={<AlertTriangle className="w-6 h-6" />}
+            status={getFailedJobsStatus(healthData)}
+          />
+          <HealthCard
+            title="Quality Checks"
+            value={
+              healthData
+                ? `${healthData.qualityChecksPassing}/${healthData.qualityChecksTotal}`
+                : '--'
+            }
+            subtitle="Passing"
+            icon={<CheckCircle className="w-6 h-6" />}
+            status={getQualityStatus(healthData)}
+          />
+          <HealthCard
+            title="Freshness"
+            value={
+              healthData
+                ? `${healthData.assetsTotal - healthData.staleAssets}/${healthData.assetsTotal}`
+                : '--'
+            }
+            subtitle="Assets up to date"
+            icon={<Clock className="w-6 h-6" />}
+            status={getFreshnessStatus(healthData)}
+          />
         </div>
-      )}
+
+        {/* Placeholder Sections */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <PlaceholderSection
+            title="Recent Activity"
+            description="Pipeline runs and data changes will appear here"
+          />
+          <PlaceholderSection
+            title="Attention Needed"
+            description="Failures, stale data, and quality issues will appear here"
+          />
+        </div>
+
+        {/* Last Updated */}
+        {healthData && (
+          <div className="mt-6 text-sm text-muted-foreground text-right">
+            Last updated: {new Date(healthData.lastUpdated).toLocaleString()}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

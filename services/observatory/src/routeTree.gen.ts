@@ -16,6 +16,7 @@ import { Route as GraphIndexRouteImport } from './routes/graph/index'
 import { Route as DataIndexRouteImport } from './routes/data/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
+import { Route as DataBranchNameRouteImport } from './routes/data/$branchName'
 import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
 import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
 import { Route as DataBranchNameIndexRouteImport } from './routes/data/$branchName/index'
@@ -57,6 +58,11 @@ const AssetsIndexRoute = AssetsIndexRouteImport.update({
   path: '/assets/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DataBranchNameRoute = DataBranchNameRouteImport.update({
+  id: '/data/$branchName',
+  path: '/data/$branchName',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BranchesBranchNameRoute = BranchesBranchNameRouteImport.update({
   id: '/branches/$branchName',
   path: '/branches/$branchName',
@@ -68,9 +74,9 @@ const AssetsAssetIdRoute = AssetsAssetIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataBranchNameIndexRoute = DataBranchNameIndexRouteImport.update({
-  id: '/data/$branchName/',
-  path: '/data/$branchName/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => DataBranchNameRoute,
 } as any)
 const DataSchemaTableRoute = DataSchemaTableRouteImport.update({
   id: '/data/$schema/$table',
@@ -79,15 +85,16 @@ const DataSchemaTableRoute = DataSchemaTableRouteImport.update({
 } as any)
 const DataBranchNameSchemaTableRoute =
   DataBranchNameSchemaTableRouteImport.update({
-    id: '/data/$branchName/$schema/$table',
-    path: '/data/$branchName/$schema/$table',
-    getParentRoute: () => rootRouteImport,
+    id: '/$schema/$table',
+    path: '/$schema/$table',
+    getParentRoute: () => DataBranchNameRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/data/$branchName': typeof DataBranchNameRouteWithChildren
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
@@ -95,7 +102,7 @@ export interface FileRoutesByFullPath {
   '/hub': typeof HubIndexRoute
   '/quality': typeof QualityIndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
-  '/data/$branchName': typeof DataBranchNameIndexRoute
+  '/data/$branchName/': typeof DataBranchNameIndexRoute
   '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRoute
 }
 export interface FileRoutesByTo {
@@ -117,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/data/$branchName': typeof DataBranchNameRouteWithChildren
   '/assets/': typeof AssetsIndexRoute
   '/branches/': typeof BranchesIndexRoute
   '/data/': typeof DataIndexRoute
@@ -133,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets/$assetId'
     | '/branches/$branchName'
+    | '/data/$branchName'
     | '/assets'
     | '/branches'
     | '/data'
@@ -140,7 +149,7 @@ export interface FileRouteTypes {
     | '/hub'
     | '/quality'
     | '/data/$schema/$table'
-    | '/data/$branchName'
+    | '/data/$branchName/'
     | '/data/$branchName/$schema/$table'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assets/$assetId'
     | '/branches/$branchName'
+    | '/data/$branchName'
     | '/assets/'
     | '/branches/'
     | '/data/'
@@ -176,6 +186,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute
   BranchesBranchNameRoute: typeof BranchesBranchNameRoute
+  DataBranchNameRoute: typeof DataBranchNameRouteWithChildren
   AssetsIndexRoute: typeof AssetsIndexRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
   DataIndexRoute: typeof DataIndexRoute
@@ -183,8 +194,6 @@ export interface RootRouteChildren {
   HubIndexRoute: typeof HubIndexRoute
   QualityIndexRoute: typeof QualityIndexRoute
   DataSchemaTableRoute: typeof DataSchemaTableRoute
-  DataBranchNameIndexRoute: typeof DataBranchNameIndexRoute
-  DataBranchNameSchemaTableRoute: typeof DataBranchNameSchemaTableRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -238,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssetsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/data/$branchName': {
+      id: '/data/$branchName'
+      path: '/data/$branchName'
+      fullPath: '/data/$branchName'
+      preLoaderRoute: typeof DataBranchNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/branches/$branchName': {
       id: '/branches/$branchName'
       path: '/branches/$branchName'
@@ -254,10 +270,10 @@ declare module '@tanstack/react-router' {
     }
     '/data/$branchName/': {
       id: '/data/$branchName/'
-      path: '/data/$branchName'
-      fullPath: '/data/$branchName'
+      path: '/'
+      fullPath: '/data/$branchName/'
       preLoaderRoute: typeof DataBranchNameIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DataBranchNameRoute
     }
     '/data/$schema/$table': {
       id: '/data/$schema/$table'
@@ -268,18 +284,33 @@ declare module '@tanstack/react-router' {
     }
     '/data/$branchName/$schema/$table': {
       id: '/data/$branchName/$schema/$table'
-      path: '/data/$branchName/$schema/$table'
+      path: '/$schema/$table'
       fullPath: '/data/$branchName/$schema/$table'
       preLoaderRoute: typeof DataBranchNameSchemaTableRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof DataBranchNameRoute
     }
   }
 }
+
+interface DataBranchNameRouteChildren {
+  DataBranchNameIndexRoute: typeof DataBranchNameIndexRoute
+  DataBranchNameSchemaTableRoute: typeof DataBranchNameSchemaTableRoute
+}
+
+const DataBranchNameRouteChildren: DataBranchNameRouteChildren = {
+  DataBranchNameIndexRoute: DataBranchNameIndexRoute,
+  DataBranchNameSchemaTableRoute: DataBranchNameSchemaTableRoute,
+}
+
+const DataBranchNameRouteWithChildren = DataBranchNameRoute._addFileChildren(
+  DataBranchNameRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssetsAssetIdRoute: AssetsAssetIdRoute,
   BranchesBranchNameRoute: BranchesBranchNameRoute,
+  DataBranchNameRoute: DataBranchNameRouteWithChildren,
   AssetsIndexRoute: AssetsIndexRoute,
   BranchesIndexRoute: BranchesIndexRoute,
   DataIndexRoute: DataIndexRoute,
@@ -287,8 +318,6 @@ const rootRouteChildren: RootRouteChildren = {
   HubIndexRoute: HubIndexRoute,
   QualityIndexRoute: QualityIndexRoute,
   DataSchemaTableRoute: DataSchemaTableRoute,
-  DataBranchNameIndexRoute: DataBranchNameIndexRoute,
-  DataBranchNameSchemaTableRoute: DataBranchNameSchemaTableRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
