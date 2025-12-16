@@ -5,7 +5,6 @@ import {
   CheckCircle,
   Code,
   Database,
-  Info,
   Loader2,
   Terminal,
 } from 'lucide-react'
@@ -32,7 +31,6 @@ import { getAssetNeighbors } from '@/server/graph.server'
 import { getAssetChecks } from '@/server/quality.server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
@@ -41,11 +39,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
@@ -158,7 +151,6 @@ function NodeDetailPanel({
   >(null)
   const [contribPage, setContribPage] = useState(0)
   const [contribPageSize, setContribPageSize] = useState(50)
-  const [contribSeed, setContribSeed] = useState('phlo')
   const [contribLoading, setContribLoading] = useState(false)
   const [contribError, setContribError] = useState<string | null>(null)
   const [contribResult, setContribResult] = useState<Exclude<
@@ -178,7 +170,6 @@ function NodeDetailPanel({
             rowData,
             page: contribPage,
             pageSize: contribPageSize,
-            seed: contribSeed,
             trinoUrl: settings.connections.trinoUrl,
             timeoutMs: settings.query.timeoutMs,
             catalog: settings.defaults.catalog,
@@ -207,7 +198,6 @@ function NodeDetailPanel({
       assetKey,
       contribPage,
       contribPageSize,
-      contribSeed,
       rowData,
       settings.connections.trinoUrl,
       settings.defaults.catalog,
@@ -299,40 +289,6 @@ function NodeDetailPanel({
                     <option value="200">200</option>
                   </select>
                 </div>
-
-                {contribResult?.mode === 'aggregate' ? (
-                  <div className="grid gap-1">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="contrib-seed">Sampling</Label>
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <button
-                              type="button"
-                              className="text-muted-foreground hover:text-foreground"
-                              aria-label="Sampling help"
-                            />
-                          }
-                        >
-                          <Info className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          Seed controls which rows you see for aggregate
-                          contributors. Same seed = same sample.
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Input
-                      id="contrib-seed"
-                      value={contribSeed}
-                      onChange={(e) => {
-                        setContribSeed(e.target.value)
-                        setContribPage(0)
-                      }}
-                      className="w-56"
-                    />
-                  </div>
-                ) : null}
               </div>
 
               <div className="flex items-center gap-2 self-start sm:self-auto">

@@ -35,7 +35,6 @@ export type ContributingRowsPageResult =
       mode: ContributingRowsMode
       page: number
       pageSize: number
-      seed: string
       hasMore: boolean
       query: string
       upstream: { schema: string; table: string }
@@ -329,9 +328,8 @@ function toSafePage(page: number | undefined): number {
 
 function buildDeterministicOrderExpression(params: {
   columnTypes: Record<string, string>
-  seed: string
 }): string {
-  const seedSql = escapeSqlString(params.seed)
+  const seedSql = escapeSqlString(DEFAULT_SAMPLE_SEED)
   const columns = Object.keys(params.columnTypes)
 
   if (params.columnTypes._phlo_row_id) {
@@ -369,7 +367,6 @@ export function buildContributingRowsQuery(params: {
   rowData: Record<string, Primitive>
   pageSize: number
   page: number
-  seed: string
 }):
   | { ok: true; mode: ContributingRowsMode; query: string; where: string }
   | { ok: false; error: string } {
@@ -424,10 +421,7 @@ export function buildContributingRowsQuery(params: {
   const orderExpr =
     mode === 'entity'
       ? `"${'_phlo_row_id'}"`
-      : buildDeterministicOrderExpression({
-          columnTypes: upstreamCols,
-          seed: params.seed,
-        })
+      : buildDeterministicOrderExpression({ columnTypes: upstreamCols })
 
   // Trino syntax is `OFFSET n LIMIT m` (not Postgres-style `LIMIT m OFFSET n`).
   const query = `SELECT * FROM ${params.upstream.fullName} WHERE ${where} ORDER BY ${orderExpr} OFFSET ${offset} LIMIT ${limitPlusOne}`
@@ -473,7 +467,6 @@ export const getContributingRowsQuery = createServerFn()
       rowData,
       pageSize: limit,
       page: 0,
-      seed: DEFAULT_SAMPLE_SEED,
     })
     if (!built.ok) return { error: built.error }
 
@@ -493,7 +486,6 @@ export const getContributingRowsPage = createServerFn()
       rowData: Record<string, unknown>
       page?: number
       pageSize?: number
-      seed?: string
       trinoUrl?: string
       timeoutMs?: number
       catalog?: string
@@ -517,10 +509,6 @@ export const getContributingRowsPage = createServerFn()
 
     const pageSize = toSafePageSize(data.pageSize)
     const page = toSafePage(data.page)
-    const seed =
-      typeof data.seed === 'string' && data.seed.trim()
-        ? data.seed.trim().slice(0, 64)
-        : DEFAULT_SAMPLE_SEED
 
     const rowData = data.rowData as Record<string, Primitive>
     const built = buildContributingRowsQuery({
@@ -529,7 +517,6 @@ export const getContributingRowsPage = createServerFn()
       rowData,
       pageSize,
       page,
-      seed,
     })
     if (!built.ok) return { error: built.error }
 
@@ -545,7 +532,6 @@ export const getContributingRowsPage = createServerFn()
       mode: built.mode,
       page,
       pageSize,
-      seed,
       hasMore,
       query: built.query,
       upstream: { schema: upstream.schema, table: upstream.table },

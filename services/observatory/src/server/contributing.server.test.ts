@@ -15,7 +15,6 @@ describe('contributing rows query builder', () => {
       rowData: { _phlo_row_id: 'abc123', primary_language: 'Go' },
       pageSize: 50,
       page: 0,
-      seed: 'seed',
     })
 
     expect(result.ok).toBe(true)
@@ -46,7 +45,6 @@ describe('contributing rows query builder', () => {
       },
       pageSize: 25,
       page: 2,
-      seed: 'demo-seed',
     })
 
     expect(result.ok).toBe(true)
@@ -54,6 +52,5 @@ describe('contributing rows query builder', () => {
     expect(result.mode).toBe('aggregate')
     expect(result.query).toMatch(/ORDER BY xxhash64/)
     expect(result.query).toMatch(/OFFSET 50 LIMIT 26$/)
-    expect(result.query).toContain('demo-seed')
   })
 })

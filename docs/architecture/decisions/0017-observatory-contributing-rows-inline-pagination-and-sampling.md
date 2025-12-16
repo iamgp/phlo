@@ -25,14 +25,14 @@ This decision is tracked by beads `phlo-rml` and `phlo-504` (closed).
 - Support two modes (auto-selected):
   - Entity mode: if `_phlo_row_id` exists downstream and upstream, fetch matching upstream rows.
   - Aggregate mode: derive safe predicates from partition/date and mapped dimensions, then return a
-    deterministic pseudo-random ordering (seeded) with pagination.
+    deterministic pseudo-random ordering with pagination.
 - Enforce guardrails on the endpoint:
   - Hard caps for `pageSize` and overall server timeouts for Trino calls.
-  - Deterministic ordering for sampling/pagination so results are repeatable for a given seed.
+  - Deterministic ordering for sampling/pagination so results are repeatable.
   - Return the effective SQL used for audit/debug.
 - Extend the Row Journey UI to render contributing rows inline in a drawer/panel:
   - Paginated table view (using the shared TanStack table wrapper).
-  - Clear communication of mode (entity vs aggregate), page size caps, and sampling seed.
+  - Clear communication of mode (entity vs aggregate) and page size caps.
   - Retain "open in SQL" as a fallback/debug action.
 
 ## Consequences
