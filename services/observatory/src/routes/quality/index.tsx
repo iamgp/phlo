@@ -37,11 +37,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 import { getCheckHistory, getQualityDashboard } from '@/server/quality.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate, formatDateTime } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/quality/')({
   loader: async () => {
-    const result = await getQualityDashboard()
+    const settings = await getEffectiveObservatorySettings()
+    const result = await getQualityDashboard({
+      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+    })
     return { data: result }
   },
   component: QualityDashboard,
@@ -300,6 +306,7 @@ function QualityScoreCard({ score, totalChecks }: QualityScoreCardProps) {
 }
 
 function RecentExecutionRow({ exec }: { exec: RecentCheckExecution }) {
+  const { settings } = useObservatorySettings()
   const statusColor =
     exec.status === 'PASSED'
       ? 'text-green-400'
@@ -337,7 +344,7 @@ function RecentExecutionRow({ exec }: { exec: RecentCheckExecution }) {
           </span>
         </div>
         <div className="text-xs text-muted-foreground">
-          {new Date(exec.timestamp).toLocaleString()}
+          {formatDateTime(new Date(exec.timestamp), settings.ui.dateFormat)}
         </div>
       </div>
       <span className={`text-xs font-semibold ${statusColor}`}>
@@ -352,6 +359,7 @@ type CheckStatusFilter = 'all' | 'PASSED' | 'FAILED' | 'WARN'
 type LayerFilter = 'all' | 'bronze' | 'silver' | 'gold' | 'marts'
 
 function ChecksTable({ checks }: { checks: Array<QualityCheck> }) {
+  const { settings } = useObservatorySettings()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<CheckStatusFilter>('all')
   const [kind, setKind] = useState<CheckKind>('all')
@@ -478,7 +486,10 @@ function ChecksTable({ checks }: { checks: Array<QualityCheck> }) {
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {check.lastExecutionTime
-                      ? new Date(check.lastExecutionTime).toLocaleString()
+                      ? formatDateTime(
+                          new Date(check.lastExecutionTime),
+                          settings.ui.dateFormat,
+                        )
                       : '—'}
                   </TableCell>
                 </TableRow>
@@ -533,6 +544,7 @@ function CheckDetailsDrawer({
   check: QualityCheck
   onClose: () => void
 }) {
+  const { settings } = useObservatorySettings()
   const [history, setHistory] = useState<
     Array<{ timestamp: string; passed: boolean; runId?: string }>
   >([])
@@ -547,7 +559,12 @@ function CheckDetailsDrawer({
     setError(null)
 
     void getCheckHistory({
-      data: { assetKey: check.assetKey, checkName: check.name, limit: 20 },
+      data: {
+        assetKey: check.assetKey,
+        checkName: check.name,
+        limit: 20,
+        dagsterUrl: settings.connections.dagsterGraphqlUrl,
+      },
     })
       .then((result) => {
         if (cancelled) return
@@ -570,7 +587,7 @@ function CheckDetailsDrawer({
     return () => {
       cancelled = true
     }
-  }, [assetKeyPath, check.name])
+  }, [assetKeyPath, check.name, settings.connections.dagsterGraphqlUrl])
 
   const metadata = check.lastResult?.metadata ?? {}
   const sql =
@@ -669,7 +686,10 @@ function CheckDetailsDrawer({
                   className="flex items-center justify-between bg-muted border border-border p-3"
                 >
                   <div className="text-sm">
-                    {new Date(item.timestamp).toLocaleString()}
+                    {formatDateTime(
+                      new Date(item.timestamp),
+                      settings.ui.dateFormat,
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground font-mono">
@@ -829,6 +849,7 @@ interface FailingCheckCardProps {
 
 function FailingCheckCard({ check }: FailingCheckCardProps) {
   const assetPath = check.assetKey.join('/')
+  const { settings } = useObservatorySettings()
 
   return (
     <Link
@@ -849,7 +870,11 @@ function FailingCheckCard({ check }: FailingCheckCardProps) {
       {check.lastExecutionTime && (
         <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
           <Clock className="w-3 h-3" />
-          Failed {formatRelativeTime(new Date(check.lastExecutionTime))}
+          Failed{' '}
+          {formatRelativeTime(
+            new Date(check.lastExecutionTime),
+            settings.ui.dateFormat,
+          )}
         </div>
       )}
     </Link>
@@ -857,7 +882,7 @@ function FailingCheckCard({ check }: FailingCheckCardProps) {
 }
 
 // Utility
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -868,5 +893,5 @@ function formatRelativeTime(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }

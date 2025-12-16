@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import type { Branch, NessieConfig } from '@/server/nessie.server'
 import { checkNessieConnection, getBranches } from '@/server/nessie.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 interface BranchSelectorProps {
   branch: string
@@ -13,13 +14,16 @@ export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
   const [connection, setConnection] = useState<NessieConfig | null>(null)
   const [branches, setBranches] = useState<Array<Branch>>([])
   const [loading, setLoading] = useState(true)
+  const { settings } = useObservatorySettings()
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       const [conn, refs] = await Promise.all([
-        checkNessieConnection(),
-        getBranches(),
+        checkNessieConnection({
+          data: { nessieUrl: settings.connections.nessieUrl },
+        }),
+        getBranches({ data: { nessieUrl: settings.connections.nessieUrl } }),
       ])
 
       setConnection(conn)
@@ -32,7 +36,7 @@ export function BranchSelector({ branch, onChange }: BranchSelectorProps) {
     }
 
     load()
-  }, [])
+  }, [settings.connections.nessieUrl])
 
   const options = useMemo(() => {
     const names = new Set(branches.map((b) => b.name))

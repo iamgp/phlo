@@ -26,13 +26,18 @@ import {
   checkDagsterConnection,
   getHealthMetrics,
 } from '@/server/dagster.server'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDateTime } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/')({
   loader: async () => {
+    const settings = await getEffectiveObservatorySettings()
+    const dagsterUrl = settings.connections.dagsterGraphqlUrl
     // Check connection and fetch metrics in parallel
     const [connection, metrics] = await Promise.all([
-      checkDagsterConnection(),
-      getHealthMetrics(),
+      checkDagsterConnection({ data: { dagsterUrl } }),
+      getHealthMetrics({ data: { dagsterUrl } }),
     ])
     return { connection, metrics }
   },
@@ -42,6 +47,7 @@ export const Route = createFileRoute('/')({
 function Dashboard() {
   const { connection, metrics } = Route.useLoaderData()
   const router = useRouter()
+  const { settings } = useObservatorySettings()
 
   const hasError = 'error' in metrics
   const healthData = hasError ? null : metrics
@@ -125,7 +131,11 @@ function Dashboard() {
         {/* Last Updated */}
         {healthData && (
           <div className="mt-6 text-sm text-muted-foreground text-right">
-            Last updated: {new Date(healthData.lastUpdated).toLocaleString()}
+            Last updated:{' '}
+            {formatDateTime(
+              new Date(healthData.lastUpdated),
+              settings.ui.dateFormat,
+            )}
           </div>
         )}
       </div>

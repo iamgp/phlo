@@ -26,6 +26,13 @@ export interface DagsterConnectionStatus {
   version?: string
 }
 
+const DEFAULT_DAGSTER_URL = 'http://localhost:3000/graphql'
+
+function resolveDagsterUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.DAGSTER_GRAPHQL_URL || DEFAULT_DAGSTER_URL
+}
+
 // GraphQL query to get asset counts and run status
 const HEALTH_QUERY = `
   query HealthMetrics {
@@ -70,10 +77,10 @@ const VERSION_QUERY = `
 /**
  * Check if Dagster is reachable
  */
-export const checkDagsterConnection = createServerFn().handler(
-  async (): Promise<DagsterConnectionStatus> => {
-    const dagsterUrl =
-      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+export const checkDagsterConnection = createServerFn()
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<DagsterConnectionStatus> => {
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -90,18 +97,18 @@ export const checkDagsterConnection = createServerFn().handler(
         }
       }
 
-      const data = await response.json()
+      const payload = await response.json()
 
-      if (data.errors) {
+      if (payload.errors) {
         return {
           connected: false,
-          error: data.errors[0]?.message || 'GraphQL error',
+          error: payload.errors[0]?.message || 'GraphQL error',
         }
       }
 
       return {
         connected: true,
-        version: data.data?.version,
+        version: payload.data?.version,
       }
     } catch (error) {
       return {
@@ -109,16 +116,15 @@ export const checkDagsterConnection = createServerFn().handler(
         error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
-  },
-)
+  })
 
 /**
  * Get health metrics from Dagster
  */
-export const getHealthMetrics = createServerFn().handler(
-  async (): Promise<HealthMetrics | { error: string }> => {
-    const dagsterUrl =
-      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+export const getHealthMetrics = createServerFn()
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<HealthMetrics | { error: string }> => {
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -190,8 +196,7 @@ export const getHealthMetrics = createServerFn().handler(
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
-  },
-)
+  })
 
 async function qualityCounts(): Promise<{ passing: number; total: number }> {
   const snapshot = await fetchQualitySnapshot({ recentLimit: 0 })
@@ -356,10 +361,10 @@ const ASSET_DETAILS_QUERY = `
 /**
  * Get all assets for list view
  */
-export const getAssets = createServerFn().handler(
-  async (): Promise<Array<Asset> | { error: string }> => {
-    const dagsterUrl =
-      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+export const getAssets = createServerFn()
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<Array<Asset> | { error: string }> => {
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -421,26 +426,26 @@ export const getAssets = createServerFn().handler(
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
-  },
-)
+  })
 
 /**
  * Get details for a single asset (Server Function)
- * Called with: getAssetDetails({ data: 'assetKeyPath' })
+ * Called with: getAssetDetails({ data: { assetKeyPath, dagsterUrl? } })
  */
 export const getAssetDetails = createServerFn()
-  .inputValidator((input: string) => input)
+  .inputValidator(
+    (input: { assetKeyPath: string; dagsterUrl?: string }) => input,
+  )
   .handler(
     async ({
-      data: assetKeyPath,
+      data: { assetKeyPath, dagsterUrl: dagsterUrlOverride },
     }): Promise<AssetDetails | { error: string }> => {
       if (!assetKeyPath) {
         return { error: 'Asset key is required' }
       }
 
       const assetKey = assetKeyPath.split('/')
-      const dagsterUrl =
-        process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+      const dagsterUrl = resolveDagsterUrl(dagsterUrlOverride)
 
       try {
         const response = await fetch(dagsterUrl, {

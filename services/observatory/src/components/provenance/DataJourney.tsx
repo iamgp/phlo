@@ -23,6 +23,8 @@ import type { Edge, Node, NodeProps } from '@xyflow/react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { getAssetNeighbors } from '@/server/graph.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate } from '@/utils/dateFormat'
 
 interface DataJourneyProps {
   assetKey: string
@@ -80,6 +82,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { settings } = useObservatorySettings()
 
   // Load asset neighbors
   useEffect(() => {
@@ -88,7 +91,12 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
       setError(null)
       try {
         const result = await getAssetNeighbors({
-          data: { assetKey, direction: 'both', depth: 2 },
+          data: {
+            assetKey,
+            direction: 'both',
+            depth: 2,
+            dagsterUrl: settings.connections.dagsterGraphqlUrl,
+          },
         })
         if ('error' in result) {
           setError(result.error)
@@ -102,7 +110,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
       }
     }
     loadGraph()
-  }, [assetKey])
+  }, [assetKey, settings.connections.dagsterGraphqlUrl])
 
   // Convert graph data to React Flow format
   const { nodes, edges } = useMemo(() => {
@@ -176,7 +184,10 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
             isCurrent: node.keyPath === assetKey,
             computeKind: node.computeKind,
             lastMaterialized: node.lastMaterialization
-              ? formatRelativeTime(new Date(Number(node.lastMaterialization)))
+              ? formatRelativeTime(
+                  new Date(Number(node.lastMaterialization)),
+                  settings.ui.dateFormat,
+                )
               : undefined,
           },
         })
@@ -194,7 +205,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
     }))
 
     return { nodes: flowNodes, edges: flowEdges }
-  }, [graphData, assetKey])
+  }, [graphData, assetKey, settings.ui.dateFormat])
 
   const onInit = useCallback(() => {
     // Fit to view on init
@@ -255,7 +266,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
 }
 
 // Utility
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -266,5 +277,5 @@ function formatRelativeTime(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }

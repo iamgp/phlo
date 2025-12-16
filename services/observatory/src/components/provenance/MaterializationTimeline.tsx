@@ -17,6 +17,8 @@ import { useEffect, useState } from 'react'
 import type { MaterializationEvent } from '@/server/dagster.server'
 import { getMaterializationHistory } from '@/server/dagster.server'
 import { Badge } from '@/components/ui/badge'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDateTime } from '@/utils/dateFormat'
 
 interface MaterializationTimelineProps {
   assetKey: string
@@ -31,6 +33,7 @@ export function MaterializationTimeline({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const { settings } = useObservatorySettings()
 
   useEffect(() => {
     async function loadHistory() {
@@ -142,11 +145,7 @@ export function MaterializationTimeline({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground">
-                        {timestamp.toLocaleDateString()}{' '}
-                        {timestamp.toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatDateTime(timestamp, settings.ui.dateFormat)}
                       </span>
                       {isFirst && (
                         <Badge variant="secondary" className="text-xs">

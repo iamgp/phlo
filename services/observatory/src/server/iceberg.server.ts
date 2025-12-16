@@ -7,6 +7,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { quoteIdentifier } from '@/utils/sqlIdentifiers'
+
 // Types for table metadata
 export interface IcebergTable {
   catalog: string
@@ -30,16 +32,24 @@ export interface TableMetadata {
   lastModified?: string
 }
 
-// Get Trino URL from environment
-const getTrinoUrl = () => process.env.TRINO_URL || 'http://localhost:8080'
+const DEFAULT_CATALOG = 'iceberg'
+const DEFAULT_TRINO_URL = 'http://localhost:8080'
+
+function resolveTrinoUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.TRINO_URL || DEFAULT_TRINO_URL
+}
 
 /**
  * Query Trino and return results
  */
 async function queryTrino<T>(
   sql: string,
+  options?: { trinoUrl?: string; timeoutMs?: number; catalog?: string },
 ): Promise<{ data: Array<T>; columns: Array<string> } | { error: string }> {
-  const trinoUrl = getTrinoUrl()
+  const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
+  const timeoutMs = options?.timeoutMs ?? 30_000
+  const catalog = options?.catalog ?? DEFAULT_CATALOG
 
   try {
     // Submit query
@@ -47,11 +57,11 @@ async function queryTrino<T>(
       method: 'POST',
       headers: {
         'X-Trino-User': 'observatory',
-        'X-Trino-Catalog': 'iceberg',
+        'X-Trino-Catalog': catalog,
         // Not setting X-Trino-Schema since we use fully-qualified table names
       },
       body: sql,
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
 
     if (!submitResponse.ok) {
@@ -73,7 +83,10 @@ async function queryTrino<T>(
     while (result.nextUri) {
       await new Promise((resolve) => setTimeout(resolve, 100))
       const pollResponse = await fetch(result.nextUri, {
-        signal: AbortSignal.timeout(30000),
+        headers: {
+          'X-Trino-User': 'observatory',
+        },
+        signal: AbortSignal.timeout(timeoutMs),
       })
       result = await pollResponse.json()
 
@@ -85,11 +98,6 @@ async function queryTrino<T>(
 
     // Replace result.data with accumulated data
     result.data = allData
-
-    console.log(
-      '[queryTrino] Final result:',
-      JSON.stringify(result, null, 2).substring(0, 500),
-    )
 
     if (result.error) {
       return { error: result.error.message || 'Query failed' }
@@ -103,13 +111,6 @@ async function queryTrino<T>(
       })
       return obj as T
     })
-
-    console.log(
-      '[queryTrino] Parsed columns:',
-      columns,
-      'data count:',
-      data.length,
-    )
 
     return { data, columns }
   } catch (error) {
@@ -141,11 +142,20 @@ function inferLayer(name: string): IcebergTable['layer'] {
  * Get all tables from Iceberg catalog
  */
 export const getTables = createServerFn()
-  .inputValidator((input: { branch?: string }) => input)
+  .inputValidator(
+    (input: {
+      branch?: string
+      catalog?: string
+      preferredSchema?: string
+      trinoUrl?: string
+      timeoutMs?: number
+    }) => input,
+  )
   .handler(
     async ({
-      data: { branch = 'main' },
+      data: { branch = 'main', catalog, preferredSchema, trinoUrl, timeoutMs },
     }): Promise<Array<IcebergTable> | { error: string }> => {
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
       // Query for schemas first, then tables in each schema
       // The Iceberg catalog uses schema names like 'bronze', 'raw', 'silver', 'gold', 'marts'
       // (some projects also use 'publish' as an alias for marts).
@@ -157,46 +167,43 @@ export const getTables = createServerFn()
         'marts',
         'publish',
       ]
+      if (preferredSchema && schemasToQuery.includes(preferredSchema)) {
+        schemasToQuery.sort((a, b) =>
+          a === preferredSchema ? -1 : b === preferredSchema ? 1 : 0,
+        )
+      }
       const allTables: Array<IcebergTable> = []
       const seenTables = new Set<string>() // Track by name to dedupe
       const errors: Array<string> = []
 
-      console.log('[getTables] Starting to query schemas:', schemasToQuery)
-
       for (const schema of schemasToQuery) {
-        const sql = `SHOW TABLES FROM iceberg.${schema}`
-        console.log('[getTables] Querying:', sql)
-        const result = await queryTrino<{ Table: string }>(sql)
+        const sql = `SHOW TABLES FROM ${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(schema)}`
+        const result = await queryTrino<{ Table: string }>(sql, {
+          trinoUrl,
+          timeoutMs,
+          catalog: effectiveCatalog,
+        })
 
         // Skip schemas that don't exist or have errors
         if ('error' in result) {
-          console.log('[getTables] Error for schema', schema, ':', result.error)
           errors.push(`${schema}: ${result.error}`)
           continue
         }
 
-        console.log(
-          '[getTables] Found',
-          result.data.length,
-          'tables in',
-          schema,
-        )
         for (const row of result.data) {
           // Dedupe by table name - prefer the first schema we find it in
           if (!seenTables.has(row.Table)) {
             seenTables.add(row.Table)
             allTables.push({
-              catalog: 'iceberg',
+              catalog: effectiveCatalog,
               schema: schema,
               name: row.Table,
-              fullName: `iceberg.${schema}.${row.Table}`,
+              fullName: `${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(row.Table)}`,
               layer: inferLayerFromSchema(schema, row.Table),
             })
           }
         }
       }
-
-      console.log('[getTables] Total tables found:', allTables.length)
 
       if (allTables.length === 0 && errors.length > 0) {
         // Return a combined error message if all schemas failed
@@ -205,9 +212,12 @@ export const getTables = createServerFn()
 
       if (allTables.length === 0) {
         // Fall back to trying the branch as a schema name (for Nessie-based setups)
-        const sql = `SHOW TABLES FROM iceberg."${branch}"`
-        console.log('[getTables] Fallback query:', sql)
-        const result = await queryTrino<{ Table: string }>(sql)
+        const sql = `SHOW TABLES FROM ${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}`
+        const result = await queryTrino<{ Table: string }>(sql, {
+          trinoUrl,
+          timeoutMs,
+          catalog: effectiveCatalog,
+        })
 
         if ('error' in result) {
           return result
@@ -215,10 +225,10 @@ export const getTables = createServerFn()
 
         for (const row of result.data) {
           allTables.push({
-            catalog: 'iceberg',
+            catalog: effectiveCatalog,
             schema: branch,
             name: row.Table,
-            fullName: `iceberg."${branch}".${row.Table}`,
+            fullName: `${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(row.Table)}`,
             layer: inferLayer(row.Table),
           })
         }
@@ -270,18 +280,21 @@ function inferLayerFromSchema(
  * Get schema for a specific table
  */
 export const getTableSchema = createServerFn()
-  .inputValidator((input: { table: string; branch?: string }) => input)
+  .inputValidator(
+    (input: { table: string; branch?: string; catalog?: string }) => input,
+  )
   .handler(
     async ({
-      data: { table, branch = 'main' },
+      data: { table, branch = 'main', catalog },
     }): Promise<Array<TableColumn> | { error: string }> => {
-      const sql = `DESCRIBE iceberg."${branch}"."${table}"`
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const sql = `DESCRIBE ${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(table)}`
       const result = await queryTrino<{
         Column: string
         Type: string
         Extra: string
         Comment: string
-      }>(sql)
+      }>(sql, { catalog: effectiveCatalog })
 
       if ('error' in result) {
         return result
@@ -300,13 +313,18 @@ export const getTableSchema = createServerFn()
  * Get row count for a table
  */
 export const getTableRowCount = createServerFn()
-  .inputValidator((input: { table: string; branch?: string }) => input)
+  .inputValidator(
+    (input: { table: string; branch?: string; catalog?: string }) => input,
+  )
   .handler(
     async ({
-      data: { table, branch = 'main' },
+      data: { table, branch = 'main', catalog },
     }): Promise<number | { error: string }> => {
-      const sql = `SELECT COUNT(*) as cnt FROM iceberg."${branch}"."${table}"`
-      const result = await queryTrino<{ cnt: number }>(sql)
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const sql = `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(table)}`
+      const result = await queryTrino<{ cnt: number }>(sql, {
+        catalog: effectiveCatalog,
+      })
 
       if ('error' in result) {
         return result
@@ -320,13 +338,18 @@ export const getTableRowCount = createServerFn()
  * Get table metadata including schema and stats
  */
 export const getTableMetadata = createServerFn()
-  .inputValidator((input: { table: string; branch?: string }) => input)
+  .inputValidator(
+    (input: { table: string; branch?: string; catalog?: string }) => input,
+  )
   .handler(
     async ({
-      data: { table, branch = 'main' },
+      data: { table, branch = 'main', catalog },
     }): Promise<TableMetadata | { error: string }> => {
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
       // Get schema
-      const schemaResult = await getTableSchema({ data: { table, branch } })
+      const schemaResult = await getTableSchema({
+        data: { table, branch, catalog: effectiveCatalog },
+      })
       if ('error' in schemaResult) {
         return schemaResult
       }
@@ -334,7 +357,9 @@ export const getTableMetadata = createServerFn()
       // Get row count (optional - don't fail if this errors)
       let rowCount: number | undefined
       try {
-        const countResult = await getTableRowCount({ data: { table, branch } })
+        const countResult = await getTableRowCount({
+          data: { table, branch, catalog: effectiveCatalog },
+        })
         if (typeof countResult === 'number') {
           rowCount = countResult
         }
@@ -344,10 +369,10 @@ export const getTableMetadata = createServerFn()
 
       return {
         table: {
-          catalog: 'iceberg',
+          catalog: effectiveCatalog,
           schema: branch,
           name: table,
-          fullName: `iceberg."${branch}"."${table}"`,
+          fullName: `${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(table)}`,
           layer: inferLayer(table),
         },
         columns: schemaResult,
