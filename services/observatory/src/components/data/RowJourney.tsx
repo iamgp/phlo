@@ -5,6 +5,7 @@ import {
   CheckCircle,
   Code,
   Database,
+  Info,
   Loader2,
   Terminal,
 } from 'lucide-react'
@@ -40,6 +41,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
@@ -258,7 +264,10 @@ function NodeDetailPanel({
           }
         }}
       >
-        <SheetContent side="right" className="sm:max-w-3xl">
+        <SheetContent
+          side="bottom"
+          className="h-[85vh] sm:h-[75vh] sm:max-w-none"
+        >
           <SheetHeader>
             <SheetTitle>Contributing rows</SheetTitle>
             <SheetDescription>
@@ -270,9 +279,9 @@ function NodeDetailPanel({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="px-4 pb-4 space-y-4">
-            <div className="flex items-end justify-between gap-3">
-              <div className="flex items-end gap-3">
+          <div className="px-4 pb-4 flex flex-col gap-4 min-h-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-wrap items-end gap-3">
                 <div className="grid gap-1">
                   <Label htmlFor="contrib-page-size">Page size</Label>
                   <select
@@ -291,21 +300,42 @@ function NodeDetailPanel({
                   </select>
                 </div>
 
-                <div className="grid gap-1">
-                  <Label htmlFor="contrib-seed">Seed</Label>
-                  <Input
-                    id="contrib-seed"
-                    value={contribSeed}
-                    onChange={(e) => {
-                      setContribSeed(e.target.value)
-                      setContribPage(0)
-                    }}
-                    className="w-56"
-                  />
-                </div>
+                {contribResult?.mode === 'aggregate' ? (
+                  <div className="grid gap-1">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="contrib-seed">Sampling</Label>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground"
+                              aria-label="Sampling help"
+                            />
+                          }
+                        >
+                          <Info className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Seed controls which rows you see for aggregate
+                          contributors. Same seed = same sample.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id="contrib-seed"
+                      value={contribSeed}
+                      onChange={(e) => {
+                        setContribSeed(e.target.value)
+                        setContribPage(0)
+                      }}
+                      className="w-56"
+                    />
+                  </div>
+                ) : null}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-start sm:self-auto">
                 {contribResult?.mode ? (
                   <Badge variant="secondary" className="capitalize">
                     {contribResult.mode}
@@ -358,36 +388,43 @@ function NodeDetailPanel({
             </div>
 
             {contribResult?.query ? (
-              <div className="rounded-md border border-border bg-muted/30 overflow-x-auto max-h-40">
-                <pre className="p-3 text-xs leading-relaxed">
-                  {cleanSqlForDisplay(contribResult.query)}
-                </pre>
-              </div>
+              <details className="rounded-md border border-border bg-muted/30">
+                <summary className="cursor-pointer select-none px-3 py-2 text-xs text-muted-foreground">
+                  SQL (read-only)
+                </summary>
+                <div className="border-t border-border overflow-x-auto max-h-40">
+                  <pre className="p-3 text-xs leading-relaxed">
+                    {cleanSqlForDisplay(contribResult.query)}
+                  </pre>
+                </div>
+              </details>
             ) : null}
 
-            {contribLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading…
-              </div>
-            ) : contribError ? (
-              <div className="text-sm text-red-400">{contribError}</div>
-            ) : contribResult && contribResult.rows.length > 0 ? (
-              <ObservatoryTable
-                columns={contribResult.columns}
-                rows={contribResult.rows}
-                getRowId={(_, index) => String(index)}
-                maxHeightClassName="max-h-[60vh]"
-                enableSorting
-                enableColumnResizing
-                enableColumnPinning
-                monospace
-              />
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                No contributing rows found.
-              </div>
-            )}
+            <div className="min-h-0 flex-1">
+              {contribLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading…
+                </div>
+              ) : contribError ? (
+                <div className="text-sm text-red-400">{contribError}</div>
+              ) : contribResult && contribResult.rows.length > 0 ? (
+                <ObservatoryTable
+                  columns={contribResult.columns}
+                  rows={contribResult.rows}
+                  getRowId={(_, index) => String(index)}
+                  maxHeightClassName="max-h-full"
+                  enableSorting
+                  enableColumnResizing
+                  enableColumnPinning
+                  monospace
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No contributing rows found.
+                </div>
+              )}
+            </div>
           </div>
         </SheetContent>
       </Sheet>
