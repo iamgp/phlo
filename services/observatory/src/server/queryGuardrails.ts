@@ -5,6 +5,7 @@ export type QueryGuardrails = {
 }
 
 export type QueryExecutionError = {
+  ok: false
   error: string
   kind: 'blocked' | 'confirm_required' | 'invalid' | 'timeout' | 'trino'
   effectiveQuery?: string
@@ -205,10 +206,11 @@ export function validateAndRewriteQuery(params: {
   const { query, guardrails, allowUnsafe } = params
   const statements = splitSqlStatements(query)
   if (statements.length === 0) {
-    return { error: 'Query is empty.', kind: 'invalid' }
+    return { ok: false, error: 'Query is empty.', kind: 'invalid' }
   }
   if (statements.length > 1) {
     return {
+      ok: false,
       error: 'Multi-statement queries are not allowed.',
       kind: 'blocked',
     }
@@ -235,6 +237,7 @@ export function validateAndRewriteQuery(params: {
   if (guardrails.readOnlyMode) {
     if (!isReadOnly) {
       return {
+        ok: false,
         error:
           'Only SELECT/SHOW/DESCRIBE/EXPLAIN queries are allowed in read-only mode.',
         kind: 'blocked',
@@ -243,6 +246,7 @@ export function validateAndRewriteQuery(params: {
     }
     if (forbidden) {
       return {
+        ok: false,
         error: `Blocked statement (${forbidden}) in read-only mode.`,
         kind: 'blocked',
         effectiveQuery: statement,
@@ -250,6 +254,7 @@ export function validateAndRewriteQuery(params: {
     }
   } else if ((!isReadOnly || forbidden) && !allowUnsafe) {
     return {
+      ok: false,
       error: 'This statement is not read-only. Confirm to run it.',
       kind: 'confirm_required',
       effectiveQuery: statement,

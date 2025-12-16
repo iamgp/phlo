@@ -100,7 +100,7 @@ async function executeTrinoQuery(
 
     if (!submitResponse.ok) {
       const errorText = await submitResponse.text()
-      return { error: `Trino error: ${errorText}`, kind: 'trino' }
+      return { ok: false, error: `Trino error: ${errorText}`, kind: 'trino' }
     }
 
     let result = await submitResponse.json()
@@ -125,7 +125,11 @@ async function executeTrinoQuery(
 
       if (!pollResponse.ok) {
         const errorText = await pollResponse.text()
-        return { error: `Trino poll error: ${errorText}`, kind: 'trino' }
+        return {
+          ok: false,
+          error: `Trino poll error: ${errorText}`,
+          kind: 'trino',
+        }
       }
 
       result = await pollResponse.json()
@@ -144,6 +148,7 @@ async function executeTrinoQuery(
       // Check for errors
       if (result.error) {
         return {
+          ok: false,
           error: result.error.message || 'Query failed',
           kind: 'trino',
         }
@@ -163,9 +168,9 @@ async function executeTrinoQuery(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     if (message.toLowerCase().includes('timeout')) {
-      return { error: message, kind: 'timeout' }
+      return { ok: false, error: message, kind: 'timeout' }
     }
-    return { error: message, kind: 'trino' }
+    return { ok: false, error: message, kind: 'trino' }
   }
 }
 

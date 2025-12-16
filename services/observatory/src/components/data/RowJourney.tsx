@@ -118,6 +118,7 @@ function NodeDetailPanel({
   rowData: Record<string, unknown>
   onQuerySource?: (query: string) => void
 }) {
+  const { settings } = useObservatorySettings()
   const tableName = assetKey.split('/').pop() || assetKey
 
   if (isLoading) {

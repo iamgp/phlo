@@ -56,7 +56,6 @@ export const Route = createFileRoute('/quality/')({
 function QualityDashboard() {
   const { data } = Route.useLoaderData()
   const router = useRouter()
-  const { settings } = useObservatorySettings()
 
   const hasError = 'error' in data
   const dashboardData = hasError

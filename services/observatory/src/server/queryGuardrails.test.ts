@@ -12,8 +12,8 @@ describe('query guardrails', () => {
       guardrails: { readOnlyMode: true, defaultLimit: 100, maxLimit: 5000 },
       allowUnsafe: false,
     })
-    expect('ok' in result).toBe(false)
-    if ('ok' in result) return
+    expect(result.ok).toBe(false)
+    if (result.ok) return
     expect(result.kind).toBe('invalid')
   })
 
@@ -23,8 +23,8 @@ describe('query guardrails', () => {
       guardrails: { readOnlyMode: true, defaultLimit: 100, maxLimit: 5000 },
       allowUnsafe: false,
     })
-    expect('ok' in result).toBe(false)
-    if ('ok' in result) return
+    expect(result.ok).toBe(false)
+    if (result.ok) return
     expect(result.kind).toBe('blocked')
   })
 
@@ -38,8 +38,8 @@ describe('query guardrails', () => {
       guardrails: { readOnlyMode: true, defaultLimit: 100, maxLimit: 5000 },
       allowUnsafe: false,
     })
-    expect('ok' in result).toBe(false)
-    if ('ok' in result) return
+    expect(result.ok).toBe(false)
+    if (result.ok) return
     expect(result.kind).toBe('blocked')
   })
 
@@ -49,8 +49,8 @@ describe('query guardrails', () => {
       guardrails: { readOnlyMode: false, defaultLimit: 100, maxLimit: 5000 },
       allowUnsafe: false,
     })
-    expect('ok' in result).toBe(false)
-    if ('ok' in result) return
+    expect(result.ok).toBe(false)
+    if (result.ok) return
     expect(result.kind).toBe('confirm_required')
   })
 
@@ -60,8 +60,8 @@ describe('query guardrails', () => {
       guardrails: { readOnlyMode: true, defaultLimit: 123, maxLimit: 456 },
       allowUnsafe: false,
     })
-    expect('ok' in result).toBe(true)
-    if (!('ok' in result)) return
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
     expect(result.effectiveQuery).toMatch(/LIMIT 456\s*$/)
   })
 
@@ -71,15 +71,15 @@ describe('query guardrails', () => {
       guardrails: { readOnlyMode: true, defaultLimit: 10, maxLimit: 10 },
       allowUnsafe: false,
     })
-    expect('ok' in ok).toBe(true)
+    expect(ok.ok).toBe(true)
 
     const blocked = validateAndRewriteQuery({
       query: 'with t as (select 1) insert into x select * from t',
       guardrails: { readOnlyMode: true, defaultLimit: 10, maxLimit: 10 },
       allowUnsafe: false,
     })
-    expect('ok' in blocked).toBe(false)
-    if ('ok' in blocked) return
+    expect(blocked.ok).toBe(false)
+    if (blocked.ok) return
     expect(blocked.kind).toBe('blocked')
   })
 })

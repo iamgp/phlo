@@ -1,10 +1,7 @@
 import { Loader2, Play, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import type {
-  DataPreviewResult,
-  QueryExecutionError,
-} from '@/server/trino.server'
+import type { DataPreviewResult } from '@/server/trino.server'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
