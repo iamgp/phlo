@@ -15,6 +15,7 @@ from dagster_dbt import DbtCliResource, dbt_assets
 from phlo.config import config
 from phlo.defs.partitions import daily_partition
 from phlo.defs.transform.dbt_translator import CustomDbtTranslator
+from phlo.lineage.dbt_inject import inject_row_ids_for_dbt_run
 from phlo.quality.dbt_asset_checks import extract_dbt_asset_checks
 
 # --- Configuration ---
@@ -64,6 +65,35 @@ def build_all_dbt_assets(*, manifest_path) -> object:
         build_run_results = build_invocation.target_path / "run_results.json"
         if build_run_results.exists():
             shutil.copy(build_run_results, default_target_dir / "run_results.json")
+
+        # Inject _phlo_row_id into all successfully built dbt tables
+        if build_run_results.exists():
+            try:
+                import trino
+
+                with open(build_run_results) as handle:
+                    run_results = json.load(handle)
+
+                trino_conn = trino.dbapi.connect(
+                    host=config.trino_host,
+                    port=config.trino_port,
+                    user="phlo",
+                    catalog="iceberg",
+                )
+                inject_results = inject_row_ids_for_dbt_run(
+                    trino_connection=trino_conn,
+                    run_results=run_results,
+                    context=context,
+                )
+                trino_conn.close()
+
+                for table_name, result in inject_results.items():
+                    if "error" in result:
+                        context.log.warning(f"Failed to inject _phlo_row_id into {table_name}: {result['error']}")
+                    elif not result.get("skipped"):
+                        context.log.info(f"Injected _phlo_row_id into {table_name}: {result['rows_updated']} rows")
+            except Exception as e:
+                context.log.warning(f"Failed to inject _phlo_row_id: {e}")
 
         docs_args = [
             "docs",

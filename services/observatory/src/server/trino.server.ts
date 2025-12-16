@@ -574,3 +574,63 @@ export const queryTableWithFilters = createServerFn()
       }
     },
   )
+
+/**
+ * Get a single row by its _phlo_row_id
+ * Used for deep linking to row-level data journeys
+ */
+export const getRowById = createServerFn()
+  .inputValidator(
+    (input: {
+      table: string
+      rowId: string
+      catalog?: string
+      schema?: string
+      trinoUrl?: string
+      timeoutMs?: number
+    }) => input,
+  )
+  .handler(
+    async ({
+      data: { table, rowId, catalog, schema, trinoUrl, timeoutMs },
+    }): Promise<DataPreviewResult | { error: string }> => {
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? 'main'
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
+
+      // Escape single quotes in rowId to prevent SQL injection
+      const escapedRowId = rowId.replace(/'/g, "''")
+      const query = `SELECT * FROM ${resolvedTable} WHERE "_phlo_row_id" = '${escapedRowId}' LIMIT 1`
+
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
+
+      if ('error' in result) {
+        return { error: result.error }
+      }
+
+      if (result.rows.length === 0) {
+        return { error: 'Row not found' }
+      }
+
+      return {
+        columns: result.columns,
+        columnTypes: result.columnTypes,
+        rows: result.rows,
+        hasMore: false,
+      }
+    },
+  )
