@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { executeQuery } from '@/server/trino.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 interface QueryEditorProps {
   defaultQuery?: string
@@ -76,6 +77,7 @@ export function QueryEditor({
         data: {
           query: queryToRun,
           branch,
+          catalog: settings.defaults.catalog,
           trinoUrl: settings.connections.trinoUrl,
           timeoutMs: settings.query.timeoutMs,
           readOnlyMode: settings.query.readOnlyMode,
@@ -112,6 +114,7 @@ export function QueryEditor({
         data: {
           query: confirmState.statement,
           branch,
+          catalog: settings.defaults.catalog,
           trinoUrl: settings.connections.trinoUrl,
           timeoutMs: settings.query.timeoutMs,
           readOnlyMode: settings.query.readOnlyMode,
@@ -152,7 +155,7 @@ export function QueryEditor({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`SELECT * FROM iceberg."${branch}".table_name LIMIT 100`}
+          placeholder={`SELECT * FROM ${quoteIdentifier(settings.defaults.catalog)}.${quoteIdentifier(branch)}.table_name LIMIT ${settings.query.defaultLimit}`}
           className="h-32 text-xs resize-none"
           spellCheck={false}
         />

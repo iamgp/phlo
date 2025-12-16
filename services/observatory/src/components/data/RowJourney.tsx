@@ -223,6 +223,7 @@ function NodeDetailPanel({
                             limit: 100,
                             trinoUrl: settings.connections.trinoUrl,
                             timeoutMs: settings.query.timeoutMs,
+                            catalog: settings.defaults.catalog,
                           },
                         })
 

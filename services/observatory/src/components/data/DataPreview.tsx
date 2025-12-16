@@ -19,7 +19,7 @@ interface DataPreviewProps {
 
 export function DataPreview({
   table,
-  branch = 'main',
+  branch,
   onShowJourney,
 }: DataPreviewProps) {
   const [data, setData] = useState<DataPreviewResult | null>(null)
@@ -28,6 +28,7 @@ export function DataPreview({
   const [page, setPage] = useState(0)
   const pageSize = 50
   const { settings } = useObservatorySettings()
+  const effectiveBranch = branch ?? settings.defaults.branch
 
   // Auto-load data when table changes
   useEffect(() => {
@@ -36,7 +37,15 @@ export function DataPreview({
     setError(null)
     setPage(0)
     loadData(0)
-  }, [table, branch])
+  }, [
+    table,
+    effectiveBranch,
+    settings.connections.trinoUrl,
+    settings.defaults.catalog,
+    settings.defaults.schema,
+    settings.query.maxLimit,
+    settings.query.timeoutMs,
+  ])
 
   const loadData = async (offset = 0) => {
     setLoading(true)
@@ -45,7 +54,9 @@ export function DataPreview({
       const result = await previewData({
         data: {
           table,
-          branch,
+          branch: effectiveBranch,
+          catalog: settings.defaults.catalog,
+          schema: settings.defaults.schema,
           limit: pageSize,
           offset,
           trinoUrl: settings.connections.trinoUrl,

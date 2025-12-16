@@ -42,6 +42,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { previewData } from '@/server/trino.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 export const Route = createFileRoute('/data/$branchName/$schema/$table')({
   validateSearch: z.object({
@@ -106,13 +107,14 @@ function DataExplorerWithTable() {
   }, [sqlFromSearch, tabFromSearch])
 
   // Construct the selected table from URL params
+  const catalog = settings.defaults.catalog
   const fullName =
     schema === decodedBranchName
-      ? `iceberg."${decodedBranchName}"."${table}"`
-      : `iceberg.${schema}.${table}`
+      ? `${quoteIdentifier(catalog)}.${quoteIdentifier(decodedBranchName)}.${quoteIdentifier(table)}`
+      : `${quoteIdentifier(catalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(table)}`
 
   const selectedTable: IcebergTable = {
-    catalog: 'iceberg',
+    catalog,
     schema: schema,
     name: table,
     fullName,

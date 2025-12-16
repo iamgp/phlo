@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
+import { formatDate } from '@/utils/dateFormat'
 import {
   compareBranches,
   getBranch,
@@ -256,6 +257,7 @@ function StatCard({ icon, label, value, subtitle }: StatCardProps) {
 
 // Commits Tab
 function CommitsTab({ commits }: { commits: Array<LogEntry> }) {
+  const { settings } = useObservatorySettings()
   if (commits.length === 0) {
     return (
       <div className="p-12 text-center text-muted-foreground">
@@ -296,7 +298,7 @@ function CommitsTab({ commits }: { commits: Array<LogEntry> }) {
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {formatRelativeTime(date)}
+                    {formatRelativeTime(date, settings.ui.dateFormat)}
                   </span>
                   {commitMeta.authors.length > 0 && (
                     <span>{commitMeta.authors.join(', ')}</span>
@@ -452,7 +454,7 @@ function CompareTab({
 }
 
 // Utility function
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -463,5 +465,5 @@ function formatRelativeTime(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }

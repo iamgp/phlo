@@ -12,6 +12,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { quoteIdentifier } from '@/utils/sqlIdentifiers'
+
 type Primitive = string | number | boolean | null | undefined
 
 interface ResolveTableResult {
@@ -21,6 +23,7 @@ interface ResolveTableResult {
   columnTypes: Record<string, string>
 }
 
+const DEFAULT_CATALOG = 'iceberg'
 const DEFAULT_TRINO_URL = 'http://localhost:8080'
 
 function resolveTrinoUrl(override?: string): string {
@@ -168,12 +171,13 @@ async function executeTrinoQuery(
 
 async function resolveIcebergTable(
   tableName: string,
-  options?: { trinoUrl?: string; timeoutMs?: number },
+  options?: { trinoUrl?: string; timeoutMs?: number; catalog?: string },
 ): Promise<ResolveTableResult | null> {
+  const catalog = options?.catalog ?? DEFAULT_CATALOG
   const safe = escapeSqlString(tableName)
   const schemasResult = await executeTrinoQuery(
-    `select table_schema from iceberg.information_schema.tables where table_name = '${safe}'`,
-    'iceberg',
+    `select table_schema from ${quoteIdentifier(catalog)}.information_schema.tables where table_name = '${safe}'`,
+    catalog,
     'main',
     options,
   )
@@ -197,8 +201,8 @@ async function resolveIcebergTable(
   const schema = schemas[0] ?? 'main'
 
   const colsResult = await executeTrinoQuery(
-    `select column_name, data_type from iceberg.information_schema.columns where table_schema = '${escapeSqlString(schema)}' and table_name = '${safe}'`,
-    'iceberg',
+    `select column_name, data_type from ${quoteIdentifier(catalog)}.information_schema.columns where table_schema = '${escapeSqlString(schema)}' and table_name = '${safe}'`,
+    catalog,
     'main',
     options,
   )
@@ -213,7 +217,7 @@ async function resolveIcebergTable(
   return {
     schema,
     table: tableName,
-    fullName: `iceberg.${schema}.${tableName}`,
+    fullName: `${quoteIdentifier(catalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(tableName)}`,
     columnTypes,
   }
 }
@@ -292,16 +296,19 @@ export const getContributingRowsQuery = createServerFn()
       limit?: number
       trinoUrl?: string
       timeoutMs?: number
+      catalog?: string
     }) => input,
   )
   .handler(async ({ data }) => {
     const limit = data.limit ?? 100
+    const catalog = data.catalog ?? DEFAULT_CATALOG
     const upstreamTableName = getTableFromAssetKey(data.upstreamAssetKey)
     const downstreamTableName = getTableFromAssetKey(data.downstreamAssetKey)
 
     const upstream = await resolveIcebergTable(upstreamTableName, {
       trinoUrl: data.trinoUrl,
       timeoutMs: data.timeoutMs,
+      catalog,
     })
     if (!upstream) {
       return {

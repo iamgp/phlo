@@ -12,6 +12,10 @@ import type {
   QueryGuardrails,
 } from '@/server/queryGuardrails'
 import { validateAndRewriteQuery } from '@/server/queryGuardrails'
+import {
+  isProbablyQualifiedTable,
+  qualifyTableName,
+} from '@/utils/sqlIdentifiers'
 
 // Types for Trino responses
 export interface TrinoConnectionStatus {
@@ -50,6 +54,7 @@ export interface TableMetrics {
   partitionCount?: number
 }
 
+const DEFAULT_CATALOG = 'iceberg'
 const DEFAULT_TRINO_URL = 'http://localhost:8080'
 
 function resolveTrinoUrl(override?: string): string {
@@ -69,7 +74,7 @@ export type QueryExecutionResult = DataPreviewResult & {
  */
 async function executeTrinoQuery(
   query: string,
-  catalog: string = 'iceberg',
+  catalog: string = DEFAULT_CATALOG,
   schema: string = 'main',
   options?: { trinoUrl?: string; timeoutMs?: number },
 ): Promise<
@@ -206,6 +211,8 @@ export const previewData = createServerFn()
     (input: {
       table: string
       branch?: string
+      catalog?: string
+      schema?: string
       limit?: number
       offset?: number
       trinoUrl?: string
@@ -218,6 +225,8 @@ export const previewData = createServerFn()
       data: {
         table,
         branch = 'main',
+        catalog,
+        schema,
         limit = 100,
         offset = 0,
         trinoUrl,
@@ -229,19 +238,31 @@ export const previewData = createServerFn()
       // Build query - note: Trino doesn't support standard OFFSET syntax
       // For pagination, use FETCH FIRST / OFFSET FETCH syntax if needed
       // For simple preview, just use LIMIT
-      const catalog = 'iceberg'
-      const schema = branch // In Nessie, the branch is the schema
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch // In Nessie, the branch is the schema
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
       // Trino uses "OFFSET n ROWS FETCH FIRST m ROWS ONLY" syntax but for simplicity just use LIMIT
       const query =
         offset > 0
-          ? `SELECT * FROM ${table} OFFSET ${offset} ROWS FETCH FIRST ${effectiveLimit} ROWS ONLY`
-          : `SELECT * FROM ${table} LIMIT ${effectiveLimit}`
+          ? `SELECT * FROM ${resolvedTable} OFFSET ${offset} ROWS FETCH FIRST ${effectiveLimit} ROWS ONLY`
+          : `SELECT * FROM ${resolvedTable} LIMIT ${effectiveLimit}`
 
-      const result = await executeTrinoQuery(query, catalog, schema, {
-        trinoUrl,
-        timeoutMs,
-      })
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
         return { error: result.error }
@@ -265,16 +286,33 @@ export const profileColumn = createServerFn()
       table: string
       column: string
       branch?: string
+      catalog?: string
+      schema?: string
       trinoUrl?: string
       timeoutMs?: number
     }) => input,
   )
   .handler(
     async ({
-      data: { table, column, branch = 'main', trinoUrl, timeoutMs },
+      data: {
+        table,
+        column,
+        branch = 'main',
+        catalog,
+        schema,
+        trinoUrl,
+        timeoutMs,
+      },
     }): Promise<ColumnProfile | { error: string }> => {
-      const catalog = 'iceberg'
-      const schema = branch
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
       // Build profiling query
       const query = `
@@ -284,13 +322,18 @@ export const profileColumn = createServerFn()
           COUNT(DISTINCT "${column}") as distinct_count,
           MIN(CAST("${column}" AS VARCHAR)) as min_value,
           MAX(CAST("${column}" AS VARCHAR)) as max_value
-        FROM ${table}
+        FROM ${resolvedTable}
       `
 
-      const result = await executeTrinoQuery(query, catalog, schema, {
-        trinoUrl,
-        timeoutMs,
-      })
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
         return { error: result.error }
@@ -325,23 +368,37 @@ export const getTableMetrics = createServerFn()
     (input: {
       table: string
       branch?: string
+      catalog?: string
+      schema?: string
       trinoUrl?: string
       timeoutMs?: number
     }) => input,
   )
   .handler(
     async ({
-      data: { table, branch = 'main', trinoUrl, timeoutMs },
+      data: { table, branch = 'main', catalog, schema, trinoUrl, timeoutMs },
     }): Promise<TableMetrics | { error: string }> => {
-      const catalog = 'iceberg'
-      const schema = branch
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
-      const query = `SELECT COUNT(*) as row_count FROM ${table}`
+      const query = `SELECT COUNT(*) as row_count FROM ${resolvedTable}`
 
-      const result = await executeTrinoQuery(query, catalog, schema, {
-        trinoUrl,
-        timeoutMs,
-      })
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
         return { error: result.error }
@@ -365,6 +422,8 @@ export const executeQuery = createServerFn()
     (input: {
       query: string
       branch?: string
+      catalog?: string
+      schema?: string
       trinoUrl?: string
       timeoutMs?: number
       readOnlyMode?: boolean
@@ -378,6 +437,8 @@ export const executeQuery = createServerFn()
       data: {
         query,
         branch = 'main',
+        catalog,
+        schema,
         trinoUrl,
         timeoutMs,
         readOnlyMode = true,
@@ -402,13 +463,13 @@ export const executeQuery = createServerFn()
         return validated
       }
 
-      const catalog = 'iceberg'
-      const schema = branch
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
 
       const result = await executeTrinoQuery(
         validated.effectiveQuery,
-        catalog,
-        schema,
+        effectiveCatalog,
+        effectiveSchema,
         {
           trinoUrl,
           timeoutMs,
@@ -439,13 +500,14 @@ export const queryTableWithFilters = createServerFn()
       tableName: string
       schema: string
       filters: Record<string, unknown>
+      catalog?: string
       trinoUrl?: string
       timeoutMs?: number
     }) => input,
   )
   .handler(
     async ({
-      data: { tableName, schema, filters, trinoUrl, timeoutMs },
+      data: { tableName, schema, filters, catalog, trinoUrl, timeoutMs },
     }): Promise<DataPreviewResult | { error: string }> => {
       // Build WHERE clause from filters
       const whereConditions = Object.entries(filters)
@@ -478,12 +540,22 @@ export const queryTableWithFilters = createServerFn()
         }
       }
 
-      const query = `SELECT * FROM iceberg.${schema}.${tableName} WHERE ${whereConditions} LIMIT 10`
-
-      const result = await executeTrinoQuery(query, 'iceberg', schema, {
-        trinoUrl,
-        timeoutMs,
+      const resolvedTable = qualifyTableName({
+        catalog: catalog ?? DEFAULT_CATALOG,
+        schema,
+        table: tableName,
       })
+      const query = `SELECT * FROM ${resolvedTable} WHERE ${whereConditions} LIMIT 10`
+
+      const result = await executeTrinoQuery(
+        query,
+        catalog ?? DEFAULT_CATALOG,
+        schema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
         return { error: result.error }

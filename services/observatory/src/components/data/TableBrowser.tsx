@@ -46,6 +46,8 @@ export function TableBrowser({
         const result = await getTables({
           data: {
             branch,
+            catalog: settings.defaults.catalog,
+            preferredSchema: settings.defaults.schema,
             trinoUrl: settings.connections.trinoUrl,
             timeoutMs: settings.query.timeoutMs,
           },

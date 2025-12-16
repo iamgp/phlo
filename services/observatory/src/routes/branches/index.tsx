@@ -36,6 +36,7 @@ import {
   mergeBranch,
 } from '@/server/nessie.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/branches/')({
   loader: async (): Promise<{
@@ -466,6 +467,7 @@ interface CommitRowProps {
 function CommitRow({ entry, isFirst }: CommitRowProps) {
   const { commitMeta } = entry
   const date = new Date(commitMeta.commitTime)
+  const { settings } = useObservatorySettings()
 
   return (
     <div className="p-4 hover:bg-muted/50 transition-colors">
@@ -489,7 +491,7 @@ function CommitRow({ entry, isFirst }: CommitRowProps) {
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {formatRelativeTime(date)}
+              {formatRelativeTime(date, settings.ui.dateFormat)}
             </span>
             {commitMeta.authors.length > 0 && (
               <span>{commitMeta.authors.join(', ')}</span>
@@ -748,7 +750,7 @@ function Modal({ title, children, onClose }: ModalProps) {
 }
 
 // Utility function
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -759,5 +761,5 @@ function formatRelativeTime(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }

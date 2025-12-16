@@ -24,6 +24,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getAssetImpact } from '@/server/graph.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate } from '@/utils/dateFormat'
 
 interface NodeInfoPanelProps {
   node: GraphNode | null
@@ -37,9 +38,13 @@ export function NodeInfoPanel({
   onFocusGraph,
 }: NodeInfoPanelProps) {
   if (!node) return null
+  const { settings } = useObservatorySettings()
 
   const lastMaterialized = node.lastMaterialization
-    ? formatTimeAgo(new Date(Number(node.lastMaterialization)))
+    ? formatTimeAgo(
+        new Date(Number(node.lastMaterialization)),
+        settings.ui.dateFormat,
+      )
     : 'Never'
 
   return (
@@ -174,7 +179,7 @@ function LayerBadge({ layer }: { layer: string }) {
   )
 }
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -185,7 +190,7 @@ function formatTimeAgo(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }
 
 interface ImpactAnalysisSectionProps {
