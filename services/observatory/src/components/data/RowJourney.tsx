@@ -8,7 +8,6 @@ import {
   Position,
   ReactFlow,
 } from '@xyflow/react'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
   AlertCircle,
@@ -20,8 +19,8 @@ import {
 } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
 
-import type { ContributingRowsPageResult } from '@/server/contributing.server'
-import type { DataRow } from '@/server/trino.server'
+import type { Edge, Node, NodeProps } from '@xyflow/react'
+
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,6 +34,7 @@ import {
 } from '@/components/ui/sheet'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
+import type { ContributingRowsPageResult } from '@/server/contributing.server'
 import {
   getContributingRowsPage,
   getContributingRowsQuery,
@@ -42,6 +42,7 @@ import {
 import { getAssetDetails } from '@/server/dagster.server'
 import { getAssetNeighbors } from '@/server/graph.server'
 import { getAssetChecks } from '@/server/quality.server'
+import type { DataRow } from '@/server/trino.server'
 
 interface RowJourneyProps {
   assetKey: string
