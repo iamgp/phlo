@@ -28,6 +28,7 @@ import { getAssetChecks } from '@/server/quality.server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
 
 interface RowJourneyProps {
@@ -117,6 +118,7 @@ function NodeDetailPanel({
   rowData: Record<string, unknown>
   onQuerySource?: (query: string) => void
 }) {
+  const { settings } = useObservatorySettings()
   const tableName = assetKey.split('/').pop() || assetKey
 
   if (isLoading) {
@@ -220,6 +222,9 @@ function NodeDetailPanel({
                             upstreamAssetKey,
                             rowData,
                             limit: 100,
+                            trinoUrl: settings.connections.trinoUrl,
+                            timeoutMs: settings.query.timeoutMs,
+                            catalog: settings.defaults.catalog,
                           },
                         })
 
@@ -340,6 +345,7 @@ export function RowJourney({
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [nodeDetails, setNodeDetails] = useState<NodeDetails | null>(null)
   const [detailsLoading, setDetailsLoading] = useState(false)
+  const { settings } = useObservatorySettings()
 
   // Load asset neighbors
   useEffect(() => {
@@ -348,7 +354,12 @@ export function RowJourney({
       setError(null)
       try {
         const result = await getAssetNeighbors({
-          data: { assetKey, direction: 'both', depth: 2 },
+          data: {
+            assetKey,
+            direction: 'both',
+            depth: 2,
+            dagsterUrl: settings.connections.dagsterGraphqlUrl,
+          },
         })
         if ('error' in result) {
           setError(result.error)
@@ -364,7 +375,7 @@ export function RowJourney({
       }
     }
     loadGraph()
-  }, [assetKey])
+  }, [assetKey, settings.connections.dagsterGraphqlUrl])
 
   // Load details when node is selected
   useEffect(() => {
@@ -378,8 +389,18 @@ export function RowJourney({
       try {
         // Fetch asset details and quality checks
         const [assetInfo, qualityInfo] = await Promise.all([
-          getAssetDetails({ data: selectedNode! }),
-          getAssetChecks({ data: { assetKey: selectedNode!.split('/') } }),
+          getAssetDetails({
+            data: {
+              assetKeyPath: selectedNode!,
+              dagsterUrl: settings.connections.dagsterGraphqlUrl,
+            },
+          }),
+          getAssetChecks({
+            data: {
+              assetKey: selectedNode!.split('/'),
+              dagsterUrl: settings.connections.dagsterGraphqlUrl,
+            },
+          }),
         ])
 
         const checks =
@@ -413,7 +434,7 @@ export function RowJourney({
     }
 
     loadNodeDetails()
-  }, [selectedNode, rowData, graphData])
+  }, [selectedNode, rowData, graphData, settings.connections.dagsterGraphqlUrl])
 
   // Handle node selection
   const handleNodeSelect = useCallback((nodeKey: string) => {

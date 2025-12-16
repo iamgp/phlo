@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
 
 export type ObservatoryRow = Record<string, unknown>
@@ -84,6 +85,7 @@ export function ObservatoryTable({
   enableColumnPinning = true,
   formatCellValue = (value) => defaultFormatCellValue(value),
 }: ObservatoryTableProps) {
+  const { settings } = useObservatorySettings()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>({})
 
@@ -148,10 +150,11 @@ export function ObservatoryTable({
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const rowModel = table.getRowModel()
+  const estimatedRowHeight = settings.ui.density === 'compact' ? 28 : 34
   const virtualizer = useVirtualizer({
     count: rowModel.rows.length,
     getScrollElement: () => scrollContainerRef.current,
-    estimateSize: () => 34,
+    estimateSize: () => estimatedRowHeight,
     overscan: 8,
   })
 
@@ -225,7 +228,7 @@ export function ObservatoryTable({
                           : 'none'
                     }
                   >
-                    <div className="flex-1 min-w-0 px-2 py-2">
+                    <div className="flex-1 min-w-0 px-[var(--table-cell-px)] py-[var(--table-cell-py)]">
                       <div className="flex items-start justify-between gap-2">
                         <button
                           type="button"
@@ -366,7 +369,7 @@ export function ObservatoryTable({
                       <div
                         key={cell.id}
                         className={cn(
-                          'p-2 text-foreground border-r border-border last:border-r-0',
+                          'px-[var(--table-cell-px)] py-[var(--table-cell-py)] text-foreground border-r border-border last:border-r-0',
                           'min-w-0 whitespace-nowrap align-middle',
                           monospace ? 'font-mono text-xs' : '',
                           pinState

@@ -97,8 +97,12 @@ const ASSET_CHECK_EXECUTIONS_QUERY = `
 const CACHE_TTL_MS = 10_000
 const snapshotCache = new Map<string, { expiresAtMs: number; value: unknown }>()
 
-const getDagsterUrl = () =>
-  process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+const DEFAULT_DAGSTER_URL = 'http://localhost:3000/graphql'
+
+function resolveDagsterUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.DAGSTER_GRAPHQL_URL || DEFAULT_DAGSTER_URL
+}
 
 export type QualitySnapshot = {
   totalChecks: number
@@ -111,16 +115,17 @@ export type QualitySnapshot = {
 }
 
 export async function fetchQualitySnapshot(options?: {
+  dagsterUrl?: string
   recentLimit?: number
   timeoutMs?: number
 }): Promise<QualitySnapshot | { error: string }> {
   const recentLimit = options?.recentLimit ?? 50
   const timeoutMs = options?.timeoutMs ?? 10_000
 
-  const cached = getCached<QualitySnapshot>('quality_snapshot')
+  const dagsterUrl = resolveDagsterUrl(options?.dagsterUrl)
+  const cacheKey = `quality_snapshot:${dagsterUrl}`
+  const cached = getCached<QualitySnapshot>(cacheKey)
   if (cached) return cached
-
-  const dagsterUrl = getDagsterUrl()
 
   const assetsResponse = await dagsterQuery<{
     assetNodes: Array<DagsterAssetNode>
@@ -260,7 +265,7 @@ export async function fetchQualitySnapshot(options?: {
     recentExecutions: recentExecutions.slice(0, recentLimit),
   }
 
-  setCached('quality_snapshot', value, CACHE_TTL_MS)
+  setCached(cacheKey, value, CACHE_TTL_MS)
   return value
 }
 

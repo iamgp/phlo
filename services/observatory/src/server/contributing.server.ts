@@ -12,6 +12,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { quoteIdentifier } from '@/utils/sqlIdentifiers'
+
 type Primitive = string | number | boolean | null | undefined
 
 interface ResolveTableResult {
@@ -21,7 +23,13 @@ interface ResolveTableResult {
   columnTypes: Record<string, string>
 }
 
-const getTrinoUrl = () => process.env.TRINO_URL || 'http://localhost:8080'
+const DEFAULT_CATALOG = 'iceberg'
+const DEFAULT_TRINO_URL = 'http://localhost:8080'
+
+function resolveTrinoUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.TRINO_URL || DEFAULT_TRINO_URL
+}
 
 function escapeSqlString(value: string): string {
   return value.replaceAll("'", "''")
@@ -96,12 +104,14 @@ async function executeTrinoQuery(
   query: string,
   catalog: string = 'iceberg',
   schema: string = 'main',
+  options?: { trinoUrl?: string; timeoutMs?: number },
 ): Promise<{
   columns: Array<string>
   columnTypes: Array<string>
   rows: Array<Record<string, unknown>>
 }> {
-  const trinoUrl = getTrinoUrl()
+  const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
+  const timeoutMs = options?.timeoutMs ?? 30_000
 
   const submitResponse = await fetch(`${trinoUrl}/v1/statement`, {
     method: 'POST',
@@ -112,7 +122,7 @@ async function executeTrinoQuery(
       'X-Trino-Schema': schema,
     },
     body: query,
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(timeoutMs),
   })
 
   if (!submitResponse.ok) {
@@ -129,7 +139,7 @@ async function executeTrinoQuery(
     await new Promise((resolve) => setTimeout(resolve, 50))
     const pollResponse = await fetch(result.nextUri, {
       headers: { 'X-Trino-User': 'observatory' },
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
 
     if (!pollResponse.ok) {
@@ -161,12 +171,15 @@ async function executeTrinoQuery(
 
 async function resolveIcebergTable(
   tableName: string,
+  options?: { trinoUrl?: string; timeoutMs?: number; catalog?: string },
 ): Promise<ResolveTableResult | null> {
+  const catalog = options?.catalog ?? DEFAULT_CATALOG
   const safe = escapeSqlString(tableName)
   const schemasResult = await executeTrinoQuery(
-    `select table_schema from iceberg.information_schema.tables where table_name = '${safe}'`,
-    'iceberg',
+    `select table_schema from ${quoteIdentifier(catalog)}.information_schema.tables where table_name = '${safe}'`,
+    catalog,
     'main',
+    options,
   )
 
   const schemas = schemasResult.rows
@@ -188,9 +201,10 @@ async function resolveIcebergTable(
   const schema = schemas[0] ?? 'main'
 
   const colsResult = await executeTrinoQuery(
-    `select column_name, data_type from iceberg.information_schema.columns where table_schema = '${escapeSqlString(schema)}' and table_name = '${safe}'`,
-    'iceberg',
+    `select column_name, data_type from ${quoteIdentifier(catalog)}.information_schema.columns where table_schema = '${escapeSqlString(schema)}' and table_name = '${safe}'`,
+    catalog,
     'main',
+    options,
   )
 
   const columnTypes: Record<string, string> = {}
@@ -203,7 +217,7 @@ async function resolveIcebergTable(
   return {
     schema,
     table: tableName,
-    fullName: `iceberg.${schema}.${tableName}`,
+    fullName: `${quoteIdentifier(catalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(tableName)}`,
     columnTypes,
   }
 }
@@ -280,14 +294,22 @@ export const getContributingRowsQuery = createServerFn()
       upstreamAssetKey: string
       rowData: Record<string, unknown>
       limit?: number
+      trinoUrl?: string
+      timeoutMs?: number
+      catalog?: string
     }) => input,
   )
   .handler(async ({ data }) => {
     const limit = data.limit ?? 100
+    const catalog = data.catalog ?? DEFAULT_CATALOG
     const upstreamTableName = getTableFromAssetKey(data.upstreamAssetKey)
     const downstreamTableName = getTableFromAssetKey(data.downstreamAssetKey)
 
-    const upstream = await resolveIcebergTable(upstreamTableName)
+    const upstream = await resolveIcebergTable(upstreamTableName, {
+      trinoUrl: data.trinoUrl,
+      timeoutMs: data.timeoutMs,
+      catalog,
+    })
     if (!upstream) {
       return {
         error: `Could not resolve upstream table for ${upstreamTableName}`,

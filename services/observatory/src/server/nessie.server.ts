@@ -36,16 +36,20 @@ export interface NessieConfig {
   defaultBranch?: string
 }
 
-// Get Nessie URL from environment
-const getNessieUrl = () =>
-  process.env.NESSIE_URL || 'http://localhost:19120/api/v2'
+const DEFAULT_NESSIE_URL = 'http://localhost:19120/api/v2'
+
+function resolveNessieUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.NESSIE_URL || DEFAULT_NESSIE_URL
+}
 
 /**
  * Check if Nessie is reachable
  */
-export const checkNessieConnection = createServerFn().handler(
-  async (): Promise<NessieConfig> => {
-    const nessieUrl = getNessieUrl()
+export const checkNessieConnection = createServerFn()
+  .inputValidator((input: { nessieUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<NessieConfig> => {
+    const nessieUrl = resolveNessieUrl(data.nessieUrl)
 
     try {
       const response = await fetch(`${nessieUrl}/config`, {
@@ -71,15 +75,15 @@ export const checkNessieConnection = createServerFn().handler(
         error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
-  },
-)
+  })
 
 /**
  * Get all branches and tags
  */
-export const getBranches = createServerFn().handler(
-  async (): Promise<Array<Branch> | { error: string }> => {
-    const nessieUrl = getNessieUrl()
+export const getBranches = createServerFn()
+  .inputValidator((input: { nessieUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<Array<Branch> | { error: string }> => {
+    const nessieUrl = resolveNessieUrl(data.nessieUrl)
 
     try {
       const response = await fetch(`${nessieUrl}/trees`, {
@@ -90,62 +94,62 @@ export const getBranches = createServerFn().handler(
         return { error: `HTTP ${response.status}: ${response.statusText}` }
       }
 
-      const data = await response.json()
-      return data.references || []
+      const payload = await response.json()
+      return payload.references || []
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
-  },
-)
+  })
 
 /**
  * Get branch details by name
  */
 export const getBranch = createServerFn()
-  .inputValidator((input: string) => input)
-  .handler(
-    async ({ data: branchName }): Promise<Branch | { error: string }> => {
-      const nessieUrl = getNessieUrl()
+  .inputValidator((input: { branchName: string; nessieUrl?: string }) => input)
+  .handler(async ({ data }): Promise<Branch | { error: string }> => {
+    const nessieUrl = resolveNessieUrl(data.nessieUrl)
+    const branchName = data.branchName
 
-      try {
-        const response = await fetch(
-          `${nessieUrl}/trees/${encodeURIComponent(branchName)}`,
-          {
-            signal: AbortSignal.timeout(5000),
-          },
-        )
+    try {
+      const response = await fetch(
+        `${nessieUrl}/trees/${encodeURIComponent(branchName)}`,
+        {
+          signal: AbortSignal.timeout(5000),
+        },
+      )
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            return { error: `Branch '${branchName}' not found` }
-          }
-          return { error: `HTTP ${response.status}: ${response.statusText}` }
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { error: `Branch '${branchName}' not found` }
         }
-
-        const data = await response.json()
-        return {
-          type: data.type || 'BRANCH',
-          name: data.name,
-          hash: data.hash,
-        }
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
+        return { error: `HTTP ${response.status}: ${response.statusText}` }
       }
-    },
-  )
+
+      const payload = await response.json()
+      return {
+        type: payload.type || 'BRANCH',
+        name: payload.name,
+        hash: payload.hash,
+      }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  })
 
 /**
  * Get commit history for a branch
  */
 export const getCommits = createServerFn()
-  .inputValidator((input: { branch: string; limit?: number }) => input)
+  .inputValidator(
+    (input: { branch: string; limit?: number; nessieUrl?: string }) => input,
+  )
   .handler(
     async ({
-      data: { branch, limit = 50 },
+      data: { branch, limit = 50, nessieUrl: nessieUrlOverride },
     }): Promise<Array<LogEntry> | { error: string }> => {
-      const nessieUrl = getNessieUrl()
+      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
 
       try {
         const url = new URL(
@@ -178,12 +182,14 @@ export const getCommits = createServerFn()
  * Get contents (tables) at a specific branch/ref
  */
 export const getContents = createServerFn()
-  .inputValidator((input: { branch: string; prefix?: string }) => input)
+  .inputValidator(
+    (input: { branch: string; prefix?: string; nessieUrl?: string }) => input,
+  )
   .handler(
     async ({
-      data: { branch, prefix },
+      data: { branch, prefix, nessieUrl: nessieUrlOverride },
     }): Promise<Array<object> | { error: string }> => {
-      const nessieUrl = getNessieUrl()
+      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
 
       try {
         const url = new URL(
@@ -218,12 +224,15 @@ export const getContents = createServerFn()
  * Compare two branches (diff)
  */
 export const compareBranches = createServerFn()
-  .inputValidator((input: { fromBranch: string; toBranch: string }) => input)
+  .inputValidator(
+    (input: { fromBranch: string; toBranch: string; nessieUrl?: string }) =>
+      input,
+  )
   .handler(
     async ({
-      data: { fromBranch, toBranch },
+      data: { fromBranch, toBranch, nessieUrl: nessieUrlOverride },
     }): Promise<object | { error: string }> => {
-      const nessieUrl = getNessieUrl()
+      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
 
       try {
         const url = new URL(
@@ -252,12 +261,14 @@ export const compareBranches = createServerFn()
  * Create a new branch
  */
 export const createBranch = createServerFn()
-  .inputValidator((input: { name: string; fromBranch: string }) => input)
+  .inputValidator(
+    (input: { name: string; fromBranch: string; nessieUrl?: string }) => input,
+  )
   .handler(
     async ({
-      data: { name, fromBranch },
+      data: { name, fromBranch, nessieUrl: nessieUrlOverride },
     }): Promise<Branch | { error: string }> => {
-      const nessieUrl = getNessieUrl()
+      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
 
       try {
         // First get the source branch hash
@@ -309,12 +320,14 @@ export const createBranch = createServerFn()
  * Delete a branch
  */
 export const deleteBranch = createServerFn()
-  .inputValidator((input: { name: string; hash: string }) => input)
+  .inputValidator(
+    (input: { name: string; hash: string; nessieUrl?: string }) => input,
+  )
   .handler(
     async ({
-      data: { name, hash },
+      data: { name, hash, nessieUrl: nessieUrlOverride },
     }): Promise<{ success: boolean } | { error: string }> => {
-      const nessieUrl = getNessieUrl()
+      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
 
       try {
         const url = new URL(`${nessieUrl}/trees/${encodeURIComponent(name)}`)
@@ -344,14 +357,18 @@ export const deleteBranch = createServerFn()
  */
 export const mergeBranch = createServerFn()
   .inputValidator(
-    (input: { fromBranch: string; intoBranch: string; message?: string }) =>
-      input,
+    (input: {
+      fromBranch: string
+      intoBranch: string
+      message?: string
+      nessieUrl?: string
+    }) => input,
   )
   .handler(
     async ({
-      data: { fromBranch, intoBranch, message },
+      data: { fromBranch, intoBranch, message, nessieUrl: nessieUrlOverride },
     }): Promise<{ success: boolean; hash?: string } | { error: string }> => {
-      const nessieUrl = getNessieUrl()
+      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
 
       try {
         // Get source branch hash

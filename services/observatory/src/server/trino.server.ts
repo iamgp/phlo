@@ -7,6 +7,16 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import type {
+  QueryExecutionError,
+  QueryGuardrails,
+} from '@/server/queryGuardrails'
+import { validateAndRewriteQuery } from '@/server/queryGuardrails'
+import {
+  isProbablyQualifiedTable,
+  qualifyTableName,
+} from '@/utils/sqlIdentifiers'
+
 // Types for Trino responses
 export interface TrinoConnectionStatus {
   connected: boolean
@@ -44,8 +54,19 @@ export interface TableMetrics {
   partitionCount?: number
 }
 
-// Get Trino URL from environment
-const getTrinoUrl = () => process.env.TRINO_URL || 'http://localhost:8080'
+const DEFAULT_CATALOG = 'iceberg'
+const DEFAULT_TRINO_URL = 'http://localhost:8080'
+
+function resolveTrinoUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.TRINO_URL || DEFAULT_TRINO_URL
+}
+
+export type { QueryExecutionError } from '@/server/queryGuardrails'
+
+export type QueryExecutionResult = DataPreviewResult & {
+  effectiveQuery: string
+}
 
 /**
  * Execute a query against Trino and wait for results
@@ -53,13 +74,15 @@ const getTrinoUrl = () => process.env.TRINO_URL || 'http://localhost:8080'
  */
 async function executeTrinoQuery(
   query: string,
-  catalog: string = 'iceberg',
+  catalog: string = DEFAULT_CATALOG,
   schema: string = 'main',
+  options?: { trinoUrl?: string; timeoutMs?: number },
 ): Promise<
   | { columns: Array<string>; columnTypes: Array<string>; rows: Array<DataRow> }
-  | { error: string }
+  | QueryExecutionError
 > {
-  const trinoUrl = getTrinoUrl()
+  const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
+  const timeoutMs = options?.timeoutMs ?? 30_000
 
   try {
     // Submit query
@@ -72,12 +95,12 @@ async function executeTrinoQuery(
         'X-Trino-Schema': schema,
       },
       body: query,
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
 
     if (!submitResponse.ok) {
       const errorText = await submitResponse.text()
-      return { error: `Trino error: ${errorText}` }
+      return { ok: false, error: `Trino error: ${errorText}`, kind: 'trino' }
     }
 
     let result = await submitResponse.json()
@@ -97,12 +120,16 @@ async function executeTrinoQuery(
         headers: {
           'X-Trino-User': 'observatory',
         },
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(timeoutMs),
       })
 
       if (!pollResponse.ok) {
         const errorText = await pollResponse.text()
-        return { error: `Trino poll error: ${errorText}` }
+        return {
+          ok: false,
+          error: `Trino poll error: ${errorText}`,
+          kind: 'trino',
+        }
       }
 
       result = await pollResponse.json()
@@ -120,7 +147,11 @@ async function executeTrinoQuery(
 
       // Check for errors
       if (result.error) {
-        return { error: result.error.message || 'Query failed' }
+        return {
+          ok: false,
+          error: result.error.message || 'Query failed',
+          kind: 'trino',
+        }
       }
     }
 
@@ -135,16 +166,21 @@ async function executeTrinoQuery(
 
     return { columns, columnTypes, rows }
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Unknown error' }
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    if (message.toLowerCase().includes('timeout')) {
+      return { ok: false, error: message, kind: 'timeout' }
+    }
+    return { ok: false, error: message, kind: 'trino' }
   }
 }
 
 /**
  * Check if Trino is reachable
  */
-export const checkTrinoConnection = createServerFn().handler(
-  async (): Promise<TrinoConnectionStatus> => {
-    const trinoUrl = getTrinoUrl()
+export const checkTrinoConnection = createServerFn()
+  .inputValidator((input: { trinoUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<TrinoConnectionStatus> => {
+    const trinoUrl = resolveTrinoUrl(data.trinoUrl)
 
     try {
       const response = await fetch(`${trinoUrl}/v1/info`, {
@@ -170,8 +206,7 @@ export const checkTrinoConnection = createServerFn().handler(
         error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
-  },
-)
+  })
 
 /**
  * Preview data from a table with pagination
@@ -181,37 +216,68 @@ export const previewData = createServerFn()
     (input: {
       table: string
       branch?: string
+      catalog?: string
+      schema?: string
       limit?: number
       offset?: number
+      trinoUrl?: string
+      timeoutMs?: number
+      maxLimit?: number
     }) => input,
   )
   .handler(
     async ({
-      data: { table, branch = 'main', limit = 100, offset = 0 },
+      data: {
+        table,
+        branch = 'main',
+        catalog,
+        schema,
+        limit = 100,
+        offset = 0,
+        trinoUrl,
+        timeoutMs,
+        maxLimit,
+      },
     }): Promise<DataPreviewResult | { error: string }> => {
+      const effectiveLimit = Math.min(limit, maxLimit ?? limit)
       // Build query - note: Trino doesn't support standard OFFSET syntax
       // For pagination, use FETCH FIRST / OFFSET FETCH syntax if needed
       // For simple preview, just use LIMIT
-      const catalog = 'iceberg'
-      const schema = branch // In Nessie, the branch is the schema
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch // In Nessie, the branch is the schema
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
       // Trino uses "OFFSET n ROWS FETCH FIRST m ROWS ONLY" syntax but for simplicity just use LIMIT
       const query =
         offset > 0
-          ? `SELECT * FROM ${table} OFFSET ${offset} ROWS FETCH FIRST ${limit} ROWS ONLY`
-          : `SELECT * FROM ${table} LIMIT ${limit}`
+          ? `SELECT * FROM ${resolvedTable} OFFSET ${offset} ROWS FETCH FIRST ${effectiveLimit} ROWS ONLY`
+          : `SELECT * FROM ${resolvedTable} LIMIT ${effectiveLimit}`
 
-      const result = await executeTrinoQuery(query, catalog, schema)
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
-        return result
+        return { error: result.error }
       }
 
       return {
         columns: result.columns,
         columnTypes: result.columnTypes,
         rows: result.rows,
-        hasMore: result.rows.length === limit,
+        hasMore: result.rows.length === effectiveLimit,
       }
     },
   )
@@ -221,14 +287,37 @@ export const previewData = createServerFn()
  */
 export const profileColumn = createServerFn()
   .inputValidator(
-    (input: { table: string; column: string; branch?: string }) => input,
+    (input: {
+      table: string
+      column: string
+      branch?: string
+      catalog?: string
+      schema?: string
+      trinoUrl?: string
+      timeoutMs?: number
+    }) => input,
   )
   .handler(
     async ({
-      data: { table, column, branch = 'main' },
+      data: {
+        table,
+        column,
+        branch = 'main',
+        catalog,
+        schema,
+        trinoUrl,
+        timeoutMs,
+      },
     }): Promise<ColumnProfile | { error: string }> => {
-      const catalog = 'iceberg'
-      const schema = branch
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
       // Build profiling query
       const query = `
@@ -238,13 +327,21 @@ export const profileColumn = createServerFn()
           COUNT(DISTINCT "${column}") as distinct_count,
           MIN(CAST("${column}" AS VARCHAR)) as min_value,
           MAX(CAST("${column}" AS VARCHAR)) as max_value
-        FROM ${table}
+        FROM ${resolvedTable}
       `
 
-      const result = await executeTrinoQuery(query, catalog, schema)
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
-        return result
+        return { error: result.error }
       }
 
       if (result.rows.length === 0) {
@@ -272,20 +369,44 @@ export const profileColumn = createServerFn()
  * Get table-level metrics
  */
 export const getTableMetrics = createServerFn()
-  .inputValidator((input: { table: string; branch?: string }) => input)
+  .inputValidator(
+    (input: {
+      table: string
+      branch?: string
+      catalog?: string
+      schema?: string
+      trinoUrl?: string
+      timeoutMs?: number
+    }) => input,
+  )
   .handler(
     async ({
-      data: { table, branch = 'main' },
+      data: { table, branch = 'main', catalog, schema, trinoUrl, timeoutMs },
     }): Promise<TableMetrics | { error: string }> => {
-      const catalog = 'iceberg'
-      const schema = branch
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
-      const query = `SELECT COUNT(*) as row_count FROM ${table}`
+      const query = `SELECT COUNT(*) as row_count FROM ${resolvedTable}`
 
-      const result = await executeTrinoQuery(query, catalog, schema)
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
-        return result
+        return { error: result.error }
       }
 
       if (result.rows.length === 0) {
@@ -302,25 +423,63 @@ export const getTableMetrics = createServerFn()
  * Run an arbitrary read-only query (for advanced users)
  */
 export const executeQuery = createServerFn()
-  .inputValidator((input: { query: string; branch?: string }) => input)
+  .inputValidator(
+    (input: {
+      query: string
+      branch?: string
+      catalog?: string
+      schema?: string
+      trinoUrl?: string
+      timeoutMs?: number
+      readOnlyMode?: boolean
+      defaultLimit?: number
+      maxLimit?: number
+      allowUnsafe?: boolean
+    }) => input,
+  )
   .handler(
     async ({
-      data: { query, branch = 'main' },
-    }): Promise<DataPreviewResult | { error: string }> => {
-      // Safety check - only allow SELECT queries
-      const trimmedQuery = query.trim().toUpperCase()
-      if (
-        !trimmedQuery.startsWith('SELECT') &&
-        !trimmedQuery.startsWith('SHOW') &&
-        !trimmedQuery.startsWith('DESCRIBE')
-      ) {
-        return { error: 'Only SELECT, SHOW, and DESCRIBE queries are allowed' }
+      data: {
+        query,
+        branch = 'main',
+        catalog,
+        schema,
+        trinoUrl,
+        timeoutMs,
+        readOnlyMode = true,
+        defaultLimit = 100,
+        maxLimit = 5000,
+        allowUnsafe = false,
+      },
+    }): Promise<QueryExecutionResult | QueryExecutionError> => {
+      const guardrails: QueryGuardrails = {
+        readOnlyMode,
+        defaultLimit,
+        maxLimit,
       }
 
-      const catalog = 'iceberg'
-      const schema = branch
+      const validated = validateAndRewriteQuery({
+        query,
+        guardrails,
+        allowUnsafe,
+      })
 
-      const result = await executeTrinoQuery(query, catalog, schema)
+      if (!validated.ok) {
+        return validated
+      }
+
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+
+      const result = await executeTrinoQuery(
+        validated.effectiveQuery,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
         return result
@@ -331,6 +490,7 @@ export const executeQuery = createServerFn()
         columnTypes: result.columnTypes,
         rows: result.rows,
         hasMore: false,
+        effectiveQuery: validated.effectiveQuery,
       }
     },
   )
@@ -345,11 +505,14 @@ export const queryTableWithFilters = createServerFn()
       tableName: string
       schema: string
       filters: Record<string, unknown>
+      catalog?: string
+      trinoUrl?: string
+      timeoutMs?: number
     }) => input,
   )
   .handler(
     async ({
-      data: { tableName, schema, filters },
+      data: { tableName, schema, filters, catalog, trinoUrl, timeoutMs },
     }): Promise<DataPreviewResult | { error: string }> => {
       // Build WHERE clause from filters
       const whereConditions = Object.entries(filters)
@@ -382,12 +545,25 @@ export const queryTableWithFilters = createServerFn()
         }
       }
 
-      const query = `SELECT * FROM iceberg.${schema}.${tableName} WHERE ${whereConditions} LIMIT 10`
+      const resolvedTable = qualifyTableName({
+        catalog: catalog ?? DEFAULT_CATALOG,
+        schema,
+        table: tableName,
+      })
+      const query = `SELECT * FROM ${resolvedTable} WHERE ${whereConditions} LIMIT 10`
 
-      const result = await executeTrinoQuery(query, 'iceberg', schema)
+      const result = await executeTrinoQuery(
+        query,
+        catalog ?? DEFAULT_CATALOG,
+        schema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
       if ('error' in result) {
-        return result
+        return { error: result.error }
       }
 
       return {
