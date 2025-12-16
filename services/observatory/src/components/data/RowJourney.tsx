@@ -21,6 +21,7 @@ import type { Edge, Node, NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
 import type { DataRow } from '@/server/trino.server'
+import type { ContributingRowsPageResult } from '@/server/contributing.server'
 import {
   getContributingRowsPage,
   getContributingRowsQuery,
@@ -141,18 +142,10 @@ function NodeDetailPanel({
   const [contribSeed, setContribSeed] = useState('phlo')
   const [contribLoading, setContribLoading] = useState(false)
   const [contribError, setContribError] = useState<string | null>(null)
-  const [contribResult, setContribResult] = useState<{
-    mode: string
-    page: number
-    pageSize: number
-    seed: string
-    hasMore: boolean
-    query: string
-    columns: Array<string>
-    columnTypes: Array<string>
-    rows: Array<Record<string, unknown>>
-    upstream: { schema: string; table: string }
-  } | null>(null)
+  const [contribResult, setContribResult] = useState<Exclude<
+    ContributingRowsPageResult,
+    { error: string }
+  > | null>(null)
 
   const loadContributingRows = useCallback(
     async (upstreamAssetKey: string) => {

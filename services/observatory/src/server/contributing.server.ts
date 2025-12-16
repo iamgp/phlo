@@ -12,6 +12,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import type { DataRow } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 type Primitive = string | number | boolean | null | undefined
@@ -24,6 +25,25 @@ interface ResolveTableResult {
 }
 
 export type ContributingRowsMode = 'entity' | 'aggregate'
+
+export type ContributingRowsQueryResult =
+  | { query: string; upstream: { schema: string; table: string } }
+  | { error: string }
+
+export type ContributingRowsPageResult =
+  | {
+      mode: ContributingRowsMode
+      page: number
+      pageSize: number
+      seed: string
+      hasMore: boolean
+      query: string
+      upstream: { schema: string; table: string }
+      columns: Array<string>
+      columnTypes: Array<string>
+      rows: Array<DataRow>
+    }
+  | { error: string }
 
 const DEFAULT_CATALOG = 'iceberg'
 const DEFAULT_TRINO_URL = 'http://localhost:8080'
@@ -114,7 +134,7 @@ async function executeTrinoQuery(
 ): Promise<{
   columns: Array<string>
   columnTypes: Array<string>
-  rows: Array<Record<string, unknown>>
+  rows: Array<DataRow>
 }> {
   const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
   const timeoutMs = options?.timeoutMs ?? 30_000
@@ -165,9 +185,11 @@ async function executeTrinoQuery(
   }
 
   const rows = allData.map((row) => {
-    const obj: Record<string, unknown> = {}
+    const obj: DataRow = {}
     columns.forEach((col, idx) => {
-      obj[col] = row[idx]
+      obj[col] = (row as Array<string | number | boolean | null | undefined>)[
+        idx
+      ]
     })
     return obj
   })
@@ -423,7 +445,7 @@ export const getContributingRowsQuery = createServerFn()
       catalog?: string
     }) => input,
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<ContributingRowsQueryResult> => {
     const limit = Math.max(
       1,
       Math.min(MAX_PAGE_SIZE, Math.floor(data.limit ?? 100)),
@@ -476,7 +498,7 @@ export const getContributingRowsPage = createServerFn()
       catalog?: string
     }) => input,
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<ContributingRowsPageResult> => {
     const catalog = data.catalog ?? DEFAULT_CATALOG
     const upstreamTableName = getTableFromAssetKey(data.upstreamAssetKey)
     const downstreamTableName = getTableFromAssetKey(data.downstreamAssetKey)
