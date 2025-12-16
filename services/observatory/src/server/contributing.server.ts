@@ -12,6 +12,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import type { DataRow } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 type Primitive = string | number | boolean | null | undefined
@@ -23,8 +24,32 @@ interface ResolveTableResult {
   columnTypes: Record<string, string>
 }
 
+export type ContributingRowsMode = 'entity' | 'aggregate'
+
+export type ContributingRowsQueryResult =
+  | { query: string; upstream: { schema: string; table: string } }
+  | { error: string }
+
+export type ContributingRowsPageResult =
+  | {
+      mode: ContributingRowsMode
+      page: number
+      pageSize: number
+      hasMore: boolean
+      query: string
+      upstream: { schema: string; table: string }
+      columns: Array<string>
+      columnTypes: Array<string>
+      rows: Array<DataRow>
+    }
+  | { error: string }
+
 const DEFAULT_CATALOG = 'iceberg'
 const DEFAULT_TRINO_URL = 'http://localhost:8080'
+const DEFAULT_PAGE_SIZE = 50
+const MAX_PAGE_SIZE = 200
+const MAX_PAGE = 200
+const DEFAULT_SAMPLE_SEED = 'phlo'
 
 function resolveTrinoUrl(override?: string): string {
   if (override && override.trim()) return override
@@ -108,7 +133,7 @@ async function executeTrinoQuery(
 ): Promise<{
   columns: Array<string>
   columnTypes: Array<string>
-  rows: Array<Record<string, unknown>>
+  rows: Array<DataRow>
 }> {
   const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
   const timeoutMs = options?.timeoutMs ?? 30_000
@@ -159,9 +184,11 @@ async function executeTrinoQuery(
   }
 
   const rows = allData.map((row) => {
-    const obj: Record<string, unknown> = {}
+    const obj: DataRow = {}
     columns.forEach((col, idx) => {
-      obj[col] = row[idx]
+      obj[col] = (row as Array<string | number | boolean | null | undefined>)[
+        idx
+      ]
     })
     return obj
   })
@@ -287,6 +314,120 @@ function shouldUseAsDimension(columnName: string): boolean {
   return true
 }
 
+function toSafePageSize(pageSize: number | undefined): number {
+  if (pageSize === undefined) return DEFAULT_PAGE_SIZE
+  if (!Number.isFinite(pageSize)) return DEFAULT_PAGE_SIZE
+  return Math.max(1, Math.min(MAX_PAGE_SIZE, Math.floor(pageSize)))
+}
+
+function toSafePage(page: number | undefined): number {
+  if (page === undefined) return 0
+  if (!Number.isFinite(page)) return 0
+  return Math.max(0, Math.min(MAX_PAGE, Math.floor(page)))
+}
+
+function buildDeterministicOrderExpression(params: {
+  columnTypes: Record<string, string>
+}): string {
+  const seedSql = escapeSqlString(DEFAULT_SAMPLE_SEED)
+  const columns = Object.keys(params.columnTypes)
+
+  if (params.columnTypes._phlo_row_id) {
+    return `xxhash64(to_utf8(concat('${seedSql}', '|', cast("_phlo_row_id" as varchar))))`
+  }
+
+  const orderKeyColumns = columns
+    .filter((col) => {
+      if (col.toLowerCase().startsWith('_phlo_')) return false
+      const typ = params.columnTypes[col]?.toLowerCase() ?? ''
+      return !(
+        typ.startsWith('array(') ||
+        typ.startsWith('map(') ||
+        typ.startsWith('row(') ||
+        typ.startsWith('json')
+      )
+    })
+    .sort((a, b) => a.localeCompare(b))
+    .slice(0, 5)
+
+  if (orderKeyColumns.length === 0) {
+    return `xxhash64(to_utf8('${seedSql}'))`
+  }
+
+  const concatParts = orderKeyColumns
+    .map((col) => `coalesce(cast("${col}" as varchar), '')`)
+    .join(", '|' , ")
+
+  return `xxhash64(to_utf8(concat('${seedSql}', '|', ${concatParts})))`
+}
+
+export function buildContributingRowsQuery(params: {
+  downstreamTableName: string
+  upstream: ResolveTableResult
+  rowData: Record<string, Primitive>
+  pageSize: number
+  page: number
+}):
+  | { ok: true; mode: ContributingRowsMode; query: string; where: string }
+  | { ok: false; error: string } {
+  const upstreamCols = params.upstream.columnTypes
+  const predicates: Array<string> = []
+
+  const rowId = params.rowData._phlo_row_id
+  if (rowId && upstreamCols._phlo_row_id) {
+    const p = toSqlEquality('_phlo_row_id', upstreamCols._phlo_row_id, rowId)
+    if (p) predicates.push(p)
+  } else {
+    const mappings =
+      EXPLICIT_COLUMN_MAPPINGS[params.downstreamTableName]?.[
+        params.upstream.table
+      ] ?? {}
+
+    for (const [downCol, upCol] of Object.entries(mappings)) {
+      const value = params.rowData[downCol]
+      const colType = upstreamCols[upCol]
+      if (!colType) continue
+      const p = toSqlEquality(upCol, colType, value)
+      if (p) predicates.push(p)
+    }
+
+    for (const [col, value] of Object.entries(params.rowData)) {
+      if (!shouldUseAsDimension(col)) continue
+      const colType = upstreamCols[col]
+      if (!colType) continue
+      const p = toSqlEquality(col, colType, value)
+      if (p) predicates.push(p)
+    }
+  }
+
+  const uniquePredicates = Array.from(new Set(predicates))
+  if (uniquePredicates.length === 0) {
+    return {
+      ok: false,
+      error:
+        'No safe predicates could be derived for contributing rows. Add an explicit mapping for this model pair.',
+    }
+  }
+
+  const where = uniquePredicates.join(' and ')
+  const offset = params.page * params.pageSize
+  const limitPlusOne = params.pageSize + 1
+
+  const mode: ContributingRowsMode =
+    params.rowData._phlo_row_id && upstreamCols._phlo_row_id
+      ? 'entity'
+      : 'aggregate'
+
+  const orderExpr =
+    mode === 'entity'
+      ? `"${'_phlo_row_id'}"`
+      : buildDeterministicOrderExpression({ columnTypes: upstreamCols })
+
+  // Trino syntax is `OFFSET n LIMIT m` (not Postgres-style `LIMIT m OFFSET n`).
+  const query = `SELECT * FROM ${params.upstream.fullName} WHERE ${where} ORDER BY ${orderExpr} OFFSET ${offset} LIMIT ${limitPlusOne}`
+  return { ok: true, mode, query, where }
+}
+
 export const getContributingRowsQuery = createServerFn()
   .inputValidator(
     (input: {
@@ -299,8 +440,11 @@ export const getContributingRowsQuery = createServerFn()
       catalog?: string
     }) => input,
   )
-  .handler(async ({ data }) => {
-    const limit = data.limit ?? 100
+  .handler(async ({ data }): Promise<ContributingRowsQueryResult> => {
+    const limit = Math.max(
+      1,
+      Math.min(MAX_PAGE_SIZE, Math.floor(data.limit ?? 100)),
+    )
     const catalog = data.catalog ?? DEFAULT_CATALOG
     const upstreamTableName = getTableFromAssetKey(data.upstreamAssetKey)
     const downstreamTableName = getTableFromAssetKey(data.downstreamAssetKey)
@@ -317,48 +461,82 @@ export const getContributingRowsQuery = createServerFn()
     }
 
     const rowData = data.rowData as Record<string, Primitive>
-    const upstreamCols = upstream.columnTypes
+    const built = buildContributingRowsQuery({
+      downstreamTableName,
+      upstream,
+      rowData,
+      pageSize: limit,
+      page: 0,
+    })
+    if (!built.ok) return { error: built.error }
 
-    const predicates: Array<string> = []
-
-    const rowId = rowData._phlo_row_id
-    if (rowId && upstreamCols._phlo_row_id) {
-      const p = toSqlEquality('_phlo_row_id', upstreamCols._phlo_row_id, rowId)
-      if (p) predicates.push(p)
-    } else {
-      const mappings =
-        EXPLICIT_COLUMN_MAPPINGS[downstreamTableName]?.[upstreamTableName] ?? {}
-
-      for (const [downCol, upCol] of Object.entries(mappings)) {
-        const value = rowData[downCol]
-        const colType = upstreamCols[upCol]
-        if (!colType) continue
-        const p = toSqlEquality(upCol, colType, value)
-        if (p) predicates.push(p)
-      }
-
-      for (const [col, value] of Object.entries(rowData)) {
-        if (!shouldUseAsDimension(col)) continue
-        const colType = upstreamCols[col]
-        if (!colType) continue
-        const p = toSqlEquality(col, colType, value)
-        if (p) predicates.push(p)
-      }
-    }
-
-    const uniquePredicates = Array.from(new Set(predicates))
-    if (uniquePredicates.length === 0) {
-      return {
-        error:
-          'No safe predicates could be derived for contributing rows. Add an explicit mapping for this model pair.',
-      }
-    }
-
-    const where = uniquePredicates.join(' and ')
-    const query = `SELECT * FROM ${upstream.fullName} WHERE ${where} LIMIT ${limit}`
+    const query = built.query.replace(/OFFSET \d+ LIMIT \d+$/, `LIMIT ${limit}`)
 
     return {
       query,
       upstream: { schema: upstream.schema, table: upstream.table },
+    }
+  })
+
+export const getContributingRowsPage = createServerFn()
+  .inputValidator(
+    (input: {
+      downstreamAssetKey: string
+      upstreamAssetKey: string
+      rowData: Record<string, unknown>
+      page?: number
+      pageSize?: number
+      trinoUrl?: string
+      timeoutMs?: number
+      catalog?: string
+    }) => input,
+  )
+  .handler(async ({ data }): Promise<ContributingRowsPageResult> => {
+    const catalog = data.catalog ?? DEFAULT_CATALOG
+    const upstreamTableName = getTableFromAssetKey(data.upstreamAssetKey)
+    const downstreamTableName = getTableFromAssetKey(data.downstreamAssetKey)
+
+    const upstream = await resolveIcebergTable(upstreamTableName, {
+      trinoUrl: data.trinoUrl,
+      timeoutMs: data.timeoutMs,
+      catalog,
+    })
+    if (!upstream) {
+      return {
+        error: `Could not resolve upstream table for ${upstreamTableName}`,
+      }
+    }
+
+    const pageSize = toSafePageSize(data.pageSize)
+    const page = toSafePage(data.page)
+
+    const rowData = data.rowData as Record<string, Primitive>
+    const built = buildContributingRowsQuery({
+      downstreamTableName,
+      upstream,
+      rowData,
+      pageSize,
+      page,
+    })
+    if (!built.ok) return { error: built.error }
+
+    const result = await executeTrinoQuery(built.query, catalog, 'main', {
+      trinoUrl: data.trinoUrl,
+      timeoutMs: data.timeoutMs,
+    })
+
+    const hasMore = result.rows.length > pageSize
+    const rows = hasMore ? result.rows.slice(0, pageSize) : result.rows
+
+    return {
+      mode: built.mode,
+      page,
+      pageSize,
+      hasMore,
+      query: built.query,
+      upstream: { schema: upstream.schema, table: upstream.table },
+      columns: result.columns,
+      columnTypes: result.columnTypes,
+      rows,
     }
   })

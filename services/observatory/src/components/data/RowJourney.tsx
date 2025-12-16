@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import {
   AlertCircle,
   CheckCircle,
   Code,
@@ -9,27 +18,31 @@ import {
   Terminal,
 } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
-import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-} from '@xyflow/react'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 
+import type { ContributingRowsPageResult } from '@/server/contributing.server'
 import type { DataRow } from '@/server/trino.server'
-import { getContributingRowsQuery } from '@/server/contributing.server'
+import type { Edge, Node, NodeProps } from '@xyflow/react'
+
+import { ObservatoryTable } from '@/components/data/ObservatoryTable'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { cn } from '@/lib/utils'
+import {
+  getContributingRowsPage,
+  getContributingRowsQuery,
+} from '@/server/contributing.server'
 import { getAssetDetails } from '@/server/dagster.server'
 import { getAssetNeighbors } from '@/server/graph.server'
 import { getAssetChecks } from '@/server/quality.server'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { ObservatoryTable } from '@/components/data/ObservatoryTable'
-import { useObservatorySettings } from '@/hooks/useObservatorySettings'
-import { cn } from '@/lib/utils'
 
 interface RowJourneyProps {
   assetKey: string
@@ -57,6 +70,30 @@ interface NodeDetails {
   upstreamAssetKeys?: Array<string>
 }
 
+function extractTransformationSql(asset: {
+  description?: string
+  metadata?: Array<{ key: string; value: string }>
+}): string | undefined {
+  // First, look for SQL in metadata (e.g., phlo/compiled_sql from dbt translator)
+  const candidates =
+    asset.metadata
+      ?.filter((m) => m.value && m.value.trim() && /sql/i.test(m.key))
+      .sort((a, b) => b.value.length - a.value.length) ?? []
+  const metadataSql = candidates[0]?.value?.trim()
+  if (metadataSql) return metadataSql
+
+  // Fall back to description only if it looks like actual SQL
+  const desc = asset.description?.trim()
+  if (
+    desc &&
+    /^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|CREATE|ALTER)/i.test(desc)
+  ) {
+    return desc
+  }
+
+  return undefined
+}
+
 // Simple node component - click to select
 function JourneyNode({ data }: NodeProps<JourneyNodeType>) {
   const isCurrent = data.isCurrent
@@ -67,7 +104,7 @@ function JourneyNode({ data }: NodeProps<JourneyNodeType>) {
     <div
       onClick={() => onSelect(assetKey)}
       className={cn(
-        'rounded-lg border-2 transition-colors cursor-pointer bg-card',
+        'border-2 transition-colors cursor-pointer bg-card',
         isCurrent
           ? 'border-primary shadow-sm ring-1 ring-primary/20'
           : 'border-border hover:border-primary/50 hover:bg-muted/50',
@@ -120,10 +157,75 @@ function NodeDetailPanel({
 }) {
   const { settings } = useObservatorySettings()
   const tableName = assetKey.split('/').pop() || assetKey
+  const [contribOpen, setContribOpen] = useState(false)
+  const [contribUpstreamAssetKey, setContribUpstreamAssetKey] = useState<
+    string | null
+  >(null)
+  const [contribPage, setContribPage] = useState(0)
+  const [contribPageSize, setContribPageSize] = useState(50)
+  const [contribLoading, setContribLoading] = useState(false)
+  const [contribError, setContribError] = useState<string | null>(null)
+  const [contribResult, setContribResult] = useState<Exclude<
+    ContributingRowsPageResult,
+    { error: string }
+  > | null>(null)
+
+  const loadContributingRows = useCallback(
+    async (upstreamAssetKey: string) => {
+      setContribLoading(true)
+      setContribError(null)
+      try {
+        const result = await getContributingRowsPage({
+          data: {
+            downstreamAssetKey: assetKey,
+            upstreamAssetKey,
+            rowData,
+            page: contribPage,
+            pageSize: contribPageSize,
+            trinoUrl: settings.connections.trinoUrl,
+            timeoutMs: settings.query.timeoutMs,
+            catalog: settings.defaults.catalog,
+          },
+        })
+
+        if ('error' in result) {
+          setContribError(result.error)
+          setContribResult(null)
+          return
+        }
+
+        setContribResult(result)
+      } catch (err) {
+        setContribError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to load contributing rows',
+        )
+        setContribResult(null)
+      } finally {
+        setContribLoading(false)
+      }
+    },
+    [
+      assetKey,
+      contribPage,
+      contribPageSize,
+      rowData,
+      settings.connections.trinoUrl,
+      settings.defaults.catalog,
+      settings.query.timeoutMs,
+    ],
+  )
+
+  useEffect(() => {
+    if (!contribOpen) return
+    if (!contribUpstreamAssetKey) return
+    void loadContributingRows(contribUpstreamAssetKey)
+  }, [contribOpen, contribUpstreamAssetKey, loadContributingRows])
 
   if (isLoading) {
     return (
-      <div className="bg-card rounded-xl border border-border p-6">
+      <div className="bg-card border border-border p-6">
         <div className="flex items-center gap-3">
           <Loader2 className="w-5 h-5 text-primary animate-spin" />
           <span className="text-muted-foreground">
@@ -136,7 +238,7 @@ function NodeDetailPanel({
 
   if (!details) {
     return (
-      <div className="bg-card rounded-xl border border-border p-6 text-center text-muted-foreground">
+      <div className="bg-card border border-border p-6 text-center text-muted-foreground">
         <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
         <p>Click a node above to view its details</p>
       </div>
@@ -151,7 +253,153 @@ function NodeDetailPanel({
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="bg-card border border-border overflow-hidden">
+      <Sheet
+        open={contribOpen}
+        onOpenChange={(open) => {
+          setContribOpen(open)
+          if (!open) {
+            setContribUpstreamAssetKey(null)
+            setContribError(null)
+            setContribResult(null)
+            setContribPage(0)
+          }
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="h-[85vh] sm:h-[75vh] sm:max-w-none"
+        >
+          <SheetHeader className="flex-row items-center justify-between gap-4 space-y-0">
+            <div className="flex flex-col gap-0.5">
+              <SheetTitle>Contributing rows</SheetTitle>
+              <SheetDescription className="text-xs">
+                {contribResult?.upstream
+                  ? `${contribResult.upstream.schema}.${contribResult.upstream.table}`
+                  : contribUpstreamAssetKey
+                    ? contribUpstreamAssetKey.split('/').pop()
+                    : ''}
+              </SheetDescription>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="contrib-page-size"
+                  className="text-xs text-muted-foreground whitespace-nowrap"
+                >
+                  Page size
+                </Label>
+                <select
+                  id="contrib-page-size"
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                  value={String(contribPageSize)}
+                  onChange={(e) => {
+                    setContribPageSize(Number(e.target.value))
+                    setContribPage(0)
+                  }}
+                >
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </div>
+
+              {contribResult?.mode ? (
+                <Badge variant="secondary" className="capitalize">
+                  {contribResult.mode}
+                </Badge>
+              ) : null}
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!contribResult?.query || !onQuerySource}
+                onClick={() => {
+                  if (!contribResult?.query || !onQuerySource) return
+                  onQuerySource(contribResult.query)
+                }}
+              >
+                Open in SQL
+              </Button>
+
+              <div className="h-4 w-px bg-border" />
+
+              <div className="text-xs text-muted-foreground whitespace-nowrap">
+                Page {contribPage + 1}
+                {contribResult
+                  ? ` • ${contribResult.rows.length} row${
+                      contribResult.rows.length === 1 ? '' : 's'
+                    }`
+                  : ''}
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={contribPage === 0 || contribLoading}
+                onClick={() => setContribPage((p) => Math.max(0, p - 1))}
+              >
+                Prev
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!contribResult?.hasMore || contribLoading}
+                onClick={() => setContribPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </SheetHeader>
+
+          <div className="px-4 pb-4 flex flex-col gap-4 min-h-0 flex-1">
+            {contribResult?.query ? (
+              <details className="rounded-md border border-border bg-muted/30">
+                <summary className="cursor-pointer select-none px-3 py-2 text-xs text-muted-foreground">
+                  SQL (read-only)
+                </summary>
+                <div className="border-t border-border overflow-x-auto max-h-40">
+                  <pre className="p-3 text-xs leading-relaxed">
+                    {cleanSqlForDisplay(contribResult.query)}
+                  </pre>
+                </div>
+              </details>
+            ) : null}
+
+            <div className="min-h-0 flex-1">
+              {contribLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading…
+                </div>
+              ) : contribError ? (
+                <div className="text-sm text-red-400">{contribError}</div>
+              ) : contribResult && contribResult.rows.length > 0 ? (
+                <ObservatoryTable
+                  columns={contribResult.columns}
+                  rows={contribResult.rows}
+                  getRowId={(_, index) => String(index)}
+                  maxHeightClassName="max-h-full"
+                  enableSorting
+                  enableColumnResizing
+                  enableColumnPinning
+                  monospace
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No contributing rows found.
+                </div>
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h4 className="font-medium text-foreground flex items-center gap-2">
           <Database className="w-4 h-4 text-primary" />
@@ -205,42 +453,64 @@ function NodeDetailPanel({
                 <Terminal className="w-4 h-4" />
                 Contributing rows
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-2">
                 {details.upstreamAssetKeys.map((upstreamAssetKey) => {
                   const upstreamLabel = upstreamAssetKey.split('/').pop()
                   return (
-                    <Button
+                    <div
                       key={upstreamAssetKey}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={async () => {
-                        const result = await getContributingRowsQuery({
-                          data: {
-                            downstreamAssetKey: assetKey,
-                            upstreamAssetKey,
-                            rowData,
-                            limit: 100,
-                            trinoUrl: settings.connections.trinoUrl,
-                            timeoutMs: settings.query.timeoutMs,
-                            catalog: settings.defaults.catalog,
-                          },
-                        })
-
-                        if ('error' in result) {
-                          console.error(
-                            '[ContributingRows] Error:',
-                            result.error,
-                          )
-                          return
-                        }
-
-                        onQuerySource(result.query)
-                      }}
+                      className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/20 px-3 py-2"
                     >
-                      Query {upstreamLabel}
-                    </Button>
+                      <div className="text-xs text-foreground">
+                        {upstreamLabel}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setContribUpstreamAssetKey(upstreamAssetKey)
+                            setContribOpen(true)
+                            setContribPage(0)
+                          }}
+                        >
+                          View rows
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={async () => {
+                            const result = await getContributingRowsQuery({
+                              data: {
+                                downstreamAssetKey: assetKey,
+                                upstreamAssetKey,
+                                rowData,
+                                limit: 100,
+                                trinoUrl: settings.connections.trinoUrl,
+                                timeoutMs: settings.query.timeoutMs,
+                                catalog: settings.defaults.catalog,
+                              },
+                            })
+
+                            if ('error' in result) {
+                              console.error(
+                                '[ContributingRows] Error:',
+                                result.error,
+                              )
+                              return
+                            }
+
+                            onQuerySource(result.query)
+                          }}
+                        >
+                          Open SQL
+                        </Button>
+                      </div>
+                    </div>
                   )
                 })}
               </div>
@@ -411,7 +681,8 @@ export function RowJourney({
                 status: check.status,
               }))
 
-        const sql = 'error' in assetInfo ? undefined : assetInfo.description
+        const sql =
+          'error' in assetInfo ? undefined : extractTransformationSql(assetInfo)
 
         const upstreamAssetKeys = graphData
           ? graphData.edges
@@ -570,7 +841,7 @@ export function RowJourney({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Flow visualization */}
-      <div className="h-72 bg-background rounded-xl border border-border">
+      <div className="h-72 bg-background border border-border">
         <ReactFlow
           nodes={nodes}
           edges={edges}
