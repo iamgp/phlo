@@ -128,6 +128,7 @@ function RootLayoutInner() {
     <html
       lang="en"
       className={resolvedTheme === 'dark' ? 'dark' : ''}
+      data-density={settings.ui.density}
       suppressHydrationWarning
     >
       <head>
