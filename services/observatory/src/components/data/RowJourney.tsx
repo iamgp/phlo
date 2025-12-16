@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import type { Edge, Node, NodeProps } from '@xyflow/react'
+import {
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import {
   AlertCircle,
   CheckCircle,
@@ -9,26 +19,8 @@ import {
   Terminal,
 } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
-import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-} from '@xyflow/react'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
 
-import type { DataRow } from '@/server/trino.server'
-import type { ContributingRowsPageResult } from '@/server/contributing.server'
-import {
-  getContributingRowsPage,
-  getContributingRowsQuery,
-} from '@/server/contributing.server'
-import { getAssetDetails } from '@/server/dagster.server'
-import { getAssetNeighbors } from '@/server/graph.server'
-import { getAssetChecks } from '@/server/quality.server'
+import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -39,9 +31,17 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
+import type { ContributingRowsPageResult } from '@/server/contributing.server'
+import {
+  getContributingRowsPage,
+  getContributingRowsQuery,
+} from '@/server/contributing.server'
+import { getAssetDetails } from '@/server/dagster.server'
+import { getAssetNeighbors } from '@/server/graph.server'
+import { getAssetChecks } from '@/server/quality.server'
+import type { DataRow } from '@/server/trino.server'
 
 interface RowJourneyProps {
   assetKey: string
@@ -73,13 +73,24 @@ function extractTransformationSql(asset: {
   description?: string
   metadata?: Array<{ key: string; value: string }>
 }): string | undefined {
-  const desc = asset.description?.trim()
-  if (desc) return desc
+  // First, look for SQL in metadata (e.g., phlo/compiled_sql from dbt translator)
   const candidates =
     asset.metadata
       ?.filter((m) => m.value && m.value.trim() && /sql/i.test(m.key))
       .sort((a, b) => b.value.length - a.value.length) ?? []
-  return candidates[0]?.value?.trim() || undefined
+  const metadataSql = candidates[0]?.value?.trim()
+  if (metadataSql) return metadataSql
+
+  // Fall back to description only if it looks like actual SQL
+  const desc = asset.description?.trim()
+  if (
+    desc &&
+    /^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|CREATE|ALTER)/i.test(desc)
+  ) {
+    return desc
+  }
+
+  return undefined
 }
 
 // Simple node component - click to select
@@ -258,62 +269,64 @@ function NodeDetailPanel({
           side="bottom"
           className="h-[85vh] sm:h-[75vh] sm:max-w-none"
         >
-          <SheetHeader>
-            <SheetTitle>Contributing rows</SheetTitle>
-            <SheetDescription>
-              {contribResult?.upstream
-                ? `${contribResult.upstream.schema}.${contribResult.upstream.table}`
-                : contribUpstreamAssetKey
-                  ? contribUpstreamAssetKey.split('/').pop()
-                  : ''}
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="px-4 pb-4 flex flex-col gap-4 min-h-0 flex-1">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="grid gap-1">
-                  <Label htmlFor="contrib-page-size">Page size</Label>
-                  <select
-                    id="contrib-page-size"
-                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                    value={String(contribPageSize)}
-                    onChange={(e) => {
-                      setContribPageSize(Number(e.target.value))
-                      setContribPage(0)
-                    }}
-                  >
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                    <option value="200">200</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                {contribResult?.mode ? (
-                  <Badge variant="secondary" className="capitalize">
-                    {contribResult.mode}
-                  </Badge>
-                ) : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={!contribResult?.query || !onQuerySource}
-                  onClick={() => {
-                    if (!contribResult?.query || !onQuerySource) return
-                    onQuerySource(contribResult.query)
-                  }}
-                >
-                  Open in SQL
-                </Button>
-              </div>
+          <SheetHeader className="flex-row items-center justify-between gap-4 space-y-0">
+            <div className="flex flex-col gap-0.5">
+              <SheetTitle>Contributing rows</SheetTitle>
+              <SheetDescription className="text-xs">
+                {contribResult?.upstream
+                  ? `${contribResult.upstream.schema}.${contribResult.upstream.table}`
+                  : contribUpstreamAssetKey
+                    ? contribUpstreamAssetKey.split('/').pop()
+                    : ''}
+              </SheetDescription>
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="contrib-page-size"
+                  className="text-xs text-muted-foreground whitespace-nowrap"
+                >
+                  Page size
+                </Label>
+                <select
+                  id="contrib-page-size"
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                  value={String(contribPageSize)}
+                  onChange={(e) => {
+                    setContribPageSize(Number(e.target.value))
+                    setContribPage(0)
+                  }}
+                >
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </div>
+
+              {contribResult?.mode ? (
+                <Badge variant="secondary" className="capitalize">
+                  {contribResult.mode}
+                </Badge>
+              ) : null}
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!contribResult?.query || !onQuerySource}
+                onClick={() => {
+                  if (!contribResult?.query || !onQuerySource) return
+                  onQuerySource(contribResult.query)
+                }}
+              >
+                Open in SQL
+              </Button>
+
+              <div className="h-4 w-px bg-border" />
+
+              <div className="text-xs text-muted-foreground whitespace-nowrap">
                 Page {contribPage + 1}
                 {contribResult
                   ? ` • ${contribResult.rows.length} row${
@@ -321,28 +334,29 @@ function NodeDetailPanel({
                     }`
                   : ''}
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={contribPage === 0 || contribLoading}
-                  onClick={() => setContribPage((p) => Math.max(0, p - 1))}
-                >
-                  Prev
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={!contribResult?.hasMore || contribLoading}
-                  onClick={() => setContribPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
 
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={contribPage === 0 || contribLoading}
+                onClick={() => setContribPage((p) => Math.max(0, p - 1))}
+              >
+                Prev
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!contribResult?.hasMore || contribLoading}
+                onClick={() => setContribPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </SheetHeader>
+
+          <div className="px-4 pb-4 flex flex-col gap-4 min-h-0 flex-1">
             {contribResult?.query ? (
               <details className="rounded-md border border-border bg-muted/30">
                 <summary className="cursor-pointer select-none px-3 py-2 text-xs text-muted-foreground">
