@@ -40,14 +40,21 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { getAssetDetails, getAssets } from '@/server/dagster.server'
 import { getAssetChecks } from '@/server/quality.server'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate, formatDateTime } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
+    const settings = await getEffectiveObservatorySettings()
+    const dagsterUrl = settings.connections.dagsterGraphqlUrl
     // Load all assets for the sidebar
-    const assets = await getAssets()
+    const assets = await getAssets({ data: { dagsterUrl } })
 
     // Load the selected asset details
-    const asset = await getAssetDetails({ data: params.assetId })
+    const asset = await getAssetDetails({
+      data: { assetKeyPath: params.assetId, dagsterUrl },
+    })
 
     // Fetch checks but don't fail the whole page if it errors
     let checks: Array<QualityCheck> | { error: string } = {
@@ -55,7 +62,7 @@ export const Route = createFileRoute('/assets/$assetId')({
     }
     try {
       checks = await getAssetChecks({
-        data: { assetKey: params.assetId.split('/') },
+        data: { assetKey: params.assetId.split('/'), dagsterUrl },
       })
     } catch {
       // Quality checks are optional, don't block page load
@@ -279,8 +286,12 @@ function AssetListItem({
   isSelected: boolean
   onClick: () => void
 }) {
+  const { settings } = useObservatorySettings()
   const lastMaterialized = asset.lastMaterialization
-    ? formatTimeAgo(new Date(Number(asset.lastMaterialization.timestamp)))
+    ? formatTimeAgo(
+        new Date(Number(asset.lastMaterialization.timestamp)),
+        settings.ui.dateFormat,
+      )
     : null
 
   return (
@@ -317,7 +328,7 @@ function AssetListItem({
   )
 }
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -328,11 +339,12 @@ function formatTimeAgo(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }
 
 // Overview Tab
 function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
+  const { settings } = useObservatorySettings()
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
@@ -485,9 +497,12 @@ function OverviewTab({ assetData }: { assetData: AssetDetails | null }) {
                 </div>
                 <div className="text-sm">
                   {assetData?.lastMaterialization
-                    ? new Date(
-                        Number(assetData.lastMaterialization.timestamp),
-                      ).toLocaleString()
+                    ? formatDateTime(
+                        new Date(
+                          Number(assetData.lastMaterialization.timestamp),
+                        ),
+                        settings.ui.dateFormat,
+                      )
                     : 'Never'}
                 </div>
               </div>

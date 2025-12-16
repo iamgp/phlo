@@ -6,10 +6,16 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { getAssets } from '@/server/dagster.server'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/assets/')({
   loader: async () => {
-    const assets = await getAssets()
+    const settings = await getEffectiveObservatorySettings()
+    const assets = await getAssets({
+      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+    })
     return { assets }
   },
   component: AssetsPage,
@@ -183,8 +189,12 @@ function AssetListItem({
   asset: Asset
   onClick: () => void
 }) {
+  const { settings } = useObservatorySettings()
   const lastMaterialized = asset.lastMaterialization
-    ? formatTimeAgo(new Date(Number(asset.lastMaterialization.timestamp)))
+    ? formatTimeAgo(
+        new Date(Number(asset.lastMaterialization.timestamp)),
+        settings.ui.dateFormat,
+      )
     : null
 
   return (
@@ -219,7 +229,7 @@ function AssetListItem({
   )
 }
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -230,5 +240,5 @@ function formatTimeAgo(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }

@@ -7,6 +7,13 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+const DEFAULT_DAGSTER_URL = 'http://localhost:3000/graphql'
+
+function resolveDagsterUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.DAGSTER_GRAPHQL_URL || DEFAULT_DAGSTER_URL
+}
+
 // Types for graph data
 export interface GraphNode {
   id: string
@@ -108,10 +115,10 @@ function inferLayer(keyPath: string): GraphNode['layer'] {
 /**
  * Get the full asset graph with dependencies
  */
-export const getAssetGraph = createServerFn().handler(
-  async (): Promise<AssetGraph | { error: string }> => {
-    const dagsterUrl =
-      process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+export const getAssetGraph = createServerFn()
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<AssetGraph | { error: string }> => {
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
 
     try {
       const response = await fetch(dagsterUrl, {
@@ -182,8 +189,7 @@ export const getAssetGraph = createServerFn().handler(
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
-  },
-)
+  })
 
 /**
  * Get neighbors of a specific asset (focused subgraph)
@@ -194,11 +200,14 @@ export const getAssetNeighbors = createServerFn()
       assetKey: string
       direction: 'upstream' | 'downstream' | 'both'
       depth: number
+      dagsterUrl?: string
     }) => input,
   )
   .handler(async ({ data }): Promise<AssetGraph | { error: string }> => {
     // First get the full graph
-    const fullGraph = await getAssetGraph()
+    const fullGraph = await getAssetGraph({
+      data: { dagsterUrl: data.dagsterUrl },
+    })
 
     if ('error' in fullGraph) {
       return fullGraph
@@ -277,13 +286,16 @@ export interface ImpactedAsset {
  * Returns all assets that would be affected if this asset fails/changes
  */
 export const getAssetImpact = createServerFn()
-  .inputValidator((input: { assetKey: string; maxDepth?: number }) => input)
+  .inputValidator(
+    (input: { assetKey: string; maxDepth?: number; dagsterUrl?: string }) =>
+      input,
+  )
   .handler(
     async ({ data }): Promise<Array<ImpactedAsset> | { error: string }> => {
-      const { assetKey, maxDepth = 99 } = data
+      const { assetKey, maxDepth = 99, dagsterUrl } = data
 
       // Get full graph
-      const fullGraph = await getAssetGraph()
+      const fullGraph = await getAssetGraph({ data: { dagsterUrl } })
 
       if ('error' in fullGraph) {
         return fullGraph

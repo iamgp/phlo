@@ -4,6 +4,7 @@ import {
   Database,
   GitBranch,
   LayoutDashboard,
+  Settings,
   Shield,
   Table,
 } from 'lucide-react'
@@ -20,7 +21,15 @@ import {
 } from '@/components/ui/sidebar'
 
 type NavItem = {
-  to: '/' | '/hub' | '/data' | '/assets' | '/graph' | '/branches' | '/quality'
+  to:
+    | '/'
+    | '/hub'
+    | '/data'
+    | '/assets'
+    | '/graph'
+    | '/branches'
+    | '/quality'
+    | '/settings'
   label: string
   icon: ReactNode
 }
@@ -33,6 +42,7 @@ const navItems: Array<NavItem> = [
   { to: '/graph', label: 'Lineage Graph', icon: <GitBranch /> },
   { to: '/branches', label: 'Branches', icon: <GitBranch /> },
   { to: '/quality', label: 'Quality', icon: <Shield /> },
+  { to: '/settings', label: 'Settings', icon: <Settings /> },
 ]
 
 export function AppSidebar() {

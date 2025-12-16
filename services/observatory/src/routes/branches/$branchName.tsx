@@ -23,12 +23,15 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
+import { formatDate } from '@/utils/dateFormat'
 import {
   compareBranches,
   getBranch,
   getCommits,
   getContents,
 } from '@/server/nessie.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 export const Route = createFileRoute('/branches/$branchName')({
   loader: async ({
@@ -38,11 +41,13 @@ export const Route = createFileRoute('/branches/$branchName')({
     commits: Array<LogEntry> | { error: string }
     contents: Array<object> | { error: string }
   }> => {
+    const settings = await getEffectiveObservatorySettings()
+    const nessieUrl = settings.connections.nessieUrl
     const branchName = decodeURIComponent(params.branchName)
     const [branch, commits, contents] = await Promise.all([
-      getBranch({ data: branchName }),
-      getCommits({ data: { branch: branchName, limit: 50 } }),
-      getContents({ data: { branch: branchName } }),
+      getBranch({ data: { branchName, nessieUrl } }),
+      getCommits({ data: { branch: branchName, limit: 50, nessieUrl } }),
+      getContents({ data: { branch: branchName, nessieUrl } }),
     ])
     return { branch, commits, contents }
   },
@@ -58,6 +63,7 @@ function BranchDetailPage() {
   const { branchName } = Route.useParams()
   const { branch, commits, contents } = Route.useLoaderData()
   const router = useRouter()
+  const { settings } = useObservatorySettings()
   const [activeTab, setActiveTab] = useState<
     'commits' | 'contents' | 'compare'
   >('commits')
@@ -77,7 +83,11 @@ function BranchDetailPage() {
     setLoadingDiff(true)
     try {
       const result = await compareBranches({
-        data: { fromBranch: decodedBranchName, toBranch: targetBranch },
+        data: {
+          fromBranch: decodedBranchName,
+          toBranch: targetBranch,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       setDiffData(result)
     } catch {
@@ -247,6 +257,7 @@ function StatCard({ icon, label, value, subtitle }: StatCardProps) {
 
 // Commits Tab
 function CommitsTab({ commits }: { commits: Array<LogEntry> }) {
+  const { settings } = useObservatorySettings()
   if (commits.length === 0) {
     return (
       <div className="p-12 text-center text-muted-foreground">
@@ -287,7 +298,7 @@ function CommitsTab({ commits }: { commits: Array<LogEntry> }) {
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {formatRelativeTime(date)}
+                    {formatRelativeTime(date, settings.ui.dateFormat)}
                   </span>
                   {commitMeta.authors.length > 0 && (
                     <span>{commitMeta.authors.join(', ')}</span>
@@ -443,7 +454,7 @@ function CompareTab({
 }
 
 // Utility function
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -454,5 +465,5 @@ function formatRelativeTime(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }

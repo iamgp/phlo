@@ -38,6 +38,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  --table-head-height: 2.5rem;
+  --table-cell-px: 0.5rem;
+  --table-cell-py: 0.5rem;
+}
+
+html[data-density='compact'] {
+  --table-head-height: 2rem;
+  --table-cell-px: 0.375rem;
+  --table-cell-py: 0.25rem;
 }
 
 .dark {
