@@ -4,7 +4,7 @@
  * Shows the data journey for a specific row identified by _phlo_row_id.
  * Enables direct linking to row-level data journeys.
  */
-import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import { Link, createFileRoute, useParams } from '@tanstack/react-router'
 import {
   AlertCircle,
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import type { DataPreviewResult } from '@/server/trino.server'
 import { RowJourney } from '@/components/data/RowJourney'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -32,7 +33,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
-import type { DataPreviewResult } from '@/server/trino.server'
 import { getRowById } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 

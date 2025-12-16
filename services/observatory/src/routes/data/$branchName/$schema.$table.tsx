@@ -5,8 +5,8 @@
  * preview, SQL editor, and journey view.
  */
 import {
-  createFileRoute,
   Outlet,
+  createFileRoute,
   useMatch,
   useNavigate,
   useParams,
@@ -22,6 +22,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 
+import type { IcebergTable } from '@/server/iceberg.server'
+import type { DataPreviewResult, DataRow } from '@/server/trino.server'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { QueryEditor } from '@/components/data/QueryEditor'
 import { QueryResults } from '@/components/data/QueryResults'
@@ -45,8 +47,6 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
-import type { IcebergTable } from '@/server/iceberg.server'
-import type { DataPreviewResult, DataRow } from '@/server/trino.server'
 import { previewData } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 

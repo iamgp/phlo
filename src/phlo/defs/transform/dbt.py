@@ -89,9 +89,13 @@ def build_all_dbt_assets(*, manifest_path) -> object:
 
                 for table_name, result in inject_results.items():
                     if "error" in result:
-                        context.log.warning(f"Failed to inject _phlo_row_id into {table_name}: {result['error']}")
+                        context.log.warning(
+                            f"Failed to inject _phlo_row_id into {table_name}: {result['error']}"
+                        )
                     elif not result.get("skipped"):
-                        context.log.info(f"Injected _phlo_row_id into {table_name}: {result['rows_updated']} rows")
+                        context.log.info(
+                            f"Injected _phlo_row_id into {table_name}: {result['rows_updated']} rows"
+                        )
             except Exception as e:
                 context.log.warning(f"Failed to inject _phlo_row_id: {e}")
 
