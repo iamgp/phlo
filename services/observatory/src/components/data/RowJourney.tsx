@@ -70,6 +70,19 @@ interface NodeDetails {
   upstreamAssetKeys?: Array<string>
 }
 
+function extractTransformationSql(asset: {
+  description?: string
+  metadata?: Array<{ key: string; value: string }>
+}): string | undefined {
+  const desc = asset.description?.trim()
+  if (desc) return desc
+  const candidates =
+    asset.metadata
+      ?.filter((m) => m.value && m.value.trim() && /sql/i.test(m.key))
+      .sort((a, b) => b.value.length - a.value.length) ?? []
+  return candidates[0]?.value?.trim() || undefined
+}
+
 // Simple node component - click to select
 function JourneyNode({ data }: NodeProps<JourneyNodeType>) {
   const isCurrent = data.isCurrent
@@ -660,7 +673,8 @@ export function RowJourney({
                 status: check.status,
               }))
 
-        const sql = 'error' in assetInfo ? undefined : assetInfo.description
+        const sql =
+          'error' in assetInfo ? undefined : extractTransformationSql(assetInfo)
 
         const upstreamAssetKeys = graphData
           ? graphData.edges

@@ -53,7 +53,7 @@ describe('contributing rows query builder', () => {
     if (!result.ok) return
     expect(result.mode).toBe('aggregate')
     expect(result.query).toMatch(/ORDER BY xxhash64/)
-    expect(result.query).toMatch(/LIMIT 26 OFFSET 50$/)
+    expect(result.query).toMatch(/OFFSET 50 LIMIT 26$/)
     expect(result.query).toContain('demo-seed')
   })
 })

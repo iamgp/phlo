@@ -429,7 +429,8 @@ export function buildContributingRowsQuery(params: {
           seed: params.seed,
         })
 
-  const query = `SELECT * FROM ${params.upstream.fullName} WHERE ${where} ORDER BY ${orderExpr} LIMIT ${limitPlusOne} OFFSET ${offset}`
+  // Trino syntax is `OFFSET n LIMIT m` (not Postgres-style `LIMIT m OFFSET n`).
+  const query = `SELECT * FROM ${params.upstream.fullName} WHERE ${where} ORDER BY ${orderExpr} OFFSET ${offset} LIMIT ${limitPlusOne}`
   return { ok: true, mode, query, where }
 }
 
@@ -476,7 +477,7 @@ export const getContributingRowsQuery = createServerFn()
     })
     if (!built.ok) return { error: built.error }
 
-    const query = built.query.replace(/LIMIT \d+ OFFSET \d+$/, `LIMIT ${limit}`)
+    const query = built.query.replace(/OFFSET \d+ LIMIT \d+$/, `LIMIT ${limit}`)
 
     return {
       query,
