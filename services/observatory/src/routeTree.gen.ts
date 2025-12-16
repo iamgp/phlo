@@ -23,6 +23,7 @@ import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
 import { Route as DataBranchNameIndexRouteImport } from './routes/data/$branchName/index'
 import { Route as DataSchemaTableRouteImport } from './routes/data/$schema.$table'
 import { Route as DataBranchNameSchemaTableRouteImport } from './routes/data/$branchName/$schema.$table'
+import { Route as DataBranchNameSchemaTableRowIdRouteImport } from './routes/data/$branchName/$schema/$table/$rowId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -95,6 +96,12 @@ const DataBranchNameSchemaTableRoute =
     path: '/$schema/$table',
     getParentRoute: () => DataBranchNameRoute,
   } as any)
+const DataBranchNameSchemaTableRowIdRoute =
+  DataBranchNameSchemaTableRowIdRouteImport.update({
+    id: '/$rowId',
+    path: '/$rowId',
+    getParentRoute: () => DataBranchNameSchemaTableRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,7 +117,8 @@ export interface FileRoutesByFullPath {
   '/quality': typeof QualityIndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
   '/data/$branchName/': typeof DataBranchNameIndexRoute
-  '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRoute
+  '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
+  '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,7 +133,8 @@ export interface FileRoutesByTo {
   '/quality': typeof QualityIndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
   '/data/$branchName': typeof DataBranchNameIndexRoute
-  '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRoute
+  '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
+  '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,7 +151,8 @@ export interface FileRoutesById {
   '/quality/': typeof QualityIndexRoute
   '/data/$schema/$table': typeof DataSchemaTableRoute
   '/data/$branchName/': typeof DataBranchNameIndexRoute
-  '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRoute
+  '/data/$branchName/$schema/$table': typeof DataBranchNameSchemaTableRouteWithChildren
+  '/data/$branchName/$schema/$table/$rowId': typeof DataBranchNameSchemaTableRowIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/data/$schema/$table'
     | '/data/$branchName/'
     | '/data/$branchName/$schema/$table'
+    | '/data/$branchName/$schema/$table/$rowId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/data/$schema/$table'
     | '/data/$branchName'
     | '/data/$branchName/$schema/$table'
+    | '/data/$branchName/$schema/$table/$rowId'
   id:
     | '__root__'
     | '/'
@@ -192,6 +204,7 @@ export interface FileRouteTypes {
     | '/data/$schema/$table'
     | '/data/$branchName/'
     | '/data/$branchName/$schema/$table'
+    | '/data/$branchName/$schema/$table/$rowId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -309,17 +322,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DataBranchNameSchemaTableRouteImport
       parentRoute: typeof DataBranchNameRoute
     }
+    '/data/$branchName/$schema/$table/$rowId': {
+      id: '/data/$branchName/$schema/$table/$rowId'
+      path: '/$rowId'
+      fullPath: '/data/$branchName/$schema/$table/$rowId'
+      preLoaderRoute: typeof DataBranchNameSchemaTableRowIdRouteImport
+      parentRoute: typeof DataBranchNameSchemaTableRoute
+    }
   }
 }
 
+interface DataBranchNameSchemaTableRouteChildren {
+  DataBranchNameSchemaTableRowIdRoute: typeof DataBranchNameSchemaTableRowIdRoute
+}
+
+const DataBranchNameSchemaTableRouteChildren: DataBranchNameSchemaTableRouteChildren =
+  {
+    DataBranchNameSchemaTableRowIdRoute: DataBranchNameSchemaTableRowIdRoute,
+  }
+
+const DataBranchNameSchemaTableRouteWithChildren =
+  DataBranchNameSchemaTableRoute._addFileChildren(
+    DataBranchNameSchemaTableRouteChildren,
+  )
+
 interface DataBranchNameRouteChildren {
   DataBranchNameIndexRoute: typeof DataBranchNameIndexRoute
-  DataBranchNameSchemaTableRoute: typeof DataBranchNameSchemaTableRoute
+  DataBranchNameSchemaTableRoute: typeof DataBranchNameSchemaTableRouteWithChildren
 }
 
 const DataBranchNameRouteChildren: DataBranchNameRouteChildren = {
   DataBranchNameIndexRoute: DataBranchNameIndexRoute,
-  DataBranchNameSchemaTableRoute: DataBranchNameSchemaTableRoute,
+  DataBranchNameSchemaTableRoute: DataBranchNameSchemaTableRouteWithChildren,
 }
 
 const DataBranchNameRouteWithChildren = DataBranchNameRoute._addFileChildren(
