@@ -4,7 +4,13 @@
  * This is a child of the layout route that shows the selected table's
  * preview, SQL editor, and journey view.
  */
-import { createFileRoute, useParams } from '@tanstack/react-router'
+import {
+  Outlet,
+  createFileRoute,
+  useMatch,
+  useNavigate,
+  useParams,
+} from '@tanstack/react-router'
 import {
   ChevronLeft,
   ChevronRight,
@@ -40,8 +46,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { previewData } from '@/server/trino.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { previewData } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 export const Route = createFileRoute('/data/$branchName/$schema/$table')({
@@ -63,12 +69,14 @@ interface JourneyContext {
 }
 
 function DataExplorerWithTable() {
+  // All hooks must be called before any conditional returns (React rules of hooks)
   const { branchName, schema, table } = useParams({
     from: '/data/$branchName/$schema/$table',
   })
   const { sql: sqlFromSearch, tab: tabFromSearch } = Route.useSearch()
   const decodedBranchName = decodeURIComponent(branchName)
   const { settings } = useObservatorySettings()
+  const navigate = useNavigate()
 
   const [queryResults, setQueryResults] = useState<DataPreviewResult | null>(
     null,
@@ -77,13 +85,18 @@ function DataExplorerWithTable() {
   const [journeyContext, setJourneyContext] = useState<JourneyContext | null>(
     null,
   )
-  // Pre-configured query from journey view
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
   const [preview, setPreview] = useState<DataPreviewResult | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewPage, setPreviewPage] = useState(0)
   const previewPageSize = 50
+
+  // Check if child route (row detail) is active
+  const childMatch = useMatch({
+    from: '/data/$branchName/$schema/$table/$rowId',
+    shouldThrow: false,
+  })
 
   // Reset state when table changes (fixes sidebar navigation bug)
   useEffect(() => {
@@ -127,6 +140,22 @@ function DataExplorerWithTable() {
     rowData: Record<string, unknown>,
     columnTypes: Array<string>,
   ) => {
+    // If the row has a _phlo_row_id, navigate to the row URL for shareability
+    const phloRowId = rowData._phlo_row_id
+    if (typeof phloRowId === 'string' && phloRowId) {
+      void navigate({
+        to: '/data/$branchName/$schema/$table/$rowId',
+        params: {
+          branchName,
+          schema,
+          table,
+          rowId: encodeURIComponent(phloRowId),
+        },
+      })
+      return
+    }
+
+    // Fallback: show journey inline (for tables without _phlo_row_id)
     setJourneyContext({
       assetKey: selectedTable.name,
       tableName: selectedTable.name,
@@ -194,6 +223,11 @@ function DataExplorerWithTable() {
     if (activeTab !== 'preview') return
     void loadPreview(0)
   }, [activeTab, loadPreview])
+
+  // Render child route (row detail) if active
+  if (childMatch) {
+    return <Outlet />
+  }
 
   const previewCanPrev =
     activeTab === 'preview' && previewPage > 0 && !previewLoading
