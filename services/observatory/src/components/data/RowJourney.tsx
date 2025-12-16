@@ -103,7 +103,7 @@ function JourneyNode({ data }: NodeProps<JourneyNodeType>) {
     <div
       onClick={() => onSelect(assetKey)}
       className={cn(
-        'rounded-lg border-2 transition-colors cursor-pointer bg-card',
+        'border-2 transition-colors cursor-pointer bg-card',
         isCurrent
           ? 'border-primary shadow-sm ring-1 ring-primary/20'
           : 'border-border hover:border-primary/50 hover:bg-muted/50',
@@ -224,7 +224,7 @@ function NodeDetailPanel({
 
   if (isLoading) {
     return (
-      <div className="bg-card rounded-xl border border-border p-6">
+      <div className="bg-card border border-border p-6">
         <div className="flex items-center gap-3">
           <Loader2 className="w-5 h-5 text-primary animate-spin" />
           <span className="text-muted-foreground">
@@ -237,7 +237,7 @@ function NodeDetailPanel({
 
   if (!details) {
     return (
-      <div className="bg-card rounded-xl border border-border p-6 text-center text-muted-foreground">
+      <div className="bg-card border border-border p-6 text-center text-muted-foreground">
         <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
         <p>Click a node above to view its details</p>
       </div>
@@ -252,7 +252,7 @@ function NodeDetailPanel({
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="bg-card border border-border overflow-hidden">
       <Sheet
         open={contribOpen}
         onOpenChange={(open) => {
@@ -840,7 +840,7 @@ export function RowJourney({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Flow visualization */}
-      <div className="h-72 bg-background rounded-xl border border-border">
+      <div className="h-72 bg-background border border-border">
         <ReactFlow
           nodes={nodes}
           edges={edges}
