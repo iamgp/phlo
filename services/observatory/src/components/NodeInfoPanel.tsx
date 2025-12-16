@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getAssetImpact } from '@/server/graph.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 interface NodeInfoPanelProps {
   node: GraphNode | null
@@ -201,11 +202,14 @@ function ImpactAnalysisSection({
   const [isExpanded, setIsExpanded] = useState(false)
   const [impactedAssets, setImpactedAssets] = useState<Array<ImpactedAsset>>([])
   const [loading, setLoading] = useState(false)
+  const { settings } = useObservatorySettings()
 
   useEffect(() => {
     if (isExpanded && impactedAssets.length === 0) {
       setLoading(true)
-      getAssetImpact({ data: { assetKey } })
+      getAssetImpact({
+        data: { assetKey, dagsterUrl: settings.connections.dagsterGraphqlUrl },
+      })
         .then((result) => {
           if (!('error' in result)) {
             setImpactedAssets(result)
@@ -213,7 +217,12 @@ function ImpactAnalysisSection({
         })
         .finally(() => setLoading(false))
     }
-  }, [isExpanded, assetKey, impactedAssets.length])
+  }, [
+    isExpanded,
+    assetKey,
+    impactedAssets.length,
+    settings.connections.dagsterGraphqlUrl,
+  ])
 
   // Reset when asset changes
   useEffect(() => {

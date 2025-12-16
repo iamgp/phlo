@@ -23,6 +23,7 @@ import type { Edge, Node, NodeProps } from '@xyflow/react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { getAssetNeighbors } from '@/server/graph.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 interface DataJourneyProps {
   assetKey: string
@@ -80,6 +81,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { settings } = useObservatorySettings()
 
   // Load asset neighbors
   useEffect(() => {
@@ -88,7 +90,12 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
       setError(null)
       try {
         const result = await getAssetNeighbors({
-          data: { assetKey, direction: 'both', depth: 2 },
+          data: {
+            assetKey,
+            direction: 'both',
+            depth: 2,
+            dagsterUrl: settings.connections.dagsterGraphqlUrl,
+          },
         })
         if ('error' in result) {
           setError(result.error)
@@ -102,7 +109,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
       }
     }
     loadGraph()
-  }, [assetKey])
+  }, [assetKey, settings.connections.dagsterGraphqlUrl])
 
   // Convert graph data to React Flow format
   const { nodes, edges } = useMemo(() => {

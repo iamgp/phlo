@@ -18,11 +18,19 @@ import type { IcebergTable } from '@/server/iceberg.server'
 import { BranchSelector } from '@/components/data/BranchSelector'
 import { Input } from '@/components/ui/input'
 import { getTables } from '@/server/iceberg.server'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/data/$branchName')({
   loader: async ({ params }) => {
     const branch = decodeURIComponent(params.branchName)
-    const tables = await getTables({ data: { branch } })
+    const settings = await getEffectiveObservatorySettings()
+    const tables = await getTables({
+      data: {
+        branch,
+        trinoUrl: settings.connections.trinoUrl,
+        timeoutMs: settings.query.timeoutMs,
+      },
+    })
     return { tables }
   },
   component: DataExplorerLayout,

@@ -23,12 +23,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 import {
   compareBranches,
   getBranch,
   getCommits,
   getContents,
 } from '@/server/nessie.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 export const Route = createFileRoute('/branches/$branchName')({
   loader: async ({
@@ -38,11 +40,13 @@ export const Route = createFileRoute('/branches/$branchName')({
     commits: Array<LogEntry> | { error: string }
     contents: Array<object> | { error: string }
   }> => {
+    const settings = await getEffectiveObservatorySettings()
+    const nessieUrl = settings.connections.nessieUrl
     const branchName = decodeURIComponent(params.branchName)
     const [branch, commits, contents] = await Promise.all([
-      getBranch({ data: branchName }),
-      getCommits({ data: { branch: branchName, limit: 50 } }),
-      getContents({ data: { branch: branchName } }),
+      getBranch({ data: { branchName, nessieUrl } }),
+      getCommits({ data: { branch: branchName, limit: 50, nessieUrl } }),
+      getContents({ data: { branch: branchName, nessieUrl } }),
     ])
     return { branch, commits, contents }
   },
@@ -58,6 +62,7 @@ function BranchDetailPage() {
   const { branchName } = Route.useParams()
   const { branch, commits, contents } = Route.useLoaderData()
   const router = useRouter()
+  const { settings } = useObservatorySettings()
   const [activeTab, setActiveTab] = useState<
     'commits' | 'contents' | 'compare'
   >('commits')
@@ -77,7 +82,11 @@ function BranchDetailPage() {
     setLoadingDiff(true)
     try {
       const result = await compareBranches({
-        data: { fromBranch: decodedBranchName, toBranch: targetBranch },
+        data: {
+          fromBranch: decodedBranchName,
+          toBranch: targetBranch,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       setDiffData(result)
     } catch {

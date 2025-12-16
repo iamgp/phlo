@@ -22,6 +22,10 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
+import {
+  ObservatorySettingsProvider,
+  useObservatorySettings,
+} from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
 import { getAssets } from '@/server/dagster.server'
 
@@ -49,19 +53,30 @@ export const Route = createRootRoute({
 const THEME_STORAGE_KEY = 'phlo-observatory-theme'
 
 function RootLayout() {
+  return (
+    <ObservatorySettingsProvider>
+      <RootLayoutInner />
+    </ObservatorySettingsProvider>
+  )
+}
+
+function RootLayoutInner() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [assets, setAssets] = useState<Array<Asset>>([])
   const [themeMode, setThemeMode] = useState<ThemeMode>('system')
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>('dark')
+  const { settings } = useObservatorySettings()
 
   // Load assets for command palette
   useEffect(() => {
-    getAssets().then((result) => {
+    getAssets({
+      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+    }).then((result) => {
       if (!('error' in result)) {
         setAssets(result)
       }
     })
-  }, [])
+  }, [settings.connections.dagsterGraphqlUrl])
 
   // Ensure we don't have a stale PWA/service worker controlling the app (dev-only).
   // This can happen if the app previously ran with Vite PWA/Workbox and will cause 404s

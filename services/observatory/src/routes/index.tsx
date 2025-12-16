@@ -26,13 +26,16 @@ import {
   checkDagsterConnection,
   getHealthMetrics,
 } from '@/server/dagster.server'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/')({
   loader: async () => {
+    const settings = await getEffectiveObservatorySettings()
+    const dagsterUrl = settings.connections.dagsterGraphqlUrl
     // Check connection and fetch metrics in parallel
     const [connection, metrics] = await Promise.all([
-      checkDagsterConnection(),
-      getHealthMetrics(),
+      checkDagsterConnection({ data: { dagsterUrl } }),
+      getHealthMetrics({ data: { dagsterUrl } }),
     ])
     return { connection, metrics }
   },

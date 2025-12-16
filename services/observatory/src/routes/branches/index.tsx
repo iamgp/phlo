@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 import {
   checkNessieConnection,
   createBranch,
@@ -34,15 +35,18 @@ import {
   getCommits,
   mergeBranch,
 } from '@/server/nessie.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 export const Route = createFileRoute('/branches/')({
   loader: async (): Promise<{
     connection: NessieConfig
     branches: Array<Branch> | { error: string }
   }> => {
+    const settings = await getEffectiveObservatorySettings()
+    const nessieUrl = settings.connections.nessieUrl
     const [connection, branches] = await Promise.all([
-      checkNessieConnection(),
-      getBranches(),
+      checkNessieConnection({ data: { nessieUrl } }),
+      getBranches({ data: { nessieUrl } }),
     ])
     return { connection, branches }
   },
@@ -52,6 +56,7 @@ export const Route = createFileRoute('/branches/')({
 function BranchesPage() {
   const { connection, branches } = Route.useLoaderData()
   const router = useRouter()
+  const { settings } = useObservatorySettings()
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
   const [commits, setCommits] = useState<Array<LogEntry> | null>(null)
   const [loadingCommits, setLoadingCommits] = useState(false)
@@ -70,7 +75,11 @@ function BranchesPage() {
     setCommits(null)
     try {
       const result = await getCommits({
-        data: { branch: branchName, limit: 20 },
+        data: {
+          branch: branchName,
+          limit: 20,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       if ('error' in result) {
         setCommits([])
@@ -88,7 +97,9 @@ function BranchesPage() {
     setActionLoading(true)
     setActionError(null)
     try {
-      const result = await createBranch({ data: { name, fromBranch } })
+      const result = await createBranch({
+        data: { name, fromBranch, nessieUrl: settings.connections.nessieUrl },
+      })
       if ('error' in result) {
         setActionError(result.error)
       } else {
@@ -107,7 +118,11 @@ function BranchesPage() {
     setActionError(null)
     try {
       const result = await deleteBranch({
-        data: { name: branch.name, hash: branch.hash },
+        data: {
+          name: branch.name,
+          hash: branch.hash,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       if ('error' in result) {
         setActionError(result.error)
@@ -135,7 +150,12 @@ function BranchesPage() {
     setActionError(null)
     try {
       const result = await mergeBranch({
-        data: { fromBranch, intoBranch, message: message || undefined },
+        data: {
+          fromBranch,
+          intoBranch,
+          message: message || undefined,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       if ('error' in result) {
         setActionError(result.error)

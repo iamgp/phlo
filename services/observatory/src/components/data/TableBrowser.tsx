@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import type { IcebergTable } from '@/server/iceberg.server'
 import { Input } from '@/components/ui/input'
 import { getTables } from '@/server/iceberg.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 interface TableBrowserProps {
   branch: string
@@ -35,13 +36,20 @@ export function TableBrowser({
   const [expandedLayers, setExpandedLayers] = useState<Set<string>>(
     new Set(['bronze', 'silver', 'gold', 'publish']),
   )
+  const { settings } = useObservatorySettings()
 
   useEffect(() => {
     async function loadTables() {
       setLoading(true)
       setError(null)
       try {
-        const result = await getTables({ data: { branch } })
+        const result = await getTables({
+          data: {
+            branch,
+            trinoUrl: settings.connections.trinoUrl,
+            timeoutMs: settings.query.timeoutMs,
+          },
+        })
         if ('error' in result) {
           setError(result.error)
         } else {
@@ -54,7 +62,7 @@ export function TableBrowser({
       }
     }
     loadTables()
-  }, [branch])
+  }, [branch, settings.connections.trinoUrl, settings.query.timeoutMs])
 
   const toggleLayer = (layer: string) => {
     setExpandedLayers((prev) => {

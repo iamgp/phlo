@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { previewData } from '@/server/trino.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 interface DataPreviewProps {
   table: string
@@ -26,6 +27,7 @@ export function DataPreview({
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const pageSize = 50
+  const { settings } = useObservatorySettings()
 
   // Auto-load data when table changes
   useEffect(() => {
@@ -41,7 +43,15 @@ export function DataPreview({
     setError(null)
     try {
       const result = await previewData({
-        data: { table, branch, limit: pageSize, offset },
+        data: {
+          table,
+          branch,
+          limit: pageSize,
+          offset,
+          trinoUrl: settings.connections.trinoUrl,
+          timeoutMs: settings.query.timeoutMs,
+          maxLimit: settings.query.maxLimit,
+        },
       })
       if ('error' in result) {
         setError(result.error)

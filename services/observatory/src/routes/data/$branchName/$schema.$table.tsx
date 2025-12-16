@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { previewData } from '@/server/trino.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 export const Route = createFileRoute('/data/$branchName/$schema/$table')({
   validateSearch: z.object({
@@ -66,6 +67,7 @@ function DataExplorerWithTable() {
   })
   const { sql: sqlFromSearch, tab: tabFromSearch } = Route.useSearch()
   const decodedBranchName = decodeURIComponent(branchName)
+  const { settings } = useObservatorySettings()
 
   const [queryResults, setQueryResults] = useState<DataPreviewResult | null>(
     null,
@@ -155,6 +157,9 @@ function DataExplorerWithTable() {
             branch: decodedBranchName,
             limit: previewPageSize,
             offset,
+            trinoUrl: settings.connections.trinoUrl,
+            timeoutMs: settings.query.timeoutMs,
+            maxLimit: settings.query.maxLimit,
           },
         })
         if ('error' in result) {
@@ -173,7 +178,14 @@ function DataExplorerWithTable() {
         setPreviewLoading(false)
       }
     },
-    [decodedBranchName, previewPageSize, selectedTable.fullName],
+    [
+      decodedBranchName,
+      previewPageSize,
+      selectedTable.fullName,
+      settings.connections.trinoUrl,
+      settings.query.maxLimit,
+      settings.query.timeoutMs,
+    ],
   )
 
   useEffect(() => {

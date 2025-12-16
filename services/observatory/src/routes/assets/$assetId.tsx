@@ -40,14 +40,19 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { getAssetDetails, getAssets } from '@/server/dagster.server'
 import { getAssetChecks } from '@/server/quality.server'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
+    const settings = await getEffectiveObservatorySettings()
+    const dagsterUrl = settings.connections.dagsterGraphqlUrl
     // Load all assets for the sidebar
-    const assets = await getAssets()
+    const assets = await getAssets({ data: { dagsterUrl } })
 
     // Load the selected asset details
-    const asset = await getAssetDetails({ data: params.assetId })
+    const asset = await getAssetDetails({
+      data: { assetKeyPath: params.assetId, dagsterUrl },
+    })
 
     // Fetch checks but don't fail the whole page if it errors
     let checks: Array<QualityCheck> | { error: string } = {
@@ -55,7 +60,7 @@ export const Route = createFileRoute('/assets/$assetId')({
     }
     try {
       checks = await getAssetChecks({
-        data: { assetKey: params.assetId.split('/') },
+        data: { assetKey: params.assetId.split('/'), dagsterUrl },
       })
     } catch {
       // Quality checks are optional, don't block page load

@@ -1,10 +1,20 @@
 import { Loader2, Play, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import type { DataPreviewResult } from '@/server/trino.server'
+import type {
+  DataPreviewResult,
+  QueryExecutionError,
+} from '@/server/trino.server'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { executeQuery } from '@/server/trino.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 interface QueryEditorProps {
   defaultQuery?: string
@@ -22,7 +32,12 @@ export function QueryEditor({
   const [query, setQuery] = useState(defaultQuery)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [effectiveQuery, setEffectiveQuery] = useState<string | null>(null)
+  const [confirmState, setConfirmState] = useState<{
+    statement: string
+  } | null>(null)
   const lastAutoRunQueryRef = useRef<string | null>(null)
+  const { settings } = useObservatorySettings()
 
   // Sync query when defaultQuery changes from external source
   useEffect(() => {
@@ -53,19 +68,69 @@ export function QueryEditor({
 
     setLoading(true)
     setError(null)
+    setEffectiveQuery(null)
     onResults(null)
 
     try {
-      const result = await executeQuery({ data: { query: queryToRun, branch } })
+      const result = await executeQuery({
+        data: {
+          query: queryToRun,
+          branch,
+          trinoUrl: settings.connections.trinoUrl,
+          timeoutMs: settings.query.timeoutMs,
+          readOnlyMode: settings.query.readOnlyMode,
+          defaultLimit: settings.query.defaultLimit,
+          maxLimit: settings.query.maxLimit,
+        },
+      })
       if ('error' in result) {
-        setError(result.error)
+        const err = result
+        if (err.kind === 'confirm_required' && err.effectiveQuery) {
+          setConfirmState({ statement: err.effectiveQuery })
+        } else {
+          setError(result.error)
+        }
       } else {
         onResults(result)
+        setEffectiveQuery(result.effectiveQuery ?? null)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Query failed')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const runConfirmedUnsafeQuery = async () => {
+    if (!confirmState) return
+    setLoading(true)
+    setError(null)
+    setEffectiveQuery(null)
+    onResults(null)
+    try {
+      const result = await executeQuery({
+        data: {
+          query: confirmState.statement,
+          branch,
+          trinoUrl: settings.connections.trinoUrl,
+          timeoutMs: settings.query.timeoutMs,
+          readOnlyMode: settings.query.readOnlyMode,
+          defaultLimit: settings.query.defaultLimit,
+          maxLimit: settings.query.maxLimit,
+          allowUnsafe: true,
+        },
+      })
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        onResults(result)
+        setEffectiveQuery(result.effectiveQuery ?? null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Query failed')
+    } finally {
+      setLoading(false)
+      setConfirmState(null)
     }
   }
 
@@ -105,6 +170,9 @@ export function QueryEditor({
             Run Query
           </Button>
           <span className="text-xs text-muted-foreground">⌘+Enter</span>
+          <span className="text-xs text-muted-foreground">
+            {settings.query.readOnlyMode ? 'Read-only' : 'Unsafe allowed'}
+          </span>
         </div>
 
         <Button
@@ -121,11 +189,44 @@ export function QueryEditor({
         </Button>
       </div>
 
+      {effectiveQuery && (
+        <div className="mt-2 text-xs text-muted-foreground">
+          Effective query enforced by guardrails.
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 text-destructive text-sm">
           {error}
         </div>
+      )}
+
+      {confirmState && (
+        <Dialog open={true} onOpenChange={() => setConfirmState(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirm unsafe query</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This statement is not read-only. Running it may mutate data or
+                metadata.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setConfirmState(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => void runConfirmedUnsafeQuery()}
+                  disabled={loading}
+                >
+                  Run anyway
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

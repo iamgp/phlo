@@ -6,10 +6,14 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { getAssets } from '@/server/dagster.server'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/assets/')({
   loader: async () => {
-    const assets = await getAssets()
+    const settings = await getEffectiveObservatorySettings()
+    const assets = await getAssets({
+      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+    })
     return { assets }
   },
   component: AssetsPage,

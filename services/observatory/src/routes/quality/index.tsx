@@ -37,11 +37,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 import { getCheckHistory, getQualityDashboard } from '@/server/quality.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 export const Route = createFileRoute('/quality/')({
   loader: async () => {
-    const result = await getQualityDashboard()
+    const settings = await getEffectiveObservatorySettings()
+    const result = await getQualityDashboard({
+      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+    })
     return { data: result }
   },
   component: QualityDashboard,
@@ -50,6 +55,7 @@ export const Route = createFileRoute('/quality/')({
 function QualityDashboard() {
   const { data } = Route.useLoaderData()
   const router = useRouter()
+  const { settings } = useObservatorySettings()
 
   const hasError = 'error' in data
   const dashboardData = hasError
@@ -533,6 +539,7 @@ function CheckDetailsDrawer({
   check: QualityCheck
   onClose: () => void
 }) {
+  const { settings } = useObservatorySettings()
   const [history, setHistory] = useState<
     Array<{ timestamp: string; passed: boolean; runId?: string }>
   >([])
@@ -547,7 +554,12 @@ function CheckDetailsDrawer({
     setError(null)
 
     void getCheckHistory({
-      data: { assetKey: check.assetKey, checkName: check.name, limit: 20 },
+      data: {
+        assetKey: check.assetKey,
+        checkName: check.name,
+        limit: 20,
+        dagsterUrl: settings.connections.dagsterGraphqlUrl,
+      },
     })
       .then((result) => {
         if (cancelled) return
@@ -570,7 +582,7 @@ function CheckDetailsDrawer({
     return () => {
       cancelled = true
     }
-  }, [assetKeyPath, check.name])
+  }, [assetKeyPath, check.name, settings.connections.dagsterGraphqlUrl])
 
   const metadata = check.lastResult?.metadata ?? {}
   const sql =

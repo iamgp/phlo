@@ -30,16 +30,22 @@ export interface TableMetadata {
   lastModified?: string
 }
 
-// Get Trino URL from environment
-const getTrinoUrl = () => process.env.TRINO_URL || 'http://localhost:8080'
+const DEFAULT_TRINO_URL = 'http://localhost:8080'
+
+function resolveTrinoUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.TRINO_URL || DEFAULT_TRINO_URL
+}
 
 /**
  * Query Trino and return results
  */
 async function queryTrino<T>(
   sql: string,
+  options?: { trinoUrl?: string; timeoutMs?: number },
 ): Promise<{ data: Array<T>; columns: Array<string> } | { error: string }> {
-  const trinoUrl = getTrinoUrl()
+  const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
+  const timeoutMs = options?.timeoutMs ?? 30_000
 
   try {
     // Submit query
@@ -51,7 +57,7 @@ async function queryTrino<T>(
         // Not setting X-Trino-Schema since we use fully-qualified table names
       },
       body: sql,
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(timeoutMs),
     })
 
     if (!submitResponse.ok) {
@@ -73,7 +79,10 @@ async function queryTrino<T>(
     while (result.nextUri) {
       await new Promise((resolve) => setTimeout(resolve, 100))
       const pollResponse = await fetch(result.nextUri, {
-        signal: AbortSignal.timeout(30000),
+        headers: {
+          'X-Trino-User': 'observatory',
+        },
+        signal: AbortSignal.timeout(timeoutMs),
       })
       result = await pollResponse.json()
 
@@ -85,11 +94,6 @@ async function queryTrino<T>(
 
     // Replace result.data with accumulated data
     result.data = allData
-
-    console.log(
-      '[queryTrino] Final result:',
-      JSON.stringify(result, null, 2).substring(0, 500),
-    )
 
     if (result.error) {
       return { error: result.error.message || 'Query failed' }
@@ -103,13 +107,6 @@ async function queryTrino<T>(
       })
       return obj as T
     })
-
-    console.log(
-      '[queryTrino] Parsed columns:',
-      columns,
-      'data count:',
-      data.length,
-    )
 
     return { data, columns }
   } catch (error) {
@@ -141,10 +138,13 @@ function inferLayer(name: string): IcebergTable['layer'] {
  * Get all tables from Iceberg catalog
  */
 export const getTables = createServerFn()
-  .inputValidator((input: { branch?: string }) => input)
+  .inputValidator(
+    (input: { branch?: string; trinoUrl?: string; timeoutMs?: number }) =>
+      input,
+  )
   .handler(
     async ({
-      data: { branch = 'main' },
+      data: { branch = 'main', trinoUrl, timeoutMs },
     }): Promise<Array<IcebergTable> | { error: string }> => {
       // Query for schemas first, then tables in each schema
       // The Iceberg catalog uses schema names like 'bronze', 'raw', 'silver', 'gold', 'marts'
@@ -161,26 +161,19 @@ export const getTables = createServerFn()
       const seenTables = new Set<string>() // Track by name to dedupe
       const errors: Array<string> = []
 
-      console.log('[getTables] Starting to query schemas:', schemasToQuery)
-
       for (const schema of schemasToQuery) {
         const sql = `SHOW TABLES FROM iceberg.${schema}`
-        console.log('[getTables] Querying:', sql)
-        const result = await queryTrino<{ Table: string }>(sql)
+        const result = await queryTrino<{ Table: string }>(sql, {
+          trinoUrl,
+          timeoutMs,
+        })
 
         // Skip schemas that don't exist or have errors
         if ('error' in result) {
-          console.log('[getTables] Error for schema', schema, ':', result.error)
           errors.push(`${schema}: ${result.error}`)
           continue
         }
 
-        console.log(
-          '[getTables] Found',
-          result.data.length,
-          'tables in',
-          schema,
-        )
         for (const row of result.data) {
           // Dedupe by table name - prefer the first schema we find it in
           if (!seenTables.has(row.Table)) {
@@ -196,8 +189,6 @@ export const getTables = createServerFn()
         }
       }
 
-      console.log('[getTables] Total tables found:', allTables.length)
-
       if (allTables.length === 0 && errors.length > 0) {
         // Return a combined error message if all schemas failed
         return { error: errors.join('; ') }
@@ -206,8 +197,10 @@ export const getTables = createServerFn()
       if (allTables.length === 0) {
         // Fall back to trying the branch as a schema name (for Nessie-based setups)
         const sql = `SHOW TABLES FROM iceberg."${branch}"`
-        console.log('[getTables] Fallback query:', sql)
-        const result = await queryTrino<{ Table: string }>(sql)
+        const result = await queryTrino<{ Table: string }>(sql, {
+          trinoUrl,
+          timeoutMs,
+        })
 
         if ('error' in result) {
           return result
