@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 import {
   checkNessieConnection,
   createBranch,
@@ -34,15 +35,19 @@ import {
   getCommits,
   mergeBranch,
 } from '@/server/nessie.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/branches/')({
   loader: async (): Promise<{
     connection: NessieConfig
     branches: Array<Branch> | { error: string }
   }> => {
+    const settings = await getEffectiveObservatorySettings()
+    const nessieUrl = settings.connections.nessieUrl
     const [connection, branches] = await Promise.all([
-      checkNessieConnection(),
-      getBranches(),
+      checkNessieConnection({ data: { nessieUrl } }),
+      getBranches({ data: { nessieUrl } }),
     ])
     return { connection, branches }
   },
@@ -52,6 +57,7 @@ export const Route = createFileRoute('/branches/')({
 function BranchesPage() {
   const { connection, branches } = Route.useLoaderData()
   const router = useRouter()
+  const { settings } = useObservatorySettings()
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null)
   const [commits, setCommits] = useState<Array<LogEntry> | null>(null)
   const [loadingCommits, setLoadingCommits] = useState(false)
@@ -70,7 +76,11 @@ function BranchesPage() {
     setCommits(null)
     try {
       const result = await getCommits({
-        data: { branch: branchName, limit: 20 },
+        data: {
+          branch: branchName,
+          limit: 20,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       if ('error' in result) {
         setCommits([])
@@ -88,7 +98,9 @@ function BranchesPage() {
     setActionLoading(true)
     setActionError(null)
     try {
-      const result = await createBranch({ data: { name, fromBranch } })
+      const result = await createBranch({
+        data: { name, fromBranch, nessieUrl: settings.connections.nessieUrl },
+      })
       if ('error' in result) {
         setActionError(result.error)
       } else {
@@ -107,7 +119,11 @@ function BranchesPage() {
     setActionError(null)
     try {
       const result = await deleteBranch({
-        data: { name: branch.name, hash: branch.hash },
+        data: {
+          name: branch.name,
+          hash: branch.hash,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       if ('error' in result) {
         setActionError(result.error)
@@ -135,7 +151,12 @@ function BranchesPage() {
     setActionError(null)
     try {
       const result = await mergeBranch({
-        data: { fromBranch, intoBranch, message: message || undefined },
+        data: {
+          fromBranch,
+          intoBranch,
+          message: message || undefined,
+          nessieUrl: settings.connections.nessieUrl,
+        },
       })
       if ('error' in result) {
         setActionError(result.error)
@@ -446,6 +467,7 @@ interface CommitRowProps {
 function CommitRow({ entry, isFirst }: CommitRowProps) {
   const { commitMeta } = entry
   const date = new Date(commitMeta.commitTime)
+  const { settings } = useObservatorySettings()
 
   return (
     <div className="p-4 hover:bg-muted/50 transition-colors">
@@ -469,7 +491,7 @@ function CommitRow({ entry, isFirst }: CommitRowProps) {
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {formatRelativeTime(date)}
+              {formatRelativeTime(date, settings.ui.dateFormat)}
             </span>
             {commitMeta.authors.length > 0 && (
               <span>{commitMeta.authors.join(', ')}</span>
@@ -728,7 +750,7 @@ function Modal({ title, children, onClose }: ModalProps) {
 }
 
 // Utility function
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -739,5 +761,5 @@ function formatRelativeTime(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }

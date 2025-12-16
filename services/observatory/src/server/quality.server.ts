@@ -24,8 +24,12 @@ export type {
   RecentCheckExecution,
 } from './quality.types'
 
-const getDagsterUrl = () =>
-  process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+const DEFAULT_DAGSTER_URL = 'http://localhost:3000/graphql'
+
+function resolveDagsterUrl(override?: string): string {
+  if (override && override.trim()) return override
+  return process.env.DAGSTER_GRAPHQL_URL || DEFAULT_DAGSTER_URL
+}
 
 const ASSET_CHECK_EXECUTIONS_QUERY = `
   query AssetCheckExecutionsQuery($assetKey: AssetKeyInput!, $limit: Int!) {
@@ -141,9 +145,10 @@ function metadataEntriesToRecord(
 /**
  * Get overview of all quality metrics
  */
-export const getQualityOverview = createServerFn().handler(
-  async (): Promise<QualityOverview | { error: string }> => {
-    const snapshot = await fetchQualitySnapshot()
+export const getQualityOverview = createServerFn()
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<QualityOverview | { error: string }> => {
+    const snapshot = await fetchQualitySnapshot({ dagsterUrl: data.dagsterUrl })
     if ('error' in snapshot) return snapshot
 
     const evaluated =
@@ -201,19 +206,20 @@ export const getQualityOverview = createServerFn().handler(
       byCategory,
       trend: [],
     }
-  },
-)
+  })
 
 /**
  * Get quality checks for a specific asset
  */
 export const getAssetChecks = createServerFn()
-  .inputValidator((input: { assetKey: Array<string> }) => input)
+  .inputValidator(
+    (input: { assetKey: Array<string>; dagsterUrl?: string }) => input,
+  )
   .handler(
     async ({
-      data: { assetKey },
+      data: { assetKey, dagsterUrl: dagsterUrlOverride },
     }): Promise<Array<QualityCheck> | { error: string }> => {
-      const dagsterUrl = getDagsterUrl()
+      const dagsterUrl = resolveDagsterUrl(dagsterUrlOverride)
 
       try {
         const response = await fetch(dagsterUrl, {
@@ -286,14 +292,18 @@ export const getAssetChecks = createServerFn()
  */
 export const getCheckHistory = createServerFn()
   .inputValidator(
-    (input: { assetKey: Array<string>; checkName: string; limit?: number }) =>
-      input,
+    (input: {
+      assetKey: Array<string>
+      checkName: string
+      limit?: number
+      dagsterUrl?: string
+    }) => input,
   )
   .handler(
     async ({
-      data: { assetKey, checkName, limit = 20 },
+      data: { assetKey, checkName, limit = 20, dagsterUrl: dagsterUrlOverride },
     }): Promise<Array<CheckExecution> | { error: string }> => {
-      const dagsterUrl = getDagsterUrl()
+      const dagsterUrl = resolveDagsterUrl(dagsterUrlOverride)
 
       try {
         const fetchLimit = Math.max(50, limit * 3)
@@ -357,44 +367,55 @@ export const getCheckHistory = createServerFn()
 /**
  * Get all currently failing checks
  */
-export const getFailingChecks = createServerFn().handler(
-  async (): Promise<Array<QualityCheck> | { error: string }> => {
-    const snapshot = await fetchQualitySnapshot()
-    if ('error' in snapshot) return snapshot
-    return snapshot.failingChecksList
-  },
-)
+export const getFailingChecks = createServerFn()
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(
+    async ({ data }): Promise<Array<QualityCheck> | { error: string }> => {
+      const snapshot = await fetchQualitySnapshot({
+        dagsterUrl: data.dagsterUrl,
+      })
+      if ('error' in snapshot) return snapshot
+      return snapshot.failingChecksList
+    },
+  )
 
 /**
  * Get quality checks with their latest status (for dashboard)
  */
-export const getQualityDashboard = createServerFn().handler(
-  async (): Promise<
-    | {
-        overview: QualityOverview
-        failingChecks: Array<QualityCheck>
-        recentExecutions: Array<RecentCheckExecution>
-        checks: Array<QualityCheck>
-      }
-    | { error: string }
-  > => {
-    try {
-      const [overviewResult, snapshot] = await Promise.all([
-        getQualityOverview(),
-        fetchQualitySnapshot(),
-      ])
+export const getQualityDashboard = createServerFn()
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      | {
+          overview: QualityOverview
+          failingChecks: Array<QualityCheck>
+          recentExecutions: Array<RecentCheckExecution>
+          checks: Array<QualityCheck>
+        }
+      | { error: string }
+    > => {
+      try {
+        const dagsterUrl = data.dagsterUrl
+        const [overviewResult, snapshot] = await Promise.all([
+          getQualityOverview({ data: { dagsterUrl } }),
+          fetchQualitySnapshot({ dagsterUrl }),
+        ])
 
-      if ('error' in overviewResult) return overviewResult
-      if ('error' in snapshot) return snapshot
+        if ('error' in overviewResult) return overviewResult
+        if ('error' in snapshot) return snapshot
 
-      return {
-        overview: overviewResult,
-        failingChecks: snapshot.failingChecksList,
-        recentExecutions: snapshot.recentExecutions,
-        checks: snapshot.latestChecks,
+        return {
+          overview: overviewResult,
+          failingChecks: snapshot.failingChecksList,
+          recentExecutions: snapshot.recentExecutions,
+          checks: snapshot.latestChecks,
+        }
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  },
-)
+    },
+  )

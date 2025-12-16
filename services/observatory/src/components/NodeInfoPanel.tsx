@@ -23,6 +23,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getAssetImpact } from '@/server/graph.server'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatDate } from '@/utils/dateFormat'
 
 interface NodeInfoPanelProps {
   node: GraphNode | null
@@ -36,9 +38,13 @@ export function NodeInfoPanel({
   onFocusGraph,
 }: NodeInfoPanelProps) {
   if (!node) return null
+  const { settings } = useObservatorySettings()
 
   const lastMaterialized = node.lastMaterialization
-    ? formatTimeAgo(new Date(Number(node.lastMaterialization)))
+    ? formatTimeAgo(
+        new Date(Number(node.lastMaterialization)),
+        settings.ui.dateFormat,
+      )
     : 'Never'
 
   return (
@@ -173,7 +179,7 @@ function LayerBadge({ layer }: { layer: string }) {
   )
 }
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date, mode: 'iso' | 'local'): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffMins = Math.floor(diffMs / 60000)
@@ -184,7 +190,7 @@ function formatTimeAgo(date: Date): string {
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString()
+  return formatDate(date, mode)
 }
 
 interface ImpactAnalysisSectionProps {
@@ -201,11 +207,14 @@ function ImpactAnalysisSection({
   const [isExpanded, setIsExpanded] = useState(false)
   const [impactedAssets, setImpactedAssets] = useState<Array<ImpactedAsset>>([])
   const [loading, setLoading] = useState(false)
+  const { settings } = useObservatorySettings()
 
   useEffect(() => {
     if (isExpanded && impactedAssets.length === 0) {
       setLoading(true)
-      getAssetImpact({ data: { assetKey } })
+      getAssetImpact({
+        data: { assetKey, dagsterUrl: settings.connections.dagsterGraphqlUrl },
+      })
         .then((result) => {
           if (!('error' in result)) {
             setImpactedAssets(result)
@@ -213,7 +222,12 @@ function ImpactAnalysisSection({
         })
         .finally(() => setLoading(false))
     }
-  }, [isExpanded, assetKey, impactedAssets.length])
+  }, [
+    isExpanded,
+    assetKey,
+    impactedAssets.length,
+    settings.connections.dagsterGraphqlUrl,
+  ])
 
   // Reset when asset changes
   useEffect(() => {
