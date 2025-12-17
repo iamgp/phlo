@@ -7,6 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
 // Types for health metrics
@@ -358,74 +359,78 @@ const ASSET_DETAILS_QUERY = `
   }
 `
 
-/**
- * Get all assets for list view
- */
+async function fetchAssets(
+  dagsterUrl: string,
+): Promise<Array<Asset> | { error: string }> {
+  try {
+    const response = await fetch(dagsterUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: ASSETS_QUERY }),
+      signal: AbortSignal.timeout(10000),
+    })
+
+    if (!response.ok) {
+      return { error: `HTTP ${response.status}: ${response.statusText}` }
+    }
+
+    const result = await response.json()
+
+    if (result.errors) {
+      return { error: result.errors[0]?.message || 'GraphQL error' }
+    }
+
+    const { assetsOrError } = result.data
+
+    if (assetsOrError.__typename === 'PythonError') {
+      return { error: assetsOrError.message }
+    }
+
+    const assets: Array<Asset> = assetsOrError.nodes.map(
+      (node: {
+        id: string
+        key: { path: Array<string> }
+        definition?: {
+          description?: string
+          computeKind?: string
+          groupName?: string
+          hasMaterializePermission?: boolean
+        }
+        assetMaterializations?: Array<{
+          timestamp: string
+          runId: string
+        }>
+      }) => ({
+        id: node.id,
+        key: node.key.path,
+        keyPath: node.key.path.join('/'),
+        description: node.definition?.description,
+        computeKind: node.definition?.computeKind,
+        groupName: node.definition?.groupName,
+        hasMaterializePermission:
+          node.definition?.hasMaterializePermission ?? false,
+        lastMaterialization: node.assetMaterializations?.[0]
+          ? {
+              timestamp: node.assetMaterializations[0].timestamp,
+              runId: node.assetMaterializations[0].runId,
+            }
+          : undefined,
+      }),
+    )
+
+    return assets
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
 export const getAssets = createServerFn()
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<Array<Asset> | { error: string }> => {
     const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
+    const key = cacheKeys.assets(dagsterUrl)
 
-    try {
-      const response = await fetch(dagsterUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: ASSETS_QUERY }),
-        signal: AbortSignal.timeout(10000),
-      })
-
-      if (!response.ok) {
-        return { error: `HTTP ${response.status}: ${response.statusText}` }
-      }
-
-      const result = await response.json()
-
-      if (result.errors) {
-        return { error: result.errors[0]?.message || 'GraphQL error' }
-      }
-
-      const { assetsOrError } = result.data
-
-      if (assetsOrError.__typename === 'PythonError') {
-        return { error: assetsOrError.message }
-      }
-
-      const assets: Array<Asset> = assetsOrError.nodes.map(
-        (node: {
-          id: string
-          key: { path: Array<string> }
-          definition?: {
-            description?: string
-            computeKind?: string
-            groupName?: string
-            hasMaterializePermission?: boolean
-          }
-          assetMaterializations?: Array<{
-            timestamp: string
-            runId: string
-          }>
-        }) => ({
-          id: node.id,
-          key: node.key.path,
-          keyPath: node.key.path.join('/'),
-          description: node.definition?.description,
-          computeKind: node.definition?.computeKind,
-          groupName: node.definition?.groupName,
-          hasMaterializePermission:
-            node.definition?.hasMaterializePermission ?? false,
-          lastMaterialization: node.assetMaterializations?.[0]
-            ? {
-                timestamp: node.assetMaterializations[0].timestamp,
-                runId: node.assetMaterializations[0].runId,
-              }
-            : undefined,
-        }),
-      )
-
-      return assets
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
-    }
+    return withCache(() => fetchAssets(dagsterUrl), key, cacheTTL.assets)
   })
 
 /**
