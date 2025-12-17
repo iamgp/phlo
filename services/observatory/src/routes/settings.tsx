@@ -2,6 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
+import {
+  clearCacheEndpoint,
+  getCacheStatsEndpoint,
+} from '@/server/cache.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,11 +17,21 @@ export const Route = createFileRoute('/settings')({
   component: SettingsPage,
 })
 
+type CacheStats = {
+  hits: number
+  misses: number
+  entries: number
+  hitRate: number
+  entriesByPrefix: Record<string, number>
+}
+
 function SettingsPage() {
   const { settings, defaults, setSettings, resetToDefaults } =
     useObservatorySettings()
   const [draft, setDraft] = useState<ObservatorySettings>(settings)
   const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<CacheStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
   const isDirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(settings),
     [draft, settings],
@@ -26,6 +40,33 @@ function SettingsPage() {
   useEffect(() => {
     setDraft(settings)
   }, [settings])
+
+  const fetchStats = async () => {
+    setStatsLoading(true)
+    try {
+      const data = await getCacheStatsEndpoint()
+      setStats(data)
+    } catch (err) {
+      console.error('Failed to fetch cache stats:', err)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const handleClearCache = async () => {
+    setStatsLoading(true)
+    try {
+      await clearCacheEndpoint()
+      await fetchStats()
+    } catch (err) {
+      console.error('Failed to clear cache:', err)
+      setStatsLoading(false)
+    }
+  }
 
   const save = () => {
     setError(null)
@@ -298,6 +339,75 @@ function SettingsPage() {
                 <option value="local">Local</option>
               </select>
             </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Advanced</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium">Metadata Cache Stats</div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchStats}
+                  disabled={statsLoading}
+                >
+                  Refresh
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleClearCache}
+                  disabled={statsLoading}
+                >
+                  Clear Cache
+                </Button>
+              </div>
+            </div>
+
+            {stats && (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-muted-foreground">Hits</div>
+                  <div className="text-2xl font-bold">{stats.hits}</div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-muted-foreground">Misses</div>
+                  <div className="text-2xl font-bold">{stats.misses}</div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-muted-foreground">Hit Rate</div>
+                  <div className="text-2xl font-bold">
+                    {(stats.hitRate * 100).toFixed(1)}%
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <div className="text-xs text-muted-foreground">Entries</div>
+                  <div className="text-2xl font-bold">{stats.entries}</div>
+                </div>
+              </div>
+            )}
+
+            {stats?.entriesByPrefix &&
+              Object.keys(stats.entriesByPrefix).length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium">Entries by Prefix</div>
+                  <div className="rounded-md border bg-muted/50 p-2 text-xs font-mono">
+                    {Object.entries(stats.entriesByPrefix).map(
+                      ([prefix, count]) => (
+                        <div key={prefix} className="flex justify-between">
+                          <span>{prefix}</span>
+                          <span>{count}</span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
           </CardContent>
         </Card>
       </div>
