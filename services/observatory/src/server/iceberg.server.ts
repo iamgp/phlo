@@ -7,6 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 // Types for table metadata
@@ -141,6 +142,86 @@ function inferLayer(name: string): IcebergTable['layer'] {
 /**
  * Get all tables from Iceberg catalog
  */
+async function fetchTables(
+  branch: string,
+  catalog: string,
+  preferredSchema: string | undefined,
+  trinoUrl: string | undefined,
+  timeoutMs: number | undefined,
+): Promise<Array<IcebergTable> | { error: string }> {
+  const schemasToQuery = ['bronze', 'silver', 'gold', 'raw', 'marts', 'publish']
+  if (preferredSchema && schemasToQuery.includes(preferredSchema)) {
+    schemasToQuery.sort((a, b) =>
+      a === preferredSchema ? -1 : b === preferredSchema ? 1 : 0,
+    )
+  }
+  const allTables: Array<IcebergTable> = []
+  const seenTables = new Set<string>()
+  const errors: Array<string> = []
+
+  for (const schema of schemasToQuery) {
+    const sql = `SHOW TABLES FROM ${quoteIdentifier(catalog)}.${quoteIdentifier(schema)}`
+    const result = await queryTrino<{ Table: string }>(sql, {
+      trinoUrl,
+      timeoutMs,
+      catalog,
+    })
+
+    if ('error' in result) {
+      errors.push(`${schema}: ${result.error}`)
+      continue
+    }
+
+    for (const row of result.data) {
+      if (!seenTables.has(row.Table)) {
+        seenTables.add(row.Table)
+        allTables.push({
+          catalog,
+          schema: schema,
+          name: row.Table,
+          fullName: `${quoteIdentifier(catalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(row.Table)}`,
+          layer: inferLayerFromSchema(schema, row.Table),
+        })
+      }
+    }
+  }
+
+  if (allTables.length === 0 && errors.length > 0) {
+    return { error: errors.join('; ') }
+  }
+
+  if (allTables.length === 0) {
+    const sql = `SHOW TABLES FROM ${quoteIdentifier(catalog)}.${quoteIdentifier(branch)}`
+    const result = await queryTrino<{ Table: string }>(sql, {
+      trinoUrl,
+      timeoutMs,
+      catalog,
+    })
+
+    if ('error' in result) {
+      return result
+    }
+
+    for (const row of result.data) {
+      allTables.push({
+        catalog,
+        schema: branch,
+        name: row.Table,
+        fullName: `${quoteIdentifier(catalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(row.Table)}`,
+        layer: inferLayer(row.Table),
+      })
+    }
+  }
+
+  const layerOrder = { bronze: 0, silver: 1, gold: 2, publish: 3, unknown: 4 }
+  allTables.sort(
+    (a, b) =>
+      layerOrder[a.layer] - layerOrder[b.layer] || a.name.localeCompare(b.name),
+  )
+
+  return allTables
+}
+
 export const getTables = createServerFn()
   .inputValidator(
     (input: {
@@ -156,99 +237,20 @@ export const getTables = createServerFn()
       data: { branch = 'main', catalog, preferredSchema, trinoUrl, timeoutMs },
     }): Promise<Array<IcebergTable> | { error: string }> => {
       const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      // Query for schemas first, then tables in each schema
-      // The Iceberg catalog uses schema names like 'bronze', 'raw', 'silver', 'gold', 'marts'
-      // (some projects also use 'publish' as an alias for marts).
-      const schemasToQuery = [
-        'bronze',
-        'silver',
-        'gold',
-        'raw',
-        'marts',
-        'publish',
-      ]
-      if (preferredSchema && schemasToQuery.includes(preferredSchema)) {
-        schemasToQuery.sort((a, b) =>
-          a === preferredSchema ? -1 : b === preferredSchema ? 1 : 0,
-        )
-      }
-      const allTables: Array<IcebergTable> = []
-      const seenTables = new Set<string>() // Track by name to dedupe
-      const errors: Array<string> = []
+      const key = cacheKeys.tables(effectiveCatalog, branch)
 
-      for (const schema of schemasToQuery) {
-        const sql = `SHOW TABLES FROM ${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(schema)}`
-        const result = await queryTrino<{ Table: string }>(sql, {
-          trinoUrl,
-          timeoutMs,
-          catalog: effectiveCatalog,
-        })
-
-        // Skip schemas that don't exist or have errors
-        if ('error' in result) {
-          errors.push(`${schema}: ${result.error}`)
-          continue
-        }
-
-        for (const row of result.data) {
-          // Dedupe by table name - prefer the first schema we find it in
-          if (!seenTables.has(row.Table)) {
-            seenTables.add(row.Table)
-            allTables.push({
-              catalog: effectiveCatalog,
-              schema: schema,
-              name: row.Table,
-              fullName: `${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(schema)}.${quoteIdentifier(row.Table)}`,
-              layer: inferLayerFromSchema(schema, row.Table),
-            })
-          }
-        }
-      }
-
-      if (allTables.length === 0 && errors.length > 0) {
-        // Return a combined error message if all schemas failed
-        return { error: errors.join('; ') }
-      }
-
-      if (allTables.length === 0) {
-        // Fall back to trying the branch as a schema name (for Nessie-based setups)
-        const sql = `SHOW TABLES FROM ${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}`
-        const result = await queryTrino<{ Table: string }>(sql, {
-          trinoUrl,
-          timeoutMs,
-          catalog: effectiveCatalog,
-        })
-
-        if ('error' in result) {
-          return result
-        }
-
-        for (const row of result.data) {
-          allTables.push({
-            catalog: effectiveCatalog,
-            schema: branch,
-            name: row.Table,
-            fullName: `${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(row.Table)}`,
-            layer: inferLayer(row.Table),
-          })
-        }
-      }
-
-      // Sort by layer then name
-      const layerOrder = {
-        bronze: 0,
-        silver: 1,
-        gold: 2,
-        publish: 3,
-        unknown: 4,
-      }
-      allTables.sort(
-        (a, b) =>
-          layerOrder[a.layer] - layerOrder[b.layer] ||
-          a.name.localeCompare(b.name),
+      return withCache(
+        () =>
+          fetchTables(
+            branch,
+            effectiveCatalog,
+            preferredSchema,
+            trinoUrl,
+            timeoutMs,
+          ),
+        key,
+        cacheTTL.tables,
       )
-
-      return allTables
     },
   )
 
@@ -276,36 +278,57 @@ function inferLayerFromSchema(
   return 'unknown'
 }
 
-/**
- * Get schema for a specific table
- */
+async function fetchTableSchema(
+  table: string,
+  branch: string,
+  catalog: string,
+): Promise<Array<TableColumn> | { error: string }> {
+  const sql = `DESCRIBE ${quoteIdentifier(catalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(table)}`
+  const result = await queryTrino<{
+    Column: string
+    Type: string
+    Extra: string
+    Comment: string
+  }>(sql, { catalog })
+
+  if ('error' in result) {
+    return result
+  }
+
+  return result.data.map((row) => ({
+    name: row.Column,
+    type: row.Type,
+    nullable: !row.Extra?.includes('NOT NULL'),
+    comment: row.Comment || undefined,
+  }))
+}
+
 export const getTableSchema = createServerFn()
   .inputValidator(
-    (input: { table: string; branch?: string; catalog?: string }) => input,
+    (input: {
+      table: string
+      schema?: string
+      branch?: string
+      catalog?: string
+    }) => input,
   )
   .handler(
     async ({
-      data: { table, branch = 'main', catalog },
+      data: { table, schema, branch = 'main', catalog },
     }): Promise<Array<TableColumn> | { error: string }> => {
       const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const sql = `DESCRIBE ${quoteIdentifier(effectiveCatalog)}.${quoteIdentifier(branch)}.${quoteIdentifier(table)}`
-      const result = await queryTrino<{
-        Column: string
-        Type: string
-        Extra: string
-        Comment: string
-      }>(sql, { catalog: effectiveCatalog })
+      const effectiveSchema = schema ?? branch
+      const key = cacheKeys.tableSchema(
+        effectiveCatalog,
+        effectiveSchema,
+        table,
+      )
 
-      if ('error' in result) {
-        return result
-      }
-
-      return result.data.map((row) => ({
-        name: row.Column,
-        type: row.Type,
-        nullable: !row.Extra?.includes('NOT NULL'),
-        comment: row.Comment || undefined,
-      }))
+      return withCache(
+        () => fetchTableSchema(table, effectiveSchema, effectiveCatalog),
+        key,
+        cacheTTL.tableSchema,
+      )
     },
   )
 
