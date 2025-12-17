@@ -3,12 +3,23 @@
  *
  * Global search dialog using cmdk.
  * Triggered with ⌘K / Ctrl+K.
+ * Searches across assets, tables, and columns.
  */
 
 import { useNavigate } from '@tanstack/react-router'
-import { ArrowRight, Database, GitBranch } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import type { Asset } from '@/server/dagster.server'
+import {
+  ArrowRight,
+  Clipboard,
+  Database,
+  FileCode,
+  GitBranch,
+  LayoutGrid,
+  Settings,
+  Table2,
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
+import type { SearchIndex } from '@/server/search.types'
 import {
   Command,
   CommandDialog,
@@ -20,19 +31,21 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command'
+import { useToast } from '@/hooks/use-toast'
 
 interface CommandPaletteProps {
-  assets: Array<Asset>
+  searchIndex: SearchIndex | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function CommandPalette({
-  assets,
+  searchIndex,
   open,
   onOpenChange,
 }: CommandPaletteProps) {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
 
   // Handle keyboard shortcut
@@ -60,16 +73,51 @@ export function CommandPalette({
       } else if (value.startsWith('graph:')) {
         const assetKey = value.replace('graph:', '')
         navigate({ to: '/graph', search: { focus: assetKey } })
+      } else if (value.startsWith('table:')) {
+        // Navigate to data explorer for this table
+        const [schema, table] = value.replace('table:', '').split('/')
+        navigate({
+          to: '/data/$schema/$table',
+          params: { schema, table },
+        })
+      } else if (value.startsWith('sql:')) {
+        // Copy SQL template to clipboard
+        const fullName = value.replace('sql:', '')
+        const sqlTemplate = `SELECT * FROM ${fullName} LIMIT 100`
+        navigator.clipboard.writeText(sqlTemplate).then(() => {
+          toast({
+            title: 'SQL Copied',
+            description: 'Query template copied to clipboard',
+          })
+        })
       } else if (value === 'nav:dashboard') {
         navigate({ to: '/' })
       } else if (value === 'nav:assets') {
         navigate({ to: '/assets' })
       } else if (value === 'nav:graph') {
         navigate({ to: '/graph' })
+      } else if (value === 'nav:data') {
+        navigate({ to: '/data' })
+      } else if (value === 'nav:quality') {
+        navigate({ to: '/quality' })
+      } else if (value === 'nav:hub') {
+        navigate({ to: '/hub' })
+      } else if (value === 'nav:branches') {
+        navigate({ to: '/branches' })
+      } else if (value === 'nav:settings') {
+        navigate({ to: '/settings' })
       }
     },
-    [navigate, onOpenChange],
+    [navigate, onOpenChange, toast],
   )
+
+  // Filter items based on search - cmdk handles this, but we limit results
+  const assets = useMemo(() => searchIndex?.assets ?? [], [searchIndex])
+  const tables = useMemo(() => searchIndex?.tables ?? [], [searchIndex])
+  const columns = useMemo(() => searchIndex?.columns ?? [], [searchIndex])
+
+  // Only show columns when user is searching
+  const showColumns = search.length >= 2 && columns.length > 0
 
   if (!open) return null
 
@@ -79,7 +127,7 @@ export function CommandPalette({
         <CommandInput
           value={search}
           onValueChange={setSearch}
-          placeholder="Search assets, navigate..."
+          placeholder="Search assets, tables, columns..."
           autoFocus
         />
 
@@ -96,9 +144,29 @@ export function CommandPalette({
               <Database />
               <span>Go to Assets</span>
             </CommandItem>
+            <CommandItem value="nav:data" onSelect={handleSelect}>
+              <Table2 />
+              <span>Go to Data Explorer</span>
+            </CommandItem>
             <CommandItem value="nav:graph" onSelect={handleSelect}>
               <GitBranch />
               <span>Go to Lineage Graph</span>
+            </CommandItem>
+            <CommandItem value="nav:quality" onSelect={handleSelect}>
+              <FileCode />
+              <span>Go to Quality Center</span>
+            </CommandItem>
+            <CommandItem value="nav:hub" onSelect={handleSelect}>
+              <LayoutGrid />
+              <span>Go to Hub</span>
+            </CommandItem>
+            <CommandItem value="nav:branches" onSelect={handleSelect}>
+              <GitBranch />
+              <span>Go to Branches</span>
+            </CommandItem>
+            <CommandItem value="nav:settings" onSelect={handleSelect}>
+              <Settings />
+              <span>Go to Settings</span>
             </CommandItem>
           </CommandGroup>
 
@@ -106,7 +174,7 @@ export function CommandPalette({
 
           {assets.length > 0 && (
             <CommandGroup heading="Assets">
-              {assets.slice(0, 20).map((asset) => (
+              {assets.slice(0, 15).map((asset) => (
                 <CommandItem
                   key={asset.id}
                   value={`asset:${asset.keyPath}`}
@@ -114,6 +182,75 @@ export function CommandPalette({
                 >
                   <Database />
                   <span className="truncate">{asset.keyPath}</span>
+                  {asset.groupName && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {asset.groupName}
+                    </span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {tables.length > 0 && <CommandSeparator />}
+
+          {tables.length > 0 && (
+            <CommandGroup heading="Tables">
+              {tables.slice(0, 10).map((table) => (
+                <CommandItem
+                  key={table.fullName}
+                  value={`table:${table.schema}/${table.name}`}
+                  onSelect={handleSelect}
+                  keywords={[table.name, table.schema, table.layer]}
+                >
+                  <Table2 />
+                  <span className="truncate">
+                    {table.schema}.{table.name}
+                  </span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {table.layer}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {showColumns && <CommandSeparator />}
+
+          {showColumns && (
+            <CommandGroup heading="Columns">
+              {columns.slice(0, 8).map((col, index) => (
+                <CommandItem
+                  key={`${col.tableName}-${col.name}-${index}`}
+                  value={`table:${col.tableSchema}/${col.tableName}`}
+                  onSelect={handleSelect}
+                  keywords={[col.name, col.tableName, col.type]}
+                >
+                  <FileCode />
+                  <span className="truncate font-mono text-sm">{col.name}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {col.tableName} · {col.type}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {search && tables.length > 0 && <CommandSeparator />}
+
+          {search && tables.length > 0 && (
+            <CommandGroup heading="SQL Templates">
+              {tables.slice(0, 5).map((table) => (
+                <CommandItem
+                  key={`sql-${table.fullName}`}
+                  value={`sql:${table.fullName}`}
+                  onSelect={handleSelect}
+                  keywords={[table.name, table.schema, 'select', 'query']}
+                >
+                  <Clipboard />
+                  <span className="truncate">
+                    Copy SELECT * FROM {table.name}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>
