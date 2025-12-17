@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react'
 
 import appCss from '../styles.css?url'
 import type { ResolvedTheme, ThemeMode } from '@/components/ThemeToggle'
-import type { Asset } from '@/server/dagster.server'
+import type { SearchIndex } from '@/server/search.types'
 import { AppSidebar } from '@/components/AppSidebar'
 import { CommandPalette } from '@/components/CommandPalette'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -22,12 +22,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
+import { Toaster } from '@/components/ui/toaster'
 import {
   ObservatorySettingsProvider,
   useObservatorySettings,
 } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
-import { getAssets } from '@/server/dagster.server'
+import { getSearchIndex } from '@/server/search.server'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -62,21 +63,25 @@ function RootLayout() {
 
 function RootLayoutInner() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const [assets, setAssets] = useState<Array<Asset>>([])
+  const [searchIndex, setSearchIndex] = useState<SearchIndex | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('system')
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>('dark')
   const { settings } = useObservatorySettings()
 
-  // Load assets for command palette
+  // Load search index for command palette (preload and cache)
   useEffect(() => {
-    getAssets({
-      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+    getSearchIndex({
+      data: {
+        dagsterUrl: settings.connections.dagsterGraphqlUrl,
+        trinoUrl: settings.connections.trinoUrl,
+        includeColumns: true,
+      },
     }).then((result) => {
       if (!('error' in result)) {
-        setAssets(result)
+        setSearchIndex(result)
       }
     })
-  }, [settings.connections.dagsterGraphqlUrl])
+  }, [settings.connections.dagsterGraphqlUrl, settings.connections.trinoUrl])
 
   // Ensure we don't have a stale PWA/service worker controlling the app (dev-only).
   // This can happen if the app previously ran with Vite PWA/Workbox and will cause 404s
@@ -166,10 +171,11 @@ function RootLayoutInner() {
         </SidebarProvider>
 
         <CommandPalette
-          assets={assets}
+          searchIndex={searchIndex}
           open={commandPaletteOpen}
           onOpenChange={setCommandPaletteOpen}
         />
+        <Toaster />
         <TanStackDevtools
           config={{ position: 'bottom-right' }}
           plugins={[
