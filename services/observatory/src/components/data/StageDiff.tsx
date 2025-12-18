@@ -16,14 +16,12 @@ import {
   Minus,
   Plus,
   RefreshCw,
-  X,
 } from 'lucide-react'
 
 import type { ColumnDiff, StageDiffResult } from '@/server/diff.server'
 import type { TransformType } from '@/utils/sqlParser'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   Sheet,
   SheetContent,
@@ -374,26 +372,14 @@ export function StageDiff({
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent side="right" className="w-[500px] sm:max-w-[500px]">
-        <SheetHeader className="pb-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <SheetTitle className="text-base">Stage Diff</SheetTitle>
-              <SheetDescription className="text-xs mt-1">
-                Comparing transformation from upstream to downstream
-              </SheetDescription>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-8 w-8"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+        <SheetHeader>
+          <SheetTitle>Stage Diff</SheetTitle>
+          <SheetDescription>
+            Comparing transformation from upstream to downstream
+          </SheetDescription>
         </SheetHeader>
 
-        <div className="py-4 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]">
+        <div className="mt-6 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)]">
           {/* Stage names */}
           <div className="flex items-center gap-2 text-sm">
             <code className="bg-muted px-2 py-1 rounded">{upstreamName}</code>
