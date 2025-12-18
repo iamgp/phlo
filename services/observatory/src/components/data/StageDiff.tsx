@@ -326,7 +326,7 @@ export function StageDiff({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 space-y-3 overflow-y-auto flex-1">
+        <div className="mt-4 px-6 space-y-3 overflow-y-auto flex-1">
           {loading && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
