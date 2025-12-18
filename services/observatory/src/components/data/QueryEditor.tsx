@@ -1,4 +1,4 @@
-import { Loader2, Play, Trash2 } from 'lucide-react'
+import { ChevronDown, Loader2, Play, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import type { DataPreviewResult } from '@/server/trino.server'
@@ -10,8 +10,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { useSavedQueries } from '@/hooks/useSavedQueries'
 import { executeQuery } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
@@ -37,6 +44,7 @@ export function QueryEditor({
   } | null>(null)
   const lastAutoRunQueryRef = useRef<string | null>(null)
   const { settings } = useObservatorySettings()
+  const { queries: savedQueries } = useSavedQueries()
 
   // Sync query when defaultQuery changes from external source
   useEffect(() => {
@@ -171,6 +179,31 @@ export function QueryEditor({
             Run Query
           </Button>
           <SaveQueryDialog query={query} branch={branch} />
+          {savedQueries.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="outline" size="sm">
+                    Load Query
+                    <ChevronDown className="w-4 h-4 ml-1" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent
+                align="start"
+                className="max-h-64 overflow-auto"
+              >
+                {savedQueries.map((sq) => (
+                  <DropdownMenuItem
+                    key={sq.id}
+                    onClick={() => setQuery(sq.query)}
+                  >
+                    <span className="truncate max-w-[200px]">{sq.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <span className="text-xs text-muted-foreground">⌘+Enter</span>
           <span className="text-xs text-muted-foreground">
             {settings.query.readOnlyMode ? 'Read-only' : 'Unsafe allowed'}
