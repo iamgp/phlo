@@ -38,25 +38,6 @@ def get_branch_from_context(context) -> str:
     return context.run_config.get("branch_name", "main")
 
 
-def add_phlo_timestamp(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """
-    Add _phlo_ingested_at timestamp to all records.
-
-    Args:
-        records: List of dictionaries representing data records
-
-    Returns:
-        Modified list with timestamp added to each record
-
-    .. deprecated::
-        Use inject_metadata_columns() for parquet-level injection instead.
-    """
-    ingestion_timestamp = datetime.now(timezone.utc)
-    for record in records:
-        record["_phlo_ingested_at"] = ingestion_timestamp
-    return records
-
-
 def inject_metadata_columns(
     parquet_path: Path,
     partition_date: str,
@@ -126,6 +107,7 @@ def validate_with_pandera(
     data: list[dict[str, Any]],
     schema_class: type[DataFrameModel],
     column_mapping: dict[str, str] | None = None,
+    strict: bool = False,
 ) -> bool:
     """
     Validate data using Pandera schema.
@@ -135,9 +117,13 @@ def validate_with_pandera(
         data: List of dictionaries to validate
         schema_class: Pandera DataFrameModel class for validation
         column_mapping: Optional dict to rename columns before validation
+        strict: If True, raise exception on validation failure. Default False.
 
     Returns:
         True if validation passed, False if validation failed (logs warnings)
+
+    Raises:
+        pandera.errors.SchemaErrors: If strict=True and validation fails
     """
     try:
         context.log.info(f"Validating {len(data)} records with {schema_class.__name__}")
@@ -174,11 +160,15 @@ def validate_with_pandera(
         failure_cases = err.failure_cases
         context.log.error(f"Validation failed with {len(failure_cases)} errors")
         context.log.error(f"Validation errors:\n{failure_cases.head(10)}")
+        if strict:
+            raise
         context.log.warning("Proceeding with ingestion despite validation errors")
         return False
 
     except Exception as e:
         context.log.warning(f"Validation check failed with exception: {e}")
+        if strict:
+            raise
         context.log.warning("Proceeding with ingestion despite validation failure")
         return False
 
