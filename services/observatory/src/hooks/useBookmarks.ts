@@ -79,9 +79,12 @@ export function useBookmarks() {
     [],
   )
 
-  const filterByType = useCallback((type: Bookmark['type']): Array<Bookmark> => {
-    return getBookmarksByType(type)
-  }, [])
+  const filterByType = useCallback(
+    (type: Bookmark['type']): Array<Bookmark> => {
+      return getBookmarksByType(type)
+    },
+    [],
+  )
 
   return {
     bookmarks,
