@@ -310,8 +310,8 @@ export function StageDiff({
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent
-        side="right"
-        className="w-[400px] sm:max-w-[400px] flex flex-col"
+        side="bottom"
+        className="h-[60vh] sm:h-[50vh] flex flex-col"
       >
         <SheetHeader className="space-y-1">
           <SheetTitle className="text-sm font-semibold">Stage Diff</SheetTitle>
