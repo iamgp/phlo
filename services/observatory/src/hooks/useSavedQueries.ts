@@ -26,6 +26,10 @@ import {
 // External store subscription for React 18+
 let listeners: Array<() => void> = []
 
+// Cache for stable snapshot references
+let cachedQueries: Array<SavedQuery> | null = null
+let cachedViews: Array<SavedView> | null = null
+
 function subscribe(callback: () => void): () => void {
   listeners.push(callback)
   return () => {
@@ -34,6 +38,9 @@ function subscribe(callback: () => void): () => void {
 }
 
 function notifyListeners(): void {
+  // Invalidate caches before notifying
+  cachedQueries = null
+  cachedViews = null
   listeners.forEach((l) => l())
 }
 
@@ -44,13 +51,19 @@ function withNotify<T>(fn: () => T): T {
   return result
 }
 
-// Snapshot functions
+// Snapshot functions - return cached references for stability
 function getQueriesSnapshot(): Array<SavedQuery> {
-  return getSavedQueries()
+  if (cachedQueries === null) {
+    cachedQueries = getSavedQueries()
+  }
+  return cachedQueries
 }
 
 function getViewsSnapshot(): Array<SavedView> {
-  return getSavedViews()
+  if (cachedViews === null) {
+    cachedViews = getSavedViews()
+  }
+  return cachedViews
 }
 
 function getServerSnapshot(): Array<SavedQuery> | Array<SavedView> {

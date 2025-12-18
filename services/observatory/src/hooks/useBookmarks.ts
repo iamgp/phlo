@@ -20,6 +20,9 @@ import {
 // External store subscription for React 18+
 let listeners: Array<() => void> = []
 
+// Cache for stable snapshot references
+let cachedBookmarks: Array<Bookmark> | null = null
+
 function subscribe(callback: () => void): () => void {
   listeners.push(callback)
   return () => {
@@ -28,6 +31,8 @@ function subscribe(callback: () => void): () => void {
 }
 
 function notifyListeners(): void {
+  // Invalidate cache before notifying
+  cachedBookmarks = null
   listeners.forEach((l) => l())
 }
 
@@ -38,9 +43,12 @@ function withNotify<T>(fn: () => T): T {
   return result
 }
 
-// Snapshot function
+// Snapshot function - return cached reference for stability
 function getBookmarksSnapshot(): Array<Bookmark> {
-  return getBookmarks()
+  if (cachedBookmarks === null) {
+    cachedBookmarks = getBookmarks()
+  }
+  return cachedBookmarks
 }
 
 function getServerSnapshot(): Array<Bookmark> {
