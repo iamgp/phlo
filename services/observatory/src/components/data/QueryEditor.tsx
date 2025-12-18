@@ -2,16 +2,17 @@ import { Loader2, Play, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import type { DataPreviewResult } from '@/server/trino.server'
+import { SaveQueryDialog } from '@/components/data/SaveQueryDialog'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { executeQuery } from '@/server/trino.server'
+import { Textarea } from '@/components/ui/textarea'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { executeQuery } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 interface QueryEditorProps {
@@ -169,6 +170,7 @@ export function QueryEditor({
             )}
             Run Query
           </Button>
+          <SaveQueryDialog query={query} branch={branch} />
           <span className="text-xs text-muted-foreground">⌘+Enter</span>
           <span className="text-xs text-muted-foreground">
             {settings.query.readOnlyMode ? 'Read-only' : 'Unsafe allowed'}
