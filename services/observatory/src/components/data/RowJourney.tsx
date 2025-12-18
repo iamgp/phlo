@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Code,
   Database,
+  GitCompare,
   Loader2,
   Terminal,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ import type { DataRow } from '@/server/trino.server'
 import type { Edge, Node, NodeProps } from '@xyflow/react'
 
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
+import { StageDiff } from '@/components/data/StageDiff'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -68,6 +70,7 @@ interface NodeDetails {
   checks?: Array<{ name: string; status: string }>
   stageData?: Array<DataRow>
   upstreamAssetKeys?: Array<string>
+  upstreamColumns?: Record<string, Array<string>> // assetKey -> columns
 }
 
 function extractTransformationSql(asset: {
@@ -169,6 +172,12 @@ function NodeDetailPanel({
     ContributingRowsPageResult,
     { error: string }
   > | null>(null)
+
+  // Stage diff state
+  const [diffOpen, setDiffOpen] = useState(false)
+  const [diffUpstreamAssetKey, setDiffUpstreamAssetKey] = useState<
+    string | null
+  >(null)
 
   const loadContributingRows = useCallback(
     async (upstreamAssetKey: string) => {
@@ -400,6 +409,24 @@ function NodeDetailPanel({
         </SheetContent>
       </Sheet>
 
+      {/* Stage Diff Sheet */}
+      {diffUpstreamAssetKey && (
+        <StageDiff
+          open={diffOpen}
+          onClose={() => {
+            setDiffOpen(false)
+            setDiffUpstreamAssetKey(null)
+          }}
+          upstreamAssetKey={diffUpstreamAssetKey}
+          downstreamAssetKey={assetKey}
+          transformationSql={details?.sql}
+          upstreamColumns={
+            details?.upstreamColumns?.[diffUpstreamAssetKey] ?? []
+          }
+          downstreamColumns={Object.keys(rowData)}
+        />
+      )}
+
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h4 className="font-medium text-foreground flex items-center gap-2">
           <Database className="w-4 h-4 text-primary" />
@@ -465,6 +492,19 @@ function NodeDetailPanel({
                         {upstreamLabel}
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setDiffUpstreamAssetKey(upstreamAssetKey)
+                            setDiffOpen(true)
+                          }}
+                        >
+                          <GitCompare className="w-3 h-3 mr-1" />
+                          Compare
+                        </Button>
                         <Button
                           type="button"
                           size="sm"
