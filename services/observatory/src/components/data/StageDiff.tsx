@@ -140,64 +140,46 @@ function ColumnDiffList({
   if (filteredDiffs.length === 0) return null
 
   return (
-    <div className="border border-border rounded-md overflow-hidden">
+    <div className="border border-border rounded">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors"
+        className="w-full flex items-center gap-2 px-2 py-1.5 bg-muted/30 hover:bg-muted/50"
       >
-        <div className="flex items-center gap-2">
-          <Icon className={cn('w-4 h-4', display.className)} />
-          <span className={cn('text-sm font-medium', display.className)}>
-            {display.label}
-          </span>
-          <Badge variant="secondary" className="text-xs">
-            {filteredDiffs.length}
-          </Badge>
-        </div>
+        <Icon className={cn('w-3.5 h-3.5', display.className)} />
+        <span className={cn('text-xs font-medium', display.className)}>
+          {display.label}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {filteredDiffs.length}
+        </span>
+        <div className="flex-1" />
         {expanded ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
         )}
       </button>
 
       {expanded && (
-        <div className="divide-y divide-border">
+        <div className="px-2 py-1.5 flex flex-wrap gap-1 border-t border-border bg-background">
           {filteredDiffs.map((diff, idx) => (
-            <div
+            <code
               key={`${diff.column}-${idx}`}
-              className="px-3 py-2 flex items-center justify-between gap-2"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                {changeType === 'renamed' && diff.sourceColumn && (
-                  <>
-                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground line-through">
-                      {diff.sourceColumn}
-                    </code>
-                    <ArrowRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                  </>
-                )}
-                <code
-                  className={cn(
-                    'text-xs bg-muted px-1.5 py-0.5 rounded truncate',
-                    changeType === 'removed'
-                      ? 'text-red-500 line-through'
-                      : changeType === 'added'
-                        ? 'text-green-500'
-                        : 'text-foreground',
-                  )}
-                >
-                  {diff.column}
-                </code>
-              </div>
-
-              {diff.transformation && (
-                <Badge variant="outline" className="text-xs shrink-0">
-                  {diff.transformation}()
-                </Badge>
+              className={cn(
+                'text-xs px-1.5 py-0.5 rounded bg-muted',
+                changeType === 'removed' && 'text-red-500 line-through',
+                changeType === 'added' && 'text-green-500',
+                changeType === 'renamed' && 'text-amber-500',
+                changeType === 'transformed' && 'text-blue-500',
+                changeType === 'unchanged' && 'text-muted-foreground',
               )}
-            </div>
+              title={
+                diff.transformation ? `${diff.transformation}()` : undefined
+              }
+            >
+              {diff.column}
+            </code>
           ))}
         </div>
       )}
@@ -268,50 +250,6 @@ function AggregationExplanation({
 }
 
 /**
- * Confidence indicator
- */
-function ConfidenceIndicator({
-  confidence,
-  reasons,
-}: {
-  confidence: number
-  reasons: Array<string>
-}) {
-  const [showReasons, setShowReasons] = useState(false)
-
-  const getConfidenceColor = (conf: number) => {
-    if (conf >= 80) return 'text-green-500'
-    if (conf >= 50) return 'text-amber-500'
-    return 'text-red-500'
-  }
-
-  return (
-    <div className="space-y-1">
-      <button
-        type="button"
-        onClick={() => setShowReasons(!showReasons)}
-        className="flex items-center gap-2 text-sm hover:underline"
-      >
-        <span className="text-muted-foreground">Lineage confidence:</span>
-        <span className={cn('font-medium', getConfidenceColor(confidence))}>
-          {confidence}%
-        </span>
-      </button>
-
-      {showReasons && (
-        <ul className="text-xs text-muted-foreground pl-4 space-y-0.5">
-          {reasons.map((reason, idx) => (
-            <li key={idx} className="list-disc">
-              {reason}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-/**
  * Main Stage Diff component
  */
 export function StageDiff({
@@ -371,33 +309,33 @@ export function StageDiff({
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent side="right" className="w-[500px] sm:max-w-[500px]">
-        <SheetHeader>
-          <SheetTitle>Stage Diff</SheetTitle>
-          <SheetDescription>
-            Comparing transformation from upstream to downstream
+      <SheetContent
+        side="right"
+        className="w-[400px] sm:max-w-[400px] flex flex-col"
+      >
+        <SheetHeader className="space-y-1">
+          <SheetTitle className="text-sm font-semibold">Stage Diff</SheetTitle>
+          <SheetDescription className="text-xs">
+            <code className="bg-muted px-1.5 py-0.5 rounded">
+              {upstreamName}
+            </code>
+            {' → '}
+            <code className="bg-muted px-1.5 py-0.5 rounded text-primary">
+              {downstreamName}
+            </code>
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)]">
-          {/* Stage names */}
-          <div className="flex items-center gap-2 text-sm">
-            <code className="bg-muted px-2 py-1 rounded">{upstreamName}</code>
-            <ArrowRight className="w-4 h-4 text-muted-foreground" />
-            <code className="bg-muted px-2 py-1 rounded text-primary">
-              {downstreamName}
-            </code>
-          </div>
-
+        <div className="mt-4 space-y-3 overflow-y-auto flex-1">
           {loading && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Computing diff...</span>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="text-xs">Computing diff...</span>
             </div>
           )}
 
           {error && (
-            <div className="text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-md p-3">
+            <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded p-2">
               {error}
             </div>
           )}
@@ -405,28 +343,35 @@ export function StageDiff({
           {diff && !loading && (
             <>
               {/* Transform type and confidence */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Transform:
-                  </span>
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Transform:</span>
                   <Badge
                     variant={getTransformTypeBadge(diff.transformType).variant}
-                    className={
-                      getTransformTypeBadge(diff.transformType).className
-                    }
+                    className={cn(
+                      'text-[10px] px-1.5 py-0',
+                      getTransformTypeBadge(diff.transformType).className,
+                    )}
                   >
                     {getTransformTypeBadge(diff.transformType).label}
                   </Badge>
                 </div>
-                <ConfidenceIndicator
-                  confidence={diff.confidence}
-                  reasons={diff.confidenceReasons}
-                />
+                <span className="text-muted-foreground">
+                  Confidence:{' '}
+                  <span
+                    className={
+                      diff.confidence >= 50
+                        ? 'text-green-500'
+                        : 'text-amber-500'
+                    }
+                  >
+                    {diff.confidence}%
+                  </span>
+                </span>
               </div>
 
               {/* Summary */}
-              <div className="flex flex-wrap gap-2 text-xs">
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
                 {diff.summary.addedCount > 0 && (
                   <span className="text-green-500">
                     +{diff.summary.addedCount} added
@@ -461,7 +406,7 @@ export function StageDiff({
 
               {/* Column diffs */}
               <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">
+                <h4 className="text-xs font-medium text-foreground">
                   Column Changes
                 </h4>
                 <ColumnDiffList
