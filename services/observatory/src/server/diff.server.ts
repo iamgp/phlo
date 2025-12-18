@@ -291,8 +291,10 @@ export const getStageDiff = createServerFn()
  */
 export const getSimpleStageDiff = createServerFn()
   .inputValidator(
-    (input: { upstreamColumns: Array<string>; downstreamColumns: Array<string> }) =>
-      input,
+    (input: {
+      upstreamColumns: Array<string>
+      downstreamColumns: Array<string>
+    }) => input,
   )
   .handler(async ({ data }): Promise<StageDiffResult> => {
     const { upstreamColumns, downstreamColumns } = data
