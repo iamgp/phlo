@@ -208,6 +208,7 @@ def phlo_ingestion(
     max_retries: int = 3,
     retry_delay_seconds: int = 30,
     validate: bool = True,
+    strict_validation: bool = True,
     merge_strategy: Literal["append", "merge"] = "merge",
     merge_config: dict[str, Any] | None = None,
     add_metadata_columns: bool = True,
@@ -241,6 +242,8 @@ def phlo_ingestion(
         max_retries: Number of retry attempts on failure
         retry_delay_seconds: Delay between retries
         validate: Whether to validate data with Pandera schema
+        strict_validation: If True (default), fail pipeline on validation errors.
+            If False, log warning and continue (asset check will report failure).
         merge_strategy: Merge strategy - "append" (insert-only) or "merge" (upsert). Default: "merge"
         merge_config: Merge configuration dict with deduplication settings
         add_metadata_columns: If True (default), auto-adds _phlo_ingested_at, _phlo_partition_date,
@@ -374,7 +377,7 @@ def phlo_ingestion(
                         query_or_sql=f"parquet:{parquet_path}",
                     )
                     yield check_result
-                    if not evaluation.passed:
+                    if not evaluation.passed and strict_validation:
                         raise dg.Failure(
                             description=(
                                 f"Pandera contract failed for {table_config.table_name} "
