@@ -311,7 +311,7 @@ export function StageDiff({
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent
         side="bottom"
-        className="h-[60vh] sm:h-[50vh] flex flex-col"
+        className="h-[60vh] sm:h-[50vh] sm:max-w-none flex flex-col"
       >
         <SheetHeader className="space-y-1">
           <SheetTitle className="text-sm font-semibold">Stage Diff</SheetTitle>
@@ -326,7 +326,7 @@ export function StageDiff({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 px-6 space-y-3 overflow-y-auto flex-1">
+        <div className="mt-4 px-6 py-4 space-y-3 overflow-y-auto flex-1">
           {loading && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
