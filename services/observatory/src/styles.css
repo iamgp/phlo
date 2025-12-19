@@ -152,3 +152,18 @@ html[data-density='compact'] {
     font-family: var(--font-mono);
   }
 }
+
+/* Touch-friendly scrolling for mobile */
+@layer utilities {
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Mobile-first: larger touch targets on small screens */
+@media (max-width: 640px) {
+  :root {
+    --table-cell-py: 0.625rem; /* 10px - larger touch targets */
+  }
+}
