@@ -174,7 +174,7 @@ export function ObservatoryTable({
       <div
         ref={scrollContainerRef}
         className={cn(
-          'relative w-full flex-1 overflow-auto min-h-0',
+          'relative w-full flex-1 overflow-auto min-h-0 touch-scroll',
           maxHeightClassName,
         )}
         role="table"

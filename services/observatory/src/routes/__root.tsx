@@ -143,7 +143,7 @@ function RootLayoutInner() {
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
-            <header className="flex h-14 items-center gap-2 border-b bg-sidebar px-4">
+            <header className="flex h-14 items-center gap-2 border-b bg-sidebar px-2 sm:px-4">
               <SidebarTrigger />
               <div className="ml-auto flex items-center gap-2">
                 <ThemeToggle
@@ -157,8 +157,8 @@ function RootLayoutInner() {
                   onClick={() => setCommandPaletteOpen(true)}
                 >
                   <Search className="size-4" />
-                  Search
-                  <span className="text-muted-foreground ml-2 hidden sm:inline">
+                  <span className="hidden sm:inline">Search</span>
+                  <span className="text-muted-foreground ml-2 hidden md:inline">
                     ⌘K
                   </span>
                 </Button>
