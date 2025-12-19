@@ -7,6 +7,7 @@ import {
   Settings,
   Shield,
   Table,
+  Terminal,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -25,6 +26,7 @@ type NavItem = {
     | '/'
     | '/hub'
     | '/data'
+    | '/sql'
     | '/assets'
     | '/graph'
     | '/branches'
@@ -38,6 +40,7 @@ const navItems: Array<NavItem> = [
   { to: '/', label: 'Dashboard', icon: <LayoutDashboard /> },
   { to: '/hub', label: 'Hub', icon: <Boxes /> },
   { to: '/data', label: 'Data Explorer', icon: <Table /> },
+  { to: '/sql', label: 'SQL Query', icon: <Terminal /> },
   { to: '/assets', label: 'Assets', icon: <Database /> },
   { to: '/graph', label: 'Lineage Graph', icon: <GitBranch /> },
   { to: '/branches', label: 'Branches', icon: <GitBranch /> },
