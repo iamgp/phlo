@@ -9,6 +9,7 @@ import { Database } from 'lucide-react'
 
 import type { IcebergTable } from '@/server/iceberg.server'
 import { BranchSelector } from '@/components/data/BranchSelector'
+import { SavedQueriesPanel } from '@/components/data/SavedQueriesPanel'
 import { TableBrowserVirtualized } from '@/components/data/TableBrowserVirtualized'
 import { getTables } from '@/server/iceberg.server'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
@@ -52,6 +53,17 @@ function DataExplorerLayout() {
     })
   }
 
+  // Handle running a saved query - navigate to SQL tab with the query
+  const handleRunSavedQuery = (query: string, branch?: string) => {
+    // Use the saved query's branch if specified, otherwise current branch
+    const targetBranch = branch || branchName
+    navigate({
+      to: '/data/$branchName',
+      params: { branchName: targetBranch },
+      search: { sql: query, tab: 'query' },
+    })
+  }
+
   return (
     <div className="flex h-full">
       {/* Left sidebar - Table Browser */}
@@ -81,12 +93,18 @@ function DataExplorerLayout() {
             />
           </div>
         </div>
-        <div className="flex-1 overflow-hidden">
-          <TableBrowserVirtualized
-            tables={tableList}
-            error={hasError ? (tables as { error: string }).error : null}
-            onSelectTable={handleTableSelect}
-          />
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden">
+            <TableBrowserVirtualized
+              tables={tableList}
+              error={hasError ? (tables as { error: string }).error : null}
+              onSelectTable={handleTableSelect}
+            />
+          </div>
+          {/* Saved Queries Panel */}
+          <div className="border-t border-border p-2">
+            <SavedQueriesPanel onRunQuery={handleRunSavedQuery} />
+          </div>
         </div>
       </aside>
 
