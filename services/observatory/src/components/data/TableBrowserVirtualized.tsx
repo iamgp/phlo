@@ -279,7 +279,7 @@ export function TableBrowserVirtualized({
       </div>
 
       {/* Virtualized table list */}
-      <div ref={parentRef} className="flex-1 overflow-y-auto">
+      <div ref={parentRef} className="flex-1 overflow-y-auto touch-scroll">
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,

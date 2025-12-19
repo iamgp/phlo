@@ -165,7 +165,7 @@ export function QueryEditor({
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={`SELECT * FROM ${quoteIdentifier(settings.defaults.catalog)}.${quoteIdentifier(branch)}.table_name LIMIT ${settings.query.defaultLimit}`}
-          className="h-32 text-xs resize-none"
+          className="min-h-[100px] md:h-32 text-xs resize-none"
           spellCheck={false}
         />
       </div>
