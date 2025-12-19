@@ -1,7 +1,6 @@
 import { ChevronDown, Loader2, Play, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import type { DataPreviewResult } from '@/server/trino.server'
 import { SaveQueryDialog } from '@/components/data/SaveQueryDialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { useSavedQueries } from '@/hooks/useSavedQueries'
+import type { DataPreviewResult } from '@/server/trino.server'
 import { executeQuery } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
@@ -55,6 +55,9 @@ export function QueryEditor({
 
   // Auto-execute query when autoRun is enabled and defaultQuery changes
   useEffect(() => {
+    // Wait for settings to be loaded
+    if (!settings?.defaults?.catalog) return
+
     if (
       autoRun &&
       defaultQuery &&
@@ -68,7 +71,7 @@ export function QueryEditor({
       }, 300)
       return () => clearTimeout(timer)
     }
-  }, [autoRun, defaultQuery, loading])
+  }, [autoRun, defaultQuery, loading, settings])
 
   const runQueryInternal = async (queryToRun: string) => {
     if (!queryToRun.trim()) return
