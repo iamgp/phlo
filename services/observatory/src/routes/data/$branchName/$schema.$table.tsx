@@ -22,6 +22,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 
+import type { IcebergTable } from '@/server/iceberg.server'
+import type { DataPreviewResult, DataRow } from '@/server/trino.server'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { QueryEditor } from '@/components/data/QueryEditor'
 import { QueryResults } from '@/components/data/QueryResults'
@@ -45,8 +47,6 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
-import type { IcebergTable } from '@/server/iceberg.server'
-import type { DataPreviewResult, DataRow } from '@/server/trino.server'
 import { previewData } from '@/server/trino.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
@@ -420,6 +420,14 @@ function DataExplorerWithTable() {
               rows={preview?.rows ?? []}
               getRowId={(_, index) =>
                 `${previewPage * previewPageSize}-${index}`
+              }
+              onRowClick={(row) =>
+                handleShowJourney(
+                  selectedTable,
+                  'preview',
+                  row as Record<string, unknown>,
+                  preview?.columnTypes ?? [],
+                )
               }
               containerClassName="h-full border-0"
               maxHeightClassName="h-full"
