@@ -156,7 +156,7 @@ class TestReconciliationCheck:
         result = check.execute(df, context)
 
         assert result.passed is False
-        assert "could not query source table" in result.failure_message.lower()
+        assert "failed to query source table" in result.failure_message.lower()
 
     def test_name_property(self):
         """Test that check name is correctly generated."""
