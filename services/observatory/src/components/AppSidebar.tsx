@@ -7,6 +7,7 @@ import {
   Settings,
   Shield,
   Table,
+  Terminal,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -47,9 +48,13 @@ const navItems: Array<NavItem> = [
 
 export function AppSidebar() {
   const navigate = useNavigate()
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
+  const routerState = useRouterState({
+    select: (state) => state.location,
   })
+  const { pathname, search } = routerState
+
+  // Track if we're in SQL mode (either via search param or data route with sql)
+  const isSqlMode = search.tab === 'query' || !!search.sql
 
   return (
     <Sidebar collapsible="icon">
@@ -66,7 +71,12 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.to}>
               <SidebarMenuButton
                 isActive={
-                  pathname === item.to || pathname.startsWith(`${item.to}/`)
+                  // Don't highlight Data Explorer if we're in SQL mode
+                  item.to === '/data'
+                    ? (pathname === item.to ||
+                        pathname.startsWith(`${item.to}/`)) &&
+                      !isSqlMode
+                    : pathname === item.to || pathname.startsWith(`${item.to}/`)
                 }
                 tooltip={item.label}
                 onClick={() => navigate({ to: item.to })}
@@ -76,6 +86,23 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+          {/* SQL Query - special nav item that opens SQL mode */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isSqlMode && pathname.startsWith('/data')}
+              tooltip="SQL Query"
+              onClick={() =>
+                navigate({
+                  to: '/data/$branchName',
+                  params: { branchName: 'main' },
+                  search: { tab: 'query' },
+                })
+              }
+            >
+              <Terminal />
+              <span>SQL Query</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
 
