@@ -9,6 +9,7 @@ import { Table } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
 
+import type { DataPreviewResult } from '@/server/trino.server'
 import { QueryEditor } from '@/components/data/QueryEditor'
 import { QueryResults } from '@/components/data/QueryResults'
 import {
@@ -18,7 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { DataPreviewResult } from '@/server/trino.server'
 
 export const Route = createFileRoute('/data/$branchName/')({
   validateSearch: z.object({

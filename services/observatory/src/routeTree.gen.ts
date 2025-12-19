@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SqlRouteImport } from './routes/sql'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QualityIndexRouteImport } from './routes/quality/index'
@@ -26,11 +25,6 @@ import { Route as DataSchemaTableRouteImport } from './routes/data/$schema.$tabl
 import { Route as DataBranchNameSchemaTableRouteImport } from './routes/data/$branchName/$schema.$table'
 import { Route as DataBranchNameSchemaTableRowIdRouteImport } from './routes/data/$branchName/$schema/$table/$rowId'
 
-const SqlRoute = SqlRouteImport.update({
-  id: '/sql',
-  path: '/sql',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -112,7 +106,6 @@ const DataBranchNameSchemaTableRowIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/sql': typeof SqlRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
@@ -130,7 +123,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/sql': typeof SqlRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/assets': typeof AssetsIndexRoute
@@ -148,7 +140,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/sql': typeof SqlRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
@@ -168,7 +159,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/settings'
-    | '/sql'
     | '/assets/$assetId'
     | '/branches/$branchName'
     | '/data/$branchName'
@@ -186,7 +176,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/settings'
-    | '/sql'
     | '/assets/$assetId'
     | '/branches/$branchName'
     | '/assets'
@@ -203,7 +192,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/settings'
-    | '/sql'
     | '/assets/$assetId'
     | '/branches/$branchName'
     | '/data/$branchName'
@@ -222,7 +210,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
-  SqlRoute: typeof SqlRoute
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute
   BranchesBranchNameRoute: typeof BranchesBranchNameRoute
   DataBranchNameRoute: typeof DataBranchNameRouteWithChildren
@@ -237,13 +224,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sql': {
-      id: '/sql'
-      path: '/sql'
-      fullPath: '/sql'
-      preLoaderRoute: typeof SqlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -383,7 +363,6 @@ const DataBranchNameRouteWithChildren = DataBranchNameRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
-  SqlRoute: SqlRoute,
   AssetsAssetIdRoute: AssetsAssetIdRoute,
   BranchesBranchNameRoute: BranchesBranchNameRoute,
   DataBranchNameRoute: DataBranchNameRouteWithChildren,

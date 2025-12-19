@@ -7,10 +7,10 @@
 import { Outlet, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Database } from 'lucide-react'
 
+import type { IcebergTable } from '@/server/iceberg.server'
 import { BranchSelector } from '@/components/data/BranchSelector'
 import { SavedQueriesPanel } from '@/components/data/SavedQueriesPanel'
 import { TableBrowserVirtualized } from '@/components/data/TableBrowserVirtualized'
-import type { IcebergTable } from '@/server/iceberg.server'
 import { getTables } from '@/server/iceberg.server'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
