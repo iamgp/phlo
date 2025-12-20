@@ -1,4 +1,5 @@
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   HeadContent,
   Link,
@@ -30,6 +31,16 @@ import {
 import { cn } from '@/lib/utils'
 import { getSearchIndex } from '@/server/search.server'
 
+// Create a stable QueryClient for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+      retry: 1,
+    },
+  },
+})
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -55,9 +66,11 @@ const THEME_STORAGE_KEY = 'phlo-observatory-theme'
 
 function RootLayout() {
   return (
-    <ObservatorySettingsProvider>
-      <RootLayoutInner />
-    </ObservatorySettingsProvider>
+    <QueryClientProvider client={queryClient}>
+      <ObservatorySettingsProvider>
+        <RootLayoutInner />
+      </ObservatorySettingsProvider>
+    </QueryClientProvider>
   )
 }
 
