@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import {
   Activity,
   AlertTriangle,
@@ -9,11 +9,11 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
 import type {
   DagsterConnectionStatus,
   HealthMetrics,
 } from '@/server/dagster.server'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -22,13 +22,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { formatTimeSince, useRealtimePolling } from '@/hooks/useRealtimePolling'
 import {
   checkDagsterConnection,
   getHealthMetrics,
 } from '@/server/dagster.server'
-import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
-import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { formatDateTime } from '@/utils/dateFormat'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/')({
   loader: async () => {
@@ -45,11 +46,36 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
-  const { connection, metrics } = Route.useLoaderData()
-  const router = useRouter()
+  const { connection: initialConnection, metrics: initialMetrics } =
+    Route.useLoaderData()
   const { settings } = useObservatorySettings()
 
-  const hasError = 'error' in metrics
+  // Real-time polling for health metrics
+  const {
+    data: metrics,
+    isPolling,
+    dataUpdatedAt,
+    refetch,
+  } = useRealtimePolling({
+    queryKey: ['health-metrics', settings.connections.dagsterGraphqlUrl],
+    queryFn: () =>
+      getHealthMetrics({
+        data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+      }),
+    initialData: initialMetrics,
+  })
+
+  // Also poll connection status (less frequently is fine since it's cached)
+  const { data: connection } = useRealtimePolling({
+    queryKey: ['dagster-connection', settings.connections.dagsterGraphqlUrl],
+    queryFn: () =>
+      checkDagsterConnection({
+        data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+      }),
+    initialData: initialConnection,
+  })
+
+  const hasError = metrics && 'error' in metrics
   const healthData = hasError ? null : metrics
 
   return (
@@ -63,14 +89,21 @@ function Dashboard() {
               Overview of your data platform status
             </p>
           </div>
-          <Button variant="outline" onClick={() => router.invalidate()}>
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            {isPolling && (
+              <span className="text-xs text-muted-foreground">
+                Updated {formatTimeSince(dataUpdatedAt)}
+              </span>
+            )}
+            <Button variant="outline" onClick={() => refetch()}>
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Connection Status Banner */}
-        <ConnectionBanner connection={connection} />
+        {connection && <ConnectionBanner connection={connection} />}
 
         {/* Health Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -185,7 +218,7 @@ function ConnectionBanner({
 
 // Status helper functions
 function getAssetStatus(
-  data: HealthMetrics | null,
+  data: HealthMetrics | null | undefined,
 ): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.assetsTotal === 0) return 'warning'
@@ -193,7 +226,7 @@ function getAssetStatus(
 }
 
 function getFailedJobsStatus(
-  data: HealthMetrics | null,
+  data: HealthMetrics | null | undefined,
 ): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.failedJobs24h === 0) return 'success'
@@ -202,7 +235,7 @@ function getFailedJobsStatus(
 }
 
 function getQualityStatus(
-  data: HealthMetrics | null,
+  data: HealthMetrics | null | undefined,
 ): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.qualityChecksTotal === 0) return 'loading' // Not implemented yet
@@ -213,7 +246,7 @@ function getQualityStatus(
 }
 
 function getFreshnessStatus(
-  data: HealthMetrics | null,
+  data: HealthMetrics | null | undefined,
 ): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'
   if (data.assetsTotal === 0) return 'loading'

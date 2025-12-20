@@ -7,6 +7,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { authMiddleware } from '@/server/auth.server'
+
 const DEFAULT_DAGSTER_URL = 'http://localhost:3000/graphql'
 
 function resolveDagsterUrl(override?: string): string {
@@ -116,6 +118,7 @@ function inferLayer(keyPath: string): GraphNode['layer'] {
  * Get the full asset graph with dependencies
  */
 export const getAssetGraph = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<AssetGraph | { error: string }> => {
     const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
@@ -195,6 +198,7 @@ export const getAssetGraph = createServerFn()
  * Get neighbors of a specific asset (focused subgraph)
  */
 export const getAssetNeighbors = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       assetKey: string
@@ -286,6 +290,7 @@ export interface ImpactedAsset {
  * Returns all assets that would be affected if this asset fails/changes
  */
 export const getAssetImpact = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { assetKey: string; maxDepth?: number; dagsterUrl?: string }) =>
       input,

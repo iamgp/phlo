@@ -7,6 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { authMiddleware } from '@/server/auth.server'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
@@ -79,6 +80,7 @@ const VERSION_QUERY = `
  * Check if Dagster is reachable
  */
 export const checkDagsterConnection = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<DagsterConnectionStatus> => {
     const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
@@ -123,6 +125,7 @@ export const checkDagsterConnection = createServerFn()
  * Get health metrics from Dagster
  */
 export const getHealthMetrics = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<HealthMetrics | { error: string }> => {
     const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
@@ -195,7 +198,9 @@ export const getHealthMetrics = createServerFn()
         lastUpdated: new Date().toISOString(),
       }
     } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
     }
   })
 
@@ -425,6 +430,7 @@ async function fetchAssets(
 }
 
 export const getAssets = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<Array<Asset> | { error: string }> => {
     const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
@@ -435,9 +441,10 @@ export const getAssets = createServerFn()
 
 /**
  * Get details for a single asset (Server Function)
- * Called with: getAssetDetails({ data: { assetKeyPath, dagsterUrl? } })
+ * Called with: getAssetDetails({ data: { assetKeyPath, dagsterUrl?, authToken? } })
  */
 export const getAssetDetails = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { assetKeyPath: string; dagsterUrl?: string }) => input,
   )
@@ -523,7 +530,6 @@ export const getAssetDetails = createServerFn()
         }
 
         // Extract columns from TableSchemaMetadataEntry
-        // Check materialization metadata first (from fetch_column_metadata), then definition
         const matSchemaEntry =
           asset.assetMaterializations?.[0]?.metadataEntries?.find(
             (e) => e.schema || e.__typename === 'TableSchemaMetadataEntry',
@@ -534,7 +540,7 @@ export const getAssetDetails = createServerFn()
         const columns =
           matSchemaEntry?.schema?.columns ?? defSchemaEntry?.schema?.columns
 
-        // Extract column lineage from TableColumnLineageMetadataEntry
+        // Extract column lineage
         const matLineageEntry =
           asset.assetMaterializations?.[0]?.metadataEntries?.find(
             (e) =>
@@ -545,7 +551,6 @@ export const getAssetDetails = createServerFn()
         )
         const lineageData = matLineageEntry?.lineage ?? defLineageEntry?.lineage
 
-        // Convert lineage array to Record<columnName, deps[]>
         const columnLineage:
           | Record<string, Array<ColumnLineageDep>>
           | undefined = lineageData
@@ -572,7 +577,7 @@ export const getAssetDetails = createServerFn()
             asset.definition?.hasMaterializePermission ?? false,
           opNames: asset.definition?.opNames ?? [],
           metadata: (asset.definition?.metadataEntries ?? [])
-            .filter((e) => !e.schema) // Exclude TableSchema from simple metadata
+            .filter((e) => !e.schema)
             .map((e) => ({
               key: e.label,
               value: e.text || e.description || '',
@@ -642,6 +647,7 @@ const MATERIALIZATION_HISTORY_QUERY = `
  * Get materialization history for an asset
  */
 export const getMaterializationHistory = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { assetKey: string; limit?: number }) => input)
   .handler(
     async ({
@@ -698,7 +704,7 @@ export const getMaterializationHistory = createServerFn()
           (mat: MaterializationRaw): MaterializationEvent => ({
             timestamp: mat.timestamp,
             runId: mat.runId,
-            status: 'SUCCESS', // Materializations are always successful (failures don't create them)
+            status: 'SUCCESS',
             stepKey: mat.stepKey,
             metadata: (mat.metadataEntries || []).map((e) => ({
               key: e.label,

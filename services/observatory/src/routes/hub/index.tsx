@@ -77,7 +77,7 @@ function HubPage() {
   const handleStart = async (name: string) => {
     setLoadingServices((prev) => new Set(prev).add(name))
     try {
-      await startService({ data: name })
+      await startService({ data: { serviceName: name } })
       // Refresh after a short delay to allow Docker to update
       setTimeout(() => router.invalidate(), 1000)
     } finally {
@@ -92,7 +92,7 @@ function HubPage() {
   const handleStop = async (name: string) => {
     setLoadingServices((prev) => new Set(prev).add(name))
     try {
-      await stopService({ data: name })
+      await stopService({ data: { serviceName: name } })
       setTimeout(() => router.invalidate(), 1000)
     } finally {
       setLoadingServices((prev) => {
@@ -106,7 +106,7 @@ function HubPage() {
   const handleRestart = async (name: string) => {
     setLoadingServices((prev) => new Set(prev).add(name))
     try {
-      await restartService({ data: name })
+      await restartService({ data: { serviceName: name } })
       setTimeout(() => router.invalidate(), 2000)
     } finally {
       setLoadingServices((prev) => {
