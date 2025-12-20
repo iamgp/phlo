@@ -17,6 +17,7 @@ import type {
   SearchableColumn,
   SearchableTable,
 } from './search.types'
+import { authMiddleware } from '@/server/auth.server'
 
 async function buildSearchIndex(
   dagsterUrl: string | undefined,
@@ -91,6 +92,7 @@ async function buildSearchIndex(
 }
 
 export const getSearchIndex = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: SearchIndexInput) => input)
   .handler(
     async ({

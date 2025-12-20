@@ -8,6 +8,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type { ColumnMapping, TransformType } from '@/utils/sqlParser'
+import { authMiddleware } from '@/server/auth.server'
+
 import { analyzeSQLTransformation } from '@/utils/sqlParser'
 
 /**
@@ -229,6 +231,7 @@ function computeColumnDiffs(
  * data from the upstream table.
  */
 export const getStageDiff = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       transformationSql: string
@@ -290,6 +293,7 @@ export const getStageDiff = createServerFn()
  * Used when transformation SQL is not available
  */
 export const getSimpleStageDiff = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       upstreamColumns: Array<string>

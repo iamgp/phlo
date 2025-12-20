@@ -11,6 +11,7 @@ import type {
   QueryExecutionError,
   QueryGuardrails,
 } from '@/server/queryGuardrails'
+import { authMiddleware } from '@/server/auth.server'
 import { validateAndRewriteQuery } from '@/server/queryGuardrails'
 import {
   isProbablyQualifiedTable,
@@ -178,6 +179,7 @@ async function executeTrinoQuery(
  * Check if Trino is reachable
  */
 export const checkTrinoConnection = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { trinoUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<TrinoConnectionStatus> => {
     const trinoUrl = resolveTrinoUrl(data.trinoUrl)
@@ -212,6 +214,7 @@ export const checkTrinoConnection = createServerFn()
  * Preview data from a table with pagination
  */
 export const previewData = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -286,6 +289,7 @@ export const previewData = createServerFn()
  * Get column statistics/profile
  */
 export const profileColumn = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -355,7 +359,7 @@ export const profileColumn = createServerFn()
 
       return {
         column,
-        type: 'unknown', // Would need schema lookup
+        type: 'unknown',
         nullCount,
         nullPercentage: totalCount > 0 ? (nullCount / totalCount) * 100 : 0,
         distinctCount: Number(row.distinct_count) || 0,
@@ -369,6 +373,7 @@ export const profileColumn = createServerFn()
  * Get table-level metrics
  */
 export const getTableMetrics = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -423,6 +428,7 @@ export const getTableMetrics = createServerFn()
  * Run an arbitrary read-only query (for advanced users)
  */
 export const executeQuery = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       query: string
@@ -500,6 +506,7 @@ export const executeQuery = createServerFn()
  * Used for tracking row data across transformations
  */
 export const queryTableWithFilters = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       tableName: string
@@ -580,6 +587,7 @@ export const queryTableWithFilters = createServerFn()
  * Used for deep linking to row-level data journeys
  */
 export const getRowById = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string

@@ -7,6 +7,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { authMiddleware } from '@/server/auth.server'
+
 // Types for Nessie data structures
 export interface Branch {
   type: 'BRANCH' | 'TAG'
@@ -47,6 +49,7 @@ function resolveNessieUrl(override?: string): string {
  * Check if Nessie is reachable
  */
 export const checkNessieConnection = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { nessieUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<NessieConfig> => {
     const nessieUrl = resolveNessieUrl(data.nessieUrl)
@@ -81,6 +84,7 @@ export const checkNessieConnection = createServerFn()
  * Get all branches and tags
  */
 export const getBranches = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { nessieUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<Array<Branch> | { error: string }> => {
     const nessieUrl = resolveNessieUrl(data.nessieUrl)
@@ -105,6 +109,7 @@ export const getBranches = createServerFn()
  * Get branch details by name
  */
 export const getBranch = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { branchName: string; nessieUrl?: string }) => input)
   .handler(async ({ data }): Promise<Branch | { error: string }> => {
     const nessieUrl = resolveNessieUrl(data.nessieUrl)
@@ -142,6 +147,7 @@ export const getBranch = createServerFn()
  * Get commit history for a branch
  */
 export const getCommits = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { branch: string; limit?: number; nessieUrl?: string }) => input,
   )
@@ -182,6 +188,7 @@ export const getCommits = createServerFn()
  * Get contents (tables) at a specific branch/ref
  */
 export const getContents = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { branch: string; prefix?: string; nessieUrl?: string }) => input,
   )
@@ -224,6 +231,7 @@ export const getContents = createServerFn()
  * Compare two branches (diff)
  */
 export const compareBranches = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { fromBranch: string; toBranch: string; nessieUrl?: string }) =>
       input,
@@ -261,6 +269,7 @@ export const compareBranches = createServerFn()
  * Create a new branch
  */
 export const createBranch = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { name: string; fromBranch: string; nessieUrl?: string }) => input,
   )
@@ -320,6 +329,7 @@ export const createBranch = createServerFn()
  * Delete a branch
  */
 export const deleteBranch = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { name: string; hash: string; nessieUrl?: string }) => input,
   )
@@ -356,6 +366,7 @@ export const deleteBranch = createServerFn()
  * Merge branches
  */
 export const mergeBranch = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       fromBranch: string
