@@ -5,7 +5,7 @@
  * Bead: phlo-h2c
  *
  * When OBSERVATORY_AUTH_ENABLED=true, all server functions require
- * a valid token via X-Observatory-Token header or auth.token in settings.
+ * a valid token via authToken in the request data.
  */
 
 /**
@@ -48,7 +48,7 @@ export function isAuthError(result: unknown): result is AuthError {
  * Returns undefined if auth passes, or an AuthError if it fails.
  * When auth is disabled, always returns undefined (passes).
  *
- * @param token - The token to validate (from header or settings)
+ * @param token - The token to validate (from settings)
  * @returns undefined if valid, AuthError if invalid
  */
 export function validateAuth(token?: string): AuthError | undefined {
@@ -82,18 +82,37 @@ export function validateAuth(token?: string): AuthError | undefined {
 }
 
 /**
+ * Check auth at the start of a handler and return error if invalid
+ *
+ * Usage:
+ * ```ts
+ * .handler(async ({ data }) => {
+ *   const authError = requireAuth(data.authToken)
+ *   if (authError) return authError
+ *   // ... rest of handler
+ * })
+ * ```
+ */
+export function requireAuth(token?: string): AuthError | undefined {
+  return validateAuth(token)
+}
+
+/**
  * Create an auth-protected wrapper for server function handlers
  *
  * Usage:
  * ```ts
  * export const getAssets = createServerFn()
- *   .inputValidator((input: { authToken?: string }) => input)
+ *   .inputValidator((input: { authToken?: string; ...rest }) => input)
  *   .handler(withAuth(async ({ data }) => {
- *     // ... handler logic
+ *     // ... handler logic (authToken already validated)
  *   }))
  * ```
  */
-export function withAuth<TInput extends { authToken?: string }, TOutput>(
+export function withAuth<
+  TInput extends { authToken?: string },
+  TOutput extends object,
+>(
   handler: (ctx: { data: TInput }) => Promise<TOutput>,
 ): (ctx: { data: TInput }) => Promise<TOutput | AuthError> {
   return async (ctx) => {

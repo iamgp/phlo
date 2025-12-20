@@ -76,7 +76,7 @@ function Dashboard() {
   })
 
   const hasError = metrics && 'error' in metrics
-  const healthData = hasError ? null : (metrics)
+  const healthData = hasError ? null : metrics
 
   return (
     <div className="h-full overflow-auto">
