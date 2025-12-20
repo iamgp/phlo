@@ -11,7 +11,7 @@ import type {
   QueryExecutionError,
   QueryGuardrails,
 } from '@/server/queryGuardrails'
-import { withAuth } from '@/server/auth.server'
+import { authMiddleware } from '@/server/auth.server'
 import { validateAndRewriteQuery } from '@/server/queryGuardrails'
 import {
   isProbablyQualifiedTable,
@@ -179,44 +179,42 @@ async function executeTrinoQuery(
  * Check if Trino is reachable
  */
 export const checkTrinoConnection = createServerFn()
-  .inputValidator(
-    (input: { trinoUrl?: string; authToken?: string } = {}) => input,
-  )
-  .handler(
-    withAuth(async ({ data }): Promise<TrinoConnectionStatus> => {
-      const trinoUrl = resolveTrinoUrl(data.trinoUrl)
+  .middleware([authMiddleware])
+  .inputValidator((input: { trinoUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<TrinoConnectionStatus> => {
+    const trinoUrl = resolveTrinoUrl(data.trinoUrl)
 
-      try {
-        const response = await fetch(`${trinoUrl}/v1/info`, {
-          signal: AbortSignal.timeout(5000),
-        })
+    try {
+      const response = await fetch(`${trinoUrl}/v1/info`, {
+        signal: AbortSignal.timeout(5000),
+      })
 
-        if (!response.ok) {
-          return {
-            connected: false,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-          }
-        }
-
-        const info = await response.json()
-
-        return {
-          connected: true,
-          clusterVersion: info.nodeVersion?.version || 'unknown',
-        }
-      } catch (error) {
+      if (!response.ok) {
         return {
           connected: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: `HTTP ${response.status}: ${response.statusText}`,
         }
       }
-    }),
-  )
+
+      const info = await response.json()
+
+      return {
+        connected: true,
+        clusterVersion: info.nodeVersion?.version || 'unknown',
+      }
+    } catch (error) {
+      return {
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  })
 
 /**
  * Preview data from a table with pagination
  */
 export const previewData = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -228,11 +226,11 @@ export const previewData = createServerFn()
       trinoUrl?: string
       timeoutMs?: number
       maxLimit?: number
-      authToken?: string
+      
     }) => input,
   )
   .handler(
-    withAuth(
+
       async ({
         data: {
           table,
@@ -287,13 +285,13 @@ export const previewData = createServerFn()
           hasMore: result.rows.length === effectiveLimit,
         }
       },
-    ),
   )
 
 /**
  * Get column statistics/profile
  */
 export const profileColumn = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -303,11 +301,11 @@ export const profileColumn = createServerFn()
       schema?: string
       trinoUrl?: string
       timeoutMs?: number
-      authToken?: string
+      
     }) => input,
   )
   .handler(
-    withAuth(
+
       async ({
         data: {
           table,
@@ -373,13 +371,13 @@ export const profileColumn = createServerFn()
           maxValue: row.max_value as string | undefined,
         }
       },
-    ),
   )
 
 /**
  * Get table-level metrics
  */
 export const getTableMetrics = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -388,11 +386,11 @@ export const getTableMetrics = createServerFn()
       schema?: string
       trinoUrl?: string
       timeoutMs?: number
-      authToken?: string
+      
     }) => input,
   )
   .handler(
-    withAuth(
+
       async ({
         data: { table, branch = 'main', catalog, schema, trinoUrl, timeoutMs },
       }): Promise<TableMetrics | { error: string }> => {
@@ -430,13 +428,13 @@ export const getTableMetrics = createServerFn()
           rowCount: Number(result.rows[0].row_count) || 0,
         }
       },
-    ),
   )
 
 /**
  * Run an arbitrary read-only query (for advanced users)
  */
 export const executeQuery = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       query: string
@@ -449,11 +447,11 @@ export const executeQuery = createServerFn()
       defaultLimit?: number
       maxLimit?: number
       allowUnsafe?: boolean
-      authToken?: string
+      
     }) => input,
   )
   .handler(
-    withAuth(
+
       async ({
         data: {
           query,
@@ -509,7 +507,6 @@ export const executeQuery = createServerFn()
           effectiveQuery: validated.effectiveQuery,
         }
       },
-    ),
   )
 
 /**
@@ -517,6 +514,7 @@ export const executeQuery = createServerFn()
  * Used for tracking row data across transformations
  */
 export const queryTableWithFilters = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       tableName: string
@@ -525,11 +523,11 @@ export const queryTableWithFilters = createServerFn()
       catalog?: string
       trinoUrl?: string
       timeoutMs?: number
-      authToken?: string
+      
     }) => input,
   )
   .handler(
-    withAuth(
+
       async ({
         data: { tableName, schema, filters, catalog, trinoUrl, timeoutMs },
       }): Promise<DataPreviewResult | { error: string }> => {
@@ -592,7 +590,6 @@ export const queryTableWithFilters = createServerFn()
           hasMore: false,
         }
       },
-    ),
   )
 
 /**
@@ -600,6 +597,7 @@ export const queryTableWithFilters = createServerFn()
  * Used for deep linking to row-level data journeys
  */
 export const getRowById = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -608,11 +606,11 @@ export const getRowById = createServerFn()
       schema?: string
       trinoUrl?: string
       timeoutMs?: number
-      authToken?: string
+      
     }) => input,
   )
   .handler(
-    withAuth(
+
       async ({
         data: { table, rowId, catalog, schema, trinoUrl, timeoutMs },
       }): Promise<DataPreviewResult | { error: string }> => {
@@ -655,5 +653,4 @@ export const getRowById = createServerFn()
           hasMore: false,
         }
       },
-    ),
   )
