@@ -9,6 +9,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { authMiddleware } from '@/server/auth.server'
+
 // Types for lineage data
 export interface RowLineageInfo {
   rowId: string
@@ -40,6 +42,7 @@ const getLineageConnection = async () => {
  * Get lineage info for a single row
  */
 export const getRowLineage = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { rowId: string }) => input)
   .handler(
     async ({
@@ -87,6 +90,7 @@ export const getRowLineage = createServerFn()
  * Get all ancestor rows (recursive)
  */
 export const getRowAncestors = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { rowId: string; maxDepth?: number }) => input)
   .handler(
     async ({
@@ -155,6 +159,7 @@ export const getRowAncestors = createServerFn()
  * Get all descendant rows (recursive)
  */
 export const getRowDescendants = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { rowId: string; maxDepth?: number }) => input)
   .handler(
     async ({
@@ -219,6 +224,7 @@ export const getRowDescendants = createServerFn()
  * Get full lineage journey for a row (ancestors + self + descendants)
  */
 export const getRowJourneyLineage = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { rowId: string }) => input)
   .handler(
     async ({

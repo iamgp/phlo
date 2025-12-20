@@ -7,6 +7,8 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { authMiddleware } from '@/server/auth.server'
+
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
@@ -223,6 +225,7 @@ async function fetchTables(
 }
 
 export const getTables = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       branch?: string
@@ -304,6 +307,7 @@ async function fetchTableSchema(
 }
 
 export const getTableSchema = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       table: string
@@ -336,6 +340,7 @@ export const getTableSchema = createServerFn()
  * Get row count for a table
  */
 export const getTableRowCount = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { table: string; branch?: string; catalog?: string }) => input,
   )
@@ -361,6 +366,7 @@ export const getTableRowCount = createServerFn()
  * Get table metadata including schema and stats
  */
 export const getTableMetadata = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { table: string; branch?: string; catalog?: string }) => input,
   )

@@ -2,16 +2,16 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
-import {
-  clearCacheEndpoint,
-  getCacheStatsEndpoint,
-} from '@/server/cache.server'
-import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import {
+  clearCacheEndpoint,
+  getCacheStatsEndpoint,
+} from '@/server/cache.server'
 
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
@@ -339,6 +339,88 @@ function SettingsPage() {
                 <option value="local">Local</option>
               </select>
             </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Authentication</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Field
+              label="Auth Token"
+              hint="Token for authenticating with Observatory when OBSERVATORY_AUTH_ENABLED=true"
+            >
+              <Input
+                type="password"
+                placeholder="Enter auth token..."
+                value={draft.auth?.token ?? ''}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    auth: { ...prev.auth, token: e.target.value || undefined },
+                  }))
+                }
+              />
+            </Field>
+            <div className="text-xs text-muted-foreground">
+              When auth is enabled on the server, provide the token here to
+              access Observatory.
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Real-time Updates</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 accent-primary"
+                checked={draft.realtime?.enabled ?? true}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    realtime: {
+                      enabled: e.target.checked,
+                      intervalMs: prev.realtime?.intervalMs ?? 5000,
+                    },
+                  }))
+                }
+              />
+              <div>
+                <div className="text-sm font-medium">Enable auto-refresh</div>
+                <div className="text-xs text-muted-foreground">
+                  Automatically poll for updates on dashboard and quality pages.
+                </div>
+              </div>
+            </label>
+
+            <Field label="Polling Interval (ms)">
+              <Input
+                type="number"
+                min={1000}
+                max={60000}
+                step={1000}
+                value={draft.realtime?.intervalMs ?? 5000}
+                disabled={!(draft.realtime?.enabled ?? true)}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    realtime: {
+                      enabled: prev.realtime?.enabled ?? true,
+                      intervalMs: Number(e.target.value) || 5000,
+                    },
+                  }))
+                }
+              />
+            </Field>
+            <div className="text-xs text-muted-foreground">
+              How often to check for updates (1000ms - 60000ms). Lower values
+              mean more requests.
+            </div>
           </CardContent>
         </Card>
 

@@ -11,7 +11,9 @@ import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { createServerFn } from '@tanstack/react-start'
+
 import { parse as parseYaml } from 'yaml'
+import { authMiddleware } from '@/server/auth.server'
 
 const execAsync = promisify(exec)
 
@@ -401,10 +403,11 @@ async function findContainerByService(
  * Start a service
  */
 export const startService = createServerFn()
-  .inputValidator((input: string) => input)
+  .middleware([authMiddleware])
+  .inputValidator((input: { serviceName: string }) => input)
   .handler(
     async ({
-      data: serviceName,
+      data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
@@ -434,10 +437,11 @@ export const startService = createServerFn()
  * Stop a service
  */
 export const stopService = createServerFn()
-  .inputValidator((input: string) => input)
+  .middleware([authMiddleware])
+  .inputValidator((input: { serviceName: string }) => input)
   .handler(
     async ({
-      data: serviceName,
+      data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
@@ -467,10 +471,11 @@ export const stopService = createServerFn()
  * Restart a service
  */
 export const restartService = createServerFn()
-  .inputValidator((input: string) => input)
+  .middleware([authMiddleware])
+  .inputValidator((input: { serviceName: string }) => input)
   .handler(
     async ({
-      data: serviceName,
+      data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)

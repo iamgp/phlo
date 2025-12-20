@@ -13,6 +13,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type { DataRow } from '@/server/trino.server'
+import { authMiddleware } from '@/server/auth.server'
+
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 type Primitive = string | number | boolean | null | undefined
@@ -429,6 +431,7 @@ export function buildContributingRowsQuery(params: {
 }
 
 export const getContributingRowsQuery = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       downstreamAssetKey: string
@@ -479,6 +482,7 @@ export const getContributingRowsQuery = createServerFn()
   })
 
 export const getContributingRowsPage = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       downstreamAssetKey: string

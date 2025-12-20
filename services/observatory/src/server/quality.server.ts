@@ -14,6 +14,7 @@ import type {
   QualityOverview,
   RecentCheckExecution,
 } from './quality.types'
+import { authMiddleware } from '@/server/auth.server'
 
 import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
@@ -146,6 +147,7 @@ function metadataEntriesToRecord(
  * Get overview of all quality metrics
  */
 export const getQualityOverview = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async ({ data }): Promise<QualityOverview | { error: string }> => {
     const snapshot = await fetchQualitySnapshot({ dagsterUrl: data.dagsterUrl })
@@ -212,6 +214,7 @@ export const getQualityOverview = createServerFn()
  * Get quality checks for a specific asset
  */
 export const getAssetChecks = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: { assetKey: Array<string>; dagsterUrl?: string }) => input,
   )
@@ -291,6 +294,7 @@ export const getAssetChecks = createServerFn()
  * Get execution history for a specific check
  */
 export const getCheckHistory = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
     (input: {
       assetKey: Array<string>
@@ -368,6 +372,7 @@ export const getCheckHistory = createServerFn()
  * Get all currently failing checks
  */
 export const getFailingChecks = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(
     async ({ data }): Promise<Array<QualityCheck> | { error: string }> => {
@@ -383,6 +388,7 @@ export const getFailingChecks = createServerFn()
  * Get quality checks with their latest status (for dashboard)
  */
 export const getQualityDashboard = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(
     async ({
