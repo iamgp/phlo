@@ -11,7 +11,9 @@ import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { createServerFn } from '@tanstack/react-start'
+
 import { parse as parseYaml } from 'yaml'
+import { authMiddleware } from '@/server/auth.server'
 
 const execAsync = promisify(exec)
 
@@ -401,6 +403,7 @@ async function findContainerByService(
  * Start a service
  */
 export const startService = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: string) => input)
   .handler(
     async ({
@@ -434,6 +437,7 @@ export const startService = createServerFn()
  * Stop a service
  */
 export const stopService = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: string) => input)
   .handler(
     async ({
@@ -467,6 +471,7 @@ export const stopService = createServerFn()
  * Restart a service
  */
 export const restartService = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: string) => input)
   .handler(
     async ({

@@ -7,6 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+
 import { cacheKeys, cacheTTL, withCache } from './cache'
 import { getAssets } from './dagster.server'
 import { getTableSchema, getTables } from './iceberg.server'
@@ -17,6 +18,7 @@ import type {
   SearchableColumn,
   SearchableTable,
 } from './search.types'
+import { authMiddleware } from '@/server/auth.server'
 
 async function buildSearchIndex(
   dagsterUrl: string | undefined,
@@ -91,6 +93,7 @@ async function buildSearchIndex(
 }
 
 export const getSearchIndex = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator((input: SearchIndexInput) => input)
   .handler(
     async ({
