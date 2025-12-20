@@ -7,8 +7,7 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
-import type { AuthError } from '@/server/auth.server'
-import { authMiddleware, withAuth } from '@/server/auth.server'
+import { authMiddleware } from '@/server/auth.server'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
@@ -126,94 +125,84 @@ export const checkDagsterConnection = createServerFn()
  * Get health metrics from Dagster
  */
 export const getHealthMetrics = createServerFn()
-  .inputValidator(
-    (input: { dagsterUrl?: string; authToken?: string } = {}) => input,
-  )
-  .handler(
-    withAuth(
-      async ({
-        data,
-      }): Promise<HealthMetrics | { error: string } | AuthError> => {
-        const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
+  .middleware([authMiddleware])
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<HealthMetrics | { error: string }> => {
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
 
-        try {
-          const response = await fetch(dagsterUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: HEALTH_QUERY }),
-            signal: AbortSignal.timeout(10000), // 10 second timeout
-          })
+    try {
+      const response = await fetch(dagsterUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: HEALTH_QUERY }),
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      })
 
-          if (!response.ok) {
-            return { error: `HTTP ${response.status}: ${response.statusText}` }
-          }
+      if (!response.ok) {
+        return { error: `HTTP ${response.status}: ${response.statusText}` }
+      }
 
-          const result = await response.json()
+      const result = await response.json()
 
-          if (result.errors) {
-            return { error: result.errors[0]?.message || 'GraphQL error' }
-          }
+      if (result.errors) {
+        return { error: result.errors[0]?.message || 'GraphQL error' }
+      }
 
-          const { assetsOrError, runsOrError } = result.data
+      const { assetsOrError, runsOrError } = result.data
 
-          // Handle asset data
-          let assetsTotal = 0
-          let staleAssets = 0
-          const now = Date.now()
-          const staleThreshold = 24 * 60 * 60 * 1000 // 24 hours
+      // Handle asset data
+      let assetsTotal = 0
+      let staleAssets = 0
+      const now = Date.now()
+      const staleThreshold = 24 * 60 * 60 * 1000 // 24 hours
 
-          if (
-            assetsOrError.__typename !== 'PythonError' &&
-            assetsOrError.nodes
-          ) {
-            assetsTotal = assetsOrError.nodes.length
+      if (assetsOrError.__typename !== 'PythonError' && assetsOrError.nodes) {
+        assetsTotal = assetsOrError.nodes.length
 
-            for (const asset of assetsOrError.nodes) {
-              const lastMat = asset.assetMaterializations?.[0]
-              if (lastMat) {
-                const matTime = Number(lastMat.timestamp)
-                if (now - matTime > staleThreshold) {
-                  staleAssets++
-                }
-              } else {
-                // Never materialized = stale
-                staleAssets++
-              }
+        for (const asset of assetsOrError.nodes) {
+          const lastMat = asset.assetMaterializations?.[0]
+          if (lastMat) {
+            const matTime = Number(lastMat.timestamp)
+            if (now - matTime > staleThreshold) {
+              staleAssets++
             }
-          }
-
-          // Handle run data - count failed runs in last 24 hours
-          let failedJobs24h = 0
-          const oneDayAgo = now - staleThreshold
-
-          if (runsOrError.__typename !== 'PythonError' && runsOrError.results) {
-            for (const run of runsOrError.results) {
-              const startTime = run.startTime ? Number(run.startTime) * 1000 : 0
-              if (startTime > oneDayAgo) {
-                failedJobs24h++
-              }
-            }
-          }
-
-          const qc = await qualityCounts()
-
-          return {
-            assetsTotal,
-            assetsHealthy: assetsTotal - staleAssets,
-            failedJobs24h,
-            qualityChecksPassing: qc.passing,
-            qualityChecksTotal: qc.total,
-            staleAssets,
-            lastUpdated: new Date().toISOString(),
-          }
-        } catch (error) {
-          return {
-            error: error instanceof Error ? error.message : 'Unknown error',
+          } else {
+            // Never materialized = stale
+            staleAssets++
           }
         }
-      },
-    ),
-  )
+      }
+
+      // Handle run data - count failed runs in last 24 hours
+      let failedJobs24h = 0
+      const oneDayAgo = now - staleThreshold
+
+      if (runsOrError.__typename !== 'PythonError' && runsOrError.results) {
+        for (const run of runsOrError.results) {
+          const startTime = run.startTime ? Number(run.startTime) * 1000 : 0
+          if (startTime > oneDayAgo) {
+            failedJobs24h++
+          }
+        }
+      }
+
+      const qc = await qualityCounts()
+
+      return {
+        assetsTotal,
+        assetsHealthy: assetsTotal - staleAssets,
+        failedJobs24h,
+        qualityChecksPassing: qc.passing,
+        qualityChecksTotal: qc.total,
+        staleAssets,
+        lastUpdated: new Date().toISOString(),
+      }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  })
 
 async function qualityCounts(): Promise<{ passing: number; total: number }> {
   const snapshot = await fetchQualitySnapshot({ recentLimit: 0 })
@@ -441,183 +430,174 @@ async function fetchAssets(
 }
 
 export const getAssets = createServerFn()
-  .inputValidator(
-    (input: { dagsterUrl?: string; authToken?: string } = {}) => input,
-  )
-  .handler(
-    withAuth(async ({ data }): Promise<Array<Asset> | { error: string }> => {
-      const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
-      const key = cacheKeys.assets(dagsterUrl)
+  .middleware([authMiddleware])
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<Array<Asset> | { error: string }> => {
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
+    const key = cacheKeys.assets(dagsterUrl)
 
-      return withCache(() => fetchAssets(dagsterUrl), key, cacheTTL.assets)
-    }),
-  )
+    return withCache(() => fetchAssets(dagsterUrl), key, cacheTTL.assets)
+  })
 
 /**
  * Get details for a single asset (Server Function)
  * Called with: getAssetDetails({ data: { assetKeyPath, dagsterUrl?, authToken? } })
  */
 export const getAssetDetails = createServerFn()
+  .middleware([authMiddleware])
   .inputValidator(
-    (input: {
-      assetKeyPath: string
-      dagsterUrl?: string
-      authToken?: string
-    }) => input,
+    (input: { assetKeyPath: string; dagsterUrl?: string }) => input,
   )
   .handler(
-    withAuth(
-      async ({
-        data: { assetKeyPath, dagsterUrl: dagsterUrlOverride },
-      }): Promise<AssetDetails | { error: string }> => {
-        if (!assetKeyPath) {
-          return { error: 'Asset key is required' }
+    async ({
+      data: { assetKeyPath, dagsterUrl: dagsterUrlOverride },
+    }): Promise<AssetDetails | { error: string }> => {
+      if (!assetKeyPath) {
+        return { error: 'Asset key is required' }
+      }
+
+      const assetKey = assetKeyPath.split('/')
+      const dagsterUrl = resolveDagsterUrl(dagsterUrlOverride)
+
+      try {
+        const response = await fetch(dagsterUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: ASSET_DETAILS_QUERY,
+            variables: { assetKey: { path: assetKey } },
+          }),
+          signal: AbortSignal.timeout(10000),
+        })
+
+        if (!response.ok) {
+          return { error: `HTTP ${response.status}: ${response.statusText}` }
         }
 
-        const assetKey = assetKeyPath.split('/')
-        const dagsterUrl = resolveDagsterUrl(dagsterUrlOverride)
+        const result = await response.json()
 
-        try {
-          const response = await fetch(dagsterUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: ASSET_DETAILS_QUERY,
-              variables: { assetKey: { path: assetKey } },
-            }),
-            signal: AbortSignal.timeout(10000),
-          })
+        if (result.errors) {
+          return { error: result.errors[0]?.message || 'GraphQL error' }
+        }
 
-          if (!response.ok) {
-            return { error: `HTTP ${response.status}: ${response.statusText}` }
-          }
+        const { assetOrError } = result.data
 
-          const result = await response.json()
+        if (assetOrError.__typename === 'AssetNotFoundError') {
+          return { error: assetOrError.message || 'Asset not found' }
+        }
 
-          if (result.errors) {
-            return { error: result.errors[0]?.message || 'GraphQL error' }
-          }
-
-          const { assetOrError } = result.data
-
-          if (assetOrError.__typename === 'AssetNotFoundError') {
-            return { error: assetOrError.message || 'Asset not found' }
-          }
-
-          // Type for lineage in metadata entries
-          type LineageEntry = {
+        // Type for lineage in metadata entries
+        type LineageEntry = {
+          columnName: string
+          columnDeps: Array<{
+            assetKey: { path: Array<string> }
             columnName: string
-            columnDeps: Array<{
-              assetKey: { path: Array<string> }
-              columnName: string
-            }>
-          }
-
-          type MetadataEntry = {
-            label: string
-            description?: string
-            text?: string
-            __typename?: string
-            schema?: {
-              columns: Array<{
-                name: string
-                type: string
-                description?: string
-              }>
-            }
-            lineage?: Array<LineageEntry>
-          }
-
-          const asset = assetOrError as {
-            id: string
-            key: { path: Array<string> }
-            definition?: {
-              description?: string
-              computeKind?: string
-              groupName?: string
-              hasMaterializePermission?: boolean
-              opNames?: Array<string>
-              metadataEntries?: Array<MetadataEntry>
-              partitionDefinition?: { description: string }
-            }
-            assetMaterializations?: Array<{
-              timestamp: string
-              runId: string
-              metadataEntries?: Array<MetadataEntry>
-            }>
-          }
-
-          // Extract columns from TableSchemaMetadataEntry
-          const matSchemaEntry =
-            asset.assetMaterializations?.[0]?.metadataEntries?.find(
-              (e) => e.schema || e.__typename === 'TableSchemaMetadataEntry',
-            )
-          const defSchemaEntry = asset.definition?.metadataEntries?.find(
-            (e) => e.schema,
-          )
-          const columns =
-            matSchemaEntry?.schema?.columns ?? defSchemaEntry?.schema?.columns
-
-          // Extract column lineage
-          const matLineageEntry =
-            asset.assetMaterializations?.[0]?.metadataEntries?.find(
-              (e) =>
-                e.lineage || e.__typename === 'TableColumnLineageMetadataEntry',
-            )
-          const defLineageEntry = asset.definition?.metadataEntries?.find(
-            (e) => e.lineage,
-          )
-          const lineageData =
-            matLineageEntry?.lineage ?? defLineageEntry?.lineage
-
-          const columnLineage:
-            | Record<string, Array<ColumnLineageDep>>
-            | undefined = lineageData
-            ? lineageData.reduce(
-                (acc, entry) => {
-                  acc[entry.columnName] = entry.columnDeps.map((dep) => ({
-                    assetKey: dep.assetKey.path,
-                    columnName: dep.columnName,
-                  }))
-                  return acc
-                },
-                {} as Record<string, Array<ColumnLineageDep>>,
-              )
-            : undefined
-
-          return {
-            id: asset.id,
-            key: asset.key.path,
-            keyPath: asset.key.path.join('/'),
-            description: asset.definition?.description,
-            computeKind: asset.definition?.computeKind,
-            groupName: asset.definition?.groupName,
-            hasMaterializePermission:
-              asset.definition?.hasMaterializePermission ?? false,
-            opNames: asset.definition?.opNames ?? [],
-            metadata: (asset.definition?.metadataEntries ?? [])
-              .filter((e) => !e.schema)
-              .map((e) => ({
-                key: e.label,
-                value: e.text || e.description || '',
-              })),
-            columns,
-            columnLineage,
-            partitionDefinition: asset.definition?.partitionDefinition,
-            lastMaterialization: asset.assetMaterializations?.[0]
-              ? {
-                  timestamp: asset.assetMaterializations[0].timestamp,
-                  runId: asset.assetMaterializations[0].runId,
-                }
-              : undefined,
-          }
-        } catch (error) {
-          return {
-            error: error instanceof Error ? error.message : 'Unknown error',
-          }
+          }>
         }
-      },
-    ),
+
+        type MetadataEntry = {
+          label: string
+          description?: string
+          text?: string
+          __typename?: string
+          schema?: {
+            columns: Array<{
+              name: string
+              type: string
+              description?: string
+            }>
+          }
+          lineage?: Array<LineageEntry>
+        }
+
+        const asset = assetOrError as {
+          id: string
+          key: { path: Array<string> }
+          definition?: {
+            description?: string
+            computeKind?: string
+            groupName?: string
+            hasMaterializePermission?: boolean
+            opNames?: Array<string>
+            metadataEntries?: Array<MetadataEntry>
+            partitionDefinition?: { description: string }
+          }
+          assetMaterializations?: Array<{
+            timestamp: string
+            runId: string
+            metadataEntries?: Array<MetadataEntry>
+          }>
+        }
+
+        // Extract columns from TableSchemaMetadataEntry
+        const matSchemaEntry =
+          asset.assetMaterializations?.[0]?.metadataEntries?.find(
+            (e) => e.schema || e.__typename === 'TableSchemaMetadataEntry',
+          )
+        const defSchemaEntry = asset.definition?.metadataEntries?.find(
+          (e) => e.schema,
+        )
+        const columns =
+          matSchemaEntry?.schema?.columns ?? defSchemaEntry?.schema?.columns
+
+        // Extract column lineage
+        const matLineageEntry =
+          asset.assetMaterializations?.[0]?.metadataEntries?.find(
+            (e) =>
+              e.lineage || e.__typename === 'TableColumnLineageMetadataEntry',
+          )
+        const defLineageEntry = asset.definition?.metadataEntries?.find(
+          (e) => e.lineage,
+        )
+        const lineageData = matLineageEntry?.lineage ?? defLineageEntry?.lineage
+
+        const columnLineage:
+          | Record<string, Array<ColumnLineageDep>>
+          | undefined = lineageData
+          ? lineageData.reduce(
+              (acc, entry) => {
+                acc[entry.columnName] = entry.columnDeps.map((dep) => ({
+                  assetKey: dep.assetKey.path,
+                  columnName: dep.columnName,
+                }))
+                return acc
+              },
+              {} as Record<string, Array<ColumnLineageDep>>,
+            )
+          : undefined
+
+        return {
+          id: asset.id,
+          key: asset.key.path,
+          keyPath: asset.key.path.join('/'),
+          description: asset.definition?.description,
+          computeKind: asset.definition?.computeKind,
+          groupName: asset.definition?.groupName,
+          hasMaterializePermission:
+            asset.definition?.hasMaterializePermission ?? false,
+          opNames: asset.definition?.opNames ?? [],
+          metadata: (asset.definition?.metadataEntries ?? [])
+            .filter((e) => !e.schema)
+            .map((e) => ({
+              key: e.label,
+              value: e.text || e.description || '',
+            })),
+          columns,
+          columnLineage,
+          partitionDefinition: asset.definition?.partitionDefinition,
+          lastMaterialization: asset.assetMaterializations?.[0]
+            ? {
+                timestamp: asset.assetMaterializations[0].timestamp,
+                runId: asset.assetMaterializations[0].runId,
+              }
+            : undefined,
+        }
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    },
   )
 
 // Types for materialization history
@@ -667,86 +647,81 @@ const MATERIALIZATION_HISTORY_QUERY = `
  * Get materialization history for an asset
  */
 export const getMaterializationHistory = createServerFn()
-  .inputValidator(
-    (input: { assetKey: string; limit?: number; authToken?: string }) => input,
-  )
+  .middleware([authMiddleware])
+  .inputValidator((input: { assetKey: string; limit?: number }) => input)
   .handler(
-    withAuth(
-      async ({
-        data: { assetKey, limit = 20 },
-      }): Promise<Array<MaterializationEvent> | { error: string }> => {
-        const dagsterUrl =
-          process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
+    async ({
+      data: { assetKey, limit = 20 },
+    }): Promise<Array<MaterializationEvent> | { error: string }> => {
+      const dagsterUrl =
+        process.env.DAGSTER_GRAPHQL_URL || 'http://localhost:3000/graphql'
 
-        try {
-          const response = await fetch(dagsterUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: MATERIALIZATION_HISTORY_QUERY,
-              variables: {
-                assetKey: { path: assetKey.split('/') },
-                limit,
-              },
-            }),
-            signal: AbortSignal.timeout(10000),
-          })
+      try {
+        const response = await fetch(dagsterUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: MATERIALIZATION_HISTORY_QUERY,
+            variables: {
+              assetKey: { path: assetKey.split('/') },
+              limit,
+            },
+          }),
+          signal: AbortSignal.timeout(10000),
+        })
 
-          if (!response.ok) {
-            return { error: `HTTP ${response.status}: ${response.statusText}` }
-          }
-
-          const result = await response.json()
-
-          if (result.errors) {
-            return { error: result.errors[0]?.message || 'GraphQL error' }
-          }
-
-          const { assetOrError } = result.data
-
-          if (assetOrError.__typename === 'AssetNotFoundError') {
-            return { error: assetOrError.message || 'Asset not found' }
-          }
-
-          type MetadataEntry = {
-            label: string
-            text?: string
-            intValue?: string
-            floatValue?: number
-          }
-
-          type MaterializationRaw = {
-            timestamp: string
-            runId: string
-            stepKey?: string
-            metadataEntries?: Array<MetadataEntry>
-          }
-
-          const materializations = (
-            assetOrError.assetMaterializations || []
-          ).map(
-            (mat: MaterializationRaw): MaterializationEvent => ({
-              timestamp: mat.timestamp,
-              runId: mat.runId,
-              status: 'SUCCESS',
-              stepKey: mat.stepKey,
-              metadata: (mat.metadataEntries || []).map((e) => ({
-                key: e.label,
-                value:
-                  e.text ||
-                  (e.intValue !== undefined ? String(e.intValue) : '') ||
-                  (e.floatValue !== undefined ? String(e.floatValue) : '') ||
-                  '',
-              })),
-            }),
-          )
-
-          return materializations
-        } catch (error) {
-          return {
-            error: error instanceof Error ? error.message : 'Unknown error',
-          }
+        if (!response.ok) {
+          return { error: `HTTP ${response.status}: ${response.statusText}` }
         }
-      },
-    ),
+
+        const result = await response.json()
+
+        if (result.errors) {
+          return { error: result.errors[0]?.message || 'GraphQL error' }
+        }
+
+        const { assetOrError } = result.data
+
+        if (assetOrError.__typename === 'AssetNotFoundError') {
+          return { error: assetOrError.message || 'Asset not found' }
+        }
+
+        type MetadataEntry = {
+          label: string
+          text?: string
+          intValue?: string
+          floatValue?: number
+        }
+
+        type MaterializationRaw = {
+          timestamp: string
+          runId: string
+          stepKey?: string
+          metadataEntries?: Array<MetadataEntry>
+        }
+
+        const materializations = (assetOrError.assetMaterializations || []).map(
+          (mat: MaterializationRaw): MaterializationEvent => ({
+            timestamp: mat.timestamp,
+            runId: mat.runId,
+            status: 'SUCCESS',
+            stepKey: mat.stepKey,
+            metadata: (mat.metadataEntries || []).map((e) => ({
+              key: e.label,
+              value:
+                e.text ||
+                (e.intValue !== undefined ? String(e.intValue) : '') ||
+                (e.floatValue !== undefined ? String(e.floatValue) : '') ||
+                '',
+            })),
+          }),
+        )
+
+        return materializations
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    },
   )
