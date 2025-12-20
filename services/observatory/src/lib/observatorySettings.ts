@@ -27,6 +27,19 @@ export const observatorySettingsSchema = z.object({
     density: densitySchema,
     dateFormat: dateFormatSchema,
   }),
+  // Auth settings (phlo-h2c)
+  auth: z
+    .object({
+      token: z.string().optional(),
+    })
+    .optional(),
+  // Real-time polling settings (phlo-cil)
+  realtime: z
+    .object({
+      enabled: z.boolean(),
+      intervalMs: z.number().int().min(1000).max(60000),
+    })
+    .optional(),
 })
 
 export type ObservatorySettings = z.infer<typeof observatorySettingsSchema>
@@ -54,6 +67,13 @@ export function getFallbackObservatorySettings(): ObservatorySettings {
     ui: {
       density: 'comfortable',
       dateFormat: 'iso',
+    },
+    auth: {
+      token: undefined,
+    },
+    realtime: {
+      enabled: true,
+      intervalMs: 5000,
     },
   }
 }
