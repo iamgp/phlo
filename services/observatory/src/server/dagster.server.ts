@@ -8,7 +8,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type { AuthError } from '@/server/auth.server'
-import { withAuth } from '@/server/auth.server'
+import { authMiddleware, withAuth } from '@/server/auth.server'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
@@ -81,49 +81,46 @@ const VERSION_QUERY = `
  * Check if Dagster is reachable
  */
 export const checkDagsterConnection = createServerFn()
-  .inputValidator(
-    (input: { dagsterUrl?: string; authToken?: string } = {}) => input,
-  )
-  .handler(
-    withAuth(async ({ data }): Promise<DagsterConnectionStatus> => {
-      const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
+  .middleware([authMiddleware])
+  .inputValidator((input: { dagsterUrl?: string } = {}) => input)
+  .handler(async ({ data }): Promise<DagsterConnectionStatus> => {
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
 
-      try {
-        const response = await fetch(dagsterUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: VERSION_QUERY }),
-          signal: AbortSignal.timeout(5000), // 5 second timeout
-        })
+    try {
+      const response = await fetch(dagsterUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: VERSION_QUERY }),
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      })
 
-        if (!response.ok) {
-          return {
-            connected: false,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-          }
-        }
-
-        const payload = await response.json()
-
-        if (payload.errors) {
-          return {
-            connected: false,
-            error: payload.errors[0]?.message || 'GraphQL error',
-          }
-        }
-
-        return {
-          connected: true,
-          version: payload.data?.version,
-        }
-      } catch (error) {
+      if (!response.ok) {
         return {
           connected: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: `HTTP ${response.status}: ${response.statusText}`,
         }
       }
-    }),
-  )
+
+      const payload = await response.json()
+
+      if (payload.errors) {
+        return {
+          connected: false,
+          error: payload.errors[0]?.message || 'GraphQL error',
+        }
+      }
+
+      return {
+        connected: true,
+        version: payload.data?.version,
+      }
+    } catch (error) {
+      return {
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  })
 
 /**
  * Get health metrics from Dagster

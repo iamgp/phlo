@@ -4,9 +4,23 @@
  * ADR: 0026-observatory-auth-and-realtime.md
  * Bead: phlo-h2c
  *
- * When OBSERVATORY_AUTH_ENABLED=true, all server functions require
- * a valid token via authToken in the request data.
+ * Uses TanStack Start's createMiddleware to provide reusable auth
+ * that can be chained with any server function.
+ *
+ * Usage:
+ * ```ts
+ * import { authMiddleware } from '@/server/auth.server'
+ *
+ * export const getAssets = createServerFn()
+ *   .middleware([authMiddleware])
+ *   .handler(async ({ context }) => {
+ *     // context.isAuthenticated is available
+ *     // Auth already validated if OBSERVATORY_AUTH_ENABLED=true
+ *   })
+ * ```
  */
+
+import { createMiddleware } from '@tanstack/react-start'
 
 /**
  * Check if authentication is enabled
@@ -47,19 +61,14 @@ export function isAuthError(result: unknown): result is AuthError {
  *
  * Returns undefined if auth passes, or an AuthError if it fails.
  * When auth is disabled, always returns undefined (passes).
- *
- * @param token - The token to validate (from settings)
- * @returns undefined if valid, AuthError if invalid
  */
 export function validateAuth(token?: string): AuthError | undefined {
-  // Auth disabled - always pass
   if (!isAuthEnabled()) {
     return undefined
   }
 
   const expectedToken = getExpectedToken()
 
-  // No token configured on server - auth is misconfigured
   if (!expectedToken) {
     console.warn(
       '[auth] OBSERVATORY_AUTH_ENABLED=true but OBSERVATORY_AUTH_TOKEN is not set',
@@ -67,47 +76,43 @@ export function validateAuth(token?: string): AuthError | undefined {
     return { error: 'Authentication misconfigured', status: 401 }
   }
 
-  // No token provided by client
   if (!token) {
     return { error: 'Authentication required', status: 401 }
   }
 
-  // Token mismatch
   if (token !== expectedToken) {
     return { error: 'Invalid authentication token', status: 401 }
   }
 
-  // Auth passed
   return undefined
 }
 
 /**
- * Check auth at the start of a handler and return error if invalid
+ * Auth middleware for server functions
  *
- * Usage:
- * ```ts
- * .handler(async ({ data }) => {
- *   const authError = requireAuth(data.authToken)
- *   if (authError) return authError
- *   // ... rest of handler
- * })
- * ```
+ * Add to any server function with .middleware([authMiddleware])
+ * Validates authToken from input when OBSERVATORY_AUTH_ENABLED=true
  */
-export function requireAuth(token?: string): AuthError | undefined {
-  return validateAuth(token)
-}
+export const authMiddleware = createMiddleware({ type: 'function' })
+  .inputValidator((input: { authToken?: string }) => input)
+  .server(async ({ next, data }) => {
+    const authError = validateAuth(data.authToken)
+
+    if (authError) {
+      // Throw error to stop execution chain
+      throw new Error(authError.error)
+    }
+
+    return next({
+      context: {
+        isAuthenticated: isAuthEnabled(),
+      },
+    })
+  })
 
 /**
- * Create an auth-protected wrapper for server function handlers
- *
- * Usage:
- * ```ts
- * export const getAssets = createServerFn()
- *   .inputValidator((input: { authToken?: string; ...rest }) => input)
- *   .handler(withAuth(async ({ data }) => {
- *     // ... handler logic (authToken already validated)
- *   }))
- * ```
+ * Legacy withAuth wrapper - kept for backward compatibility
+ * Prefer using .middleware([authMiddleware]) instead
  */
 export function withAuth<
   TInput extends { authToken?: string },
