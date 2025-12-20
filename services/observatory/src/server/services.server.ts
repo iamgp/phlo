@@ -404,10 +404,10 @@ async function findContainerByService(
  */
 export const startService = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: string) => input)
+  .inputValidator((input: { serviceName: string }) => input)
   .handler(
     async ({
-      data: serviceName,
+      data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
@@ -438,10 +438,10 @@ export const startService = createServerFn()
  */
 export const stopService = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: string) => input)
+  .inputValidator((input: { serviceName: string }) => input)
   .handler(
     async ({
-      data: serviceName,
+      data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
@@ -472,10 +472,10 @@ export const stopService = createServerFn()
  */
 export const restartService = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: string) => input)
+  .inputValidator((input: { serviceName: string }) => input)
   .handler(
     async ({
-      data: serviceName,
+      data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)

@@ -16,7 +16,6 @@ import type {
 } from './quality.types'
 import { authMiddleware } from '@/server/auth.server'
 
-
 import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
 export type {

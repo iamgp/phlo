@@ -226,65 +226,63 @@ export const previewData = createServerFn()
       trinoUrl?: string
       timeoutMs?: number
       maxLimit?: number
-      
     }) => input,
   )
   .handler(
+    async ({
+      data: {
+        table,
+        branch = 'main',
+        catalog,
+        schema,
+        limit = 100,
+        offset = 0,
+        trinoUrl,
+        timeoutMs,
+        maxLimit,
+      },
+    }): Promise<DataPreviewResult | { error: string }> => {
+      const effectiveLimit = Math.min(limit, maxLimit ?? limit)
+      // Build query - note: Trino doesn't support standard OFFSET syntax
+      // For pagination, use FETCH FIRST / OFFSET FETCH syntax if needed
+      // For simple preview, just use LIMIT
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch // In Nessie, the branch is the schema
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
-      async ({
-        data: {
-          table,
-          branch = 'main',
-          catalog,
-          schema,
-          limit = 100,
-          offset = 0,
+      // Trino uses "OFFSET n ROWS FETCH FIRST m ROWS ONLY" syntax but for simplicity just use LIMIT
+      const query =
+        offset > 0
+          ? `SELECT * FROM ${resolvedTable} OFFSET ${offset} ROWS FETCH FIRST ${effectiveLimit} ROWS ONLY`
+          : `SELECT * FROM ${resolvedTable} LIMIT ${effectiveLimit}`
+
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
           trinoUrl,
           timeoutMs,
-          maxLimit,
         },
-      }): Promise<DataPreviewResult | { error: string }> => {
-        const effectiveLimit = Math.min(limit, maxLimit ?? limit)
-        // Build query - note: Trino doesn't support standard OFFSET syntax
-        // For pagination, use FETCH FIRST / OFFSET FETCH syntax if needed
-        // For simple preview, just use LIMIT
-        const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-        const effectiveSchema = schema ?? branch // In Nessie, the branch is the schema
-        const resolvedTable = isProbablyQualifiedTable(table)
-          ? table
-          : qualifyTableName({
-              catalog: effectiveCatalog,
-              schema: effectiveSchema,
-              table,
-            })
+      )
 
-        // Trino uses "OFFSET n ROWS FETCH FIRST m ROWS ONLY" syntax but for simplicity just use LIMIT
-        const query =
-          offset > 0
-            ? `SELECT * FROM ${resolvedTable} OFFSET ${offset} ROWS FETCH FIRST ${effectiveLimit} ROWS ONLY`
-            : `SELECT * FROM ${resolvedTable} LIMIT ${effectiveLimit}`
+      if ('error' in result) {
+        return { error: result.error }
+      }
 
-        const result = await executeTrinoQuery(
-          query,
-          effectiveCatalog,
-          effectiveSchema,
-          {
-            trinoUrl,
-            timeoutMs,
-          },
-        )
-
-        if ('error' in result) {
-          return { error: result.error }
-        }
-
-        return {
-          columns: result.columns,
-          columnTypes: result.columnTypes,
-          rows: result.rows,
-          hasMore: result.rows.length === effectiveLimit,
-        }
-      },
+      return {
+        columns: result.columns,
+        columnTypes: result.columnTypes,
+        rows: result.rows,
+        hasMore: result.rows.length === effectiveLimit,
+      }
+    },
   )
 
 /**
@@ -301,34 +299,32 @@ export const profileColumn = createServerFn()
       schema?: string
       trinoUrl?: string
       timeoutMs?: number
-      
     }) => input,
   )
   .handler(
+    async ({
+      data: {
+        table,
+        column,
+        branch = 'main',
+        catalog,
+        schema,
+        trinoUrl,
+        timeoutMs,
+      },
+    }): Promise<ColumnProfile | { error: string }> => {
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
-      async ({
-        data: {
-          table,
-          column,
-          branch = 'main',
-          catalog,
-          schema,
-          trinoUrl,
-          timeoutMs,
-        },
-      }): Promise<ColumnProfile | { error: string }> => {
-        const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-        const effectiveSchema = schema ?? branch
-        const resolvedTable = isProbablyQualifiedTable(table)
-          ? table
-          : qualifyTableName({
-              catalog: effectiveCatalog,
-              schema: effectiveSchema,
-              table,
-            })
-
-        // Build profiling query
-        const query = `
+      // Build profiling query
+      const query = `
         SELECT
           COUNT(*) as total_count,
           COUNT("${column}") as non_null_count,
@@ -338,39 +334,39 @@ export const profileColumn = createServerFn()
         FROM ${resolvedTable}
       `
 
-        const result = await executeTrinoQuery(
-          query,
-          effectiveCatalog,
-          effectiveSchema,
-          {
-            trinoUrl,
-            timeoutMs,
-          },
-        )
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
-        if ('error' in result) {
-          return { error: result.error }
-        }
+      if ('error' in result) {
+        return { error: result.error }
+      }
 
-        if (result.rows.length === 0) {
-          return { error: 'No data returned from profile query' }
-        }
+      if (result.rows.length === 0) {
+        return { error: 'No data returned from profile query' }
+      }
 
-        const row = result.rows[0]
-        const totalCount = Number(row.total_count) || 0
-        const nonNullCount = Number(row.non_null_count) || 0
-        const nullCount = totalCount - nonNullCount
+      const row = result.rows[0]
+      const totalCount = Number(row.total_count) || 0
+      const nonNullCount = Number(row.non_null_count) || 0
+      const nullCount = totalCount - nonNullCount
 
-        return {
-          column,
-          type: 'unknown',
-          nullCount,
-          nullPercentage: totalCount > 0 ? (nullCount / totalCount) * 100 : 0,
-          distinctCount: Number(row.distinct_count) || 0,
-          minValue: row.min_value as string | undefined,
-          maxValue: row.max_value as string | undefined,
-        }
-      },
+      return {
+        column,
+        type: 'unknown',
+        nullCount,
+        nullPercentage: totalCount > 0 ? (nullCount / totalCount) * 100 : 0,
+        distinctCount: Number(row.distinct_count) || 0,
+        minValue: row.min_value as string | undefined,
+        maxValue: row.max_value as string | undefined,
+      }
+    },
   )
 
 /**
@@ -386,48 +382,46 @@ export const getTableMetrics = createServerFn()
       schema?: string
       trinoUrl?: string
       timeoutMs?: number
-      
     }) => input,
   )
   .handler(
+    async ({
+      data: { table, branch = 'main', catalog, schema, trinoUrl, timeoutMs },
+    }): Promise<TableMetrics | { error: string }> => {
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
-      async ({
-        data: { table, branch = 'main', catalog, schema, trinoUrl, timeoutMs },
-      }): Promise<TableMetrics | { error: string }> => {
-        const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-        const effectiveSchema = schema ?? branch
-        const resolvedTable = isProbablyQualifiedTable(table)
-          ? table
-          : qualifyTableName({
-              catalog: effectiveCatalog,
-              schema: effectiveSchema,
-              table,
-            })
+      const query = `SELECT COUNT(*) as row_count FROM ${resolvedTable}`
 
-        const query = `SELECT COUNT(*) as row_count FROM ${resolvedTable}`
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
-        const result = await executeTrinoQuery(
-          query,
-          effectiveCatalog,
-          effectiveSchema,
-          {
-            trinoUrl,
-            timeoutMs,
-          },
-        )
+      if ('error' in result) {
+        return { error: result.error }
+      }
 
-        if ('error' in result) {
-          return { error: result.error }
-        }
+      if (result.rows.length === 0) {
+        return { error: 'No data returned from count query' }
+      }
 
-        if (result.rows.length === 0) {
-          return { error: 'No data returned from count query' }
-        }
-
-        return {
-          rowCount: Number(result.rows[0].row_count) || 0,
-        }
-      },
+      return {
+        rowCount: Number(result.rows[0].row_count) || 0,
+      }
+    },
   )
 
 /**
@@ -447,66 +441,64 @@ export const executeQuery = createServerFn()
       defaultLimit?: number
       maxLimit?: number
       allowUnsafe?: boolean
-      
     }) => input,
   )
   .handler(
+    async ({
+      data: {
+        query,
+        branch = 'main',
+        catalog,
+        schema,
+        trinoUrl,
+        timeoutMs,
+        readOnlyMode = true,
+        defaultLimit = 100,
+        maxLimit = 5000,
+        allowUnsafe = false,
+      },
+    }): Promise<QueryExecutionResult | QueryExecutionError> => {
+      const guardrails: QueryGuardrails = {
+        readOnlyMode,
+        defaultLimit,
+        maxLimit,
+      }
 
-      async ({
-        data: {
-          query,
-          branch = 'main',
-          catalog,
-          schema,
+      const validated = validateAndRewriteQuery({
+        query,
+        guardrails,
+        allowUnsafe,
+      })
+
+      if (!validated.ok) {
+        return validated
+      }
+
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? branch
+
+      const result = await executeTrinoQuery(
+        validated.effectiveQuery,
+        effectiveCatalog,
+        effectiveSchema,
+        {
           trinoUrl,
           timeoutMs,
-          readOnlyMode = true,
-          defaultLimit = 100,
-          maxLimit = 5000,
-          allowUnsafe = false,
         },
-      }): Promise<QueryExecutionResult | QueryExecutionError> => {
-        const guardrails: QueryGuardrails = {
-          readOnlyMode,
-          defaultLimit,
-          maxLimit,
-        }
+      )
 
-        const validated = validateAndRewriteQuery({
-          query,
-          guardrails,
-          allowUnsafe,
-        })
+      if ('error' in result) {
+        return result
+      }
 
-        if (!validated.ok) {
-          return validated
-        }
-
-        const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-        const effectiveSchema = schema ?? branch
-
-        const result = await executeTrinoQuery(
-          validated.effectiveQuery,
-          effectiveCatalog,
-          effectiveSchema,
-          {
-            trinoUrl,
-            timeoutMs,
-          },
-        )
-
-        if ('error' in result) {
-          return result
-        }
-
-        return {
-          columns: result.columns,
-          columnTypes: result.columnTypes,
-          rows: result.rows,
-          hasMore: false,
-          effectiveQuery: validated.effectiveQuery,
-        }
-      },
+      return {
+        columns: result.columns,
+        columnTypes: result.columnTypes,
+        rows: result.rows,
+        hasMore: false,
+        effectiveQuery: validated.effectiveQuery,
+      }
+    },
   )
 
 /**
@@ -523,73 +515,71 @@ export const queryTableWithFilters = createServerFn()
       catalog?: string
       trinoUrl?: string
       timeoutMs?: number
-      
     }) => input,
   )
   .handler(
-
-      async ({
-        data: { tableName, schema, filters, catalog, trinoUrl, timeoutMs },
-      }): Promise<DataPreviewResult | { error: string }> => {
-        // Build WHERE clause from filters
-        const whereConditions = Object.entries(filters)
-          .map(([column, value]) => {
-            if (value === null || value === undefined) {
-              return `${column} IS NULL`
-            }
-            if (typeof value === 'string') {
-              // Escape single quotes in string values
-              const escapedValue = value.replace(/'/g, "''")
-              return `${column} = '${escapedValue}'`
-            }
-            if (typeof value === 'number') {
-              return `${column} = ${value}`
-            }
-            if (typeof value === 'boolean') {
-              return `${column} = ${value}`
-            }
-            return null
-          })
-          .filter(Boolean)
-          .join(' AND ')
-
-        if (whereConditions.length === 0) {
-          return {
-            columns: [],
-            columnTypes: [],
-            rows: [],
-            hasMore: false,
+    async ({
+      data: { tableName, schema, filters, catalog, trinoUrl, timeoutMs },
+    }): Promise<DataPreviewResult | { error: string }> => {
+      // Build WHERE clause from filters
+      const whereConditions = Object.entries(filters)
+        .map(([column, value]) => {
+          if (value === null || value === undefined) {
+            return `${column} IS NULL`
           }
-        }
-
-        const resolvedTable = qualifyTableName({
-          catalog: catalog ?? DEFAULT_CATALOG,
-          schema,
-          table: tableName,
+          if (typeof value === 'string') {
+            // Escape single quotes in string values
+            const escapedValue = value.replace(/'/g, "''")
+            return `${column} = '${escapedValue}'`
+          }
+          if (typeof value === 'number') {
+            return `${column} = ${value}`
+          }
+          if (typeof value === 'boolean') {
+            return `${column} = ${value}`
+          }
+          return null
         })
-        const query = `SELECT * FROM ${resolvedTable} WHERE ${whereConditions} LIMIT 10`
+        .filter(Boolean)
+        .join(' AND ')
 
-        const result = await executeTrinoQuery(
-          query,
-          catalog ?? DEFAULT_CATALOG,
-          schema,
-          {
-            trinoUrl,
-            timeoutMs,
-          },
-        )
-
-        if ('error' in result) {
-          return { error: result.error }
-        }
-
+      if (whereConditions.length === 0) {
         return {
-          columns: result.columns,
-          columnTypes: result.columnTypes,
-          rows: result.rows,
+          columns: [],
+          columnTypes: [],
+          rows: [],
           hasMore: false,
         }
-      },
+      }
+
+      const resolvedTable = qualifyTableName({
+        catalog: catalog ?? DEFAULT_CATALOG,
+        schema,
+        table: tableName,
+      })
+      const query = `SELECT * FROM ${resolvedTable} WHERE ${whereConditions} LIMIT 10`
+
+      const result = await executeTrinoQuery(
+        query,
+        catalog ?? DEFAULT_CATALOG,
+        schema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
+
+      if ('error' in result) {
+        return { error: result.error }
+      }
+
+      return {
+        columns: result.columns,
+        columnTypes: result.columnTypes,
+        rows: result.rows,
+        hasMore: false,
+      }
+    },
   )
 
 /**
@@ -606,51 +596,49 @@ export const getRowById = createServerFn()
       schema?: string
       trinoUrl?: string
       timeoutMs?: number
-      
     }) => input,
   )
   .handler(
+    async ({
+      data: { table, rowId, catalog, schema, trinoUrl, timeoutMs },
+    }): Promise<DataPreviewResult | { error: string }> => {
+      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
+      const effectiveSchema = schema ?? 'main'
+      const resolvedTable = isProbablyQualifiedTable(table)
+        ? table
+        : qualifyTableName({
+            catalog: effectiveCatalog,
+            schema: effectiveSchema,
+            table,
+          })
 
-      async ({
-        data: { table, rowId, catalog, schema, trinoUrl, timeoutMs },
-      }): Promise<DataPreviewResult | { error: string }> => {
-        const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-        const effectiveSchema = schema ?? 'main'
-        const resolvedTable = isProbablyQualifiedTable(table)
-          ? table
-          : qualifyTableName({
-              catalog: effectiveCatalog,
-              schema: effectiveSchema,
-              table,
-            })
+      // Escape single quotes in rowId to prevent SQL injection
+      const escapedRowId = rowId.replace(/'/g, "''")
+      const query = `SELECT * FROM ${resolvedTable} WHERE "_phlo_row_id" = '${escapedRowId}' LIMIT 1`
 
-        // Escape single quotes in rowId to prevent SQL injection
-        const escapedRowId = rowId.replace(/'/g, "''")
-        const query = `SELECT * FROM ${resolvedTable} WHERE "_phlo_row_id" = '${escapedRowId}' LIMIT 1`
+      const result = await executeTrinoQuery(
+        query,
+        effectiveCatalog,
+        effectiveSchema,
+        {
+          trinoUrl,
+          timeoutMs,
+        },
+      )
 
-        const result = await executeTrinoQuery(
-          query,
-          effectiveCatalog,
-          effectiveSchema,
-          {
-            trinoUrl,
-            timeoutMs,
-          },
-        )
+      if ('error' in result) {
+        return { error: result.error }
+      }
 
-        if ('error' in result) {
-          return { error: result.error }
-        }
+      if (result.rows.length === 0) {
+        return { error: 'Row not found' }
+      }
 
-        if (result.rows.length === 0) {
-          return { error: 'Row not found' }
-        }
-
-        return {
-          columns: result.columns,
-          columnTypes: result.columnTypes,
-          rows: result.rows,
-          hasMore: false,
-        }
-      },
+      return {
+        columns: result.columns,
+        columnTypes: result.columnTypes,
+        rows: result.rows,
+        hasMore: false,
+      }
+    },
   )
