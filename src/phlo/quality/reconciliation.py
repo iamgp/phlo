@@ -7,11 +7,14 @@ These checks compare data between tables to ensure consistency across pipeline l
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from phlo.quality.checks import QualityCheck, QualityCheckResult
+
+if TYPE_CHECKING:
+    from dagster import AssetExecutionContext
 
 
 @dataclass
@@ -45,10 +48,10 @@ class ReconciliationCheck(QualityCheck):
     tolerance: float = 0.0
     """Allowed percentage difference (0.0 = exact match, 0.05 = 5% tolerance)."""
 
-    where_clause: Optional[str] = None
+    where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute reconciliation check comparing row counts."""
         target_count = len(df)
 
@@ -122,7 +125,7 @@ class ReconciliationCheck(QualityCheck):
             failure_message=failure_msg,
         )
 
-    def _build_source_query(self, partition_key: Optional[str]) -> str:
+    def _build_source_query(self, partition_key: str | None) -> str:
         """Build SQL query to count source rows."""
         query = f"SELECT COUNT(*) FROM {self.source_table}"
 
@@ -137,7 +140,7 @@ class ReconciliationCheck(QualityCheck):
 
         return query
 
-    def _get_source_count(self, context: Any, query: str) -> Optional[int]:
+    def _get_source_count(self, context: "AssetExecutionContext", query: str) -> int | None:
         """Execute query to get source row count."""
         try:
             # Try to use Trino resource from context
@@ -190,16 +193,16 @@ class AggregateConsistencyCheck(QualityCheck):
     partition_column: str = "_phlo_partition_date"
     """Column used for partition filtering."""
 
-    group_by: List[str] = field(default_factory=list)
+    group_by: list[str] = field(default_factory=list)
     """Columns to group by when comparing aggregates."""
 
     tolerance: float = 0.0
     """Allowed percentage difference (0.0 = exact match)."""
 
-    where_clause: Optional[str] = None
+    where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute aggregate consistency check."""
         if self.aggregate_column not in df.columns:
             return QualityCheckResult(
@@ -312,7 +315,7 @@ class AggregateConsistencyCheck(QualityCheck):
         except (TypeError, ValueError):
             return target == source
 
-    def _build_source_query(self, partition_key: Optional[str]) -> str:
+    def _build_source_query(self, partition_key: str | None) -> str:
         """Build SQL query to compute source aggregates."""
         select_cols = ", ".join(self.group_by) if self.group_by else "1 as grp"
         query = (
@@ -333,7 +336,7 @@ class AggregateConsistencyCheck(QualityCheck):
 
         return query
 
-    def _get_source_aggregates(self, context: Any, query: str) -> Optional[dict[tuple, Any]]:
+    def _get_source_aggregates(self, context: "AssetExecutionContext", query: str) -> dict[tuple, Any] | None:
         """Execute query to get source aggregate values."""
         try:
             # Try to use Trino resource from context

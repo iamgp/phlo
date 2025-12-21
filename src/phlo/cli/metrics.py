@@ -255,21 +255,23 @@ def _export_csv(metrics: object, output: Path) -> None:
 
 def _dataclass_to_dict(obj: object) -> dict | object:
     """Recursively convert dataclass to dict."""
-    if hasattr(obj, "__dataclass_fields__"):
+    import dataclasses
+
+    if dataclasses.is_dataclass(obj):
         result: dict = {}
-        for field in obj.__dataclass_fields__:  # type: ignore[attr-defined]
-            value = getattr(obj, field)
-            if hasattr(value, "__dataclass_fields__"):
-                result[field] = _dataclass_to_dict(value)
+        for field in dataclasses.fields(obj):
+            value = getattr(obj, field.name)
+            if dataclasses.is_dataclass(value):
+                result[field.name] = _dataclass_to_dict(value)
             elif isinstance(value, dict):
-                result[field] = {k: _dataclass_to_dict(v) for k, v in value.items()}
+                result[field.name] = {k: _dataclass_to_dict(v) for k, v in value.items()}
             elif isinstance(value, list):
-                result[field] = [
-                    _dataclass_to_dict(item) if hasattr(item, "__dataclass_fields__") else item
+                result[field.name] = [
+                    _dataclass_to_dict(item) if dataclasses.is_dataclass(item) else item
                     for item in value
                 ]
             else:
-                result[field] = value
+                result[field.name] = value
         return result
     return obj
 

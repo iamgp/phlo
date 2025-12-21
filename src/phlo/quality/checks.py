@@ -10,10 +10,17 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import pandera as pa
+
+if TYPE_CHECKING:
+    from dagster import AssetExecutionContext
+
+# Type aliases for clarity
+MetricValue = int | float | dict[str, Any] | None
+Metadata = dict[str, Any]
 
 
 @dataclass
@@ -26,13 +33,13 @@ class QualityCheckResult:
     metric_name: str
     """Name of the quality metric."""
 
-    metric_value: Any
+    metric_value: MetricValue
     """Value of the quality metric."""
 
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: Metadata = field(default_factory=dict)
     """Additional metadata about the check."""
 
-    failure_message: Optional[str] = None
+    failure_message: str | None = None
     """Human-readable failure message if check failed."""
 
 
@@ -45,13 +52,13 @@ class QualityCheck(ABC):
     """
 
     @abstractmethod
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """
         Execute the quality check on the given DataFrame.
 
         Args:
             df: DataFrame to validate
-            context: Dagster context for logging
+            context: Dagster asset execution context for logging
 
         Returns:
             QualityCheckResult with pass/fail status and metadata
@@ -76,13 +83,13 @@ class NullCheck(QualityCheck):
         ```
     """
 
-    columns: List[str]
+    columns: list[str]
     """List of columns that must not contain nulls."""
 
     allow_threshold: float = 0.0
     """Maximum fraction of nulls allowed (0.0 = no nulls, 0.05 = 5% nulls)."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute null check on DataFrame."""
         null_counts = {}
         null_percentages = {}
@@ -149,16 +156,16 @@ class RangeCheck(QualityCheck):
     column: str
     """Column to check."""
 
-    min_value: Optional[float] = None
+    min_value: float | None = None
     """Minimum allowed value (inclusive)."""
 
-    max_value: Optional[float] = None
+    max_value: float | None = None
     """Maximum allowed value (inclusive)."""
 
     allow_threshold: float = 0.0
     """Maximum fraction of out-of-range values allowed."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute range check on DataFrame."""
         if self.column not in df.columns:
             return QualityCheckResult(
@@ -253,10 +260,10 @@ class FreshnessCheck(QualityCheck):
     max_age_hours: float
     """Maximum age in hours for data to be considered fresh."""
 
-    reference_time: Optional[datetime] = None
+    reference_time: datetime | None = None
     """Reference time to compare against (defaults to now)."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute freshness check on DataFrame."""
         if self.timestamp_column not in df.columns:
             return QualityCheckResult(
@@ -323,13 +330,13 @@ class UniqueCheck(QualityCheck):
         ```
     """
 
-    columns: List[str]
+    columns: list[str]
     """List of columns that must have unique combinations."""
 
     allow_threshold: float = 0.0
     """Maximum fraction of duplicates allowed."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute uniqueness check on DataFrame."""
         missing_columns = [col for col in self.columns if col not in df.columns]
 
@@ -390,13 +397,13 @@ class CountCheck(QualityCheck):
         ```
     """
 
-    min_rows: Optional[int] = None
+    min_rows: int | None = None
     """Minimum expected row count."""
 
-    max_rows: Optional[int] = None
+    max_rows: int | None = None
     """Maximum expected row count."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute count check on DataFrame."""
         row_count = len(df)
 
@@ -445,7 +452,7 @@ class SchemaCheck(QualityCheck):
     lazy: bool = True
     """Use lazy validation to collect all errors."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute schema check on DataFrame."""
         try:
             # Validate with Pandera
@@ -527,7 +534,7 @@ class CustomSQLCheck(QualityCheck):
     allow_threshold: float = 0.0
     """Maximum fraction of failures allowed."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute custom SQL check on DataFrame."""
         try:
             # Execute SQL in pandas context
@@ -627,7 +634,7 @@ class PatternCheck(QualityCheck):
     case_sensitive: bool = True
     """Whether pattern matching is case sensitive."""
 
-    def execute(self, df: pd.DataFrame, context: Any) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
         """Execute pattern check on DataFrame."""
         if self.column not in df.columns:
             return QualityCheckResult(
