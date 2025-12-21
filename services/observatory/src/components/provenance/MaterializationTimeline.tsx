@@ -4,6 +4,12 @@
  * Vertical timeline showing materialization history for an asset.
  */
 
+import { Badge } from '@/components/ui/badge'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import type { MaterializationEvent } from '@/server/dagster.server'
+import { getMaterializationHistory } from '@/server/dagster.server'
+import { formatDateTime } from '@/utils/dateFormat'
+import { Link } from '@tanstack/react-router'
 import {
   CheckCircle,
   ChevronDown,
@@ -11,14 +17,10 @@ import {
   Clock,
   ExternalLink,
   Loader2,
+  Terminal,
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { MaterializationEvent } from '@/server/dagster.server'
-import { getMaterializationHistory } from '@/server/dagster.server'
-import { Badge } from '@/components/ui/badge'
-import { useObservatorySettings } from '@/hooks/useObservatorySettings'
-import { formatDateTime } from '@/utils/dateFormat'
 
 interface MaterializationTimelineProps {
   assetKey: string
@@ -186,16 +188,30 @@ export function MaterializationTimeline({
                       </div>
                     )}
 
-                    {/* Link to Dagster */}
-                    <a
-                      href={`http://localhost:3000/runs/${event.runId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-                    >
-                      View in Dagster
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
+                    {/* Links */}
+                    <div className="flex items-center gap-3">
+                      <Link
+                        to="/logs"
+                        search={{
+                          runId: event.runId,
+                          service: undefined,
+                          level: undefined,
+                        }}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                      >
+                        <Terminal className="w-3 h-3" />
+                        View Logs
+                      </Link>
+                      <a
+                        href={`http://localhost:3000/runs/${event.runId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        View in Dagster
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>
