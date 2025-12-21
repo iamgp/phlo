@@ -11,12 +11,14 @@ import {
   Search,
   Shield,
   Table as TableIcon,
+  Terminal,
 } from 'lucide-react'
 import { useState } from 'react'
 import type { Asset, AssetDetails } from '@/server/dagster.server'
 import type { QualityCheck } from '@/server/quality.server'
 import type { ReactNode } from 'react'
 import { DataPreview } from '@/components/data/DataPreview'
+import { LogViewer } from '@/components/data/LogViewer'
 import { DataJourney } from '@/components/provenance/DataJourney'
 import { MaterializationTimeline } from '@/components/provenance/MaterializationTimeline'
 import { Badge } from '@/components/ui/badge'
@@ -37,12 +39,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
 import { getAssetDetails, getAssets } from '@/server/dagster.server'
 import { getAssetChecks } from '@/server/quality.server'
-import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
-import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { formatDate, formatDateTime } from '@/utils/dateFormat'
+import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {
@@ -74,7 +76,7 @@ export const Route = createFileRoute('/assets/$assetId')({
   component: AssetDetailPage,
 })
 
-type Tab = 'overview' | 'journey' | 'data' | 'quality'
+type Tab = 'overview' | 'journey' | 'data' | 'quality' | 'logs'
 
 function AssetDetailPage() {
   const { assets, asset, checks } = Route.useLoaderData()
@@ -132,6 +134,7 @@ function AssetDetailPage() {
     },
     { id: 'data', label: 'Data', icon: <Database className="w-4 h-4" /> },
     { id: 'quality', label: 'Quality', icon: <Shield className="w-4 h-4" /> },
+    { id: 'logs', label: 'Logs', icon: <Terminal className="w-4 h-4" /> },
   ]
 
   return (
@@ -269,6 +272,7 @@ function AssetDetailPage() {
               )}
               {activeTab === 'data' && <DataTab assetKey={params.assetId} />}
               {activeTab === 'quality' && <QualityTab checks={checksData} />}
+              {activeTab === 'logs' && <LogsTab assetKey={params.assetId} />}
             </div>
           )}
         </div>
@@ -634,6 +638,15 @@ function QualityTab({ checks }: { checks: Array<QualityCheck> }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// Logs Tab
+function LogsTab({ assetKey }: { assetKey: string }) {
+  return (
+    <div className="space-y-4">
+      <LogViewer assetKey={assetKey} />
     </div>
   )
 }

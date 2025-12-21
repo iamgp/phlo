@@ -1,5 +1,6 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
+  Activity,
   Boxes,
   Database,
   GitBranch,
@@ -30,6 +31,7 @@ type NavItem = {
     | '/graph'
     | '/branches'
     | '/quality'
+    | '/logs'
     | '/settings'
   label: string
   icon: ReactNode
@@ -43,6 +45,7 @@ const navItems: Array<NavItem> = [
   { to: '/graph', label: 'Lineage Graph', icon: <GitBranch /> },
   { to: '/branches', label: 'Branches', icon: <GitBranch /> },
   { to: '/quality', label: 'Quality', icon: <Shield /> },
+  { to: '/logs', label: 'Logs', icon: <Activity /> },
   { to: '/settings', label: 'Settings', icon: <Settings /> },
 ]
 

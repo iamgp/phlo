@@ -125,9 +125,9 @@ Add "Logs" tab to asset detail view showing:
 | Phase | Bead        | Description                              |
 | ----- | ----------- | ---------------------------------------- |
 | 1     | phlo-954 ✅ | Observatory Pino logging (complete)      |
-| 2     | phlo-27f    | Loki querying server functions           |
-| 3     | phlo-rti    | Log Viewer UI                            |
-| 4     | phlo-6jk    | Python correlation field standardization |
+| 2     | phlo-27f ✅ | Loki querying server functions           |
+| 3     | phlo-rti ✅ | Log Viewer UI                            |
+| 4     | phlo-6jk ✅ | Python correlation field standardization |
 
 ## Consequences
 
@@ -169,6 +169,6 @@ Add "Logs" tab to asset detail view showing:
 
 - phlo-8d2: Epic: Unified Logging and Observability
 - phlo-954: Observatory structured logging ✅ (closed)
-- phlo-27f: Loki log querying (open)
-- phlo-rti: Log Viewer UI (open)
-- phlo-6jk: Python correlation standardization (open)
+- phlo-27f: Loki log querying ✅ (closed)
+- phlo-rti: Log Viewer UI ✅ (closed)
+- phlo-6jk: Python correlation standardization ✅ (closed)
