@@ -64,9 +64,12 @@ function buildLogQuery(filters: {
   const labelMatchers: Array<string> = []
   const jsonFilters: Array<string> = []
 
-  // Service filter (container name)
+  // Service filter (container name) - required by Loki to have at least one matcher
   if (filters.service) {
     labelMatchers.push(`container="${filters.service}"`)
+  } else {
+    // Use a catch-all pattern that matches any non-empty container name
+    labelMatchers.push('container=~".+"')
   }
 
   // Primary correlation fields from JSON logs
@@ -90,7 +93,7 @@ function buildLogQuery(filters: {
   }
 
   // Build LogQL query
-  const labelSelector = labelMatchers.length > 0 ? labelMatchers.join(', ') : ''
+  const labelSelector = labelMatchers.join(', ')
   const jsonPipeline =
     jsonFilters.length > 0 ? ` | json | ${jsonFilters.join(' | ')}` : ' | json'
 
@@ -410,7 +413,9 @@ export const getLogLabels = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { lokiUrl?: string } = {}) => input)
   .handler(
-    async ({ data }): Promise<{ labels: Array<string> } | { error: string }> => {
+    async ({
+      data,
+    }): Promise<{ labels: Array<string> } | { error: string }> => {
       const lokiUrl = resolveLokiUrl(data.lokiUrl)
 
       try {
