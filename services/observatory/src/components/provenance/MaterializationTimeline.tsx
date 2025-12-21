@@ -4,11 +4,6 @@
  * Vertical timeline showing materialization history for an asset.
  */
 
-import { Badge } from '@/components/ui/badge'
-import { useObservatorySettings } from '@/hooks/useObservatorySettings'
-import type { MaterializationEvent } from '@/server/dagster.server'
-import { getMaterializationHistory } from '@/server/dagster.server'
-import { formatDateTime } from '@/utils/dateFormat'
 import { Link } from '@tanstack/react-router'
 import {
   CheckCircle,
@@ -21,6 +16,11 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import type { MaterializationEvent } from '@/server/dagster.server'
+import { Badge } from '@/components/ui/badge'
+import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { getMaterializationHistory } from '@/server/dagster.server'
+import { formatDateTime } from '@/utils/dateFormat'
 
 interface MaterializationTimelineProps {
   assetKey: string

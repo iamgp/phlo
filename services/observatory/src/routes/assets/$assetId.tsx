@@ -1,3 +1,22 @@
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  Calendar,
+  Clock,
+  Columns2,
+  Database,
+  GitBranch,
+  History,
+  Info,
+  Layers,
+  Search,
+  Shield,
+  Table as TableIcon,
+  Terminal,
+} from 'lucide-react'
+import { useState } from 'react'
+import type { Asset, AssetDetails } from '@/server/dagster.server'
+import type { QualityCheck } from '@/server/quality.server'
+import type { ReactNode } from 'react'
 import { DataPreview } from '@/components/data/DataPreview'
 import { LogViewer } from '@/components/data/LogViewer'
 import { DataJourney } from '@/components/provenance/DataJourney'
@@ -22,29 +41,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
-import type { Asset, AssetDetails } from '@/server/dagster.server'
 import { getAssetDetails, getAssets } from '@/server/dagster.server'
-import type { QualityCheck } from '@/server/quality.server'
 import { getAssetChecks } from '@/server/quality.server'
 import { formatDate, formatDateTime } from '@/utils/dateFormat'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import {
-  Calendar,
-  Clock,
-  Columns2,
-  Database,
-  GitBranch,
-  History,
-  Info,
-  Layers,
-  Search,
-  Shield,
-  Table as TableIcon,
-  Terminal,
-} from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useState } from 'react'
 
 export const Route = createFileRoute('/assets/$assetId')({
   loader: async ({ params }) => {

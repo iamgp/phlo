@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
+import type { LogEntry, LogQueryResult } from '@/server/loki.server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,7 +33,6 @@ import {
 } from '@/components/ui/select'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { cn } from '@/lib/utils'
-import type { LogEntry, LogQueryResult } from '@/server/loki.server'
 import { checkLokiConnection, queryLogs } from '@/server/loki.server'
 import { formatDate } from '@/utils/dateFormat'
 
@@ -46,7 +46,7 @@ interface ServiceInfo {
   status: 'running' | 'stopped' | 'unknown'
 }
 
-const SERVICES: ServiceInfo[] = [
+const SERVICES: Array<ServiceInfo> = [
   {
     name: 'dagster',
     displayName: 'Dagster',
@@ -141,7 +141,7 @@ function ObservabilityPage() {
   const [selectedService, setSelectedService] = useState<string | null>(
     search.service || null,
   )
-  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [logs, setLogs] = useState<Array<LogEntry>>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>(
