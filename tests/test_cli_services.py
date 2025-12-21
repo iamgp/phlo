@@ -68,3 +68,36 @@ def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.Monke
     monkeypatch.setattr(services_cli, "run_command", fake_run_command)
 
     assert services_cli.find_dagster_container("myproj") == "myproj-dagster-1"
+
+
+def test_get_profile_service_names_returns_profile_services(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prometheus = _service("prometheus", profile="observability")
+    grafana = _service("grafana", profile="observability")
+    loki = _service("loki", profile="observability")
+    hasura = _service("hasura", profile="api")
+    postgres = _service("postgres", default=True)
+
+    class FakeDiscovery:
+        def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
+            all_services = [prometheus, grafana, loki, hasura, postgres]
+            return [s for s in all_services if s.profile == profile]
+
+    # ServiceDiscovery is imported inside get_profile_service_names from phlo.services
+    monkeypatch.setattr(
+        "phlo.services.ServiceDiscovery",
+        FakeDiscovery,
+    )
+
+    result = services_cli.get_profile_service_names(("observability",))
+    assert sorted(result) == ["grafana", "loki", "prometheus"]
+
+    result = services_cli.get_profile_service_names(("api",))
+    assert result == ["hasura"]
+
+    result = services_cli.get_profile_service_names(("observability", "api"))
+    assert sorted(result) == ["grafana", "hasura", "loki", "prometheus"]
+
+    result = services_cli.get_profile_service_names(())
+    assert result == []
