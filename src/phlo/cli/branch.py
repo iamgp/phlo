@@ -22,7 +22,7 @@ console = Console()
 def get_nessie_client():
     """Get Nessie client configured from settings."""
     try:
-        from pynessie import init  # type: ignore[import-not-found]
+        from pynessie import init
 
         # Initialize Nessie client
         client = init(config.nessie_uri)
