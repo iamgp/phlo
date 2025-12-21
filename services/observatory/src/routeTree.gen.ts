@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as LogsRouteImport } from './routes/logs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QualityIndexRouteImport } from './routes/quality/index'
 import { Route as HubIndexRouteImport } from './routes/hub/index'
@@ -28,6 +29,11 @@ import { Route as DataBranchNameSchemaTableRowIdRouteImport } from './routes/dat
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogsRoute = LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -105,6 +111,7 @@ const DataBranchNameSchemaTableRowIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/logs': typeof LogsRoute
   '/settings': typeof SettingsRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/logs': typeof LogsRoute
   '/settings': typeof SettingsRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
@@ -139,6 +147,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/logs': typeof LogsRoute
   '/settings': typeof SettingsRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/logs'
     | '/settings'
     | '/assets/$assetId'
     | '/branches/$branchName'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/logs'
     | '/settings'
     | '/assets/$assetId'
     | '/branches/$branchName'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/logs'
     | '/settings'
     | '/assets/$assetId'
     | '/branches/$branchName'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LogsRoute: typeof LogsRoute
   SettingsRoute: typeof SettingsRoute
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute
   BranchesBranchNameRoute: typeof BranchesBranchNameRoute
@@ -229,6 +242,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logs': {
+      id: '/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -362,6 +382,7 @@ const DataBranchNameRouteWithChildren = DataBranchNameRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LogsRoute: LogsRoute,
   SettingsRoute: SettingsRoute,
   AssetsAssetIdRoute: AssetsAssetIdRoute,
   BranchesBranchNameRoute: BranchesBranchNameRoute,

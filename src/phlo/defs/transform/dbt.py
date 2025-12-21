@@ -50,7 +50,14 @@ def build_all_dbt_assets(*, manifest_path) -> object:
         if context.has_partition_key:
             partition_date = context.partition_key
             build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
-            context.log.info(f"Running dbt for partition: {partition_date}")
+            context.log.info(
+                f"Running dbt for partition: {partition_date}",
+                extra={
+                    "run_id": context.run_id,
+                    "job_name": context.job_name if hasattr(context, "job_name") else None,
+                    "partition_key": partition_date,
+                },
+            )
 
         os.environ.setdefault("TRINO_HOST", config.trino_host)
         os.environ.setdefault("TRINO_PORT", str(config.trino_port))
