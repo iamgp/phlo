@@ -12,6 +12,7 @@ import type {
   QueryGuardrails,
 } from '@/server/queryGuardrails'
 import { authMiddleware } from '@/server/auth.server'
+import { fnLogger } from '@/server/logger.server'
 import { validateAndRewriteQuery } from '@/server/queryGuardrails'
 import {
   isProbablyQualifiedTable,
@@ -84,6 +85,8 @@ async function executeTrinoQuery(
 > {
   const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
   const timeoutMs = options?.timeoutMs ?? 30_000
+  const log = fnLogger('executeTrinoQuery', { catalog, schema })
+  const start = performance.now()
 
   try {
     // Submit query
@@ -165,9 +168,13 @@ async function executeTrinoQuery(
       return obj
     })
 
+    const durationMs = Math.round(performance.now() - start)
+    log.info({ durationMs, rowCount: rows.length }, 'query completed')
     return { columns, columnTypes, rows }
   } catch (error) {
+    const durationMs = Math.round(performance.now() - start)
     const message = error instanceof Error ? error.message : 'Unknown error'
+    log.error({ durationMs, err: error }, 'query failed')
     if (message.toLowerCase().includes('timeout')) {
       return { ok: false, error: message, kind: 'timeout' }
     }

@@ -9,6 +9,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
+import { fnLogger } from '@/server/logger.server'
 import { fetchQualitySnapshot } from '@/server/quality.dagster'
 
 // Types for health metrics
@@ -367,6 +368,9 @@ const ASSET_DETAILS_QUERY = `
 async function fetchAssets(
   dagsterUrl: string,
 ): Promise<Array<Asset> | { error: string }> {
+  const log = fnLogger('fetchAssets', { dagsterUrl })
+  const start = performance.now()
+
   try {
     const response = await fetch(dagsterUrl, {
       method: 'POST',
@@ -423,8 +427,12 @@ async function fetchAssets(
       }),
     )
 
+    const durationMs = Math.round(performance.now() - start)
+    log.info({ durationMs, assetCount: assets.length }, 'fetched assets')
     return assets
   } catch (error) {
+    const durationMs = Math.round(performance.now() - start)
+    log.error({ durationMs, err: error }, 'failed to fetch assets')
     return { error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

@@ -10,6 +10,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { authMiddleware } from '@/server/auth.server'
 
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
+import { fnLogger } from '@/server/logger.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 // Types for table metadata
@@ -53,6 +54,8 @@ async function queryTrino<T>(
   const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
   const timeoutMs = options?.timeoutMs ?? 30_000
   const catalog = options?.catalog ?? DEFAULT_CATALOG
+  const log = fnLogger('queryTrino', { catalog })
+  const start = performance.now()
 
   try {
     // Submit query
@@ -115,8 +118,12 @@ async function queryTrino<T>(
       return obj as T
     })
 
+    const durationMs = Math.round(performance.now() - start)
+    log.info({ durationMs, rowCount: data.length }, 'query completed')
     return { data, columns }
   } catch (error) {
+    const durationMs = Math.round(performance.now() - start)
+    log.error({ durationMs, err: error }, 'query failed')
     return { error: error instanceof Error ? error.message : 'Query failed' }
   }
 }
