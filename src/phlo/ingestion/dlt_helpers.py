@@ -324,7 +324,8 @@ def merge_to_iceberg(
             # Fallback: keep as string rather than dropping data
             return pa.string()
 
-        desired_fields = list(table_config.iceberg_schema.fields)  # type: ignore[attr-defined]
+        # Schema.fields is a tuple of NestedField objects
+        desired_fields = list(table_config.iceberg_schema.fields)
         desired_names = [f.name for f in desired_fields]
 
         columns: list[pa.Array] = []

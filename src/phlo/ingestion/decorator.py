@@ -287,10 +287,12 @@ def phlo_ingestion(
         )
 
     # Create table config from inline parameters
+    from typing import cast
+
     table_config = TableConfig(
         table_name=table_name,
         iceberg_schema=iceberg_schema,
-        validation_schema=validation_schema,  # type: ignore
+        validation_schema=cast("type[DataFrameModel] | None", validation_schema),
         unique_key=unique_key,
         group_name=group,
         partition_spec=partition_spec,

@@ -12,14 +12,12 @@ import importlib.util
 import logging
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dagster import Definitions
 
-try:
+if TYPE_CHECKING:
     from dagster_dbt import DbtCliResource
-except ImportError:
-    DbtCliResource = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +264,7 @@ def _discover_dbt_assets() -> list[Any]:
             dagster_dbt_translator=CustomDbtTranslator(),
             partitions_def=daily_partition,
         )
-        def all_dbt_assets(context, dbt: DbtCliResource):  # type: ignore[reportInvalidTypeForm]
+        def all_dbt_assets(context, dbt: "DbtCliResource"):
             import os
             import shutil
 
