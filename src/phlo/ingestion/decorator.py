@@ -322,7 +322,14 @@ def phlo_ingestion(
             pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
             branch_name = get_branch_from_context(context)
 
-            context.log.info(f"Starting ingestion for partition {partition_date}")
+            context.log.info(
+                f"Starting ingestion for partition {partition_date}",
+                extra={
+                    "run_id": context.run_id,
+                    "asset_key": f"dlt_{table_config.table_name}",
+                    "partition_key": partition_date,
+                },
+            )
             context.log.info(f"Ingesting to branch: {branch_name}")
             context.log.info(f"Target table: {table_config.full_table_name}")
 
@@ -396,7 +403,16 @@ def phlo_ingestion(
                 )
 
                 total_elapsed = time.time() - start_time
-                context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
+                context.log.info(
+                    f"Ingestion completed successfully in {total_elapsed:.2f}s",
+                    extra={
+                        "run_id": context.run_id,
+                        "asset_key": f"dlt_{table_config.table_name}",
+                        "partition_key": partition_date,
+                        "rows_inserted": merge_metrics["rows_inserted"],
+                        "duration_seconds": round(total_elapsed, 2),
+                    },
+                )
 
                 yield dg.MaterializeResult(
                     metadata={
@@ -413,7 +429,15 @@ def phlo_ingestion(
                 return
 
             except Exception as e:
-                context.log.error(f"Ingestion failed for partition {partition_date}: {e}")
+                context.log.error(
+                    f"Ingestion failed for partition {partition_date}: {e}",
+                    extra={
+                        "run_id": context.run_id,
+                        "asset_key": f"dlt_{table_config.table_name}",
+                        "partition_key": partition_date,
+                        "error": str(e),
+                    },
+                )
                 raise RuntimeError(f"Ingestion failed for partition {partition_date}: {e}") from e
 
         _INGESTION_ASSETS.append(wrapper)
