@@ -65,8 +65,10 @@ function buildLogQuery(filters: {
   const jsonFilters: Array<string> = []
 
   // Service filter (container name) - required by Loki to have at least one matcher
+  // Docker Compose names containers as: {project}-{service}-{replica}
+  // So we use regex to match any container containing the service name
   if (filters.service) {
-    labelMatchers.push(`container="${filters.service}"`)
+    labelMatchers.push(`container=~".*${filters.service}.*"`)
   } else {
     // Use a catch-all pattern that matches any non-empty container name
     labelMatchers.push('container=~".+"')
