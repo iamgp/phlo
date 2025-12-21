@@ -10,6 +10,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { authMiddleware } from '@/server/auth.server'
 
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
+import { withTiming } from '@/server/logger.server'
 import { quoteIdentifier } from '@/utils/sqlIdentifiers'
 
 // Types for table metadata
@@ -54,71 +55,71 @@ async function queryTrino<T>(
   const timeoutMs = options?.timeoutMs ?? 30_000
   const catalog = options?.catalog ?? DEFAULT_CATALOG
 
-  try {
-    // Submit query
-    const submitResponse = await fetch(`${trinoUrl}/v1/statement`, {
-      method: 'POST',
-      headers: {
-        'X-Trino-User': 'observatory',
-        'X-Trino-Catalog': catalog,
-        // Not setting X-Trino-Schema since we use fully-qualified table names
-      },
-      body: sql,
-      signal: AbortSignal.timeout(timeoutMs),
-    })
-
-    if (!submitResponse.ok) {
-      return {
-        error: `HTTP ${submitResponse.status}: ${submitResponse.statusText}`,
-      }
-    }
-
-    let result = await submitResponse.json()
-
-    // Accumulate data across all polling responses
-    // Trino returns data incrementally, so we need to collect all of it
-    const allData: Array<Array<unknown>> = []
-    if (result.data) {
-      allData.push(...result.data)
-    }
-
-    // Poll for results until no more nextUri
-    while (result.nextUri) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      const pollResponse = await fetch(result.nextUri, {
+  return withTiming(
+    'queryTrino',
+    async () => {
+      // Submit query
+      const submitResponse = await fetch(`${trinoUrl}/v1/statement`, {
+        method: 'POST',
         headers: {
           'X-Trino-User': 'observatory',
+          'X-Trino-Catalog': catalog,
         },
+        body: sql,
         signal: AbortSignal.timeout(timeoutMs),
       })
-      result = await pollResponse.json()
 
-      // Accumulate data from this response
+      if (!submitResponse.ok) {
+        throw new Error(
+          `HTTP ${submitResponse.status}: ${submitResponse.statusText}`,
+        )
+      }
+
+      let result = await submitResponse.json()
+
+      const allData: Array<Array<unknown>> = []
       if (result.data) {
         allData.push(...result.data)
       }
-    }
 
-    // Replace result.data with accumulated data
-    result.data = allData
+      while (result.nextUri) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        const pollResponse = await fetch(result.nextUri, {
+          headers: {
+            'X-Trino-User': 'observatory',
+          },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+        result = await pollResponse.json()
 
-    if (result.error) {
-      return { error: result.error.message || 'Query failed' }
-    }
+        if (result.data) {
+          allData.push(...result.data)
+        }
+      }
 
-    const columns = (result.columns || []).map((c: { name: string }) => c.name)
-    const data = (result.data || []).map((row: Array<unknown>) => {
-      const obj: Record<string, unknown> = {}
-      columns.forEach((col: string, idx: number) => {
-        obj[col] = row[idx]
+      result.data = allData
+
+      if (result.error) {
+        throw new Error(result.error.message || 'Query failed')
+      }
+
+      const columns = (result.columns || []).map(
+        (c: { name: string }) => c.name,
+      )
+      const data = (result.data || []).map((row: Array<unknown>) => {
+        const obj: Record<string, unknown> = {}
+        columns.forEach((col: string, idx: number) => {
+          obj[col] = row[idx]
+        })
+        return obj as T
       })
-      return obj as T
-    })
 
-    return { data, columns }
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Query failed' }
-  }
+      return { data, columns }
+    },
+    { catalog },
+  ).catch((error) => ({
+    error: error instanceof Error ? error.message : 'Query failed',
+  }))
 }
 
 /**
