@@ -396,7 +396,7 @@ function ObservabilityPage() {
                   </span>
 
                   {/* Timestamp */}
-                  <span className="flex-shrink-0 text-muted-foreground w-16">
+                  <span className="flex-shrink-0 text-muted-foreground w-44">
                     {formatDate(
                       log.timestamp,
                       settings?.ui?.dateFormat || 'relative',
