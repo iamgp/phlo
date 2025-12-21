@@ -157,3 +157,6 @@ context/
 .beads/.exclusive-lock
 .beads/daemon.*
 .git/beads-worktrees/
+
+# bv (beads viewer) local config and caches
+.bv/
