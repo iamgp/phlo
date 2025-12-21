@@ -12,9 +12,9 @@ TODO: Customize this template:
 """
 
 from dlt.sources.rest_api import rest_api
-from phlo.schemas.example import RawExampleData
 
 from phlo.ingestion import phlo_ingestion
+from phlo.schemas.example import RawExampleData
 
 # TODO: Update this import to match your schema file
 # Example: from phlo.schemas.weather import RawWeatherObservations
