@@ -12,7 +12,7 @@ import type {
   QueryGuardrails,
 } from '@/server/queryGuardrails'
 import { authMiddleware } from '@/server/auth.server'
-import { fnLogger } from '@/server/logger.server'
+import { withTiming } from '@/server/logger.server'
 import { validateAndRewriteQuery } from '@/server/queryGuardrails'
 import {
   isProbablyQualifiedTable,
@@ -85,101 +85,87 @@ async function executeTrinoQuery(
 > {
   const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
   const timeoutMs = options?.timeoutMs ?? 30_000
-  const log = fnLogger('executeTrinoQuery', { catalog, schema })
-  const start = performance.now()
 
-  try {
-    // Submit query
-    const submitResponse = await fetch(`${trinoUrl}/v1/statement`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain',
-        'X-Trino-User': 'observatory',
-        'X-Trino-Catalog': catalog,
-        'X-Trino-Schema': schema,
-      },
-      body: query,
-      signal: AbortSignal.timeout(timeoutMs),
-    })
-
-    if (!submitResponse.ok) {
-      const errorText = await submitResponse.text()
-      return { ok: false, error: `Trino error: ${errorText}`, kind: 'trino' }
-    }
-
-    let result = await submitResponse.json()
-
-    // Poll until query completes
-    const maxPolls = 100
-    let polls = 0
-    const allData: Array<Array<unknown>> = []
-    let columns: Array<string> = []
-    let columnTypes: Array<string> = []
-
-    while (result.nextUri && polls < maxPolls) {
-      polls++
-      await new Promise((resolve) => setTimeout(resolve, 100)) // Small delay
-
-      const pollResponse = await fetch(result.nextUri, {
+  return withTiming(
+    'executeTrinoQuery',
+    async () => {
+      // Submit query
+      const submitResponse = await fetch(`${trinoUrl}/v1/statement`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'text/plain',
           'X-Trino-User': 'observatory',
+          'X-Trino-Catalog': catalog,
+          'X-Trino-Schema': schema,
         },
+        body: query,
         signal: AbortSignal.timeout(timeoutMs),
       })
 
-      if (!pollResponse.ok) {
-        const errorText = await pollResponse.text()
-        return {
-          ok: false,
-          error: `Trino poll error: ${errorText}`,
-          kind: 'trino',
+      if (!submitResponse.ok) {
+        const errorText = await submitResponse.text()
+        throw new Error(`Trino error: ${errorText}`)
+      }
+
+      let result = await submitResponse.json()
+
+      // Poll until query completes
+      const maxPolls = 100
+      let polls = 0
+      const allData: Array<Array<unknown>> = []
+      let columns: Array<string> = []
+      let columnTypes: Array<string> = []
+
+      while (result.nextUri && polls < maxPolls) {
+        polls++
+        await new Promise((resolve) => setTimeout(resolve, 100))
+
+        const pollResponse = await fetch(result.nextUri, {
+          headers: {
+            'X-Trino-User': 'observatory',
+          },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+
+        if (!pollResponse.ok) {
+          const errorText = await pollResponse.text()
+          throw new Error(`Trino poll error: ${errorText}`)
+        }
+
+        result = await pollResponse.json()
+
+        if (result.columns && columns.length === 0) {
+          columns = result.columns.map((c: { name: string }) => c.name)
+          columnTypes = result.columns.map((c: { type: string }) => c.type)
+        }
+
+        if (result.data) {
+          allData.push(...result.data)
+        }
+
+        if (result.error) {
+          throw new Error(result.error.message || 'Query failed')
         }
       }
 
-      result = await pollResponse.json()
-
-      // Extract columns on first response with them
-      if (result.columns && columns.length === 0) {
-        columns = result.columns.map((c: { name: string }) => c.name)
-        columnTypes = result.columns.map((c: { type: string }) => c.type)
-      }
-
-      // Collect data
-      if (result.data) {
-        allData.push(...result.data)
-      }
-
-      // Check for errors
-      if (result.error) {
-        return {
-          ok: false,
-          error: result.error.message || 'Query failed',
-          kind: 'trino',
-        }
-      }
-    }
-
-    // Convert array rows to objects
-    const rows: Array<DataRow> = allData.map((row) => {
-      const obj: DataRow = {}
-      columns.forEach((col, idx) => {
-        obj[col] = (row as Array<string | number | boolean | null>)[idx]
+      const rows: Array<DataRow> = allData.map((row) => {
+        const obj: DataRow = {}
+        columns.forEach((col, idx) => {
+          obj[col] = (row as Array<string | number | boolean | null>)[idx]
+        })
+        return obj
       })
-      return obj
-    })
 
-    const durationMs = Math.round(performance.now() - start)
-    log.info({ durationMs, rowCount: rows.length }, 'query completed')
-    return { columns, columnTypes, rows }
-  } catch (error) {
-    const durationMs = Math.round(performance.now() - start)
+      return { columns, columnTypes, rows }
+    },
+    { catalog, schema },
+  ).catch((error): QueryExecutionError => {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    log.error({ durationMs, err: error }, 'query failed')
     if (message.toLowerCase().includes('timeout')) {
       return { ok: false, error: message, kind: 'timeout' }
     }
     return { ok: false, error: message, kind: 'trino' }
-  }
+  })
 }
 
 /**
