@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import click
 from rich.console import Console
@@ -21,6 +21,9 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from phlo.cli.utils import classify_schema_change, discover_pandera_schemas
+
+if TYPE_CHECKING:
+    from dagster import AssetsDefinition
 
 console = Console()
 
@@ -365,11 +368,12 @@ def _extract_source_callable(obj: Any) -> tuple[callable, dict[str, Any]]:
     import inspect
 
     try:
-        from dagster import AssetsDefinition
+        from dagster import AssetsDefinition as RuntimeAssetsDefinition
     except Exception:  # pragma: no cover
-        AssetsDefinition = None  # type: ignore
+        # Dagster not available at runtime - this is okay for CLI usage
+        return obj if callable(obj) else ({}, {})
 
-    if AssetsDefinition is not None and isinstance(obj, AssetsDefinition):
+    if isinstance(obj, RuntimeAssetsDefinition):
         wrapper = obj.node_def.compute_fn.decorated_fn
         freevars = wrapper.__code__.co_freevars
         closure = wrapper.__closure__ or ()
