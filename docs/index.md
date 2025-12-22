@@ -44,6 +44,7 @@ Essential guides for new users:
 In-depth tutorials and how-tos:
 
 - [Developer Guide](guides/developer-guide.md) - Master decorators and workflow development
+- [Service Packages](guides/service-packages.md) - Installable infrastructure services
 - [Workflow Development](guides/workflow-development.md) - Build complete data pipelines
 - [Data Modeling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
 - [dbt Development](guides/dbt-development.md) - SQL transformations

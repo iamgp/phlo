@@ -10,6 +10,7 @@ from __future__ import annotations
 from phlo.plugins.base import (
     Plugin,
     QualityCheckPlugin,
+    ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
 )
@@ -28,6 +29,7 @@ class PluginRegistry:
         self._sources: dict[str, SourceConnectorPlugin] = {}
         self._quality_checks: dict[str, QualityCheckPlugin] = {}
         self._transformations: dict[str, TransformationPlugin] = {}
+        self._services: dict[str, ServicePlugin] = {}
         self._all_plugins: dict[str, Plugin] = {}
 
     def register_source_connector(
@@ -98,6 +100,27 @@ class PluginRegistry:
         self._transformations[name] = plugin
         self._all_plugins[f"transformation:{name}"] = plugin
 
+    def register_service(self, plugin: ServicePlugin, replace: bool = False) -> None:
+        """
+        Register a service plugin.
+
+        Args:
+            plugin: Service plugin instance
+            replace: Whether to replace existing plugin with same name
+
+        Raises:
+            ValueError: If plugin with same name exists and replace=False
+        """
+        name = plugin.metadata.name
+
+        if name in self._services and not replace:
+            raise ValueError(
+                f"Service plugin '{name}' is already registered. Use replace=True to overwrite."
+            )
+
+        self._services[name] = plugin
+        self._all_plugins[f"service:{name}"] = plugin
+
     def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
         """
         Get a source connector plugin by name.
@@ -134,6 +157,18 @@ class PluginRegistry:
         """
         return self._transformations.get(name)
 
+    def get_service(self, name: str) -> ServicePlugin | None:
+        """
+        Get a service plugin by name.
+
+        Args:
+            name: Plugin name
+
+        Returns:
+            ServicePlugin instance or None if not found
+        """
+        return self._services.get(name)
+
     def list_source_connectors(self) -> list[str]:
         """
         List all registered source connector plugins.
@@ -161,6 +196,15 @@ class PluginRegistry:
         """
         return list(self._transformations.keys())
 
+    def list_services(self) -> list[str]:
+        """
+        List all registered service plugins.
+
+        Returns:
+            List of plugin names
+        """
+        return list(self._services.keys())
+
     def list_all_plugins(self) -> dict[str, list[str]]:
         """
         List all registered plugins by type.
@@ -172,6 +216,7 @@ class PluginRegistry:
             "source_connectors": self.list_source_connectors(),
             "quality_checks": self.list_quality_checks(),
             "transformations": self.list_transformations(),
+            "services": self.list_services(),
         }
 
     def clear(self) -> None:
@@ -179,6 +224,7 @@ class PluginRegistry:
         self._sources.clear()
         self._quality_checks.clear()
         self._transformations.clear()
+        self._services.clear()
         self._all_plugins.clear()
 
     def __len__(self) -> int:
@@ -194,7 +240,8 @@ class PluginRegistry:
         Get metadata for a plugin by type and name.
 
         Args:
-            plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations")
+            plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
+                "services")
             name: Plugin name
 
         Returns:
@@ -207,6 +254,8 @@ class PluginRegistry:
             plugin = self.get_quality_check(name)
         elif plugin_type == "transformations":
             plugin = self.get_transformation(name)
+        elif plugin_type == "services":
+            plugin = self.get_service(name)
 
         if not plugin:
             return None
@@ -258,6 +307,12 @@ class PluginRegistry:
             return hasattr(plugin, "create_check") and callable(plugin.create_check)
         elif isinstance(plugin, TransformationPlugin):
             return hasattr(plugin, "transform") and callable(plugin.transform)
+        elif isinstance(plugin, ServicePlugin):
+            try:
+                service_definition = plugin.service_definition
+            except Exception:
+                return False
+            return isinstance(service_definition, dict)
 
         return True
 

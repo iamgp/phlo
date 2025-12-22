@@ -5,26 +5,24 @@ This demonstrates the dbt quality check naming/metadata contract:
 - Metadata: source/partition_key/failed_count/total_count/query_or_sql/sample
 """
 
-from __future__ import annotations
-
 import os
 
-import dagster as dg
+from dagster import AssetCheckExecutionContext, AssetCheckResult, AssetKey, asset_check
 
 from phlo.config import config
 from phlo.defs.validation.dbt_validator import DBTValidatorResource
 from phlo.quality.contract import QualityCheckContract, dbt_check_name
 
 
-@dg.asset_check(
+@asset_check(
     name=dbt_check_name("generic", "fct_github_events"),
-    asset=dg.AssetKey(["fct_github_events"]),
+    asset=AssetKey(["fct_github_events"]),
     blocking=True,
     description="Runs dbt tests for fct_github_events and reports results via the contract metadata.",
 )
 def dbt_generic_fct_github_events(
-    context: dg.AssetCheckExecutionContext, dbt_validator: DBTValidatorResource
-) -> dg.AssetCheckResult:
+    context: AssetCheckExecutionContext, dbt_validator: DBTValidatorResource
+) -> AssetCheckResult:
     branch_name = os.getenv("NESSIE_REF") or config.iceberg_nessie_ref
     results = dbt_validator.run_tests(branch_name=branch_name, select="fct_github_events")
 
@@ -41,7 +39,7 @@ def dbt_generic_fct_github_events(
         sample=failures,
     )
 
-    return dg.AssetCheckResult(
+    return AssetCheckResult(
         passed=bool(results.get("all_passed")),
         metadata=contract.to_dagster_metadata(),
     )

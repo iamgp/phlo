@@ -5,6 +5,7 @@ Generates docker-compose.yml and .env files from service definitions.
 """
 
 import logging
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,10 @@ class ComposeGenerator:
             if context == "source" and service.source_path:
                 # Use the service's source directory as build context
                 context = str(service.source_path)
+            if isinstance(context, str):
+                context_path = Path(context)
+                if context_path.is_absolute():
+                    context = os.path.relpath(context_path, output_dir)
             build_config: dict[str, Any] = {"context": context}
             if service.build.get("dockerfile"):
                 build_config["dockerfile"] = service.build["dockerfile"]
@@ -120,7 +125,7 @@ class ComposeGenerator:
             config["volumes"].append(phlo_mount)
             # Mount entire phlo project directory for dependency sync with uv pip install -e .
             # phlo_src_path points to src/phlo, so ../.. is the project root
-            project_mount = f"{phlo_src_path}/../..:/opt/phlo-dev:ro"
+            project_mount = f"{phlo_src_path}/../..:/opt/phlo-dev:rw"
             config["volumes"].append(project_mount)
             # Add environment variable to enable dev mode sync
             if "environment" not in config:
@@ -133,6 +138,9 @@ class ComposeGenerator:
         # Remove empty volumes list
         if not config["volumes"]:
             del config["volumes"]
+
+        if dev_mode and service.dev:
+            self._apply_dev_overrides(config, service, output_dir)
 
         # Add env_file for phlo_dev services to pick up project secrets (e.g., GITHUB_TOKEN)
         # Path is relative to .phlo/ directory where docker-compose.yml lives
@@ -165,6 +173,41 @@ class ComposeGenerator:
                 config["depends_on"] = depends_config
 
         return config
+
+    def _apply_dev_overrides(
+        self,
+        config: dict[str, Any],
+        service: ServiceDefinition,
+        output_dir: Path,
+    ) -> None:
+        dev = service.dev
+
+        if dev.get("environment"):
+            config.setdefault("environment", {})
+            if isinstance(config["environment"], dict):
+                config["environment"].update(dev["environment"])
+        if dev.get("command"):
+            config["command"] = dev["command"]
+        if dev.get("entrypoint"):
+            config["entrypoint"] = dev["entrypoint"]
+        if dev.get("ports"):
+            config["ports"] = dev["ports"]
+        if dev.get("volumes"):
+            config["volumes"] = [
+                self._resolve_dev_volume(volume, service, output_dir)
+                for volume in dev["volumes"]
+            ]
+
+    def _resolve_dev_volume(
+        self,
+        volume: str,
+        service: ServiceDefinition,
+        output_dir: Path,
+    ) -> str:
+        if "{source}" not in volume or not service.source_path:
+            return volume
+        source_path = os.path.relpath(service.source_path, output_dir)
+        return volume.replace("{source}", source_path)
 
     def generate_env(self, services: list[ServiceDefinition]) -> str:
         """Generate .env file content.

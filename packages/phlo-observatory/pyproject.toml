@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-observatory"
+version = "0.1.0"
+description = "observatory service plugin for Phlo"
+readme = {text = "observatory service plugin for Phlo.", content-type = "text/plain"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Phlo Team", email = "team@phlo.dev"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "phlo>=0.1.0",
+    "pyyaml>=6.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.entry-points."phlo.plugins.services"]
+observatory = "phlo_observatory.plugin:ObservatoryServicePlugin"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+phlo_observatory = [
+    "service.yaml",
+    "Dockerfile",
+    "README.md",
+    "components.json",
+    "eslint.config.js",
+    "package.json",
+    "package-lock.json",
+    "prettier.config.js",
+    "tsconfig.json",
+    "vite.config.ts",
+    "context/**",
+    "public/**",
+    "src/**",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

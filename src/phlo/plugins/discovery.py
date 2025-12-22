@@ -15,6 +15,7 @@ from phlo.config import get_settings
 from phlo.plugins.base import (
     Plugin,
     QualityCheckPlugin,
+    ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
 )
@@ -27,6 +28,7 @@ ENTRY_POINT_GROUPS = {
     "source_connectors": "phlo.plugins.sources",
     "quality_checks": "phlo.plugins.quality",
     "transformations": "phlo.plugins.transforms",
+    "services": "phlo.plugins.services",
 }
 
 
@@ -66,7 +68,7 @@ def discover_plugins(
 
     Args:
         plugin_type: Optional plugin type to discover ("source_connectors",
-            "quality_checks", "transformations"). If None, discover all types.
+            "quality_checks", "transformations", "services"). If None, discover all types.
         auto_register: If True, automatically register discovered plugins
             in the global registry (default: True)
 
@@ -93,12 +95,14 @@ def discover_plugins(
             "source_connectors": [],
             "quality_checks": [],
             "transformations": [],
+            "services": [],
         }
 
     discovered: dict[str, list[Plugin]] = {
         "source_connectors": [],
         "quality_checks": [],
         "transformations": [],
+        "services": [],
     }
 
     # Determine which plugin types to discover
@@ -153,6 +157,7 @@ def discover_plugins(
                     "source_connectors": SourceConnectorPlugin,
                     "quality_checks": QualityCheckPlugin,
                     "transformations": TransformationPlugin,
+                    "services": ServicePlugin,
                 }[ptype]
 
                 if not isinstance(plugin, expected_type):
@@ -178,6 +183,8 @@ def discover_plugins(
                         registry.register_quality_check(plugin, replace=True)
                     elif ptype == "transformations":
                         registry.register_transformation(plugin, replace=True)
+                    elif ptype == "services":
+                        registry.register_service(plugin, replace=True)
 
             except Exception as exc:
                 logger.error(f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True)
@@ -196,7 +203,7 @@ def list_plugins(plugin_type: str | None = None) -> dict[str, list[str]]:
 
     Args:
         plugin_type: Optional plugin type to list ("source_connectors",
-            "quality_checks", "transformations"). If None, list all types.
+            "quality_checks", "transformations", "services"). If None, list all types.
 
     Returns:
         Dictionary mapping plugin type to list of plugin names
@@ -228,7 +235,8 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
     Get a plugin by type and name.
 
     Args:
-        plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations")
+        plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
+            "services")
         name: Plugin name
 
     Returns:
@@ -249,6 +257,8 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
         return registry.get_quality_check(name)
     elif plugin_type == "transformations":
         return registry.get_transformation(name)
+    elif plugin_type == "services":
+        return registry.get_service(name)
     else:
         logger.warning(f"Unknown plugin type: {plugin_type}")
         return None
@@ -317,12 +327,27 @@ def get_transformation(name: str) -> TransformationPlugin | None:
     return registry.get_transformation(name)
 
 
+def get_service(name: str) -> ServicePlugin | None:
+    """
+    Get a service plugin by name.
+
+    Args:
+        name: Plugin name
+
+    Returns:
+        ServicePlugin instance or None if not found
+    """
+    registry = get_global_registry()
+    return registry.get_service(name)
+
+
 def get_plugin_info(plugin_type: str, name: str) -> dict | None:
     """
     Get detailed information about a plugin.
 
     Args:
-        plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations")
+        plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
+            "services")
         name: Plugin name
 
     Returns:
@@ -366,6 +391,8 @@ def validate_plugins() -> dict[str, list[str]]:
                 plugin = registry.get_quality_check(name)
             elif plugin_type == "transformations":
                 plugin = registry.get_transformation(name)
+            elif plugin_type == "services":
+                plugin = registry.get_service(name)
 
             if plugin and registry.validate_plugin(plugin):
                 valid.append(f"{plugin_type}:{name}")
