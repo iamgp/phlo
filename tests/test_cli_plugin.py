@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from click.testing import CliRunner
 
 from phlo.cli.plugin import plugin_group
@@ -53,20 +54,20 @@ class DummyService(ServicePlugin):
         return {"category": "core", "compose": {"image": "dummy:latest"}}
 
 
-def _setup_registry():
+@pytest.fixture
+def setup_registry():
     registry = get_global_registry()
     registry.clear()
     registry.register_source_connector(DummySource(), replace=True)
     registry.register_quality_check(DummyQuality(), replace=True)
     registry.register_transformation(DummyTransform(), replace=True)
     registry.register_service(DummyService(), replace=True)
-    return registry
+    yield registry
+    registry.clear()
 
 
-def test_plugin_list_json_installed():
+def test_plugin_list_json_installed(setup_registry):
     """List command returns installed plugins as JSON."""
-    _setup_registry()
-
     runner = CliRunner()
     result = runner.invoke(plugin_group, ["list", "--json"])
 
@@ -79,9 +80,8 @@ def test_plugin_list_json_installed():
     assert "service" in types
 
 
-def test_plugin_list_all_json(monkeypatch):
+def test_plugin_list_all_json(setup_registry, monkeypatch):
     """List command includes registry plugins when --all is set."""
-    _setup_registry()
     registry_plugins = [
         RegistryPlugin(
             name="registry_source",
