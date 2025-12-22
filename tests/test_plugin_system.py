@@ -19,6 +19,7 @@ from phlo.plugins import (
     discover_plugins,
     get_plugin_info,
     get_quality_check,
+    get_service,
     get_source_connector,
     get_transformation,
     list_plugins,
@@ -290,6 +291,7 @@ class TestPluginDiscovery:
         assert "source_connectors" in result
         assert "quality_checks" in result
         assert "transformations" in result
+        assert "services" in result
 
     def test_discover_single_type(self):
         """Test discovering single plugin type."""
@@ -298,6 +300,13 @@ class TestPluginDiscovery:
         assert "source_connectors" in result
         # Other types might not be present
         assert isinstance(result["source_connectors"], list)
+
+    def test_discover_services_type(self):
+        """Test discovering service plugins."""
+        result = discover_plugins(plugin_type="services", auto_register=False)
+
+        assert "services" in result
+        assert isinstance(result["services"], list)
 
     def test_discover_with_validation(self):
         """Test discovery validates plugins."""
@@ -318,15 +327,18 @@ class TestPluginIntegration:
         source = DummySourcePlugin()
         quality = DummyQualityPlugin()
         transform = DummyTransformPlugin()
+        service = DummyServicePlugin()
 
         clean_registry.register_source_connector(source)
         clean_registry.register_quality_check(quality)
         clean_registry.register_transformation(transform)
+        clean_registry.register_service(service)
 
         # Retrieve using public functions
         assert get_source_connector("test_source") is source
         assert get_quality_check("test_quality") is quality
         assert get_transformation("test_transform") is transform
+        assert get_service("test_service") is service
 
     def test_get_plugin_info(self, clean_registry):
         """Test getting plugin information."""

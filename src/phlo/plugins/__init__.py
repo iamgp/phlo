@@ -145,6 +145,7 @@ from phlo.plugins.discovery import (
     get_plugin,
     get_plugin_info,
     get_quality_check,
+    get_service,
     get_source_connector,
     get_transformation,
     list_plugins,
@@ -168,6 +169,7 @@ __all__ = [
     "get_source_connector",
     "get_quality_check",
     "get_transformation",
+    "get_service",
     "validate_plugins",
     # Registry
     "PluginRegistry",
