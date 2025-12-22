@@ -25,6 +25,7 @@ dev = [
 
 [project.entry-points."phlo.plugins.services"]
 dagster = "phlo_dagster.plugin:DagsterServicePlugin"
+dagster-daemon = "phlo_dagster.plugin:DagsterDaemonServicePlugin"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -34,7 +35,13 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_dagster = ["service.yaml"]
+phlo_dagster = [
+    "service.yaml",
+    "dagster-daemon.yaml",
+    "Dockerfile",
+    "entrypoint.sh",
+    "templates/*.yaml",
+]
 
 [tool.ruff]
 line-length = 100

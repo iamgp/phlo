@@ -34,7 +34,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_trino = ["service.yaml"]
+phlo_trino = ["service.yaml", "catalog/*.properties"]
 
 [tool.ruff]
 line-length = 100

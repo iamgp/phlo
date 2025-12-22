@@ -162,15 +162,6 @@ class ServiceDiscovery:
             except KeyError as exc:
                 logger.warning("Service plugin %s missing field: %s", name, exc)
 
-
-def _resolve_plugin_source_path(plugin: Any) -> Path | None:
-    module_name = plugin.__class__.__module__
-    package_name = module_name.split(".", 1)[0]
-    spec = find_spec(package_name)
-    if not spec or not spec.origin:
-        return None
-    return Path(spec.origin).parent
-
     def get_service(self, name: str) -> ServiceDefinition | None:
         """Get a service definition by name."""
         self.discover()
@@ -265,3 +256,12 @@ def _resolve_plugin_source_path(plugin: Any) -> Path | None:
             }
             for s in sorted(self._services.values(), key=lambda x: (x.category, x.name))
         ]
+
+
+def _resolve_plugin_source_path(plugin: Any) -> Path | None:
+    module_name = plugin.__class__.__module__
+    package_name = module_name.split(".", 1)[0]
+    spec = find_spec(package_name)
+    if not spec or not spec.origin:
+        return None
+    return Path(spec.origin).parent

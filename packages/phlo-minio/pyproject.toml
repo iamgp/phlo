@@ -25,6 +25,7 @@ dev = [
 
 [project.entry-points."phlo.plugins.services"]
 minio = "phlo_minio.plugin:MinioServicePlugin"
+minio-setup = "phlo_minio.plugin:MinioSetupServicePlugin"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -34,7 +35,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_minio = ["service.yaml"]
+phlo_minio = ["service.yaml", "minio-setup.yaml"]
 
 [tool.ruff]
 line-length = 100
