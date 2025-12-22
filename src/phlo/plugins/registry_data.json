@@ -33,6 +33,17 @@
       "tags": ["validation", "numeric", "example"],
       "verified": true
     },
+    "rest_api": {
+      "type": "source",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Generic REST API source connector",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-core-plugins",
+      "tags": ["source", "api", "rest"],
+      "verified": true,
+      "core": true
+    },
     "null_check": {
       "type": "quality",
       "package": "phlo-core-plugins",
