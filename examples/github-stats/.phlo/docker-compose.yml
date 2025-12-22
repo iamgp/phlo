@@ -47,28 +47,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-  loki:
-    image: grafana/loki:${LOKI_VERSION:-3.2.1}
-    profiles:
-    - observability
-    restart: unless-stopped
-    ports:
-    - ${LOKI_PORT:-3100}:3100
-    volumes:
-    - ./loki:/etc/loki:ro
-    - ./volumes/loki:/loki
-    command: -config.file=/etc/loki/loki-config.yml
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - --quiet
-      - --tries=1
-      - --spider
-      - http://localhost:3100/ready
-      interval: 10s
-      timeout: 5s
-      retries: 5
   alloy:
     image: grafana/alloy:v1.4.2
     profiles:
@@ -120,6 +98,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  loki:
+    image: grafana/loki:${LOKI_VERSION:-3.2.1}
+    profiles:
+    - observability
+    restart: unless-stopped
+    ports:
+    - ${LOKI_PORT:-3100}:3100
+    volumes:
+    - ./loki:/etc/loki:ro
+    - ./volumes/loki:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - --quiet
+      - --tries=1
+      - --spider
+      - http://localhost:3100/ready
+      interval: 10s
+      timeout: 5s
+      retries: 5
   minio-setup:
     image: minio/mc:latest
     restart: 'no'
@@ -134,16 +134,6 @@ services:
       '
     depends_on:
       minio:
-        condition: service_healthy
-  pgweb:
-    image: sosedoff/pgweb
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}?sslmode=disable
-    ports:
-    - ${PGWEB_PORT:-8081}:8081
-    depends_on:
-      postgres:
         condition: service_healthy
   hasura:
     image: hasura/graphql-engine:${HASURA_VERSION:-v2.46.0}
@@ -233,6 +223,16 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+  pgweb:
+    image: sosedoff/pgweb
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}?sslmode=disable
+    ports:
+    - ${PGWEB_PORT:-8081}:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
   grafana:
     image: grafana/grafana:${GRAFANA_VERSION:-11.3.1}
     profiles:
@@ -290,6 +290,70 @@ services:
       nessie:
         condition: service_healthy
       minio:
+        condition: service_healthy
+  superset:
+    image: apache/superset:${SUPERSET_VERSION:-4.0.0}
+    restart: unless-stopped
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-phlo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
+      POSTGRES_DB: ${POSTGRES_DB:-phlo}
+      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
+      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
+    ports:
+    - ${SUPERSET_PORT:-8088}:8088
+    volumes:
+    - ./volumes/superset:/app/superset_home
+    command: '/bin/sh -c " superset db upgrade && superset fab create-admin --username
+      $${SUPERSET_ADMIN_USER} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL}
+      --password $${SUPERSET_ADMIN_PASSWORD} || true && superset init && superset
+      run -h 0.0.0.0 -p 8088 --with-threads "
+
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+      trino:
+        condition: service_healthy
+  fastapi:
+    build:
+      context: ../../../packages/phlo-fastapi/src/phlo_fastapi
+      dockerfile: Dockerfile
+    profiles:
+    - api
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-phlo-jwt-secret-change-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      TRINO_HOST: trino
+      TRINO_PORT: 8080
+      TRINO_CATALOG: iceberg
+      TRINO_USER: ${TRINO_USER:-phlo}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-phlo}
+      POSTGRES_USER: ${POSTGRES_USER:-phlo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
+    ports:
+    - ${API_PORT:-8000}:8000
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8000/health
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      trino:
         condition: service_healthy
   dagster:
     build:
@@ -354,70 +418,6 @@ services:
         condition: service_healthy
       trino:
         condition: service_healthy
-  superset:
-    image: apache/superset:${SUPERSET_VERSION:-4.0.0}
-    restart: unless-stopped
-    environment:
-      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
-      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
-    ports:
-    - ${SUPERSET_PORT:-8088}:8088
-    volumes:
-    - ./volumes/superset:/app/superset_home
-    command: '/bin/sh -c " superset db upgrade && superset fab create-admin --username
-      $${SUPERSET_ADMIN_USER} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL}
-      --password $${SUPERSET_ADMIN_PASSWORD} || true && superset init && superset
-      run -h 0.0.0.0 -p 8088 --with-threads "
-
-      '
-    depends_on:
-      postgres:
-        condition: service_healthy
-      trino:
-        condition: service_healthy
-  fastapi:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    profiles:
-    - api
-    restart: unless-stopped
-    environment:
-      JWT_SECRET: ${JWT_SECRET:-phlo-jwt-secret-change-in-production}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      TRINO_HOST: trino
-      TRINO_PORT: 8080
-      TRINO_CATALOG: iceberg
-      TRINO_USER: ${TRINO_USER:-phlo}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-    ports:
-    - ${API_PORT:-8000}:8000
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:8000/health
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    depends_on:
-      postgres:
-        condition: service_healthy
-      trino:
-        condition: service_healthy
   dagster-daemon:
     build:
       context: .
@@ -472,7 +472,7 @@ services:
         condition: service_started
   observatory:
     build:
-      context: ../../../services/observatory
+      context: ../../../packages/phlo-observatory/src/phlo_observatory
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:

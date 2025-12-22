@@ -32,8 +32,14 @@ export interface DagsterConnectionStatus {
 const DEFAULT_DAGSTER_URL = 'http://localhost:3000/graphql'
 
 function resolveDagsterUrl(override?: string): string {
-  if (override && override.trim()) return override
-  return process.env.DAGSTER_GRAPHQL_URL || DEFAULT_DAGSTER_URL
+  const envUrl = process.env.DAGSTER_GRAPHQL_URL
+  if (override && override.trim()) {
+    if (envUrl && override.trim() === DEFAULT_DAGSTER_URL) {
+      return envUrl
+    }
+    return override
+  }
+  return envUrl || DEFAULT_DAGSTER_URL
 }
 
 // GraphQL query to get asset counts and run status

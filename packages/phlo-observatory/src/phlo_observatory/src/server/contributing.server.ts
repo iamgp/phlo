@@ -54,8 +54,14 @@ const MAX_PAGE = 200
 const DEFAULT_SAMPLE_SEED = 'phlo'
 
 function resolveTrinoUrl(override?: string): string {
-  if (override && override.trim()) return override
-  return process.env.TRINO_URL || DEFAULT_TRINO_URL
+  const envUrl = process.env.TRINO_URL
+  if (override && override.trim()) {
+    if (envUrl && override.trim() === DEFAULT_TRINO_URL) {
+      return envUrl
+    }
+    return override
+  }
+  return envUrl || DEFAULT_TRINO_URL
 }
 
 function escapeSqlString(value: string): string {

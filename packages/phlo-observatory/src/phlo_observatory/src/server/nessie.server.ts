@@ -41,8 +41,14 @@ export interface NessieConfig {
 const DEFAULT_NESSIE_URL = 'http://localhost:19120/api/v2'
 
 function resolveNessieUrl(override?: string): string {
-  if (override && override.trim()) return override
-  return process.env.NESSIE_URL || DEFAULT_NESSIE_URL
+  const envUrl = process.env.NESSIE_URL
+  if (override && override.trim()) {
+    if (envUrl && override.trim() === DEFAULT_NESSIE_URL) {
+      return envUrl
+    }
+    return override
+  }
+  return envUrl || DEFAULT_NESSIE_URL
 }
 
 /**

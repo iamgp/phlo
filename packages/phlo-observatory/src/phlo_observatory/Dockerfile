@@ -23,6 +23,7 @@ WORKDIR /app
 # Copy built application
 COPY --from=builder /app/.output /app/.output
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules /app/node_modules
 
 # Set environment
 ENV NODE_ENV=production

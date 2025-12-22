@@ -60,8 +60,14 @@ const DEFAULT_CATALOG = 'iceberg'
 const DEFAULT_TRINO_URL = 'http://localhost:8080'
 
 function resolveTrinoUrl(override?: string): string {
-  if (override && override.trim()) return override
-  return process.env.TRINO_URL || DEFAULT_TRINO_URL
+  const envUrl = process.env.TRINO_URL
+  if (override && override.trim()) {
+    if (envUrl && override.trim() === DEFAULT_TRINO_URL) {
+      return envUrl
+    }
+    return override
+  }
+  return envUrl || DEFAULT_TRINO_URL
 }
 
 export type { QueryExecutionError } from '@/server/queryGuardrails'
