@@ -41,6 +41,15 @@ dependencies = [
     "phlo-core-plugins>=0.1.0",
 ]
 
+[project.optional-dependencies]
+core-services = [
+    "phlo-dagster>=0.1.0",
+    "phlo-postgres>=0.1.0",
+    "phlo-minio>=0.1.0",
+    "phlo-nessie>=0.1.0",
+    "phlo-trino>=0.1.0",
+]
+
 [project.scripts]
 phlo = "phlo.cli.main:cli"
 
@@ -56,7 +65,7 @@ phlo = "phlo.cli.main:cli"
 # Example: my_transform = "my_package.my_module:MyTransform"
 
 [tool.uv.workspace]
-members = ["services/hub"]
+members = ["packages/*"]
 
 [dependency-groups]
 dev = [

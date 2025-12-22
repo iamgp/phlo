@@ -5,11 +5,15 @@ Discovers and loads service definitions from the services/ directory.
 """
 
 import logging
+from importlib.util import find_spec
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from phlo.plugins.discovery import discover_plugins
+from phlo.plugins.registry import get_global_registry
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +62,27 @@ class ServiceDefinition:
             phlo_dev=data.get("phlo_dev", False),
         )
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any], source_path: Path | None) -> "ServiceDefinition":
+        """Load a service definition from a dictionary."""
+        return cls(
+            name=data["name"],
+            description=data.get("description", ""),
+            category=data.get("category", "core"),
+            version=data.get("version", "latest"),
+            default=data.get("default", False),
+            profile=data.get("profile"),
+            depends_on=data.get("depends_on", []),
+            image=data.get("image"),
+            build=data.get("build"),
+            compose=data.get("compose", {}),
+            env_vars=data.get("env_vars", {}),
+            files=data.get("files", []),
+            hooks=data.get("hooks", {}),
+            source_path=source_path,
+            phlo_dev=data.get("phlo_dev", False),
+        )
+
 
 class ServiceDiscovery:
     """Discovers and manages service definitions."""
@@ -89,7 +114,11 @@ class ServiceDiscovery:
         self._services = {}
 
         if not self.services_dir.exists():
+            self._load_service_plugins()
+            self._loaded = True
             return self._services
+
+        self._load_service_plugins()
 
         # Search for service.yaml files in all subdirectories
         for yaml_path in self.services_dir.rglob("*.yaml"):
@@ -109,12 +138,38 @@ class ServiceDiscovery:
 
             try:
                 service = ServiceDefinition.from_yaml(yaml_path)
+                if service.name in self._services:
+                    continue
                 self._services[service.name] = service
             except (yaml.YAMLError, KeyError) as e:
                 logger.warning("Failed to load %s: %s", yaml_path, e)
 
         self._loaded = True
         return self._services
+
+    def _load_service_plugins(self) -> None:
+        discover_plugins(plugin_type="services", auto_register=True)
+        registry = get_global_registry()
+        for name in registry.list_services():
+            plugin = registry.get_service(name)
+            if not plugin:
+                continue
+            service_definition = plugin.service_definition
+            source_path = _resolve_plugin_source_path(plugin)
+            try:
+                service = ServiceDefinition.from_dict(service_definition, source_path)
+                self._services[service.name] = service
+            except KeyError as exc:
+                logger.warning("Service plugin %s missing field: %s", name, exc)
+
+
+def _resolve_plugin_source_path(plugin: Any) -> Path | None:
+    module_name = plugin.__class__.__module__
+    package_name = module_name.split(".", 1)[0]
+    spec = find_spec(package_name)
+    if not spec or not spec.origin:
+        return None
+    return Path(spec.origin).parent
 
     def get_service(self, name: str) -> ServiceDefinition | None:
         """Get a service definition by name."""
