@@ -1,0 +1,358 @@
+{
+  "$schema": "https://registry.phlo.dev/schema/v1.json",
+  "version": "1.0.0",
+  "updated_at": "2025-12-22T00:00:00Z",
+  "plugins": {
+    "example_cache": {
+      "type": "service",
+      "package": "phlo-plugin-example",
+      "version": "1.0.0",
+      "description": "Redis cache service for Phlo stacks",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "tags": [
+        "cache",
+        "redis",
+        "service"
+      ],
+      "verified": true
+    },
+    "jsonplaceholder": {
+      "type": "source",
+      "package": "phlo-plugin-example",
+      "version": "1.0.0",
+      "description": "JSONPlaceholder source connector",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "tags": [
+        "api",
+        "example"
+      ],
+      "verified": true
+    },
+    "threshold_check": {
+      "type": "quality",
+      "package": "phlo-plugin-example",
+      "version": "1.0.0",
+      "description": "Threshold validation for numeric columns",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "tags": [
+        "validation",
+        "numeric",
+        "example"
+      ],
+      "verified": true
+    },
+    "dagster": {
+      "type": "service",
+      "package": "phlo-dagster",
+      "version": "0.1.0",
+      "description": "Data orchestration platform for workflows and pipelines",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-dagster",
+      "tags": [
+        "orchestration",
+        "core"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "postgres": {
+      "type": "service",
+      "package": "phlo-postgres",
+      "version": "0.1.0",
+      "description": "PostgreSQL database for metadata and operational storage",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-postgres",
+      "tags": [
+        "core",
+        "database",
+        "postgres"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "minio": {
+      "type": "service",
+      "package": "phlo-minio",
+      "version": "0.1.0",
+      "description": "S3-compatible object storage for data lake",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-minio",
+      "tags": [
+        "core",
+        "storage",
+        "s3"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "nessie": {
+      "type": "service",
+      "package": "phlo-nessie",
+      "version": "0.1.0",
+      "description": "Git-like catalog for Iceberg tables with branch/merge support",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-nessie",
+      "tags": [
+        "core",
+        "catalog",
+        "iceberg"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "trino": {
+      "type": "service",
+      "package": "phlo-trino",
+      "version": "0.1.0",
+      "description": "Distributed SQL query engine for the data lake",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-trino",
+      "tags": [
+        "core",
+        "sql",
+        "query"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "rest_api": {
+      "type": "source",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Generic REST API source connector",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-core-plugins",
+      "tags": [
+        "source",
+        "api",
+        "rest"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "null_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Null checks for column completeness",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-core-plugins",
+      "tags": [
+        "quality",
+        "nulls"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "uniqueness_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Uniqueness validation for primary keys",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-core-plugins",
+      "tags": [
+        "quality",
+        "uniqueness"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "freshness_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Freshness checks for timestamped data",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-core-plugins",
+      "tags": [
+        "quality",
+        "freshness"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "schema_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Schema validation for expected columns and types",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-core-plugins",
+      "tags": [
+        "quality",
+        "schema"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "dagster-daemon": {
+      "type": "service",
+      "package": "phlo-dagster",
+      "version": "0.1.0",
+      "description": "Dagster daemon for background scheduling and sensors",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-dagster",
+      "tags": [
+        "orchestration",
+        "core"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "minio-setup": {
+      "type": "service",
+      "package": "phlo-minio",
+      "version": "0.1.0",
+      "description": "Initialize MinIO buckets for data lake",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-minio",
+      "tags": [
+        "core",
+        "storage",
+        "bootstrap"
+      ],
+      "verified": true,
+      "core": true
+    },
+    "pgweb": {
+      "type": "service",
+      "package": "phlo-pgweb",
+      "version": "0.1.0",
+      "description": "Web-based PostgreSQL database browser",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-pgweb",
+      "tags": [
+        "admin",
+        "postgres",
+        "ui"
+      ],
+      "verified": true
+    },
+    "superset": {
+      "type": "service",
+      "package": "phlo-superset",
+      "version": "0.1.0",
+      "description": "Apache Superset for business intelligence and data visualization",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-superset",
+      "tags": [
+        "bi",
+        "superset",
+        "visualization"
+      ],
+      "verified": true
+    },
+    "fastapi": {
+      "type": "service",
+      "package": "phlo-fastapi",
+      "version": "0.1.0",
+      "description": "Custom FastAPI service with JWT auth and Trino query support",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-fastapi",
+      "tags": [
+        "api",
+        "fastapi",
+        "service"
+      ],
+      "verified": true
+    },
+    "hasura": {
+      "type": "service",
+      "package": "phlo-hasura",
+      "version": "0.1.0",
+      "description": "GraphQL API engine with real-time subscriptions",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-hasura",
+      "tags": [
+        "api",
+        "graphql"
+      ],
+      "verified": true
+    },
+    "postgrest": {
+      "type": "service",
+      "package": "phlo-postgrest",
+      "version": "0.1.0",
+      "description": "RESTful API automatically generated from PostgreSQL schema",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-postgrest",
+      "tags": [
+        "api",
+        "rest"
+      ],
+      "verified": true
+    },
+    "loki": {
+      "type": "service",
+      "package": "phlo-loki",
+      "version": "0.1.0",
+      "description": "Log aggregation and querying",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-loki",
+      "tags": [
+        "observability",
+        "logs"
+      ],
+      "verified": true
+    },
+    "grafana": {
+      "type": "service",
+      "package": "phlo-grafana",
+      "version": "0.1.0",
+      "description": "Metrics visualization and dashboards",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-grafana",
+      "tags": [
+        "observability",
+        "metrics",
+        "dashboards"
+      ],
+      "verified": true
+    },
+    "prometheus": {
+      "type": "service",
+      "package": "phlo-prometheus",
+      "version": "0.1.0",
+      "description": "Metrics collection and monitoring",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-prometheus",
+      "tags": [
+        "observability",
+        "metrics"
+      ],
+      "verified": true
+    },
+    "alloy": {
+      "type": "service",
+      "package": "phlo-alloy",
+      "version": "0.1.0",
+      "description": "Grafana Alloy for log collection and shipping to Loki",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-alloy",
+      "tags": [
+        "observability",
+        "logs",
+        "agent"
+      ],
+      "verified": true
+    },
+    "observatory": {
+      "type": "service",
+      "package": "phlo-observatory",
+      "version": "0.1.0",
+      "description": "Phlo Observatory - Data platform visibility and lineage UI",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-observatory",
+      "tags": [
+        "orchestration",
+        "ui",
+        "observability"
+      ],
+      "verified": true
+    }
+  }
+}

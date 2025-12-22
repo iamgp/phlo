@@ -1,0 +1,58 @@
+name: observatory
+description: Phlo Observatory - Data platform visibility and lineage UI
+category: orchestration
+default: true
+
+build:
+  context: source
+  dockerfile: Dockerfile
+
+depends_on:
+  - dagster
+
+compose:
+  restart: unless-stopped
+  environment:
+    NODE_ENV: production
+    HOST: 0.0.0.0
+    PORT: 3000
+    DAGSTER_GRAPHQL_URL: http://dagster:3000/graphql
+    NESSIE_URL: http://nessie:19120/api/v2
+    TRINO_URL: http://trino:8080
+  ports:
+    - '${OBSERVATORY_PORT:-3001}:3000'
+  healthcheck:
+    test:
+      [
+        'CMD',
+        'wget',
+        '--no-verbose',
+        '--tries=1',
+        '--spider',
+        'http://127.0.0.1:3000/',
+      ]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 30s
+
+env_vars:
+  OBSERVATORY_PORT:
+    default: 3001
+    description: Observatory UI port
+
+dev:
+  command:
+    - npm
+    - run
+    - dev
+    - --
+    - --host
+    - 0.0.0.0
+    - --port
+    - "3000"
+  environment:
+    NODE_ENV: development
+  volumes:
+    - "{source}:/app"
+    - "/app/node_modules"

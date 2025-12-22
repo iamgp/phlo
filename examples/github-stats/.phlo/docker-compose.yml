@@ -47,28 +47,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-  loki:
-    image: grafana/loki:${LOKI_VERSION:-3.2.1}
-    profiles:
-    - observability
-    restart: unless-stopped
-    ports:
-    - ${LOKI_PORT:-3100}:3100
-    volumes:
-    - ./loki:/etc/loki:ro
-    - ./volumes/loki:/loki
-    command: -config.file=/etc/loki/loki-config.yml
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - --quiet
-      - --tries=1
-      - --spider
-      - http://localhost:3100/ready
-      interval: 10s
-      timeout: 5s
-      retries: 5
   alloy:
     image: grafana/alloy:v1.4.2
     profiles:
@@ -120,6 +98,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  loki:
+    image: grafana/loki:${LOKI_VERSION:-3.2.1}
+    profiles:
+    - observability
+    restart: unless-stopped
+    ports:
+    - ${LOKI_PORT:-3100}:3100
+    volumes:
+    - ./loki:/etc/loki:ro
+    - ./volumes/loki:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - --quiet
+      - --tries=1
+      - --spider
+      - http://localhost:3100/ready
+      interval: 10s
+      timeout: 5s
+      retries: 5
   minio-setup:
     image: minio/mc:latest
     restart: 'no'
@@ -135,13 +135,31 @@ services:
     depends_on:
       minio:
         condition: service_healthy
-  pgweb:
-    image: sosedoff/pgweb
+  hasura:
+    image: hasura/graphql-engine:${HASURA_VERSION:-v2.46.0}
+    profiles:
+    - api
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}?sslmode=disable
+      HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
+      HASURA_GRAPHQL_DEV_MODE: 'true'
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log,
+        query-log
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-phlo-hasura-admin-secret}
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
     ports:
-    - ${PGWEB_PORT:-8081}:8081
+    - ${HASURA_PORT:-8082}:8080
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - --spider
+      - http://localhost:8080/healthz
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       postgres:
         condition: service_healthy
@@ -169,6 +187,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+  pgweb:
+    image: sosedoff/pgweb
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}?sslmode=disable
+    ports:
+    - ${PGWEB_PORT:-8081}:8081
     depends_on:
       postgres:
         condition: service_healthy
@@ -204,34 +232,6 @@ services:
       postgres:
         condition: service_healthy
       minio:
-        condition: service_healthy
-  hasura:
-    image: hasura/graphql-engine:${HASURA_VERSION:-v2.46.0}
-    profiles:
-    - api
-    restart: unless-stopped
-    environment:
-      HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
-      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
-      HASURA_GRAPHQL_DEV_MODE: 'true'
-      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log,
-        query-log
-      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-phlo-hasura-admin-secret}
-      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
-    ports:
-    - ${HASURA_PORT:-8082}:8080
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - -q
-      - --spider
-      - http://localhost:8080/healthz
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    depends_on:
-      postgres:
         condition: service_healthy
   grafana:
     image: grafana/grafana:${GRAFANA_VERSION:-11.3.1}
@@ -333,8 +333,8 @@ services:
     - ../workflows:/app/workflows:ro
     - ../transforms:/app/transforms
     - ../tests:/app/tests:ro
-    - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
-    - ../../../src/phlo/../..:/opt/phlo-dev:ro
+    - ../../..:/usr/local/lib/python3.11/site-packages/phlo:ro
+    - ../../../../..:/opt/phlo-dev:rw
     env_file:
     - ../.env
     command:
@@ -354,37 +354,9 @@ services:
         condition: service_healthy
       trino:
         condition: service_healthy
-  superset:
-    image: apache/superset:${SUPERSET_VERSION:-4.0.0}
-    restart: unless-stopped
-    environment:
-      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
-      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
-    ports:
-    - ${SUPERSET_PORT:-8088}:8088
-    volumes:
-    - ./volumes/superset:/app/superset_home
-    command: '/bin/sh -c " superset db upgrade && superset fab create-admin --username
-      $${SUPERSET_ADMIN_USER} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL}
-      --password $${SUPERSET_ADMIN_PASSWORD} || true && superset init && superset
-      run -h 0.0.0.0 -p 8088 --with-threads "
-
-      '
-    depends_on:
-      postgres:
-        condition: service_healthy
-      trino:
-        condition: service_healthy
   fastapi:
     build:
-      context: .
+      context: ../../../packages/phlo-fastapi/src/phlo_fastapi
       dockerfile: Dockerfile
     profiles:
     - api
@@ -418,6 +390,75 @@ services:
         condition: service_healthy
       trino:
         condition: service_healthy
+  superset:
+    image: apache/superset:${SUPERSET_VERSION:-4.0.0}
+    restart: unless-stopped
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-phlo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
+      POSTGRES_DB: ${POSTGRES_DB:-phlo}
+      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
+      SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
+    ports:
+    - ${SUPERSET_PORT:-8088}:8088
+    volumes:
+    - ./volumes/superset:/app/superset_home
+    command: '/bin/sh -c " superset db upgrade && superset fab create-admin --username
+      $${SUPERSET_ADMIN_USER} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL}
+      --password $${SUPERSET_ADMIN_PASSWORD} || true && superset init && superset
+      run -h 0.0.0.0 -p 8088 --with-threads "
+
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+      trino:
+        condition: service_healthy
+  observatory:
+    build:
+      context: ../../../packages/phlo-observatory/src/phlo_observatory
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      DAGSTER_GRAPHQL_URL: http://dagster:3000/graphql
+      NESSIE_URL: http://nessie:19120/api/v2
+      TRINO_URL: http://trino:8080
+    ports:
+    - ${OBSERVATORY_PORT:-3001}:3000
+    command:
+    - npm
+    - run
+    - dev
+    - --
+    - --host
+    - 0.0.0.0
+    - --port
+    - '3000'
+    volumes:
+    - ../../../packages/phlo-observatory/src/phlo_observatory:/app
+    - /app/node_modules
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - --no-verbose
+      - --tries=1
+      - --spider
+      - http://127.0.0.1:3000/
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      dagster:
+        condition: service_started
   dagster-daemon:
     build:
       context: .
@@ -458,8 +499,8 @@ services:
     - ../workflows:/app/workflows:ro
     - ../transforms:/app/transforms
     - ../tests:/app/tests:ro
-    - ../../../src/phlo:/usr/local/lib/python3.11/site-packages/phlo:ro
-    - ../../../src/phlo/../..:/opt/phlo-dev:ro
+    - ../../..:/usr/local/lib/python3.11/site-packages/phlo:ro
+    - ../../../../..:/opt/phlo-dev:rw
     env_file:
     - ../.env
     command:
@@ -467,35 +508,6 @@ services:
     - run
     - -w
     - /opt/dagster/workspace.yaml
-    depends_on:
-      dagster:
-        condition: service_started
-  observatory:
-    build:
-      context: /Users/garethprice/Developer/phlo/services/observatory
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      HOST: 0.0.0.0
-      PORT: 3000
-      DAGSTER_GRAPHQL_URL: http://dagster:3000/graphql
-      NESSIE_URL: http://nessie:19120/api/v2
-      TRINO_URL: http://trino:8080
-    ports:
-    - ${OBSERVATORY_PORT:-3001}:3000
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - --no-verbose
-      - --tries=1
-      - --spider
-      - http://127.0.0.1:3000/
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     depends_on:
       dagster:
         condition: service_started

@@ -12,12 +12,14 @@ import importlib.util
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from dagster import Definitions
 
-if TYPE_CHECKING:
+try:
     from dagster_dbt import DbtCliResource
+except Exception:  # pragma: no cover - optional dependency for user workflows
+    DbtCliResource = Any  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +256,7 @@ def _discover_dbt_assets() -> list[Any]:
         return []
 
     try:
-        from dagster_dbt import dbt_assets
+        from dagster_dbt import DbtCliResource, dbt_assets
 
         from phlo.defs.partitions import daily_partition
         from phlo.defs.transform.dbt_translator import CustomDbtTranslator
@@ -264,7 +266,7 @@ def _discover_dbt_assets() -> list[Any]:
             dagster_dbt_translator=CustomDbtTranslator(),
             partitions_def=daily_partition,
         )
-        def all_dbt_assets(context, dbt: "DbtCliResource"):
+        def all_dbt_assets(context, dbt: DbtCliResource):
             import os
             import shutil
 

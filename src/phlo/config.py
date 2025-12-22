@@ -232,6 +232,16 @@ class Settings(BaseSettings):
     plugins_blacklist: list[str] = Field(
         default_factory=list, description="Blacklist of plugin names to exclude"
     )
+    plugin_registry_url: str = Field(
+        default="https://registry.phlo.dev/plugins.json",
+        description="URL for the plugin registry catalog",
+    )
+    plugin_registry_cache_ttl_seconds: int = Field(
+        default=3600, description="Registry cache TTL in seconds"
+    )
+    plugin_registry_timeout_seconds: int = Field(
+        default=10, description="Registry fetch timeout in seconds"
+    )
 
     # --- Computed Properties ---
     # Additional properties computed from the base settings

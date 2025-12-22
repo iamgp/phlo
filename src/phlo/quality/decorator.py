@@ -26,6 +26,7 @@ def phlo_quality(
     asset_key: Optional[AssetKey] = None,
     group: Optional[str] = None,
     blocking: bool = True,
+    partition_aware: bool = True,
     warn_threshold: float = 0.0,
     partition_column: str = "_phlo_partition_date",
     rolling_window_days: int | None = 7,
@@ -46,6 +47,7 @@ def phlo_quality(
         asset_key: Optional Dagster AssetKey (derived from table if not provided)
         group: Optional asset group
         blocking: Whether check failures block downstream assets (default: True)
+        partition_aware: Whether to apply partition scoping (default: True)
         warn_threshold: Max fraction of failed checks to mark as WARN (otherwise ERROR)
         partition_column: Partition column name used for scoping queries
         rolling_window_days: When unpartitioned, optionally scope to last N days
@@ -83,7 +85,10 @@ def phlo_quality(
 
     def decorator(func: Callable) -> Callable:
         # Derive asset key from table name if not provided
-        nonlocal asset_key, description
+        nonlocal asset_key, description, full_table
+
+        if not partition_aware:
+            full_table = True
 
         if asset_key is None:
             # Extract table name from fully qualified name
@@ -199,14 +204,17 @@ def phlo_quality(
                     repro_sql=_repro_sql(final_query),
                     sample=failures,
                 )
-                return AssetCheckResult(
-                    passed=all_passed,
-                    severity=severity_for_pandera_contract(passed=all_passed),
-                    metadata={
+                severity = severity_for_pandera_contract(passed=all_passed)
+                result_kwargs = {
+                    "passed": all_passed,
+                    "metadata": {
                         **contract.to_dagster_metadata(),
                         "schemas": MetadataValue.json(schema_names),
                     },
-                )
+                }
+                if severity is not None:
+                    result_kwargs["severity"] = severity
+                return AssetCheckResult(**result_kwargs)
 
         if non_schema_checks:
             # Create the Dagster asset check function
@@ -337,11 +345,10 @@ def phlo_quality(
                         f"(within warn threshold of {warn_threshold:.1%})"
                     )
 
-                return AssetCheckResult(
-                    passed=all_passed,
-                    severity=severity,
-                    metadata=metadata,
-                )
+                result_kwargs = {"passed": all_passed, "metadata": metadata}
+                if severity is not None:
+                    result_kwargs["severity"] = severity
+                return AssetCheckResult(**result_kwargs)
 
             _QUALITY_CHECKS.append(quality_check_wrapper)
             if schema_checks:

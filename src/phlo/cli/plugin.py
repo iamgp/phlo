@@ -9,7 +9,10 @@ Provides commands to:
 - Create scaffolding for new plugins
 """
 
+import importlib.metadata
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -23,8 +26,43 @@ from phlo.plugins import (
     list_plugins,
     validate_plugins,
 )
+from phlo.plugins.discovery import get_service
+from phlo.plugins.registry import get_global_registry
+from phlo.plugins.registry_client import (
+    get_plugin as get_registry_plugin,
+    list_registry_plugins,
+    search_plugins,
+)
 
 console = Console()
+
+PLUGIN_TYPE_MAP = {
+    "sources": "source_connectors",
+    "quality": "quality_checks",
+    "transforms": "transformations",
+    "services": "services",
+}
+
+PLUGIN_TYPE_LABELS = {
+    "source_connectors": "Sources",
+    "quality_checks": "Quality Checks",
+    "transformations": "Transforms",
+    "services": "Services",
+}
+
+PLUGIN_INTERNAL_TO_REGISTRY = {
+    "source_connectors": "source",
+    "quality_checks": "quality",
+    "transformations": "transform",
+    "services": "service",
+}
+
+REGISTRY_TYPE_MAP = {
+    "sources": "source",
+    "quality": "quality",
+    "transforms": "transform",
+    "services": "service",
+}
 
 
 @click.group(name="plugin")
@@ -37,9 +75,16 @@ def plugin_group():
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms", "all"]),
+    type=click.Choice(["sources", "quality", "transforms", "services", "all"]),
     default="all",
     help="Filter by plugin type",
+)
+@click.option(
+    "--all",
+    "include_registry",
+    is_flag=True,
+    default=False,
+    help="Include registry plugins in output",
 )
 @click.option(
     "--json",
@@ -48,81 +93,29 @@ def plugin_group():
     default=False,
     help="Output as JSON",
 )
-def list_cmd(plugin_type: str, output_json: bool):
+def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
     """List all discovered plugins.
 
     Examples:
         phlo plugin list                    # List all plugins
         phlo plugin list --type sources     # List source connectors only
         phlo plugin list --json             # Output as JSON
+        phlo plugin list --all              # Include registry plugins
     """
     try:
-        all_plugins = list_plugins()
+        installed = _collect_installed_plugins(plugin_type)
+        available = _collect_registry_plugins(plugin_type) if include_registry else []
 
         if output_json:
-            # Map display names to internal names
-            type_mapping = {
-                "sources": "source_connectors",
-                "quality": "quality_checks",
-                "transforms": "transformations",
-            }
-
-            output = {}
-            for plugin_type_key, plugins in all_plugins.items():
-                if plugin_type == "all" or type_mapping.get(plugin_type) == plugin_type_key:
-                    output[plugin_type_key] = plugins
-
-            console.print(json.dumps(output, indent=2))
+            output = {"installed": installed}
+            if include_registry:
+                output["available"] = available
+            console.print(json.dumps(output if include_registry else installed, indent=2))
             return
 
-        # Rich table output
-        if plugin_type == "all":
-            # Show all plugin types
-            type_groups = [
-                ("Sources", all_plugins["source_connectors"]),
-                ("Quality Checks", all_plugins["quality_checks"]),
-                ("Transforms", all_plugins["transformations"]),
-            ]
-        else:
-            type_mapping = {
-                "sources": ("Sources", all_plugins["source_connectors"]),
-                "quality": ("Quality Checks", all_plugins["quality_checks"]),
-                "transforms": ("Transforms", all_plugins["transformations"]),
-            }
-            type_groups = [type_mapping[plugin_type]]
-
-        for group_name, plugin_names in type_groups:
-            if plugin_names:
-                console.print(f"\n{group_name}:")
-                table = Table(show_header=True, header_style="bold magenta")
-                table.add_column("Name", style="cyan")
-                table.add_column("Version", style="green")
-                table.add_column("Author", style="yellow")
-
-                for name in plugin_names:
-                    # Get plugin info
-                    type_key = None
-                    if group_name == "Sources":
-                        type_key = "source_connectors"
-                    elif group_name == "Quality Checks":
-                        type_key = "quality_checks"
-                    elif group_name == "Transforms":
-                        type_key = "transformations"
-
-                    info = get_plugin_info(type_key, name)
-                    if info:
-                        table.add_row(
-                            name,
-                            info.get("version", "unknown"),
-                            info.get("author", "unknown"),
-                        )
-                    else:
-                        table.add_row(name, "unknown", "unknown")
-
-                console.print(table)
-            else:
-                console.print(f"\n{group_name}:")
-                console.print("  (none installed)")
+        _render_plugin_table("Installed", installed)
+        if include_registry:
+            _render_plugin_table("Available", available)
 
     except Exception as e:
         console.print(f"[red]Error listing plugins: {e}[/red]")
@@ -134,7 +127,7 @@ def list_cmd(plugin_type: str, output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms"]),
+    type=click.Choice(["sources", "quality", "transforms", "services"]),
     help="Plugin type (auto-detected if not specified)",
 )
 @click.option(
@@ -165,6 +158,8 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
                         plugin_type = "quality"
                     elif ptype_key == "transformations":
                         plugin_type = "transforms"
+                    elif ptype_key == "services":
+                        plugin_type = "services"
                     break
 
         if not plugin_type:
@@ -176,6 +171,7 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
             "sources": "source_connectors",
             "quality": "quality_checks",
             "transforms": "transformations",
+            "services": "services",
         }
         internal_type = type_mapping.get(plugin_type, plugin_type)
 
@@ -276,12 +272,126 @@ def check_cmd(output_json: bool):
         raise click.Exit(1)
 
 
+@plugin_group.command(name="search")
+@click.argument("query", required=False)
+@click.option(
+    "--type",
+    "plugin_type",
+    type=click.Choice(["source", "quality", "transform", "service"]),
+    help="Filter by plugin type",
+)
+@click.option(
+    "--tag",
+    "tags",
+    multiple=True,
+    help="Filter by one or more tags",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    default=False,
+    help="Output as JSON",
+)
+def search_cmd(query: Optional[str], plugin_type: Optional[str], tags: tuple[str, ...], output_json: bool):
+    """Search plugin registry."""
+    try:
+        results = search_plugins(
+            query=query,
+            plugin_type=plugin_type,
+            tags=list(tags) if tags else None,
+        )
+
+        output = [_registry_plugin_to_dict(plugin) for plugin in results]
+
+        if output_json:
+            console.print(json.dumps(output, indent=2))
+            return
+
+        if not output:
+            console.print("No plugins found.")
+            return
+
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Name", style="cyan")
+        table.add_column("Type", style="green")
+        table.add_column("Version", style="yellow")
+        table.add_column("Package", style="white")
+        table.add_column("Verified", style="blue")
+
+        for plugin in output:
+            table.add_row(
+                plugin["name"],
+                plugin["type"],
+                plugin["version"],
+                plugin["package"],
+                "yes" if plugin["verified"] else "no",
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Error searching registry: {e}[/red]")
+        raise click.Exit(1)
+
+
+@plugin_group.command(name="install")
+@click.argument("plugin_name")
+def install_cmd(plugin_name: str):
+    """Install a plugin from the registry (wraps pip)."""
+    try:
+        package_spec, display_name = _resolve_install_target(plugin_name)
+        console.print(f"Installing {display_name}...")
+        _run_pip(["install", package_spec])
+        console.print(f"[green]✓ Installed {display_name}[/green]")
+    except Exception as e:
+        console.print(f"[red]Error installing plugin: {e}[/red]")
+        raise click.Exit(1)
+
+
+@plugin_group.command(name="update")
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    default=False,
+    help="Output as JSON",
+)
+def update_cmd(output_json: bool):
+    """Update installed plugins based on registry versions."""
+    try:
+        registry_plugins = list_registry_plugins()
+        updates = _find_available_updates(registry_plugins)
+
+        if output_json:
+            console.print(json.dumps(updates, indent=2))
+            return
+
+        if not updates:
+            console.print("No plugin updates available.")
+            return
+
+        console.print("Updates available:")
+        for update in updates:
+            console.print(
+                f"  {update['name']}: {update['installed_version']} → {update['available_version']}"
+            )
+
+        for update in updates:
+            _run_pip(["install", "--upgrade", f"{update['package']}=={update['available_version']}"])
+
+        console.print("[green]✓ Plugins updated[/green]")
+    except Exception as e:
+        console.print(f"[red]Error updating plugins: {e}[/red]")
+        raise click.Exit(1)
+
+
 @plugin_group.command(name="create")
 @click.argument("plugin_name")
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform"]),
+    type=click.Choice(["source", "quality", "transform", "service"]),
     default="source",
     help="Type of plugin to create",
 )
@@ -334,6 +444,175 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
         raise click.Exit(1)
 
 
+def _run_pip(args: list[str]) -> None:
+    command = [sys.executable, "-m", "pip", *args]
+    subprocess.run(command, check=True)
+
+
+def _registry_plugin_to_dict(plugin) -> dict:
+    return {
+        "name": plugin.name,
+        "type": plugin.type,
+        "package": plugin.package,
+        "version": plugin.version,
+        "description": plugin.description,
+        "author": plugin.author,
+        "homepage": plugin.homepage,
+        "tags": plugin.tags,
+        "verified": plugin.verified,
+        "core": plugin.core,
+    }
+
+
+def _resolve_install_target(plugin_name: str) -> tuple[str, str]:
+    if "==" in plugin_name:
+        name_part, version_part = plugin_name.split("==", 1)
+    else:
+        name_part, version_part = plugin_name, None
+
+    registry_plugin = get_registry_plugin(name_part)
+    if registry_plugin:
+        version = version_part or registry_plugin.version
+        package_spec = f"{registry_plugin.package}=={version}"
+        display_name = f"{registry_plugin.name} ({registry_plugin.package})"
+        return package_spec, display_name
+
+    return plugin_name, plugin_name
+
+
+def _collect_installed_plugins(plugin_type: str) -> list[dict]:
+    registry = get_global_registry()
+    installed: list[dict] = []
+
+    def add_plugin(plugin_key: str, name: str) -> None:
+        info = get_plugin_info(plugin_key, name)
+        if not info:
+            return
+        installed.append(
+            {
+                "name": info["name"],
+                "type": PLUGIN_INTERNAL_TO_REGISTRY.get(plugin_key, plugin_key),
+                "version": info["version"],
+                "description": info.get("description", ""),
+                "author": info.get("author", ""),
+                "homepage": info.get("homepage", ""),
+                "tags": info.get("tags", []),
+                "installed": True,
+            }
+        )
+
+    for type_key, names in registry.list_all_plugins().items():
+        if plugin_type != "all" and PLUGIN_TYPE_MAP.get(plugin_type) != type_key:
+            continue
+        if type_key == "services":
+            for name in names:
+                service = get_service(name)
+                if not service:
+                    continue
+                metadata = service.metadata
+                installed.append(
+                    {
+                        "name": metadata.name,
+                        "type": "service",
+                        "version": metadata.version,
+                        "description": metadata.description,
+                        "author": metadata.author,
+                        "homepage": metadata.homepage,
+                        "tags": metadata.tags,
+                        "installed": True,
+                        "category": service.category,
+                        "profile": service.profile,
+                        "default": service.is_default,
+                    }
+                )
+            continue
+
+        for name in names:
+            add_plugin(type_key, name)
+
+    return installed
+
+
+def _collect_registry_plugins(plugin_type: str) -> list[dict]:
+    registry_plugins = list_registry_plugins()
+    if plugin_type != "all":
+        registry_type = REGISTRY_TYPE_MAP.get(plugin_type)
+        registry_plugins = [
+            plugin for plugin in registry_plugins if plugin.type == registry_type
+        ]
+    return [_registry_plugin_to_dict(plugin) for plugin in registry_plugins]
+
+
+def _render_plugin_table(title: str, plugins: list[dict]) -> None:
+    console.print(f"\n{title}:")
+    if not plugins:
+        console.print("  (none)")
+        return
+
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Name", style="cyan")
+    table.add_column("Type", style="green")
+    table.add_column("Version", style="yellow")
+    table.add_column("Author", style="white")
+
+    for plugin in plugins:
+        table.add_row(
+            plugin["name"],
+            plugin["type"],
+            plugin["version"],
+            plugin.get("author", "unknown") or "unknown",
+        )
+
+    console.print(table)
+
+
+def _get_installed_version(package: str) -> str | None:
+    try:
+        return importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def _version_tuple(version: str) -> tuple:
+    try:
+        from packaging.version import Version
+
+        return (0, Version(version))
+    except Exception:
+        parts = []
+        for part in version.replace("-", ".").split("."):
+            if part.isdigit():
+                parts.append((0, int(part)))
+            else:
+                parts.append((1, part))
+        return tuple(parts)
+
+
+def _is_version_newer(installed: str, available: str) -> bool:
+    try:
+        return _version_tuple(available) > _version_tuple(installed)
+    except Exception:
+        return available != installed
+
+
+def _find_available_updates(registry_plugins) -> list[dict]:
+    updates = []
+    for plugin in registry_plugins:
+        installed_version = _get_installed_version(plugin.package)
+        if not installed_version:
+            continue
+        if _is_version_newer(installed_version, plugin.version):
+            updates.append(
+                {
+                    "name": plugin.name,
+                    "package": plugin.package,
+                    "installed_version": installed_version,
+                    "available_version": plugin.version,
+                }
+            )
+    return updates
+
+
 def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path):
     """Create plugin package structure and files."""
     # Create directories
@@ -347,6 +626,7 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "source": "SourceConnectorPlugin",
         "quality": "QualityCheckPlugin",
         "transform": "TransformationPlugin",
+        "service": "ServicePlugin",
     }
     base_class = type_mapping[plugin_type]
 
@@ -354,6 +634,7 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "source": "phlo.plugins.sources",
         "quality": "phlo.plugins.quality",
         "transform": "phlo.plugins.transforms",
+        "service": "phlo.plugins.services",
     }[plugin_type]
 
     # Create __init__.py
@@ -443,6 +724,18 @@ class {class_name}({base_class}):
         """Validate transformation configuration."""
         # Add config validation logic here
         return True
+'''
+    elif plugin_type == "service":
+        plugin_content += '''
+    @property
+    def service_definition(self) -> dict:
+        """Return service definition."""
+        return {
+            "category": "custom",
+            "compose": {
+                "image": "your-service:latest",
+            },
+        }
 '''
 
     (src_dir / "plugin.py").write_text(plugin_content)

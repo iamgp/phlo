@@ -33,6 +33,9 @@ threshold_check = "phlo_example.quality:ThresholdCheckPlugin"
 [project.entry-points."phlo.plugins.transforms"]
 uppercase = "phlo_example.transform:UppercaseTransformPlugin"
 
+[project.entry-points."phlo.plugins.services"]
+example_cache = "phlo_example.service:ExampleCacheServicePlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

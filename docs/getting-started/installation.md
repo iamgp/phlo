@@ -97,6 +97,14 @@ Verify installation:
 phlo --version
 ```
 
+Install the core service packages (recommended):
+
+```bash
+uv pip install -e ".[core-services]"
+```
+
+These packages provide the Docker service definitions used by `phlo services`.
+
 ### Step 4: Initialize Infrastructure
 
 Create the infrastructure directory structure:
