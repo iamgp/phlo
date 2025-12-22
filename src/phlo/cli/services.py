@@ -445,16 +445,17 @@ def init(
     if dev:
         if phlo_source:
             phlo_source_path = Path(phlo_source)
-            if phlo_source_path.is_absolute():
-                phlo_src_path = str(phlo_source_path)
+            if not phlo_source_path.is_absolute():
+                phlo_source_path = (Path.cwd() / phlo_source_path).resolve()
             else:
-                # User-provided path is relative to project root, add ../ for .phlo context
-                phlo_src_path = f"../{phlo_source}"
+                phlo_source_path = phlo_source_path.resolve()
+            phlo_src_path = os.path.relpath(phlo_source_path, phlo_dir)
             click.echo(f"Dev mode: using phlo source at {phlo_source}")
         else:
             # Use flexible path detection
             phlo_src_path = detect_phlo_source_path()
             if phlo_src_path:
+                phlo_src_path = os.path.relpath(Path(phlo_src_path).resolve(), phlo_dir)
                 click.echo(f"Dev mode: auto-detected phlo source (path: {phlo_src_path})")
             else:
                 click.echo(

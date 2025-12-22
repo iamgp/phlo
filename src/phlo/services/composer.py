@@ -5,6 +5,7 @@ Generates docker-compose.yml and .env files from service definitions.
 """
 
 import logging
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,10 @@ class ComposeGenerator:
             if context == "source" and service.source_path:
                 # Use the service's source directory as build context
                 context = str(service.source_path)
+            if isinstance(context, str):
+                context_path = Path(context)
+                if context_path.is_absolute():
+                    context = os.path.relpath(context_path, output_dir)
             build_config: dict[str, Any] = {"context": context}
             if service.build.get("dockerfile"):
                 build_config["dockerfile"] = service.build["dockerfile"]
