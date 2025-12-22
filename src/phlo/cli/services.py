@@ -551,21 +551,44 @@ def init(
 
 @services.command("list")
 @click.option("--all", "show_all", is_flag=True, help="Show all services including optional")
-def list_services(show_all: bool):
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON")
+def list_services(show_all: bool, output_json: bool):
     """List available services.
 
     Examples:
         phlo services list
         phlo services list --all
+        phlo services list --json
     """
+    import json
+
     from phlo.services import ServiceDiscovery
 
     discovery = ServiceDiscovery()
-    all_services = discovery.list_all()
+    services = list(discovery.discover().values())
 
-    if not all_services:
+    if not services:
         click.echo("No services found.")
         return
+
+    if output_json:
+        payload = [
+            {
+                "name": svc.name,
+                "description": svc.description,
+                "category": svc.category,
+                "default": svc.default,
+                "profile": svc.profile,
+                "depends_on": svc.depends_on,
+                "compose": svc.compose,
+                "env_vars": svc.env_vars,
+            }
+            for svc in services
+        ]
+        click.echo(json.dumps(payload, indent=2))
+        return
+
+    all_services = discovery.list_all()
 
     # Group by category
     categories: dict[str, list[dict]] = {}

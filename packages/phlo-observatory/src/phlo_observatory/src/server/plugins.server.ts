@@ -9,6 +9,9 @@ import { promisify } from 'node:util'
 import { createServerFn } from '@tanstack/react-start'
 
 const execAsync = promisify(exec)
+const pluginCommand = process.env.PHLO_PLUGIN_COMMAND ?? 'phlo'
+const registryUrl =
+  process.env.PHLO_PLUGIN_REGISTRY_URL ?? 'https://registry.phlo.dev/plugins.json'
 
 export interface PluginInfo {
   name: string
@@ -27,27 +30,64 @@ export interface PluginInfo {
   default?: boolean
 }
 
+interface RegistryPayload {
+  plugins?: Record<string, Omit<PluginInfo, 'name' | 'type'> & { type?: PluginInfo['type'] }>
+}
+
+function parseCliOutput(stdout: string): { installed: Array<PluginInfo>; available: Array<PluginInfo> } {
+  const parsed = JSON.parse(stdout)
+  if (Array.isArray(parsed)) {
+    return { installed: parsed as Array<PluginInfo>, available: [] }
+  }
+  return {
+    installed: parsed.installed ?? [],
+    available: parsed.available ?? [],
+  }
+}
+
+async function fetchRegistryPlugins(): Promise<Array<PluginInfo>> {
+  const response = await fetch(registryUrl)
+  if (!response.ok) {
+    throw new Error(`Registry request failed: ${response.status}`)
+  }
+  const payload = (await response.json()) as RegistryPayload
+  const entries = payload.plugins ?? {}
+  return Object.entries(entries).map(([name, info]) => ({
+    name,
+    type: info.type ?? 'service',
+    version: info.version ?? 'unknown',
+    description: info.description,
+    author: info.author,
+    homepage: info.homepage,
+    tags: info.tags,
+    verified: info.verified,
+    core: info.core,
+    package: info.package,
+  }))
+}
+
+async function getPluginLists(): Promise<{
+  installed: Array<PluginInfo>
+  available: Array<PluginInfo>
+}> {
+  try {
+    const { stdout } = await execAsync(`${pluginCommand} plugin list --all --json`)
+    return parseCliOutput(stdout)
+  } catch (error) {
+    const available = await fetchRegistryPlugins()
+    return { installed: [], available }
+  }
+}
+
 export const getPlugins = createServerFn().handler(
   async (): Promise<Array<PluginInfo>> => {
-    const { stdout } = await execAsync('phlo plugin list --json')
-    const parsed = JSON.parse(stdout)
-    if (Array.isArray(parsed)) {
-      return parsed as Array<PluginInfo>
-    }
-    return parsed.installed ?? []
+    const lists = await getPluginLists()
+    return lists.installed
   },
 )
 
 export const getAvailablePlugins = createServerFn().handler(
   async (): Promise<{ installed: Array<PluginInfo>; available: Array<PluginInfo> }> => {
-    const { stdout } = await execAsync('phlo plugin list --all --json')
-    const parsed = JSON.parse(stdout)
-    if (Array.isArray(parsed)) {
-      return { installed: parsed as Array<PluginInfo>, available: [] }
-    }
-    return {
-      installed: parsed.installed ?? [],
-      available: parsed.available ?? [],
-    }
+    return getPluginLists()
   },
 )
