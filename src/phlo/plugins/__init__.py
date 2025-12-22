@@ -8,6 +8,7 @@ the framework with custom:
 - Source connectors (ingest data from new APIs/databases)
 - Quality checks (custom validation logic)
 - Transformations (custom data processing steps)
+- Services (Docker-based infrastructure components)
 
 ## Plugin Types
 
@@ -56,6 +57,32 @@ class CustomTransform(TransformationPlugin):
         pass
 ```
 
+### 4. Service Plugins
+Add Docker-based infrastructure components.
+
+```python
+from phlo.plugins import ServicePlugin
+
+class CustomService(ServicePlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="custom_service",
+            version="1.0.0",
+            description="Custom service",
+        )
+
+    @property
+    def service_definition(self) -> dict:
+        return {
+            "category": "custom",
+            "compose": {
+                "image": "my-service:latest",
+                "ports": ["1234:1234"],
+            },
+        }
+```
+
 ## Installing Plugins
 
 Plugins are installed as Python packages with entry points:
@@ -70,6 +97,9 @@ custom_check = "my_phlo_plugin:CustomQualityCheck"
 
 [project.entry-points."phlo.plugins.transforms"]
 custom_transform = "my_phlo_plugin:CustomTransform"
+
+[project.entry-points."phlo.plugins.services"]
+custom_service = "my_phlo_plugin:CustomService"
 ```
 
 After installing the plugin package:
@@ -106,6 +136,7 @@ from phlo.plugins.base import (
     Plugin,
     PluginMetadata,
     QualityCheckPlugin,
+    ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
 )
@@ -127,6 +158,7 @@ __all__ = [
     "PluginMetadata",
     "SourceConnectorPlugin",
     "QualityCheckPlugin",
+    "ServicePlugin",
     "TransformationPlugin",
     # Discovery
     "discover_plugins",
