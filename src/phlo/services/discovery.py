@@ -201,10 +201,17 @@ class ServiceDiscovery:
         self.discover()
         return self._services.get(name)
 
-    def get_default_services(self) -> list[ServiceDefinition]:
-        """Get all services marked as default."""
+    def get_default_services(
+        self, disabled_services: set[str] | None = None
+    ) -> list[ServiceDefinition]:
+        """Get all services marked as default, excluding disabled ones.
+
+        Args:
+            disabled_services: Set of service names to exclude.
+        """
         self.discover()
-        return [s for s in self._services.values() if s.default]
+        disabled = disabled_services or set()
+        return [s for s in self._services.values() if s.default and s.name not in disabled]
 
     def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
         """Get all services in a specific profile."""

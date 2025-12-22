@@ -486,17 +486,26 @@ def init(
         click.echo("Error: No services found. Check services/ directory.", err=True)
         sys.exit(1)
 
-    # Get default services + all profile services (they're included but inactive)
-    default_services = discovery.get_default_services()
-    profile_services = [s for s in all_services.values() if s.profile]
-    services_to_install = default_services + profile_services
-
     # Load existing phlo.yaml config for user overrides
     existing_config = {}
     if config_file.exists():
         with open(config_file) as f:
             existing_config = yaml.safe_load(f) or {}
     user_overrides = existing_config.get("services", {})
+
+    # Collect disabled services (those with enabled: false)
+    disabled_services = {
+        name
+        for name, cfg in user_overrides.items()
+        if isinstance(cfg, dict) and cfg.get("enabled") is False
+    }
+
+    # Get default services (excluding disabled) + profile services
+    default_services = discovery.get_default_services(disabled_services=disabled_services)
+    profile_services = [
+        s for s in all_services.values() if s.profile and s.name not in disabled_services
+    ]
+    services_to_install = default_services + profile_services
 
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
