@@ -37,7 +37,7 @@ class ThresholdCheckPlugin(QualityCheckPlugin):
             name="threshold_check",
             version="1.0.0",
             description="Validate numeric values within thresholds",
-            author="Cascade Team",
+            author="Phlo Team",
             homepage="https://github.com/iamgp/phlo",
             tags=["validation", "numeric", "example"],
             license="MIT",

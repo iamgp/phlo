@@ -49,6 +49,14 @@ core-services = [
     "phlo-nessie>=0.1.0",
     "phlo-trino>=0.1.0",
 ]
+# Convenience alias - install all default services with: pip install phlo[defaults]
+defaults = [
+    "phlo-dagster>=0.1.0",
+    "phlo-postgres>=0.1.0",
+    "phlo-minio>=0.1.0",
+    "phlo-nessie>=0.1.0",
+    "phlo-trino>=0.1.0",
+]
 
 [project.scripts]
 phlo = "phlo.cli.main:cli"

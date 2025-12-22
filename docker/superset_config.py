@@ -1,4 +1,4 @@
-# superset_config.py - Apache Superset configuration for Cascade dashboard
+# superset_config.py - Apache Superset configuration for Phlo dashboard
 # Configures Superset settings for the lakehouse BI platform
 # including database connections, security, and feature flags
 

@@ -1,7 +1,7 @@
 """
-Cascade CLI
+Phlo CLI
 
-Command-line interface for Cascade workflows.
+Command-line interface for Phlo workflows.
 
 Available commands:
 - phlo test        - Run tests with optional local mode

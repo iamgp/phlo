@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test DuckDB Iceberg extension integration with Cascade Iceberg tables.
+Test DuckDB Iceberg extension integration with Phlo Iceberg tables.
 
 This script demonstrates querying Iceberg tables directly using DuckDB,
 bypassing Trino for fast ad-hoc analysis.

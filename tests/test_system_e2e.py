@@ -1,7 +1,7 @@
 """Tests for Overall System (E2E and Data Quality).
 
 This module contains end-to-end and data quality tests for the
-complete Cascade data lakehouse system.
+complete Phlo data lakehouse system.
 """
 
 import pytest

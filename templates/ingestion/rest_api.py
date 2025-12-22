@@ -1,7 +1,7 @@
 """
 REST API Ingestion Template
 
-This template shows how to create a Cascade ingestion asset for REST API data sources.
+This template shows how to create a Phlo ingestion asset for REST API data sources.
 
 TODO: Customize this template:
 1. Copy this file to src/phlo/defs/ingestion/YOUR_DOMAIN/YOUR_ASSET.py

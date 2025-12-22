@@ -37,7 +37,7 @@ class JSONPlaceholderSource(SourceConnectorPlugin):
             name="jsonplaceholder",
             version="1.0.0",
             description="Fetch data from JSONPlaceholder API",
-            author="Cascade Team",
+            author="Phlo Team",
             homepage="https://github.com/iamgp/phlo",
             tags=["api", "example", "public"],
             license="MIT",

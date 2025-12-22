@@ -1,5 +1,5 @@
 """
-Sensors package for Cascade data pipeline automation.
+Sensors package for Phlo data pipeline automation.
 
 Provides sensors for:
 - Automatic branch creation when jobs start

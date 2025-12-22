@@ -1,4 +1,4 @@
-# config.py - Centralized configuration management for the Cascade lakehouse platform
+# config.py - Centralized configuration management for the Phlo lakehouse platform
 # This module defines all configurable settings using Pydantic, loaded from environment variables
 # and .env file. It provides computed properties for connection strings and catalog configs.
 

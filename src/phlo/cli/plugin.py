@@ -1,6 +1,6 @@
 """Plugin Management Commands
 
-CLI commands for managing Cascade plugins.
+CLI commands for managing Phlo plugins.
 
 Provides commands to:
 - List installed plugins
@@ -30,6 +30,8 @@ from phlo.plugins.discovery import get_service
 from phlo.plugins.registry import get_global_registry
 from phlo.plugins.registry_client import (
     get_plugin as get_registry_plugin,
+)
+from phlo.plugins.registry_client import (
     list_registry_plugins,
     search_plugins,
 )
@@ -67,7 +69,7 @@ REGISTRY_TYPE_MAP = {
 
 @click.group(name="plugin")
 def plugin_group():
-    """Manage Cascade plugins."""
+    """Manage Phlo plugins."""
     pass
 
 
@@ -293,7 +295,9 @@ def check_cmd(output_json: bool):
     default=False,
     help="Output as JSON",
 )
-def search_cmd(query: Optional[str], plugin_type: Optional[str], tags: tuple[str, ...], output_json: bool):
+def search_cmd(
+    query: Optional[str], plugin_type: Optional[str], tags: tuple[str, ...], output_json: bool
+):
     """Search plugin registry."""
     try:
         results = search_plugins(
@@ -378,7 +382,9 @@ def update_cmd(output_json: bool):
             )
 
         for update in updates:
-            _run_pip(["install", "--upgrade", f"{update['package']}=={update['available_version']}"])
+            _run_pip(
+                ["install", "--upgrade", f"{update['package']}=={update['available_version']}"]
+            )
 
         console.print("[green]✓ Plugins updated[/green]")
     except Exception as e:
@@ -537,9 +543,7 @@ def _collect_registry_plugins(plugin_type: str) -> list[dict]:
     registry_plugins = list_registry_plugins()
     if plugin_type != "all":
         registry_type = REGISTRY_TYPE_MAP.get(plugin_type)
-        registry_plugins = [
-            plugin for plugin in registry_plugins if plugin.type == registry_type
-        ]
+        registry_plugins = [plugin for plugin in registry_plugins if plugin.type == registry_type]
     return [_registry_plugin_to_dict(plugin) for plugin in registry_plugins]
 
 
@@ -639,7 +643,7 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
 
     # Create __init__.py
     init_content = f'''"""
-{plugin_name} plugin for Cascade
+{plugin_name} plugin for Phlo
 
 Plugin type: {plugin_type}
 """
@@ -789,7 +793,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "{plugin_name}"
 version = "0.1.0"
-description = "Cascade {plugin_type} plugin"
+description = "Phlo {plugin_type} plugin"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
@@ -830,7 +834,7 @@ typeCheckingMode = "standard"
     # Create README.md
     readme_content = f"""# {plugin_name}
 
-A Cascade {plugin_type} plugin.
+A Phlo {plugin_type} plugin.
 
 ## Installation
 

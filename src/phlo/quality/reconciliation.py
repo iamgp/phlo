@@ -336,7 +336,9 @@ class AggregateConsistencyCheck(QualityCheck):
 
         return query
 
-    def _get_source_aggregates(self, context: "AssetExecutionContext", query: str) -> dict[tuple, Any] | None:
+    def _get_source_aggregates(
+        self, context: "AssetExecutionContext", query: str
+    ) -> dict[tuple, Any] | None:
         """Execute query to get source aggregate values."""
         try:
             # Try to use Trino resource from context

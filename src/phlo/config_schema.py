@@ -6,9 +6,71 @@ Pydantic models for phlo.yaml infrastructure section.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
+
+
+class ServiceOverride(BaseModel):
+    """User overrides for a service in phlo.yaml.
+
+    Allows customizing installed service configurations without
+    modifying the package's bundled service.yaml.
+
+    Example in phlo.yaml:
+        services:
+          observatory:
+            enabled: true
+            ports:
+              - "8080:3000"
+            environment:
+              DEBUG: "true"
+          superset:
+            enabled: false
+    """
+
+    enabled: bool = Field(
+        default=True,
+        description="Whether to include this service. Set to false to disable.",
+    )
+    ports: Optional[list[str]] = Field(
+        default=None,
+        description="Port mappings to override (replaces package defaults).",
+    )
+    environment: Optional[dict[str, str]] = Field(
+        default=None,
+        description="Environment variables to add/override (merged with package defaults).",
+    )
+    volumes: Optional[list[str]] = Field(
+        default=None,
+        description="Volume mounts to add (appended to package defaults).",
+    )
+    depends_on: Optional[list[str]] = Field(
+        default=None,
+        description="Service dependencies to override (replaces package defaults).",
+    )
+    command: Optional[str | list[str]] = Field(
+        default=None,
+        description="Container command override.",
+    )
+
+    # For inline custom services (type: inline)
+    type: Optional[str] = Field(
+        default=None,
+        description="Service type. Set to 'inline' for custom services defined in phlo.yaml.",
+    )
+    image: Optional[str] = Field(
+        default=None,
+        description="Docker image for inline services.",
+    )
+    build: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Build configuration for inline services.",
+    )
+    healthcheck: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Healthcheck configuration for inline services.",
+    )
 
 
 class ServiceConfig(BaseModel):

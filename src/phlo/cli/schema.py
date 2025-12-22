@@ -23,7 +23,7 @@ from rich.table import Table
 from phlo.cli.utils import classify_schema_change, discover_pandera_schemas
 
 if TYPE_CHECKING:
-    from dagster import AssetsDefinition
+    pass
 
 console = Console()
 

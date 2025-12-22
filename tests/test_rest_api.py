@@ -1,9 +1,9 @@
-# test_rest_api.py - Automated tests for Cascade REST API endpoints
+# test_rest_api.py - Automated tests for Phlo REST API endpoints
 # Tests authentication, glucose analytics, Iceberg queries, and error handling
 # ensuring API reliability and security
 
 """
-Automated tests for Cascade REST API.
+Automated tests for Phlo REST API.
 
 Tests authentication, endpoints, and error handling.
 """

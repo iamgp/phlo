@@ -18,7 +18,7 @@ from phlo.plugins.base import (
 
 class PluginRegistry:
     """
-    Central registry for Cascade plugins.
+    Central registry for Phlo plugins.
 
     The registry maintains separate catalogs for each plugin type
     and provides methods for registering and retrieving plugins.

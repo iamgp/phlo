@@ -3,7 +3,10 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Iterator
 from datetime import timedelta
-from typing import Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
+
+if TYPE_CHECKING:
+    from pandera import DataFrameModel
 
 import dagster as dg
 from dagster import FreshnessPolicy
@@ -11,9 +14,9 @@ from dagster import FreshnessPolicy
 from phlo.defs.partitions import daily_partition
 from phlo.defs.resources.iceberg import IcebergResource
 from phlo.exceptions import (
-    CascadeConfigError,
-    CascadeCronError,
-    CascadeSchemaError,
+    PhloConfigError,
+    PhloCronError,
+    PhloSchemaError,
     format_field_list,
     suggest_similar_field_names,
 )
@@ -50,7 +53,7 @@ def _validate_cron_expression(cron: str | None) -> None:
         cron: Cron expression string
 
     Raises:
-        CascadeCronError: If cron expression is invalid
+        PhloCronError: If cron expression is invalid
     """
     if not cron:
         return
@@ -59,7 +62,7 @@ def _validate_cron_expression(cron: str | None) -> None:
 
     # Cron should have 5 parts: minute hour day_of_month month day_of_week
     if len(parts) != 5:
-        raise CascadeCronError(
+        raise PhloCronError(
             message=f"Invalid cron expression '{cron}'",
             suggestions=[
                 "Cron format: [minute] [hour] [day_of_month] [month] [day_of_week]",
@@ -85,7 +88,7 @@ def _validate_cron_expression(cron: str | None) -> None:
             ]:
                 continue
 
-            raise CascadeCronError(
+            raise PhloCronError(
                 message=f"Invalid cron expression '{cron}': invalid {part_names[i]} value '{part}'",
             )
 
@@ -102,7 +105,7 @@ def _validate_unique_key_in_schema(
         validation_schema: Pandera DataFrameModel class
 
     Raises:
-        CascadeSchemaError: If unique_key not found in schema
+        PhloSchemaError: If unique_key not found in schema
     """
     if validation_schema is None:
         # Can't validate without schema
@@ -122,12 +125,12 @@ def _validate_unique_key_in_schema(
             suggestions_list = suggest_similar_field_names(unique_key, schema_fields)
             suggestions_list.append(f"Available fields: {format_field_list(schema_fields)}")
 
-            raise CascadeSchemaError(
+            raise PhloSchemaError(
                 message=f"unique_key '{unique_key}' not found in schema '{validation_schema.__name__}'",
                 suggestions=suggestions_list,
             )
 
-    except CascadeSchemaError:
+    except PhloSchemaError:
         raise
     except Exception as e:
         # If we can't validate (e.g., schema format issue), log but don't fail
@@ -152,10 +155,10 @@ def _validate_merge_config(
         merge_config: Merge configuration dict
 
     Raises:
-        CascadeConfigError: If configuration is invalid
+        PhloConfigError: If configuration is invalid
     """
     if merge_strategy == "merge" and not unique_key:
-        raise CascadeConfigError(
+        raise PhloConfigError(
             message="merge_strategy='merge' requires unique_key parameter",
             suggestions=[
                 "Add unique_key parameter: unique_key='id'",
@@ -166,7 +169,7 @@ def _validate_merge_config(
     if merge_config and "deduplication_method" in merge_config:
         method = merge_config["deduplication_method"]
         if method not in ["first", "last", "hash"]:
-            raise CascadeConfigError(
+            raise PhloConfigError(
                 message=f"Invalid deduplication_method: {method}",
                 suggestions=["Use 'first', 'last', or 'hash'"],
             )
@@ -215,7 +218,7 @@ def phlo_ingestion(
     add_metadata_columns: bool = True,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
-    Decorator for creating Cascade ingestion assets with minimal boilerplate.
+    Decorator for creating Phlo ingestion assets with minimal boilerplate.
 
     Define schemas inline with your asset - no central registry required!
 
@@ -278,7 +281,7 @@ def phlo_ingestion(
     if iceberg_schema is None and validation_schema is not None:
         iceberg_schema = pandera_to_iceberg(validation_schema)
     elif iceberg_schema is None:
-        raise CascadeConfigError(
+        raise PhloConfigError(
             message="Missing required schema parameter",
             suggestions=[
                 "Add validation_schema parameter (recommended): validation_schema=MyPanderaSchema",

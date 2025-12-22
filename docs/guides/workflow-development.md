@@ -212,7 +212,7 @@ Now let's fetch data from the OpenWeather API and store it in Iceberg.
 Edit `src/phlo/config.py` and add:
 
 ```python
-class CascadeConfig(BaseSettings):
+class PhloConfig(BaseSettings):
     # ... existing config ...
 
     # Weather API

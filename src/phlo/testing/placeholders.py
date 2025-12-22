@@ -1,7 +1,7 @@
 """
 Testing Utilities
 
-Provides testing utilities for Cascade workflows including mock DLT sources,
+Provides testing utilities for Phlo workflows including mock DLT sources,
 mock Iceberg catalog, fixture management, and test helpers.
 
 Status:
@@ -346,7 +346,7 @@ class MockIcebergCatalog:
             # Query with filters
             filtered = table.scan().filter("value > 40").to_pandas()
 
-    Example with Cascade schema:
+    Example with Phlo schema:
         from phlo.schemas.converter import pandera_to_iceberg
         from phlo.schemas.weather import RawWeatherData
 

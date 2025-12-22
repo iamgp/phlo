@@ -467,13 +467,16 @@ def init(
                 )
                 dev = False
 
-    # Create phlo.yaml config file in project root
-    config_content = PHLO_CONFIG_TEMPLATE.format(
-        name=project_name,
-        description=f"{project_name} data lakehouse",
-    )
-    config_file.write_text(config_content)
-    click.echo(f"Created: {PHLO_CONFIG_FILE}")
+    # Create phlo.yaml config file in project root (only if it doesn't exist)
+    if not config_file.exists():
+        config_content = PHLO_CONFIG_TEMPLATE.format(
+            name=project_name,
+            description=f"{project_name} data lakehouse",
+        )
+        config_file.write_text(config_content)
+        click.echo(f"Created: {PHLO_CONFIG_FILE}")
+    else:
+        click.echo(f"Using existing: {PHLO_CONFIG_FILE}")
 
     # Create .phlo directory
     phlo_dir.mkdir(parents=True, exist_ok=True)
@@ -486,10 +489,35 @@ def init(
         click.echo("Error: No services found. Check services/ directory.", err=True)
         sys.exit(1)
 
-    # Get default services + all profile services (they're included but inactive)
-    default_services = discovery.get_default_services()
-    profile_services = [s for s in all_services.values() if s.profile]
-    services_to_install = default_services + profile_services
+    # Load existing phlo.yaml config for user overrides
+    existing_config = {}
+    if config_file.exists():
+        with open(config_file) as f:
+            existing_config = yaml.safe_load(f) or {}
+    user_overrides = existing_config.get("services", {})
+
+    # Collect disabled services (those with enabled: false)
+    disabled_services = {
+        name
+        for name, cfg in user_overrides.items()
+        if isinstance(cfg, dict) and cfg.get("enabled") is False
+    }
+
+    # Collect inline custom services (those with type: inline)
+    from phlo.services.discovery import ServiceDefinition
+
+    inline_services = [
+        ServiceDefinition.from_inline(name, cfg)
+        for name, cfg in user_overrides.items()
+        if isinstance(cfg, dict) and cfg.get("type") == "inline"
+    ]
+
+    # Get default services (excluding disabled) + profile services + inline services
+    default_services = discovery.get_default_services(disabled_services=disabled_services)
+    profile_services = [
+        s for s in all_services.values() if s.profile and s.name not in disabled_services
+    ]
+    services_to_install = default_services + profile_services + inline_services
 
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
@@ -498,6 +526,7 @@ def init(
         phlo_dir,
         dev_mode=dev,
         phlo_src_path=phlo_src_path,
+        user_overrides=user_overrides,
     )
 
     compose_file = phlo_dir / "docker-compose.yml"
@@ -582,40 +611,54 @@ def list_services(show_all: bool, output_json: bool):
                 "depends_on": svc.depends_on,
                 "compose": svc.compose,
                 "env_vars": svc.env_vars,
+                "core": svc.core,
             }
             for svc in services
         ]
         click.echo(json.dumps(payload, indent=2))
         return
 
-    all_services = discovery.list_all()
+    # Separate core from package services
+    core_services = [s for s in services if s.core]
+    package_services = [s for s in services if not s.core]
 
-    # Group by category
-    categories: dict[str, list[dict]] = {}
-    for svc in all_services:
-        cat = svc["category"]
+    # Show core services first
+    if core_services:
+        click.echo("\nCORE SERVICES (bundled with phlo):")
+        for svc in sorted(core_services, key=lambda x: x.name):
+            click.echo(f"  ✓ {svc.name}: {svc.description}")
+
+    # Group package services by category
+    categories: dict[str, list] = {}
+    for svc in package_services:
+        cat = svc.category
         if cat not in categories:
             categories[cat] = []
         categories[cat].append(svc)
 
-    category_order = ["core", "orchestration", "bi", "admin", "api", "observability"]
+    category_order = ["orchestration", "storage", "bi", "admin", "api", "observability"]
 
     for cat in category_order:
         if cat not in categories:
             continue
 
         svcs = categories[cat]
-        click.echo(f"\n{cat.upper()}:")
+        if not show_all:
+            # Only show default services unless --all
+            svcs = [s for s in svcs if s.default or not s.profile]
 
-        for svc in svcs:
-            default_marker = "*" if svc["default"] else " "
-            profile_info = f" [{svc['profile']}]" if svc["profile"] else ""
+        if not svcs:
+            continue
 
-            if show_all or svc["default"] or not svc["profile"]:
-                click.echo(f"  {default_marker} {svc['name']}: {svc['description']}{profile_info}")
+        click.echo(f"\n{cat.upper()} (packages):")
+
+        for svc in sorted(svcs, key=lambda x: x.name):
+            default_marker = "✓" if svc.default else " "
+            profile_info = f" [{svc.profile}]" if svc.profile else ""
+            click.echo(f"  {default_marker} {svc.name}: {svc.description}{profile_info}")
 
     click.echo("")
-    click.echo("* = installed by default")
+    click.echo("✓ = installed by default")
     click.echo("[profile] = optional, enable with --profile")
 
 
@@ -1290,9 +1333,14 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
         disabled_names=disabled_names,
     )
 
+    # Get user service overrides from config
+    user_overrides = config.get("services", {})
+
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
-    compose_content = composer.generate_compose(services_to_install, phlo_dir)
+    compose_content = composer.generate_compose(
+        services_to_install, phlo_dir, user_overrides=user_overrides
+    )
 
     compose_file = phlo_dir / "docker-compose.yml"
     compose_file.write_text(compose_content)
