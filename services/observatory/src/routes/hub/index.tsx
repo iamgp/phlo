@@ -4,13 +4,13 @@
  * Displays all Phlo services with their status and controls.
  */
 
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { Boxes, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react'
 import { useState } from 'react'
 
 import type { ServiceWithStatus } from '@/server/services.server'
 import { ServiceCard } from '@/components/hub/ServiceCard'
-import { Button } from '@/components/ui/button'
+import { buttonVariants, Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -24,6 +24,7 @@ import {
   startService,
   stopService,
 } from '@/server/services.server'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/hub/')({
   loader: async () => {
@@ -135,10 +136,18 @@ function HubPage() {
               Manage and monitor all Phlo platform services
             </p>
           </div>
-          <Button variant="outline" onClick={handleRefresh}>
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/hub/plugins"
+              className={cn(buttonVariants({ variant: 'outline' }))}
+            >
+              Plugins
+            </Link>
+            <Button variant="outline" onClick={handleRefresh}>
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
