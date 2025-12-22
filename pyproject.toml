@@ -4,6 +4,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phlo"]
+include = ["src/phlo/plugins/registry_data.json"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/phlo/plugins/registry_data.json", "registry/schema/v1.json", "registry/plugins.json"]
 
 [project]
 name = "phlo"
@@ -34,6 +38,16 @@ dependencies = [
     "duckdb>=0.9.0",
     "pyarrow",
     "python-ulid>=2.0.0",
+    "phlo-core-plugins>=0.1.0",
+]
+
+[project.optional-dependencies]
+core-services = [
+    "phlo-dagster>=0.1.0",
+    "phlo-postgres>=0.1.0",
+    "phlo-minio>=0.1.0",
+    "phlo-nessie>=0.1.0",
+    "phlo-trino>=0.1.0",
 ]
 
 [project.scripts]
@@ -51,7 +65,16 @@ phlo = "phlo.cli.main:cli"
 # Example: my_transform = "my_package.my_module:MyTransform"
 
 [tool.uv.workspace]
-members = ["services/hub"]
+members = [".", "packages/*"]
+
+[tool.uv.sources]
+phlo = { workspace = true }
+phlo-core-plugins = { workspace = true }
+phlo-dagster = { workspace = true }
+phlo-postgres = { workspace = true }
+phlo-minio = { workspace = true }
+phlo-nessie = { workspace = true }
+phlo-trino = { workspace = true }
 
 [dependency-groups]
 dev = [

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-dagster"
+version = "0.1.0"
+description = "Dagster service plugin for Phlo"
+readme = {text = "Dagster service plugin for Phlo.", content-type = "text/plain"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Phlo Team", email = "team@phlo.dev"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "phlo>=0.1.0",
+    "pyyaml>=6.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.entry-points."phlo.plugins.services"]
+dagster = "phlo_dagster.plugin:DagsterServicePlugin"
+dagster-daemon = "phlo_dagster.plugin:DagsterDaemonServicePlugin"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+phlo_dagster = [
+    "service.yaml",
+    "dagster-daemon.yaml",
+    "Dockerfile",
+    "entrypoint.sh",
+    "templates/*.yaml",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

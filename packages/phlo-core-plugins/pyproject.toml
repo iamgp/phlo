@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-core-plugins"
+version = "0.1.0"
+description = "Core plugin package for Phlo"
+readme = {text = "Core plugin package for Phlo.", content-type = "text/plain"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Phlo Team", email = "team@phlo.dev"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "phlo>=0.1.0",
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+]
+
+[project.entry-points."phlo.plugins.quality"]
+null_check = "phlo_core.quality.null_check:NullCheckPlugin"
+uniqueness_check = "phlo_core.quality.uniqueness_check:UniquenessCheckPlugin"
+freshness_check = "phlo_core.quality.freshness_check:FreshnessCheckPlugin"
+schema_check = "phlo_core.quality.schema_check:SchemaCheckPlugin"
+
+[project.entry-points."phlo.plugins.sources"]
+rest_api = "phlo_core.sources.rest_api:RestAPIPlugin"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
