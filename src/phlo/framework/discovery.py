@@ -256,7 +256,7 @@ def _discover_dbt_assets() -> list[Any]:
         return []
 
     try:
-        from dagster_dbt import DbtCliResource, dbt_assets
+        from dagster_dbt import dbt_assets
 
         from phlo.defs.partitions import daily_partition
         from phlo.defs.transform.dbt_translator import CustomDbtTranslator

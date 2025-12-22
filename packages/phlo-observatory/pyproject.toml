@@ -5,26 +5,20 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "phlo-observatory"
 version = "0.1.0"
-description = "observatory service plugin for Phlo"
-readme = {text = "observatory service plugin for Phlo.", content-type = "text/plain"}
+description = "Phlo Observatory - Data platform UI (bundled with phlo core)"
+readme = {text = "Phlo Observatory - Data platform visibility and lineage UI.", content-type = "text/plain"}
 requires-python = ">=3.11"
 authors = [
     {name = "Phlo Team", email = "team@phlo.dev"},
 ]
 license = {text = "MIT"}
-dependencies = [
-    "phlo>=0.1.0",
-    "pyyaml>=6.0.1",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
 ]
-
-[project.entry-points."phlo.plugins.services"]
-observatory = "phlo_observatory.plugin:ObservatoryServicePlugin"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

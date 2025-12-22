@@ -61,7 +61,7 @@ def discover_plugins(
     plugin_type: str | None = None, auto_register: bool = True
 ) -> dict[str, list[Plugin]]:
     """
-    Discover all installed Cascade plugins.
+    Discover all installed Phlo plugins.
 
     This function scans installed Python packages for phlo.plugins
     entry points and loads the plugins.

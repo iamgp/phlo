@@ -27,7 +27,7 @@ def test_metadata(plugin):
     metadata = plugin.metadata
     assert metadata.name == "jsonplaceholder"
     assert metadata.version == "1.0.0"
-    assert metadata.author == "Cascade Team"
+    assert metadata.author == "Phlo Team"
 
 
 def test_validate_config_valid(plugin, valid_config):

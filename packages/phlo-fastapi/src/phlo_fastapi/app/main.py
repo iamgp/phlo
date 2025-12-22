@@ -1,4 +1,4 @@
-# main.py - Main FastAPI application entry point for the Cascade Lakehouse REST API
+# main.py - Main FastAPI application entry point for the Phlo Lakehouse REST API
 # Configures the web service with authentication, routing, middleware, and monitoring
 # Provides programmatic access to Iceberg tables and Postgres marts
 
@@ -19,7 +19,7 @@ app = FastAPI(
     title=settings.api_title,
     version=settings.api_version,
     description="""
-    REST API for Cascade Lakehouse data access.
+    REST API for Phlo Lakehouse data access.
 
     ## Features
     - JWT authentication (admin/analyst roles)

@@ -1,9 +1,9 @@
 """
-Cascade Plugin System
+Phlo Plugin System
 
 Enable community contributions through a plugin architecture.
 
-Cascade provides a plugin system that allows developers to extend
+Phlo provides a plugin system that allows developers to extend
 the framework with custom:
 - Source connectors (ingest data from new APIs/databases)
 - Quality checks (custom validation logic)
@@ -13,7 +13,7 @@ the framework with custom:
 ## Plugin Types
 
 ### 1. Source Connector Plugins
-Extend Cascade with new data sources (APIs, databases, file formats).
+Extend Phlo with new data sources (APIs, databases, file formats).
 
 ```python
 from phlo.plugins import SourceConnectorPlugin

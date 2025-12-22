@@ -70,9 +70,9 @@ class TestSchemaAutoGeneration:
 
     def test_error_when_no_schema_provided(self):
         """Test error raised when neither validation_schema nor iceberg_schema provided."""
-        from phlo.exceptions import CascadeConfigError
+        from phlo.exceptions import PhloConfigError
 
-        with pytest.raises(CascadeConfigError, match="Missing required schema parameter"):
+        with pytest.raises(PhloConfigError, match="Missing required schema parameter"):
 
             @phlo_ingestion(
                 table_name="test_table",

@@ -194,8 +194,7 @@ class ComposeGenerator:
             config["ports"] = dev["ports"]
         if dev.get("volumes"):
             config["volumes"] = [
-                self._resolve_dev_volume(volume, service, output_dir)
-                for volume in dev["volumes"]
+                self._resolve_dev_volume(volume, service, output_dir) for volume in dev["volumes"]
             ]
 
     def _resolve_dev_volume(

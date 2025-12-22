@@ -2317,6 +2317,13 @@ core-services = [
     { name = "phlo-postgres" },
     { name = "phlo-trino" },
 ]
+defaults = [
+    { name = "phlo-dagster" },
+    { name = "phlo-minio" },
+    { name = "phlo-nessie" },
+    { name = "phlo-postgres" },
+    { name = "phlo-trino" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -2345,10 +2352,15 @@ requires-dist = [
     { name = "pandera" },
     { name = "phlo-core-plugins", editable = "packages/phlo-core-plugins" },
     { name = "phlo-dagster", marker = "extra == 'core-services'", editable = "packages/phlo-dagster" },
+    { name = "phlo-dagster", marker = "extra == 'defaults'", editable = "packages/phlo-dagster" },
     { name = "phlo-minio", marker = "extra == 'core-services'", editable = "packages/phlo-minio" },
+    { name = "phlo-minio", marker = "extra == 'defaults'", editable = "packages/phlo-minio" },
     { name = "phlo-nessie", marker = "extra == 'core-services'", editable = "packages/phlo-nessie" },
+    { name = "phlo-nessie", marker = "extra == 'defaults'", editable = "packages/phlo-nessie" },
     { name = "phlo-postgres", marker = "extra == 'core-services'", editable = "packages/phlo-postgres" },
+    { name = "phlo-postgres", marker = "extra == 'defaults'", editable = "packages/phlo-postgres" },
     { name = "phlo-trino", marker = "extra == 'core-services'", editable = "packages/phlo-trino" },
+    { name = "phlo-trino", marker = "extra == 'defaults'", editable = "packages/phlo-trino" },
     { name = "psycopg2-binary" },
     { name = "pyarrow" },
     { name = "pydantic-settings" },
@@ -2358,7 +2370,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0" },
     { name = "trino" },
 ]
-provides-extras = ["core-services"]
+provides-extras = ["core-services", "defaults"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2591,10 +2603,6 @@ provides-extras = ["dev"]
 name = "phlo-observatory"
 version = "0.1.0"
 source = { editable = "packages/phlo-observatory" }
-dependencies = [
-    { name = "phlo" },
-    { name = "pyyaml" },
-]
 
 [package.optional-dependencies]
 dev = [
@@ -2604,9 +2612,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]

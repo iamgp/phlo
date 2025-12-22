@@ -5,8 +5,8 @@ Discovers and loads service definitions from the services/ directory.
 """
 
 import logging
-from importlib.util import find_spec
 from dataclasses import dataclass, field
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +38,7 @@ class ServiceDefinition:
     dev: dict[str, Any] = field(default_factory=dict)
     source_path: Path | None = None
     phlo_dev: bool = False  # Services that receive phlo source mount in dev mode
+    core: bool = False  # Core services bundled with phlo (not plugins)
 
     @classmethod
     def from_yaml(cls, path: Path) -> "ServiceDefinition":
@@ -62,6 +63,7 @@ class ServiceDefinition:
             dev=data.get("dev", {}),
             source_path=path.parent,
             phlo_dev=data.get("phlo_dev", False),
+            core=data.get("core", False),
         )
 
     @classmethod
@@ -84,6 +86,7 @@ class ServiceDefinition:
             dev=data.get("dev", {}),
             source_path=source_path,
             phlo_dev=data.get("phlo_dev", False),
+            core=data.get("core", False),
         )
 
 
@@ -116,12 +119,15 @@ class ServiceDiscovery:
 
         self._services = {}
 
+        # Load core services first (bundled with phlo)
+        self._load_core_services()
+
+        # Then load plugin services
+        self._load_service_plugins()
+
         if not self.services_dir.exists():
-            self._load_service_plugins()
             self._loaded = True
             return self._services
-
-        self._load_service_plugins()
 
         # Search for service.yaml files in all subdirectories
         for yaml_path in self.services_dir.rglob("*.yaml"):
@@ -150,12 +156,37 @@ class ServiceDiscovery:
         self._loaded = True
         return self._services
 
+    def _load_core_services(self) -> None:
+        """Load core services bundled with phlo."""
+        core_services_dir = Path(__file__).parent.parent / "core_services"
+        if not core_services_dir.exists():
+            logger.debug("No core_services directory found")
+            return
+
+        for service_dir in core_services_dir.iterdir():
+            if not service_dir.is_dir():
+                continue
+            service_yaml = service_dir / "service.yaml"
+            if not service_yaml.exists():
+                continue
+            try:
+                service = ServiceDefinition.from_yaml(service_yaml)
+                self._services[service.name] = service
+                logger.info(f"Loaded core service: {service.name}")
+            except (yaml.YAMLError, KeyError) as e:
+                logger.warning("Failed to load core service %s: %s", service_dir.name, e)
+
     def _load_service_plugins(self) -> None:
+        """Load services from installed plugins."""
         discover_plugins(plugin_type="services", auto_register=True)
         registry = get_global_registry()
         for name in registry.list_services():
             plugin = registry.get_service(name)
             if not plugin:
+                continue
+            # Skip if already loaded as core service
+            if name in self._services:
+                logger.debug(f"Skipping plugin service {name}, already loaded as core")
                 continue
             service_definition = plugin.service_definition
             source_path = _resolve_plugin_source_path(plugin)

@@ -1,5 +1,5 @@
 """
-Base classes for Cascade plugins.
+Base classes for Phlo plugins.
 
 These abstract base classes define the interfaces that plugins must implement.
 """
@@ -45,7 +45,7 @@ class PluginMetadata:
 
 class Plugin(ABC):
     """
-    Base class for all Cascade plugins.
+    Base class for all Phlo plugins.
 
     All plugin types must inherit from this class and implement
     the required abstract properties and methods.
@@ -133,7 +133,7 @@ class SourceConnectorPlugin(Plugin, ABC):
         Fetch data from the source.
 
         This method should yield dictionaries representing individual records.
-        It will be called by Cascade's ingestion framework to load data.
+        It will be called by Phlo's ingestion framework to load data.
 
         Args:
             config: Configuration for this fetch operation, including:

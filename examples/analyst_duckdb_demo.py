@@ -6,7 +6,7 @@
 """
 Analyst DuckDB Demo - Query Iceberg tables from your laptop
 
-This demonstrates the analyst workflow for querying Cascade's Iceberg tables
+This demonstrates the analyst workflow for querying Phlo's Iceberg tables
 directly using DuckDB, without needing access to Docker or the pipeline.
 
 Prerequisites:
