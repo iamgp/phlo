@@ -1,0 +1,81 @@
+{
+  "$schema": "https://registry.phlo.dev/schema/v1.json",
+  "version": "1.0.0",
+  "updated_at": "2025-12-22T00:00:00Z",
+  "plugins": {
+    "example_cache": {
+      "type": "service",
+      "package": "phlo-plugin-example",
+      "version": "1.0.0",
+      "description": "Redis cache service for Phlo stacks",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "tags": ["cache", "redis", "service"],
+      "verified": true
+    },
+    "jsonplaceholder": {
+      "type": "source",
+      "package": "phlo-plugin-example",
+      "version": "1.0.0",
+      "description": "JSONPlaceholder source connector",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "tags": ["api", "example"],
+      "verified": true
+    },
+    "threshold_check": {
+      "type": "quality",
+      "package": "phlo-plugin-example",
+      "version": "1.0.0",
+      "description": "Threshold validation for numeric columns",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "tags": ["validation", "numeric", "example"],
+      "verified": true
+    },
+    "null_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Null checks for column completeness",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-core-plugins",
+      "tags": ["quality", "nulls"],
+      "verified": true,
+      "core": true
+    },
+    "uniqueness_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Uniqueness validation for primary keys",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-core-plugins",
+      "tags": ["quality", "uniqueness"],
+      "verified": true,
+      "core": true
+    },
+    "freshness_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Freshness checks for timestamped data",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-core-plugins",
+      "tags": ["quality", "freshness"],
+      "verified": true,
+      "core": true
+    },
+    "schema_check": {
+      "type": "quality",
+      "package": "phlo-core-plugins",
+      "version": "0.1.0",
+      "description": "Schema validation for expected columns and types",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-core-plugins",
+      "tags": ["quality", "schema"],
+      "verified": true,
+      "core": true
+    }
+  }
+}
