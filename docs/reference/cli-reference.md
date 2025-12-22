@@ -43,6 +43,19 @@ phlo config              # Configuration management
 
 Manage Docker infrastructure services.
 
+Services are provided by installed service packages (e.g., `phlo-dagster`, `phlo-trino`). Install
+core services with:
+
+```bash
+uv pip install -e ".[core-services]"
+```
+
+Optional services can be added later:
+
+```bash
+phlo plugin install phlo-observatory
+```
+
 ### phlo services init
 
 Initialize infrastructure directory and configuration.

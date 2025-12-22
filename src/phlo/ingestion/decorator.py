@@ -24,6 +24,7 @@ from phlo.ingestion.dlt_helpers import (
     setup_dlt_pipeline,
     stage_to_parquet,
 )
+from phlo.quality.contract import PANDERA_CONTRACT_CHECK_NAME
 from phlo.quality.pandera_asset_checks import (
     evaluate_pandera_contract_parquet,
     pandera_contract_asset_check_result,
@@ -299,12 +300,24 @@ def phlo_ingestion(
     )
 
     def decorator(func: Callable[..., Any]) -> Any:
+        check_specs = None
+        if validate and table_config.validation_schema is not None:
+            check_specs = [
+                dg.AssetCheckSpec(
+                    name=PANDERA_CONTRACT_CHECK_NAME,
+                    asset=f"dlt_{table_config.table_name}",
+                    blocking=bool(strict_validation),
+                    description=f"Pandera schema contract for {table_config.table_name}",
+                )
+            ]
+
         @dg.asset(
             name=f"dlt_{table_config.table_name}",
             group_name=group,
             partitions_def=daily_partition,
             description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
             kinds={"dlt", "iceberg"},
+            check_specs=check_specs,
             op_tags={"dagster/max_runtime": max_runtime_seconds},
             retry_policy=dg.RetryPolicy(max_retries=max_retries, delay=retry_delay_seconds),
             automation_condition=(dg.AutomationCondition.on_cron(cron) if cron else None),
