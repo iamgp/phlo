@@ -1,7 +1,7 @@
 """
 Validate Command
 
-Validates Pandera schemas and Cascade configurations.
+Validates Pandera schemas and Phlo configurations.
 """
 
 import importlib.util

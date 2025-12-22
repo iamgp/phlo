@@ -5,8 +5,8 @@ Discovers and loads service definitions from the services/ directory.
 """
 
 import logging
-from importlib.util import find_spec
 from dataclasses import dataclass, field
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -38,12 +38,21 @@ class ServiceDefinition:
     dev: dict[str, Any] = field(default_factory=dict)
     source_path: Path | None = None
     phlo_dev: bool = False  # Services that receive phlo source mount in dev mode
+    core: bool = False  # Core services bundled with phlo (not plugins)
 
     @classmethod
     def from_yaml(cls, path: Path) -> "ServiceDefinition":
         """Load a service definition from a YAML file."""
         with open(path) as f:
             data = yaml.safe_load(f)
+
+        # Determine source_path: explicit value or default to yaml directory
+        if data.get("source_path"):
+            # Explicit source_path is relative to phlo package root
+            phlo_root = Path(__file__).parent.parent.parent.parent  # phlo repo root
+            source_path = phlo_root / data["source_path"]
+        else:
+            source_path = path.parent
 
         return cls(
             name=data["name"],
@@ -60,8 +69,9 @@ class ServiceDefinition:
             files=data.get("files", []),
             hooks=data.get("hooks", {}),
             dev=data.get("dev", {}),
-            source_path=path.parent,
+            source_path=source_path,
             phlo_dev=data.get("phlo_dev", False),
+            core=data.get("core", False),
         )
 
     @classmethod
@@ -84,6 +94,45 @@ class ServiceDefinition:
             dev=data.get("dev", {}),
             source_path=source_path,
             phlo_dev=data.get("phlo_dev", False),
+            core=data.get("core", False),
+        )
+
+    @classmethod
+    def from_inline(cls, name: str, config: dict[str, Any]) -> "ServiceDefinition":
+        """Create a ServiceDefinition from inline config in phlo.yaml.
+
+        Example phlo.yaml:
+            services:
+              custom-api:
+                type: inline
+                image: my-registry/api:latest
+                ports:
+                  - "4000:4000"
+                depends_on:
+                  - trino
+        """
+        # Build compose section from inline config
+        compose: dict[str, Any] = {}
+        if config.get("ports"):
+            compose["ports"] = config["ports"]
+        if config.get("environment"):
+            compose["environment"] = config["environment"]
+        if config.get("volumes"):
+            compose["volumes"] = config["volumes"]
+        if config.get("command"):
+            compose["command"] = config["command"]
+        if config.get("healthcheck"):
+            compose["healthcheck"] = config["healthcheck"]
+
+        return cls(
+            name=name,
+            description=config.get("description", f"Custom service: {name}"),
+            category="custom",
+            default=True,  # Inline services are always included
+            depends_on=config.get("depends_on", []),
+            image=config.get("image"),
+            build=config.get("build"),
+            compose=compose,
         )
 
 
@@ -116,12 +165,15 @@ class ServiceDiscovery:
 
         self._services = {}
 
+        # Load core services first (bundled with phlo)
+        self._load_core_services()
+
+        # Then load plugin services
+        self._load_service_plugins()
+
         if not self.services_dir.exists():
-            self._load_service_plugins()
             self._loaded = True
             return self._services
-
-        self._load_service_plugins()
 
         # Search for service.yaml files in all subdirectories
         for yaml_path in self.services_dir.rglob("*.yaml"):
@@ -150,12 +202,37 @@ class ServiceDiscovery:
         self._loaded = True
         return self._services
 
+    def _load_core_services(self) -> None:
+        """Load core services bundled with phlo."""
+        core_services_dir = Path(__file__).parent.parent / "core_services"
+        if not core_services_dir.exists():
+            logger.debug("No core_services directory found")
+            return
+
+        for service_dir in core_services_dir.iterdir():
+            if not service_dir.is_dir():
+                continue
+            service_yaml = service_dir / "service.yaml"
+            if not service_yaml.exists():
+                continue
+            try:
+                service = ServiceDefinition.from_yaml(service_yaml)
+                self._services[service.name] = service
+                logger.info(f"Loaded core service: {service.name}")
+            except (yaml.YAMLError, KeyError) as e:
+                logger.warning("Failed to load core service %s: %s", service_dir.name, e)
+
     def _load_service_plugins(self) -> None:
+        """Load services from installed plugins."""
         discover_plugins(plugin_type="services", auto_register=True)
         registry = get_global_registry()
         for name in registry.list_services():
             plugin = registry.get_service(name)
             if not plugin:
+                continue
+            # Skip if already loaded as core service
+            if name in self._services:
+                logger.debug(f"Skipping plugin service {name}, already loaded as core")
                 continue
             service_definition = plugin.service_definition
             source_path = _resolve_plugin_source_path(plugin)
@@ -170,10 +247,17 @@ class ServiceDiscovery:
         self.discover()
         return self._services.get(name)
 
-    def get_default_services(self) -> list[ServiceDefinition]:
-        """Get all services marked as default."""
+    def get_default_services(
+        self, disabled_services: set[str] | None = None
+    ) -> list[ServiceDefinition]:
+        """Get all services marked as default, excluding disabled ones.
+
+        Args:
+            disabled_services: Set of service names to exclude.
+        """
         self.discover()
-        return [s for s in self._services.values() if s.default]
+        disabled = disabled_services or set()
+        return [s for s in self._services.values() if s.default and s.name not in disabled]
 
     def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
         """Get all services in a specific profile."""

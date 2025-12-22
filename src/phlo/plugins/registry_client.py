@@ -165,9 +165,7 @@ def search_plugins(
     if tags:
         tag_set = {tag.lower() for tag in tags}
         plugins = [
-            plugin
-            for plugin in plugins
-            if tag_set.issubset({tag.lower() for tag in plugin.tags})
+            plugin for plugin in plugins if tag_set.issubset({tag.lower() for tag in plugin.tags})
         ]
 
     if query:
