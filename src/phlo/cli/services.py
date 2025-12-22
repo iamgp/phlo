@@ -467,13 +467,16 @@ def init(
                 )
                 dev = False
 
-    # Create phlo.yaml config file in project root
-    config_content = PHLO_CONFIG_TEMPLATE.format(
-        name=project_name,
-        description=f"{project_name} data lakehouse",
-    )
-    config_file.write_text(config_content)
-    click.echo(f"Created: {PHLO_CONFIG_FILE}")
+    # Create phlo.yaml config file in project root (only if it doesn't exist)
+    if not config_file.exists():
+        config_content = PHLO_CONFIG_TEMPLATE.format(
+            name=project_name,
+            description=f"{project_name} data lakehouse",
+        )
+        config_file.write_text(config_content)
+        click.echo(f"Created: {PHLO_CONFIG_FILE}")
+    else:
+        click.echo(f"Using existing: {PHLO_CONFIG_FILE}")
 
     # Create .phlo directory
     phlo_dir.mkdir(parents=True, exist_ok=True)

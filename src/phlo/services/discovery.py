@@ -46,6 +46,14 @@ class ServiceDefinition:
         with open(path) as f:
             data = yaml.safe_load(f)
 
+        # Determine source_path: explicit value or default to yaml directory
+        if data.get("source_path"):
+            # Explicit source_path is relative to phlo package root
+            phlo_root = Path(__file__).parent.parent.parent.parent  # phlo repo root
+            source_path = phlo_root / data["source_path"]
+        else:
+            source_path = path.parent
+
         return cls(
             name=data["name"],
             description=data["description"],
@@ -61,7 +69,7 @@ class ServiceDefinition:
             files=data.get("files", []),
             hooks=data.get("hooks", {}),
             dev=data.get("dev", {}),
-            source_path=path.parent,
+            source_path=source_path,
             phlo_dev=data.get("phlo_dev", False),
             core=data.get("core", False),
         )

@@ -261,6 +261,22 @@ class ComposeGenerator:
     ) -> None:
         dev = service.dev
 
+        # Dev build: replace image with build context
+        if dev.get("build"):
+            # Remove image if present (we're building from source now)
+            if "image" in config:
+                del config["image"]
+
+            build_ctx = dev["build"].get("context", ".")
+            # Resolve {source} placeholder
+            if "{source}" in build_ctx and service.source_path:
+                build_ctx = os.path.relpath(service.source_path, output_dir)
+
+            config["build"] = {
+                "context": build_ctx,
+                "dockerfile": dev["build"].get("dockerfile", "Dockerfile"),
+            }
+
         if dev.get("environment"):
             config.setdefault("environment", {})
             if isinstance(config["environment"], dict):

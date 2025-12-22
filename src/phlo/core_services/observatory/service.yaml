@@ -4,12 +4,13 @@ category: core
 default: true
 core: true
 
-build:
-  context: ../../../../packages/phlo-observatory/src/phlo_observatory
-  dockerfile: Dockerfile
+# Production: use published Docker image
+image: ghcr.io/iamgp/phlo-observatory:latest
+
+# Source path for dev builds (relative to phlo package root)
+source_path: packages/phlo-observatory/src/phlo_observatory
 
 depends_on:
-  - dagster
   - phlo-api
 
 compose:
@@ -44,7 +45,11 @@ env_vars:
     default: 3001
     description: Observatory UI port
 
+# Dev mode: build from local source
 dev:
+  build:
+    context: "{source}"
+    dockerfile: Dockerfile
   command:
     - npm
     - run
