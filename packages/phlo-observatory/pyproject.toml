@@ -3,10 +3,10 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "phlo-superset"
+name = "phlo-observatory"
 version = "0.1.0"
-description = "superset service plugin for Phlo"
-readme = {text = "superset service plugin for Phlo.", content-type = "text/plain"}
+description = "observatory service plugin for Phlo"
+readme = {text = "observatory service plugin for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"
 authors = [
     {name = "Phlo Team", email = "team@phlo.dev"},
@@ -24,7 +24,7 @@ dev = [
 ]
 
 [project.entry-points."phlo.plugins.services"]
-superset = "phlo_superset.plugin:SupersetServicePlugin"
+observatory = "phlo_observatory.plugin:ObservatoryServicePlugin"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -34,7 +34,21 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_superset = ["service.yaml", "dashboards/**"]
+phlo_observatory = [
+    "service.yaml",
+    "Dockerfile",
+    "README.md",
+    "components.json",
+    "eslint.config.js",
+    "package.json",
+    "package-lock.json",
+    "prettier.config.js",
+    "tsconfig.json",
+    "vite.config.ts",
+    "context/**",
+    "public/**",
+    "src/**",
+]
 
 [tool.ruff]
 line-length = 100

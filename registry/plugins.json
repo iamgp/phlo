@@ -339,6 +339,20 @@
         "agent"
       ],
       "verified": true
+    },
+    "observatory": {
+      "type": "service",
+      "package": "phlo-observatory",
+      "version": "0.1.0",
+      "description": "Phlo Observatory - Data platform visibility and lineage UI",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-observatory",
+      "tags": [
+        "orchestration",
+        "ui",
+        "observability"
+      ],
+      "verified": true
     }
   }
 }
