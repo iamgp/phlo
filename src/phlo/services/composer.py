@@ -30,6 +30,7 @@ class ComposeGenerator:
         output_dir: Path,
         dev_mode: bool = False,
         phlo_src_path: str | None = None,
+        user_overrides: dict[str, Any] | None = None,
     ) -> str:
         """Generate docker-compose.yml content.
 
@@ -38,18 +39,27 @@ class ComposeGenerator:
             output_dir: Target directory (for resolving relative paths).
             dev_mode: If True, add phlo source mounts for dev services.
             phlo_src_path: Path to phlo source (relative to project root).
+            user_overrides: Dict of service name to ServiceOverride config from phlo.yaml.
 
         Returns:
             Docker compose YAML content as string.
         """
         # Sort services by dependencies
         sorted_services = self.discovery.resolve_dependencies(services)
+        user_overrides = user_overrides or {}
 
         compose: dict[str, Any] = {"services": {}}
 
         for service in sorted_services:
+            # Get user override for this service (if any)
+            service_override = user_overrides.get(service.name, {})
+
             compose["services"][service.name] = self._build_service_config(
-                service, output_dir, dev_mode=dev_mode, phlo_src_path=phlo_src_path
+                service,
+                output_dir,
+                dev_mode=dev_mode,
+                phlo_src_path=phlo_src_path,
+                user_override=service_override,
             )
 
         # Add header comment with dev mode flag for stale detection
@@ -68,9 +78,19 @@ class ComposeGenerator:
         output_dir: Path,
         dev_mode: bool = False,
         phlo_src_path: str | None = None,
+        user_override: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Build docker-compose service configuration."""
+        """Build docker-compose service configuration.
+
+        Args:
+            service: Service definition from package/core.
+            output_dir: Output directory for relative paths.
+            dev_mode: Whether to apply dev mode overrides.
+            phlo_src_path: Path to phlo source.
+            user_override: User overrides from phlo.yaml services section.
+        """
         config: dict[str, Any] = {}
+        user_override = user_override or {}
 
         # Image or build
         if service.image:
@@ -172,7 +192,66 @@ class ComposeGenerator:
             if depends_config:
                 config["depends_on"] = depends_config
 
+        # Apply user overrides from phlo.yaml (last, so they take precedence)
+        self._apply_user_overrides(config, user_override)
+
         return config
+
+    def _apply_user_overrides(
+        self,
+        config: dict[str, Any],
+        user_override: dict[str, Any],
+    ) -> None:
+        """Apply user overrides from phlo.yaml services section.
+
+        Override behavior:
+        - ports: replaces package default
+        - environment: merges (user values override package)
+        - volumes: appends to package defaults
+        - depends_on: replaces package default
+        - command: replaces package default
+        """
+        if not user_override:
+            return
+
+        # Ports: replace
+        if user_override.get("ports"):
+            config["ports"] = user_override["ports"]
+
+        # Environment: merge (user takes precedence)
+        if user_override.get("environment"):
+            config.setdefault("environment", {})
+            if isinstance(config["environment"], dict):
+                config["environment"].update(user_override["environment"])
+            elif isinstance(config["environment"], list):
+                # Convert list format to dict then merge
+                env_dict = {}
+                for item in config["environment"]:
+                    if "=" in item:
+                        k, v = item.split("=", 1)
+                        env_dict[k] = v
+                env_dict.update(user_override["environment"])
+                config["environment"] = env_dict
+
+        # Volumes: append
+        if user_override.get("volumes"):
+            config.setdefault("volumes", [])
+            config["volumes"].extend(user_override["volumes"])
+
+        # Depends on: replace
+        if user_override.get("depends_on"):
+            depends_config = {}
+            for dep in user_override["depends_on"]:
+                depends_config[dep] = {"condition": "service_started"}
+            config["depends_on"] = depends_config
+
+        # Command: replace
+        if user_override.get("command"):
+            config["command"] = user_override["command"]
+
+        # Healthcheck: replace (for inline services)
+        if user_override.get("healthcheck"):
+            config["healthcheck"] = user_override["healthcheck"]
 
     def _apply_dev_overrides(
         self,

@@ -491,6 +491,13 @@ def init(
     profile_services = [s for s in all_services.values() if s.profile]
     services_to_install = default_services + profile_services
 
+    # Load existing phlo.yaml config for user overrides
+    existing_config = {}
+    if config_file.exists():
+        with open(config_file) as f:
+            existing_config = yaml.safe_load(f) or {}
+    user_overrides = existing_config.get("services", {})
+
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
     compose_content = composer.generate_compose(
@@ -498,6 +505,7 @@ def init(
         phlo_dir,
         dev_mode=dev,
         phlo_src_path=phlo_src_path,
+        user_overrides=user_overrides,
     )
 
     compose_file = phlo_dir / "docker-compose.yml"
@@ -1290,9 +1298,14 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
         disabled_names=disabled_names,
     )
 
+    # Get user service overrides from config
+    user_overrides = config.get("services", {})
+
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
-    compose_content = composer.generate_compose(services_to_install, phlo_dir)
+    compose_content = composer.generate_compose(
+        services_to_install, phlo_dir, user_overrides=user_overrides
+    )
 
     compose_file = phlo_dir / "docker-compose.yml"
     compose_file.write_text(compose_content)
