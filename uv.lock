@@ -19,7 +19,6 @@ members = [
     "phlo-alloy",
     "phlo-core-plugins",
     "phlo-dagster",
-    "phlo-fastapi",
     "phlo-grafana",
     "phlo-hasura",
     "phlo-loki",
@@ -2435,30 +2434,6 @@ provides-extras = ["dev"]
 name = "phlo-dagster"
 version = "0.1.0"
 source = { editable = "packages/phlo-dagster" }
-dependencies = [
-    { name = "phlo" },
-    { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "phlo", editable = "." },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "phlo-fastapi"
-version = "0.1.0"
-source = { editable = "packages/phlo-fastapi" }
 dependencies = [
     { name = "phlo" },
     { name = "pyyaml" },
