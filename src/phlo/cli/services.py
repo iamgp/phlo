@@ -608,40 +608,54 @@ def list_services(show_all: bool, output_json: bool):
                 "depends_on": svc.depends_on,
                 "compose": svc.compose,
                 "env_vars": svc.env_vars,
+                "core": svc.core,
             }
             for svc in services
         ]
         click.echo(json.dumps(payload, indent=2))
         return
 
-    all_services = discovery.list_all()
+    # Separate core from package services
+    core_services = [s for s in services if s.core]
+    package_services = [s for s in services if not s.core]
 
-    # Group by category
-    categories: dict[str, list[dict]] = {}
-    for svc in all_services:
-        cat = svc["category"]
+    # Show core services first
+    if core_services:
+        click.echo("\nCORE SERVICES (bundled with phlo):")
+        for svc in sorted(core_services, key=lambda x: x.name):
+            click.echo(f"  ✓ {svc.name}: {svc.description}")
+
+    # Group package services by category
+    categories: dict[str, list] = {}
+    for svc in package_services:
+        cat = svc.category
         if cat not in categories:
             categories[cat] = []
         categories[cat].append(svc)
 
-    category_order = ["core", "orchestration", "bi", "admin", "api", "observability"]
+    category_order = ["orchestration", "storage", "bi", "admin", "api", "observability"]
 
     for cat in category_order:
         if cat not in categories:
             continue
 
         svcs = categories[cat]
-        click.echo(f"\n{cat.upper()}:")
+        if not show_all:
+            # Only show default services unless --all
+            svcs = [s for s in svcs if s.default or not s.profile]
 
-        for svc in svcs:
-            default_marker = "*" if svc["default"] else " "
-            profile_info = f" [{svc['profile']}]" if svc["profile"] else ""
+        if not svcs:
+            continue
 
-            if show_all or svc["default"] or not svc["profile"]:
-                click.echo(f"  {default_marker} {svc['name']}: {svc['description']}{profile_info}")
+        click.echo(f"\n{cat.upper()} (packages):")
+
+        for svc in sorted(svcs, key=lambda x: x.name):
+            default_marker = "✓" if svc.default else " "
+            profile_info = f" [{svc.profile}]" if svc.profile else ""
+            click.echo(f"  {default_marker} {svc.name}: {svc.description}{profile_info}")
 
     click.echo("")
-    click.echo("* = installed by default")
+    click.echo("✓ = installed by default")
     click.echo("[profile] = optional, enable with --profile")
 
 
