@@ -139,6 +139,9 @@ class ComposeGenerator:
         if not config["volumes"]:
             del config["volumes"]
 
+        if dev_mode and service.dev:
+            self._apply_dev_overrides(config, service, output_dir)
+
         # Add env_file for phlo_dev services to pick up project secrets (e.g., GITHUB_TOKEN)
         # Path is relative to .phlo/ directory where docker-compose.yml lives
         if service.phlo_dev:
@@ -170,6 +173,41 @@ class ComposeGenerator:
                 config["depends_on"] = depends_config
 
         return config
+
+    def _apply_dev_overrides(
+        self,
+        config: dict[str, Any],
+        service: ServiceDefinition,
+        output_dir: Path,
+    ) -> None:
+        dev = service.dev
+
+        if dev.get("environment"):
+            config.setdefault("environment", {})
+            if isinstance(config["environment"], dict):
+                config["environment"].update(dev["environment"])
+        if dev.get("command"):
+            config["command"] = dev["command"]
+        if dev.get("entrypoint"):
+            config["entrypoint"] = dev["entrypoint"]
+        if dev.get("ports"):
+            config["ports"] = dev["ports"]
+        if dev.get("volumes"):
+            config["volumes"] = [
+                self._resolve_dev_volume(volume, service, output_dir)
+                for volume in dev["volumes"]
+            ]
+
+    def _resolve_dev_volume(
+        self,
+        volume: str,
+        service: ServiceDefinition,
+        output_dir: Path,
+    ) -> str:
+        if "{source}" not in volume or not service.source_path:
+            return volume
+        source_path = os.path.relpath(service.source_path, output_dir)
+        return volume.replace("{source}", source_path)
 
     def generate_env(self, services: list[ServiceDefinition]) -> str:
         """Generate .env file content.

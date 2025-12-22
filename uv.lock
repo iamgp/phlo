@@ -16,11 +16,21 @@ resolution-markers = [
 [manifest]
 members = [
     "phlo",
+    "phlo-alloy",
     "phlo-core-plugins",
     "phlo-dagster",
+    "phlo-fastapi",
+    "phlo-grafana",
+    "phlo-hasura",
+    "phlo-loki",
     "phlo-minio",
     "phlo-nessie",
+    "phlo-observatory",
+    "phlo-pgweb",
     "phlo-postgres",
+    "phlo-postgrest",
+    "phlo-prometheus",
+    "phlo-superset",
     "phlo-trino",
 ]
 
@@ -2360,6 +2370,30 @@ dev = [
 ]
 
 [[package]]
+name = "phlo-alloy"
+version = "0.1.0"
+source = { editable = "packages/phlo-alloy" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "phlo-core-plugins"
 version = "0.1.0"
 source = { editable = "packages/phlo-core-plugins" }
@@ -2389,6 +2423,102 @@ provides-extras = ["dev"]
 name = "phlo-dagster"
 version = "0.1.0"
 source = { editable = "packages/phlo-dagster" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-fastapi"
+version = "0.1.0"
+source = { editable = "packages/phlo-fastapi" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-grafana"
+version = "0.1.0"
+source = { editable = "packages/phlo-grafana" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-hasura"
+version = "0.1.0"
+source = { editable = "packages/phlo-hasura" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-loki"
+version = "0.1.0"
+source = { editable = "packages/phlo-loki" }
 dependencies = [
     { name = "phlo" },
     { name = "pyyaml" },
@@ -2458,9 +2588,129 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [[package]]
+name = "phlo-observatory"
+version = "0.1.0"
+source = { editable = "packages/phlo-observatory" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-pgweb"
+version = "0.1.0"
+source = { editable = "packages/phlo-pgweb" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "phlo-postgres"
 version = "0.1.0"
 source = { editable = "packages/phlo-postgres" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-postgrest"
+version = "0.1.0"
+source = { editable = "packages/phlo-postgrest" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-prometheus"
+version = "0.1.0"
+source = { editable = "packages/phlo-prometheus" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-superset"
+version = "0.1.0"
+source = { editable = "packages/phlo-superset" }
 dependencies = [
     { name = "phlo" },
     { name = "pyyaml" },

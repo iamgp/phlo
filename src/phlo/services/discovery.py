@@ -35,6 +35,7 @@ class ServiceDefinition:
     env_vars: dict[str, dict[str, Any]] = field(default_factory=dict)
     files: list[dict[str, str]] = field(default_factory=list)
     hooks: dict[str, str] = field(default_factory=dict)
+    dev: dict[str, Any] = field(default_factory=dict)
     source_path: Path | None = None
     phlo_dev: bool = False  # Services that receive phlo source mount in dev mode
 
@@ -58,6 +59,7 @@ class ServiceDefinition:
             env_vars=data.get("env_vars", {}),
             files=data.get("files", []),
             hooks=data.get("hooks", {}),
+            dev=data.get("dev", {}),
             source_path=path.parent,
             phlo_dev=data.get("phlo_dev", False),
         )
@@ -79,6 +81,7 @@ class ServiceDefinition:
             env_vars=data.get("env_vars", {}),
             files=data.get("files", []),
             hooks=data.get("hooks", {}),
+            dev=data.get("dev", {}),
             source_path=source_path,
             phlo_dev=data.get("phlo_dev", False),
         )

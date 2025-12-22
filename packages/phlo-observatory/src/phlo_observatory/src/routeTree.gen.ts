@@ -18,6 +18,7 @@ import { Route as GraphIndexRouteImport } from './routes/graph/index'
 import { Route as DataIndexRouteImport } from './routes/data/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
+import { Route as HubPluginsRouteImport } from './routes/hub/plugins'
 import { Route as DataBranchNameRouteImport } from './routes/data/$branchName'
 import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
 import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
@@ -71,6 +72,11 @@ const AssetsIndexRoute = AssetsIndexRouteImport.update({
   path: '/assets/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HubPluginsRoute = HubPluginsRouteImport.update({
+  id: '/hub/plugins',
+  path: '/hub/plugins',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DataBranchNameRoute = DataBranchNameRouteImport.update({
   id: '/data/$branchName',
   path: '/data/$branchName',
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
+  '/hub/plugins': typeof HubPluginsRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/hub/plugins': typeof HubPluginsRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
   '/data': typeof DataIndexRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
+  '/hub/plugins': typeof HubPluginsRoute
   '/assets/': typeof AssetsIndexRoute
   '/branches/': typeof BranchesIndexRoute
   '/data/': typeof DataIndexRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/assets/$assetId'
     | '/branches/$branchName'
     | '/data/$branchName'
+    | '/hub/plugins'
     | '/assets'
     | '/branches'
     | '/data'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/assets/$assetId'
     | '/branches/$branchName'
+    | '/hub/plugins'
     | '/assets'
     | '/branches'
     | '/data'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/assets/$assetId'
     | '/branches/$branchName'
     | '/data/$branchName'
+    | '/hub/plugins'
     | '/assets/'
     | '/branches/'
     | '/data/'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute
   BranchesBranchNameRoute: typeof BranchesBranchNameRoute
   DataBranchNameRoute: typeof DataBranchNameRouteWithChildren
+  HubPluginsRoute: typeof HubPluginsRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
   DataIndexRoute: typeof DataIndexRoute
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/assets'
       fullPath: '/assets'
       preLoaderRoute: typeof AssetsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hub/plugins': {
+      id: '/hub/plugins'
+      path: '/hub/plugins'
+      fullPath: '/hub/plugins'
+      preLoaderRoute: typeof HubPluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data/$branchName': {
@@ -387,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssetsAssetIdRoute: AssetsAssetIdRoute,
   BranchesBranchNameRoute: BranchesBranchNameRoute,
   DataBranchNameRoute: DataBranchNameRouteWithChildren,
+  HubPluginsRoute: HubPluginsRoute,
   AssetsIndexRoute: AssetsIndexRoute,
   BranchesIndexRoute: BranchesIndexRoute,
   DataIndexRoute: DataIndexRoute,

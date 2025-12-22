@@ -40,3 +40,19 @@ env_vars:
   OBSERVATORY_PORT:
     default: 3001
     description: Observatory UI port
+
+dev:
+  command:
+    - npm
+    - run
+    - dev
+    - --
+    - --host
+    - 0.0.0.0
+    - --port
+    - "3000"
+  environment:
+    NODE_ENV: development
+  volumes:
+    - "{source}:/app"
+    - "/app/node_modules"
