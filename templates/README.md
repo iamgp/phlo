@@ -1,6 +1,6 @@
-# Cascade Workflow Templates
+# Phlo Workflow Templates
 
-This directory contains templates for creating common Cascade workflows.
+This directory contains templates for creating common Phlo workflows.
 
 ## Quick Start
 

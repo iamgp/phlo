@@ -2,7 +2,7 @@
 # This module serves as the entry point for Iceberg functionality in the lakehouse platform
 
 """
-Iceberg integration for Cascade.
+Iceberg integration for Phlo.
 
 This module provides integration with Apache Iceberg using PyIceberg and Nessie catalog.
 """

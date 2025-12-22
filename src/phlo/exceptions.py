@@ -8,8 +8,8 @@ from enum import Enum
 from typing import List, Optional
 
 
-class CascadeErrorCode(Enum):
-    """Error codes for Cascade exceptions."""
+class PhloErrorCode(Enum):
+    """Error codes for Phlo exceptions."""
 
     # Discovery and Configuration Errors (PHLO-001 to PHLO-099)
     ASSET_NOT_DISCOVERED = "PHLO-001"
@@ -37,20 +37,20 @@ class CascadeErrorCode(Enum):
     ICEBERG_WRITE_ERROR = "PHLO-402"
 
 
-class CascadeError(Exception):
+class PhloError(Exception):
     """
-    Base exception for Cascade framework errors.
+    Base exception for Phlo framework errors.
 
-    All Cascade exceptions include:
+    All Phlo exceptions include:
     - Error code for searchability
     - Contextual error message
     - Suggested actions to resolve
     - Link to documentation
 
     Example:
-        raise CascadeError(
+        raise PhloError(
             message="unique_key 'observation_id' not found in schema",
-            code=CascadeErrorCode.SCHEMA_MISMATCH,
+            code=PhloErrorCode.SCHEMA_MISMATCH,
             suggestions=[
                 "Check that unique_key matches a field in validation_schema",
                 "Available fields: id, city, temperature, timestamp",
@@ -61,16 +61,16 @@ class CascadeError(Exception):
     def __init__(
         self,
         message: str,
-        code: CascadeErrorCode,
+        code: PhloErrorCode,
         suggestions: Optional[List[str]] = None,
         cause: Optional[Exception] = None,
     ):
         """
-        Initialize CascadeError.
+        Initialize PhloError.
 
         Args:
             message: Clear description of what went wrong
-            code: Error code from CascadeErrorCode enum
+            code: Error code from PhloErrorCode enum
             suggestions: List of suggested actions to resolve the error
             cause: Original exception that caused this error (if wrapping)
         """
@@ -110,35 +110,35 @@ class CascadeError(Exception):
 # Specific Error Classes
 
 
-class CascadeDiscoveryError(CascadeError):
+class PhloDiscoveryError(PhloError):
     """Raised when assets cannot be discovered by Dagster."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.ASSET_NOT_DISCOVERED,
+            code=PhloErrorCode.ASSET_NOT_DISCOVERED,
             suggestions=suggestions,
         )
 
 
-class CascadeSchemaError(CascadeError):
+class PhloSchemaError(PhloError):
     """Raised when schema configuration is invalid."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.SCHEMA_MISMATCH,
+            code=PhloErrorCode.SCHEMA_MISMATCH,
             suggestions=suggestions,
         )
 
 
-class CascadeCronError(CascadeError):
+class PhloCronError(PhloError):
     """Raised when cron expression is invalid."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.INVALID_CRON,
+            code=PhloErrorCode.INVALID_CRON,
             suggestions=suggestions
             or [
                 "Use standard cron format: [minute] [hour] [day_of_month] [month] [day_of_week]",
@@ -148,7 +148,7 @@ class CascadeCronError(CascadeError):
         )
 
 
-class CascadeValidationError(CascadeError):
+class PhloValidationError(PhloError):
     """Raised when data validation fails."""
 
     def __init__(
@@ -159,24 +159,24 @@ class CascadeValidationError(CascadeError):
     ):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.VALIDATION_FAILED,
+            code=PhloErrorCode.VALIDATION_FAILED,
             suggestions=suggestions,
             cause=cause,
         )
 
 
-class CascadeConfigError(CascadeError):
+class PhloConfigError(PhloError):
     """Raised when decorator configuration is invalid."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.MISSING_SCHEMA,
+            code=PhloErrorCode.MISSING_SCHEMA,
             suggestions=suggestions,
         )
 
 
-class CascadeIngestionError(CascadeError):
+class PhloIngestionError(PhloError):
     """Raised when data ingestion fails."""
 
     def __init__(
@@ -187,24 +187,24 @@ class CascadeIngestionError(CascadeError):
     ):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.INGESTION_FAILED,
+            code=PhloErrorCode.INGESTION_FAILED,
             suggestions=suggestions,
             cause=cause,
         )
 
 
-class CascadeTableError(CascadeError):
+class PhloTableError(PhloError):
     """Raised when Iceberg table operations fail."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.TABLE_NOT_FOUND,
+            code=PhloErrorCode.TABLE_NOT_FOUND,
             suggestions=suggestions,
         )
 
 
-class CascadeInfrastructureError(CascadeError):
+class PhloInfrastructureError(PhloError):
     """Raised when infrastructure services are unavailable."""
 
     def __init__(
@@ -215,24 +215,24 @@ class CascadeInfrastructureError(CascadeError):
     ):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.INFRASTRUCTURE_ERROR,
+            code=PhloErrorCode.INFRASTRUCTURE_ERROR,
             suggestions=suggestions,
             cause=cause,
         )
 
 
-class SchemaConversionError(CascadeError):
+class SchemaConversionError(PhloError):
     """Raised when Pandera schema cannot be converted to PyIceberg."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.SCHEMA_CONVERSION_ERROR,
+            code=PhloErrorCode.SCHEMA_CONVERSION_ERROR,
             suggestions=suggestions,
         )
 
 
-class DLTPipelineError(CascadeError):
+class DLTPipelineError(PhloError):
     """Raised when DLT pipeline execution fails."""
 
     def __init__(
@@ -243,13 +243,13 @@ class DLTPipelineError(CascadeError):
     ):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.DLT_PIPELINE_FAILED,
+            code=PhloErrorCode.DLT_PIPELINE_FAILED,
             suggestions=suggestions,
             cause=cause,
         )
 
 
-class IcebergCatalogError(CascadeError):
+class IcebergCatalogError(PhloError):
     """Raised when Iceberg catalog operations fail."""
 
     def __init__(
@@ -260,7 +260,7 @@ class IcebergCatalogError(CascadeError):
     ):
         super().__init__(
             message=message,
-            code=CascadeErrorCode.ICEBERG_CATALOG_ERROR,
+            code=PhloErrorCode.ICEBERG_CATALOG_ERROR,
             suggestions=suggestions,
             cause=cause,
         )

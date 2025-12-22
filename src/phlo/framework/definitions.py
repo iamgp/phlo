@@ -73,10 +73,10 @@ def _default_executor() -> dg.ExecutorDefinition | None:
 
 def build_core_resources() -> dg.Definitions:
     """
-    Build core Cascade framework resources.
+    Build core Phlo framework resources.
 
     Returns Definitions containing only resources (no assets).
-    This allows user projects to use Cascade resources without
+    This allows user projects to use Phlo resources without
     loading all the example assets.
 
     Returns:
@@ -117,14 +117,14 @@ def build_definitions(
     This is the main entry point for user projects. It:
     1. Loads configuration
     2. Discovers user workflows from workflows_path
-    3. Loads core Cascade resources
-    4. Optionally loads core Cascade assets (examples)
+    3. Loads core Phlo resources
+    4. Optionally loads core Phlo assets (examples)
     5. Merges everything together
 
     Args:
         workflows_path: Path to user workflows directory. If None, uses
             configuration value (default: "workflows")
-        include_core_assets: Whether to include core Cascade example assets
+        include_core_assets: Whether to include core Phlo example assets
             (default: False). Set to True for development/testing.
 
     Returns:
@@ -155,7 +155,7 @@ def build_definitions(
     else:
         workflows_path = Path(workflows_path)
 
-    logger.info(f"Building Cascade definitions with workflows from: {workflows_path}")
+    logger.info(f"Building Phlo definitions with workflows from: {workflows_path}")
 
     # Discover user workflows
     try:
@@ -177,7 +177,7 @@ def build_definitions(
     definitions_to_merge = [core_resources, user_defs, publishing_assets]
 
     if include_core_assets:
-        logger.info("Including core Cascade example assets")
+        logger.info("Including core Phlo example assets")
         try:
             from phlo.definitions import defs as core_defs
 
@@ -207,7 +207,7 @@ def build_definitions(
     final_jobs = list(final_defs.jobs or [])
     final_schedules = list(final_defs.schedules or [])
     logger.info(
-        "Built Cascade definitions: %d assets, %d checks, %d jobs, %d schedules",
+        "Built Phlo definitions: %d assets, %d checks, %d jobs, %d schedules",
         len(final_assets),
         len(final_checks),
         len(final_jobs),

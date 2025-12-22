@@ -2,7 +2,7 @@
 Integration tests for workflow discovery system.
 
 Tests the end-to-end workflow discovery and definitions building
-for user projects using Cascade as an installable package.
+for user projects using Phlo as an installable package.
 """
 
 import tempfile
@@ -123,13 +123,13 @@ def test_build_definitions_without_workflows_path():
 
 
 def test_project_type_detection():
-    """Test detection of user project vs Cascade repo."""
+    """Test detection of user project vs Phlo repo."""
     from phlo.cli.scaffold import _is_user_project
 
     with tempfile.TemporaryDirectory() as tmpdir:
         project_root = Path(tmpdir)
 
-        # Empty directory - should be Cascade repo mode (no workflows)
+        # Empty directory - should be Phlo repo mode (no workflows)
         assert not _is_user_project(project_root)
 
         # Add workflows directory - should be user project
@@ -145,7 +145,7 @@ def test_project_type_detection():
         )
         assert _is_user_project(project_root)
 
-        # Cascade repo (has name = "phlo")
+        # Phlo repo (has name = "phlo")
         (project_root / "pyproject.toml").write_text('[project]\nname = "phlo"\ndependencies = []')
         assert not _is_user_project(project_root)
 

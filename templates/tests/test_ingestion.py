@@ -1,7 +1,7 @@
 """
 Ingestion Asset Test Template
 
-This template shows how to test Cascade ingestion assets.
+This template shows how to test Phlo ingestion assets.
 
 TODO: Customize this template:
 1. Copy to tests/test_YOUR_DOMAIN_YOUR_ASSET.py

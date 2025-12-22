@@ -1,0 +1,36 @@
+name: phlo-api
+description: Phlo API - Backend service exposing phlo internals to Observatory
+category: core
+default: true
+core: true
+
+# Production: use published Docker image
+image: ghcr.io/iamgp/phlo-api:latest
+
+compose:
+  restart: unless-stopped
+  environment:
+    HOST: 0.0.0.0
+    PORT: 4000
+    PYTHONUNBUFFERED: "1"
+  ports:
+    - "${PHLO_API_PORT:-4000}:4000"
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://127.0.0.1:4000/health"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 10s
+
+env_vars:
+  PHLO_API_PORT:
+    default: 4000
+    description: Phlo API port
+
+# Dev mode: build from local source
+dev:
+  build:
+    context: "{source}"
+    dockerfile: Dockerfile
+  environment:
+    PHLO_DEV_MODE: "true"

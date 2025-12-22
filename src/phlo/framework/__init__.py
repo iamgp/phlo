@@ -1,5 +1,5 @@
 """
-Cascade Framework Module
+Phlo Framework Module
 
 This module provides the core framework for discovering and loading user workflows
 and integrating them with Dagster.

@@ -1,75 +1,125 @@
 # Service Packages
 
 Phlo services are distributed as Python packages. Each service package ships its own `service.yaml`
-definition and registers a `phlo.plugins.services` entry point so the CLI can discover it.
+definition and registers a `phlo.plugins.services` entry point for CLI discovery.
 
-## Why packages?
+## Architecture
 
-- One service per package, so services can be installed or swapped independently.
-- Services use the same plugin discovery flow as sources/quality/transforms.
-- Core services are versioned alongside Phlo, while optional services can be added on demand.
+Phlo services are organized into **core** and **package** services:
 
-## Core service packages
+### Core Services
 
-Install the core services alongside the CLI:
+Core services are bundled with `pip install phlo` and cannot be removed:
 
-```bash
-uv pip install -e ".[core-services]"
-```
+- **Observatory** - Data platform UI for visibility and lineage
+- **phlo-api** - Backend API exposing phlo internals to Observatory
 
-Core service packages:
+### Package Services
 
-- `phlo-postgres`
-- `phlo-minio`
-- `phlo-nessie`
-- `phlo-trino`
-- `phlo-dagster`
-
-## Optional service packages
-
-Optional services are installed independently. Use the plugin installer or `pip`/`uv` directly:
+Package services are installed separately and can be swapped for alternatives:
 
 ```bash
-phlo plugin install phlo-observatory
-uv pip install phlo-pgweb
+# Install default services (recommended)
+pip install phlo[defaults]
+
+# Or install individually
+pip install phlo-dagster phlo-postgres phlo-trino
 ```
 
-Optional packages include:
+Default package services:
 
-- `phlo-observatory`
-- `phlo-pgweb`
-- `phlo-superset`
-- `phlo-postgrest`
-- `phlo-hasura`
-- `phlo-fastapi`
-- `phlo-prometheus`
-- `phlo-grafana`
-- `phlo-loki`
-- `phlo-alloy`
+- `phlo-dagster` - Data orchestration platform
+- `phlo-postgres` - PostgreSQL for Dagster metadata
+- `phlo-minio` - S3-compatible object storage
+- `phlo-nessie` - Git-like catalog for Iceberg
+- `phlo-trino` - Distributed SQL query engine
 
-## Discovering installed services
+Optional packages:
 
-List installed service plugins:
+- `phlo-superset` - Business intelligence
+- `phlo-pgweb` - PostgreSQL web admin
+- `phlo-postgrest` - Auto-generated REST API
+- `phlo-hasura` - GraphQL API
+- `phlo-prometheus` - Metrics [observability]
+- `phlo-grafana` - Dashboards [observability]
+- `phlo-loki` - Log aggregation [observability]
+- `phlo-alloy` - Log shipping [observability]
+
+## Customizing Services
+
+Override service settings in your `phlo.yaml`:
+
+```yaml
+name: my-lakehouse
+
+services:
+  # Override a package service
+  observatory:
+    ports:
+      - "8080:3000"
+    environment:
+      DEBUG: "true"
+
+  # Disable a default service
+  superset:
+    enabled: false
+
+  # Add a custom inline service
+  custom-api:
+    type: inline
+    image: my-registry/api:latest
+    ports:
+      - "4000:4000"
+    depends_on:
+      - trino
+```
+
+### Override Behavior
+
+| Setting          | Behavior                      |
+| ---------------- | ----------------------------- |
+| `ports`          | Replaces package defaults     |
+| `environment`    | Merges (user values override) |
+| `volumes`        | Appends to package defaults   |
+| `depends_on`     | Replaces package defaults     |
+| `command`        | Replaces package defaults     |
+| `enabled: false` | Excludes service entirely     |
+
+## Discovering Services
 
 ```bash
-phlo plugin list --type services
+# List installed services
+phlo services list
+
+# Show all including optional profiles
+phlo services list --all
+
+# JSON output
+phlo services list --json
 ```
 
-List registry services (installed + available):
+Example output:
 
-```bash
-phlo plugin list --type services --all
+```
+CORE SERVICES (bundled with phlo):
+  ✓ observatory: Phlo Observatory - Data platform visibility and lineage UI
+  ✓ phlo-api: Phlo API - Backend service exposing phlo internals
+
+ORCHESTRATION (packages):
+  ✓ dagster: Data orchestration platform
+  ✓ dagster-daemon: Dagster daemon for schedules and sensors
+
+BI (packages):
+  ✓ superset: Apache Superset for business intelligence
 ```
 
-## Development mode
+## Development Mode
 
-In dev mode, the CLI mounts local package sources into containers. Use `--phlo-source` to point to
-the monorepo root:
+Mount local package sources into containers for live development:
 
 ```bash
 phlo services init --dev --phlo-source /path/to/phlo
-phlo services start --dev --phlo-source /path/to/phlo
+phlo services start --dev
 ```
 
-Dev mode relies on each service package defining a `dev` override in its `service.yaml` for command,
-volumes, and environment.
+Dev mode uses the `dev` section in each service's `service.yaml` to override commands, volumes, and environment.

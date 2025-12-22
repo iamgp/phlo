@@ -1,5 +1,5 @@
 """
-Example plugin package for Cascade.
+Example plugin package for Phlo.
 
 Demonstrates how to create source, quality check, transform, and service plugins.
 """

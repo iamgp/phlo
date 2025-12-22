@@ -119,7 +119,7 @@ class JSONPlaceholderSource(SourceConnectorPlugin):
             name="jsonplaceholder",
             version="1.0.0",
             description="Fetch data from JSONPlaceholder API",
-            author="Cascade Team",
+            author="Phlo Team",
             homepage="https://github.com/iamgp/phlo",
             tags=["api", "example", "public"],
             license="MIT",
@@ -241,7 +241,7 @@ From `examples/phlo-plugin-example/pyproject.toml`:
 [project]
 name = "phlo-plugin-example"
 version = "1.0.0"
-description = "Example Cascade plugin package demonstrating all plugin types"
+description = "Example Phlo plugin package demonstrating all plugin types"
 requires-python = ">=3.11"
 dependencies = [
     "pandas>=1.5.0",
@@ -317,7 +317,7 @@ class ThresholdCheckPlugin(QualityCheckPlugin):
             name="threshold_check",
             version="1.0.0",
             description="Validate numeric values within thresholds",
-            author="Cascade Team",
+            author="Phlo Team",
             homepage="https://github.com/iamgp/phlo",
             tags=["validation", "numeric", "example"],
             license="MIT",
@@ -479,7 +479,7 @@ class UppercaseTransformPlugin(TransformationPlugin):
             name="uppercase",
             version="1.0.0",
             description="Convert string columns to uppercase",
-            author="Cascade Team",
+            author="Phlo Team",
             homepage="https://github.com/iamgp/phlo",
             tags=["string", "transform", "example"],
             license="MIT",
@@ -594,15 +594,15 @@ $ phlo plugin list
 
 Sources:
   NAME              VERSION  AUTHOR
-  jsonplaceholder   1.0.0    Cascade Team
+  jsonplaceholder   1.0.0    Phlo Team
 
 Quality Checks:
   NAME              VERSION  AUTHOR
-  threshold_check   1.0.0    Cascade Team
+  threshold_check   1.0.0    Phlo Team
 
 Transforms:
   NAME              VERSION  AUTHOR
-  uppercase         1.0.0    Cascade Team
+  uppercase         1.0.0    Phlo Team
 
 # Filter by type
 $ phlo plugin list --type sources
@@ -619,7 +619,7 @@ $ phlo plugin info jsonplaceholder
 jsonplaceholder
 Type: sources
 Version: 1.0.0
-Author: Cascade Team
+Author: Phlo Team
 Description: Fetch data from JSONPlaceholder API
 License: MIT
 Homepage: https://github.com/iamgp/phlo
