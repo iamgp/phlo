@@ -13,6 +13,7 @@ import pytest
 from phlo.plugins import (
     PluginMetadata,
     QualityCheckPlugin,
+    ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
     discover_plugins,
@@ -76,6 +77,25 @@ class DummyTransformPlugin(TransformationPlugin):
         return df
 
 
+class DummyServicePlugin(ServicePlugin):
+    """Test service plugin."""
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="test_service",
+            version="1.0.0",
+            description="Test service plugin",
+        )
+
+    @property
+    def service_definition(self) -> dict:
+        return {
+            "category": "core",
+            "compose": {"image": "test-service:latest"},
+        }
+
+
 @pytest.fixture
 def clean_registry():
     """Clear and restore registry for each test."""
@@ -110,6 +130,14 @@ class TestPluginRegistration:
         clean_registry.register_transformation(plugin)
 
         retrieved = clean_registry.get_transformation("test_transform")
+        assert retrieved is plugin
+
+    def test_register_service(self, clean_registry):
+        """Test registering a service."""
+        plugin = DummyServicePlugin()
+        clean_registry.register_service(plugin)
+
+        retrieved = clean_registry.get_service("test_service")
         assert retrieved is plugin
 
     def test_duplicate_registration_raises_error(self, clean_registry):
@@ -153,6 +181,14 @@ class TestPluginMetadata:
         metadata = clean_registry.get_plugin_metadata("quality_checks", "test_quality")
         assert metadata["name"] == "test_quality"
 
+    def test_get_service_metadata(self, clean_registry):
+        """Test getting service metadata."""
+        plugin = DummyServicePlugin()
+        clean_registry.register_service(plugin)
+
+        metadata = clean_registry.get_plugin_metadata("services", "test_service")
+        assert metadata["name"] == "test_service"
+
     def test_missing_plugin_returns_none(self, clean_registry):
         """Test getting metadata for non-existent plugin."""
         metadata = clean_registry.get_plugin_metadata("source_connectors", "nonexistent")
@@ -166,6 +202,8 @@ class TestPluginValidation:
         """Test validating a valid plugin."""
         plugin = DummySourcePlugin()
         assert clean_registry.validate_plugin(plugin) is True
+        service_plugin = DummyServicePlugin()
+        assert clean_registry.validate_plugin(service_plugin) is True
 
     def test_validate_missing_metadata(self, clean_registry):
         """Test validation fails for missing metadata."""
@@ -232,11 +270,13 @@ class TestPluginListing:
         clean_registry.register_source_connector(DummySourcePlugin())
         clean_registry.register_quality_check(DummyQualityPlugin())
         clean_registry.register_transformation(DummyTransformPlugin())
+        clean_registry.register_service(DummyServicePlugin())
 
         all_plugins = clean_registry.list_all_plugins()
         assert "test_source" in all_plugins["source_connectors"]
         assert "test_quality" in all_plugins["quality_checks"]
         assert "test_transform" in all_plugins["transformations"]
+        assert "test_service" in all_plugins["services"]
 
 
 class TestPluginDiscovery:
