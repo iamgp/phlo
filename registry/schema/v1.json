@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phlo Plugin Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "version", "updated_at", "plugins"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "version": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "plugins": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/plugin"
+      }
+    }
+  },
+  "$defs": {
+    "plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "package", "version", "description", "author", "tags", "verified"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["source", "quality", "transform", "service"]
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "homepage": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "core": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
