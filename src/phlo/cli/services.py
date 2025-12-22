@@ -500,12 +500,21 @@ def init(
         if isinstance(cfg, dict) and cfg.get("enabled") is False
     }
 
-    # Get default services (excluding disabled) + profile services
+    # Collect inline custom services (those with type: inline)
+    from phlo.services.discovery import ServiceDefinition
+
+    inline_services = [
+        ServiceDefinition.from_inline(name, cfg)
+        for name, cfg in user_overrides.items()
+        if isinstance(cfg, dict) and cfg.get("type") == "inline"
+    ]
+
+    # Get default services (excluding disabled) + profile services + inline services
     default_services = discovery.get_default_services(disabled_services=disabled_services)
     profile_services = [
         s for s in all_services.values() if s.profile and s.name not in disabled_services
     ]
-    services_to_install = default_services + profile_services
+    services_to_install = default_services + profile_services + inline_services
 
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)

@@ -89,6 +89,44 @@ class ServiceDefinition:
             core=data.get("core", False),
         )
 
+    @classmethod
+    def from_inline(cls, name: str, config: dict[str, Any]) -> "ServiceDefinition":
+        """Create a ServiceDefinition from inline config in phlo.yaml.
+
+        Example phlo.yaml:
+            services:
+              custom-api:
+                type: inline
+                image: my-registry/api:latest
+                ports:
+                  - "4000:4000"
+                depends_on:
+                  - trino
+        """
+        # Build compose section from inline config
+        compose: dict[str, Any] = {}
+        if config.get("ports"):
+            compose["ports"] = config["ports"]
+        if config.get("environment"):
+            compose["environment"] = config["environment"]
+        if config.get("volumes"):
+            compose["volumes"] = config["volumes"]
+        if config.get("command"):
+            compose["command"] = config["command"]
+        if config.get("healthcheck"):
+            compose["healthcheck"] = config["healthcheck"]
+
+        return cls(
+            name=name,
+            description=config.get("description", f"Custom service: {name}"),
+            category="custom",
+            default=True,  # Inline services are always included
+            depends_on=config.get("depends_on", []),
+            image=config.get("image"),
+            build=config.get("build"),
+            compose=compose,
+        )
+
 
 class ServiceDiscovery:
     """Discovers and manages service definitions."""
