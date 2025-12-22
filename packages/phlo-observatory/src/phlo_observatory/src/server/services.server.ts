@@ -5,17 +5,130 @@
  * Reads service.yaml files and interacts with Docker Compose.
  */
 
+import { createServerFn } from '@tanstack/react-start'
 import { exec } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { createServerFn } from '@tanstack/react-start'
 
-import { parse as parseYaml } from 'yaml'
 import { authMiddleware } from '@/server/auth.server'
+import { parse as parseYaml } from 'yaml'
 
 const execAsync = promisify(exec)
+const phloCommand = process.env.PHLO_CLI_COMMAND ?? 'uv run phlo'
+const phloProjectPath = process.env.PHLO_PROJECT_PATH
+
+const serviceMetadata: Record<
+  string,
+  { category: string; description: string; default: boolean }
+> = {
+  postgres: {
+    category: 'core',
+    description: 'PostgreSQL metadata and catalog store',
+    default: true,
+  },
+  minio: {
+    category: 'core',
+    description: 'S3-compatible object storage',
+    default: true,
+  },
+  'minio-setup': {
+    category: 'core',
+    description: 'Initializes MinIO buckets and policies',
+    default: true,
+  },
+  nessie: {
+    category: 'core',
+    description: 'Git-like catalog for Iceberg tables',
+    default: true,
+  },
+  trino: {
+    category: 'core',
+    description: 'Distributed SQL query engine',
+    default: true,
+  },
+  'dagster-webserver': {
+    category: 'orchestration',
+    description: 'Dagster UI and GraphQL API',
+    default: true,
+  },
+  'dagster-daemon': {
+    category: 'orchestration',
+    description: 'Dagster daemon for schedules and sensors',
+    default: true,
+  },
+  observatory: {
+    category: 'orchestration',
+    description: 'Phlo Observatory UI',
+    default: true,
+  },
+  pgweb: {
+    category: 'admin',
+    description: 'PostgreSQL web client',
+    default: false,
+  },
+  superset: {
+    category: 'bi',
+    description: 'BI dashboards and exploration',
+    default: false,
+  },
+  postgrest: {
+    category: 'api',
+    description: 'REST API for PostgreSQL',
+    default: false,
+  },
+  hasura: {
+    category: 'api',
+    description: 'GraphQL API for PostgreSQL',
+    default: false,
+  },
+  fastapi: {
+    category: 'api',
+    description: 'Custom FastAPI service layer',
+    default: false,
+  },
+  prometheus: {
+    category: 'observability',
+    description: 'Metrics collection and scraping',
+    default: false,
+  },
+  grafana: {
+    category: 'observability',
+    description: 'Dashboards and monitoring UI',
+    default: false,
+  },
+  loki: {
+    category: 'observability',
+    description: 'Log aggregation',
+    default: false,
+  },
+  alloy: {
+    category: 'observability',
+    description: 'Metrics and log agent',
+    default: false,
+  },
+}
+
+interface CliServiceDefinition {
+  name: string
+  description?: string
+  category?: string
+  default?: boolean
+  profile?: string | null
+  depends_on?: Array<string>
+  compose?: {
+    ports?: Array<string>
+  }
+  env_vars?: Record<
+    string,
+    {
+      default?: string | number
+      description?: string
+      secret?: boolean
+    }
+  >
+}
 
 // Types for service definitions
 export interface EnvVar {
@@ -96,84 +209,74 @@ const getEnvPath = (): string => {
   return localPath
 }
 
-/**
- * Parse a service.yaml file
- */
+function buildServiceDefinition(
+  data: CliServiceDefinition,
+): ServiceDefinition | null {
+  if (!data.name) {
+    return null
+  }
+
+  const ports: Array<{
+    host: number
+    container: number
+    description?: string
+  }> = []
+  if (data.compose?.ports) {
+    for (const portMapping of data.compose.ports) {
+      const match = portMapping.match(
+        /\$\{([^:}]+):-?(\d+)\}:(\d+)|(\d+):(\d+)/,
+      )
+      if (match) {
+        if (match[1]) {
+          ports.push({
+            host: parseInt(match[2], 10),
+            container: parseInt(match[3], 10),
+            description: match[1],
+          })
+        } else {
+          ports.push({
+            host: parseInt(match[4], 10),
+            container: parseInt(match[5], 10),
+          })
+        }
+      }
+    }
+  }
+
+  const envVars: Array<EnvVar> = []
+  if (data.env_vars) {
+    for (const [varName, config] of Object.entries(data.env_vars)) {
+      envVars.push({
+        name: varName,
+        value: String(config.default ?? ''),
+        description: config.description,
+        secret: config.secret ?? false,
+      })
+    }
+  }
+
+  const firstPort = ports[0]
+  const url = firstPort ? `http://localhost:${firstPort.host}` : undefined
+
+  return {
+    name: data.name,
+    description: data.description || '',
+    category: data.category || 'core',
+    default: data.default ?? false,
+    dependsOn: data.depends_on || [],
+    ports,
+    envVars,
+    url,
+  }
+}
+
 async function parseServiceYaml(
   filePath: string,
 ): Promise<ServiceDefinition | null> {
   try {
     const content = await readFile(filePath, 'utf-8')
     const data = parseYaml(content)
-
-    if (!data || !data.name) {
-      return null
-    }
-
-    // Extract ports from compose.ports
-    const ports: Array<{
-      host: number
-      container: number
-      description?: string
-    }> = []
-    if (data.compose?.ports) {
-      for (const portMapping of data.compose.ports) {
-        // Format: "${HOST_PORT:-default}:container" or "host:container"
-        const match = portMapping.match(
-          /\$\{([^:}]+):-?(\d+)\}:(\d+)|(\d+):(\d+)/,
-        )
-        if (match) {
-          if (match[1]) {
-            // Variable format: ${VAR:-default}:container
-            ports.push({
-              host: parseInt(match[2], 10),
-              container: parseInt(match[3], 10),
-              description: match[1],
-            })
-          } else {
-            // Direct format: host:container
-            ports.push({
-              host: parseInt(match[4], 10),
-              container: parseInt(match[5], 10),
-            })
-          }
-        }
-      }
-    }
-
-    // Extract env vars from env_vars section
-    const envVars: Array<EnvVar> = []
-    if (data.env_vars) {
-      for (const [varName, config] of Object.entries(data.env_vars)) {
-        const cfg = config as {
-          default?: string | number
-          description?: string
-          secret?: boolean
-        }
-        envVars.push({
-          name: varName,
-          value: String(cfg.default ?? ''),
-          description: cfg.description,
-          secret: cfg.secret ?? false,
-        })
-      }
-    }
-
-    // Determine URL from first port
-    const firstPort = ports[0]
-    const url = firstPort ? `http://localhost:${firstPort.host}` : undefined
-
-    return {
-      name: data.name,
-      description: data.description || '',
-      category: data.category || 'core',
-      default: data.default ?? false,
-      image: data.image,
-      dependsOn: data.depends_on || [],
-      ports,
-      envVars,
-      url,
-    }
+    return buildServiceDefinition(data)
   } catch {
     return null
   }
@@ -183,6 +286,11 @@ async function parseServiceYaml(
  * Discover all services from service.yaml files
  */
 async function discoverServices(): Promise<Array<ServiceDefinition>> {
+  const cliServices = await discoverServicesFromCli()
+  if (cliServices.length > 0) {
+    return cliServices
+  }
+
   const servicesPath = getServicesPath()
   const services: Array<ServiceDefinition> = []
 
@@ -235,6 +343,85 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     }
     return a.name.localeCompare(b.name)
   })
+}
+
+async function discoverServicesFromContainers(): Promise<Array<ServiceDefinition>> {
+  try {
+    const { stdout } = await execAsync('docker ps -a --format json')
+    const services: Array<ServiceDefinition> = []
+    const seen = new Set<string>()
+
+    for (const line of stdout.trim().split('\n')) {
+      if (!line) continue
+      const container = JSON.parse(line) as {
+        Labels?: string
+        Ports?: string
+      }
+
+      const labels = container.Labels || ''
+      const serviceMatch = labels.match(
+        /com\.docker\.compose\.service=([^,]+)/,
+      )
+      const serviceName = serviceMatch ? serviceMatch[1] : ''
+      if (!serviceName || seen.has(serviceName)) {
+        continue
+      }
+      seen.add(serviceName)
+
+      const ports = parsePorts(container.Ports)
+      const firstPort = ports[0]
+      const metadata = serviceMetadata[serviceName]
+
+      services.push({
+        name: serviceName,
+        description: metadata?.description ?? '',
+        category: metadata?.category ?? 'core',
+        default: metadata?.default ?? false,
+        dependsOn: [],
+        ports,
+        envVars: [],
+        url: firstPort ? `http://localhost:${firstPort.host}` : undefined,
+      })
+    }
+
+    return services
+  } catch {
+    return []
+  }
+}
+
+function parsePorts(
+  portsRaw?: string,
+): Array<{ host: number; container: number; description?: string }> {
+  if (!portsRaw) {
+    return []
+  }
+
+  const ports: Array<{ host: number; container: number; description?: string }> = []
+  for (const entry of portsRaw.split(',')) {
+    const match = entry.match(/:(\d+)->(\d+)/)
+    if (!match) {
+      continue
+    }
+    ports.push({
+      host: parseInt(match[1], 10),
+      container: parseInt(match[2], 10),
+    })
+  }
+  return ports
+}
+
+async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
+  try {
+    const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
+    const { stdout } = await execAsync(`${phloCommand} services list --json`, execOptions)
+    const parsed = JSON.parse(stdout) as Array<CliServiceDefinition>
+    return parsed
+      .map((service) => buildServiceDefinition(service))
+      .filter((service): service is ServiceDefinition => Boolean(service))
+  } catch {
+    return discoverServicesFromContainers()
+  }
 }
 
 /**
