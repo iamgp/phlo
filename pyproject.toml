@@ -65,7 +65,16 @@ phlo = "phlo.cli.main:cli"
 # Example: my_transform = "my_package.my_module:MyTransform"
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = [".", "packages/*"]
+
+[tool.uv.sources]
+phlo = { workspace = true }
+phlo-core-plugins = { workspace = true }
+phlo-dagster = { workspace = true }
+phlo-postgres = { workspace = true }
+phlo-minio = { workspace = true }
+phlo-nessie = { workspace = true }
+phlo-trino = { workspace = true }
 
 [dependency-groups]
 dev = [
