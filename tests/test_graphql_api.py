@@ -1,5 +1,5 @@
 """
-Automated tests for Cascade GraphQL API (Hasura).
+Automated tests for Phlo GraphQL API (Hasura).
 
 Tests authentication, queries, and GraphQL-specific functionality.
 """

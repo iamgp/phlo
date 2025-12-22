@@ -628,7 +628,7 @@ Phlo uses `phlo/config.py` for centralized config:
 # src/phlo/config.py
 from pydantic_settings import BaseSettings
 
-class CascadeConfig(BaseSettings):
+class PhloConfig(BaseSettings):
     # Iceberg
     iceberg_warehouse_path: str = "s3://lake/warehouse"
     iceberg_staging_path: str = "s3://lake/stage"
@@ -644,7 +644,7 @@ class CascadeConfig(BaseSettings):
     class Config:
         env_file = ".env"  # Read from .env
 
-config = CascadeConfig()  # Singleton
+config = PhloConfig()  # Singleton
 ```
 
 In assets:

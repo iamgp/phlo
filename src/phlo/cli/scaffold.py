@@ -1,7 +1,7 @@
 """
 Workflow Scaffolding
 
-Generates Cascade workflow files from templates.
+Generates Phlo workflow files from templates.
 """
 
 from __future__ import annotations
@@ -30,10 +30,10 @@ def _to_pascal_case(name: str) -> str:
 
 def _is_user_project(project_root: Path) -> bool:
     """
-    Detect if this is a user project or the Cascade repository.
+    Detect if this is a user project or the Phlo repository.
 
     Returns:
-        True if user project, False if Cascade repo
+        True if user project, False if Phlo repo
     """
     # User projects have workflows/ directory but not src/phlo/
     has_workflows = (project_root / "workflows").exists()
@@ -48,12 +48,12 @@ def _is_user_project(project_root: Path) -> bool:
         if pyproject.exists():
             content = pyproject.read_text()
             # User projects have "phlo" as a dependency
-            # Cascade repo has name = "phlo"
+            # Phlo repo has name = "phlo"
             if 'name = "phlo"' in content:
-                return False  # Cascade repo
+                return False  # Phlo repo
         return True  # User project
     else:
-        return False  # Cascade repo
+        return False  # Phlo repo
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,7 +140,7 @@ def create_ingestion_workflow(
 
     Automatically detects project type:
     - User project: Creates files in workflows/
-    - Cascade repo: Creates files in src/phlo/defs/
+    - Phlo repo: Creates files in src/phlo/defs/
 
     Args:
         domain: Domain name (e.g., "weather", "stripe")
@@ -175,7 +175,7 @@ def create_ingestion_workflow(
         test_dir = project_root / "tests"
         schema_import_path = f"workflows.schemas.{domain_snake}"
     else:
-        # Cascade repo mode - use src/phlo/defs/
+        # Phlo repo mode - use src/phlo/defs/
         schema_dir = project_root / "src" / "phlo" / "schemas"
         asset_dir = project_root / "src" / "phlo" / "defs" / "ingestion" / domain_snake
         test_dir = project_root / "tests"

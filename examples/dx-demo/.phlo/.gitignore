@@ -1,0 +1,9 @@
+# Phlo infrastructure files
+.env
+volumes/
+
+# Dagster runtime data
+dagster/storage/
+dagster/history/
+dagster/schedules/
+dagster/logs/

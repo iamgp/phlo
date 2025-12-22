@@ -1,5 +1,5 @@
 """
-Validation package for Cascade data quality gates.
+Validation package for Phlo data quality gates.
 
 This package contains validation resources that can be used to validate
 data quality in user workflows.

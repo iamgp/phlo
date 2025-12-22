@@ -35,7 +35,7 @@ class UppercaseTransformPlugin(TransformationPlugin):
             name="uppercase",
             version="1.0.0",
             description="Convert string columns to uppercase",
-            author="Cascade Team",
+            author="Phlo Team",
             homepage="https://github.com/iamgp/phlo",
             tags=["string", "transform", "example"],
             license="MIT",

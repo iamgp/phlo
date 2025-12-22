@@ -1,6 +1,6 @@
 # dbt Tests for GitHub Analytics
 
-This directory contains comprehensive tests for the GitHub analytics workflow in Cascade.
+This directory contains comprehensive tests for the GitHub analytics workflow in Phlo.
 
 ## Test Coverage
 

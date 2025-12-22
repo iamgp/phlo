@@ -1,6 +1,6 @@
 # phlo-plugin-example
 
-Reference plugin package demonstrating how to develop Cascade plugins.
+Reference plugin package demonstrating how to develop Phlo plugins.
 
 This package includes examples of all three plugin types:
 
