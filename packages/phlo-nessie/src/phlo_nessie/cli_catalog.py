@@ -52,7 +52,11 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
             try:
                 for table_id in cat.list_tables(ns_name):
                     all_tables.append(
-                        {"namespace": ns_name, "table": table_id.name, "full_name": str(table_id)}
+                        {
+                            "namespace": ns_name,
+                            "table": table_id[-1] if isinstance(table_id, tuple) else str(table_id),
+                            "full_name": ".".join(table_id) if isinstance(table_id, tuple) else str(table_id),
+                        }
                     )
             except Exception as e:
                 console.print(f"[yellow]Warning: Could not list tables in {ns_name}: {e}[/yellow]")
