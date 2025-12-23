@@ -53,6 +53,10 @@ dev:
     - '3001'
   environment:
     NODE_ENV: development
+    PHLO_API_URL: http://127.0.0.1:${PHLO_API_PORT:-4000}
+    DAGSTER_GRAPHQL_URL: http://127.0.0.1:${DAGSTER_PORT:-3000}/graphql
+    NESSIE_URL: http://127.0.0.1:${NESSIE_PORT:-19120}/api/v2
+    TRINO_URL: http://127.0.0.1:${TRINO_PORT:-8080}
   volumes:
     - '{source}:/app'
     - '/app/node_modules'
