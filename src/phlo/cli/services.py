@@ -908,9 +908,13 @@ def start(
 
                 async def start_native_services():
                     started: dict[str, dict] = {}
+                    env_overrides = {
+                        "PHLO_PROJECT_PATH": str(project_root),
+                        "ENV_FILE_PATH": str(project_root / ".phlo" / ".env"),
+                    }
                     for svc in native_to_start:
                         click.echo(f"  Starting {svc.name}...")
-                        process = await dev_manager.start_service(svc)
+                        process = await dev_manager.start_service(svc, env_overrides=env_overrides)
                         if process:
                             click.echo(f"    ✓ {svc.name} started (pid {process.pid})")
                             started[svc.name] = {

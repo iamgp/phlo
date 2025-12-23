@@ -18,6 +18,7 @@ import { parse as parseYaml } from 'yaml'
 const execAsync = promisify(exec)
 const phloCommand = process.env.PHLO_CLI_COMMAND ?? 'uv run phlo'
 const phloProjectPath = process.env.PHLO_PROJECT_PATH
+const envFilePath = process.env.ENV_FILE_PATH
 
 const serviceMetadata: Record<
   string,
@@ -162,6 +163,34 @@ export interface ServiceWithStatus extends ServiceDefinition {
   containerStatus: DockerContainerStatus | null
 }
 
+interface NativeProcessEntry {
+  pid: number
+  started_at?: number
+  log?: string
+}
+
+function isPidRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function loadNativeProcesses(): Promise<
+  Record<string, NativeProcessEntry>
+> {
+  const root = phloProjectPath ?? process.cwd()
+  const statePath = join(root, '.phlo', 'native-processes.json')
+  try {
+    const raw = await readFile(statePath, 'utf-8')
+    return JSON.parse(raw) as Record<string, NativeProcessEntry>
+  } catch {
+    return {}
+  }
+}
+
 // Get the services directory path
 // In Docker: /app/services
 // Locally: process.cwd() is services/observatory/, parent is services/
@@ -189,8 +218,8 @@ const getServicesPath = (): string => {
 
 // Path to .env file
 const getEnvPath = (): string => {
-  if (process.env.ENV_FILE_PATH) {
-    return process.env.ENV_FILE_PATH
+  if (envFilePath) {
+    return envFilePath
   }
   const dockerPath = '/app/.env'
   if (existsSync(dockerPath)) {
@@ -345,7 +374,9 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
   })
 }
 
-async function discoverServicesFromContainers(): Promise<Array<ServiceDefinition>> {
+async function discoverServicesFromContainers(): Promise<
+  Array<ServiceDefinition>
+> {
   try {
     const { stdout } = await execAsync('docker ps -a --format json')
     const services: Array<ServiceDefinition> = []
@@ -359,9 +390,7 @@ async function discoverServicesFromContainers(): Promise<Array<ServiceDefinition
       }
 
       const labels = container.Labels || ''
-      const serviceMatch = labels.match(
-        /com\.docker\.compose\.service=([^,]+)/,
-      )
+      const serviceMatch = labels.match(/com\.docker\.compose\.service=([^,]+)/)
       const serviceName = serviceMatch ? serviceMatch[1] : ''
       if (!serviceName || seen.has(serviceName)) {
         continue
@@ -397,7 +426,11 @@ function parsePorts(
     return []
   }
 
-  const ports: Array<{ host: number; container: number; description?: string }> = []
+  const ports: Array<{
+    host: number
+    container: number
+    description?: string
+  }> = []
   for (const entry of portsRaw.split(',')) {
     const match = entry.match(/:(\d+)->(\d+)/)
     if (!match) {
@@ -414,7 +447,10 @@ function parsePorts(
 async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
   try {
     const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
-    const { stdout } = await execAsync(`${phloCommand} services list --json`, execOptions)
+    const { stdout } = await execAsync(
+      `${phloCommand} services list --json`,
+      execOptions,
+    )
     const parsed = JSON.parse(stdout) as Array<CliServiceDefinition>
     return parsed
       .map((service) => buildServiceDefinition(service))
@@ -524,11 +560,13 @@ export const getDockerStatus = createServerFn().handler(
 export const getServices = createServerFn().handler(
   async (): Promise<Array<ServiceWithStatus>> => {
     // Load data in parallel
-    const [services, containers, envValues] = await Promise.all([
-      discoverServices(),
-      getDockerStatus(),
-      loadEnvValues(),
-    ])
+    const [services, containers, envValues, nativeProcesses] =
+      await Promise.all([
+        discoverServices(),
+        getDockerStatus(),
+        loadEnvValues(),
+        loadNativeProcesses(),
+      ])
 
     // Create a map of service name to container status
     const containerMap = new Map<string, DockerContainerStatus>()
@@ -537,35 +575,55 @@ export const getServices = createServerFn().handler(
     }
 
     // Merge services with status and env values
-    return services.map((service) => {
-      // Update env vars with actual values from .env
-      const enrichedEnvVars = service.envVars.map((ev) => ({
-        ...ev,
-        value: envValues[ev.name] ?? ev.value,
-      }))
+    return (
+      services
+        // Hide one-shot init containers from the Hub (they run once and exit successfully).
+        .filter((service) => service.name !== 'minio-setup')
+        .map((service) => {
+          // Update env vars with actual values from .env
+          const enrichedEnvVars = service.envVars.map((ev) => ({
+            ...ev,
+            value: envValues[ev.name] ?? ev.value,
+          }))
 
-      // Also update port descriptions with actual values
-      const enrichedPorts = service.ports.map((port) => {
-        if (port.description && envValues[port.description]) {
+          // Also update port descriptions with actual values
+          const enrichedPorts = service.ports.map((port) => {
+            if (port.description && envValues[port.description]) {
+              return {
+                ...port,
+                host: parseInt(envValues[port.description], 10) || port.host,
+              }
+            }
+            return port
+          })
+
+          const firstPort = enrichedPorts[0]
+          const url = firstPort
+            ? `http://localhost:${firstPort.host}`
+            : undefined
+
+          const dockerStatus = containerMap.get(service.name) || null
+          const native = nativeProcesses[service.name]
+          const nativeStatus: DockerContainerStatus | null =
+            native && isPidRunning(native.pid)
+              ? {
+                  name: `native:${service.name}`,
+                  service: service.name,
+                  status: 'running',
+                  health: 'native',
+                  ports: undefined,
+                }
+              : null
+
           return {
-            ...port,
-            host: parseInt(envValues[port.description], 10) || port.host,
+            ...service,
+            ports: enrichedPorts,
+            envVars: enrichedEnvVars,
+            url,
+            containerStatus: nativeStatus ?? dockerStatus,
           }
-        }
-        return port
-      })
-
-      const firstPort = enrichedPorts[0]
-      const url = firstPort ? `http://localhost:${firstPort.host}` : undefined
-
-      return {
-        ...service,
-        ports: enrichedPorts,
-        envVars: enrichedEnvVars,
-        url,
-        containerStatus: containerMap.get(service.name) || null,
-      }
-    })
+        })
+    )
   },
 )
 
