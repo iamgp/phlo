@@ -26,21 +26,8 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Any
-
+from phlo.ingestion.decorator import phlo_ingestion as ingestion
 from phlo.quality.decorator import phlo_quality as quality
-
-ingestion: Any
-
-
-# Lazy import for ingestion to avoid circular/heavy dependencies
-def __getattr__(name: str) -> Any:
-    if name == "ingestion":
-        from phlo.ingestion.decorator import phlo_ingestion
-
-        return phlo_ingestion
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
 
 __version__ = "0.1.0-alpha.1"
 __all__ = ["ingestion", "quality"]
