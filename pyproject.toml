@@ -39,6 +39,8 @@ dependencies = [
     "pyarrow",
     "python-ulid>=2.0.0",
     "phlo-core-plugins>=0.1.0",
+    "httpx>=0.28.1",
+    "fastapi>=0.127.0",
 ]
 
 [project.optional-dependencies]

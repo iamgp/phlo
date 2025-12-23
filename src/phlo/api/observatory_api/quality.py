@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime
 from typing import Any, Literal
 
 import httpx
@@ -28,7 +29,29 @@ def resolve_dagster_url(override: str | None = None) -> str:
     return os.environ.get("DAGSTER_GRAPHQL_URL", DEFAULT_DAGSTER_URL)
 
 
-# --- GraphQL Query ---
+# --- GraphQL Queries ---
+
+ASSET_CHECKS_QUERY = """
+query AssetChecksQuery {
+    assetNodes {
+        assetKey {
+            path
+        }
+        assetChecksOrError {
+            __typename
+            ... on AssetChecks {
+                checks {
+                    name
+                    description
+                }
+            }
+            ... on AssetCheckNeedsMigrationError {
+                message
+            }
+        }
+    }
+}
+"""
 
 ASSET_CHECK_EXECUTIONS_QUERY = """
 query AssetCheckExecutionsQuery($assetKey: AssetKeyInput!, $limit: Int!) {
@@ -82,6 +105,17 @@ class CategoryStats(BaseModel):
     percentage: int
 
 
+class RecentCheckExecution(BaseModel):
+    asset_key: list[str]
+    check_name: str
+    timestamp: str
+    passed: bool
+    run_id: str | None = None
+    severity: Severity
+    status: CheckStatus
+    metadata: dict[str, Any] = {}
+
+
 class QualityOverview(BaseModel):
     total_checks: int
     passing_checks: int
@@ -89,7 +123,8 @@ class QualityOverview(BaseModel):
     warning_checks: int
     quality_score: int
     by_category: list[CategoryStats]
-    trend: list[dict[str, Any]] = []
+    recent_executions: list[RecentCheckExecution] = []
+    failing_checks_list: list[QualityCheck] = []
 
 
 class CheckExecution(BaseModel):
@@ -131,8 +166,6 @@ def to_epoch_ms(value: str | int | float) -> int:
             return int(num)
         return int(num * 1000)
     except ValueError:
-        from datetime import datetime
-
         try:
             return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000)
         except Exception:
@@ -141,8 +174,6 @@ def to_epoch_ms(value: str | int | float) -> int:
 
 def to_iso_timestamp(value: str | int | float) -> str:
     """Convert to ISO timestamp."""
-    from datetime import datetime
-
     return datetime.fromtimestamp(to_epoch_ms(value) / 1000).isoformat()
 
 
@@ -175,6 +206,191 @@ def metadata_entries_to_dict(entries: list[dict[str, Any]] | None) -> dict[str, 
     return record
 
 
+async def dagster_query(
+    client: httpx.AsyncClient, url: str, query: str, variables: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Execute a GraphQL query against Dagster."""
+    try:
+        response = await client.post(
+            url,
+            json={"query": query, "variables": variables},
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result.get("errors"):
+            logger.error(f"GraphQL error: {result['errors']}")
+            return None
+        return result.get("data")
+    except Exception as e:
+        logger.error(f"Dagster query failed: {e}")
+        return None
+
+
+async def fetch_quality_snapshot(dagster_url: str, recent_limit: int = 50) -> dict[str, Any] | None:
+    """Fetch complete quality snapshot from Dagster.
+
+    This iterates over all assets, fetches their check executions,
+    and aggregates stats similar to the original TypeScript implementation.
+    """
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # Step 1: Get all assets with their checks
+        assets_data = await dagster_query(client, dagster_url, ASSET_CHECKS_QUERY, {})
+        if not assets_data:
+            return None
+
+        asset_nodes = assets_data.get("assetNodes", [])
+
+        # Filter assets that have checks
+        assets_with_checks: list[dict[str, Any]] = []
+        for node in asset_nodes:
+            checks_or_error = node.get("assetChecksOrError", {})
+            if checks_or_error.get("__typename") != "AssetChecks":
+                continue
+            checks = checks_or_error.get("checks", [])
+            if not checks:
+                continue
+            assets_with_checks.append(
+                {
+                    "asset_key": node.get("assetKey", {}).get("path", []),
+                    "checks": checks,
+                }
+            )
+
+        # Step 2: Fetch executions for each asset
+        total_checks = 0
+        passing_checks = 0
+        failing_checks = 0
+        warning_checks = 0
+        latest_checks: list[QualityCheck] = []
+        failing_checks_list: list[QualityCheck] = []
+        recent_executions: list[RecentCheckExecution] = []
+
+        for asset in assets_with_checks:
+            asset_key = asset["asset_key"]
+            checks = asset["checks"]
+            per_asset_limit = max(50, len(checks) * 3)
+
+            exec_data = await dagster_query(
+                client,
+                dagster_url,
+                ASSET_CHECK_EXECUTIONS_QUERY,
+                {"assetKey": {"path": asset_key}, "limit": per_asset_limit},
+            )
+            if not exec_data:
+                continue
+
+            executions = exec_data.get("assetCheckExecutions", [])
+            total_checks += len(checks)
+
+            # Get newest execution per check
+            newest_by_check: dict[str, dict[str, Any]] = {}
+            for exec in executions:
+                check_name = exec.get("checkName")
+                if not check_name:
+                    continue
+                existing = newest_by_check.get(check_name)
+                if not existing or to_epoch_ms(exec["timestamp"]) > to_epoch_ms(
+                    existing["timestamp"]
+                ):
+                    newest_by_check[check_name] = exec
+
+            # Build check records
+            for check_def in checks:
+                check_name = check_def.get("name")
+                latest = newest_by_check.get(check_name)
+                if not latest:
+                    continue
+
+                status = normalize_status(latest.get("status", ""))
+                evaluation = latest.get("evaluation") or {}
+                severity = normalize_severity(evaluation.get("severity"))
+
+                check = QualityCheck(
+                    name=check_name,
+                    asset_key=asset_key,
+                    description=check_def.get("description"),
+                    severity=severity,
+                    status=status,
+                    last_execution_time=to_iso_timestamp(latest["timestamp"]),
+                    last_result=CheckResult(
+                        passed=status == "PASSED",
+                        metadata=metadata_entries_to_dict(evaluation.get("metadataEntries")),
+                    ),
+                )
+                latest_checks.append(check)
+
+                if status == "PASSED":
+                    passing_checks += 1
+                elif status == "FAILED" and severity == "WARN":
+                    warning_checks += 1
+                elif status == "FAILED":
+                    failing_checks += 1
+                    failing_checks_list.append(check)
+
+            # Build recent executions
+            for exec in executions:
+                evaluation = exec.get("evaluation") or {}
+                recent_executions.append(
+                    RecentCheckExecution(
+                        asset_key=asset_key,
+                        check_name=exec.get("checkName", ""),
+                        timestamp=to_iso_timestamp(exec["timestamp"]),
+                        passed=normalize_status(exec.get("status", "")) == "PASSED",
+                        run_id=exec.get("runId"),
+                        severity=normalize_severity(evaluation.get("severity")),
+                        status=normalize_status(exec.get("status", "")),
+                        metadata=metadata_entries_to_dict(evaluation.get("metadataEntries")),
+                    )
+                )
+
+        # Sort recent executions by timestamp desc
+        recent_executions.sort(key=lambda e: to_epoch_ms(e.timestamp), reverse=True)
+
+        # Calculate quality score
+        evaluated = passing_checks + failing_checks + warning_checks
+        quality_score = (
+            round(((passing_checks + warning_checks) / evaluated) * 100) if evaluated > 0 else 0
+        )
+
+        # Calculate category stats
+        categories = [
+            ("Contract (Pandera)", lambda c: c.name == "pandera_contract"),
+            ("dbt tests", lambda c: c.name.startswith("dbt__")),
+            (
+                "Custom",
+                lambda c: c.name != "pandera_contract" and not c.name.startswith("dbt__"),
+            ),
+        ]
+
+        by_category: list[CategoryStats] = []
+        for cat_name, predicate in categories:
+            relevant = [c for c in latest_checks if predicate(c)]
+            if not relevant:
+                continue
+            passing = len([c for c in relevant if c.status == "PASSED"])
+            total = len(relevant)
+            by_category.append(
+                CategoryStats(
+                    category=cat_name,
+                    passing=passing,
+                    total=total,
+                    percentage=round((passing / total) * 100) if total > 0 else 0,
+                )
+            )
+
+        return {
+            "total_checks": total_checks,
+            "passing_checks": passing_checks,
+            "failing_checks": failing_checks,
+            "warning_checks": warning_checks,
+            "quality_score": quality_score,
+            "by_category": by_category,
+            "recent_executions": recent_executions[:recent_limit],
+            "failing_checks_list": failing_checks_list,
+            "latest_checks": latest_checks,
+        }
+
+
 # --- API Endpoints ---
 
 
@@ -183,25 +399,25 @@ async def get_quality_overview(
     dagster_url: str | None = None,
 ) -> QualityOverview | dict[str, str]:
     """Get overview of all quality metrics."""
-    # For now, return a basic structure - full implementation would call Dagster
-    # This is a simplified version that can be enhanced later
     url = resolve_dagster_url(dagster_url)
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # Get all checks from Dagster
-            # This would need the full quality.dagster.ts logic
-            # For now return a placeholder
-            return QualityOverview(
-                total_checks=0,
-                passing_checks=0,
-                failing_checks=0,
-                warning_checks=0,
-                quality_score=100,
-                by_category=[],
-                trend=[],
-            )
+        snapshot = await fetch_quality_snapshot(url)
+        if not snapshot:
+            return {"error": "Failed to fetch quality snapshot from Dagster"}
+
+        return QualityOverview(
+            total_checks=snapshot["total_checks"],
+            passing_checks=snapshot["passing_checks"],
+            failing_checks=snapshot["failing_checks"],
+            warning_checks=snapshot["warning_checks"],
+            quality_score=snapshot["quality_score"],
+            by_category=snapshot["by_category"],
+            recent_executions=snapshot["recent_executions"],
+            failing_checks_list=snapshot["failing_checks_list"],
+        )
     except Exception as e:
+        logger.exception("Failed to get quality overview")
         return {"error": str(e)}
 
 
@@ -324,6 +540,14 @@ async def get_failing_checks(
     dagster_url: str | None = None,
 ) -> list[QualityCheck] | dict[str, str]:
     """Get all currently failing checks."""
-    # This would need to iterate over all assets
-    # For now return empty - can be enhanced later
-    return []
+    url = resolve_dagster_url(dagster_url)
+
+    try:
+        snapshot = await fetch_quality_snapshot(url)
+        if not snapshot:
+            return {"error": "Failed to fetch quality snapshot from Dagster"}
+
+        return snapshot["failing_checks_list"]
+    except Exception as e:
+        logger.exception("Failed to get failing checks")
+        return {"error": str(e)}
