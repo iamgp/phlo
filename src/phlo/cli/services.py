@@ -850,6 +850,10 @@ def start(
     if native and docker_services_list:
         docker_services_list = [n for n in docker_services_list if n not in native_service_names]
 
+    # If the user explicitly requested services and all of them are native-capable,
+    # avoid running `docker compose up` with no service args (which would start the entire stack).
+    skip_docker_compose = bool(native and services_list and not docker_services_list)
+
     def _stop_docker_native_services() -> None:
         if not native_service_names:
             return
@@ -872,7 +876,11 @@ def start(
         cmd.extend(docker_services_list)
 
     try:
-        result = run_command(cmd, check=False, capture_output=False)
+        if skip_docker_compose:
+            result = run_command(["true"], check=False, capture_output=False)
+        else:
+            result = run_command(cmd, check=False, capture_output=False)
+
         if result.returncode == 0:
             if native:
                 import asyncio
@@ -1008,6 +1016,11 @@ def stop(volumes: bool, stop_native: bool, profile: tuple[str, ...], service: tu
             native_services_list.extend(s.split(","))
         native_services_list = [s.strip() for s in native_services_list if s.strip()]
         _stop_native_processes(project_root, native_services_list or None)
+
+    # If we only needed to stop native services, skip Docker.
+    if stop_native and service and not volumes and not profile:
+        click.echo("Stopped native services.")
+        return
 
     require_docker()
     phlo_dir = ensure_phlo_dir()

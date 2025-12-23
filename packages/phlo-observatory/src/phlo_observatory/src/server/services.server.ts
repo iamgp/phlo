@@ -460,6 +460,12 @@ async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
   }
 }
 
+async function runPhloCommand(args: Array<string>): Promise<void> {
+  const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
+  const cmd = `${phloCommand} ${args.join(' ')}`
+  await execAsync(cmd, { ...execOptions, timeout: 120000 })
+}
+
 /**
  * Parse .env file and merge with service defaults
  */
@@ -644,6 +650,10 @@ async function findContainerByService(
   }
 }
 
+function canControlNatively(serviceName: string): boolean {
+  return serviceName === 'observatory' || serviceName === 'phlo-api'
+}
+
 /**
  * Start a service
  */
@@ -656,16 +666,23 @@ export const startService = createServerFn()
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
-        if (!containerId) {
+        if (containerId) {
+          await execAsync(`docker start ${containerId}`, { timeout: 60000 })
+        } else if (canControlNatively(serviceName)) {
+          await runPhloCommand([
+            'services',
+            'start',
+            '--native',
+            '-d',
+            '--service',
+            serviceName,
+          ])
+        } else {
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
           }
         }
-
-        await execAsync(`docker start ${containerId}`, {
-          timeout: 60000,
-        })
 
         return { success: true }
       } catch (error) {
@@ -690,16 +707,22 @@ export const stopService = createServerFn()
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
-        if (!containerId) {
+        if (containerId) {
+          await execAsync(`docker stop ${containerId}`, { timeout: 30000 })
+        } else if (canControlNatively(serviceName)) {
+          await runPhloCommand([
+            'services',
+            'stop',
+            '--native',
+            '--service',
+            serviceName,
+          ])
+        } else {
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
           }
         }
-
-        await execAsync(`docker stop ${containerId}`, {
-          timeout: 30000,
-        })
 
         return { success: true }
       } catch (error) {
@@ -724,16 +747,30 @@ export const restartService = createServerFn()
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
-        if (!containerId) {
+        if (containerId) {
+          await execAsync(`docker restart ${containerId}`, { timeout: 60000 })
+        } else if (canControlNatively(serviceName)) {
+          await runPhloCommand([
+            'services',
+            'stop',
+            '--native',
+            '--service',
+            serviceName,
+          ])
+          await runPhloCommand([
+            'services',
+            'start',
+            '--native',
+            '-d',
+            '--service',
+            serviceName,
+          ])
+        } else {
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
           }
         }
-
-        await execAsync(`docker restart ${containerId}`, {
-          timeout: 60000,
-        })
 
         return { success: true }
       } catch (error) {
