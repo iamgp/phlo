@@ -27,10 +27,20 @@ env_vars:
     default: 4000
     description: Phlo API port
 
-# Dev mode: build from local source
+# Dev mode: run as subprocess (no Docker)
 dev:
-  build:
-    context: "{source}"
-    dockerfile: Dockerfile
+  command:
+    [
+      "uvicorn",
+      "phlo.core_services.phlo-api.main:app",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "4000",
+      "--reload",
+    ]
   environment:
+    PYTHONUNBUFFERED: "1"
     PHLO_DEV_MODE: "true"
+  health_check: "http://127.0.0.1:4000/health"
+  cwd: "{project_root}"

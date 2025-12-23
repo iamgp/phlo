@@ -678,7 +678,7 @@ def list_services(show_all: bool, output_json: bool):
 @click.option(
     "--dev",
     is_flag=True,
-    help="Development mode: mount local phlo source for instant iteration",
+    help="Development mode: run Observatory and phlo-api as subprocesses (no Docker)",
 )
 @click.option(
     "--phlo-source",
@@ -700,8 +700,52 @@ def start(
         phlo services start --build
         phlo services start --profile observability
         phlo services start --service postgres
-        phlo services start --dev
+        phlo services start --dev  # Run Observatory/phlo-api as subprocesses
     """
+    # Handle dev mode - run Observatory and phlo-api as subprocesses
+    if dev:
+        import asyncio
+
+        from phlo.services.discovery import ServiceDiscovery
+        from phlo.services.native import NativeProcessManager
+
+        click.echo("Starting services in DEV mode (Observatory/phlo-api as subprocesses)...")
+
+        discovery = ServiceDiscovery()
+        project_root = Path.cwd()
+        dev_manager = NativeProcessManager(project_root)
+
+        # Find services that support dev mode subprocess execution
+        dev_services = []
+        for svc_name, svc in discovery.discover().items():
+            if dev_manager.can_run_dev(svc):
+                dev_services.append(svc)
+
+        if not dev_services:
+            click.echo("Warning: No services support dev mode.", err=True)
+            click.echo("Falling back to Docker mode.", err=True)
+        else:
+            click.echo(f"Dev services: {', '.join(s.name for s in dev_services)}")
+
+            async def start_dev_services():
+                for svc in dev_services:
+                    click.echo(f"  Starting {svc.name}...")
+                    process = await dev_manager.start_service(svc)
+                    if process:
+                        click.echo(f"    ✓ {svc.name} started (pid {process.pid})")
+                    else:
+                        click.echo(f"    ✗ {svc.name} failed to start", err=True)
+
+            asyncio.run(start_dev_services())
+
+            click.echo("")
+            click.echo("Dev services started.")
+            click.echo("  - phlo-api: http://localhost:4000")
+            click.echo("  - Observatory: http://localhost:3000")
+            click.echo("")
+            click.echo("Note: Other services (postgres, trino, etc.) still run via Docker.")
+            return
+
     require_docker()
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"

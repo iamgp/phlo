@@ -35,7 +35,7 @@ class ServiceDefinition:
     env_vars: dict[str, dict[str, Any]] = field(default_factory=dict)
     files: list[dict[str, str]] = field(default_factory=list)
     hooks: dict[str, str] = field(default_factory=dict)
-    dev: dict[str, Any] = field(default_factory=dict)
+    dev: dict[str, Any] = field(default_factory=dict)  # Dev mode config (subprocess or Docker)
     source_path: Path | None = None
     phlo_dev: bool = False  # Services that receive phlo source mount in dev mode
     core: bool = False  # Core services bundled with phlo (not plugins)

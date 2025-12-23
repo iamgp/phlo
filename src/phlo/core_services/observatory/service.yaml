@@ -45,22 +45,15 @@ env_vars:
     default: 3001
     description: Observatory UI port
 
-# Dev mode: build from local source
+# Dev mode: run as subprocess (no Docker)
 dev:
-  build:
-    context: "{source}"
-    dockerfile: Dockerfile
-  command:
-    - npm
-    - run
-    - dev
-    - --
-    - --host
-    - 0.0.0.0
-    - --port
-    - "3000"
+  command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
   environment:
     NODE_ENV: development
-  volumes:
-    - "{source}:/app"
-    - "/app/node_modules"
+    PHLO_API_URL: http://localhost:4000
+    DAGSTER_GRAPHQL_URL: http://localhost:3000/graphql
+    NESSIE_URL: http://localhost:19120/api/v2
+    TRINO_URL: http://localhost:8080
+  health_check: "http://127.0.0.1:3000/"
+  cwd: "{source_path}"
+  requires_build: false
