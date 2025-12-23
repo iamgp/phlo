@@ -1,17 +1,16 @@
 /**
  * Lineage Server Functions
  *
- * Server-side functions for querying the Phlo row-level lineage store.
- * Used by the Observatory frontend to display row provenance.
- *
- * phlo-81n: Phase 3 Observatory Integration
+ * Thin wrappers that forward to phlo-api (Python backend).
+ * Preserves SSR while keeping business logic in Python.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
+import { apiGet } from '@/server/phlo-api'
 
-// Types for lineage data
+// Types
 export interface RowLineageInfo {
   rowId: string
   tableName: string
@@ -26,16 +25,30 @@ export interface LineageJourney {
   descendants: Array<RowLineageInfo>
 }
 
-// PostgreSQL connection for lineage store
-const getLineageConnection = async () => {
-  // Use dynamic import to avoid bundling issues
-  const { Client } = await import('pg')
-  const connectionString =
-    process.env.PHLO_LINEAGE_DB_URL ||
-    process.env.DAGSTER_PG_DB_CONNECTION_STRING ||
-    'postgresql://postgres:postgres@localhost:5432/dagster'
+// Python API types (snake_case)
+interface ApiRowLineageInfo {
+  row_id: string
+  table_name: string
+  source_type: string
+  parent_row_ids: Array<string>
+  created_at: string | null
+}
 
-  return new Client({ connectionString })
+interface ApiLineageJourney {
+  current: ApiRowLineageInfo | null
+  ancestors: Array<ApiRowLineageInfo>
+  descendants: Array<ApiRowLineageInfo>
+}
+
+// Transform
+function transformLineageInfo(r: ApiRowLineageInfo): RowLineageInfo {
+  return {
+    rowId: r.row_id,
+    tableName: r.table_name,
+    sourceType: r.source_type,
+    parentRowIds: r.parent_row_ids,
+    createdAt: r.created_at,
+  }
 }
 
 /**
@@ -48,40 +61,14 @@ export const getRowLineage = createServerFn()
     async ({
       data: { rowId },
     }): Promise<RowLineageInfo | { error: string }> => {
-      const client = await getLineageConnection()
-
       try {
-        await client.connect()
-
-        const result = await client.query(
-          `
-          SELECT row_id, table_name, source_type, parent_row_ids,
-                 created_at, metadata
-          FROM phlo.row_lineage
-          WHERE row_id = $1
-        `,
-          [rowId],
+        const result = await apiGet<ApiRowLineageInfo | { error: string }>(
+          `/api/lineage/rows/${encodeURIComponent(rowId)}`,
         )
-
-        if (result.rows.length === 0) {
-          return { error: `Row ${rowId} not found in lineage store` }
-        }
-
-        const row = result.rows[0]
-        return {
-          rowId: row.row_id,
-          tableName: row.table_name,
-          sourceType: row.source_type,
-          parentRowIds: row.parent_row_ids || [],
-          createdAt: row.created_at?.toISOString() || null,
-        }
+        if ('error' in result) return result
+        return transformLineageInfo(result)
       } catch (error) {
-        console.error('[getRowLineage] Error:', error)
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      } finally {
-        await client.end()
+        return { error: error instanceof Error ? error.message : 'Unknown error' }
       }
     },
   )
@@ -96,61 +83,15 @@ export const getRowAncestors = createServerFn()
     async ({
       data: { rowId, maxDepth = 10 },
     }): Promise<Array<RowLineageInfo> | { error: string }> => {
-      const client = await getLineageConnection()
-
       try {
-        await client.connect()
-
-        const result = await client.query(
-          `
-          WITH RECURSIVE ancestors AS (
-            SELECT rl.row_id, rl.table_name, rl.source_type,
-                   rl.parent_row_ids, rl.created_at, 1 as depth
-            FROM phlo.row_lineage rl
-            WHERE rl.row_id = ANY(
-              SELECT unnest(parent_row_ids)
-              FROM phlo.row_lineage
-              WHERE row_id = $1
-            )
-
-            UNION ALL
-
-            SELECT rl.row_id, rl.table_name, rl.source_type,
-                   rl.parent_row_ids, rl.created_at, a.depth + 1
-            FROM phlo.row_lineage rl
-            INNER JOIN ancestors a ON rl.row_id = ANY(a.parent_row_ids)
-            WHERE a.depth < $2
-          )
-          SELECT DISTINCT row_id, table_name, source_type,
-                 parent_row_ids, created_at
-          FROM ancestors
-          ORDER BY created_at DESC
-        `,
-          [rowId, maxDepth],
+        const result = await apiGet<Array<ApiRowLineageInfo> | { error: string }>(
+          `/api/lineage/rows/${encodeURIComponent(rowId)}/ancestors`,
+          { max_depth: maxDepth },
         )
-
-        return result.rows.map(
-          (row: {
-            row_id: string
-            table_name: string
-            source_type: string
-            parent_row_ids: Array<string> | null
-            created_at: Date | null
-          }) => ({
-            rowId: row.row_id,
-            tableName: row.table_name,
-            sourceType: row.source_type,
-            parentRowIds: row.parent_row_ids || [],
-            createdAt: row.created_at?.toISOString() || null,
-          }),
-        )
+        if ('error' in result) return result
+        return result.map(transformLineageInfo)
       } catch (error) {
-        console.error('[getRowAncestors] Error:', error)
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      } finally {
-        await client.end()
+        return { error: error instanceof Error ? error.message : 'Unknown error' }
       }
     },
   )
@@ -165,57 +106,15 @@ export const getRowDescendants = createServerFn()
     async ({
       data: { rowId, maxDepth = 10 },
     }): Promise<Array<RowLineageInfo> | { error: string }> => {
-      const client = await getLineageConnection()
-
       try {
-        await client.connect()
-
-        const result = await client.query(
-          `
-          WITH RECURSIVE descendants AS (
-            SELECT rl.row_id, rl.table_name, rl.source_type,
-                   rl.parent_row_ids, rl.created_at, 1 as depth
-            FROM phlo.row_lineage rl
-            WHERE $1 = ANY(rl.parent_row_ids)
-
-            UNION ALL
-
-            SELECT rl.row_id, rl.table_name, rl.source_type,
-                   rl.parent_row_ids, rl.created_at, d.depth + 1
-            FROM phlo.row_lineage rl
-            INNER JOIN descendants d ON d.row_id = ANY(rl.parent_row_ids)
-            WHERE d.depth < $2
-          )
-          SELECT DISTINCT row_id, table_name, source_type,
-                 parent_row_ids, created_at
-          FROM descendants
-          ORDER BY created_at ASC
-        `,
-          [rowId, maxDepth],
+        const result = await apiGet<Array<ApiRowLineageInfo> | { error: string }>(
+          `/api/lineage/rows/${encodeURIComponent(rowId)}/descendants`,
+          { max_depth: maxDepth },
         )
-
-        return result.rows.map(
-          (row: {
-            row_id: string
-            table_name: string
-            source_type: string
-            parent_row_ids: Array<string> | null
-            created_at: Date | null
-          }) => ({
-            rowId: row.row_id,
-            tableName: row.table_name,
-            sourceType: row.source_type,
-            parentRowIds: row.parent_row_ids || [],
-            createdAt: row.created_at?.toISOString() || null,
-          }),
-        )
+        if ('error' in result) return result
+        return result.map(transformLineageInfo)
       } catch (error) {
-        console.error('[getRowDescendants] Error:', error)
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      } finally {
-        await client.end()
+        return { error: error instanceof Error ? error.message : 'Unknown error' }
       }
     },
   )
@@ -230,94 +129,18 @@ export const getRowJourneyLineage = createServerFn()
     async ({
       data: { rowId },
     }): Promise<LineageJourney | { error: string }> => {
-      const client = await getLineageConnection()
-
       try {
-        await client.connect()
-
-        // Get current row
-        const currentResult = await client.query(
-          `SELECT row_id, table_name, source_type, parent_row_ids, created_at
-           FROM phlo.row_lineage WHERE row_id = $1`,
-          [rowId],
+        const result = await apiGet<ApiLineageJourney | { error: string }>(
+          `/api/lineage/rows/${encodeURIComponent(rowId)}/journey`,
         )
-
-        const current =
-          currentResult.rows.length > 0
-            ? {
-                rowId: currentResult.rows[0].row_id,
-                tableName: currentResult.rows[0].table_name,
-                sourceType: currentResult.rows[0].source_type,
-                parentRowIds: currentResult.rows[0].parent_row_ids || [],
-                createdAt:
-                  currentResult.rows[0].created_at?.toISOString() || null,
-              }
-            : null
-
-        // Get ancestors (immediate parents)
-        const ancestorsResult = await client.query(
-          `
-          SELECT rl.row_id, rl.table_name, rl.source_type, rl.parent_row_ids, rl.created_at
-          FROM phlo.row_lineage rl
-          WHERE rl.row_id = ANY(
-            SELECT unnest(parent_row_ids)
-            FROM phlo.row_lineage
-            WHERE row_id = $1
-          )
-        `,
-          [rowId],
-        )
-
-        // Get descendants (immediate children)
-        const descendantsResult = await client.query(
-          `
-          SELECT row_id, table_name, source_type, parent_row_ids, created_at
-          FROM phlo.row_lineage
-          WHERE $1 = ANY(parent_row_ids)
-        `,
-          [rowId],
-        )
-
+        if ('error' in result) return result
         return {
-          current,
-          ancestors: ancestorsResult.rows.map(
-            (row: {
-              row_id: string
-              table_name: string
-              source_type: string
-              parent_row_ids: Array<string> | null
-              created_at: Date | null
-            }) => ({
-              rowId: row.row_id,
-              tableName: row.table_name,
-              sourceType: row.source_type,
-              parentRowIds: row.parent_row_ids || [],
-              createdAt: row.created_at?.toISOString() || null,
-            }),
-          ),
-          descendants: descendantsResult.rows.map(
-            (row: {
-              row_id: string
-              table_name: string
-              source_type: string
-              parent_row_ids: Array<string> | null
-              created_at: Date | null
-            }) => ({
-              rowId: row.row_id,
-              tableName: row.table_name,
-              sourceType: row.source_type,
-              parentRowIds: row.parent_row_ids || [],
-              createdAt: row.created_at?.toISOString() || null,
-            }),
-          ),
+          current: result.current ? transformLineageInfo(result.current) : null,
+          ancestors: result.ancestors.map(transformLineageInfo),
+          descendants: result.descendants.map(transformLineageInfo),
         }
       } catch (error) {
-        console.error('[getRowJourneyLineage] Error:', error)
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
-      } finally {
-        await client.end()
+        return { error: error instanceof Error ? error.message : 'Unknown error' }
       }
     },
   )

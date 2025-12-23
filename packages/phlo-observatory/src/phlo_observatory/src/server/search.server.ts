@@ -1,93 +1,65 @@
 /**
  * Search Server Functions
  *
- * Server-side function to aggregate searchable entities for the command palette.
- * Combines data from Dagster (assets) and Iceberg/Trino (tables, columns).
+ * Thin wrappers that forward to phlo-api (Python backend).
+ * Preserves SSR while keeping business logic in Python.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
-import { cacheKeys, cacheTTL, withCache } from './cache'
-import { getAssets } from './dagster.server'
-import { getTableSchema, getTables } from './iceberg.server'
-import type {
-  SearchIndex,
-  SearchIndexInput,
-  SearchableAsset,
-  SearchableColumn,
-  SearchableTable,
-} from './search.types'
 import { authMiddleware } from '@/server/auth.server'
+import { apiGet } from '@/server/phlo-api'
+import { cacheKeys, cacheTTL, withCache } from './cache'
 
-async function buildSearchIndex(
-  dagsterUrl: string | undefined,
-  trinoUrl: string | undefined,
-  catalog: string,
-  branch: string,
-  includeColumns: boolean,
-): Promise<SearchIndex | { error: string }> {
-  const [assetsResult, tablesResult] = await Promise.all([
-    getAssets({ data: { dagsterUrl } }),
-    getTables({ data: { branch, catalog, trinoUrl } }),
-  ])
+import type { SearchIndex, SearchIndexInput } from './search.types'
 
-  if ('error' in assetsResult) {
-    return { error: `Failed to fetch assets: ${assetsResult.error}` }
-  }
-  if ('error' in tablesResult) {
-    return { error: `Failed to fetch tables: ${tablesResult.error}` }
-  }
+// Python API types (snake_case)
+interface ApiSearchIndex {
+  assets: Array<{
+    id: string
+    key_path: string
+    group_name?: string
+    compute_kind?: string
+  }>
+  tables: Array<{
+    catalog: string
+    schema_name: string
+    name: string
+    full_name: string
+    layer: string
+  }>
+  columns: Array<{
+    table_name: string
+    table_schema: string
+    name: string
+    type: string
+  }>
+  last_updated: string
+}
 
-  const assets: Array<SearchableAsset> = assetsResult.map((asset) => ({
-    id: asset.id,
-    keyPath: asset.keyPath,
-    groupName: asset.groupName,
-    computeKind: asset.computeKind,
-  }))
-
-  const tables: Array<SearchableTable> = tablesResult.map((table) => ({
-    catalog: table.catalog,
-    schema: table.schema,
-    name: table.name,
-    fullName: table.fullName,
-    layer: table.layer,
-  }))
-
-  let columns: Array<SearchableColumn> = []
-  if (includeColumns && tables.length > 0) {
-    const tablesToFetch = tables.slice(0, 20)
-
-    const columnResults = await Promise.allSettled(
-      tablesToFetch.map(async (table) => {
-        const schemaResult = await getTableSchema({
-          data: { table: table.name, schema: table.schema, branch, catalog },
-        })
-
-        if ('error' in schemaResult) {
-          return []
-        }
-
-        return schemaResult.map((col) => ({
-          tableName: table.name,
-          tableSchema: table.schema,
-          name: col.name,
-          type: col.type,
-        }))
-      }),
-    )
-
-    for (const result of columnResults) {
-      if (result.status === 'fulfilled') {
-        columns = columns.concat(result.value)
-      }
-    }
-  }
-
+// Transform
+function transformSearchIndex(s: ApiSearchIndex): SearchIndex {
   return {
-    assets,
-    tables,
-    columns,
-    lastUpdated: new Date().toISOString(),
+    assets: s.assets.map((a) => ({
+      id: a.id,
+      keyPath: a.key_path,
+      groupName: a.group_name,
+      computeKind: a.compute_kind,
+    })),
+    tables: s.tables.map((t) => ({
+      catalog: t.catalog,
+      schema: t.schema_name,
+      name: t.name,
+      fullName: t.full_name,
+      layer: t.layer,
+    })),
+    columns: s.columns.map((c) => ({
+      tableName: c.table_name,
+      tableSchema: c.table_schema,
+      name: c.name,
+      type: c.type,
+    })),
+    lastUpdated: s.last_updated,
   }
 }
 
@@ -109,14 +81,22 @@ export const getSearchIndex = createServerFn()
       const key = cacheKeys.searchIndex(effectiveDagsterUrl, effectiveTrinoUrl)
 
       return withCache(
-        () =>
-          buildSearchIndex(
-            dagsterUrl,
-            trinoUrl,
-            catalog,
-            branch,
-            includeColumns,
-          ),
+        async () => {
+          try {
+            const result = await apiGet<ApiSearchIndex | { error: string }>(
+              '/api/search/index',
+              {
+                catalog,
+                branch,
+                include_columns: includeColumns,
+              },
+            )
+            if ('error' in result) return result
+            return transformSearchIndex(result)
+          } catch (error) {
+            return { error: error instanceof Error ? error.message : 'Unknown error' }
+          }
+        },
         key,
         cacheTTL.searchIndex,
       )
