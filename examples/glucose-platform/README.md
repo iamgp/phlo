@@ -19,12 +19,12 @@ For developing phlo itself with instant iteration:
 
 ```bash
 cd examples/glucose-platform
-phlo services init
-phlo services start --dev
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start
 ```
 
-This mounts the local `src/phlo` into the containers, so changes to phlo code
-are reflected after restarting Dagster:
+This mounts the phlo monorepo into the Dagster container and installs `phlo[defaults]` as an editable install,
+so changes to phlo code are reflected after restarting Dagster:
 
 ```bash
 docker restart dagster-webserver dagster-daemon
@@ -118,16 +118,19 @@ This project uses the **merge strategy** with **last deduplication** for glucose
 Glucose data from Nightscout requires merge strategy for three key reasons:
 
 **1. Overlapping API Queries**
+
 - Querying "last 24 hours" multiple times returns overlapping data
 - Without merge, re-running a partition would create duplicates
 - Merge ensures idempotent pipeline runs
 
 **2. Retroactive Corrections**
+
 - CGM sensors can be calibrated retroactively
 - Nightscout allows editing historical glucose readings
 - Merge strategy updates existing records with corrections
 
 **3. Data Quality**
+
 - If a pipeline fails mid-run, re-running safely completes the load
 - No manual cleanup of partial data required
 - `unique_key="_id"` ensures each reading appears exactly once
@@ -135,6 +138,7 @@ Glucose data from Nightscout requires merge strategy for three key reasons:
 ### Deduplication Strategy: "last"
 
 The `merge_config={"deduplication_method": "last"}` parameter means:
+
 - If duplicate `_id` values exist in a batch, keep the **last** occurrence
 - Based on insertion order during the pipeline run
 - Most appropriate for time-series data where latest reading is authoritative
@@ -153,6 +157,7 @@ If glucose data were truly immutable (no corrections), we could use:
 ```
 
 **Trade-offs:**
+
 - ✅ Faster performance (no deduplication checks)
 - ❌ Duplicates if pipeline re-run
 - ❌ No way to update corrected readings
@@ -162,13 +167,13 @@ If glucose data were truly immutable (no corrections), we could use:
 
 ### Comparison Table
 
-| Aspect | Append Strategy | Merge Strategy (used) |
-|--------|----------------|----------------------|
-| **Performance** | Faster | Slightly slower |
-| **Idempotency** | No | Yes |
-| **Updates** | Not possible | Supported |
-| **Duplicates** | Possible | Prevented |
-| **Use Case** | Immutable logs | Correctable data |
+| Aspect          | Append Strategy | Merge Strategy (used) |
+| --------------- | --------------- | --------------------- |
+| **Performance** | Faster          | Slightly slower       |
+| **Idempotency** | No              | Yes                   |
+| **Updates**     | Not possible    | Supported             |
+| **Duplicates**  | Possible        | Prevented             |
+| **Use Case**    | Immutable logs  | Correctable data      |
 
 ## CLI Commands
 
@@ -308,10 +313,7 @@ Query glucose data via GraphQL at http://localhost:8080:
 
 ```graphql
 query GetRecentOverview {
-  api_glucose_overview(
-    order_by: {reading_date: desc}
-    limit: 30
-  ) {
+  api_glucose_overview(order_by: { reading_date: desc }, limit: 30) {
     reading_date
     avg_glucose_mg_dl
     time_in_range_pct
@@ -348,6 +350,7 @@ phlo plugin list
 ```
 
 Output:
+
 ```
 Sources:
   NAME              VERSION  SOURCE
@@ -426,6 +429,7 @@ phlo metrics asset fct_glucose_readings
 ```
 
 Example metrics output:
+
 ```
 Pipeline Metrics (Last 24 Hours)
 
@@ -455,6 +459,7 @@ phlo lineage impact glucose_entries
 ```
 
 Example lineage tree:
+
 ```
 glucose_entries
 ├── [upstream]
@@ -490,6 +495,7 @@ PHLO_ALERT_SLACK_CHANNEL=#glucose-alerts
 ```
 
 Alert triggers:
+
 - Quality check failures
 - Data freshness violations (> 24 hours)
 - High glucose variability (CV > 40% for 7+ days)
@@ -516,6 +522,7 @@ phlo schema show FactDailyGlucoseMetrics
 ```
 
 Example schema output:
+
 ```
 Schema: FactGlucoseReadings
 
@@ -555,6 +562,7 @@ phlo catalog history raw.glucose_entries --limit 10
 ```
 
 Example table description:
+
 ```
 Table: raw.glucose_entries
 Schema: raw
@@ -594,6 +602,7 @@ phlo catalog sync --quality-checks
 ```
 
 OpenMetadata provides:
+
 - Centralized metadata search
 - Data lineage visualization
 - Quality check tracking

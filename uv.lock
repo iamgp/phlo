@@ -19,12 +19,16 @@ members = [
     "phlo-alloy",
     "phlo-core-plugins",
     "phlo-dagster",
+    "phlo-dbt",
+    "phlo-dlt",
     "phlo-grafana",
     "phlo-hasura",
+    "phlo-iceberg",
     "phlo-loki",
     "phlo-minio",
     "phlo-nessie",
     "phlo-observatory",
+    "phlo-openmetadata",
     "phlo-pgweb",
     "phlo-postgres",
     "phlo-postgrest",
@@ -294,20 +298,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7f/4f/36a38ca7cf5bf28665eadf5cabff254ee8319e043d8847026743a11fe9f8/basedpyright-1.32.0.tar.gz", hash = "sha256:a5035b5a6dd65c71d5f7340bf4f00258892314299d953d97aa1ec52a64703ce9", size = 22754642 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cd/a1/2569a01a8fed224b58b2a1f946e370036b6cbe334c7466644f59eacdbc79/basedpyright-1.32.0-py3-none-any.whl", hash = "sha256:87b039c46b4804545518964005752d5e7af502f68c1594bc5fb66b33af2d0777", size = 11841494 },
-]
-
-[[package]]
-name = "boto3"
-version = "1.40.49"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "botocore" },
-    { name = "jmespath" },
-    { name = "s3transfer" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/32/5b/165dbfc6de77774b0dac5582ac8a7aa92652d61215871ff4c88854864fb0/boto3-1.40.49.tar.gz", hash = "sha256:ea37d133548fbae543092ada61aeb08bced8f9aecd2e96e803dc8237459a80a0", size = 111572 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/07/9b622ec8691911e3420c9872a50a9d333d4880d217e9eb25b327193099dc/boto3-1.40.49-py3-none-any.whl", hash = "sha256:64eb7af5f66998b34ad629786ff4a7f81d74c2d4ef9e42f69d99499dbee46d07", size = 139345 },
 ]
 
 [[package]]
@@ -599,21 +589,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dagster-aws"
-version = "0.28.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "boto3" },
-    { name = "dagster" },
-    { name = "packaging" },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/a3/6b66c1f247b699ea7d639bbcaf333938dae04ccdc70ac9ef3d06d522db92/dagster_aws-0.28.1.tar.gz", hash = "sha256:13780f0988f98466f7de713267425e66022c74133a50265e37347e120b861b7e", size = 127708 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/a4/d341daa1a5c362760efeb3c4f7d203f8deba29203446f2f5f4e05cc3954b/dagster_aws-0.28.1-py3-none-any.whl", hash = "sha256:6ef26c63f566f491f422dd892496aee791e7a4d235c9f8d2b204983a55c4029e", size = 158064 },
-]
-
-[[package]]
 name = "dagster-dbt"
 version = "0.28.1"
 source = { registry = "https://pypi.org/simple" }
@@ -652,39 +627,12 @@ wheels = [
 ]
 
 [[package]]
-name = "dagster-pandera"
-version = "0.28.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "dagster" },
-    { name = "pandas" },
-    { name = "pandera" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/40/34c43cd3d9c70ae43e74490d01077164d9bd73ccad87a941dff4a25a3775/dagster_pandera-0.28.1.tar.gz", hash = "sha256:2a327e9da7a2dbd60c70e31a7c9f5c0ac4f7e7e850816829d96f8ddaae4c8ba9", size = 9374 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/76/e9292cb7eb6278dd89d257ebe6a31963bb71089dd96ea0cacdfdd7044b99/dagster_pandera-0.28.1-py3-none-any.whl", hash = "sha256:5117c75bc4b9cd1e5188f458705dcd63c4ff64af52c0791e6165eb049e16e5ac", size = 9709 },
-]
-
-[[package]]
 name = "dagster-pipes"
 version = "1.12.1"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/74/fe/9a13ecf71a4002f9c7866ef3b7cda1d66978316175e04e7df20fe41bb091/dagster_pipes-1.12.1.tar.gz", hash = "sha256:c93ed1890c690fa8dd9c458631f52ceaa1651e10faa9692245236b0796d192fb", size = 21069 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/a2/6e38f6e3313ecd4d2f9e7999e7b586efc9ad89afcd4d469f5724405b7297/dagster_pipes-1.12.1-py3-none-any.whl", hash = "sha256:198c2a1f3e68f499e786f29e6eff7e428ead6a94cb2d1cdd6243ccfa993d598e", size = 20833 },
-]
-
-[[package]]
-name = "dagster-postgres"
-version = "0.28.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "dagster" },
-    { name = "psycopg2-binary" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/96/7e/fb90ab04ce59c743d34c1e55700dc0feadeb38c35a7e76a1fd8eb79e9f0a/dagster_postgres-0.28.1.tar.gz", hash = "sha256:4e3db9a4e1c6ac9d0ebec03a1f454aec758dd30a143b73cb84a08d856a913d0d", size = 16421 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/3a/acf17972569e3234de08bbecf1e69323f729b16ce0331e9a050277795553/dagster_postgres-0.28.1-py3-none-any.whl", hash = "sha256:0c36a84e93d9ebd312e1fad0282cacf733f8486f69fa072330b9a81e6630798b", size = 22947 },
 ]
 
 [[package]]
@@ -2337,29 +2285,17 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "dagster" },
-    { name = "dagster-aws" },
-    { name = "dagster-dbt" },
-    { name = "dagster-pandera" },
-    { name = "dagster-postgres" },
     { name = "dagster-webserver" },
-    { name = "dbt-core" },
-    { name = "dbt-postgres" },
-    { name = "dbt-trino" },
-    { name = "dlt" },
     { name = "duckdb" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "pandas" },
     { name = "pandera" },
-    { name = "phlo-core-plugins" },
     { name = "psycopg2-binary" },
-    { name = "pyarrow" },
     { name = "pydantic-settings" },
-    { name = "pyiceberg", extra = ["pyarrow", "s3fs"] },
     { name = "python-ulid" },
     { name = "requests" },
     { name = "rich" },
-    { name = "trino" },
 ]
 
 [package.optional-dependencies]
@@ -2371,16 +2307,28 @@ core-services = [
     { name = "phlo-trino" },
 ]
 defaults = [
+    { name = "phlo-core-plugins" },
     { name = "phlo-dagster" },
+    { name = "phlo-dbt" },
+    { name = "phlo-dlt" },
+    { name = "phlo-iceberg" },
     { name = "phlo-minio" },
     { name = "phlo-nessie" },
     { name = "phlo-postgres" },
     { name = "phlo-trino" },
 ]
+openmetadata = [
+    { name = "phlo-openmetadata" },
+]
 
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright" },
+    { name = "phlo-dbt" },
+    { name = "phlo-dlt" },
+    { name = "phlo-iceberg" },
+    { name = "phlo-nessie" },
+    { name = "phlo-openmetadata" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "sqlfluff" },
@@ -2391,45 +2339,43 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8.0" },
     { name = "dagster" },
-    { name = "dagster-aws" },
-    { name = "dagster-dbt" },
-    { name = "dagster-pandera" },
-    { name = "dagster-postgres" },
     { name = "dagster-webserver" },
-    { name = "dbt-core" },
-    { name = "dbt-postgres" },
-    { name = "dbt-trino" },
-    { name = "dlt" },
     { name = "duckdb", specifier = ">=0.9.0" },
     { name = "fastapi", specifier = ">=0.127.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pandas" },
     { name = "pandera" },
-    { name = "phlo-core-plugins", editable = "packages/phlo-core-plugins" },
+    { name = "phlo-core-plugins", marker = "extra == 'defaults'", editable = "packages/phlo-core-plugins" },
     { name = "phlo-dagster", marker = "extra == 'core-services'", editable = "packages/phlo-dagster" },
     { name = "phlo-dagster", marker = "extra == 'defaults'", editable = "packages/phlo-dagster" },
+    { name = "phlo-dbt", marker = "extra == 'defaults'", editable = "packages/phlo-dbt" },
+    { name = "phlo-dlt", marker = "extra == 'defaults'", editable = "packages/phlo-dlt" },
+    { name = "phlo-iceberg", marker = "extra == 'defaults'", editable = "packages/phlo-iceberg" },
     { name = "phlo-minio", marker = "extra == 'core-services'", editable = "packages/phlo-minio" },
     { name = "phlo-minio", marker = "extra == 'defaults'", editable = "packages/phlo-minio" },
     { name = "phlo-nessie", marker = "extra == 'core-services'", editable = "packages/phlo-nessie" },
     { name = "phlo-nessie", marker = "extra == 'defaults'", editable = "packages/phlo-nessie" },
+    { name = "phlo-openmetadata", marker = "extra == 'openmetadata'", editable = "packages/phlo-openmetadata" },
     { name = "phlo-postgres", marker = "extra == 'core-services'", editable = "packages/phlo-postgres" },
     { name = "phlo-postgres", marker = "extra == 'defaults'", editable = "packages/phlo-postgres" },
     { name = "phlo-trino", marker = "extra == 'core-services'", editable = "packages/phlo-trino" },
     { name = "phlo-trino", marker = "extra == 'defaults'", editable = "packages/phlo-trino" },
     { name = "psycopg2-binary" },
-    { name = "pyarrow" },
     { name = "pydantic-settings" },
-    { name = "pyiceberg", extras = ["s3fs", "pyarrow"], specifier = "==0.10.0" },
     { name = "python-ulid", specifier = ">=2.0.0" },
     { name = "requests" },
     { name = "rich", specifier = ">=13.0" },
-    { name = "trino" },
 ]
-provides-extras = ["core-services", "defaults"]
+provides-extras = ["core-services", "defaults", "openmetadata"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "basedpyright" },
+    { name = "phlo-dbt", editable = "packages/phlo-dbt" },
+    { name = "phlo-dlt", editable = "packages/phlo-dlt" },
+    { name = "phlo-iceberg", editable = "packages/phlo-iceberg" },
+    { name = "phlo-nessie", editable = "packages/phlo-nessie" },
+    { name = "phlo-openmetadata", editable = "packages/phlo-openmetadata" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "ruff" },
     { name = "sqlfluff", specifier = ">=3.5.0" },
@@ -2511,6 +2457,68 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [[package]]
+name = "phlo-dbt"
+version = "0.1.0"
+source = { editable = "packages/phlo-dbt" }
+dependencies = [
+    { name = "dagster-dbt" },
+    { name = "dbt-core" },
+    { name = "dbt-postgres" },
+    { name = "dbt-trino" },
+    { name = "phlo" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dagster-dbt" },
+    { name = "dbt-core" },
+    { name = "dbt-postgres" },
+    { name = "dbt-trino" },
+    { name = "phlo", editable = "." },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-dlt"
+version = "0.1.0"
+source = { editable = "packages/phlo-dlt" }
+dependencies = [
+    { name = "dlt" },
+    { name = "pandas" },
+    { name = "pandera" },
+    { name = "phlo" },
+    { name = "phlo-iceberg" },
+    { name = "pyarrow" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dlt" },
+    { name = "pandas" },
+    { name = "pandera" },
+    { name = "phlo", editable = "." },
+    { name = "phlo-iceberg", editable = "packages/phlo-iceberg" },
+    { name = "pyarrow" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "phlo-grafana"
 version = "0.1.0"
 source = { editable = "packages/phlo-grafana" }
@@ -2554,6 +2562,30 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-iceberg"
+version = "0.1.0"
+source = { editable = "packages/phlo-iceberg" }
+dependencies = [
+    { name = "phlo" },
+    { name = "pyiceberg", extra = ["pyarrow", "s3fs"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "pyiceberg", extras = ["s3fs", "pyarrow"], specifier = "==0.10.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -2644,6 +2676,32 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-openmetadata"
+version = "0.1.0"
+source = { editable = "packages/phlo-openmetadata" }
+dependencies = [
+    { name = "phlo" },
+    { name = "phlo-nessie" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "phlo-nessie", editable = "packages/phlo-nessie" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
@@ -3760,18 +3818,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ee/f3/8e6371436666aedfd16e63ff68a51b8a8fcf5f33a0eee33c35e0b2476b27/s3fs-2025.9.0.tar.gz", hash = "sha256:6d44257ef19ea64968d0720744c4af7a063a05f5c1be0e17ce943bef7302bc30", size = 77823 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/37/b3/ca7d58ca25b1bb6df57e6cbd0ca8d6437a4b9ce1cd35adc8a6b2949c113b/s3fs-2025.9.0-py3-none-any.whl", hash = "sha256:c33c93d48f66ed440dbaf6600be149cdf8beae4b6f8f0201a209c5801aeb7e30", size = 30319 },
-]
-
-[[package]]
-name = "s3transfer"
-version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "botocore" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/62/74/8d69dcb7a9efe8baa2046891735e5dfe433ad558ae23d9e3c14c633d1d58/s3transfer-0.14.0.tar.gz", hash = "sha256:eff12264e7c8b4985074ccce27a3b38a485bb7f7422cc8046fee9be4983e4125", size = 151547 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/48/f0/ae7ca09223a81a1d890b2557186ea015f6e0502e9b8cb8e1813f1d8cfa4e/s3transfer-0.14.0-py3-none-any.whl", hash = "sha256:ea3b790c7077558ed1f02a3072fb3cb992bbbd253392f4b6e9e8976941c7d456", size = 85712 },
 ]
 
 [[package]]

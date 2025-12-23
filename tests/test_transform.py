@@ -5,8 +5,7 @@ These tests do not require a dbt manifest or running services.
 
 import pytest
 from dagster import AssetKey
-
-from phlo.defs.transform.dbt_translator import CustomDbtTranslator
+from phlo_dbt.translator import CustomDbtTranslator
 
 
 def test_custom_dbt_translator_asset_key_model() -> None:

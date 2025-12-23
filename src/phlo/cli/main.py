@@ -38,7 +38,6 @@ from phlo.cli.alerts import alerts_group
 from phlo.cli.api import hasura, postgrest
 from phlo.cli.backfill import backfill
 from phlo.cli.branch import branch
-from phlo.cli.catalog import catalog
 
 # Add configuration management commands
 from phlo.cli.config import config
@@ -63,7 +62,6 @@ cli.add_command(status)
 cli.add_command(backfill)
 cli.add_command(logs)
 cli.add_command(schema)
-cli.add_command(catalog)
 cli.add_command(branch)
 
 cli.add_command(metrics_group)
@@ -72,6 +70,23 @@ cli.add_command(alerts_group)
 cli.add_command(plugin_group)
 cli.add_command(config)
 cli.add_command(publishing)
+
+
+def _load_cli_plugin_commands() -> None:
+    from phlo.plugins.discovery import discover_plugins
+    from phlo.plugins.registry import get_global_registry
+
+    discover_plugins(plugin_type="cli_commands", auto_register=True)
+    registry = get_global_registry()
+    for name in registry.list_cli_command_plugins():
+        plugin = registry.get_cli_command_plugin(name)
+        if plugin is None:
+            continue
+        for command in plugin.get_cli_commands():
+            cli.add_command(command)
+
+
+_load_cli_plugin_commands()
 
 
 @cli.command()

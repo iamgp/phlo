@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import sys
+import time
 from pathlib import Path
 from subprocess import TimeoutExpired
 from typing import Optional
@@ -21,6 +22,7 @@ from phlo.cli._services.compose import compose_base_cmd
 from phlo.cli._services.containers import dagster_container_candidates, select_first_existing
 
 PHLO_CONFIG_FILE = "phlo.yaml"
+NATIVE_STATE_FILE = "native-processes.json"
 
 PHLO_CONFIG_TEMPLATE = """# Phlo Project Configuration
 name: {name}
@@ -37,6 +39,36 @@ description: "{description}"
 """
 
 
+def resolve_phlo_package_dir(path: Path) -> Path | None:
+    """Resolve a path to the `src/phlo` package directory (must contain `__init__.py`).
+
+    Accepts either:
+    - the package directory itself (`.../src/phlo`)
+    - a repo root containing `src/phlo`
+    - a `src/` directory containing `phlo/`
+    """
+    candidates = [
+        path,
+        path / "src" / "phlo",
+        path / "phlo",
+    ]
+
+    for candidate in candidates:
+        if candidate.is_dir() and (candidate / "__init__.py").is_file():
+            return candidate
+
+    return None
+
+
+def relpath_from_phlo_dir(path: Path) -> str:
+    """Return a `.phlo/`-relative path string for docker-compose volume mounts."""
+    try:
+        return os.path.relpath(path, Path.cwd() / ".phlo")
+    except ValueError:
+        # On Windows, relpath can fail across drives
+        return str(path)
+
+
 def detect_phlo_source_path() -> str | None:
     """Detect phlo source path using multiple strategies.
 
@@ -51,51 +83,28 @@ def detect_phlo_source_path() -> str | None:
     # Strategy 1: Environment variable
     env_path = os.environ.get("PHLO_DEV_SOURCE")
     if env_path:
-        candidate = Path(env_path)
-        if candidate.exists() and (candidate / "__init__.py").exists():
-            # Calculate relative path from .phlo/ to the source
-            try:
-                return os.path.relpath(candidate, Path.cwd() / ".phlo")
-            except ValueError:
-                # On Windows, relpath can fail across drives
-                return str(candidate)
+        if resolved := resolve_phlo_package_dir(Path(env_path)):
+            return relpath_from_phlo_dir(resolved)
 
     # Strategy 2: Common directory patterns
-    patterns = [
-        # examples/project-name -> ../../src/phlo
-        (Path.cwd().parent.parent / "src" / "phlo", "../../../src/phlo"),
-        # src/project-name -> ../phlo
-        (Path.cwd().parent / "phlo", "../../phlo"),
-        # project-name/subdir -> ../src/phlo
-        (Path.cwd().parent / "src" / "phlo", "../../src/phlo"),
-        # At repo root -> src/phlo
-        (Path.cwd() / "src" / "phlo", "../src/phlo"),
-    ]
+    candidates: list[Path] = []
 
-    for candidate, rel_path in patterns:
-        if candidate.exists() and (candidate / "__init__.py").exists():
-            return rel_path
+    # Current working tree (handles running from the phlo repo itself)
+    candidates.extend(
+        [
+            Path.cwd() / "src" / "phlo",
+            Path.cwd(),
+            Path.cwd() / "src",
+        ]
+    )
 
-    return None
+    # Sibling `phlo/` repo (common: `~/Developer/{phlo,project}`) - walk up a few levels.
+    for parent in list(Path.cwd().parents)[:4]:
+        candidates.append(parent / "phlo")
 
-
-def get_compose_dev_mode(compose_file: Path) -> bool | None:
-    """Check if existing docker-compose.yml was generated in dev mode.
-
-    Returns:
-        True if dev mode, False if not, None if cannot determine.
-    """
-    if not compose_file.exists():
-        return None
-
-    try:
-        with open(compose_file) as f:
-            for _ in range(5):
-                line = f.readline()
-                if match := re.match(r"^# Dev mode: (true|false)", line):
-                    return match.group(1) == "true"
-    except OSError:
-        return None
+    for candidate in candidates:
+        if resolved := resolve_phlo_package_dir(candidate):
+            return relpath_from_phlo_dir(resolved)
 
     return None
 
@@ -339,6 +348,74 @@ def ensure_phlo_dir() -> Path:
     return phlo_dir
 
 
+def _native_state_path(project_root: Path) -> Path:
+    return project_root / ".phlo" / NATIVE_STATE_FILE
+
+
+def _load_native_state(project_root: Path) -> dict[str, dict]:
+    import json
+
+    path = _native_state_path(project_root)
+    if not path.exists():
+        return {}
+    with open(path) as f:
+        return json.load(f) or {}
+
+
+def _save_native_state(project_root: Path, state: dict[str, dict]) -> None:
+    import json
+
+    path = _native_state_path(project_root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, indent=2, sort_keys=True))
+    tmp.replace(path)
+
+
+def _stop_native_processes(project_root: Path, service_names: list[str] | None = None) -> None:
+    import signal
+
+    state = _load_native_state(project_root)
+    if not state:
+        return
+
+    target_names = service_names or list(state.keys())
+    for name in target_names:
+        entry = state.get(name)
+        if not entry:
+            continue
+        pid = entry.get("pid")
+        if not isinstance(pid, int):
+            state.pop(name, None)
+            continue
+
+        try:
+            os.killpg(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            state.pop(name, None)
+            continue
+        except Exception:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                state.pop(name, None)
+                continue
+
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                state.pop(name, None)
+                break
+            time.sleep(0.25)
+
+    if state:
+        _save_native_state(project_root, state)
+    else:
+        _native_state_path(project_root).unlink(missing_ok=True)
+
+
 def get_profile_service_names(profile_names: tuple[str, ...]) -> list[str]:
     """Get service names for the specified profiles.
 
@@ -385,7 +462,7 @@ def services():
 @click.option(
     "--phlo-source",
     type=click.Path(exists=True),
-    help="Path to phlo source (default: auto-detect or PHLO_DEV_SOURCE env var)",
+    help="Path to phlo repo root or `src/phlo` (default: auto-detect or PHLO_DEV_SOURCE env var)",
 )
 def init(
     force: bool,
@@ -436,26 +513,42 @@ def init(
     if no_dev:
         dev = False
 
+    # Auto-enable dev mode if we can detect a local Phlo checkout and the user didn't opt out.
+    phlo_src_path: str | None = None
+    if not dev and not no_dev and not phlo_source:
+        if detected := detect_phlo_source_path():
+            dev = True
+            phlo_src_path = detected
+            click.echo(f"Dev mode: auto-enabled (path: {phlo_src_path})")
+
     # Derive project name from directory if not specified
     if not project_name:
         project_name = Path.cwd().name.lower().replace(" ", "-").replace("_", "-")
 
     # Auto-detect phlo source path for dev mode using flexible detection
-    phlo_src_path: str | None = None
     if dev:
-        if phlo_source:
+        if phlo_src_path:
+            # Already resolved (auto-enabled above)
+            pass
+        elif phlo_source:
             phlo_source_path = Path(phlo_source)
             if not phlo_source_path.is_absolute():
                 phlo_source_path = (Path.cwd() / phlo_source_path).resolve()
             else:
                 phlo_source_path = phlo_source_path.resolve()
-            phlo_src_path = os.path.relpath(phlo_source_path, phlo_dir)
-            click.echo(f"Dev mode: using phlo source at {phlo_source}")
+            resolved_phlo_source = resolve_phlo_package_dir(phlo_source_path)
+            if not resolved_phlo_source:
+                click.echo(
+                    "Error: --phlo-source must point to the phlo repo root or `src/phlo` package.",
+                    err=True,
+                )
+                sys.exit(1)
+            phlo_src_path = os.path.relpath(resolved_phlo_source, phlo_dir)
+            click.echo(f"Dev mode: using phlo source at {resolved_phlo_source}")
         else:
             # Use flexible path detection
             phlo_src_path = detect_phlo_source_path()
             if phlo_src_path:
-                phlo_src_path = os.path.relpath(Path(phlo_src_path).resolve(), phlo_dir)
                 click.echo(f"Dev mode: auto-detected phlo source (path: {phlo_src_path})")
             else:
                 click.echo(
@@ -676,22 +769,16 @@ def list_services(show_all: bool, output_json: bool):
     help="Start only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
 )
 @click.option(
-    "--dev",
+    "--native",
     is_flag=True,
-    help="Development mode: run Observatory and phlo-api as subprocesses (no Docker)",
-)
-@click.option(
-    "--phlo-source",
-    type=click.Path(exists=True),
-    help="Path to phlo source (default: auto-detect or use PHLO_DEV_SOURCE_PATH)",
+    help="Run services with a native dev command as subprocesses (e.g., phlo-api, Observatory)",
 )
 def start(
     detach: bool,
     build: bool,
     profile: tuple[str, ...],
     service: tuple[str, ...],
-    dev: bool,
-    phlo_source: Optional[str],
+    native: bool,
 ):
     """Start Phlo infrastructure services.
 
@@ -700,52 +787,8 @@ def start(
         phlo services start --build
         phlo services start --profile observability
         phlo services start --service postgres
-        phlo services start --dev  # Run Observatory/phlo-api as subprocesses
+        phlo services start --native  # Run Observatory/phlo-api as subprocesses
     """
-    # Handle dev mode - run Observatory and phlo-api as subprocesses
-    if dev:
-        import asyncio
-
-        from phlo.services.discovery import ServiceDiscovery
-        from phlo.services.native import NativeProcessManager
-
-        click.echo("Starting services in DEV mode (Observatory/phlo-api as subprocesses)...")
-
-        discovery = ServiceDiscovery()
-        project_root = Path.cwd()
-        dev_manager = NativeProcessManager(project_root)
-
-        # Find services that support dev mode subprocess execution
-        dev_services = []
-        for svc_name, svc in discovery.discover().items():
-            if dev_manager.can_run_dev(svc):
-                dev_services.append(svc)
-
-        if not dev_services:
-            click.echo("Warning: No services support dev mode.", err=True)
-            click.echo("Falling back to Docker mode.", err=True)
-        else:
-            click.echo(f"Dev services: {', '.join(s.name for s in dev_services)}")
-
-            async def start_dev_services():
-                for svc in dev_services:
-                    click.echo(f"  Starting {svc.name}...")
-                    process = await dev_manager.start_service(svc)
-                    if process:
-                        click.echo(f"    ✓ {svc.name} started (pid {process.pid})")
-                    else:
-                        click.echo(f"    ✗ {svc.name} failed to start", err=True)
-
-            asyncio.run(start_dev_services())
-
-            click.echo("")
-            click.echo("Dev services started.")
-            click.echo("  - phlo-api: http://localhost:4000")
-            click.echo("  - Observatory: http://localhost:3000")
-            click.echo("")
-            click.echo("Note: Other services (postgres, trino, etc.) still run via Docker.")
-            return
-
     require_docker()
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
@@ -755,23 +798,6 @@ def start(
         click.echo("Error: docker-compose.yml not found.", err=True)
         click.echo("Run 'phlo services init' first.", err=True)
         sys.exit(1)
-
-    # Check for stale compose file (dev mode mismatch)
-    compose_dev_mode = get_compose_dev_mode(compose_file)
-    if compose_dev_mode is not None and compose_dev_mode != dev:
-        current_mode = "dev" if compose_dev_mode else "production"
-        requested_mode = "dev" if dev else "production"
-        click.echo("")
-        click.echo(
-            f"Warning: docker-compose.yml was generated in {current_mode} mode, "
-            f"but you're running in {requested_mode} mode.",
-            err=True,
-        )
-        click.echo(
-            f"Run 'phlo services init --force {'--dev' if dev else '--no-dev'}' to regenerate.",
-            err=True,
-        )
-        click.echo("")
 
     # Parse comma-separated services
     services_list = []
@@ -786,10 +812,51 @@ def start(
 
     if services_list:
         click.echo(f"Starting services: {', '.join(services_list)}...")
-    elif dev:
-        click.echo(f"Starting {project_name} infrastructure in DEVELOPMENT mode...")
+    elif native:
+        click.echo(f"Starting {project_name} infrastructure (native dev services enabled)...")
     else:
         click.echo(f"Starting {project_name} infrastructure...")
+
+    # If native dev services are enabled, start Docker services excluding native ones,
+    # then start native processes for the excluded services.
+    native_service_names: set[str] = set()
+    if native:
+        from phlo.services.discovery import ServiceDiscovery
+        from phlo.services.native import NativeProcessManager
+
+        discovery = ServiceDiscovery()
+        project_root = Path.cwd()
+        dev_manager = NativeProcessManager(
+            project_root, log_dir=project_root / ".phlo" / "native-logs"
+        )
+
+        for _, svc in discovery.discover().items():
+            if dev_manager.can_run_dev(svc):
+                native_service_names.add(svc.name)
+
+        if not native_service_names:
+            click.echo("Warning: No services support native mode; starting Docker only.", err=True)
+            native = False
+
+    docker_services_list = services_list
+    if native and not docker_services_list and not profile:
+        try:
+            compose_config = yaml.safe_load(compose_file.read_text()) or {}
+        except OSError as e:
+            raise click.ClickException(f"Failed to read {compose_file}: {e}") from e
+        compose_service_names = list((compose_config.get("services") or {}).keys())
+        docker_services_list = [n for n in compose_service_names if n not in native_service_names]
+
+    if native and docker_services_list:
+        docker_services_list = [n for n in docker_services_list if n not in native_service_names]
+
+    def _stop_docker_native_services() -> None:
+        if not native_service_names:
+            return
+        stop_cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
+        stop_cmd.append("stop")
+        stop_cmd.extend(sorted(native_service_names))
+        run_command(stop_cmd, check=False, capture_output=False)
 
     cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
     cmd.append("up")
@@ -801,12 +868,66 @@ def start(
         cmd.append("--build")
 
     # Add specific services if specified
-    if services_list:
-        cmd.extend(services_list)
+    if docker_services_list:
+        cmd.extend(docker_services_list)
 
     try:
         result = run_command(cmd, check=False, capture_output=False)
         if result.returncode == 0:
+            if native:
+                import asyncio
+
+                from phlo.services.discovery import ServiceDiscovery
+                from phlo.services.native import NativeProcessManager
+
+                discovery = ServiceDiscovery()
+                project_root = Path.cwd()
+                # Avoid port collisions by ensuring any previously-started Docker containers
+                # for native-capable services are stopped before launching subprocesses.
+                _stop_docker_native_services()
+                # Avoid port collisions by stopping previously-started native services.
+                _stop_native_processes(project_root)
+                dev_manager = NativeProcessManager(
+                    project_root, log_dir=project_root / ".phlo" / "native-logs"
+                )
+
+                available = {
+                    svc.name: svc for svc in discovery.discover().values() if dev_manager.can_run_dev(svc)
+                }
+
+                if services_list:
+                    native_to_start = [available[n] for n in services_list if n in available]
+                else:
+                    native_to_start = [available[n] for n in sorted(available)]
+
+                click.echo("")
+                if native_to_start:
+                    click.echo(f"Starting native services: {', '.join(s.name for s in native_to_start)}...")
+                else:
+                    click.echo("No native services to start.")
+
+                async def start_native_services():
+                    started: dict[str, dict] = {}
+                    for svc in native_to_start:
+                        click.echo(f"  Starting {svc.name}...")
+                        process = await dev_manager.start_service(svc)
+                        if process:
+                            click.echo(f"    ✓ {svc.name} started (pid {process.pid})")
+                            started[svc.name] = {
+                                "pid": process.pid,
+                                "started_at": time.time(),
+                                "log": str(project_root / ".phlo" / "native-logs" / f"{svc.name}.log"),
+                            }
+                        else:
+                            click.echo(f"    ✗ {svc.name} failed to start", err=True)
+                    return started
+
+                started = asyncio.run(start_native_services())
+                if started:
+                    state = _load_native_state(project_root)
+                    state.update(started)
+                    _save_native_state(project_root, state)
+
             click.echo("")
             click.echo("Phlo infrastructure started.")
             click.echo("")
@@ -850,6 +971,12 @@ def start(
 @services.command("stop")
 @click.option("-v", "--volumes", is_flag=True, help="Remove volumes (deletes data)")
 @click.option(
+    "--native",
+    "stop_native",
+    is_flag=True,
+    help="Stop native dev services started with `phlo services start --native`",
+)
+@click.option(
     "--profile",
     multiple=True,
     help="Stop optional profile services",
@@ -859,7 +986,7 @@ def start(
     multiple=True,
     help="Stop only specific service(s) (e.g., --service postgres,minio or --service postgres --service minio)",
 )
-def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
+def stop(volumes: bool, stop_native: bool, profile: tuple[str, ...], service: tuple[str, ...]):
     """Stop Phlo infrastructure services.
 
     Examples:
@@ -869,6 +996,15 @@ def stop(volumes: bool, profile: tuple[str, ...], service: tuple[str, ...]):
         phlo services stop --service postgres
         phlo services stop --service postgres,minio
     """
+    project_root = Path.cwd()
+    if stop_native:
+        # Parse comma-separated services for native stop.
+        native_services_list = []
+        for s in service:
+            native_services_list.extend(s.split(","))
+        native_services_list = [s.strip() for s in native_services_list if s.strip()]
+        _stop_native_processes(project_root, native_services_list or None)
+
     require_docker()
     phlo_dir = ensure_phlo_dir()
     project_name = get_project_name()

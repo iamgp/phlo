@@ -151,7 +151,8 @@ This is achieved through:
 
 ```bash
 # Dev mode mounts source for live changes
-phlo services start --dev
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start
 
 # My custom service code changes are immediately reflected
 ```

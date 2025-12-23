@@ -6,8 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-
-from phlo.catalog.dbt_sync import DbtManifestParser
+from phlo_openmetadata.dbt_sync import DbtManifestParser
 
 
 @pytest.fixture
@@ -252,8 +251,8 @@ class TestDbtManifestParser:
         freshness_tags = [t for t in om_table.tags or [] if "freshness" in t["name"]]
         assert len(freshness_tags) > 0
 
-    @patch("phlo.catalog.dbt_sync.DbtManifestParser.load_manifest")
-    @patch("phlo.catalog.dbt_sync.DbtManifestParser.load_catalog")
+    @patch("phlo_openmetadata.dbt_sync.DbtManifestParser.load_manifest")
+    @patch("phlo_openmetadata.dbt_sync.DbtManifestParser.load_catalog")
     def test_sync_to_openmetadata(
         self,
         mock_load_catalog,
@@ -274,8 +273,8 @@ class TestDbtManifestParser:
         assert stats["created"] >= 1
         assert om_client.create_or_update_table.called
 
-    @patch("phlo.catalog.dbt_sync.DbtManifestParser.load_manifest")
-    @patch("phlo.catalog.dbt_sync.DbtManifestParser.load_catalog")
+    @patch("phlo_openmetadata.dbt_sync.DbtManifestParser.load_manifest")
+    @patch("phlo_openmetadata.dbt_sync.DbtManifestParser.load_catalog")
     def test_sync_with_model_filter(
         self,
         mock_load_catalog,
@@ -300,8 +299,8 @@ class TestDbtManifestParser:
         # Should only sync one model
         assert om_client.create_or_update_table.call_count == 1
 
-    @patch("phlo.catalog.dbt_sync.DbtManifestParser.load_manifest")
-    @patch("phlo.catalog.dbt_sync.DbtManifestParser.load_catalog")
+    @patch("phlo_openmetadata.dbt_sync.DbtManifestParser.load_manifest")
+    @patch("phlo_openmetadata.dbt_sync.DbtManifestParser.load_catalog")
     def test_sync_with_failure(
         self,
         mock_load_catalog,

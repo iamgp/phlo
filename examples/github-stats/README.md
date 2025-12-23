@@ -29,11 +29,11 @@ For developing phlo itself with instant iteration:
 
 ```bash
 cd examples/github-stats
-phlo services init
-phlo services start --dev
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start
 ```
 
-This mounts local `src/phlo` into containers for rapid development.
+This mounts the phlo monorepo into the Dagster container and installs `phlo[defaults]` as an editable install.
 
 ### Configure GitHub Access
 
@@ -99,11 +99,11 @@ This project demonstrates **both** merge strategies to show when to use each:
 
 ### Overview Table
 
-| Workflow | Strategy | Dedup | Reasoning |
-|----------|----------|-------|-----------|
-| **user_profile** | merge | last | Profile data changes over time |
-| **user_repos** | merge | last | Repository metadata updates |
-| **user_events** | append | hash | Immutable activity stream |
+| Workflow         | Strategy | Dedup | Reasoning                      |
+| ---------------- | -------- | ----- | ------------------------------ |
+| **user_profile** | merge    | last  | Profile data changes over time |
+| **user_repos**   | merge    | last  | Repository metadata updates    |
+| **user_events**  | append   | hash  | Immutable activity stream      |
 
 ### 1. user_profile.py - Merge Strategy
 
@@ -118,6 +118,7 @@ This project demonstrates **both** merge strategies to show when to use each:
 ```
 
 **Why merge?**
+
 - User bio, location, company can change
 - Follower/following counts update
 - Profile pictures change
@@ -136,6 +137,7 @@ This project demonstrates **both** merge strategies to show when to use each:
 ```
 
 **Why merge?**
+
 - Repository descriptions change
 - Star and fork counts increase
 - Topics and languages update
@@ -154,6 +156,7 @@ This project demonstrates **both** merge strategies to show when to use each:
 ```
 
 **Why append?**
+
 - Events are **immutable** - once created, never change
 - High volume activity stream
 - Performance matters (no upsert overhead)
@@ -164,12 +167,14 @@ This project demonstrates **both** merge strategies to show when to use each:
 ### When to Use Each Strategy
 
 **Use append** when:
+
 - ✅ Data is immutable (logs, events, sensor readings)
 - ✅ High volume, performance critical
 - ✅ Data never changes once created
 - ✅ Example: Server logs, clickstream, activity feeds
 
 **Use merge** when:
+
 - ✅ Data can be updated (user profiles, product catalogs)
 - ✅ Need idempotent pipeline runs
 - ✅ Data corrections are possible
@@ -177,13 +182,13 @@ This project demonstrates **both** merge strategies to show when to use each:
 
 ### Comparison Table
 
-| Aspect | Append (events) | Merge (profile/repos) |
-|--------|-----------------|----------------------|
-| **Performance** | Fastest | Slightly slower |
-| **Idempotency** | Via hash | Built-in |
-| **Updates** | Not supported | Supported |
-| **Use Case** | Immutable streams | Changing dimensions |
-| **Memory** | Low | Higher (dedup) |
+| Aspect          | Append (events)   | Merge (profile/repos) |
+| --------------- | ----------------- | --------------------- |
+| **Performance** | Fastest           | Slightly slower       |
+| **Idempotency** | Via hash          | Built-in              |
+| **Updates**     | Not supported     | Supported             |
+| **Use Case**    | Immutable streams | Changing dimensions   |
+| **Memory**      | Low               | Higher (dedup)        |
 
 ## Infrastructure Configuration
 
@@ -210,12 +215,14 @@ infrastructure:
 ```
 
 **Benefits:**
+
 - Multi-project deployments on same host
 - Consistent service discovery
 - Environment-specific configuration
 - Production-ready patterns
 
 **Usage:**
+
 ```python
 from phlo.infrastructure.config import get_service_config
 
@@ -229,6 +236,7 @@ endpoint = f"{postgres_config['internal_host']}:{postgres_config['port']}"
 This project includes extensive merge strategy tests (`tests/test_merge_strategies.py` - 367 lines):
 
 **Test coverage:**
+
 - Append strategy with hash deduplication
 - Merge strategy with last deduplication
 - Merge strategy with first deduplication
@@ -236,6 +244,7 @@ This project includes extensive merge strategy tests (`tests/test_merge_strategi
 - Performance benchmarks
 
 **Run tests:**
+
 ```bash
 # All tests
 phlo test
@@ -293,16 +302,19 @@ phlo lineage show user_profile --downstream
 This example teaches patterns applicable to:
 
 **SaaS Analytics**
+
 - Stripe: transactions (append) + customer profiles (merge)
 - Salesforce: activities (append) + account data (merge)
 - HubSpot: email events (append) + contact properties (merge)
 
 **Product Analytics**
+
 - Clickstream events (append)
 - User profiles (merge)
 - Feature flags (merge)
 
 **IoT/Sensor Data**
+
 - Sensor readings (append)
 - Device metadata (merge)
 - Configuration (merge with hash)

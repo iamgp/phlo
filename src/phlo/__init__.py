@@ -26,8 +26,44 @@ Usage::
 
 from __future__ import annotations
 
-from phlo.ingestion.decorator import phlo_ingestion as ingestion
 from phlo.quality.decorator import phlo_quality as quality
 
 __version__ = "0.1.0-alpha.1"
 __all__ = ["ingestion", "quality"]
+
+
+def _resolve_export(export_name: str) -> object:
+    from phlo.plugins.discovery import discover_plugins
+    from phlo.plugins.registry import get_global_registry
+
+    discover_plugins(plugin_type="dagster_extensions", auto_register=True)
+    registry = get_global_registry()
+
+    matches: list[object] = []
+    for name in registry.list_dagster_extensions():
+        plugin = registry.get_dagster_extension(name)
+        if plugin is None:
+            continue
+        exports = plugin.get_exports()
+        if export_name in exports:
+            matches.append(exports[export_name])
+
+    if not matches:
+        raise AttributeError(
+            f"phlo.{export_name} is not available. "
+            "Install `phlo[defaults]` (or the relevant capability plugin) to enable it."
+        )
+
+    if len(matches) > 1:
+        raise AttributeError(
+            f"phlo.{export_name} is provided by multiple plugins. "
+            "Uninstall the extras you don't want, or use the plugin package directly."
+        )
+
+    return matches[0]
+
+
+def __getattr__(name: str) -> object:
+    if name == "ingestion":
+        return _resolve_export("ingestion")
+    raise AttributeError(name)

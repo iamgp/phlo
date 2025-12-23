@@ -23,7 +23,12 @@ def get_iceberg_catalog(ref: str = "main"):
     Returns:
         PyIceberg Catalog instance
     """
-    from phlo.iceberg.catalog import get_catalog
+    try:
+        from phlo_iceberg.catalog import get_catalog
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError(
+            "Iceberg catalog support is not installed. Install `phlo[defaults]` or `phlo-iceberg`."
+        ) from exc
 
     return get_catalog(ref=ref)
 

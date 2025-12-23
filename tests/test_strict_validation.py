@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import pandera.errors
 import pytest
 from pandera.typing import Series
+from phlo_dlt.dlt_helpers import validate_with_pandera
 
-from phlo.ingestion.dlt_helpers import validate_with_pandera
 from phlo.schemas import PhloSchema
 
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import os
 from subprocess import CompletedProcess
 
 import pytest
 
 import phlo.cli.services as services_cli
 from phlo.cli._services.selection import select_services_to_install
+from phlo.services.composer import ComposeGenerator
 from phlo.services.discovery import ServiceDefinition
 
 
@@ -101,3 +103,72 @@ def test_get_profile_service_names_returns_profile_services(
 
     result = services_cli.get_profile_service_names(())
     assert result == []
+
+
+def test_detect_phlo_source_path_finds_sibling_phlo_repo(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    phlo_repo = tmp_path / "phlo"
+    package_dir = phlo_repo / "src" / "phlo"
+    package_dir.mkdir(parents=True)
+    (package_dir / "__init__.py").write_text("")
+
+    project_dir = tmp_path / "pokemon-lakehouse"
+    project_dir.mkdir()
+
+    monkeypatch.chdir(project_dir)
+    monkeypatch.delenv("PHLO_DEV_SOURCE", raising=False)
+
+    detected = services_cli.detect_phlo_source_path()
+    expected = os.path.relpath(package_dir, project_dir / ".phlo")
+    assert detected == expected
+
+
+def test_detect_phlo_source_path_accepts_repo_root_in_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    phlo_repo = tmp_path / "phlo"
+    package_dir = phlo_repo / "src" / "phlo"
+    package_dir.mkdir(parents=True)
+    (package_dir / "__init__.py").write_text("")
+
+    project_dir = tmp_path / "pokemon-lakehouse"
+    project_dir.mkdir()
+
+    monkeypatch.chdir(project_dir)
+    monkeypatch.setenv("PHLO_DEV_SOURCE", str(phlo_repo))
+
+    detected = services_cli.detect_phlo_source_path()
+    expected = os.path.relpath(package_dir, project_dir / ".phlo")
+    assert detected == expected
+
+
+def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
+    class FakeDiscovery:
+        def resolve_dependencies(self, services: list[ServiceDefinition]) -> list[ServiceDefinition]:
+            return services
+
+        def get_service(self, _name: str) -> None:
+            return None
+
+    service = ServiceDefinition(
+        name="dagster",
+        description="dagster",
+        category="orchestration",
+        default=True,
+        phlo_dev=True,
+        compose={},
+    )
+
+    generator = ComposeGenerator(FakeDiscovery())
+    compose = generator.generate_compose(
+        services=[service],
+        output_dir=tmp_path,
+        dev_mode=True,
+        phlo_src_path="../phlo/src/phlo",
+    )
+
+    assert "../phlo/src/phlo/../..:/opt/phlo-dev:rw" in compose
+    assert "PHLO_DEV_MODE" in compose

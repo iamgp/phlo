@@ -26,6 +26,9 @@ dev = [
 [project.entry-points."phlo.plugins.services"]
 nessie = "phlo_nessie.plugin:NessieServicePlugin"
 
+[project.entry-points."phlo.plugins.cli"]
+catalog = "phlo_nessie.cli_plugin:NessieCliPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

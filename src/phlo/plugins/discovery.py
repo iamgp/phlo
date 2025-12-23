@@ -13,6 +13,8 @@ import os
 
 from phlo.config import get_settings
 from phlo.plugins.base import (
+    CliCommandPlugin,
+    DagsterExtensionPlugin,
     Plugin,
     QualityCheckPlugin,
     ServicePlugin,
@@ -29,6 +31,8 @@ ENTRY_POINT_GROUPS = {
     "quality_checks": "phlo.plugins.quality",
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
+    "dagster_extensions": "phlo.plugins.dagster",
+    "cli_commands": "phlo.plugins.cli",
 }
 
 
@@ -96,6 +100,8 @@ def discover_plugins(
             "quality_checks": [],
             "transformations": [],
             "services": [],
+            "dagster_extensions": [],
+            "cli_commands": [],
         }
 
     discovered: dict[str, list[Plugin]] = {
@@ -103,6 +109,8 @@ def discover_plugins(
         "quality_checks": [],
         "transformations": [],
         "services": [],
+        "dagster_extensions": [],
+        "cli_commands": [],
     }
 
     # Determine which plugin types to discover
@@ -158,6 +166,8 @@ def discover_plugins(
                     "quality_checks": QualityCheckPlugin,
                     "transformations": TransformationPlugin,
                     "services": ServicePlugin,
+                    "dagster_extensions": DagsterExtensionPlugin,
+                    "cli_commands": CliCommandPlugin,
                 }[ptype]
 
                 if not isinstance(plugin, expected_type):
@@ -185,6 +195,10 @@ def discover_plugins(
                         registry.register_transformation(plugin, replace=True)
                     elif ptype == "services":
                         registry.register_service(plugin, replace=True)
+                    elif ptype == "dagster_extensions":
+                        registry.register_dagster_extension(plugin, replace=True)
+                    elif ptype == "cli_commands":
+                        registry.register_cli_command_plugin(plugin, replace=True)
 
             except Exception as exc:
                 logger.error(f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True)

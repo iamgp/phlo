@@ -1,6 +1,6 @@
 """Tests for Ingestion Decorator Module.
 
-This module contains unit tests for the phlo.ingestion.decorator module.
+This module contains unit tests for the phlo-dlt decorator module.
 Tests cover decorator application, schema auto-generation, asset registration,
 configuration parameters, and error handling.
 """
@@ -9,10 +9,26 @@ from datetime import datetime
 
 import pytest
 from pandera.pandas import DataFrameModel, Field
+from phlo_dlt.decorator import (
+    _INGESTION_ASSETS,
+    clear_ingestion_assets,
+    get_ingestion_assets,
+    phlo_ingestion,
+)
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
-from phlo.ingestion.decorator import _INGESTION_ASSETS, get_ingestion_assets, phlo_ingestion
+import phlo
+
+
+@pytest.fixture(autouse=True)
+def _clear_ingestion_registry() -> None:
+    clear_ingestion_assets()
+
+
+def test_phlo_ingestion_export_is_available() -> None:
+    assert callable(phlo.ingestion)
+    assert phlo.ingestion is phlo_ingestion
 
 
 def get_asset_spec(asset_def):

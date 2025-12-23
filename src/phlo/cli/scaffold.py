@@ -260,11 +260,11 @@ Ingests {table_name} from a REST API via `dlt.sources.rest_api`.
 
 from dlt.sources.rest_api import rest_api
 
-from phlo.ingestion import phlo_ingestion
+import phlo
 from {schema_import_path} import {schema_class}
 
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="{table_name}",
     unique_key="{unique_key}",
     validation_schema={schema_class},

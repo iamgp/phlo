@@ -18,27 +18,15 @@ requires-python = ">=3.11"
 dependencies = [
     "dagster",
     "dagster-webserver",
-    "dagster-postgres",
-    "dagster-aws",
-    "dagster-dbt",
-    "dagster-pandera",
-    "dbt-core",
-    "dbt-postgres",
-    "dbt-trino",
     "pydantic-settings",
-    "dlt",
-    "pyiceberg[s3fs,pyarrow]==0.10.0",
     "pandas",
     "pandera",
-    "trino",
     "requests",
     "psycopg2-binary",
     "click>=8.0",
     "rich>=13.0",
     "duckdb>=0.9.0",
-    "pyarrow",
     "python-ulid>=2.0.0",
-    "phlo-core-plugins>=0.1.0",
     "httpx>=0.28.1",
     "fastapi>=0.127.0",
 ]
@@ -53,11 +41,18 @@ core-services = [
 ]
 # Convenience alias - install all default services with: pip install phlo[defaults]
 defaults = [
+    "phlo-core-plugins>=0.1.0",
+    "phlo-iceberg>=0.1.0",
+    "phlo-dlt>=0.1.0",
+    "phlo-dbt>=0.1.0",
     "phlo-dagster>=0.1.0",
     "phlo-postgres>=0.1.0",
     "phlo-minio>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-trino>=0.1.0",
+]
+openmetadata = [
+    "phlo-openmetadata>=0.1.0",
 ]
 
 [project.scripts]
@@ -80,16 +75,25 @@ members = [".", "packages/*"]
 [tool.uv.sources]
 phlo = { workspace = true }
 phlo-core-plugins = { workspace = true }
+phlo-iceberg = { workspace = true }
+phlo-dlt = { workspace = true }
+phlo-dbt = { workspace = true }
 phlo-dagster = { workspace = true }
 phlo-postgres = { workspace = true }
 phlo-minio = { workspace = true }
 phlo-nessie = { workspace = true }
 phlo-trino = { workspace = true }
+phlo-openmetadata = { workspace = true }
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
     "sqlfluff>=3.5.0",
+    "phlo-dlt>=0.1.0",
+    "phlo-iceberg>=0.1.0",
+    "phlo-dbt>=0.1.0",
+    "phlo-nessie>=0.1.0",
+    "phlo-openmetadata>=0.1.0",
 ]
 
 [tool.uv]

@@ -3,8 +3,8 @@
 from unittest.mock import Mock
 
 import pytest
+from phlo_openmetadata.lineage import LineageExtractor
 
-from phlo.catalog.lineage import LineageExtractor
 from phlo.lineage.graph import LineageGraph
 
 

@@ -4,8 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-
-from phlo.catalog.openmetadata import (
+from phlo_openmetadata.openmetadata import (
     OpenMetadataClient,
     OpenMetadataColumn,
     OpenMetadataTable,
@@ -125,7 +124,7 @@ class TestOpenMetadataClient:
 
         assert client.base_url == "http://openmetadata:8585/api"
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_health_check_success(self, mock_request, om_client):
         """Test successful health check."""
         mock_response = Mock()
@@ -134,14 +133,14 @@ class TestOpenMetadataClient:
 
         assert om_client.health_check() is True
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_health_check_failure(self, mock_request, om_client):
         """Test failed health check."""
         mock_request.side_effect = requests.ConnectionError("Connection failed")
 
         assert om_client.health_check() is False
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_request_success(self, mock_request, om_client):
         """Test successful API request."""
         mock_response = Mock()
@@ -155,7 +154,7 @@ class TestOpenMetadataClient:
         assert result == {"data": {"id": "123", "name": "test"}}
         mock_request.assert_called_once()
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_request_empty_response(self, mock_request, om_client):
         """Test handling empty response."""
         mock_response = Mock()
@@ -167,7 +166,7 @@ class TestOpenMetadataClient:
 
         assert result == {}
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_request_http_error(self, mock_request, om_client):
         """Test handling HTTP error."""
         mock_response = Mock()
@@ -178,7 +177,7 @@ class TestOpenMetadataClient:
         with pytest.raises(requests.HTTPError):
             om_client._request("GET", "/v1/tables/nonexistent")
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_create_or_update_table_create(self, mock_request, om_client):
         """Test creating a new table."""
         # First call returns empty (table doesn't exist)
@@ -203,7 +202,7 @@ class TestOpenMetadataClient:
         assert result == {"id": "123", "name": "users"}
         assert mock_request.call_count == 2
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_get_table_found(self, mock_request, om_client):
         """Test getting an existing table."""
         mock_response = Mock()
@@ -215,7 +214,7 @@ class TestOpenMetadataClient:
 
         assert result == {"id": "123", "name": "users"}
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_get_table_not_found(self, mock_request, om_client):
         """Test getting a non-existent table."""
         mock_response = Mock()
@@ -229,7 +228,7 @@ class TestOpenMetadataClient:
 
         assert result is None
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_create_lineage(self, mock_request, om_client):
         """Test creating a lineage edge."""
         mock_response = Mock()
@@ -249,7 +248,7 @@ class TestOpenMetadataClient:
         assert "edges" in result
         mock_request.assert_called_once()
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_list_databases(self, mock_request, om_client):
         """Test listing databases."""
         mock_response = Mock()
@@ -268,7 +267,7 @@ class TestOpenMetadataClient:
         assert len(result) == 2
         assert result[0]["name"] == "postgres"
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_list_databases_error_handling(self, mock_request, om_client):
         """Test error handling in list_databases."""
         mock_request.side_effect = requests.ConnectionError("Connection failed")
@@ -277,7 +276,7 @@ class TestOpenMetadataClient:
 
         assert result == []
 
-    @patch("phlo.catalog.openmetadata.requests.Session.request")
+    @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_add_owner(self, mock_request, om_client):
         """Test adding an owner to an entity."""
         # First call gets the entity

@@ -11,14 +11,18 @@ import pytest
 # Mark entire module as integration tests (requires config and environment)
 pytestmark = pytest.mark.integration
 
-from phlo.defs.resources.iceberg import IcebergResource
-from phlo.defs.resources.trino import TrinoResource
+from phlo_iceberg.resource import IcebergResource
+
+try:
+    from phlo_trino.resource import TrinoResource
+except ImportError:  # pragma: no cover
+    TrinoResource = None  # type: ignore[assignment]
 
 
 class TestResourcesUnitTests:
     """Unit tests for resource classes with mocked dependencies."""
 
-    @patch("phlo.defs.resources.iceberg.get_catalog")
+    @patch("phlo_iceberg.resource.get_catalog")
     def test_iceberg_resource_get_catalog_returns_catalog_for_ref(self, mock_get_catalog):
         """Test that IcebergResource.get_catalog returns catalog for ref."""
         mock_catalog = MagicMock()
@@ -30,7 +34,7 @@ class TestResourcesUnitTests:
         mock_get_catalog.assert_called_once_with(ref="dev")
         assert catalog == mock_catalog
 
-    @patch("phlo.defs.resources.iceberg.ensure_table")
+    @patch("phlo_iceberg.resource.ensure_table")
     def test_iceberg_resource_ensure_table_calls_underlying_function(self, mock_ensure_table):
         """Test that IcebergResource.ensure_table calls underlying function."""
         mock_table = MagicMock()
@@ -50,7 +54,7 @@ class TestResourcesUnitTests:
         )
         assert result == mock_table
 
-    @patch("phlo.defs.resources.iceberg.append_to_table")
+    @patch("phlo_iceberg.resource.append_to_table")
     def test_iceberg_resource_append_parquet_calls_underlying_function(self, mock_append_to_table):
         """Test that IcebergResource.append_parquet calls underlying function."""
         resource = IcebergResource(ref="dev")
@@ -61,12 +65,14 @@ class TestResourcesUnitTests:
             table_name="raw.entries", data_path="/path/to/data.parquet", ref="dev"
         )
 
-    @patch("phlo.defs.resources.trino.connect")
-    @patch("phlo.defs.resources.trino.config")
+    @patch("phlo_trino.resource.connect")
+    @patch("phlo_trino.resource.config")
     def test_trino_resource_get_connection_creates_connections_with_correct_catalog(
         self, mock_config, mock_connect
     ):
         """Test that TrinoResource.get_connection creates connections with correct catalog."""
+        if TrinoResource is None:
+            pytest.skip("phlo-trino capability is not installed")
         mock_config.trino_host = "trino"
         mock_config.trino_port = 8080
         mock_config.trino_catalog = "iceberg"
@@ -87,9 +93,11 @@ class TestResourcesUnitTests:
         )
         assert connection == mock_connection
 
-    @patch("phlo.defs.resources.trino.connect")
+    @patch("phlo_trino.resource.connect")
     def test_trino_resource_cursor_context_manager_works(self, mock_connect):
         """Test that TrinoResource.cursor context manager works."""
+        if TrinoResource is None:
+            pytest.skip("phlo-trino capability is not installed")
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
         mock_connection.cursor.return_value = mock_cursor
@@ -104,9 +112,11 @@ class TestResourcesUnitTests:
         mock_connection.close.assert_called_once()
         mock_cursor.close.assert_called_once()
 
-    @patch("phlo.defs.resources.trino.connect")
+    @patch("phlo_trino.resource.connect")
     def test_trino_resource_query_executes_and_returns_results(self, mock_connect):
         """Test that TrinoResource.query executes and returns results."""
+        if TrinoResource is None:
+            pytest.skip("phlo-trino capability is not installed")
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
         mock_connection.cursor.return_value = mock_cursor
@@ -127,9 +137,11 @@ class TestResourcesUnitTests:
         mock_connection.close.assert_called_once()
         mock_cursor.close.assert_called_once()
 
-    @patch("phlo.defs.resources.trino.connect")
+    @patch("phlo_trino.resource.connect")
     def test_trino_resource_query_handles_statements_without_results(self, mock_connect):
         """Test that TrinoResource.query handles statements without results."""
+        if TrinoResource is None:
+            pytest.skip("phlo-trino capability is not installed")
         mock_connection = MagicMock()
         mock_cursor = MagicMock()
         mock_connection.cursor.return_value = mock_cursor
@@ -160,18 +172,18 @@ class TestResourcesIntegrationTests:
         assert iceberg_resource.ref == "main"
 
         # Test TrinoResource with explicit parameters
-        trino_resource = TrinoResource(
-            host="trino-host", port=8080, catalog="iceberg", nessie_ref="dev"
-        )
-        assert trino_resource.host == "trino-host"
-        assert trino_resource.port == 8080
-        assert trino_resource.catalog == "iceberg"
-        assert trino_resource.nessie_ref == "dev"
+        if TrinoResource is not None:
+            trino_resource = TrinoResource(host="trino-host", port=8080, catalog="iceberg")
+            assert trino_resource.host == "trino-host"
+            assert trino_resource.port == 8080
+            assert trino_resource.catalog == "iceberg"
 
-    @patch("phlo.defs.resources.trino.connect")
-    @patch("phlo.defs.resources.trino.config")
+    @patch("phlo_trino.resource.connect")
+    @patch("phlo_trino.resource.config")
     def test_trino_resource_executes_real_queries(self, mock_config, mock_connect):
         """Test that TrinoResource executes real queries."""
+        if TrinoResource is None:
+            pytest.skip("phlo-trino capability is not installed")
         # This integration test verifies that TrinoResource can execute
         # actual queries against a Trino cluster (when Trino is available)
 

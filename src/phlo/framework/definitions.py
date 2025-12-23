@@ -71,42 +71,6 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
 
-def build_core_resources() -> dg.Definitions:
-    """
-    Build core Phlo framework resources.
-
-    Returns Definitions containing only resources (no assets).
-    This allows user projects to use Phlo resources without
-    loading all the example assets.
-
-    Returns:
-        Definitions with core resources
-    """
-    try:
-        from phlo.defs.resources import build_defs as build_resource_defs
-
-        return build_resource_defs()
-    except ImportError as exc:
-        logger.warning(f"Could not import phlo.defs.resources: {exc}")
-        return dg.Definitions()
-
-
-def build_publishing_assets() -> dg.Definitions:
-    """
-    Build publishing assets from project configuration.
-
-    Returns:
-        Definitions with publishing assets if configured
-    """
-    try:
-        from phlo.defs.publishing import build_defs as build_publishing_defs
-
-        return build_publishing_defs()
-    except ImportError as exc:
-        logger.warning(f"Could not import phlo.defs.publishing: {exc}")
-        return dg.Definitions()
-
-
 def build_definitions(
     workflows_path: Path | str | None = None,
     include_core_assets: bool = False,
@@ -159,7 +123,7 @@ def build_definitions(
 
     # Discover user workflows
     try:
-        user_defs = discover_user_workflows(workflows_path)
+        user_defs = discover_user_workflows(workflows_path, clear_registries=True)
         user_assets = list(user_defs.assets or [])
         user_checks = list(user_defs.asset_checks or [])
         logger.info("Discovered %d user assets, %d checks", len(user_assets), len(user_checks))
@@ -167,14 +131,8 @@ def build_definitions(
         logger.error(f"Failed to discover user workflows: {exc}", exc_info=True)
         user_defs = dg.Definitions()
 
-    # Build core resources
-    core_resources = build_core_resources()
-
-    # Build publishing assets (if configured)
-    publishing_assets = build_publishing_assets()
-
-    # Optionally include core assets (examples)
-    definitions_to_merge = [core_resources, user_defs, publishing_assets]
+    # Definitions provided by installed Dagster extension plugins (and user modules)
+    definitions_to_merge = [user_defs]
 
     if include_core_assets:
         logger.info("Including core Phlo example assets")

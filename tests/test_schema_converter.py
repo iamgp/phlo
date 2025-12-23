@@ -10,6 +10,7 @@ from decimal import Decimal
 
 import pytest
 from pandera.pandas import DataFrameModel, Field
+from phlo_dlt.converter import SchemaConversionError, pandera_to_iceberg
 from pyiceberg.types import (
     BinaryType,
     BooleanType,
@@ -19,8 +20,6 @@ from pyiceberg.types import (
     StringType,
     TimestamptzType,
 )
-
-from phlo.schemas.converter import SchemaConversionError, pandera_to_iceberg
 
 
 class TestBasicTypeMapping:

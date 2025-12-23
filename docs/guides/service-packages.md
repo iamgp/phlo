@@ -119,7 +119,7 @@ Mount local package sources into containers for live development:
 
 ```bash
 phlo services init --dev --phlo-source /path/to/phlo
-phlo services start --dev
+phlo services start
 ```
 
 Dev mode uses the `dev` section in each service's `service.yaml` to override commands, volumes, and environment.

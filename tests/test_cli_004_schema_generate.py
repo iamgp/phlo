@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from pandera.pandas import Field
 
-from phlo.ingestion import phlo_ingestion
+from phlo import ingestion as phlo_ingestion
 from phlo.schemas import PhloSchema
 
 
@@ -86,7 +86,7 @@ from __future__ import annotations
 
 from pandera.pandas import Field
 
-from phlo.ingestion import phlo_ingestion
+from phlo import ingestion as phlo_ingestion
 from phlo.schemas import PhloSchema
 
 

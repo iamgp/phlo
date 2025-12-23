@@ -5,8 +5,8 @@ from datetime import datetime
 import pandas as pd
 import pytest
 from dagster import AssetCheckSeverity
+from phlo_dbt.translator import CustomDbtTranslator
 
-from phlo.defs.transform.dbt_translator import CustomDbtTranslator
 from phlo.quality.dbt_asset_checks import extract_dbt_asset_checks
 from phlo.quality.pandera_asset_checks import (
     evaluate_pandera_contract_parquet,

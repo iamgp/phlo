@@ -8,6 +8,8 @@ methods for accessing them by name and type.
 from __future__ import annotations
 
 from phlo.plugins.base import (
+    CliCommandPlugin,
+    DagsterExtensionPlugin,
     Plugin,
     QualityCheckPlugin,
     ServicePlugin,
@@ -30,6 +32,8 @@ class PluginRegistry:
         self._quality_checks: dict[str, QualityCheckPlugin] = {}
         self._transformations: dict[str, TransformationPlugin] = {}
         self._services: dict[str, ServicePlugin] = {}
+        self._dagster_extensions: dict[str, DagsterExtensionPlugin] = {}
+        self._cli_commands: dict[str, CliCommandPlugin] = {}
         self._all_plugins: dict[str, Plugin] = {}
 
     def register_source_connector(
@@ -121,6 +125,37 @@ class PluginRegistry:
         self._services[name] = plugin
         self._all_plugins[f"service:{name}"] = plugin
 
+    def register_dagster_extension(
+        self, plugin: DagsterExtensionPlugin, replace: bool = False
+    ) -> None:
+        """
+        Register a Dagster extension plugin.
+
+        Args:
+            plugin: Dagster extension plugin instance
+            replace: Whether to replace existing plugin with same name
+        """
+        name = plugin.metadata.name
+
+        if name in self._dagster_extensions and not replace:
+            raise ValueError(
+                f"Dagster extension plugin '{name}' is already registered. "
+                f"Use replace=True to overwrite."
+            )
+
+        self._dagster_extensions[name] = plugin
+        self._all_plugins[f"dagster:{name}"] = plugin
+
+    def register_cli_command_plugin(self, plugin: CliCommandPlugin, replace: bool = False) -> None:
+        """Register a CLI command plugin."""
+        name = plugin.metadata.name
+        if name in self._cli_commands and not replace:
+            raise ValueError(
+                f"CLI command plugin '{name}' is already registered. Use replace=True to overwrite."
+            )
+        self._cli_commands[name] = plugin
+        self._all_plugins[f"cli:{name}"] = plugin
+
     def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
         """
         Get a source connector plugin by name.
@@ -169,6 +204,14 @@ class PluginRegistry:
         """
         return self._services.get(name)
 
+    def get_dagster_extension(self, name: str) -> DagsterExtensionPlugin | None:
+        """Get a Dagster extension plugin by name."""
+        return self._dagster_extensions.get(name)
+
+    def get_cli_command_plugin(self, name: str) -> CliCommandPlugin | None:
+        """Get a CLI command plugin by name."""
+        return self._cli_commands.get(name)
+
     def list_source_connectors(self) -> list[str]:
         """
         List all registered source connector plugins.
@@ -205,6 +248,14 @@ class PluginRegistry:
         """
         return list(self._services.keys())
 
+    def list_dagster_extensions(self) -> list[str]:
+        """List all registered Dagster extension plugins."""
+        return list(self._dagster_extensions.keys())
+
+    def list_cli_command_plugins(self) -> list[str]:
+        """List all registered CLI command plugins."""
+        return list(self._cli_commands.keys())
+
     def list_all_plugins(self) -> dict[str, list[str]]:
         """
         List all registered plugins by type.
@@ -217,6 +268,8 @@ class PluginRegistry:
             "quality_checks": self.list_quality_checks(),
             "transformations": self.list_transformations(),
             "services": self.list_services(),
+            "dagster_extensions": self.list_dagster_extensions(),
+            "cli_commands": self.list_cli_command_plugins(),
         }
 
     def clear(self) -> None:
@@ -225,6 +278,8 @@ class PluginRegistry:
         self._quality_checks.clear()
         self._transformations.clear()
         self._services.clear()
+        self._dagster_extensions.clear()
+        self._cli_commands.clear()
         self._all_plugins.clear()
 
     def __len__(self) -> int:

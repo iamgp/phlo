@@ -4,8 +4,8 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
+from phlo_openmetadata.quality_sync import QualityCheckMapper, QualityCheckPublisher
 
-from phlo.catalog.quality_sync import QualityCheckMapper, QualityCheckPublisher
 from phlo.quality.checks import (
     CountCheck,
     CustomSQLCheck,
