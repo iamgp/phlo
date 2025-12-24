@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from re import Match
+from typing import TextIO
 
 import httpx
 
@@ -33,6 +34,7 @@ class NativeProcess:
     process: subprocess.Popen[str]
     health_check_url: str | None = None
     started_at: float = field(default_factory=time.time)
+    log_file: TextIO | None = None
 
     @property
     def is_running(self) -> bool:
@@ -43,6 +45,16 @@ class NativeProcess:
     def pid(self) -> int:
         """Get process ID."""
         return self.process.pid
+
+    def close_log_file(self) -> None:
+        if self.log_file is None:
+            return
+        try:
+            self.log_file.close()
+        except Exception:
+            logger.exception("Failed to close log file for native process")
+        finally:
+            self.log_file = None
 
 
 class NativeProcessManager:
@@ -147,7 +159,7 @@ class NativeProcessManager:
 
         # Start the process
         logger.info(f"Starting {service.name} in dev mode: {' '.join(command)}")
-        log_file = None
+        log_file: TextIO | None = None
         try:
             stdout = None
             if self.log_dir is not None:
@@ -166,10 +178,12 @@ class NativeProcessManager:
             )
         except Exception as e:
             logger.error(f"Failed to start {service.name}: {e}")
-            return None
-        finally:
             if log_file is not None:
-                log_file.close()
+                try:
+                    log_file.close()
+                except Exception:
+                    logger.exception("Failed to close log file after start failure")
+            return None
 
         health_check_url = dev_config.get("health_check")
         if isinstance(health_check_url, str):
@@ -178,6 +192,7 @@ class NativeProcessManager:
             name=service.name,
             process=process,
             health_check_url=health_check_url,
+            log_file=log_file,
         )
         self._processes[service.name] = native_process
 
@@ -205,6 +220,7 @@ class NativeProcessManager:
 
         process = native_process.process
         if not native_process.is_running:
+            native_process.close_log_file()
             del self._processes[name]
             return True
 
@@ -222,6 +238,7 @@ class NativeProcessManager:
             logger.error(f"Error stopping {name}: {e}")
             return False
 
+        native_process.close_log_file()
         del self._processes[name]
         return True
 

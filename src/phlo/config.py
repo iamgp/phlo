@@ -6,7 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field, computed_field
+from pydantic import AliasChoices, Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
+    )
+    lineage_db_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PHLO_LINEAGE_DB_URL", "DAGSTER_PG_DB_CONNECTION_STRING"),
+        description="PostgreSQL DSN for the row-level lineage store",
     )
 
     # --- Storage Configuration ---

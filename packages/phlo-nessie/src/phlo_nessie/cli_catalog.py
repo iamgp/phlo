@@ -55,7 +55,9 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
                         {
                             "namespace": ns_name,
                             "table": table_id[-1] if isinstance(table_id, tuple) else str(table_id),
-                            "full_name": ".".join(table_id) if isinstance(table_id, tuple) else str(table_id),
+                            "full_name": ".".join(table_id)
+                            if isinstance(table_id, tuple)
+                            else str(table_id),
                         }
                     )
             except Exception as e:

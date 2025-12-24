@@ -165,7 +165,9 @@ class QualityCheckMapper:
             Dictionary with test case format
         """
         test_name = dbt_test.get("name", "unknown_test")
-        test_type = dbt_test.get("type") or dbt_test.get("test_metadata", {}).get("name") or "unknown"
+        test_type = (
+            dbt_test.get("type") or dbt_test.get("test_metadata", {}).get("name") or "unknown"
+        )
 
         test_def_name = f"dbt_{test_type}"
 
@@ -333,7 +335,9 @@ class QualityCheckPublisher:
 
         for check in checks:
             try:
-                test_def = QualityCheckMapper.map_check_to_openmetadata_test_definition(check, table_fqn)
+                test_def = QualityCheckMapper.map_check_to_openmetadata_test_definition(
+                    check, table_fqn
+                )
 
                 # Create test definition (idempotent)
                 self.om_client.create_test_definition(

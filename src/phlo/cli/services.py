@@ -5,9 +5,11 @@ Manages Docker infrastructure for Phlo projects.
 Creates .phlo/ directory in user projects with docker-compose configuration.
 """
 
+import json
 import os
 import re
 import shutil
+import signal
 import sys
 import time
 from pathlib import Path
@@ -20,6 +22,7 @@ import yaml
 from phlo.cli._services.command import CommandError, run_command
 from phlo.cli._services.compose import compose_base_cmd
 from phlo.cli._services.containers import dagster_container_candidates, select_first_existing
+from phlo.services.discovery import ServiceDefinition
 
 PHLO_CONFIG_FILE = "phlo.yaml"
 NATIVE_STATE_FILE = "native-processes.json"
@@ -353,8 +356,6 @@ def _native_state_path(project_root: Path) -> Path:
 
 
 def _load_native_state(project_root: Path) -> dict[str, dict]:
-    import json
-
     path = _native_state_path(project_root)
     if not path.exists():
         return {}
@@ -363,8 +364,6 @@ def _load_native_state(project_root: Path) -> dict[str, dict]:
 
 
 def _save_native_state(project_root: Path, state: dict[str, dict]) -> None:
-    import json
-
     path = _native_state_path(project_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -373,8 +372,6 @@ def _save_native_state(project_root: Path, state: dict[str, dict]) -> None:
 
 
 def _stop_native_processes(project_root: Path, service_names: list[str] | None = None) -> None:
-    import signal
-
     state = _load_native_state(project_root)
     if not state:
         return
@@ -899,7 +896,9 @@ def start(
                 )
 
                 available = {
-                    svc.name: svc for svc in discovery.discover().values() if dev_manager.can_run_dev(svc)
+                    svc.name: svc
+                    for svc in discovery.discover().values()
+                    if dev_manager.can_run_dev(svc)
                 }
 
                 if services_list:
@@ -928,7 +927,9 @@ def start(
 
                 click.echo("")
                 if native_to_start:
-                    click.echo(f"Starting native services: {', '.join(s.name for s in native_to_start)}...")
+                    click.echo(
+                        f"Starting native services: {', '.join(s.name for s in native_to_start)}..."
+                    )
                 else:
                     click.echo("No native services to start.")
 
@@ -946,7 +947,9 @@ def start(
                             started[svc.name] = {
                                 "pid": process.pid,
                                 "started_at": time.time(),
-                                "log": str(project_root / ".phlo" / "native-logs" / f"{svc.name}.log"),
+                                "log": str(
+                                    project_root / ".phlo" / "native-logs" / f"{svc.name}.log"
+                                ),
                             }
                         else:
                             click.echo(f"    ✗ {svc.name} failed to start", err=True)
@@ -961,9 +964,29 @@ def start(
                 if skip_docker_compose:
                     click.echo("")
                     if native_to_start:
-                        click.echo(f"Native services started: {', '.join(s.name for s in native_to_start)}")
+                        click.echo(
+                            f"Native services started: {', '.join(s.name for s in native_to_start)}"
+                        )
                     else:
                         click.echo("No native services started.")
+
+                    if detach or not native_to_start:
+                        return
+
+                    def _stop_and_exit(_signum=None, _frame=None) -> None:
+                        click.echo("\nStopping native services...")
+                        _stop_native_processes(project_root, [svc.name for svc in native_to_start])
+                        raise SystemExit(0)
+
+                    old_sigterm = signal.signal(signal.SIGTERM, _stop_and_exit)
+                    try:
+                        click.echo("Press Ctrl+C to stop native services...")
+                        while True:
+                            time.sleep(1)
+                    except KeyboardInterrupt:
+                        _stop_and_exit()
+                    finally:
+                        signal.signal(signal.SIGTERM, old_sigterm)
                     return
 
             click.echo("")

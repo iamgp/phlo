@@ -57,25 +57,31 @@ def sample_manifest():
 def sample_catalog():
     """Sample dbt catalog for testing."""
     return {
-        "bronze.stg_glucose_entries": {
-            "columns": {
-                "id": {
-                    "name": "id",
-                    "type": "INTEGER",
-                    "index": 1,
-                    "description": "Unique identifier",
+        "nodes": {
+            "model.my_project.stg_glucose_entries": {
+                "metadata": {
+                    "name": "stg_glucose_entries",
+                    "schema": "bronze",
                 },
-                "value": {
-                    "name": "value",
-                    "type": "DOUBLE",
-                    "index": 2,
-                    "description": "Glucose value",
-                },
-                "timestamp": {
-                    "name": "timestamp",
-                    "type": "TIMESTAMP",
-                    "index": 3,
-                    "description": "Reading timestamp",
+                "columns": {
+                    "id": {
+                        "name": "id",
+                        "type": "INTEGER",
+                        "index": 1,
+                        "description": "Unique identifier",
+                    },
+                    "value": {
+                        "name": "value",
+                        "type": "DOUBLE",
+                        "index": 2,
+                        "description": "Glucose value",
+                    },
+                    "timestamp": {
+                        "name": "timestamp",
+                        "type": "TIMESTAMP",
+                        "index": 3,
+                        "description": "Reading timestamp",
+                    },
                 },
             }
         }
@@ -219,7 +225,7 @@ class TestDbtManifestParser:
         """Test extracting table with column info from catalog."""
         parser = DbtManifestParser(manifest_file)
         model = sample_manifest["nodes"]["model.my_project.stg_glucose_entries"]
-        columns_info = sample_catalog["bronze.stg_glucose_entries"]["columns"]
+        columns_info = sample_catalog["nodes"]["model.my_project.stg_glucose_entries"]["columns"]
 
         om_table = parser.extract_openmetadata_table(model, "bronze", columns_info)
 

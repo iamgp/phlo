@@ -7,11 +7,15 @@ Used by the Observatory frontend to display row provenance.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
+import anyio
+import psycopg2
 from fastapi import APIRouter, Query
+from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
+
+from phlo.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +24,12 @@ router = APIRouter(tags=["lineage"])
 
 def get_connection_string() -> str:
     """Get PostgreSQL connection string for lineage store."""
-    return (
-        os.environ.get("PHLO_LINEAGE_DB_URL")
-        or os.environ.get("DAGSTER_PG_DB_CONNECTION_STRING")
-        or "postgresql://postgres:postgres@postgres:5432/dagster"
+    settings = get_settings()
+    if settings.lineage_db_url:
+        return settings.lineage_db_url
+    raise RuntimeError(
+        "Lineage database URL not configured. Set PHLO_LINEAGE_DB_URL (or "
+        "DAGSTER_PG_DB_CONNECTION_STRING)."
     )
 
 
@@ -47,21 +53,17 @@ class LineageJourney(BaseModel):
 # --- Helper Functions ---
 
 
+def _execute_lineage_query_sync(query: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
+    with psycopg2.connect(get_connection_string()) as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+
+
 async def execute_lineage_query(query: str, params: list[Any]) -> list[dict[str, Any]]:
     """Execute a query against the lineage store."""
-    try:
-        import asyncpg
-    except ImportError:
-        raise ImportError(
-            "asyncpg is required for lineage queries. Install with: pip install asyncpg"
-        )
-
-    conn = await asyncpg.connect(get_connection_string())
-    try:
-        rows = await conn.fetch(query, *params)
-        return [dict(row) for row in rows]
-    finally:
-        await conn.close()
+    return await anyio.to_thread.run_sync(_execute_lineage_query_sync, query, tuple(params))
 
 
 def row_to_lineage_info(row: dict[str, Any]) -> RowLineageInfo:
@@ -86,7 +88,7 @@ async def get_row_lineage(row_id: str) -> RowLineageInfo | dict[str, str]:
             """
             SELECT row_id, table_name, source_type, parent_row_ids, created_at
             FROM phlo.row_lineage
-            WHERE row_id = $1
+            WHERE row_id = %s
             """,
             [row_id],
         )
@@ -95,7 +97,7 @@ async def get_row_lineage(row_id: str) -> RowLineageInfo | dict[str, str]:
             return {"error": f"Row {row_id} not found in lineage store"}
 
         return row_to_lineage_info(rows[0])
-    except ImportError as e:
+    except RuntimeError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.exception("Failed to get row lineage")
@@ -118,7 +120,7 @@ async def get_row_ancestors(
                 WHERE rl.row_id = ANY(
                     SELECT unnest(parent_row_ids)
                     FROM phlo.row_lineage
-                    WHERE row_id = $1
+                    WHERE row_id = %s
                 )
 
                 UNION ALL
@@ -127,7 +129,7 @@ async def get_row_ancestors(
                        rl.parent_row_ids, rl.created_at, a.depth + 1
                 FROM phlo.row_lineage rl
                 INNER JOIN ancestors a ON rl.row_id = ANY(a.parent_row_ids)
-                WHERE a.depth < $2
+                WHERE a.depth < %s
             )
             SELECT DISTINCT row_id, table_name, source_type,
                    parent_row_ids, created_at
@@ -138,7 +140,7 @@ async def get_row_ancestors(
         )
 
         return [row_to_lineage_info(row) for row in rows]
-    except ImportError as e:
+    except RuntimeError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.exception("Failed to get row ancestors")
@@ -158,7 +160,7 @@ async def get_row_descendants(
                 SELECT rl.row_id, rl.table_name, rl.source_type,
                        rl.parent_row_ids, rl.created_at, 1 as depth
                 FROM phlo.row_lineage rl
-                WHERE $1 = ANY(rl.parent_row_ids)
+                WHERE %s = ANY(rl.parent_row_ids)
 
                 UNION ALL
 
@@ -166,7 +168,7 @@ async def get_row_descendants(
                        rl.parent_row_ids, rl.created_at, d.depth + 1
                 FROM phlo.row_lineage rl
                 INNER JOIN descendants d ON d.row_id = ANY(rl.parent_row_ids)
-                WHERE d.depth < $2
+                WHERE d.depth < %s
             )
             SELECT DISTINCT row_id, table_name, source_type,
                    parent_row_ids, created_at
@@ -177,7 +179,7 @@ async def get_row_descendants(
         )
 
         return [row_to_lineage_info(row) for row in rows]
-    except ImportError as e:
+    except RuntimeError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.exception("Failed to get row descendants")
@@ -192,7 +194,7 @@ async def get_row_journey(row_id: str) -> LineageJourney | dict[str, str]:
         current_rows = await execute_lineage_query(
             """
             SELECT row_id, table_name, source_type, parent_row_ids, created_at
-            FROM phlo.row_lineage WHERE row_id = $1
+            FROM phlo.row_lineage WHERE row_id = %s
             """,
             [row_id],
         )
@@ -206,7 +208,7 @@ async def get_row_journey(row_id: str) -> LineageJourney | dict[str, str]:
             WHERE rl.row_id = ANY(
                 SELECT unnest(parent_row_ids)
                 FROM phlo.row_lineage
-                WHERE row_id = $1
+                WHERE row_id = %s
             )
             """,
             [row_id],
@@ -217,7 +219,7 @@ async def get_row_journey(row_id: str) -> LineageJourney | dict[str, str]:
             """
             SELECT row_id, table_name, source_type, parent_row_ids, created_at
             FROM phlo.row_lineage
-            WHERE $1 = ANY(parent_row_ids)
+            WHERE %s = ANY(parent_row_ids)
             """,
             [row_id],
         )
@@ -227,7 +229,7 @@ async def get_row_journey(row_id: str) -> LineageJourney | dict[str, str]:
             ancestors=[row_to_lineage_info(row) for row in ancestors_rows],
             descendants=[row_to_lineage_info(row) for row in descendants_rows],
         )
-    except ImportError as e:
+    except RuntimeError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.exception("Failed to get row journey")

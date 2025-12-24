@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
+from math import isfinite
 from typing import Any
 
 import httpx
@@ -174,7 +176,12 @@ async def execute_trino_query(
 
 def quote_identifier(identifier: str) -> str:
     """Quote an SQL identifier."""
-    return f'"{identifier}"'
+    if not identifier:
+        raise ValueError("Identifier cannot be empty")
+    if "\x00" in identifier:
+        raise ValueError("Identifier cannot contain NUL bytes")
+    escaped = identifier.replace('"', '""')
+    return f'"{escaped}"'
 
 
 def qualify_table_name(catalog: str, schema: str, table: str) -> str:
@@ -362,16 +369,10 @@ async def execute_query(
     effective_catalog = catalog or DEFAULT_CATALOG
     effective_schema = schema or branch
 
-    # Basic read-only validation
     if read_only_mode:
-        query_upper = query.strip().upper()
-        forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE"]
-        for keyword in forbidden:
-            if query_upper.startswith(keyword):
-                return QueryExecutionError(
-                    error=f"{keyword} statements are not allowed in read-only mode",
-                    kind="validation",
-                )
+        validation_error = validate_read_only_query(query)
+        if validation_error:
+            return QueryExecutionError(error=validation_error, kind="validation")
 
     result = await execute_trino_query(
         query, effective_catalog, effective_schema, trino_url, timeout_ms
@@ -387,6 +388,202 @@ async def execute_query(
         has_more=False,
         effective_query=query,
     )
+
+
+class QueryWithFiltersRequest(BaseModel):
+    table_name: str
+    schema: str
+    catalog: str = DEFAULT_CATALOG
+    filters: dict[str, Any]
+    limit: int = 10
+    trino_url: str | None = None
+    timeout_ms: int = 30000
+
+
+def _sql_literal(value: object) -> str:
+    if value is None:
+        raise ValueError("Use IS NULL for null filters")
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if not isfinite(value):
+            raise ValueError("Non-finite float values are not supported")
+        return str(value)
+    if isinstance(value, str):
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+    raise ValueError(f"Unsupported filter value type: {type(value).__name__}")
+
+
+@router.post("/query-with-filters", response_model=DataPreviewResult | dict)
+async def query_with_filters(
+    request: QueryWithFiltersRequest,
+) -> DataPreviewResult | dict[str, str]:
+    """Query a table with a simple equality filter map."""
+    try:
+        catalog = request.catalog or DEFAULT_CATALOG
+        table = request.table_name
+        schema = request.schema
+
+        if not request.filters:
+            return DataPreviewResult(columns=[], column_types=[], rows=[], has_more=False)
+
+        resolved_table = qualify_table_name(catalog, schema, table)
+
+        where_parts: list[str] = []
+        for column, value in request.filters.items():
+            quoted_column = quote_identifier(column)
+            if value is None:
+                where_parts.append(f"{quoted_column} IS NULL")
+            else:
+                where_parts.append(f"{quoted_column} = {_sql_literal(value)}")
+
+        where_clause = " AND ".join(where_parts)
+        limit = int(request.limit)
+        if limit <= 0 or limit > 5000:
+            raise ValueError("limit must be between 1 and 5000")
+
+        query = f"SELECT * FROM {resolved_table} WHERE {where_clause} LIMIT {limit}"
+        result = await execute_trino_query(
+            query,
+            catalog=catalog,
+            schema=schema,
+            trino_url=request.trino_url,
+            timeout_ms=request.timeout_ms,
+        )
+
+        if isinstance(result, QueryExecutionError):
+            return {"error": result.error}
+
+        return DataPreviewResult(
+            columns=result["columns"],
+            column_types=result["column_types"],
+            rows=result["rows"],
+            has_more=False,
+        )
+    except ValueError as e:
+        return {"error": str(e)}
+
+
+def strip_sql_literals_and_comments(query: str) -> str:
+    """Return query with string literals, identifiers, and comments removed."""
+    out: list[str] = []
+    i = 0
+    in_single = False
+    in_double = False
+    in_line_comment = False
+    in_block_comment = False
+    length = len(query)
+
+    while i < length:
+        ch = query[i]
+        nxt = query[i + 1] if i + 1 < length else ""
+
+        if in_line_comment:
+            if ch in "\r\n":
+                in_line_comment = False
+                out.append(ch)
+            else:
+                out.append(" ")
+            i += 1
+            continue
+
+        if in_block_comment:
+            if ch == "*" and nxt == "/":
+                out.extend([" ", " "])
+                i += 2
+                in_block_comment = False
+                continue
+            out.append(" ")
+            i += 1
+            continue
+
+        if in_single:
+            if ch == "'":
+                if nxt == "'":
+                    out.extend([" ", " "])
+                    i += 2
+                    continue
+                in_single = False
+            out.append(" ")
+            i += 1
+            continue
+
+        if in_double:
+            if ch == '"':
+                if nxt == '"':
+                    out.extend([" ", " "])
+                    i += 2
+                    continue
+                in_double = False
+            out.append(" ")
+            i += 1
+            continue
+
+        if ch == "-" and nxt == "-":
+            in_line_comment = True
+            out.extend([" ", " "])
+            i += 2
+            continue
+
+        if ch == "/" and nxt == "*":
+            in_block_comment = True
+            out.extend([" ", " "])
+            i += 2
+            continue
+
+        if ch == "'":
+            in_single = True
+            out.append(" ")
+            i += 1
+            continue
+
+        if ch == '"':
+            in_double = True
+            out.append(" ")
+            i += 1
+            continue
+
+        out.append(ch)
+        i += 1
+
+    return "".join(out)
+
+
+def validate_read_only_query(query: str) -> str | None:
+    """Validate a query is read-only and a single statement."""
+    cleaned = strip_sql_literals_and_comments(query)
+    trimmed = cleaned.strip()
+    if not trimmed:
+        return "Query cannot be empty"
+
+    while trimmed.endswith(";"):
+        trimmed = trimmed[:-1].rstrip()
+    if ";" in trimmed:
+        return "Multiple statements are not allowed in read-only mode"
+
+    cleaned_upper = trimmed.upper()
+    forbidden = [
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "CREATE",
+        "ALTER",
+        "TRUNCATE",
+        "MERGE",
+        "CALL",
+        "GRANT",
+        "REVOKE",
+    ]
+    pattern = re.compile(rf"\b({'|'.join(forbidden)})\b")
+    match = pattern.search(cleaned_upper)
+    if match:
+        return f"{match.group(1)} statements are not allowed in read-only mode"
+
+    return None
 
 
 @router.get("/row/{table:path}/{row_id}", response_model=DataPreviewResult | dict)

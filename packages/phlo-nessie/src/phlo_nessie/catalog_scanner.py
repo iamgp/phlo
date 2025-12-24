@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from urllib.parse import urljoin
 
 import requests
 from phlo.config import get_settings
@@ -34,8 +33,13 @@ class NessieTableScanner:
         return cls(nessie_uri=settings.nessie_api_v1_uri)
 
     def _request(self, method: str, endpoint: str, params: dict[str, Any] | None = None) -> Any:
-        url = urljoin(self.nessie_uri, endpoint)
-        response = requests.request(method=method, url=url, params=params, timeout=self.timeout_seconds)
+        url = f"{self.nessie_uri.rstrip('/')}/{endpoint.lstrip('/')}"
+        response = requests.request(
+            method=method,
+            url=url,
+            params=params,
+            timeout=self.timeout_seconds,
+        )
         response.raise_for_status()
         return response.json() if response.text else {}
 

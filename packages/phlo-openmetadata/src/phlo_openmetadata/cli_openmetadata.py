@@ -83,7 +83,7 @@ def sync(
             else:
                 # Default to syncing schemas present in manifest by iterating models.
                 manifest = parser.load_manifest()
-                schemas = {m.get('schema') for m in parser.get_models(manifest).values()}
+                schemas = {m.get("schema") for m in parser.get_models(manifest).values()}
                 schemas = {s for s in schemas if isinstance(s, str)}
                 dbt_stats = {"created": 0, "failed": 0}
                 for schema_name in sorted(schemas):

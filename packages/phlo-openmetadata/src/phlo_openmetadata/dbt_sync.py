@@ -142,9 +142,39 @@ class DbtManifestParser:
         if not catalog:
             return {}
 
+        def normalize_columns(columns: Any) -> dict[str, dict[str, Any]]:
+            if isinstance(columns, dict):
+                return columns
+            if isinstance(columns, list):
+                normalized: dict[str, dict[str, Any]] = {}
+                for entry in columns:
+                    if not isinstance(entry, dict):
+                        continue
+                    name = entry.get("name")
+                    if isinstance(name, str) and name:
+                        normalized[name] = entry
+                return normalized
+            return {}
+
+        if isinstance(catalog.get("nodes"), dict):
+            nodes: dict[str, Any] = catalog.get("nodes", {})
+            for node in nodes.values():
+                if not isinstance(node, dict):
+                    continue
+                metadata = node.get("metadata") or {}
+                if not isinstance(metadata, dict):
+                    continue
+                if metadata.get("name") != model_name or metadata.get("schema") != schema_name:
+                    continue
+                return normalize_columns(node.get("columns"))
+
+            return {}
+
         key = f"{schema_name}.{model_name}"
         model_entry = catalog.get(key, {})
-        return model_entry.get("columns", {}) if isinstance(model_entry, dict) else {}
+        return (
+            normalize_columns(model_entry.get("columns")) if isinstance(model_entry, dict) else {}
+        )
 
     def get_model_tests(
         self,

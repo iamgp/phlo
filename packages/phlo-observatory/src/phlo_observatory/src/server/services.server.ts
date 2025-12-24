@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from '@tanstack/react-start'
-import { exec } from 'node:child_process'
+import { exec, execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -16,6 +16,7 @@ import { authMiddleware } from '@/server/auth.server'
 import { parse as parseYaml } from 'yaml'
 
 const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 const phloCommand = process.env.PHLO_CLI_COMMAND ?? 'uv run phlo'
 const phloProjectPath = process.env.PHLO_PROJECT_PATH
 const envFilePath = process.env.ENV_FILE_PATH
@@ -462,8 +463,11 @@ async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
 
 async function runPhloCommand(args: Array<string>): Promise<void> {
   const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
-  const cmd = `${phloCommand} ${args.join(' ')}`
-  await execAsync(cmd, { ...execOptions, timeout: 120000 })
+  const [executable, ...baseArgs] = phloCommand.split(' ')
+  await execFileAsync(executable, [...baseArgs, ...args], {
+    ...execOptions,
+    timeout: 120000,
+  })
 }
 
 /**

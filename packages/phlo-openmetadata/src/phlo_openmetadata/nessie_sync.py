@@ -45,10 +45,14 @@ def nessie_table_metadata_to_openmetadata_table(
     table_metadata: dict[str, Any], description: str | None = None
 ) -> OpenMetadataTable:
     table_name = table_metadata.get("name", "unknown")
-    schema = table_metadata.get("schema", {}) if isinstance(table_metadata.get("schema"), dict) else {}
+    schema = (
+        table_metadata.get("schema", {}) if isinstance(table_metadata.get("schema"), dict) else {}
+    )
 
     columns: list[OpenMetadataColumn] = []
-    for ordinal, field in enumerate(schema.get("fields", []) if isinstance(schema.get("fields"), list) else []):
+    for ordinal, field in enumerate(
+        schema.get("fields", []) if isinstance(schema.get("fields"), list) else []
+    ):
         if not isinstance(field, dict):
             continue
         col_type = _map_iceberg_to_openmetadata_type(str(field.get("type", "unknown")))

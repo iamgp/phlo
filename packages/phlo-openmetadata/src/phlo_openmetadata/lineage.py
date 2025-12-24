@@ -34,16 +34,30 @@ class LineageExtractor:
             context: Dagster context with run and asset information
         """
         try:
-            run = context.run
-            if not run:
-                logger.warning("No run information available in context")
+            if not hasattr(context, "get_asset_materialization_events"):
+                logger.warning(
+                    "Unsupported Dagster execution context for lineage extraction. "
+                    "Expected an ExecuteInProcessResult-like object with "
+                    "get_asset_materialization_events()."
+                )
                 return
 
-            for key, _result in context.run_context.output_map.items():
-                asset_name = key.path[-1] if hasattr(key, "path") else str(key)
+            events = context.get_asset_materialization_events()
+            if not isinstance(events, list):
+                logger.warning("Dagster context returned unexpected materialization events type")
+                return
+
+            for event in events:
+                asset_key = getattr(event, "asset_key", None)
+                if asset_key is None:
+                    continue
+                if hasattr(asset_key, "path") and asset_key.path:
+                    asset_name = asset_key.path[-1]
+                else:
+                    asset_name = str(asset_key)
                 self.graph.add_asset(asset_name, asset_type="unknown")
 
-            logger.info(f"Extracted {len(self.graph.assets)} assets from Dagster")
+            logger.info(f"Extracted {len(self.graph.assets)} assets from Dagster materializations")
 
         except Exception as e:
             logger.error(f"Failed to extract Dagster lineage: {e}")
@@ -178,7 +192,9 @@ class LineageExtractor:
                         om_client.create_lineage(from_asset, to_asset)
                         stats["edges_published"] += 1
                     except Exception as e:
-                        logger.error(f"Failed to publish lineage edge {from_asset}->{to_asset}: {e}")
+                        logger.error(
+                            f"Failed to publish lineage edge {from_asset}->{to_asset}: {e}"
+                        )
                         stats["failed"] += 1
 
             logger.info(f"Published {stats['edges_published']} lineage edges to OpenMetadata")

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 import os
+import time
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -283,8 +285,6 @@ async def get_health_metrics(
 ) -> HealthMetrics | dict[str, str]:
     """Get health metrics from Dagster."""
     url = resolve_dagster_url(dagster_url)
-    import time
-    from datetime import datetime
 
     try:
         result = await graphql_request(url, HEALTH_QUERY)
@@ -309,7 +309,7 @@ async def get_health_metrics(
             for asset in nodes:
                 last_mat = (asset.get("assetMaterializations") or [None])[0]
                 if last_mat:
-                    mat_time = float(last_mat.get("timestamp", 0))
+                    mat_time = float(last_mat.get("timestamp", 0)) * 1000
                     if now - mat_time > stale_threshold:
                         stale_assets += 1
                 else:

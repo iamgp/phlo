@@ -144,7 +144,14 @@ export const previewData = createServerFn()
   )
   .handler(
     async ({
-      data: { table, branch = 'main', catalog, schema, limit = 100, offset = 0 },
+      data: {
+        table,
+        branch = 'main',
+        catalog,
+        schema,
+        limit = 100,
+        offset = 0,
+      },
     }): Promise<DataPreviewResult | { error: string }> => {
       try {
         const result = await apiGet<ApiDataPreviewResult | { error: string }>(
@@ -155,7 +162,9 @@ export const previewData = createServerFn()
         if ('error' in result) return result
         return transformPreviewResult(result)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -197,7 +206,9 @@ export const profileColumn = createServerFn()
           maxValue: result.max_value,
         }
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -233,7 +244,9 @@ export const getTableMetrics = createServerFn()
           sizeBytes: result.size_bytes,
         }
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -321,34 +334,24 @@ export const queryTableWithFilters = createServerFn()
     async ({
       data: { tableName, schema, filters, catalog },
     }): Promise<DataPreviewResult | { error: string }> => {
-      // Build WHERE clause and call preview with filters
-      // For now, use the Python API's query endpoint
-      const whereConditions = Object.entries(filters)
-        .map(([column, value]) => {
-          if (value === null || value === undefined) return `${column} IS NULL`
-          if (typeof value === 'string') return `${column} = '${value.replace(/'/g, "''")}'`
-          if (typeof value === 'number' || typeof value === 'boolean') return `${column} = ${value}`
-          return null
-        })
-        .filter(Boolean)
-        .join(' AND ')
-
-      if (!whereConditions) {
-        return { columns: [], columnTypes: [], rows: [], hasMore: false }
-      }
-
-      const query = `SELECT * FROM "${catalog || 'iceberg'}"."${schema}"."${tableName}" WHERE ${whereConditions} LIMIT 10`
-
       try {
-        const result = await apiPost<ApiQueryResult | { error: string; kind?: string }>(
-          '/api/trino/query',
-          { query, catalog, schema, read_only_mode: true },
+        const result = await apiPost<ApiDataPreviewResult | { error: string }>(
+          '/api/trino/query-with-filters',
+          {
+            table_name: tableName,
+            schema,
+            catalog: catalog || 'iceberg',
+            filters,
+            limit: 10,
+          },
         )
 
         if ('error' in result) return { error: result.error }
         return transformPreviewResult(result)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -381,7 +384,9 @@ export const getRowById = createServerFn()
         if ('error' in result) return result
         return transformPreviewResult(result)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
