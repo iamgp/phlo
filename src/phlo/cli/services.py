@@ -789,7 +789,6 @@ def start(
         phlo services start --service postgres
         phlo services start --native  # Run Observatory/phlo-api as subprocesses
     """
-    require_docker()
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
     project_name = get_project_name()
@@ -854,6 +853,11 @@ def start(
     # avoid running `docker compose up` with no service args (which would start the entire stack).
     skip_docker_compose = bool(native and services_list and not docker_services_list)
 
+    if not skip_docker_compose:
+        require_docker()
+    elif build:
+        click.echo("Warning: --build ignored when starting native-only services.", err=True)
+
     def _stop_docker_native_services() -> None:
         if not native_service_names:
             return
@@ -892,7 +896,8 @@ def start(
                 project_root = Path.cwd()
                 # Avoid port collisions by ensuring any previously-started Docker containers
                 # for native-capable services are stopped before launching subprocesses.
-                _stop_docker_native_services()
+                if not skip_docker_compose:
+                    _stop_docker_native_services()
                 # Avoid port collisions by stopping previously-started native services.
                 _stop_native_processes(project_root)
                 dev_manager = NativeProcessManager(
@@ -939,6 +944,14 @@ def start(
                     state = _load_native_state(project_root)
                     state.update(started)
                     _save_native_state(project_root, state)
+
+                if skip_docker_compose:
+                    click.echo("")
+                    if native_to_start:
+                        click.echo(f"Native services started: {', '.join(s.name for s in native_to_start)}")
+                    else:
+                        click.echo("No native services started.")
+                    return
 
             click.echo("")
             click.echo("Phlo infrastructure started.")
