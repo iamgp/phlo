@@ -6,6 +6,7 @@ Supports correlation by run_id, asset_key, job_name, and partition_key.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime, timedelta

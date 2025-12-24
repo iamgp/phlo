@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    pass
+    from phlo_openmetadata.openmetadata import OpenMetadataClient
 
 from phlo.quality.checks import (
     CountCheck,
