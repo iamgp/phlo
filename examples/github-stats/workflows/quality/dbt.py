@@ -8,9 +8,9 @@ This demonstrates the dbt quality check naming/metadata contract:
 import os
 
 from dagster import AssetCheckExecutionContext, AssetCheckResult, AssetKey, asset_check
+from phlo.defs.validation.dbt_validator import DBTValidatorResource
 
 from phlo.config import config
-from phlo.defs.validation.dbt_validator import DBTValidatorResource
 from phlo.quality.contract import QualityCheckContract, dbt_check_name
 
 
