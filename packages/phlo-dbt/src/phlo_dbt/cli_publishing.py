@@ -13,7 +13,7 @@ from typing import Any, Iterable
 import click
 import yaml
 
-from phlo.cli.services import get_project_name
+from phlo.cli._services.utils import get_project_name
 from phlo.config import get_settings
 
 

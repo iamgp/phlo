@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 from phlo.cli._services.command import CommandError, run_command
-from phlo.cli.services import find_dagster_container, get_project_name
+from phlo.cli._services.utils import find_dagster_container, get_project_name
 
 
 def compile_dbt() -> int:

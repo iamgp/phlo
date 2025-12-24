@@ -7,7 +7,6 @@ Creates .phlo/ directory in user projects with docker-compose configuration.
 
 import json
 import os
-import re
 import shutil
 import signal
 import subprocess
@@ -22,7 +21,12 @@ import yaml
 
 from phlo.cli._services.command import CommandError, run_command
 from phlo.cli._services.compose import compose_base_cmd
-from phlo.cli._services.containers import dagster_container_candidates, select_first_existing
+from phlo.cli._services.utils import (
+    _resolve_container_name,
+    find_dagster_container,
+    get_project_config,
+    get_project_name,
+)
 from phlo.services.discovery import ServiceDefinition
 
 PHLO_CONFIG_FILE = "phlo.yaml"
@@ -131,64 +135,8 @@ def require_docker():
         sys.exit(1)
 
 
-def get_project_config() -> dict:
-    """Load project configuration from phlo.yaml.
-
-    Returns default config if file doesn't exist.
-    """
-    config_path = Path.cwd() / PHLO_CONFIG_FILE
-    if config_path.exists():
-        with open(config_path) as f:
-            return yaml.safe_load(f) or {}
-
-    # Default: derive name from current directory
-    return {
-        "name": Path.cwd().name.lower().replace(" ", "-").replace("_", "-"),
-        "description": "Phlo data lakehouse",
-    }
-
-
-def get_project_name() -> str:
-    """Get the project name for Docker Compose."""
-    config = get_project_config()
-    return config.get("name", Path.cwd().name.lower().replace(" ", "-").replace("_", "-"))
-
-
-def _resolve_container_name(service_name: str, project_name: str) -> str:
-    """Resolve a service's container name using infra config or default pattern."""
-    from phlo.infrastructure import load_infrastructure_config
-
-    infra = load_infrastructure_config()
-    configured = infra.get_container_name(service_name, project_name)
-    if configured:
-        return configured
-    return infra.container_naming_pattern.format(project=project_name, service=service_name)
-
-
-def find_dagster_container(project_name: str) -> str:
-    """Find the running Dagster webserver container for the project."""
-    configured_name = _resolve_container_name("dagster", project_name)
-    candidates = dagster_container_candidates(project_name, configured_name)
-    preferred = [candidates.configured, candidates.new, candidates.legacy]
-
-    existing = run_command(["docker", "ps", "--format", "{{.Names}}"]).stdout.splitlines()
-    chosen = select_first_existing(preferred, existing)
-    if chosen:
-        return chosen
-
-    # Last resort: choose any container matching project + dagster, excluding daemon
-    fallback_matches = [
-        name
-        for name in existing
-        if re.search(rf"{re.escape(project_name)}.*dagster", name) and "daemon" not in name
-    ]
-    if fallback_matches:
-        return fallback_matches[0]
-
-    raise RuntimeError(
-        f"Could not find running Dagster webserver container for project '{project_name}'. "
-        f"Expected container name: {candidates.new} or {candidates.legacy}"
-    )
+# Re-export from utils for backwards compatibility
+__all__ = ["get_project_config", "get_project_name", "find_dagster_container"]
 
 def _normalize_hook_entries(hooks: object) -> list[dict[str, object]]:
     if hooks is None:

@@ -15,6 +15,7 @@ license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "phlo-iceberg>=0.1.0",
+    "phlo-lineage>=0.1.0",
     "phlo-quality>=0.1.0",
     "dlt",
     "pandas",

@@ -9,7 +9,7 @@ from typing import Optional
 
 import click
 
-from phlo.cli.services import find_dagster_container, get_project_name
+from phlo.cli._services.utils import find_dagster_container, get_project_name
 
 
 @click.command()
