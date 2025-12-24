@@ -575,6 +575,7 @@ def list_services(show_all: bool, output_json: bool):
 
     import yaml
 
+    from phlo.cli._services.command import run_command
     from phlo.cli._services.utils import get_project_name
     from phlo.discovery import ServiceDefinition, ServiceDiscovery
 
@@ -606,21 +607,29 @@ def list_services(show_all: bool, output_json: bool):
     # Get running container status
     try:
         project_name = get_project_name()
-        result = run_command(f"docker ps --filter name={project_name} --format json")
+        result = run_command(
+            ["docker", "ps", "--filter", f"name={project_name}", "--format", "json"],
+            check=False,
+        )
         running_containers = {}
         if result.returncode == 0 and result.stdout.strip():
             for line in result.stdout.strip().split("\n"):
                 container_info = json.loads(line)
                 container_name = container_info.get("Names", "")
                 # Extract service name from container name (format: project-service-1)
-                parts = container_name.split("-")
-                if len(parts) >= 2:
-                    service_name = "-".join(parts[1:-1])  # Remove project prefix and -1 suffix
+                # Remove project prefix and container number suffix
+                prefix = f"{project_name}-"
+                if container_name.startswith(prefix):
+                    # Remove prefix and -1 suffix (last dash and number)
+                    service_with_suffix = container_name[len(prefix) :]
+                    # Remove the -1 suffix
+                    service_name = service_with_suffix.rsplit("-", 1)[0]
                     running_containers[service_name] = {
                         "status": container_info.get("State", ""),
                         "ports": container_info.get("Ports", ""),
                     }
-    except Exception:
+    except Exception as e:
+        # Silently handle errors - services list should work even without docker
         running_containers = {}
 
     if output_json:
