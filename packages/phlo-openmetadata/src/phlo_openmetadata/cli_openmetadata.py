@@ -56,7 +56,7 @@ def sync(
         base_url=cfg.openmetadata_uri,
         username=cfg.openmetadata_username,
         password=cfg.openmetadata_password,
-        verify_ssl=False,
+        verify_ssl=cfg.openmetadata_verify_ssl,
         timeout=30,
     )
 
