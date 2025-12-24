@@ -800,7 +800,7 @@ authors = [
 ]
 license = {{text = "MIT"}}
 dependencies = [
-    "cascade-sdk>=1.0.0",
+    "phlo>=0.1.0",
 ]
 
 [project.optional-dependencies]
