@@ -354,42 +354,6 @@ services:
         condition: service_healthy
       trino:
         condition: service_healthy
-  fastapi:
-    build:
-      context: ../../../packages/phlo-fastapi/src/phlo_fastapi
-      dockerfile: Dockerfile
-    profiles:
-    - api
-    restart: unless-stopped
-    environment:
-      JWT_SECRET: ${JWT_SECRET:-phlo-jwt-secret-change-in-production}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      TRINO_HOST: trino
-      TRINO_PORT: 8080
-      TRINO_CATALOG: iceberg
-      TRINO_USER: ${TRINO_USER:-phlo}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-phlo}
-      POSTGRES_USER: ${POSTGRES_USER:-phlo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
-    ports:
-    - ${API_PORT:-8000}:8000
-    healthcheck:
-      test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:8000/health
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    depends_on:
-      postgres:
-        condition: service_healthy
-      trino:
-        condition: service_healthy
   superset:
     image: apache/superset:${SUPERSET_VERSION:-4.0.0}
     restart: unless-stopped

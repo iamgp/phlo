@@ -9,6 +9,9 @@ This document outlines what changes are needed to achieve the [DX goals](./plugi
 - **Phase 2**: COMPLETED - Naming cleanup
 - **Phase 3**: COMPLETED - User service overrides
 - **Phase 4**: COMPLETED - Enable/disable services
+- **Phase 5**: COMPLETED - Inline custom services (with test coverage)
+- **Phase 6**: COMPLETED - Enhanced CLI discoverability (runtime status, ports, disabled services)
+- **Phase 7**: COMPLETED - Documentation updated, phlo-fastapi removed from registry
 
 ## Key Architectural Changes
 

@@ -246,20 +246,6 @@
       ],
       "verified": true
     },
-    "fastapi": {
-      "type": "service",
-      "package": "phlo-fastapi",
-      "version": "0.1.0",
-      "description": "Custom FastAPI service with JWT auth and Trino query support",
-      "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-fastapi",
-      "tags": [
-        "api",
-        "fastapi",
-        "service"
-      ],
-      "verified": true
-    },
     "hasura": {
       "type": "service",
       "package": "phlo-hasura",
