@@ -904,8 +904,16 @@ def start(
 
                 if services_list:
                     requested = [available[n] for n in services_list if n in available]
-                    resolved = discovery.resolve_dependencies(requested)
-                    native_to_start = [svc for svc in resolved if svc.name in available]
+                    expanded: dict[str, ServiceDefinition] = {svc.name: svc for svc in requested}
+                    queue = list(requested)
+                    while queue:
+                        svc = queue.pop(0)
+                        for dep_name in svc.depends_on:
+                            dep = available.get(dep_name)
+                            if dep and dep.name not in expanded:
+                                expanded[dep.name] = dep
+                                queue.append(dep)
+                    native_to_start = discovery.resolve_dependencies(list(expanded.values()))
                 else:
                     native_to_start = [available[n] for n in sorted(available)]
 
