@@ -244,7 +244,7 @@ graph TB
 - [Part 8](08-real-world-example.md): Complete end-to-end pipeline
 
 ### Data Quality and Governance
-- [Part 9](09-data-quality-with-pandera.md): Schema validation and the `@phlo.quality` decorator
+- [Part 9](09-data-quality-with-pandera.md): Schema validation and the `@phlo_quality` decorator
 - [Part 10](10-metadata-governance.md): Data catalog, contracts, and schema evolution
 - [Part 11](11-observability-monitoring.md): Metrics, alerting, lineage, and debugging
 - [Part 12](12-production-deployment.md): Scaling and high availability

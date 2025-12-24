@@ -58,7 +58,7 @@ def validate_with_pandera(
 
 ### 2. Remove Deprecated Code
 
-Remove `add_phlo_timestamp` from `phlo.ingestion.dlt_helpers`. All ingestion paths should now use `inject_metadata_columns` which handles `_phlo_row_id` generation and other metadata consistently.
+Remove `add_phlo_timestamp` from `phlo_dlt.phlo_ingestion.dlt_helpers`. All ingestion paths should now use `inject_metadata_columns` which handles `_phlo_row_id` generation and other metadata consistently.
 
 ## Consequences
 

@@ -8,7 +8,7 @@ Phlo uses multiple configuration sources:
 
 1. **Environment variables** (.env file)
 2. **Infrastructure config** (phlo.yaml)
-3. **Python settings** (src/phlo/config.py)
+3. **Python settings** (`phlo.config`)
 4. **Runtime configuration** (Dagster run config)
 
 ## Environment Variables

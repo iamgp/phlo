@@ -70,7 +70,7 @@ Phlo implements an automated Write-Audit-Publish pattern using Nessie branches:
 **Implementation**
 ```python
 # Automatic branch creation on job start
-# src/phlo/defs/sensors/branch_lifecycle.py
+# workflows/sensors/branch_lifecycle.py
 @sensor(name="branch_creation_sensor")
 def branch_creation_sensor(context):
     # Creates pipeline/run-{id} branch
@@ -90,12 +90,12 @@ def branch_cleanup_sensor(context):
 
 Phlo reduces boilerplate through powerful decorators that auto-generate Dagster assets.
 
-#### @phlo.ingestion Decorator
+#### @phlo_ingestion Decorator
 
 Transforms a simple function into a complete ingestion pipeline:
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,  # Pandera schema
@@ -129,12 +129,12 @@ def api_events(partition_date: str):
 # - Dagster asset wrapper (~50 lines)
 ```
 
-#### @phlo.quality Decorator
+#### @phlo_quality Decorator
 
 Creates data quality checks:
 
 ```python
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -210,7 +210,7 @@ class EventSchema(pa.DataFrameModel):
 
 **Schema Conversion** (Pandera → Iceberg):
 ```python
-# src/phlo/schemas/converter.py
+# packages/phlo-dlt/src/phlo_dlt/converter.py
 str → StringType()
 int → LongType()
 float → DoubleType()
@@ -243,7 +243,7 @@ merge_config={"deduplication_method": "last"}  # or "first" or "hash"
 
 **Implementation**:
 ```python
-# src/phlo/ingestion/dlt_helpers.py
+# packages/phlo-dlt/src/phlo_dlt/dlt_helpers.py
 def merge_to_iceberg(
     table: Table,
     new_data: DataFrame,
@@ -407,7 +407,7 @@ def silver_events():
 Automatic publishing of marts to PostgreSQL for BI:
 
 ```python
-# src/phlo/defs/publishing/trino_to_postgres.py
+# workflows/publishing/trino_to_postgres.py
 @asset(deps=[marts.daily_aggregates])
 def publish_daily_aggregates(context, trino, postgres):
     _publish_marts_to_postgres(
@@ -433,13 +433,13 @@ Complete end-to-end flow:
 ```
 1. API Source
    ↓
-2. @phlo.ingestion decorator
+2. @phlo_ingestion decorator
    ↓ DLT → Parquet staging
    ↓
 3. Iceberg table (bronze.events)
    ↓ on branch: pipeline/run-abc123
    ↓
-4. @phlo.quality checks
+4. @phlo_quality checks
    ↓ validation passes
    ↓
 5. Auto-promotion sensor
@@ -456,17 +456,17 @@ Complete end-to-end flow:
 
 ## Key Files & Locations
 
-**Ingestion workflows**: `src/phlo/defs/ingestion/{domain}/{workflow}.py`
+**Ingestion workflows**: `workflows/ingestion/{domain}/{workflow}.py`
 
-**Schemas**: `src/phlo/schemas/{domain}.py`
+**Schemas**: `workflows/schemas/{domain}.py`
 
-**Quality checks**: `src/phlo/quality/checks.py`
+**Quality checks**: `workflows/quality/{domain}.py`
 
 **dbt models**: `transforms/dbt/models/{layer}/{model}.sql`
 
-**Configuration**: `src/phlo/config.py`, `.env`
+**Configuration**: `phlo.config`, `.env`, `phlo.yaml`
 
-**Sensors**: `src/phlo/defs/sensors/branch_lifecycle.py`
+**Sensors**: `workflows/sensors/branch_lifecycle.py`
 
 ## Next Steps
 

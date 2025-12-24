@@ -6,8 +6,8 @@ Complete guide to building data pipelines with Phlo's decorator-driven framework
 
 Phlo provides powerful decorators that transform simple functions into complete data pipelines. This guide covers:
 
-- Using `@phlo.ingestion` for data ingestion
-- Using `@phlo.quality` for data quality checks
+- Using `@phlo_ingestion` for data ingestion
+- Using `@phlo_quality` for data quality checks
 - Schema definition with Pandera
 - Integration with dbt
 - Publishing to BI tools
@@ -32,7 +32,7 @@ from dlt.sources.rest_api import rest_api
 import phlo
 from workflows.schemas.api import EventSchema
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,
@@ -50,10 +50,10 @@ def api_events(partition_date: str):
     })
 
 # workflows/quality/api.py
-from phlo.quality.checks import NullCheck, RangeCheck, UniqueCheck
+from phlo_quality.checks import NullCheck, RangeCheck, UniqueCheck
 import phlo
 
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -75,12 +75,12 @@ That's it! You get:
 - Retry handling
 - Metrics tracking
 
-## @phlo.ingestion Decorator
+## @phlo_ingestion Decorator
 
 ### Basic Usage
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="my_table",
     unique_key="id",
     validation_schema=MySchema,
@@ -167,7 +167,7 @@ Phlo works with any DLT source. Common patterns:
 ```python
 from dlt.sources.rest_api import rest_api
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def api_data(partition_date: str):
     return rest_api({
         "client": {
@@ -204,7 +204,7 @@ def my_source(start_date: str):
             yield record
     return events
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def custom_data(partition_date: str):
     return my_source(start_date=partition_date)
 ```
@@ -213,7 +213,7 @@ def custom_data(partition_date: str):
 ```python
 from dlt.sources.filesystem import filesystem
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def file_data(partition_date: str):
     return filesystem(
         bucket_url=f"s3://bucket/data/{partition_date}",
@@ -226,7 +226,7 @@ def file_data(partition_date: str):
 import dlt
 from sqlalchemy import create_engine
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def sql_data(partition_date: str):
     @dlt.resource
     def query():
@@ -242,7 +242,7 @@ def sql_data(partition_date: str):
 
 **Append Strategy** (fastest, no deduplication):
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="logs",
     unique_key="id",
     merge_strategy="append",  # Insert-only
@@ -255,7 +255,7 @@ def logs(partition_date: str):
 
 **Merge Strategy** (upsert with deduplication):
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="users",
     unique_key="user_id",
     merge_strategy="merge",
@@ -292,7 +292,7 @@ merge_config={"deduplication_method": "hash"}
 Phlo uses daily partitioning by default:
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def my_data(partition_date: str):
     # partition_date is automatically provided by Dagster
     # Format: "YYYY-MM-DD"
@@ -455,15 +455,15 @@ Schema(
 )
 ```
 
-## @phlo.quality Decorator
+## @phlo_quality Decorator
 
 ### Basic Usage
 
 ```python
-from phlo.quality.checks import NullCheck, RangeCheck
+from phlo_quality.checks import NullCheck, RangeCheck
 import phlo
 
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -528,7 +528,7 @@ CustomSQLCheck(
 
 **Multiple tables**:
 ```python
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         CustomSQLCheck(
@@ -549,7 +549,7 @@ def referential_integrity():
 
 **Conditional checks**:
 ```python
-from phlo.quality.checks import Check
+from phlo_quality.checks import Check
 
 class ConditionalCheck(Check):
     def execute(self, context):
@@ -561,7 +561,7 @@ class ConditionalCheck(Check):
         result = self.validate()
         return CheckResult(passed=result)
 
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[ConditionalCheck()]
 )
@@ -704,9 +704,9 @@ GROUP BY 1, 2
 dbt models automatically become Dagster assets:
 
 ```python
-# src/phlo/defs/transform/dbt.py
+# workflows/transform/dbt.py
 from dagster_dbt import DbtCliResource, dbt_assets
-from phlo.defs.transform.translator import CustomDbtTranslator
+from phlo_dbt.translator import CustomDbtTranslator
 
 @dbt_assets(
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
@@ -747,9 +747,9 @@ Automatically publish Iceberg marts to PostgreSQL for BI tools.
 ### Publishing Asset
 
 ```python
-# src/phlo/defs/publishing/events.py
+# workflows/publishing/events.py
 from dagster import asset
-from phlo.defs.publishing.trino_to_postgres import _publish_marts_to_postgres
+from workflows.publishing.trino_to_postgres import _publish_marts_to_postgres
 
 @asset(
     deps=["marts__daily_aggregates"],  # Depends on dbt mart
@@ -803,7 +803,7 @@ Connect Superset to PostgreSQL:
 Create custom Dagster resources:
 
 ```python
-# src/phlo/defs/resources/custom.py
+# workflows/resources/custom.py
 from dagster import ConfigurableResource
 
 class MyAPIResource(ConfigurableResource):
@@ -815,7 +815,7 @@ class MyAPIResource(ConfigurableResource):
         pass
 
 # Usage in asset:
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def my_data(context, my_api: MyAPIResource):
     data = my_api.fetch_data("/events")
     return data
@@ -826,7 +826,7 @@ def my_data(context, my_api: MyAPIResource):
 Create custom sensors for automation:
 
 ```python
-# src/phlo/defs/sensors/custom.py
+# workflows/sensors/custom.py
 from dagster import sensor, RunRequest
 
 @sensor(job=my_job)
@@ -844,7 +844,7 @@ def file_sensor(context):
 ### Conditional Execution
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def conditional_data(context):
     # Skip on weekends
     if datetime.now().weekday() >= 5:
@@ -871,7 +871,7 @@ def my_data(partition_date: str):
 ### 3. Error Handling
 Let Phlo handle retries, but add custom handling where needed:
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     retry_policy={"max_retries": 3, "delay": 1.0},
     timeout=3600
 )

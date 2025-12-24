@@ -43,9 +43,9 @@ def test_discover_workflows_with_simple_asset():
 Simple test workflow.
 """
 
-from phlo import ingestion as phlo_ingestion
+from phlo_dlt import phlo_ingestion
 from dlt.sources.rest_api import rest_api
-from pandera import DataFrameModel
+from pandera.pandas import DataFrameModel
 
 
 class TestSchema(DataFrameModel):

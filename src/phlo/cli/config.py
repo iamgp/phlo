@@ -170,7 +170,7 @@ def upgrade(force: bool):
         )
 
     console.print(f"[green]✓ Updated {config_path}[/green]")
-    console.print(f"Added infrastructure section with {len(default_infra.services)} services\n")
+    console.print("Added infrastructure section\n")
 
     clear_config_cache()
 

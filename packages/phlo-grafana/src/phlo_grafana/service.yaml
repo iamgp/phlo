@@ -20,6 +20,7 @@ compose:
     - "${GRAFANA_PORT:-3003}:3000"
   volumes:
     - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    - ./grafana/dashboards:/etc/grafana/dashboards:ro
     - ./volumes/grafana:/var/lib/grafana
   healthcheck:
     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
@@ -43,5 +44,7 @@ env_vars:
     secret: true
 
 files:
-  - source: provisioning/datasources/datasources.yml
-    dest: grafana/provisioning/datasources/datasources.yml
+  - source: provisioning
+    dest: grafana/provisioning
+  - source: dashboards
+    dest: grafana/dashboards

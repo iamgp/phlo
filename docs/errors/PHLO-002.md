@@ -43,7 +43,7 @@ class WeatherObservations(DataFrameModel):
     timestamp: datetime
 
 # ingestion/weather.py
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ✅ Matches schema field
     validation_schema=WeatherObservations,
 )
@@ -69,7 +69,7 @@ Suggested actions:
 Verify available fields in your schema:
 
 ```python
-from phlo.schemas.weather import WeatherObservations
+from workflows.schemas.weather import WeatherObservations
 import pandera as pa
 
 schema = WeatherObservations.to_schema()
@@ -94,7 +94,7 @@ unique_key="observation_id"
 ### ❌ Incorrect: Typo in unique_key
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_idd",  # ❌ Typo: extra 'd'
     validation_schema=WeatherObservations,
 )
@@ -105,7 +105,7 @@ def weather_observations(partition: str):
 ### ✅ Correct: Exact match
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ✅ Matches schema field exactly
     validation_schema=WeatherObservations,
 )
@@ -121,7 +121,7 @@ class WeatherObservations(DataFrameModel):
     temperature: float
     # ❌ No observation_id field
 
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ❌ Field doesn't exist
     validation_schema=WeatherObservations,
 )
@@ -137,7 +137,7 @@ class WeatherObservations(DataFrameModel):
     station_id: str
     temperature: float
 
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # ✅ Field exists in schema
     validation_schema=WeatherObservations,
 )
@@ -149,7 +149,7 @@ def weather_observations(partition: str):
 
 1. **List schema fields**
    ```python
-   from phlo.schemas.weather import WeatherObservations
+   from workflows.schemas.weather import WeatherObservations
    schema = WeatherObservations.to_schema()
    print(list(schema.columns.keys()))
    ```
@@ -203,9 +203,9 @@ def weather_observations(partition: str):
    UNIQUE_KEY = "observation_id"  # ✅ Define constant
 
    # ingestion/weather.py
-   from phlo.schemas.weather import WeatherObservations, UNIQUE_KEY
+   from workflows.schemas.weather import WeatherObservations, UNIQUE_KEY
 
-   @phlo.ingestion(
+   @phlo_ingestion(
        unique_key=UNIQUE_KEY,  # ✅ Use constant to avoid typos
        validation_schema=WeatherObservations,
    )
@@ -215,7 +215,7 @@ def weather_observations(partition: str):
    ```python
    # tests/test_schemas.py
    def test_unique_key_in_schema():
-       from phlo.schemas.weather import WeatherObservations
+       from workflows.schemas.weather import WeatherObservations
 
        schema = WeatherObservations.to_schema()
        assert "observation_id" in schema.columns

@@ -63,9 +63,9 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
 
 ## Step 2: Data Ingestion
 
-### Using @phlo.ingestion Decorator
+### Using @phlo_ingestion Decorator
 
-Phlo simplifies ingestion with the `@phlo.ingestion` decorator that handles validation, staging, and Iceberg merging:
+Phlo simplifies ingestion with the `@phlo_ingestion` decorator that handles validation, staging, and Iceberg merging:
 
 ```python
 # File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
@@ -74,7 +74,7 @@ import phlo
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -124,7 +124,7 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-**What the @phlo.ingestion decorator does automatically**:
+**What the @phlo_ingestion decorator does automatically**:
 1. Creates Dagster asset with daily partitioning
 2. Runs DLT pipeline to fetch and stage data to parquet
 3. Validates with RawGlucoseEntries Pandera schema
@@ -457,17 +457,17 @@ http://localhost:8088
 
 ## Step 8: Monitoring and Alerts
 
-### Quality Checks with @phlo.quality
+### Quality Checks with @phlo_quality
 
-Phlo provides two approaches for quality checks. The declarative `@phlo.quality` decorator:
+Phlo provides two approaches for quality checks. The declarative `@phlo_quality` decorator:
 
 ```python
 # File: examples/glucose-platform/workflows/quality/nightscout.py
 
 import phlo
-from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -479,7 +479,7 @@ from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
     blocking=True,
 )
 def glucose_readings_quality():
-    """Declarative quality checks for glucose readings using @phlo.quality."""
+    """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
 ```
 

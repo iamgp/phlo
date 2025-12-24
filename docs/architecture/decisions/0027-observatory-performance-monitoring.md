@@ -31,7 +31,7 @@ This implements `phlo-954: Observatory: Performance monitoring and budgets`.
 #### Installation
 
 ```bash
-cd services/observatory && npm install pino
+cd packages/phlo-observatory/src/phlo_observatory && npm install pino
 ```
 
 #### Logger Setup
@@ -188,21 +188,21 @@ export function withTimingBudget<T>(
 
 1. **Existing tests still pass**:
    ```bash
-   cd services/observatory && npm test
+   cd packages/phlo-observatory/src/phlo_observatory && npm test
    ```
 
 ### Manual Verification
 
 1. **Check structured logs appear**:
 
-   - Start Observatory: `cd services/observatory && npm run dev -- --port 3001`
+   - Start Observatory: `cd packages/phlo-observatory/src/phlo_observatory && npm run dev -- --port 3001`
    - Open browser to http://localhost:3001
    - Navigate to Data Explorer, select a table
    - Check terminal output for JSON logs with `fn`, `durationMs` fields
 
 2. **TypeScript/Lint checks**:
    ```bash
-   cd services/observatory && npm run check
+   cd packages/phlo-observatory/src/phlo_observatory && npm run check
    ```
 
 ## Beads

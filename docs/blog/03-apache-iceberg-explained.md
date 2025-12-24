@@ -58,7 +58,7 @@ Each write creates a new **snapshot**—a complete, immutable view of the table 
 
 ```python
 # In Python, using PyIceberg
-from phlo.iceberg.catalog import get_catalog
+from phlo_iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 table = catalog.load_table("raw.glucose_entries")
@@ -217,7 +217,7 @@ Reader queries same table (right now)
 **In Phlo's Code**:
 
 ```python
-# From defs/ingestion/dlt_assets.py
+# From workflows/ingestion/dlt_assets.py
 # Merge with idempotent deduplication
 
 merge_metrics = iceberg.merge_parquet(
@@ -259,21 +259,21 @@ WHERE sgv IS NOT NULL
 ```
 
 This dbt model:
-- Reads from Iceberg table `glucose_entries` (created by @phlo.ingestion)
+- Reads from Iceberg table `glucose_entries` (created by @phlo_ingestion)
 - Applies transformations
 - Writes to Iceberg table `bronze.stg_glucose_entries`
 - **All tracked as a snapshot**
 
-### Writing Data (with @phlo.ingestion)
+### Writing Data (with @phlo_ingestion)
 
-The `@phlo.ingestion` decorator handles Iceberg writes automatically:
+The `@phlo_ingestion` decorator handles Iceberg writes automatically:
 
 ```python
 # From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
 
 import phlo
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",  # Deduplicate on this column
     validation_schema=RawGlucoseEntries,
@@ -369,7 +369,7 @@ Note: Staging is temporary (cleaned up after merge). Only warehouse tables persi
 ```bash
 # Use Python to explore snapshots
 python3 << 'EOF'
-from phlo.iceberg.catalog import get_catalog
+from phlo_iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 table = catalog.load_table("glucose_entries")

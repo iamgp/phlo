@@ -90,7 +90,7 @@ Large datasets need splitting. Dagster partitions by time:
 
 ```python
 # Define daily partitions starting from a date
-from phlo.defs.partitions import daily_partition
+from phlo_dagster.partitions import daily_partition
 
 @dg.asset(
     partitions_def=daily_partition,
@@ -154,7 +154,7 @@ def nightscout_api_sensor():
 In Phlo's code:
 
 ```python
-# From src/phlo/defs/ingestion/dlt_assets.py
+# From workflows/ingestion/dlt_assets.py
 
 @dg.asset(
     partitions_def=daily_partition,
@@ -284,13 +284,13 @@ Analytics
 All dependencies auto-detected by Dagster:
 
 ```python
-# File: src/phlo/defs/ingestion/dlt_assets.py
+# File: workflows/ingestion/dlt_assets.py
 @dg.asset(name="dlt_glucose_entries")
 def entries() -> MaterializeResult:
     """Produces raw.glucose_entries"""
     pass
 
-# File: src/phlo/defs/transform/dbt.py
+# File: workflows/transform/dbt.py
 @dbt_assets(...)
 def all_dbt_assets(dbt: DbtCliResource):
     """
@@ -368,7 +368,7 @@ docker exec dagster-webserver dagster asset materialize \
 ### Via Python API
 
 ```python
-# From src/phlo/defs/...
+# From workflows/...
 
 from dagster import materialize
 
@@ -625,7 +625,7 @@ def dlt_glucose_entries() -> MaterializeResult:
 Phlo uses `phlo/config.py` for centralized config:
 
 ```python
-# src/phlo/config.py
+# phlo/config.py
 from pydantic_settings import BaseSettings
 
 class PhloConfig(BaseSettings):

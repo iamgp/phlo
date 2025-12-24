@@ -196,7 +196,7 @@ BRANCH_RETENTION_DAYS_FAILED=2
 **Manual cleanup script**:
 
 ```python
-from phlo.defs.resources.nessie import BranchManagerResource
+from phlo_nessie.resource import BranchManagerResource
 from datetime import datetime, timedelta
 
 branch_manager = BranchManagerResource()
@@ -249,7 +249,7 @@ SHOW STATS FOR bronze.events;
 **Optimize files**:
 
 ```python
-from phlo.iceberg import get_iceberg_table
+from phlo_iceberg import get_iceberg_table
 
 table = get_iceberg_table("bronze.events")
 
@@ -263,7 +263,7 @@ table.expire_snapshots(older_than=30)  # days
 **Automated maintenance**:
 
 ```python
-# src/phlo/defs/maintenance/iceberg.py
+# workflows/maintenance/iceberg.py
 from dagster import asset, schedule
 
 @asset

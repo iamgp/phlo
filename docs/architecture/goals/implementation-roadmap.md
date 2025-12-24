@@ -4,17 +4,17 @@ This document outlines what changes are needed to achieve the [DX goals](./plugi
 
 ## Key Architectural Changes
 
-1. **Observatory as core** - Move from plugin to bundled service
-2. **phlo-api backend** - New core service exposing phlo internals
+1. **Observatory as package** - Remains a service plugin (not core)
+2. **phlo-api backend** - Service plugin exposing phlo internals
 3. **Unified discovery** - Single flow for plugins and services
 4. **User service overrides** - Enable `phlo.yaml` customization
 5. **Remove phlo-fastapi** - Superseded by postgrest and phlo-api
 
 ---
 
-## Phase 0: Observatory as Core
+## Phase 0: Package-First Services
 
-The most significant change is moving **Observatory from a plugin to core**.
+The most significant change is keeping **Observatory and phlo-api as packages** while phlo core stays glue-only.
 
 ### Current State
 
@@ -28,86 +28,37 @@ Observatory is a Python package wrapper around a TanStack Start app, registered 
 ### Target State
 
 ```
-pip install phlo                  # Includes Observatory + phlo-api
-pip install phlo[defaults]        # + dagster, postgres, trino, nessie, minio
+pip install phlo                  # Core glue only
+pip install phlo-observatory      # UI package
+pip install phlo-api              # Backend for Observatory
 ```
 
-Observatory ships with phlo core, alongside a new `phlo-api` backend.
+Observatory and phlo-api ship as packages, discovered via service plugins.
 
 ### Changes Required
 
-#### 1. Move Observatory Source
+#### 1. Keep Observatory as a Service Package
 
-Keep source in `packages/phlo-observatory` but make it a **core service** (not a plugin):
+Maintain Observatory in `packages/phlo-observatory` with its own `service.yaml` and plugin entry point:
 
 ```
-src/phlo/core_services/
-├── observatory/
-│   └── service.yaml       # Points to packages/phlo-observatory for build context
-└── phlo-api/
-    ├── service.yaml
-    ├── Dockerfile
-    └── main.py            # FastAPI app
+packages/phlo-observatory/
+└── src/phlo_observatory/service.yaml
 ```
 
 #### 2. Update Service Discovery
 
-Modify `src/phlo/services/discovery.py` to:
+Modify `src/phlo/services/discovery.py` to load **only package services** from plugins.
 
-1. First load **core services** from `phlo/core_services/`
-2. Then load **package services** from plugins
+#### 3. Create phlo-api Backend Package
 
-```python
-class ServiceDiscovery:
-    def discover(self):
-        # Always load core services first
-        self._load_core_services()
+Implement the FastAPI service in `packages/phlo-api/src/phlo_api/` and expose service metadata via the service plugin.
 
-        # Then load plugin services
-        self._load_service_plugins()
-```
+#### 4. Keep Plugin Wrapper for Observatory
 
-#### 3. Create phlo-api Backend
+Observatory remains a plugin package with a `service.yaml` and entry point registration.
 
-A FastAPI service that exposes phlo internals:
-
-```python
-# src/phlo/core_services/phlo-api/main.py
-from fastapi import FastAPI
-from phlo.plugins.discovery import list_plugins
-from phlo.services.discovery import ServiceDiscovery
-
-app = FastAPI()
-
-@app.get("/api/plugins")
-def get_plugins():
-    return list_plugins()
-
-@app.get("/api/services")
-def get_services():
-    discovery = ServiceDiscovery()
-    return [s.name for s in discovery.discover().values()]
-
-@app.get("/api/config")
-def get_config():
-    # Read phlo.yaml and return
-    ...
-```
-
-#### 4. Remove Plugin Wrapper from Observatory
-
-Delete:
-
-- `packages/phlo-observatory/src/phlo_observatory/plugin.py`
-- Entry point registration in `pyproject.toml`
-
-Keep:
-
-- The TanStack Start app source
-- `service.yaml` (referenced from core)
-- `Dockerfile`
-
-#### 5. Add `[defaults]` Extra to pyproject.toml
+#### 5. Optional Defaults Extra
 
 ```toml
 [project.optional-dependencies]
@@ -298,11 +249,9 @@ Add `ServiceDefinition.from_inline()` and detect in CLI.
 ```
 $ phlo services list
 
-Core Services:
+Package Services (installed):
   ✓ observatory      Running    :3001   Phlo UI
   ✓ phlo-api         Running    :4000   Phlo API backend
-
-Package Services (installed):
   ✓ dagster          Running    :3000   Orchestration
   ✓ postgres         Running    :5432   Database
   ✗ superset         Disabled           (disabled in phlo.yaml)
@@ -331,7 +280,7 @@ Custom Services (phlo.yaml):
 
 | Phase | Description                     | Effort         |
 | ----- | ------------------------------- | -------------- |
-| **0** | Observatory as core + phlo-api  | 2-3 days       |
+| **0** | Package-first Observatory + phlo-api | 2-3 days   |
 | **1** | Unified discovery flow          | 1 day          |
 | **2** | Naming cleanup (Cascade → Phlo) | 0.5 days       |
 | **3** | User service overrides          | 2 days         |
@@ -360,7 +309,7 @@ This is correct and intentional. The JSON registry enables discoverability of un
 
 ### Unit Tests
 
-- `test_core_services_loaded_first()` - Core services before plugins
+- `test_service_discovery_plugins_only()` - Service discovery via plugins only
 - `test_service_override_merge()` - Verify config merging
 - `test_enabled_false_excludes_service()` - Verify disable logic
 - `test_inline_service_creation()` - Verify inline parsing

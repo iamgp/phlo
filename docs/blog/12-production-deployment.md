@@ -921,7 +921,7 @@ docker-compose --profile observability up -d
 # Available via Grafana Explore interface
 ```
 
-Grafana dashboards are pre-provisioned in `docker/grafana/dashboards/`:
+Grafana dashboards are pre-provisioned in `.phlo/grafana/dashboards/`:
 - Lakehouse overview
 - Dagster pipeline metrics
 - PostgreSQL database metrics

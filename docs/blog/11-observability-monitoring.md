@@ -181,7 +181,7 @@ $ phlo metrics export --format csv --period 30d --output metrics.csv
 Use structured logs for easy searching:
 
 ```python
-# phlo/defs/ingestion/dlt_assets.py
+# workflows/ingestion/dlt_assets.py
 import structlog
 
 logger = structlog.get_logger()

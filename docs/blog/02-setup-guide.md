@@ -91,7 +91,7 @@ If you want to run local commands (linting, type checking), install Python deps:
 
 ```bash
 # This is optional—services run in Docker anyway
-cd services/dagster
+cd packages/phlo-dagster
 uv pip install -e .
 cd ../..
 ```

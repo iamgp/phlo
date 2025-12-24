@@ -143,7 +143,7 @@ Add to `styles.css`:
 ### TypeScript/Lint
 
 ```bash
-cd services/observatory && npm run lint && npm run typecheck
+cd packages/phlo-observatory/src/phlo_observatory && npm run lint && npm run typecheck
 ```
 
 ## Beads

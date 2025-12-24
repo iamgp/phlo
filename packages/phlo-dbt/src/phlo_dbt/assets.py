@@ -7,7 +7,7 @@ from typing import Any
 import dagster as dg
 from dagster_dbt import DbtCliResource, dbt_assets
 from phlo.config import get_settings
-from phlo.dagster.partitions import daily_partition
+from phlo_dagster.partitions import daily_partition
 
 from phlo_dbt.translator import CustomDbtTranslator
 

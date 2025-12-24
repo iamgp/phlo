@@ -119,7 +119,7 @@
 * address AUDIT.md tasks 17-22 ([#10](https://github.com/iamgp/phlo/issues/10)) ([c3c7f16](https://github.com/iamgp/phlo/commit/c3c7f1604583a7415483c7c05b9354ea7657fdea))
 * clean up and reorganize documentation ([e5bb0f0](https://github.com/iamgp/phlo/commit/e5bb0f040786c7b2ddb4b1e07899262b7afc4ad5))
 * comprehensive usability audit with recommendations ([#22](https://github.com/iamgp/phlo/issues/22)) ([d0fa942](https://github.com/iamgp/phlo/commit/d0fa942ab11b435fff74f0207780743fad89fa70))
-* **examples:** add complete test examples using phlo.testing fixtures ([db86e99](https://github.com/iamgp/phlo/commit/db86e99531edcf8c635d281d433fb1209865b120))
+* **examples:** add complete test examples using phlo_testing fixtures ([db86e99](https://github.com/iamgp/phlo/commit/db86e99531edcf8c635d281d433fb1209865b120))
 * fix weather example to use DLT and add documentation index ([#15](https://github.com/iamgp/phlo/issues/15)) ([de1bcc2](https://github.com/iamgp/phlo/commit/de1bcc2d0ccd4299f21039ec3d9932bbfc4bdd88))
 * refactor README to follow best practices ([#25](https://github.com/iamgp/phlo/issues/25)) ([0b49d77](https://github.com/iamgp/phlo/commit/0b49d77f65f41fc717541dd11b34805b5fe14b7e))
 * remove license badge ([a1ce339](https://github.com/iamgp/phlo/commit/a1ce339b54e93ec04a6b27e5a5e3f5e1a4f50f07))

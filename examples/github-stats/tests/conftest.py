@@ -1,7 +1,7 @@
 """
 Pytest configuration and shared fixtures.
 
-This conftest imports phlo.testing fixtures so all tests can use mocked
+This conftest imports phlo_testing fixtures so all tests can use mocked
 resources without Docker dependencies.
 """
 
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-# Import phlo.testing fixtures - these provide mocked Iceberg, Trino, DLT
-from phlo.testing.fixtures import (
+# Import phlo_testing fixtures - these provide mocked Iceberg, Trino, DLT
+from phlo_testing.fixtures import (
     load_json_fixture,
     mock_asset_context,
     mock_dlt_source_fixture,

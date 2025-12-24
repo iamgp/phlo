@@ -7,9 +7,9 @@ from typing import Any, Literal
 
 import dagster as dg
 from pandera.pandas import DataFrameModel
-from phlo.dagster.partitions import daily_partition
+from phlo_dagster.partitions import daily_partition
 from phlo.exceptions import PhloConfigError
-from phlo.quality.pandera_asset_checks import (
+from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     evaluate_pandera_contract_parquet,
     pandera_contract_asset_check_result,

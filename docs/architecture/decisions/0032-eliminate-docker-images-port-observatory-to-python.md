@@ -49,7 +49,7 @@ Observatory uses TanStack Start with Nitro and has 17+ server function modules t
 
 ### Phase 1: Core Data Access
 
-New Python routers in `src/phlo/api/routers/`:
+New Python routers in `packages/phlo-api/src/phlo_api/observatory_api/`:
 
 - `trino.py` - Query execution, preview, column profiling
 - `iceberg.py` - Table listing, schema, metadata
@@ -69,7 +69,7 @@ Replace `createServerFn()` calls with `fetch('/api/...')` and remove Nitro depen
 
 ### Phase 4: Distribution
 
-Bundle Observatory's built SPA into the Python package and serve via phlo-api.
+Publish `phlo-api` and `phlo-observatory` as packages; Observatory consumes phlo-api endpoints.
 
 ## Consequences
 
@@ -77,7 +77,7 @@ Bundle Observatory's built SPA into the Python package and serve via phlo-api.
 
 - No Docker images needed for core services
 - No Node.js runtime dependency for users
-- Single `pip install phlo` gives everything
+- Install `phlo` + `phlo-api` + `phlo-observatory` for the full UI stack
 - Python-native backend (easier to extend)
 
 ### Negative

@@ -43,14 +43,14 @@ You'll see the existing glucose ingestion asset already defined!
 
 ## Step 3: Understand the Asset (2 minutes)
 
-Open `src/phlo/defs/ingestion/nightscout/glucose.py`:
+Open `workflows/ingestion/nightscout/glucose.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
 import phlo
-from phlo.schemas.glucose import RawGlucoseEntries
+from workflows.schemas.glucose import RawGlucoseEntries
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -83,7 +83,7 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-**Notice**: Only 60 lines! The `@phlo.ingestion` decorator handles:
+**Notice**: Only 60 lines! The `@phlo_ingestion` decorator handles:
 - DLT pipeline setup
 - Pandera validation
 - Iceberg table creation
@@ -151,7 +151,7 @@ In 10 minutes, you:
 4. Queried with SQL engines
 
 **Key Concepts**:
-- **Decorator-driven**: Minimal boilerplate with `@phlo.ingestion`
+- **Decorator-driven**: Minimal boilerplate with `@phlo_ingestion`
 - **Schema-first**: Pandera validates data quality
 - **Iceberg tables**: ACID transactions, time travel, schema evolution
 - **Multi-engine**: Query with Trino, DuckDB, Spark
@@ -160,7 +160,7 @@ In 10 minutes, you:
 
 ### Create Your Own Ingestion Asset (15 minutes)
 
-1. Define schema in `src/phlo/schemas/mydata.py`:
+1. Define schema in `workflows/schemas/mydata.py`:
 
 ```python
 import pandera as pa
@@ -176,14 +176,14 @@ class RawWeatherData(pa.DataFrameModel):
         coerce = True
 ```
 
-2. Create asset in `src/phlo/defs/ingestion/weather/observations.py`:
+2. Create asset in `workflows/ingestion/weather/observations.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
 import phlo
-from phlo.schemas.mydata import RawWeatherData
+from workflows.schemas.mydata import RawWeatherData
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="weather_observations",
     unique_key="timestamp",
     validation_schema=RawWeatherData,
@@ -210,11 +210,7 @@ def weather_observations(partition_date: str):
     return source
 ```
 
-3. Register domain in `src/phlo/defs/ingestion/__init__.py`:
-
-```python
-from phlo.defs.ingestion import weather  # noqa: F401
-```
+3. No manual registration is needed. Phlo discovers assets under `workflows/`.
 
 4. Restart Dagster:
 
@@ -270,15 +266,14 @@ make up-core up-query
 # Restart Dagster webserver
 docker restart dagster-webserver
 
-# Check import in defs/ingestion/__init__.py
-# Ensure domain is imported: from phlo.defs.ingestion import weather
+# Ensure asset file lives under workflows/ and imports cleanly
 ```
 
 **"Validation failed"**
 ```bash
 # Check schema matches your data types
 # Common issue: timestamp as datetime instead of string
-# Review Pandera schema in src/phlo/schemas/
+# Review Pandera schema in workflows/schemas/
 ```
 
 **"Permission denied in MinIO"**

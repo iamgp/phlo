@@ -64,7 +64,7 @@ github-stats/
 ├── .phlo/                      # Infrastructure config
 │   └── dagster/                # Dagster workspace
 ├── workflows/                  # Data workflows
-│   ├── ingestion/              # Ingestion assets (@phlo.ingestion)
+│   ├── ingestion/              # Ingestion assets (@phlo_ingestion)
 │   │   └── github/
 │   │       ├── user_profile.py # User profile snapshots (merge)
 │   │       ├── user_repos.py   # Repository metadata (merge)

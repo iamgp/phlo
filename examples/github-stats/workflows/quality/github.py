@@ -1,11 +1,10 @@
-"""Quality checks for GitHub data using @phlo.quality decorator.
+"""Quality checks for GitHub data using @phlo_quality decorator.
 
 Demonstrates phlo's declarative quality check framework with multiple check types
 including reconciliation checks for cross-table data validation.
 """
 
-import phlo
-from phlo.quality import (
+from phlo_quality import (
     AggregateConsistencyCheck,
     CountCheck,
     NullCheck,
@@ -14,11 +13,12 @@ from phlo.quality import (
     ReconciliationCheck,
     SchemaCheck,
     UniqueCheck,
+    phlo_quality,
 )
 from workflows.schemas.github import RawUserEvents
 
 
-@phlo.quality(
+@phlo_quality(
     table="raw.user_events",
     checks=[
         NullCheck(columns=["id", "type", "created_at"]),
@@ -34,7 +34,7 @@ def user_events_quality():
     pass
 
 
-@phlo.quality(
+@phlo_quality(
     table="raw.user_repos",
     checks=[
         NullCheck(columns=["id", "name", "created_at"]),
@@ -51,7 +51,7 @@ def user_repos_quality():
     pass
 
 
-@phlo.quality(
+@phlo_quality(
     table="raw.user_profile",
     checks=[
         NullCheck(columns=["id", "login"]),
@@ -76,7 +76,7 @@ def user_profile_quality():
 # =============================================================================
 
 
-@phlo.quality(
+@phlo_quality(
     table="gold.fct_github_events",
     checks=[
         # Verify row count matches staging layer (1:1 transform)
@@ -106,7 +106,7 @@ def events_reconciliation():
     pass
 
 
-@phlo.quality(
+@phlo_quality(
     table="gold.fct_daily_github_metrics",
     checks=[
         # Verify total_events aggregate matches source row count

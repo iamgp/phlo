@@ -316,7 +316,7 @@ class QualityCheckPlugin(Plugin, ABC):
 
     Example:
         ```python
-        from phlo.quality.checks import QualityCheck, QualityCheckResult
+        from phlo_quality.checks import QualityCheck, QualityCheckResult
 
         class BusinessRuleCheck(QualityCheckPlugin):
             @property

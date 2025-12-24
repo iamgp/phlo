@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pandas as pd
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
-from phlo.defs.resources.trino import TrinoResource
+from phlo_trino.resource import TrinoResource
 
 # Import the plugin - phlo-plugin-example must be installed
 try:

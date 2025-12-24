@@ -168,7 +168,7 @@ curl http://localhost:19120/api/v2/trees
 In Phlo, Dagster automatically creates `dev` branch:
 
 ```python
-# From src/phlo/defs/nessie/operations.py
+# From workflows/nessie/operations.py
 
 @asset(name="nessie_dev_branch")
 def create_dev_branch(nessie_client: NessieResource) -> None:
@@ -279,7 +279,7 @@ SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
 ### Using Branch in Code
 
 ```python
-from phlo.defs.resources.trino import TrinoResource
+from phlo_trino.resource import TrinoResource
 
 trino = TrinoResource()
 
@@ -427,7 +427,7 @@ curl -X DELETE "http://localhost:19120/api/v1/trees/branch/feature/new-metrics?e
 Or use the `NessieResource` in Python:
 
 ```python
-from phlo.defs.nessie import NessieResource
+from phlo_nessie.resource import NessieResource
 
 nessie = NessieResource()
 

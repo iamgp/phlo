@@ -183,53 +183,8 @@ class InfrastructureConfig(BaseModel):
 
 
 def get_default_infrastructure_config() -> InfrastructureConfig:
-    """Get default infrastructure configuration with all standard services."""
+    """Get default infrastructure configuration with no service overrides."""
     return InfrastructureConfig(
         container_naming_pattern="{project}-{service}-1",
-        services={
-            "dagster_webserver": ServiceConfig(
-                service_name="dagster-webserver",
-                host="localhost",
-                internal_host="dagster-webserver",
-            ),
-            "dagster_daemon": ServiceConfig(
-                service_name="dagster-daemon",
-                internal_host="dagster-daemon",
-            ),
-            "postgres": ServiceConfig(
-                service_name="postgres",
-                host="localhost",
-                internal_host="postgres",
-            ),
-            "minio": ServiceConfig(
-                service_name="minio",
-                host="localhost",
-                internal_host="minio",
-            ),
-            "nessie": ServiceConfig(
-                service_name="nessie",
-                host="localhost",
-                internal_host="nessie",
-            ),
-            "trino": ServiceConfig(
-                service_name="trino",
-                host="localhost",
-                internal_host="trino",
-            ),
-            "superset": ServiceConfig(
-                service_name="superset",
-                host="localhost",
-                internal_host="superset",
-            ),
-            "postgrest": ServiceConfig(
-                service_name="postgrest",
-                host="localhost",
-                internal_host="postgrest",
-            ),
-            "hasura": ServiceConfig(
-                service_name="hasura",
-                host="localhost",
-                internal_host="hasura",
-            ),
-        },
+        services={},
     )

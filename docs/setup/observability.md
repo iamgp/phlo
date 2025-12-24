@@ -94,7 +94,7 @@ Default credentials:
 - Pre-built dashboards:
   - **Phlo Overview** - Service health, errors, key metrics
   - **Infrastructure** - Detailed per-service metrics and logs
-- Custom dashboards stored in `docker/grafana/dashboards/`
+- Custom dashboards stored in `.phlo/grafana/dashboards/`
 
 ## Metrics
 
@@ -154,10 +154,10 @@ pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_r
 
 ### Creating Alerts
 
-Add alert rules to `docker/prometheus/alerts/` (create directory):
+Add alert rules to `.phlo/prometheus/alerts/` (create directory):
 
 ```yaml
-# docker/prometheus/alerts/phlo.yml
+# .phlo/prometheus/alerts/phlo.yml
 groups:
   - name: cascade_lakehouse
     interval: 30s
@@ -180,7 +180,7 @@ groups:
           summary: "High HTTP error rate detected"
 ```
 
-Then update `docker/prometheus/prometheus.yml`:
+Then update `.phlo/prometheus/prometheus.yml`:
 
 ```yaml
 rule_files:
@@ -218,7 +218,7 @@ rule_files:
 Dagster sensors emit structured logs that Loki automatically indexes:
 
 ```python
-# From src/phlo/defs/sensors/failure_monitoring.py
+# From workflows/sensors/failure_monitoring.py
 context.log.error(
     "Pipeline failure detected",
     extra={
@@ -260,7 +260,7 @@ Organized by service layer:
 2. Create Dashboard → Add Visualization
 3. Select datasource (Prometheus or Loki)
 4. Build query using visual builder or code
-5. Save dashboard to `docker/grafana/dashboards/my-dashboard.json`
+5. Save dashboard to `.phlo/grafana/dashboards/my-dashboard.json`
 
 Example query panel (Prometheus):
 
@@ -336,7 +336,7 @@ docker compose logs grafana
 Common issues:
 - **Permission errors**: Check volume permissions in `volumes/`
 - **Port conflicts**: Ensure ports 9090, 3100, 3001, 12345 are free
-- **Config errors**: Validate YAML syntax in `docker/prometheus/`, `docker/loki/`, `docker/alloy/`
+- **Config errors**: Validate YAML syntax in `.phlo/prometheus/`, `.phlo/loki/`, `.phlo/alloy/`
 
 ### No Metrics Appearing
 
@@ -391,7 +391,7 @@ GRAFANA_ADMIN_PASSWORD=<strong-password>
 ### Retention Tuning
 
 ```yaml
-# docker/prometheus/prometheus.yml
+# .phlo/prometheus/prometheus.yml
 global:
   # Reduce for less storage
   scrape_interval: 30s
@@ -402,7 +402,7 @@ command:
 ```
 
 ```yaml
-# docker/loki/loki-config.yml
+# .phlo/loki/loki-config.yml
 limits_config:
   retention_period: 168h  # 7 days instead of 30
 ```
@@ -418,7 +418,7 @@ alertmanager:
   ports:
     - "9093:9093"
   volumes:
-    - ./docker/alertmanager:/etc/alertmanager
+    - ./.phlo/alertmanager:/etc/alertmanager
 ```
 
 Configure routes for Slack, PagerDuty, email, etc.
@@ -498,5 +498,5 @@ Integrate with Dagster, Trino, and dbt for end-to-end trace visibility.
 For issues specific to Phlo observability:
 1. Check logs: `docker compose logs <service>`
 2. Verify health: `make health-observability`
-3. Review configurations in `docker/prometheus/`, `docker/loki/`, `docker/alloy/`
+3. Review configurations in `.phlo/prometheus/`, `.phlo/loki/`, `.phlo/alloy/`
 4. Consult upstream documentation for Prometheus, Loki, Grafana

@@ -410,7 +410,7 @@ WHERE DATE(reading_timestamp) = DATE('{{ var("partition_date_str") }}')
 Dagster passes partition date:
 
 ```python
-# From defs/transform/dbt.py
+# From workflows/transform/dbt.py
 
 if context.has_partition_key:
     partition_date = context.partition_key

@@ -32,8 +32,7 @@ PHLO_CONFIG_TEMPLATE = """# Phlo Project Configuration
 name: {name}
 description: "{description}"
 
-# Smart defaults are used for infrastructure (9 services: dagster, postgres, minio, etc.)
-# Override only what you need. For example:
+# Configure infrastructure overrides as needed. For example:
 #
 # infrastructure:
 #   services:
@@ -155,11 +154,20 @@ def get_project_name() -> str:
     return config.get("name", Path.cwd().name.lower().replace(" ", "-").replace("_", "-"))
 
 
+def _resolve_container_name(service_name: str, project_name: str) -> str:
+    """Resolve a service's container name using infra config or default pattern."""
+    from phlo.infrastructure import load_infrastructure_config
+
+    infra = load_infrastructure_config()
+    configured = infra.get_container_name(service_name, project_name)
+    if configured:
+        return configured
+    return infra.container_naming_pattern.format(project=project_name, service=service_name)
+
+
 def find_dagster_container(project_name: str) -> str:
     """Find the running Dagster webserver container for the project."""
-    from phlo.infrastructure import get_container_name
-
-    configured_name = get_container_name("dagster_webserver", project_name)
+    configured_name = _resolve_container_name("dagster", project_name)
     candidates = dagster_container_candidates(project_name, configured_name)
     preferred = [candidates.configured, candidates.new, candidates.legacy]
 
@@ -182,157 +190,90 @@ def find_dagster_container(project_name: str) -> str:
         f"Expected container name: {candidates.new} or {candidates.legacy}"
     )
 
+def _normalize_hook_entries(hooks: object) -> list[dict[str, object]]:
+    if hooks is None:
+        return []
+    if isinstance(hooks, list):
+        entries: list[dict[str, object]] = []
+        for item in hooks:
+            if isinstance(item, dict):
+                entries.append(item)
+            elif isinstance(item, list):
+                entries.append({"command": item})
+            elif isinstance(item, str):
+                entries.append({"command": [item]})
+        return entries
+    if isinstance(hooks, dict):
+        return [hooks]
+    return []
 
-def _init_nessie_branches(project_name: str) -> None:
-    """Initialize Nessie branches (main, dev) if they don't exist."""
-    import json
-    import time
 
-    container_name = f"{project_name}-nessie-1"
-    nessie_url = "http://localhost:19120"
-
-    # Wait for Nessie to be ready
-    for _ in range(30):
-        try:
-            result = run_command(
-                ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
-                timeout_seconds=5,
-                check=False,
-            )
-            if result.returncode == 0 and "references" in result.stdout:
-                break
-        except (FileNotFoundError, TimeoutExpired, OSError):
+def _format_hook_command(command: object, substitutions: dict[str, str]) -> list[str]:
+    if isinstance(command, str):
+        command = [command]
+    if not isinstance(command, list):
+        return []
+    formatted: list[str] = []
+    for item in command:
+        if not isinstance(item, str):
             continue
-        time.sleep(1)
-    else:
-        click.echo("Warning: Nessie not ready, skipping branch initialization", err=True)
+        formatted.append(item.format(**substitutions))
+    return formatted
+
+
+def _run_service_hooks(
+    hook_name: str,
+    service_names: list[str],
+    project_name: str,
+    project_root: Path,
+) -> None:
+    if not service_names:
         return
 
-    # Get existing branches
-    try:
-        result = run_command(
-            ["docker", "exec", container_name, "curl", "-s", f"{nessie_url}/api/v1/trees"],
-            timeout_seconds=10,
-        )
-        data = json.loads(result.stdout)
-        existing = {r["name"] for r in data.get("references", [])}
-    except (CommandError, json.JSONDecodeError, KeyError, TimeoutExpired, OSError) as e:
-        click.echo(f"Warning: Could not check Nessie branches: {e}", err=True)
-        return
+    from phlo.services.discovery import ServiceDiscovery
 
-    # Create dev branch from main if it doesn't exist
-    if "dev" not in existing and "main" in existing:
-        click.echo("Creating Nessie 'dev' branch from 'main'...")
-        try:
-            result = run_command(
-                [
-                    "docker",
-                    "exec",
-                    container_name,
-                    "curl",
-                    "-s",
-                    f"{nessie_url}/api/v1/trees/tree/main",
-                ],
-                timeout_seconds=10,
-            )
-            main_data = json.loads(result.stdout)
-            main_hash = main_data.get("hash", "")
+    discovery = ServiceDiscovery()
+    for name in service_names:
+        service = discovery.get_service(name)
+        if not service:
+            continue
+        hook_entries = _normalize_hook_entries(service.hooks.get(hook_name))
+        if not hook_entries:
+            continue
+        substitutions = {
+            "project_name": project_name,
+            "service_name": service.name,
+            "container_name": _resolve_container_name(service.name, project_name),
+            "project_root": str(project_root),
+        }
+        for hook in hook_entries:
+            required_module = hook.get("requires")
+            if isinstance(required_module, str):
+                import importlib.util
 
-            if main_hash:
-                result = run_command(
-                    [
-                        "docker",
-                        "exec",
-                        container_name,
-                        "curl",
-                        "-s",
-                        "-X",
-                        "POST",
-                        f"{nessie_url}/api/v1/trees/tree",
-                        "-H",
-                        "Content-Type: application/json",
-                        "-d",
-                        json.dumps({"type": "BRANCH", "name": "dev", "hash": main_hash}),
-                    ],
-                    timeout_seconds=10,
-                    check=False,
+                if importlib.util.find_spec(required_module) is None:
+                    continue
+            command = _format_hook_command(hook.get("command"), substitutions)
+            if not command:
+                continue
+            timeout = hook.get("timeout_seconds")
+            if isinstance(timeout, str) and timeout.isdigit():
+                timeout = int(timeout)
+            elif not isinstance(timeout, int):
+                timeout = None
+            try:
+                result = run_command(command, timeout_seconds=timeout, check=False)
+            except (CommandError, TimeoutExpired, OSError) as exc:
+                click.echo(
+                    f"Warning: hook '{hook_name}' for {service.name} failed: {exc}",
+                    err=True,
                 )
-                if "dev" in result.stdout:
-                    click.echo("Created Nessie 'dev' branch.")
-                else:
-                    click.echo(
-                        f"Warning: Could not create dev branch: {result.stdout}",
-                        err=True,
-                    )
-        except (CommandError, json.JSONDecodeError, TimeoutExpired, OSError) as e:
-            click.echo(f"Warning: Could not create dev branch: {e}", err=True)
-    elif "dev" in existing:
-        click.echo("Nessie branches ready (main, dev).")
-
-
-def _run_dbt_compile(project_name: str) -> None:
-    """Run dbt deps + compile to generate manifest.json for Dagster."""
-    import time
-
-    dbt_project = Path.cwd() / "transforms" / "dbt"
-    if not (dbt_project / "dbt_project.yml").exists():
-        return
-
-    click.echo("")
-    click.echo("Compiling dbt models...")
-
-    time.sleep(5)
-
-    container_name = find_dagster_container(project_name)
-
-    try:
-        result = run_command(
-            [
-                "docker",
-                "exec",
-                container_name,
-                "bash",
-                "-c",
-                "cd /app/transforms/dbt && dbt deps --profiles-dir profiles",
-            ],
-            timeout_seconds=60,
-            check=False,
-        )
-        if result.returncode != 0:
-            click.echo(f"Warning: dbt deps failed: {result.stderr}", err=True)
-
-        result = run_command(
-            [
-                "docker",
-                "exec",
-                container_name,
-                "bash",
-                "-c",
-                "cd /app/transforms/dbt && dbt compile --profiles-dir profiles --target dev",
-            ],
-            timeout_seconds=120,
-            check=False,
-        )
-        if result.returncode == 0:
-            click.echo("dbt models compiled successfully.")
-            click.echo("Restarting Dagster to pick up dbt manifest...")
-            run_command(
-                [
-                    "docker",
-                    "restart",
-                    container_name,
-                    f"{project_name}-dagster-daemon-1",
-                ],
-                timeout_seconds=30,
-                check=False,
-            )
-        else:
-            click.echo(f"Warning: dbt compile failed: {result.stderr}", err=True)
-            click.echo("You may need to run 'dbt compile' manually.", err=True)
-    except TimeoutExpired:
-        click.echo("Warning: dbt compile timed out.", err=True)
-    except (CommandError, OSError) as e:
-        click.echo(f"Warning: Could not compile dbt: {e}", err=True)
+                continue
+            if result.returncode != 0:
+                click.echo(
+                    f"Warning: hook '{hook_name}' for {service.name} failed: {result.stderr}",
+                    err=True,
+                )
 
 
 def get_phlo_dir() -> Path:
@@ -581,7 +522,10 @@ def init(
     all_services = discovery.discover()
 
     if not all_services:
-        click.echo("Error: No services found. Check services/ directory.", err=True)
+        click.echo(
+            "Error: No services found. Install service plugins or check entry points.",
+            err=True,
+        )
         sys.exit(1)
 
     # Load existing phlo.yaml config for user overrides
@@ -664,13 +608,7 @@ def init(
     click.echo("Next steps:")
     click.echo("  1. Review .phlo/.env and adjust settings if needed")
     click.echo("  2. Run: phlo services start")
-    click.echo("  3. Access services:")
-    click.echo("     - Dagster:     http://localhost:3000")
-    click.echo("     - Observatory: http://localhost:3001")
-    click.echo("     - Superset:    http://localhost:8088")
-    click.echo("     - Trino:       http://localhost:8080")
-    click.echo("     - MinIO:       http://localhost:9001")
-    click.echo("     - pgweb:       http://localhost:8081")
+    click.echo("  3. Inspect services with: phlo services list")
 
 
 @services.command("list")
@@ -997,32 +935,31 @@ def start(
                         signal.signal(signal.SIGTERM, old_sigterm)
                     return
 
+            started_services: list[str] = []
+            if not skip_docker_compose:
+                try:
+                    compose_config = yaml.safe_load(compose_file.read_text()) or {}
+                except (OSError, yaml.YAMLError):
+                    compose_config = {}
+                compose_service_names = list((compose_config.get("services") or {}).keys())
+                if docker_services_list:
+                    started_services = [
+                        name for name in docker_services_list if name in compose_service_names
+                    ]
+                else:
+                    started_services = compose_service_names
+
+            _run_service_hooks(
+                "post_start",
+                started_services,
+                project_name=project_name,
+                project_root=Path.cwd(),
+            )
+
             click.echo("")
             click.echo("Phlo infrastructure started.")
-            click.echo("")
-            click.echo("Services:")
-            click.echo("  - Dagster:     http://localhost:3000")
-            click.echo("  - Observatory: http://localhost:3001")
-            click.echo("  - Superset:    http://localhost:8088")
-            click.echo("  - Trino:       http://localhost:8080")
-            click.echo("  - MinIO:       http://localhost:9001")
-            click.echo("  - pgweb:       http://localhost:8081")
-
-            if "observability" in profile:
-                click.echo("")
-                click.echo("Observability:")
-                click.echo("  - Prometheus: http://localhost:9090")
-                click.echo("  - Grafana:    http://localhost:3003")
-                click.echo("  - Loki:       http://localhost:3100")
-
-            if "api" in profile:
-                click.echo("")
-                click.echo("API:")
-                click.echo("  - PostgREST: http://localhost:3002")
-                click.echo("  - Hasura:    http://localhost:8082")
-
-            _init_nessie_branches(project_name)
-            _run_dbt_compile(project_name)
+            if started_services:
+                click.echo(f"Services running: {', '.join(sorted(started_services))}")
         else:
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
             click.echo(f"Command: {' '.join(cmd)}", err=True)
@@ -1477,8 +1414,7 @@ def add_service(service_name: str, no_start: bool):
 def remove_service(service_name: str, keep_running: bool):
     """Remove a service from the project.
 
-    This removes the service from your configuration. Core services
-    cannot be removed as they are required for the lakehouse to function.
+    This removes the service from your configuration.
 
     Examples:
         phlo services remove prometheus
@@ -1510,13 +1446,6 @@ def remove_service(service_name: str, keep_running: bool):
         sys.exit(1)
 
     service = all_services[service_name]
-
-    # Prevent removing core default services
-    core_services = {"postgres", "minio", "nessie", "trino", "dagster", "dagster-daemon"}
-    if service_name in core_services:
-        click.echo(f"Error: Cannot remove core service '{service_name}'.", err=True)
-        click.echo("Core services are required for the lakehouse to function.", err=True)
-        sys.exit(1)
 
     # Stop the service first if running
     if not keep_running:

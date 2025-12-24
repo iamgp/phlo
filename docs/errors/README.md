@@ -34,16 +34,14 @@ Errors related to asset discovery, configuration, and setup.
 Dagster cannot discover your asset definitions.
 
 **Common causes:**
-- Asset not imported in definitions.py
+- Asset outside the workflows path
 - Missing decorator
 - Import errors in asset module
 
 **Quick fix:**
 ```python
-# definitions.py
-from phlo.defs.ingestion.weather.observations import weather_observations
-
-defs = dg.Definitions(assets=[weather_observations])
+from phlo.framework.definitions import defs
+assert len(list(defs.assets or [])) > 0
 ```
 
 [**Full Documentation →**](./PHLO-001.md)
@@ -63,7 +61,7 @@ Mismatch between decorator configuration and Pandera schema.
 **Quick fix:**
 ```python
 # Verify unique_key matches schema field
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",  # Must match schema field exactly
     validation_schema=WeatherObservations,
 )
@@ -86,7 +84,7 @@ Invalid or malformed cron schedule expression.
 **Quick fix:**
 ```python
 # Use standard 5-field cron format
-@phlo.ingestion(
+@phlo_ingestion(
     cron="0 */1 * * *",  # minute hour day month weekday
     ...
 )
@@ -131,9 +129,9 @@ Validation schema not provided to decorator.
 
 **Quick fix:**
 ```python
-from phlo.schemas.weather import WeatherObservations
+from workflows.schemas.weather import WeatherObservations
 
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",
     validation_schema=WeatherObservations,  # ✅ Required
 )
@@ -187,7 +185,7 @@ Iceberg table not found in catalog.
 **Quick fix:**
 ```python
 # Verify table exists in Iceberg catalog
-from phlo.iceberg.catalog import get_catalog
+from phlo_iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 tables = catalog.list_tables("bronze")
@@ -459,7 +457,7 @@ raise PhloSchemaError(
 Use Dagster context for logging:
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def my_asset(partition: str, context):
     try:
         data = fetch_data(partition)

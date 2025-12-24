@@ -28,34 +28,6 @@ def _to_pascal_case(name: str) -> str:
     return "".join(word.capitalize() for word in words)
 
 
-def _is_user_project(project_root: Path) -> bool:
-    """
-    Detect if this is a user project or the Phlo repository.
-
-    Returns:
-        True if user project, False if Phlo repo
-    """
-    # User projects have workflows/ directory but not src/phlo/
-    has_workflows = (project_root / "workflows").exists()
-    has_cascade_src = (project_root / "src" / "phlo").exists()
-
-    # If both exist, prefer user project mode
-    if has_workflows and not has_cascade_src:
-        return True
-    elif has_workflows and has_cascade_src:
-        # Both exist - check pyproject.toml to determine
-        pyproject = project_root / "pyproject.toml"
-        if pyproject.exists():
-            content = pyproject.read_text()
-            # User projects have "phlo" as a dependency
-            # Phlo repo has name = "phlo"
-            if 'name = "phlo"' in content:
-                return False  # Phlo repo
-        return True  # User project
-    else:
-        return False  # Phlo repo
-
-
 @dataclass(frozen=True, slots=True)
 class FieldSpec:
     name: str
@@ -138,9 +110,7 @@ def create_ingestion_workflow(
     """
     Create ingestion workflow files.
 
-    Automatically detects project type:
-    - User project: Creates files in workflows/
-    - Phlo repo: Creates files in src/phlo/defs/
+    Creates files in workflows/ and tests/ for the current project.
 
     Args:
         domain: Domain name (e.g., "weather", "stripe")
@@ -164,22 +134,11 @@ def create_ingestion_workflow(
 
     project_root = Path.cwd()
 
-    # Detect project type
-    is_user_project = _is_user_project(project_root)
-
-    # Define paths based on project type
-    if is_user_project:
-        # User project mode - use workflows/
-        schema_dir = project_root / "workflows" / "schemas"
-        asset_dir = project_root / "workflows" / "ingestion" / domain_snake
-        test_dir = project_root / "tests"
-        schema_import_path = f"workflows.schemas.{domain_snake}"
-    else:
-        # Phlo repo mode - use src/phlo/defs/
-        schema_dir = project_root / "src" / "phlo" / "schemas"
-        asset_dir = project_root / "src" / "phlo" / "defs" / "ingestion" / domain_snake
-        test_dir = project_root / "tests"
-        schema_import_path = f"phlo.schemas.{domain_snake}"
+    # Phlo core no longer owns workflow modules; always scaffold into workflows/.
+    schema_dir = project_root / "workflows" / "schemas"
+    asset_dir = project_root / "workflows" / "ingestion" / domain_snake
+    test_dir = project_root / "tests"
+    schema_import_path = f"workflows.schemas.{domain_snake}"
 
     schema_file = schema_dir / f"{domain_snake}.py"
     asset_file = asset_dir / f"{table_snake}.py"
@@ -260,11 +219,11 @@ Ingests {table_name} from a REST API via `dlt.sources.rest_api`.
 
 from dlt.sources.rest_api import rest_api
 
-import phlo
+from phlo_dlt import phlo_ingestion
 from {schema_import_path} import {schema_class}
 
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="{table_name}",
     unique_key="{unique_key}",
     validation_schema={schema_class},

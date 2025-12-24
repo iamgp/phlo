@@ -8,12 +8,12 @@ Copy a template and customize it for your use case:
 
 ```bash
 # Example: Create a new weather ingestion workflow
-cp templates/ingestion/rest_api.py src/phlo/defs/ingestion/weather/observations.py
-cp templates/schemas/example_schema.py src/phlo/schemas/weather.py
+cp templates/ingestion/rest_api.py workflows/ingestion/weather/observations.py
+cp templates/schemas/example_schema.py workflows/schemas/weather.py
 cp templates/tests/test_ingestion.py tests/test_weather_ingestion.py
 
 # Edit the files and replace TODOs
-# Then register the domain in src/phlo/defs/ingestion/__init__.py
+# No manual registration needed; Phlo auto-discovers workflows/
 ```
 
 ## Available Templates
@@ -60,13 +60,13 @@ Select the template that matches your workflow type:
 
 ```bash
 # Create domain directory
-mkdir -p src/phlo/defs/ingestion/your_domain
+mkdir -p workflows/ingestion/your_domain
 
 # Copy template
-cp templates/ingestion/rest_api.py src/phlo/defs/ingestion/your_domain/your_asset.py
+cp templates/ingestion/rest_api.py workflows/ingestion/your_domain/your_asset.py
 
 # Copy schema template
-cp templates/schemas/example_schema.py src/phlo/schemas/your_domain.py
+cp templates/schemas/example_schema.py workflows/schemas/your_domain.py
 ```
 
 ### 3. Customize
@@ -80,15 +80,7 @@ cp templates/schemas/example_schema.py src/phlo/schemas/your_domain.py
    - Unique keys
    - Schedules
 
-### 4. Register Domain
-
-Add import to `src/phlo/defs/ingestion/__init__.py`:
-
-```python
-from phlo.defs.ingestion import your_domain  # noqa: F401
-```
-
-### 5. Test and Run
+### 4. Test and Run
 
 ```bash
 # Restart Dagster

@@ -166,9 +166,9 @@ class FactGlucoseReadings(DataFrameModel):
         coerce = True
 ```
 
-### Using Pandera in @phlo.ingestion
+### Using Pandera in @phlo_ingestion
 
-The `@phlo.ingestion` decorator automatically validates data with Pandera schemas:
+The `@phlo_ingestion` decorator automatically validates data with Pandera schemas:
 
 ```python
 # File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
@@ -177,7 +177,7 @@ import phlo
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,  # Automatic validation
@@ -323,19 +323,19 @@ dbt test --select stg_glucose_entries --debug
 
 ## Layer 3: Dagster Asset Checks (Runtime)
 
-After orchestration, Dagster asset checks monitor data quality in production. Phlo provides **two approaches**: the declarative `@phlo.quality` decorator and traditional `@asset_check` for custom logic.
+After orchestration, Dagster asset checks monitor data quality in production. Phlo provides **two approaches**: the declarative `@phlo_quality` decorator and traditional `@asset_check` for custom logic.
 
-### Approach 1: @phlo.quality Decorator (Declarative)
+### Approach 1: @phlo_quality Decorator (Declarative)
 
-For common checks (null, range, freshness), use the `@phlo.quality` decorator to reduce boilerplate by 70-80%:
+For common checks (null, range, freshness), use the `@phlo_quality` decorator to reduce boilerplate by 70-80%:
 
 ```python
 # File: examples/glucose-platform/workflows/quality/nightscout.py
 
 import phlo
-from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -347,11 +347,11 @@ from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
     blocking=True,
 )
 def glucose_readings_quality():
-    """Declarative quality checks for glucose readings using @phlo.quality."""
+    """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
 
 
-@phlo.quality(
+@phlo_quality(
     table="gold.fct_daily_glucose_metrics",
     checks=[
         NullCheck(columns=["reading_date", "reading_count", "avg_glucose_mg_dl"]),
@@ -374,7 +374,7 @@ For complex validation with Pandera schemas or custom business logic:
 # File: examples/glucose-platform/workflows/quality/nightscout.py
 
 from dagster import AssetCheckResult, AssetKey, asset_check
-from phlo.defs.resources.trino import TrinoResource
+from phlo_trino.resource import TrinoResource
 from workflows.schemas.nightscout import FactGlucoseReadings
 import pandera.errors
 
@@ -496,7 +496,7 @@ Asset: fct_glucose_readings
 
 Both approaches are used in the actual Phlo implementation and serve different purposes:
 
-### @phlo.quality: Declarative (10 lines)
+### @phlo_quality: Declarative (10 lines)
 
 Best for standard checks - reduces boilerplate by 70-80%:
 
@@ -504,9 +504,9 @@ Best for standard checks - reduces boilerplate by 70-80%:
 # File: examples/glucose-platform/workflows/quality/nightscout.py
 
 import phlo
-from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -553,7 +553,7 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
         return AssetCheckResult(passed=False, metadata={...})
 ```
 
-**Both approaches are valid** - use `@phlo.quality` for common checks, `@asset_check` for complex logic.
+**Both approaches are valid** - use `@phlo_quality` for common checks, `@asset_check` for complex logic.
 
 ### Available Check Types
 
@@ -624,7 +624,7 @@ CustomSQLCheck(
 ### Decorator Parameters
 
 ```python
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",  # Fully qualified table name
     checks=[...],                          # List of check instances
     group="glucose",                       # Asset group (optional)
@@ -647,10 +647,10 @@ CustomSQLCheck(
 For complex validation, combine the decorator with Pandera:
 
 ```python
-from phlo.quality import SchemaCheck
+from phlo_quality import SchemaCheck
 from workflows.schemas.glucose import FactGlucoseReadings
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         # Use Pandera for full schema validation
@@ -668,15 +668,15 @@ def glucose_comprehensive_quality():
 
 | Scenario | Recommended Approach | Example |
 |----------|---------------------|---------|
-| Standard null/range/freshness checks | `@phlo.quality` decorator | `NullCheck`, `RangeCheck`, `FreshnessCheck` |
+| Standard null/range/freshness checks | `@phlo_quality` decorator | `NullCheck`, `RangeCheck`, `FreshnessCheck` |
 | Full Pandera schema validation | Traditional `@asset_check` | `FactGlucoseReadings.validate()` |
 | Complex business logic | Traditional `@asset_check` | Custom distribution checks |
 | Statistical analysis | Traditional `@asset_check` | Outlier detection |
-| Multiple simple checks | `@phlo.quality` decorator | Combine `NullCheck` + `RangeCheck` |
+| Multiple simple checks | `@phlo_quality` decorator | Combine `NullCheck` + `RangeCheck` |
 | Custom error handling | Traditional `@asset_check` | Detailed failure reporting |
 
 **Real-world usage in examples/glucose-platform**:
-- `@phlo.quality`: `glucose_readings_quality()`, `daily_metrics_quality()` - standard checks
+- `@phlo_quality`: `glucose_readings_quality()`, `daily_metrics_quality()` - standard checks
 - `@asset_check`: `nightscout_glucose_quality_check()` - full Pandera validation with custom error handling
 
 Both approaches are valid and complement each other. The decorator handles common cases efficiently, while traditional checks provide full control for complex scenarios.

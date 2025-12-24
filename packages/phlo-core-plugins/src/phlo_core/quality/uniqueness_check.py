@@ -1,7 +1,7 @@
 """Uniqueness check plugin."""
 
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo.quality.checks import UniqueCheck
+from phlo_quality.checks import UniqueCheck
 
 
 class UniquenessCheckPlugin(QualityCheckPlugin):

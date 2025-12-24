@@ -101,7 +101,7 @@ def main():
     print("  To get the metadata location, run inside Docker:")
     print("  -------------------------------------------------------")
     print('  docker compose exec dagster-webserver python -c "')
-    print("  from phlo.iceberg.catalog import get_catalog")
+    print("  from phlo_iceberg.catalog import get_catalog")
     print("  table = get_catalog(ref='main').load_table('raw.entries')")
     print("  print(table.metadata_location)")
     print('  "')
@@ -127,7 +127,7 @@ def main():
                 "dagster-webserver",
                 "python",
                 "-c",
-                "from phlo.iceberg.catalog import get_catalog; "
+                "from phlo_iceberg.catalog import get_catalog; "
                 "table = get_catalog(ref='main').load_table('raw.entries'); "
                 "print(table.metadata_location)",
             ],

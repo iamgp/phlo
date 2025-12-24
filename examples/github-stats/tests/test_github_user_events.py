@@ -1,7 +1,7 @@
 """
 Tests for github user_events workflow.
 
-Demonstrates phlo.testing fixtures for testing ingestion workflows
+Demonstrates phlo_testing fixtures for testing ingestion workflows
 without Docker dependencies.
 """
 
@@ -94,7 +94,7 @@ class TestSchemaValidation:
 
 
 class TestWithFixtures:
-    """Tests demonstrating phlo.testing fixtures."""
+    """Tests demonstrating phlo_testing fixtures."""
 
     def test_with_partition_date(self, sample_partition_date):
         """Test using sample_partition_date fixture."""

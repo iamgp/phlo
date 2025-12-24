@@ -102,11 +102,12 @@ See [implementation-roadmap.md](../goals/implementation-roadmap.md) for detailed
 
 ```
 CORE (bundled with pip install phlo):
-├── phlo library (CLI, decorators, config)
-├── Observatory (the Phlo UI)
-└── phlo-api (backend for Observatory)
+├── phlo library (CLI, config, framework glue)
+└── plugin discovery + service orchestration
 
 PACKAGES (swappable, installed separately):
+├── phlo-observatory
+├── phlo-api
 ├── phlo-dagster / phlo-airflow
 ├── phlo-postgres / phlo-mysql
 ├── phlo-trino / phlo-duckdb
@@ -121,16 +122,13 @@ PACKAGES (swappable, installed separately):
 
 | Action | Path                                                                |
 | ------ | ------------------------------------------------------------------- |
-| Create | `src/phlo/core_services/observatory/service.yaml`                   |
-| Create | `src/phlo/core_services/phlo-api/`                                  |
-| Move   | `src/phlo/plugins/discovery.py` → `src/phlo/discovery/plugins.py`   |
-| Move   | `src/phlo/services/discovery.py` → `src/phlo/discovery/services.py` |
-| Update | `src/phlo/config_schema.py` - Add `ServiceOverride` model           |
+| Create | `packages/phlo-observatory/src/phlo_observatory/service.yaml`       |
+| Create | `packages/phlo-api/`                                                |
+| Update | `src/phlo/services/discovery.py` - Plugin-only service discovery    |
 | Update | `src/phlo/services/composer.py` - Apply user overrides              |
-| Update | `pyproject.toml` - Add `[defaults]` extra                           |
-| Delete | `packages/phlo-fastapi/`                                            |
-| Delete | `packages/phlo-observatory/src/phlo_observatory/plugin.py`          |
-| Update | Various - Replace "Cascade" with "Phlo"                             |
+| Update | `src/phlo/config_schema.py` - Add `ServiceOverride` model           |
+| Update | `pyproject.toml` - Workspace packages for services                  |
+| Delete | `src/phlo/core_services/`                                           |
 
 ## Consequences
 

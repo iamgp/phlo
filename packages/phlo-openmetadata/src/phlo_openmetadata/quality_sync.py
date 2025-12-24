@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from phlo_openmetadata.openmetadata import OpenMetadataClient
 
-from phlo.quality.checks import (
+from phlo_quality.checks import (
     CountCheck,
     CustomSQLCheck,
     FreshnessCheck,

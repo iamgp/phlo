@@ -193,29 +193,28 @@ async function loadNativeProcesses(): Promise<
   }
 }
 
-// Get the services directory path
-// In Docker: /app/services
-// Locally: process.cwd() is services/observatory/, parent is services/
-const getServicesPath = (): string => {
-  if (process.env.SERVICES_PATH) {
-    return process.env.SERVICES_PATH
+// Get the packages directory path for local fallback discovery.
+// In Docker dev: /app/packages
+// Locally: process.cwd() is packages/phlo-observatory/src/phlo_observatory
+const getPackagesPath = (): string => {
+  if (process.env.PHLO_PACKAGES_PATH) {
+    return process.env.PHLO_PACKAGES_PATH
   }
-  // Check if running in Docker
-  const dockerPath = '/app/services'
+  const dockerPath = '/app/packages'
   if (existsSync(dockerPath)) {
     return dockerPath
   }
-  // Local development: cwd is services/observatory/, go up one level to services/
-  const localPath = join(process.cwd(), '..')
-  if (existsSync(join(localPath, 'core'))) {
-    return localPath
+  const localRoot = join(process.cwd(), '..', '..', '..')
+  const localPackagesPath = join(localRoot, 'packages')
+  if (existsSync(localPackagesPath)) {
+    return localPackagesPath
   }
-  // Fallback: maybe cwd is project root
-  const projectServicesPath = join(process.cwd(), 'services')
-  if (existsSync(projectServicesPath)) {
-    return projectServicesPath
+  const projectRoot = phloProjectPath ?? process.cwd()
+  const projectPackages = join(projectRoot, 'packages')
+  if (existsSync(projectPackages)) {
+    return projectPackages
   }
-  return localPath
+  return localRoot
 }
 
 // Path to .env file
@@ -227,7 +226,7 @@ const getEnvPath = (): string => {
   if (existsSync(dockerPath)) {
     return dockerPath
   }
-  // Local: .env is at project root (parent of services/)
+  // Local: .env is at project root (parent of packages/)
   const localPath = join(process.cwd(), '..', '..', '.env')
   if (existsSync(localPath)) {
     return localPath
@@ -322,45 +321,15 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     return cliServices
   }
 
-  const servicesPath = getServicesPath()
+  const packagesPath = getPackagesPath()
   const services: Array<ServiceDefinition> = []
 
-  // Known category directories that contain service subdirectories
-  const categoryDirs = ['admin', 'api', 'bi', 'core', 'observability']
-
   try {
-    const entries = await readdir(servicesPath)
-
-    for (const entry of entries) {
-      // Skip hidden entries and non-relevant directories
-      if (entry.startsWith('.') || entry === 'node_modules') {
-        continue
-      }
-
-      const entryPath = join(servicesPath, entry)
-
-      // Check if this is a category directory (contains service subdirs)
-      if (categoryDirs.includes(entry)) {
-        try {
-          const serviceNames = await readdir(entryPath)
-          for (const serviceName of serviceNames) {
-            if (serviceName.startsWith('.')) continue
-            const yamlPath = join(entryPath, serviceName, 'service.yaml')
-            const service = await parseServiceYaml(yamlPath)
-            if (service) {
-              services.push(service)
-            }
-          }
-        } catch {
-          // Directory read failed, skip it
-        }
-      } else {
-        // Check if this directory has a direct service.yaml (like observatory)
-        const directYaml = join(entryPath, 'service.yaml')
-        const service = await parseServiceYaml(directYaml)
-        if (service) {
-          services.push(service)
-        }
+    const yamlFiles = await findServiceYamlFiles(packagesPath)
+    for (const yamlPath of yamlFiles) {
+      const service = await parseServiceYaml(yamlPath)
+      if (service) {
+        services.push(service)
       }
     }
   } catch (error) {
@@ -374,6 +343,30 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     }
     return a.name.localeCompare(b.name)
   })
+}
+
+async function findServiceYamlFiles(root: string): Promise<Array<string>> {
+  const results: Array<string> = []
+  const entries = await readdir(root, { withFileTypes: true })
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) {
+      continue
+    }
+    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'build') {
+      continue
+    }
+    const entryPath = join(root, entry.name)
+    if (entry.isDirectory()) {
+      results.push(...(await findServiceYamlFiles(entryPath)))
+      continue
+    }
+    if (entry.isFile() && entry.name === 'service.yaml') {
+      results.push(entryPath)
+    }
+  }
+
+  return results
 }
 
 async function discoverServicesFromContainers(): Promise<

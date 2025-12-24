@@ -773,26 +773,25 @@ const { data } = await client.query({
 
 ### Adding New Endpoints
 
-1. **Create router** in `services/api/app/routers/my_endpoint.py`
-2. **Add connector** if new data source in `services/api/app/connectors/`
-3. **Define schemas** in `services/api/app/models/schemas.py`
-4. **Register router** in `services/api/app/main.py`
+1. **Create router** in `packages/phlo-api/src/phlo_api/observatory_api/my_endpoint.py`
+2. **Add connector** or client in `packages/phlo-api/src/phlo_api/observatory_api/`
+3. **Define schemas** in `packages/phlo-api/src/phlo_api/observatory_api/`
+4. **Register router** in `packages/phlo-api/src/phlo_api/main.py`
 
 **Example:**
 ```python
-# services/api/app/routers/weather.py
+# packages/phlo-api/src/phlo_api/observatory_api/weather.py
 from fastapi import APIRouter
-from app.auth.dependencies import CurrentUser
 
 router = APIRouter(prefix="/weather", tags=["Weather"])
 
 @router.get("/forecast")
-async def get_forecast(current_user: CurrentUser):
+async def get_forecast():
     return {"forecast": "sunny"}
 
-# services/api/app/main.py
-from app.routers import weather
-app.include_router(weather.router, prefix=settings.api_prefix)
+# packages/phlo-api/src/phlo_api/main.py
+from phlo_api.observatory_api import weather
+app.include_router(weather.router)
 ```
 
 ### Adding Hasura Tables

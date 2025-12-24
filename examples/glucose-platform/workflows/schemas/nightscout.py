@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from pandera.pandas import Field
-from phlo.schemas import PhloSchema, dbt_model_to_pandera
+from phlo_quality.schemas import PhloSchema, dbt_model_to_pandera
 
 # Validation constants
 VALID_DIRECTIONS = [

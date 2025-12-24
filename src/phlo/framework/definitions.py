@@ -4,14 +4,12 @@ Framework Definitions
 This module provides the main Dagster Definitions entry point for user projects.
 It discovers user workflows and merges them with core Phlo framework resources.
 
-This is the new entry point for user projects using Phlo as an installable package.
-For the legacy in-package mode, use phlo.definitions instead.
+This is the entry point for user projects using Phlo as an installable package.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 import platform
 from pathlib import Path
 
@@ -73,7 +71,6 @@ def _default_executor() -> dg.ExecutorDefinition | None:
 
 def build_definitions(
     workflows_path: Path | str | None = None,
-    include_core_assets: bool = False,
 ) -> dg.Definitions:
     """
     Build Dagster definitions by merging user workflows with framework resources.
@@ -82,15 +79,11 @@ def build_definitions(
     1. Loads configuration
     2. Discovers user workflows from workflows_path
     3. Loads core Phlo resources
-    4. Optionally loads core Phlo assets (examples)
-    5. Merges everything together
+    4. Merges everything together
 
     Args:
         workflows_path: Path to user workflows directory. If None, uses
             configuration value (default: "workflows")
-        include_core_assets: Whether to include core Phlo example assets
-            (default: False). Set to True for development/testing.
-
     Returns:
         Merged Dagster Definitions
 
@@ -107,8 +100,7 @@ def build_definitions(
         # Custom workflows path
         defs = build_definitions(workflows_path="custom_workflows")
 
-        # Include core examples for reference
-        defs = build_definitions(include_core_assets=True)
+        defs = build_definitions()
         ```
     """
     settings = get_settings()
@@ -133,15 +125,6 @@ def build_definitions(
 
     # Definitions provided by installed Dagster extension plugins (and user modules)
     definitions_to_merge = [user_defs]
-
-    if include_core_assets:
-        logger.info("Including core Phlo example assets")
-        try:
-            from phlo.definitions import defs as core_defs
-
-            definitions_to_merge.append(core_defs)
-        except ImportError as exc:
-            logger.warning(f"Could not import core definitions: {exc}")
 
     # Merge all definitions
     merged = dg.Definitions.merge(*definitions_to_merge)
@@ -175,13 +158,5 @@ def build_definitions(
     return final_defs
 
 
-# Environment variable to control whether to include core assets
-_INCLUDE_CORE_ASSETS = os.environ.get("PHLO_INCLUDE_CORE_ASSETS", "false").lower() in (
-    "true",
-    "1",
-    "yes",
-)
-
-# Global definitions instance for Dagster to load
-# This is what gets imported by workspace.yaml
-defs = build_definitions(include_core_assets=_INCLUDE_CORE_ASSETS)
+# Global definitions instance for Dagster to load.
+defs = build_definitions()

@@ -11,13 +11,10 @@ Quick reference for resolving common Phlo errors.
 DagsterInvalidDefinitionError: Asset 'my_asset' not found
 ```
 
-**Cause**: Domain not registered for auto-discovery
+**Cause**: Asset not in the workflows path or workflow import failed
 
 **Solution**:
-```python
-# Add import to src/phlo/defs/ingestion/__init__.py
-from phlo.defs.ingestion import my_domain  # noqa: F401
-```
+Ensure the asset lives under `workflows/` and imports cleanly.
 
 **Then restart Dagster**:
 ```bash
@@ -40,7 +37,7 @@ KeyError: 'observation_id'
 **Solution**:
 ```python
 # Check your decorator
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="id",  # Must match a field in validation_schema
     validation_schema=MySchema,
     ...
@@ -68,7 +65,7 @@ ValueError: Invalid cron expression: 'every hour'
 **Solution**:
 ```python
 # Use standard cron format: minute hour day month weekday
-@phlo.ingestion(
+@phlo_ingestion(
     cron="0 */1 * * *",  # Every hour at minute 0
     # NOT: cron="every hour"
     ...
@@ -130,7 +127,7 @@ ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
 **Solution**:
 ```python
 # Add validation_schema (recommended)
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="my_table",
     unique_key="id",
     validation_schema=MySchema,  # Add this
@@ -290,7 +287,7 @@ docker restart nessie
 
 | Error | Cause | Quick Fix |
 |-------|-------|-----------|
-| Asset not found | Missing domain import | Add import to `__init__.py` |
+| Asset not found | Workflow not discovered | Ensure asset lives under `workflows/` and imports cleanly |
 | unique_key not in schema | Field name mismatch | Match field names exactly |
 | Invalid cron | Wrong format | Use standard cron format |
 | Missing schema | No validation_schema | Add Pandera schema |
@@ -336,7 +333,7 @@ When you encounter an error:
 
 4. **Verify configuration**
    - Schema field names match unique_key
-   - Domain is registered in `__init__.py`
+   - Asset file is under `workflows/` and imports without errors
    - Cron expression is valid
    - Docker services are running
 
@@ -371,7 +368,7 @@ MySchema.validate(test_data)  # Fails fast if schema is wrong
 
 ```python
 # unique_key must match schema field exactly
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="id",  # Must match field name below
     validation_schema=MySchema,
 )

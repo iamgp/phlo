@@ -1,7 +1,7 @@
 """
 Service Discovery Module
 
-Discovers and loads service definitions from the services/ directory.
+Discovers and loads service definitions from installed plugins and optional directories.
 """
 
 import logging
@@ -34,7 +34,7 @@ class ServiceDefinition:
     compose: dict[str, Any] = field(default_factory=dict)
     env_vars: dict[str, dict[str, Any]] = field(default_factory=dict)
     files: list[dict[str, str]] = field(default_factory=list)
-    hooks: dict[str, str] = field(default_factory=dict)
+    hooks: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     dev: dict[str, Any] = field(default_factory=dict)  # Dev mode config (subprocess or Docker)
     source_path: Path | None = None
     phlo_dev: bool = False  # Services that receive phlo source mount in dev mode
@@ -140,16 +140,12 @@ class ServiceDiscovery:
     """Discovers and manages service definitions."""
 
     def __init__(self, services_dir: Path | None = None):
-        """Initialize with services directory path.
+        """Initialize with an optional services directory.
 
         Args:
-            services_dir: Path to services/ directory. If None, uses the
-                         bundled services in the phlo package.
+            services_dir: Optional path to additional service.yaml files. If None,
+                services are discovered exclusively from installed service plugins.
         """
-        if services_dir is None:
-            # Use bundled services from phlo package
-            services_dir = Path(__file__).parent.parent.parent.parent / "services"
-
         self.services_dir = services_dir
         self._services: dict[str, ServiceDefinition] = {}
         self._loaded = False
@@ -165,62 +161,37 @@ class ServiceDiscovery:
 
         self._services = {}
 
-        # Load core services first (bundled with phlo)
-        self._load_core_services()
-
         # Then load plugin services
         self._load_service_plugins()
 
-        if not self.services_dir.exists():
-            self._loaded = True
-            return self._services
+        if self.services_dir and self.services_dir.exists():
+            # Search for service.yaml files in all subdirectories
+            for yaml_path in self.services_dir.rglob("*.yaml"):
+                # Skip schema files
+                if ".schema" in str(yaml_path):
+                    continue
 
-        # Search for service.yaml files in all subdirectories
-        for yaml_path in self.services_dir.rglob("*.yaml"):
-            # Skip schema files
-            if ".schema" in str(yaml_path):
-                continue
-
-            # Skip non-service files
-            if yaml_path.name not in ("service.yaml",) and not yaml_path.name.endswith(
-                "-daemon.yaml"
-            ):
-                # Also load companion services like minio-setup.yaml, dagster-daemon.yaml
-                if not any(
-                    yaml_path.name.endswith(suffix) for suffix in ("-setup.yaml", "-daemon.yaml")
+                # Skip non-service files
+                if yaml_path.name not in ("service.yaml",) and not yaml_path.name.endswith(
+                    "-daemon.yaml"
                 ):
-                    continue
+                    # Also load companion services like minio-setup.yaml, dagster-daemon.yaml
+                    if not any(
+                        yaml_path.name.endswith(suffix)
+                        for suffix in ("-setup.yaml", "-daemon.yaml")
+                    ):
+                        continue
 
-            try:
-                service = ServiceDefinition.from_yaml(yaml_path)
-                if service.name in self._services:
-                    continue
-                self._services[service.name] = service
-            except (yaml.YAMLError, KeyError) as e:
-                logger.warning("Failed to load %s: %s", yaml_path, e)
+                try:
+                    service = ServiceDefinition.from_yaml(yaml_path)
+                    if service.name in self._services:
+                        continue
+                    self._services[service.name] = service
+                except (yaml.YAMLError, KeyError) as e:
+                    logger.warning("Failed to load %s: %s", yaml_path, e)
 
         self._loaded = True
         return self._services
-
-    def _load_core_services(self) -> None:
-        """Load core services bundled with phlo."""
-        core_services_dir = Path(__file__).parent.parent / "core_services"
-        if not core_services_dir.exists():
-            logger.debug("No core_services directory found")
-            return
-
-        for service_dir in core_services_dir.iterdir():
-            if not service_dir.is_dir():
-                continue
-            service_yaml = service_dir / "service.yaml"
-            if not service_yaml.exists():
-                continue
-            try:
-                service = ServiceDefinition.from_yaml(service_yaml)
-                self._services[service.name] = service
-                logger.info(f"Loaded core service: {service.name}")
-            except (yaml.YAMLError, KeyError) as e:
-                logger.warning("Failed to load core service %s: %s", service_dir.name, e)
 
     def _load_service_plugins(self) -> None:
         """Load services from installed plugins."""
@@ -239,8 +210,28 @@ class ServiceDiscovery:
             try:
                 service = ServiceDefinition.from_dict(service_definition, source_path)
                 self._services[service.name] = service
+                self._load_companion_service_files(source_path)
             except KeyError as exc:
                 logger.warning("Service plugin %s missing field: %s", name, exc)
+
+    def _load_companion_service_files(self, source_path: Path | None) -> None:
+        """Load companion service YAMLs (e.g., *-setup.yaml, *-daemon.yaml) from a package."""
+        if not source_path or not source_path.exists():
+            return
+
+        for yaml_path in source_path.rglob("*.yaml"):
+            filename = yaml_path.name
+            if filename == "service.yaml":
+                continue
+            if not (filename.endswith("-setup.yaml") or filename.endswith("-daemon.yaml")):
+                continue
+            try:
+                service = ServiceDefinition.from_yaml(yaml_path)
+                if service.name in self._services:
+                    continue
+                self._services[service.name] = service
+            except (yaml.YAMLError, KeyError) as exc:
+                logger.warning("Failed to load companion service %s: %s", yaml_path, exc)
 
     def get_service(self, name: str) -> ServiceDefinition | None:
         """Get a service definition by name."""

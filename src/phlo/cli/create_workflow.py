@@ -228,11 +228,11 @@ def _generate_asset_template(config: dict[str, Any]) -> str:
 """
 
 from dlt.sources.rest_api import rest_api
-import phlo
+from phlo_dlt import phlo_ingestion
 from workflows.schemas.{domain} import {schema_class}
 
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="{table_name}",
     unique_key="{unique_key}",
     validation_schema={schema_class},

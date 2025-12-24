@@ -10,7 +10,7 @@ Phlo has a clear separation between **core** (bundled, non-swappable) and **pack
 ┌─────────────────────────────────────────────────────────────┐
 │                     PHLO CORE (Glue)                        │
 │  - CLI (phlo services, phlo materialize, etc.)              │
-│  - Decorators (@phlo.ingestion, @phlo.quality)              │
+│  - Decorators (@phlo_ingestion, @phlo_quality)              │
 │  - Config system (phlo.yaml parsing)                        │
 │  - Plugin registry & discovery                              │
 │  - Service composer (docker-compose generation)             │

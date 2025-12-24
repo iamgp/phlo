@@ -55,12 +55,12 @@ glucose-platform/
 ├── contracts/                  # Data contracts (SLAs, schema agreements)
 │   └── glucose_readings.yaml
 ├── workflows/                  # Data workflows
-│   ├── ingestion/             # Ingestion assets (@phlo.ingestion)
+│   ├── ingestion/             # Ingestion assets (@phlo_ingestion)
 │   │   └── nightscout/        # Nightscout CGM data
 │   │       └── readings.py    # Glucose entries ingestion
 │   ├── schemas/               # Pandera validation schemas
 │   │   └── nightscout.py      # Raw, Silver, Gold schemas
-│   └── quality/               # Data quality checks (@phlo.quality)
+│   └── quality/               # Data quality checks (@phlo_quality)
 │       ├── nightscout.py      # Standard quality checks
 │       └── plugin_checks.py   # Plugin-based checks (NEW)
 ├── transforms/dbt/            # dbt transformation models
@@ -104,7 +104,7 @@ phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-12-31 --pa
 This project uses the **merge strategy** with **last deduplication** for glucose ingestion:
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     merge_strategy="merge",     # Upsert mode
@@ -148,7 +148,7 @@ The `merge_config={"deduplication_method": "last"}` parameter means:
 If glucose data were truly immutable (no corrections), we could use:
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     merge_strategy="append",  # Insert-only, no deduplication
@@ -267,13 +267,13 @@ phlo contract validate glucose_readings
 
 ## Quality Framework
 
-Quality checks use the `@phlo.quality` decorator and Pandera schemas:
+Quality checks use the `@phlo_quality` decorator and Pandera schemas:
 
 ```python
-from phlo.quality import NullCheck, RangeCheck
+from phlo_quality import NullCheck, RangeCheck
 import phlo
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["sgv", "reading_timestamp"]),

@@ -47,7 +47,7 @@ Test that your schema validates data correctly:
 ```python
 import pytest
 import pandas as pd
-from phlo.schemas.weather import RawWeatherData
+from workflows.schemas.weather import RawWeatherData
 
 def test_valid_weather_data_passes_validation():
     """Test that valid weather data passes schema validation."""
@@ -114,7 +114,7 @@ Verify decorator parameters:
 
 ```python
 import inspect
-from phlo.defs.ingestion.weather.observations import weather_observations
+from workflows.ingestion.weather.observations import weather_observations
 
 def test_asset_has_correct_table_name():
     """Test that asset has correct table name."""
@@ -185,9 +185,9 @@ Test Iceberg table operations in-memory using DuckDB backend.
 
 **Example**:
 ```python
-from phlo.testing import mock_iceberg_catalog
-from phlo.schemas.converter import pandera_to_iceberg
-from phlo.schemas.weather import RawWeatherData
+from phlo_testing import mock_iceberg_catalog
+from phlo_dlt.converter import pandera_to_iceberg
+from workflows.schemas.weather import RawWeatherData
 import pandas as pd
 
 def test_iceberg_operations():
@@ -269,8 +269,8 @@ Test asset functions directly without Dagster or Docker.
 
 **Example**:
 ```python
-from phlo.testing import test_asset_execution
-from phlo.schemas.weather import RawWeatherData
+from phlo_testing import test_asset_execution
+from workflows.schemas.weather import RawWeatherData
 
 def test_weather_asset():
     """Test asset with mock data."""
@@ -340,9 +340,9 @@ result.metadata     # dict: metadata (validation status, etc.)
 Full end-to-end test without Docker:
 
 ```python
-from phlo.testing import test_asset_execution, mock_iceberg_catalog
-from phlo.schemas.converter import pandera_to_iceberg
-from phlo.schemas.weather import RawWeatherData
+from phlo_testing import test_asset_execution, mock_iceberg_catalog
+from phlo_dlt.converter import pandera_to_iceberg
+from workflows.schemas.weather import RawWeatherData
 
 def test_full_pipeline_local():
     """Test complete ingestion → Iceberg pipeline locally."""

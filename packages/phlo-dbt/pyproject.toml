@@ -29,6 +29,9 @@ dev = [
 [project.entry-points."phlo.plugins.dagster"]
 dbt = "phlo_dbt.plugin:DbtDagsterPlugin"
 
+[project.entry-points."phlo.plugins.cli"]
+dbt = "phlo_dbt.cli_plugin:DbtCliPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from phlo.lineage.graph import LineageGraph
+from phlo_lineage.graph import LineageGraph
 
 logger = logging.getLogger(__name__)
 

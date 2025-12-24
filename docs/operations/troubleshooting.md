@@ -141,7 +141,7 @@ curl http://localhost:19120/api/v1/trees
 docker-compose logs trino | grep ERROR
 
 # Check catalog configuration
-cat docker/trino/catalog/iceberg.properties
+cat .phlo/trino/catalog/iceberg.properties
 ```
 
 ---
@@ -157,19 +157,15 @@ docker-compose restart dagster-webserver dagster-daemon
 
 **Solution 2: Check asset registration**
 ```python
-# In src/phlo/definitions.py
-from phlo.defs.ingestion import build_ingestion_defs
-
-defs = dg.Definitions.merge(
-    build_ingestion_defs(),  # Your assets must be here
-    # ...
-)
+# Your assets should be discoverable via phlo.framework.definitions
+# (assets registered in workflows/ via decorators and plugins)
+from phlo.framework.definitions import defs
 ```
 
 **Solution 3: Check for syntax errors**
 ```bash
 # Test definitions load
-docker-compose exec dagster-webserver python -c "from phlo.definitions import defs; print(defs)"
+docker-compose exec dagster-webserver python -c "from phlo.framework.definitions import defs; print(defs)"
 ```
 
 ### Asset Materialization Fails
@@ -183,13 +179,13 @@ docker-compose exec dagster-webserver python -c "from phlo.definitions import de
 **2. Check dependencies**
 ```bash
 # Ensure upstream assets materialized
-dagster asset materialize -m phlo.definitions -a upstream_asset
+dagster asset materialize -m phlo.framework.definitions -a upstream_asset
 ```
 
 **3. Test locally**
 ```python
 # In Python shell
-from phlo.definitions import defs
+from phlo.framework.definitions import defs
 from dagster import materialize
 
 asset_def = defs.get_asset_def("my_asset")
@@ -534,7 +530,7 @@ SHOW TABLES IN iceberg.raw;
 ```bash
 # Are you on the right branch?
 # Check Trino catalog configuration
-cat docker/trino/catalog/iceberg.properties | grep ref
+cat .phlo/trino/catalog/iceberg.properties | grep ref
 # iceberg.catalog.ref=main
 
 # To query dev branch, use iceberg_dev catalog
@@ -544,7 +540,7 @@ SELECT * FROM iceberg_dev.raw.my_table
 **Check 3: Ensure asset materialized**
 ```bash
 # Materialize the ingestion asset first
-dagster asset materialize -m phlo.definitions -a my_ingestion_asset
+dagster asset materialize -m phlo.framework.definitions -a my_ingestion_asset
 ```
 
 ### Nessie API Errors

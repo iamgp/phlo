@@ -11,7 +11,7 @@ import pandera.errors
 from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
-from phlo.lineage import generate_row_id
+from phlo_lineage import generate_row_id
 from phlo_iceberg.resource import IcebergResource
 
 from phlo_dlt.registry import TableConfig

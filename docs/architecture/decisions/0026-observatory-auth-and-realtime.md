@@ -158,7 +158,7 @@ export function useRealtimePolling<T>(
 ### TypeScript/Lint
 
 ```bash
-cd services/observatory && npm run check && npm test
+cd packages/phlo-observatory/src/phlo_observatory && npm run check && npm test
 ```
 
 ## Beads

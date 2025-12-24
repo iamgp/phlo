@@ -1,7 +1,7 @@
 """Null check plugin."""
 
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo.quality.checks import NullCheck
+from phlo_quality.checks import NullCheck
 
 
 class NullCheckPlugin(QualityCheckPlugin):

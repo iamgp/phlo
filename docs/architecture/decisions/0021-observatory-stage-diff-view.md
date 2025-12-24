@@ -145,7 +145,7 @@ Add a "Compare with upstream" button in `NodeDetailPanel` that opens the diff vi
 
 1. **Unit tests for diff computation** (`server/diff.server.test.ts`):
    ```bash
-   cd services/observatory && npm test -- diff.server.test
+   cd packages/phlo-observatory/src/phlo_observatory && npm test -- diff.server.test
    ```
    - Test column diff: added, removed, renamed, unchanged
    - Test aggregate detection from SQL
@@ -156,7 +156,7 @@ Add a "Compare with upstream" button in `NodeDetailPanel` that opens the diff vi
 1. **Start Observatory in dev mode**:
 
    ```bash
-   cd services/observatory && npm run dev -- --port 3001
+   cd packages/phlo-observatory/src/phlo_observatory && npm run dev -- --port 3001
    ```
 
 2. **Navigate to Data Explorer**:

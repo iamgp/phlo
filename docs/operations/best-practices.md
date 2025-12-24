@@ -135,35 +135,14 @@ def downstream(upstream):  # Clear dependency
 ### File Structure
 
 ```
-src/phlo/
-├── config.py                    # Central configuration
-├── definitions.py               # Main entry point
-│
-├── defs/                        # Modular definitions
-│   ├── ingestion/
-│   │   ├── __init__.py          # Exports build_ingestion_defs()
-│   │   ├── api_assets.py        # API ingestion
-│   │   └── file_assets.py       # File ingestion
-│   │
-│   ├── transform/
-│   │   └── dbt.py               # dbt integration
-│   │
-│   ├── quality/
-│   │   ├── __init__.py
-│   │   └── checks.py            # Data quality checks
-│   │
-│   └── resources/
-│       ├── __init__.py
-│       ├── trino.py             # Trino resource
-│       └── iceberg.py           # Iceberg resource
-│
-├── schemas/                     # Pandera schemas
-│   ├── orders.py
-│   └── customers.py
-│
-└── utils/                       # Shared utilities
-    ├── dates.py
-    └── transformations.py
+project/
+├── phlo.yaml                    # Project + infra config
+├── workflows/                   # Dagster assets discovered by phlo.framework.definitions
+│   ├── ingestion/               # Ingestion assets
+│   ├── quality/                 # Quality checks and assets
+│   └── schemas/                 # Pandera schemas
+├── transforms/dbt/              # dbt models
+└── tests/                       # Project tests
 ```
 
 ### Naming Conventions
@@ -623,7 +602,7 @@ def test_calculate_tax_negative():
 ```python
 # tests/test_pipeline.py
 from dagster import materialize
-from phlo.definitions import defs
+from phlo.framework.definitions import defs
 
 def test_orders_pipeline():
     """Test complete orders pipeline."""

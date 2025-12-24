@@ -630,7 +630,7 @@ function QualityTab({ checks }: { checks: Array<QualityCheck> }) {
               <p className="text-sm mt-1">
                 Add{' '}
                 <code className="bg-muted px-1 rounded-none">
-                  @phlo.quality
+                  @phlo_quality
                 </code>{' '}
                 decorators to enable checks
               </p>

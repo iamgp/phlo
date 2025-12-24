@@ -6,7 +6,7 @@
 
 ## Description
 
-This error occurs when the `cron` schedule expression provided to the `@phlo.ingestion` decorator is invalid or malformed. Phlo validates cron expressions to ensure assets are scheduled correctly.
+This error occurs when the `cron` schedule expression provided to the `@phlo_ingestion` decorator is invalid or malformed. Phlo validates cron expressions to ensure assets are scheduled correctly.
 
 ## Common Causes
 
@@ -46,7 +46,7 @@ This error occurs when the `cron` schedule expression provided to the `@phlo.ing
 Ensure your cron expression has 5 fields with valid values:
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
     cron="0 */1 * * *",  # ✅ Valid: Every hour at minute 0
@@ -105,7 +105,7 @@ cron=0 */1 * * *  # SyntaxError!
 ### ❌ Incorrect: Wrong number of fields
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     cron="0 */1 * *",  # ❌ Only 4 fields (need 5)
     ...
 )
@@ -114,7 +114,7 @@ cron=0 */1 * * *  # SyntaxError!
 ### ✅ Correct: 5 fields
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     cron="0 */1 * * *",  # ✅ All 5 fields present
     ...
 )
@@ -123,7 +123,7 @@ cron=0 */1 * * *  # SyntaxError!
 ### ❌ Incorrect: Invalid hour value
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     cron="0 25 * * *",  # ❌ Hour 25 is invalid (max is 23)
     ...
 )
@@ -132,7 +132,7 @@ cron=0 */1 * * *  # SyntaxError!
 ### ✅ Correct: Valid hour value
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     cron="0 23 * * *",  # ✅ Hour 23 is valid (11 PM)
     ...
 )
@@ -141,7 +141,7 @@ cron=0 */1 * * *  # SyntaxError!
 ### ❌ Incorrect: Invalid step value
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     cron="*/0 * * * *",  # ❌ Step value 0 is invalid
     ...
 )
@@ -150,7 +150,7 @@ cron=0 */1 * * *  # SyntaxError!
 ### ✅ Correct: Valid step value
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     cron="*/5 * * * *",  # ✅ Every 5 minutes
     ...
 )
@@ -250,7 +250,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
    # ingestion.py
    from config import HOURLY
 
-   @phlo.ingestion(
+   @phlo_ingestion(
        cron=HOURLY,  # ✅ Use constant
        ...
    )
@@ -276,7 +276,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
 
 3. **Document schedule rationale**
    ```python
-   @phlo.ingestion(
+   @phlo_ingestion(
        unique_key="observation_id",
        validation_schema=WeatherObservations,
        cron="0 */1 * * *",  # Run hourly to match API update frequency
@@ -301,7 +301,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
        """Generate daily cron expression."""
        return f"{minute} {hour} * * *"
 
-   @phlo.ingestion(
+   @phlo_ingestion(
        cron=hourly(minute=0),  # ✅ Type-safe schedule builder
        ...
    )

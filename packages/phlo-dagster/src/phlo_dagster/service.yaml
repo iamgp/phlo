@@ -66,6 +66,17 @@ env_vars:
     default: ""
     description: Host platform for executor selection (Darwin/Linux)
 
+hooks:
+  post_start:
+    - name: dbt-compile
+      requires: phlo_dbt
+      command:
+        - python
+        - -m
+        - phlo_dbt.hooks
+        - compile
+      timeout_seconds: 180
+
 files:
   - source: Dockerfile
     dest: dagster/Dockerfile

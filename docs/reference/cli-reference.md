@@ -678,8 +678,8 @@ phlo validate-schema SCHEMA_PATH [OPTIONS]
 **Example**:
 
 ```bash
-phlo validate-schema src/phlo/schemas/events.py
-phlo validate-schema src/phlo/schemas/events.py --data sample.parquet
+phlo validate-schema workflows/schemas/events.py
+phlo validate-schema workflows/schemas/events.py --data sample.parquet
 ```
 
 ### phlo validate-workflow

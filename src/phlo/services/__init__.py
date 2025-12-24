@@ -1,7 +1,7 @@
 """
 Phlo Services Module
 
-Discovers and manages service definitions from services/ directory.
+Discovers and manages service definitions from installed service plugins.
 Used by the CLI to compose infrastructure for lakehouses.
 """
 

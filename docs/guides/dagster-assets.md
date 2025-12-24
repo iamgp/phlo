@@ -59,7 +59,7 @@ That's it! Dagster will:
 
 **CLI:**
 ```bash
-dagster asset materialize -m phlo.definitions -a my_first_asset
+dagster asset materialize -m phlo.framework.definitions -a my_first_asset
 ```
 
 **Programmatically:**
@@ -255,7 +255,8 @@ def conditional_asset():
 ### Using Resources
 
 ```python
-from phlo.defs.resources import TrinoResource, IcebergResource
+from phlo_trino.resource import TrinoResource
+from phlo_iceberg.resource import IcebergResource
 
 @dg.asset
 def asset_with_resources(
@@ -379,7 +380,7 @@ def daily_weather_data(context: dg.AssetExecutionContext):
 
 **Single partition:**
 ```bash
-dagster asset materialize -m phlo.definitions \
+dagster asset materialize -m phlo.framework.definitions \
   -a daily_weather_data \
   --partition 2024-11-05
 ```
@@ -387,7 +388,7 @@ dagster asset materialize -m phlo.definitions \
 **Range of partitions:**
 ```bash
 # Backfill last 7 days
-dagster asset backfill -m phlo.definitions \
+dagster asset backfill -m phlo.framework.definitions \
   -a daily_weather_data \
   --from 2024-11-01 \
   --to 2024-11-07
@@ -395,7 +396,7 @@ dagster asset backfill -m phlo.definitions \
 
 **Latest partition:**
 ```bash
-dagster asset materialize -m phlo.definitions \
+dagster asset materialize -m phlo.framework.definitions \
   -a daily_weather_data \
   --partition $(date +%Y-%m-%d)
 ```
@@ -817,9 +818,10 @@ def iceberg_io_manager(iceberg: IcebergResource):
 ### Asset Not Showing in UI
 
 **Check:**
-1. Is it registered in definitions?
+1. Is it discoverable under workflows/?
    ```python
-   defs = dg.Definitions(assets=[my_asset])
+   from phlo.framework.definitions import defs
+   assert defs.get_asset_def("my_asset") is not None
    ```
 
 2. Restart Dagster:
@@ -839,7 +841,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 
 2. Run locally:
    ```python
-   from phlo.definitions import defs
+   from phlo.framework.definitions import defs
    from dagster import materialize
 
    result = materialize([defs.get_asset_def("my_asset")])
@@ -865,13 +867,12 @@ def iceberg_io_manager(iceberg: IcebergResource):
        pass
    ```
 
-2. Asset not in same definitions:
+2. Asset not in the workflows path:
    ```python
-   # Must merge definitions
-   defs = dg.Definitions.merge(
-       build_ingestion_defs(),  # Contains upstream
-       build_transform_defs(),   # Contains downstream
-   )
+   # Ensure both assets live under workflows/ so discovery includes them
+   from phlo.framework.definitions import defs
+   assert defs.get_asset_def("upstream") is not None
+   assert defs.get_asset_def("downstream") is not None
    ```
 
 ### Partition Errors

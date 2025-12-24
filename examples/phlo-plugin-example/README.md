@@ -144,7 +144,7 @@ class MySource(SourceConnectorPlugin):
 
 ```python
 from phlo.plugins import QualityCheckPlugin, PluginMetadata
-from phlo.quality.checks import QualityCheck, QualityCheckResult
+from phlo_quality.checks import QualityCheck, QualityCheckResult
 
 class MyCheckPlugin(QualityCheckPlugin):
     @property

@@ -137,7 +137,7 @@ Phlo is open source. Contributions welcome!
 ## Key Features
 
 ### Decorator-Driven Development
-Reduce boilerplate by 74% with `@phlo.ingestion` and `@phlo.quality` decorators.
+Reduce boilerplate by 74% with `@phlo_ingestion` and `@phlo_quality` decorators.
 
 ### Write-Audit-Publish Pattern
 Automated branch lifecycle with quality gates and auto-promotion to production.

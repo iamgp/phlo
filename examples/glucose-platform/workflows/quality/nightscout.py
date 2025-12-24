@@ -5,7 +5,7 @@ glucose readings conform to business rules, data types, and expected ranges.
 
 This module demonstrates two approaches to quality checks:
 1. Traditional @asset_check with Pandera schemas (nightscout_glucose_quality_check)
-2. @phlo.quality decorator for declarative checks (glucose_readings_quality)
+2. @phlo_quality decorator for declarative checks (glucose_readings_quality)
 """
 
 from __future__ import annotations
@@ -13,14 +13,13 @@ from __future__ import annotations
 import pandas as pd
 import pandera.errors
 from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
-from phlo.defs.resources.trino import TrinoResource
+from phlo_trino.resource import TrinoResource
 
 from workflows.schemas.nightscout import FactDailyGlucoseMetrics, FactGlucoseReadings
 
-# Import quality check types for @phlo.quality decorator
+# Import quality check types for @phlo_quality decorator
 try:
-    import phlo
-    from phlo.quality import FreshnessCheck, NullCheck, RangeCheck
+    from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 
     PHLO_QUALITY_AVAILABLE = True
 except ImportError:
@@ -28,12 +27,12 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# @phlo.quality decorator approach (declarative, reduces boilerplate by 70-80%)
+# @phlo_quality decorator approach (declarative, reduces boilerplate by 70-80%)
 # ---------------------------------------------------------------------------
 if PHLO_QUALITY_AVAILABLE:
-    from phlo.quality import CountCheck, UniqueCheck
+    from phlo_quality import CountCheck, UniqueCheck
 
-    @phlo.quality(
+    @phlo_quality(
         table="silver.fct_glucose_readings",
         checks=[
             NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -47,10 +46,10 @@ if PHLO_QUALITY_AVAILABLE:
         blocking=True,
     )
     def glucose_readings_quality():
-        """Declarative quality checks for glucose readings using @phlo.quality."""
+        """Declarative quality checks for glucose readings using @phlo_quality."""
         pass
 
-    @phlo.quality(
+    @phlo_quality(
         table="gold.fct_daily_glucose_metrics",
         checks=[
             NullCheck(columns=["reading_date", "reading_count", "avg_glucose_mg_dl"]),

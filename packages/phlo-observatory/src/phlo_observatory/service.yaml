@@ -8,7 +8,7 @@ build:
   dockerfile: Dockerfile
 
 depends_on:
-  - dagster
+  - phlo-api
 
 compose:
   restart: unless-stopped
@@ -19,6 +19,7 @@ compose:
     DAGSTER_GRAPHQL_URL: http://dagster:3000/graphql
     NESSIE_URL: http://nessie:19120/api/v2
     TRINO_URL: http://trino:8080
+    PHLO_API_URL: http://phlo-api:4000
   ports:
     - '${OBSERVATORY_PORT:-3001}:3000'
   healthcheck:

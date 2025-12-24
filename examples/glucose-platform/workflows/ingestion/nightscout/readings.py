@@ -1,17 +1,17 @@
 """Nightscout glucose entries ingestion workflow.
 
-Replicates the example from phlo.defs.ingestion.nightscout.glucose
+Replicates the example from workflows.ingestion.nightscout.glucose
 """
 
 from __future__ import annotations
 
-import phlo
+from phlo_dlt import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 
 from workflows.schemas.nightscout import RawGlucoseEntries
 
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
