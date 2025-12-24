@@ -2,6 +2,14 @@
 
 This document outlines what changes are needed to achieve the [DX goals](./plugin-dx.md).
 
+## Status (as of 2025-12-24)
+
+- **Phase 0**: COMPLETED - Package-first services, core is glue-only
+- **Phase 1**: NOT STARTED - Unified discovery flow (optional refactor)
+- **Phase 2**: NOT STARTED - Naming cleanup (low priority)
+- **Phase 3**: NOT STARTED - User service overrides
+- **Phase 4**: NOT STARTED - Registry integration
+
 ## Key Architectural Changes
 
 1. **Observatory as package** - Remains a service plugin (not core)
