@@ -858,12 +858,12 @@ def start(
     elif build:
         click.echo("Warning: --build ignored when starting native-only services.", err=True)
 
-    def _stop_docker_native_services() -> None:
-        if not native_service_names:
+    def _stop_docker_services(service_names: set[str]) -> None:
+        if not service_names:
             return
         stop_cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
         stop_cmd.append("stop")
-        stop_cmd.extend(sorted(native_service_names))
+        stop_cmd.extend(sorted(service_names))
         run_command(stop_cmd, check=False, capture_output=False)
 
     cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
@@ -894,12 +894,6 @@ def start(
 
                 discovery = ServiceDiscovery()
                 project_root = Path.cwd()
-                # Avoid port collisions by ensuring any previously-started Docker containers
-                # for native-capable services are stopped before launching subprocesses.
-                if not skip_docker_compose:
-                    _stop_docker_native_services()
-                # Avoid port collisions by stopping previously-started native services.
-                _stop_native_processes(project_root)
                 dev_manager = NativeProcessManager(
                     project_root, log_dir=project_root / ".phlo" / "native-logs"
                 )
@@ -909,9 +903,20 @@ def start(
                 }
 
                 if services_list:
-                    native_to_start = [available[n] for n in services_list if n in available]
+                    requested = [available[n] for n in services_list if n in available]
+                    resolved = discovery.resolve_dependencies(requested)
+                    native_to_start = [svc for svc in resolved if svc.name in available]
                 else:
                     native_to_start = [available[n] for n in sorted(available)]
+
+                # Avoid port collisions by ensuring any previously-started Docker containers for the
+                # target native services are stopped before launching subprocesses.
+                if not skip_docker_compose and native_to_start:
+                    _stop_docker_services({svc.name for svc in native_to_start})
+
+                # Avoid port collisions by stopping previously-started native processes for the
+                # target services (do not stop unrelated native services).
+                _stop_native_processes(project_root, [svc.name for svc in native_to_start])
 
                 click.echo("")
                 if native_to_start:
