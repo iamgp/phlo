@@ -56,7 +56,7 @@ def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.Monk
         assert cmd[:3] == ["docker", "ps", "--format"]
         return CompletedProcess(cmd, 0, stdout="myproj-dagster-webserver-1\n", stderr="")
 
-    monkeypatch.setattr(services_cli, "run_command", fake_run_command)
+    monkeypatch.setattr("phlo.cli._services.utils.run_command", fake_run_command)
 
     assert services_cli.find_dagster_container("myproj") == "myproj-dagster-webserver-1"
 
@@ -67,7 +67,7 @@ def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.Monke
     def fake_run_command(cmd, **_kwargs):
         return CompletedProcess(cmd, 0, stdout="myproj-dagster-1\n", stderr="")
 
-    monkeypatch.setattr(services_cli, "run_command", fake_run_command)
+    monkeypatch.setattr("phlo.cli._services.utils.run_command", fake_run_command)
 
     assert services_cli.find_dagster_container("myproj") == "myproj-dagster-1"
 
