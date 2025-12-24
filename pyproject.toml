@@ -23,6 +23,7 @@ dependencies = [
     "pandera",
     "requests",
     "psycopg2-binary",
+    "asyncpg>=0.30.0",
     "click>=8.0",
     "rich>=13.0",
     "duckdb>=0.9.0",

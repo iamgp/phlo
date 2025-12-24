@@ -197,8 +197,6 @@ def metadata_entries_to_dict(entries: list[dict[str, Any]] | None) -> dict[str, 
         elif typename == "BoolMetadataEntry":
             record[label] = entry.get("boolValue")
         elif typename == "JsonMetadataEntry":
-            import json
-
             try:
                 record[label] = json.loads(entry.get("jsonString", "{}"))
             except Exception:

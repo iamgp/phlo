@@ -6,7 +6,9 @@ Combines data from Dagster (assets) and Iceberg/Trino (tables, columns).
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
@@ -63,9 +65,6 @@ async def get_search_index(
     include_columns: bool = Query(default=True),
 ) -> SearchIndex | dict[str, str]:
     """Get search index with all searchable entities."""
-    import asyncio
-    from datetime import datetime
-
     try:
         # Fetch assets and tables in parallel
         assets_result, tables_result = await asyncio.gather(

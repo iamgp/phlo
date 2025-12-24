@@ -102,8 +102,6 @@ def parse_loki_response(response: dict[str, Any]) -> list[LogEntry]:
         stream_labels = stream.get("stream", {})
         for timestamp_ns, line in stream.get("values", []):
             try:
-                import json
-
                 parsed = json.loads(line)
                 entries.append(
                     LogEntry(
