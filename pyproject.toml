@@ -95,10 +95,6 @@ dev = [
     "phlo-dbt>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-openmetadata>=0.1.0",
-]
-
-[tool.uv]
-dev-dependencies = [
     "ruff",
     "basedpyright",
     "ty",

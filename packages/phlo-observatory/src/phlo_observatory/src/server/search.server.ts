@@ -88,6 +88,8 @@ export const getSearchIndex = createServerFn()
                 catalog,
                 branch,
                 include_columns: includeColumns,
+                dagster_url: effectiveDagsterUrl,
+                trino_url: effectiveTrinoUrl,
               },
             )
             if ('error' in result) return result
