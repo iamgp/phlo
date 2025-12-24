@@ -20,7 +20,7 @@ class SupersetServicePlugin(ServicePlugin):
             version="0.1.0",
             description="Apache Superset for business intelligence and data visualization",
             author="Phlo Team",
-            tags=['bi', 'superset', 'visualization'],
+            tags=["bi", "superset", "visualization"],
         )
 
     @property

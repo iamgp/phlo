@@ -7,18 +7,21 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import type {
+  CheckExecution,
+  MetadataValue,
+  QualityCheck,
+  QualityOverview,
+} from './quality.types'
 import { authMiddleware } from '@/server/auth.server'
 import { apiGet } from '@/server/phlo-api'
 
-// Re-export types
 export type {
-    CheckExecution,
-    QualityCheck,
-    QualityOverview,
-    RecentCheckExecution
+  CheckExecution,
+  QualityCheck,
+  QualityOverview,
+  RecentCheckExecution,
 } from './quality.types'
-
-import type { CheckExecution, QualityCheck, QualityOverview } from './quality.types'
 
 // Python API types (snake_case)
 interface ApiQualityOverview {
@@ -27,8 +30,13 @@ interface ApiQualityOverview {
   failing_checks: number
   warning_checks: number
   quality_score: number
-  by_category: Array<{ category: string; passing: number; total: number; percentage: number }>
-  trend: Array<object>
+  by_category: Array<{
+    category: string
+    passing: number
+    total: number
+    percentage: number
+  }>
+  trend: Array<{ date: string; score: number }>
 }
 
 interface ApiQualityCheck {
@@ -38,14 +46,14 @@ interface ApiQualityCheck {
   severity: 'WARN' | 'ERROR'
   status: 'PASSED' | 'FAILED' | 'IN_PROGRESS' | 'SKIPPED'
   last_execution_time?: string
-  last_result?: { passed: boolean; metadata: Record<string, unknown> }
+  last_result?: { passed: boolean; metadata?: Record<string, MetadataValue> }
 }
 
 interface ApiCheckExecution {
   timestamp: string
   passed: boolean
   run_id?: string
-  metadata: Record<string, unknown>
+  metadata?: Record<string, MetadataValue>
 }
 
 // Transform functions
@@ -90,7 +98,9 @@ export const getQualityOverview = createServerFn()
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<QualityOverview | { error: string }> => {
     try {
-      const result = await apiGet<ApiQualityOverview | { error: string }>('/api/quality/overview')
+      const result = await apiGet<ApiQualityOverview | { error: string }>(
+        '/api/quality/overview',
+      )
       if ('error' in result) return result
       return transformOverview(result)
     } catch (error) {
@@ -118,7 +128,9 @@ export const getAssetChecks = createServerFn()
         if ('error' in result) return result
         return result.map(transformCheck)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -142,14 +154,18 @@ export const getCheckHistory = createServerFn()
     }): Promise<Array<CheckExecution> | { error: string }> => {
       try {
         const keyPath = assetKey.join('/')
-        const result = await apiGet<Array<ApiCheckExecution> | { error: string }>(
+        const result = await apiGet<
+          Array<ApiCheckExecution> | { error: string }
+        >(
           `/api/quality/assets/${keyPath}/checks/${encodeURIComponent(checkName)}/history`,
           { limit },
         )
         if ('error' in result) return result
         return result.map(transformExecution)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -162,7 +178,9 @@ export const getFailingChecks = createServerFn()
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<Array<QualityCheck> | { error: string }> => {
     try {
-      const result = await apiGet<Array<ApiQualityCheck> | { error: string }>('/api/quality/failing')
+      const result = await apiGet<Array<ApiQualityCheck> | { error: string }>(
+        '/api/quality/failing',
+      )
       if ('error' in result) return result
       return result.map(transformCheck)
     } catch (error) {
@@ -189,8 +207,12 @@ export const getQualityDashboard = createServerFn()
       try {
         // Fetch overview and failing in parallel
         const [overviewResult, failingResult] = await Promise.all([
-          apiGet<ApiQualityOverview | { error: string }>('/api/quality/overview'),
-          apiGet<Array<ApiQualityCheck> | { error: string }>('/api/quality/failing'),
+          apiGet<ApiQualityOverview | { error: string }>(
+            '/api/quality/overview',
+          ),
+          apiGet<Array<ApiQualityCheck> | { error: string }>(
+            '/api/quality/failing',
+          ),
         ])
 
         if ('error' in overviewResult) return overviewResult
@@ -203,7 +225,9 @@ export const getQualityDashboard = createServerFn()
           checks: failingResult.map(transformCheck),
         }
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )

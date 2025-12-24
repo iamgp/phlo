@@ -29,7 +29,7 @@ from __future__ import annotations
 from phlo.quality.decorator import phlo_quality as quality
 
 __version__ = "0.1.0-alpha.1"
-__all__ = ["ingestion", "quality"]
+__all__ = ["quality"]
 
 
 def _resolve_export(export_name: str) -> object:

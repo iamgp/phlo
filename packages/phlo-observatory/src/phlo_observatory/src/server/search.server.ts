@@ -7,11 +7,10 @@
 
 import { createServerFn } from '@tanstack/react-start'
 
+import { cacheKeys, cacheTTL, withCache } from './cache'
+import type { SearchIndex, SearchIndexInput } from './search.types'
 import { authMiddleware } from '@/server/auth.server'
 import { apiGet } from '@/server/phlo-api'
-import { cacheKeys, cacheTTL, withCache } from './cache'
-
-import type { SearchIndex, SearchIndexInput } from './search.types'
 
 // Python API types (snake_case)
 interface ApiSearchIndex {
@@ -26,7 +25,7 @@ interface ApiSearchIndex {
     schema_name: string
     name: string
     full_name: string
-    layer: string
+    layer: 'bronze' | 'silver' | 'gold' | 'publish' | 'unknown'
   }>
   columns: Array<{
     table_name: string
@@ -94,7 +93,9 @@ export const getSearchIndex = createServerFn()
             if ('error' in result) return result
             return transformSearchIndex(result)
           } catch (error) {
-            return { error: error instanceof Error ? error.message : 'Unknown error' }
+            return {
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }
           }
         },
         key,

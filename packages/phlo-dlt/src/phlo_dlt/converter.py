@@ -48,7 +48,9 @@ def pandera_to_iceberg(
         ) from e
 
     if not annotations:
-        raise SchemaConversionError(f"Pandera schema {pandera_schema.__name__} has no field annotations")
+        raise SchemaConversionError(
+            f"Pandera schema {pandera_schema.__name__} has no field annotations"
+        )
 
     try:
         pandera_schema_obj = pandera_schema.to_schema()

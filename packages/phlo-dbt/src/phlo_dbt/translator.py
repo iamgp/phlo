@@ -102,9 +102,7 @@ def get_compiled_sql_from_resource_props(
 
     truncated_sql, was_truncated, original_bytes = _truncate_utf8_bytes(compiled_sql, max_bytes)
     if was_truncated:
-        marker = (
-            f"\n\n-- [phlo] TRUNCATED compiled SQL: {original_bytes} bytes (limit {max_bytes} bytes)"
-        )
+        marker = f"\n\n-- [phlo] TRUNCATED compiled SQL: {original_bytes} bytes (limit {max_bytes} bytes)"
         truncated_sql = f"{truncated_sql}{marker}"
 
     return truncated_sql, was_truncated, original_bytes, source

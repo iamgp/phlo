@@ -110,7 +110,7 @@ def build_dbt_definitions() -> dg.Definitions:
 
         if context.has_partition_key:
             partition_date = context.partition_key
-            build_args.extend(["--vars", f'{{\"partition_date_str\": \"{partition_date}\"}}'])
+            build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
             context.log.info(f"Running dbt for partition: {partition_date}")
 
         os.environ.setdefault("TRINO_HOST", settings.trino_host)

@@ -11,7 +11,10 @@ const API_BASE = '/api'
 /**
  * Make a GET request to the API
  */
-async function apiGet<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
+async function apiGet<T>(
+  endpoint: string,
+  params?: Record<string, string | number | boolean | undefined>,
+): Promise<T> {
   const url = new URL(`${API_BASE}${endpoint}`, window.location.origin)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -46,7 +49,10 @@ async function apiPost<T>(endpoint: string, body?: unknown): Promise<T> {
 /**
  * Make a DELETE request to the API
  */
-async function apiDelete<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+async function apiDelete<T>(
+  endpoint: string,
+  params?: Record<string, string>,
+): Promise<T> {
   const url = new URL(`${API_BASE}${endpoint}`, window.location.origin)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -101,49 +107,73 @@ export const trinoApi = {
   checkConnection: (trinoUrl?: string) =>
     apiGet<TrinoConnectionStatus>('/trino/connection', { trino_url: trinoUrl }),
 
-  previewData: (table: string, options?: {
-    branch?: string
-    catalog?: string
-    schema?: string
-    limit?: number
-    offset?: number
-  }) =>
-    apiGet<DataPreviewResult | { error: string }>(`/trino/preview/${encodeURIComponent(table)}`, {
-      branch: options?.branch,
-      catalog: options?.catalog,
-      schema: options?.schema,
-      limit: options?.limit,
-      offset: options?.offset,
-    }),
+  previewData: (
+    table: string,
+    options?: {
+      branch?: string
+      catalog?: string
+      schema?: string
+      limit?: number
+      offset?: number
+    },
+  ) =>
+    apiGet<DataPreviewResult | { error: string }>(
+      `/trino/preview/${encodeURIComponent(table)}`,
+      {
+        branch: options?.branch,
+        catalog: options?.catalog,
+        schema: options?.schema,
+        limit: options?.limit,
+        offset: options?.offset,
+      },
+    ),
 
-  profileColumn: (table: string, column: string, options?: {
-    branch?: string
-    catalog?: string
-  }) =>
-    apiGet<ColumnProfile | { error: string }>(`/trino/profile/${encodeURIComponent(table)}/${encodeURIComponent(column)}`, {
-      branch: options?.branch,
-      catalog: options?.catalog,
-    }),
+  profileColumn: (
+    table: string,
+    column: string,
+    options?: {
+      branch?: string
+      catalog?: string
+    },
+  ) =>
+    apiGet<ColumnProfile | { error: string }>(
+      `/trino/profile/${encodeURIComponent(table)}/${encodeURIComponent(column)}`,
+      {
+        branch: options?.branch,
+        catalog: options?.catalog,
+      },
+    ),
 
   getTableMetrics: (table: string, options?: { branch?: string }) =>
-    apiGet<TableMetrics | { error: string }>(`/trino/metrics/${encodeURIComponent(table)}`, {
-      branch: options?.branch,
-    }),
+    apiGet<TableMetrics | { error: string }>(
+      `/trino/metrics/${encodeURIComponent(table)}`,
+      {
+        branch: options?.branch,
+      },
+    ),
 
-  executeQuery: (query: string, options?: {
-    branch?: string
-    catalog?: string
-    read_only_mode?: boolean
-  }) =>
-    apiPost<DataPreviewResult | { error: string; kind: string }>('/trino/query', {
-      query,
-      branch: options?.branch,
-      catalog: options?.catalog,
-      read_only_mode: options?.read_only_mode ?? true,
-    }),
+  executeQuery: (
+    query: string,
+    options?: {
+      branch?: string
+      catalog?: string
+      read_only_mode?: boolean
+    },
+  ) =>
+    apiPost<DataPreviewResult | { error: string; kind: string }>(
+      '/trino/query',
+      {
+        query,
+        branch: options?.branch,
+        catalog: options?.catalog,
+        read_only_mode: options?.read_only_mode ?? true,
+      },
+    ),
 
   getRowById: (table: string, rowId: string) =>
-    apiGet<DataPreviewResult | { error: string }>(`/trino/row/${encodeURIComponent(table)}/${encodeURIComponent(rowId)}`),
+    apiGet<DataPreviewResult | { error: string }>(
+      `/trino/row/${encodeURIComponent(table)}/${encodeURIComponent(rowId)}`,
+    ),
 }
 
 // ============================================================================
@@ -180,21 +210,33 @@ export const icebergApi = {
       catalog: options?.catalog,
     }),
 
-  getTableSchema: (table: string, options?: { branch?: string; schema?: string }) =>
-    apiGet<Array<TableColumn> | { error: string }>(`/iceberg/tables/${encodeURIComponent(table)}/schema`, {
-      branch: options?.branch,
-      schema: options?.schema,
-    }),
+  getTableSchema: (
+    table: string,
+    options?: { branch?: string; schema?: string },
+  ) =>
+    apiGet<Array<TableColumn> | { error: string }>(
+      `/iceberg/tables/${encodeURIComponent(table)}/schema`,
+      {
+        branch: options?.branch,
+        schema: options?.schema,
+      },
+    ),
 
   getTableMetadata: (table: string, options?: { branch?: string }) =>
-    apiGet<TableMetadata | { error: string }>(`/iceberg/tables/${encodeURIComponent(table)}/metadata`, {
-      branch: options?.branch,
-    }),
+    apiGet<TableMetadata | { error: string }>(
+      `/iceberg/tables/${encodeURIComponent(table)}/metadata`,
+      {
+        branch: options?.branch,
+      },
+    ),
 
   getTableRowCount: (table: string, options?: { branch?: string }) =>
-    apiGet<number | { error: string }>(`/iceberg/tables/${encodeURIComponent(table)}/row-count`, {
-      branch: options?.branch,
-    }),
+    apiGet<number | { error: string }>(
+      `/iceberg/tables/${encodeURIComponent(table)}/row-count`,
+      {
+        branch: options?.branch,
+      },
+    ),
 }
 
 // ============================================================================
@@ -235,7 +277,10 @@ export interface AssetDetails extends Asset {
   op_names: Array<string>
   metadata: Array<{ key: string; value: string }>
   columns?: Array<{ name: string; type: string; description?: string }>
-  column_lineage?: Record<string, Array<{ asset_key: Array<string>; column_name: string }>>
+  column_lineage?: Record<
+    string,
+    Array<{ asset_key: Array<string>; column_name: string }>
+  >
   partition_definition?: { description: string }
 }
 
@@ -248,20 +293,21 @@ export interface MaterializationEvent {
 }
 
 export const dagsterApi = {
-  checkConnection: () =>
-    apiGet<DagsterConnectionStatus>('/dagster/connection'),
+  checkConnection: () => apiGet<DagsterConnectionStatus>('/dagster/connection'),
 
   getHealthMetrics: () =>
     apiGet<HealthMetrics | { error: string }>('/dagster/health'),
 
-  getAssets: () =>
-    apiGet<Array<Asset> | { error: string }>('/dagster/assets'),
+  getAssets: () => apiGet<Array<Asset> | { error: string }>('/dagster/assets'),
 
   getAssetDetails: (assetKeyPath: string) =>
     apiGet<AssetDetails | { error: string }>(`/dagster/assets/${assetKeyPath}`),
 
   getMaterializationHistory: (assetKeyPath: string, limit?: number) =>
-    apiGet<Array<MaterializationEvent> | { error: string }>(`/dagster/assets/${assetKeyPath}/history`, { limit }),
+    apiGet<Array<MaterializationEvent> | { error: string }>(
+      `/dagster/assets/${assetKeyPath}/history`,
+      { limit },
+    ),
 }
 
 // ============================================================================
@@ -294,38 +340,56 @@ export interface NessieConnectionStatus {
 }
 
 export const nessieApi = {
-  checkConnection: () =>
-    apiGet<NessieConnectionStatus>('/nessie/connection'),
+  checkConnection: () => apiGet<NessieConnectionStatus>('/nessie/connection'),
 
   getBranches: () =>
     apiGet<Array<Branch> | { error: string }>('/nessie/branches'),
 
   getBranch: (name: string) =>
-    apiGet<Branch | { error: string }>(`/nessie/branches/${encodeURIComponent(name)}`),
+    apiGet<Branch | { error: string }>(
+      `/nessie/branches/${encodeURIComponent(name)}`,
+    ),
 
   getCommits: (branch: string, limit?: number) =>
-    apiGet<Array<LogEntry> | { error: string }>(`/nessie/branches/${encodeURIComponent(branch)}/history`, { limit }),
+    apiGet<Array<LogEntry> | { error: string }>(
+      `/nessie/branches/${encodeURIComponent(branch)}/history`,
+      { limit },
+    ),
 
   getContents: (branch: string, prefix?: string) =>
-    apiGet<Array<unknown> | { error: string }>(`/nessie/branches/${encodeURIComponent(branch)}/entries`, { prefix }),
+    apiGet<Array<unknown> | { error: string }>(
+      `/nessie/branches/${encodeURIComponent(branch)}/entries`,
+      { prefix },
+    ),
 
   compareBranches: (fromBranch: string, toBranch: string) =>
-    apiGet<unknown>(`/nessie/diff/${encodeURIComponent(fromBranch)}/${encodeURIComponent(toBranch)}`),
+    apiGet<unknown>(
+      `/nessie/diff/${encodeURIComponent(fromBranch)}/${encodeURIComponent(toBranch)}`,
+    ),
 
   createBranch: (name: string, fromBranch: string) =>
-    apiPost<Branch | { error: string }>('/nessie/branches', { name, from_branch: fromBranch }),
+    apiPost<Branch | { error: string }>('/nessie/branches', {
+      name,
+      from_branch: fromBranch,
+    }),
 
   deleteBranch: (name: string, expectedHash: string) =>
-    apiDelete<{ success: boolean } | { error: string }>(`/nessie/branches/${encodeURIComponent(name)}`, {
-      expected_hash: expectedHash,
-    }),
+    apiDelete<{ success: boolean } | { error: string }>(
+      `/nessie/branches/${encodeURIComponent(name)}`,
+      {
+        expected_hash: expectedHash,
+      },
+    ),
 
   mergeBranch: (fromBranch: string, intoBranch: string, message?: string) =>
-    apiPost<{ success: boolean; hash?: string } | { error: string }>('/nessie/merge', {
-      from_branch: fromBranch,
-      into_branch: intoBranch,
-      message,
-    }),
+    apiPost<{ success: boolean; hash?: string } | { error: string }>(
+      '/nessie/merge',
+      {
+        from_branch: fromBranch,
+        into_branch: intoBranch,
+        message,
+      },
+    ),
 }
 
 // ============================================================================
@@ -351,7 +415,12 @@ export interface QualityOverview {
   failing_checks: number
   warning_checks: number
   quality_score: number
-  by_category: Array<{ category: string; passing: number; total: number; percentage: number }>
+  by_category: Array<{
+    category: string
+    passing: number
+    total: number
+    percentage: number
+  }>
 }
 
 export interface CheckExecution {
@@ -366,10 +435,15 @@ export const qualityApi = {
     apiGet<QualityOverview | { error: string }>('/quality/overview'),
 
   getAssetChecks: (assetKeyPath: string) =>
-    apiGet<Array<QualityCheck> | { error: string }>(`/quality/assets/${assetKeyPath}/checks`),
+    apiGet<Array<QualityCheck> | { error: string }>(
+      `/quality/assets/${assetKeyPath}/checks`,
+    ),
 
   getCheckHistory: (assetKeyPath: string, checkName: string, limit?: number) =>
-    apiGet<Array<CheckExecution> | { error: string }>(`/quality/assets/${assetKeyPath}/checks/${encodeURIComponent(checkName)}/history`, { limit }),
+    apiGet<Array<CheckExecution> | { error: string }>(
+      `/quality/assets/${assetKeyPath}/checks/${encodeURIComponent(checkName)}/history`,
+      { limit },
+    ),
 
   getFailingChecks: () =>
     apiGet<Array<QualityCheck> | { error: string }>('/quality/failing'),
@@ -398,8 +472,7 @@ export interface LokiConnectionStatus {
 }
 
 export const lokiApi = {
-  checkConnection: () =>
-    apiGet<LokiConnectionStatus>('/loki/connection'),
+  checkConnection: () => apiGet<LokiConnectionStatus>('/loki/connection'),
 
   queryLogs: (options: {
     start: string
@@ -409,14 +482,22 @@ export const lokiApi = {
     job?: string
     level?: string
     limit?: number
-  }) =>
-    apiGet<LogQueryResult | { error: string }>('/loki/query', options),
+  }) => apiGet<LogQueryResult | { error: string }>('/loki/query', options),
 
   queryRunLogs: (runId: string, limit?: number) =>
-    apiGet<LogQueryResult | { error: string }>(`/loki/runs/${encodeURIComponent(runId)}`, { limit }),
+    apiGet<LogQueryResult | { error: string }>(
+      `/loki/runs/${encodeURIComponent(runId)}`,
+      { limit },
+    ),
 
-  queryAssetLogs: (assetKey: string, options?: { partition_key?: string; hours_back?: number; limit?: number }) =>
-    apiGet<LogQueryResult | { error: string }>(`/loki/assets/${assetKey}`, options),
+  queryAssetLogs: (
+    assetKey: string,
+    options?: { partition_key?: string; hours_back?: number; limit?: number },
+  ) =>
+    apiGet<LogQueryResult | { error: string }>(
+      `/loki/assets/${assetKey}`,
+      options,
+    ),
 
   getLabels: () =>
     apiGet<{ labels: Array<string> } | { error: string }>('/loki/labels'),
@@ -442,16 +523,26 @@ export interface LineageJourney {
 
 export const lineageApi = {
   getRowLineage: (rowId: string) =>
-    apiGet<RowLineageInfo | { error: string }>(`/lineage/rows/${encodeURIComponent(rowId)}`),
+    apiGet<RowLineageInfo | { error: string }>(
+      `/lineage/rows/${encodeURIComponent(rowId)}`,
+    ),
 
   getRowAncestors: (rowId: string, maxDepth?: number) =>
-    apiGet<Array<RowLineageInfo> | { error: string }>(`/lineage/rows/${encodeURIComponent(rowId)}/ancestors`, { max_depth: maxDepth }),
+    apiGet<Array<RowLineageInfo> | { error: string }>(
+      `/lineage/rows/${encodeURIComponent(rowId)}/ancestors`,
+      { max_depth: maxDepth },
+    ),
 
   getRowDescendants: (rowId: string, maxDepth?: number) =>
-    apiGet<Array<RowLineageInfo> | { error: string }>(`/lineage/rows/${encodeURIComponent(rowId)}/descendants`, { max_depth: maxDepth }),
+    apiGet<Array<RowLineageInfo> | { error: string }>(
+      `/lineage/rows/${encodeURIComponent(rowId)}/descendants`,
+      { max_depth: maxDepth },
+    ),
 
   getRowJourney: (rowId: string) =>
-    apiGet<LineageJourney | { error: string }>(`/lineage/rows/${encodeURIComponent(rowId)}/journey`),
+    apiGet<LineageJourney | { error: string }>(
+      `/lineage/rows/${encodeURIComponent(rowId)}/journey`,
+    ),
 }
 
 // ============================================================================

@@ -1,12 +1,13 @@
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+
+import type { DataPreviewResult, DataRow } from '@/lib/api'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { trinoApi, type DataPreviewResult, type DataRow } from '@/lib/api'
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
-// Now using trinoApi from lib/api
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { trinoApi } from '@/lib/api'
 
 interface DataPreviewProps {
   table: string
@@ -78,14 +79,14 @@ export function DataPreview({
   }
 
   const handleNextPage = () => {
-    if (data?.hasMore) {
+    if (data?.has_more) {
       loadData((page + 1) * pageSize)
     }
   }
 
   const handleRowClick = (row: DataRow) => {
     if (onShowJourney && data) {
-      onShowJourney(row, data.columnTypes)
+      onShowJourney(row, data.column_types)
     }
   }
 

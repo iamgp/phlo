@@ -5,15 +5,16 @@
  * Reads service.yaml files and interacts with Docker Compose.
  */
 
-import { createServerFn } from '@tanstack/react-start'
 import { exec, execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-import { authMiddleware } from '@/server/auth.server'
+import { createServerFn } from '@tanstack/react-start'
 import { parse as parseYaml } from 'yaml'
+
+import { authMiddleware } from '@/server/auth.server'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
@@ -452,7 +453,7 @@ async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
       `${phloCommand} services list --json`,
       execOptions,
     )
-    const parsed = JSON.parse(stdout) as Array<CliServiceDefinition>
+    const parsed = JSON.parse(stdout.toString()) as Array<CliServiceDefinition>
     return parsed
       .map((service) => buildServiceDefinition(service))
       .filter((service): service is ServiceDefinition => Boolean(service))

@@ -109,7 +109,9 @@ export const getBranches = createServerFn()
   .inputValidator((input: { nessieUrl?: string } = {}) => input)
   .handler(async (): Promise<Array<Branch> | { error: string }> => {
     try {
-      return await apiGet<Array<Branch> | { error: string }>('/api/nessie/branches')
+      return await apiGet<Array<Branch> | { error: string }>(
+        '/api/nessie/branches',
+      )
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
@@ -128,7 +130,9 @@ export const getBranch = createServerFn()
           `/api/nessie/branches/${encodeURIComponent(branchName)}`,
         )
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -154,7 +158,9 @@ export const getCommits = createServerFn()
         if ('error' in result) return result
         return result.map(transformLogEntry)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -177,7 +183,9 @@ export const getContents = createServerFn()
           { prefix },
         )
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -188,7 +196,8 @@ export const getContents = createServerFn()
 export const compareBranches = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
-    (input: { fromBranch: string; toBranch: string; nessieUrl?: string }) => input,
+    (input: { fromBranch: string; toBranch: string; nessieUrl?: string }) =>
+      input,
   )
   .handler(
     async ({
@@ -199,7 +208,9 @@ export const compareBranches = createServerFn()
           `/api/nessie/diff/${encodeURIComponent(fromBranch)}/${encodeURIComponent(toBranch)}`,
         )
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -221,7 +232,9 @@ export const createBranch = createServerFn()
           `/api/nessie/branches?name=${encodeURIComponent(name)}&from_branch=${encodeURIComponent(fromBranch)}`,
         )
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -244,7 +257,9 @@ export const deleteBranch = createServerFn()
           { expected_hash: hash },
         )
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -267,11 +282,15 @@ export const mergeBranch = createServerFn()
       data: { fromBranch, intoBranch, message },
     }): Promise<{ success: boolean; hash?: string } | { error: string }> => {
       try {
-        return await apiPost<{ success: boolean; hash?: string } | { error: string }>(
+        return await apiPost<
+          { success: boolean; hash?: string } | { error: string }
+        >(
           `/api/nessie/merge?from_branch=${encodeURIComponent(fromBranch)}&into_branch=${encodeURIComponent(intoBranch)}${message ? `&message=${encodeURIComponent(message)}` : ''}`,
         )
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )

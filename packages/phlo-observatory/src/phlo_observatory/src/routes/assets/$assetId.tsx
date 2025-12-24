@@ -55,7 +55,7 @@ export const Route = createFileRoute('/assets/$assetId')({
 
     // Load the selected asset details
     const asset = await getAssetDetails({
-      data: { assetKeyPath: params.assetId, dagsterUrl },
+      data: { assetKey: params.assetId.split('/'), dagsterUrl },
     })
 
     // Fetch checks but don't fail the whole page if it errors

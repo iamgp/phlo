@@ -16,7 +16,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +364,7 @@ async def get_table_metrics(
 async def execute_query(request: ExecuteQueryRequest) -> QueryExecutionResult | QueryExecutionError:
     """Run an arbitrary query (with guardrails)."""
     effective_catalog = request.catalog or DEFAULT_CATALOG
-    effective_schema = request.schema or request.branch
+    effective_schema = request.schema_name or request.branch
 
     if request.read_only_mode:
         validation_error = validate_read_only_query(request.query)
@@ -395,7 +395,7 @@ class ExecuteQueryRequest(BaseModel):
     query: str
     branch: str = "main"
     catalog: str | None = None
-    schema: str | None = None
+    schema_name: str | None = Field(default=None, alias="schema")
     trino_url: str | None = None
     timeout_ms: int = 30000
     read_only_mode: bool = True
@@ -405,7 +405,7 @@ class ExecuteQueryRequest(BaseModel):
 
 class QueryWithFiltersRequest(BaseModel):
     table_name: str
-    schema: str
+    schema_name: str = Field(alias="schema")
     catalog: str = DEFAULT_CATALOG
     filters: dict[str, Any]
     limit: int = 10
@@ -438,7 +438,7 @@ async def query_with_filters(
     try:
         catalog = request.catalog or DEFAULT_CATALOG
         table = request.table_name
-        schema = request.schema
+        schema = request.schema_name
 
         if not request.filters:
             return DataPreviewResult(columns=[], column_types=[], rows=[], has_more=False)

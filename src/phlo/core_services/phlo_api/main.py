@@ -85,7 +85,7 @@ def get_config() -> dict[str, Any]:
 
 
 @app.get("/api/plugins")
-def get_plugins() -> dict[str, list[dict[str, Any]]]:
+def get_plugins() -> dict[str, list[str]]:
     """List all installed plugins by type."""
     try:
         from phlo.plugins.discovery import list_plugins

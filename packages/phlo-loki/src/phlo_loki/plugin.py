@@ -20,7 +20,7 @@ class LokiServicePlugin(ServicePlugin):
             version="0.1.0",
             description="Log aggregation and querying",
             author="Phlo Team",
-            tags=['observability', 'logs'],
+            tags=["observability", "logs"],
         )
 
     @property

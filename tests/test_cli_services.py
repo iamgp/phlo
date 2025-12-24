@@ -147,7 +147,9 @@ def test_detect_phlo_source_path_accepts_repo_root_in_env_var(
 
 def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
     class FakeDiscovery:
-        def resolve_dependencies(self, services: list[ServiceDefinition]) -> list[ServiceDefinition]:
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
             return services
 
         def get_service(self, _name: str) -> None:

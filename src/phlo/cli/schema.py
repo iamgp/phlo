@@ -371,7 +371,12 @@ def _extract_source_callable(obj: Any) -> tuple[callable, dict[str, Any]]:
         from dagster import AssetsDefinition as RuntimeAssetsDefinition
     except Exception:  # pragma: no cover
         # Dagster not available at runtime - this is okay for CLI usage
-        return obj if callable(obj) else ({}, {})
+        if callable(obj):
+            return obj, {}
+        raise click.ClickException(
+            "Unsupported input. Provide either a callable or a Dagster AssetsDefinition created via "
+            "@phlo.ingestion."
+        )
 
     if isinstance(obj, RuntimeAssetsDefinition):
         wrapper = obj.node_def.compute_fn.decorated_fn

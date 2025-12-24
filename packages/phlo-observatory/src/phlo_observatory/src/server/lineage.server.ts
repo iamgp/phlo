@@ -68,7 +68,9 @@ export const getRowLineage = createServerFn()
         if ('error' in result) return result
         return transformLineageInfo(result)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -84,14 +86,17 @@ export const getRowAncestors = createServerFn()
       data: { rowId, maxDepth = 10 },
     }): Promise<Array<RowLineageInfo> | { error: string }> => {
       try {
-        const result = await apiGet<Array<ApiRowLineageInfo> | { error: string }>(
-          `/api/lineage/rows/${encodeURIComponent(rowId)}/ancestors`,
-          { max_depth: maxDepth },
-        )
+        const result = await apiGet<
+          Array<ApiRowLineageInfo> | { error: string }
+        >(`/api/lineage/rows/${encodeURIComponent(rowId)}/ancestors`, {
+          max_depth: maxDepth,
+        })
         if ('error' in result) return result
         return result.map(transformLineageInfo)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -107,14 +112,17 @@ export const getRowDescendants = createServerFn()
       data: { rowId, maxDepth = 10 },
     }): Promise<Array<RowLineageInfo> | { error: string }> => {
       try {
-        const result = await apiGet<Array<ApiRowLineageInfo> | { error: string }>(
-          `/api/lineage/rows/${encodeURIComponent(rowId)}/descendants`,
-          { max_depth: maxDepth },
-        )
+        const result = await apiGet<
+          Array<ApiRowLineageInfo> | { error: string }
+        >(`/api/lineage/rows/${encodeURIComponent(rowId)}/descendants`, {
+          max_depth: maxDepth,
+        })
         if ('error' in result) return result
         return result.map(transformLineageInfo)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -140,7 +148,9 @@ export const getRowJourneyLineage = createServerFn()
           descendants: result.descendants.map(transformLineageInfo),
         }
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )

@@ -35,8 +35,6 @@ def test_rest_api_plugin_records_path(monkeypatch):
         return DummyResponse(payload)
 
     monkeypatch.setattr("phlo_core.sources.rest_api.requests.get", dummy_get)
-    records = list(
-        plugin.fetch_data({"url": "https://example.com", "records_path": "data.items"})
-    )
+    records = list(plugin.fetch_data({"url": "https://example.com", "records_path": "data.items"}))
 
     assert records == [{"id": 3}]
