@@ -11,6 +11,7 @@ import logging
 import os
 import re
 from math import isfinite
+from time import monotonic
 from typing import Any
 
 import httpx
@@ -108,6 +109,7 @@ async def execute_trino_query(
     timeout = timeout_ms / 1000.0
 
     try:
+        start_time = monotonic()
         async with httpx.AsyncClient(timeout=timeout) as client:
             # Submit query
             response = await client.post(
@@ -135,11 +137,16 @@ async def execute_trino_query(
 
             while result.get("nextUri") and polls < max_polls:
                 polls += 1
+                elapsed = monotonic() - start_time
+                remaining = timeout - elapsed
+                if remaining <= 0:
+                    return QueryExecutionError(error="Query timed out", kind="timeout")
                 await asyncio.sleep(0.1)
 
                 poll_response = await client.get(
                     result["nextUri"],
                     headers={"X-Trino-User": "observatory"},
+                    timeout=remaining,
                 )
 
                 if poll_response.status_code != 200:
@@ -354,28 +361,22 @@ async def get_table_metrics(
 
 
 @router.post("/query", response_model=QueryExecutionResult | QueryExecutionError)
-async def execute_query(
-    query: str,
-    branch: str = "main",
-    catalog: str | None = None,
-    schema: str | None = None,
-    trino_url: str | None = None,
-    timeout_ms: int = Query(default=30000, le=120000),
-    read_only_mode: bool = True,
-    default_limit: int = 100,
-    max_limit: int = 5000,
-) -> QueryExecutionResult | QueryExecutionError:
+async def execute_query(request: ExecuteQueryRequest) -> QueryExecutionResult | QueryExecutionError:
     """Run an arbitrary query (with guardrails)."""
-    effective_catalog = catalog or DEFAULT_CATALOG
-    effective_schema = schema or branch
+    effective_catalog = request.catalog or DEFAULT_CATALOG
+    effective_schema = request.schema or request.branch
 
-    if read_only_mode:
-        validation_error = validate_read_only_query(query)
+    if request.read_only_mode:
+        validation_error = validate_read_only_query(request.query)
         if validation_error:
             return QueryExecutionError(error=validation_error, kind="validation")
 
     result = await execute_trino_query(
-        query, effective_catalog, effective_schema, trino_url, timeout_ms
+        request.query,
+        effective_catalog,
+        effective_schema,
+        request.trino_url,
+        request.timeout_ms,
     )
 
     if isinstance(result, QueryExecutionError):
@@ -386,8 +387,20 @@ async def execute_query(
         column_types=result["column_types"],
         rows=result["rows"],
         has_more=False,
-        effective_query=query,
+        effective_query=request.query,
     )
+
+
+class ExecuteQueryRequest(BaseModel):
+    query: str
+    branch: str = "main"
+    catalog: str | None = None
+    schema: str | None = None
+    trino_url: str | None = None
+    timeout_ms: int = 30000
+    read_only_mode: bool = True
+    default_limit: int = 100
+    max_limit: int = 5000
 
 
 class QueryWithFiltersRequest(BaseModel):

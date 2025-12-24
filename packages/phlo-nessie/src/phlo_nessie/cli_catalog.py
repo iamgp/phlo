@@ -51,13 +51,13 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
                 continue
             try:
                 for table_id in cat.list_tables(ns_name):
+                    table_name = table_id[-1] if isinstance(table_id, tuple) else str(table_id)
+                    full_name = ".".join(table_id) if isinstance(table_id, tuple) else str(table_id)
                     all_tables.append(
                         {
                             "namespace": ns_name,
-                            "table": table_id[-1] if isinstance(table_id, tuple) else str(table_id),
-                            "full_name": ".".join(table_id)
-                            if isinstance(table_id, tuple)
-                            else str(table_id),
+                            "table": table_name,
+                            "full_name": full_name,
                         }
                     )
             except Exception as e:

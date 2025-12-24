@@ -90,35 +90,33 @@ export const queryLogs = createServerFn()
       timeoutMs?: number
     }) => input,
   )
-  .handler(
-    async ({ data }): Promise<LogQueryResult | { error: string }> => {
-      try {
-        const result = await apiGet<ApiLogQueryResult | { error: string }>(
-          '/api/loki/query',
-          {
-            start: data.start,
-            end: data.end,
-            run_id: data.runId,
-            asset_key: data.assetKey,
-            job: data.job,
-            partition_key: data.partitionKey,
-            check_name: data.checkName,
-            level: data.level,
-            service: data.service,
-            limit: data.limit,
-          },
-        )
+  .handler(async ({ data }): Promise<LogQueryResult | { error: string }> => {
+    try {
+      const result = await apiGet<ApiLogQueryResult | { error: string }>(
+        '/api/loki/query',
+        {
+          start: data.start,
+          end: data.end,
+          run_id: data.runId,
+          asset_key: data.assetKey,
+          job: data.job,
+          partition_key: data.partitionKey,
+          check_name: data.checkName,
+          level: data.level,
+          service: data.service,
+          limit: data.limit,
+        },
+      )
 
-        if ('error' in result) return result
-        return {
-          entries: result.entries.map(transformLogEntry),
-          hasMore: result.has_more,
-        }
-      } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+      if ('error' in result) return result
+      return {
+        entries: result.entries.map(transformLogEntry),
+        hasMore: result.has_more,
       }
-    },
-  )
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
 
 /**
  * Query logs for a specific Dagster run
@@ -150,7 +148,9 @@ export const queryRunLogs = createServerFn()
           hasMore: result.has_more,
         }
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -177,7 +177,7 @@ export const queryAssetLogs = createServerFn()
     }): Promise<LogQueryResult | { error: string }> => {
       try {
         const result = await apiGet<ApiLogQueryResult | { error: string }>(
-          `/api/loki/assets/${assetKey}`,
+          `/api/loki/assets/${encodeURIComponent(assetKey)}`,
           {
             partition_key: partitionKey,
             level,
@@ -192,7 +192,9 @@ export const queryAssetLogs = createServerFn()
           hasMore: result.has_more,
         }
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -203,12 +205,12 @@ export const queryAssetLogs = createServerFn()
 export const getLogLabels = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { lokiUrl?: string } = {}) => input)
-  .handler(
-    async (): Promise<{ labels: Array<string> } | { error: string }> => {
-      try {
-        return await apiGet<{ labels: Array<string> } | { error: string }>('/api/loki/labels')
-      } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
-      }
-    },
-  )
+  .handler(async (): Promise<{ labels: Array<string> } | { error: string }> => {
+    try {
+      return await apiGet<{ labels: Array<string> } | { error: string }>(
+        '/api/loki/labels',
+      )
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })

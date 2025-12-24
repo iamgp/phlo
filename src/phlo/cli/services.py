@@ -359,8 +359,12 @@ def _load_native_state(project_root: Path) -> dict[str, dict]:
     path = _native_state_path(project_root)
     if not path.exists():
         return {}
-    with open(path) as f:
-        return json.load(f) or {}
+    try:
+        with open(path) as f:
+            return json.load(f) or {}
+    except (json.JSONDecodeError, OSError) as e:
+        click.echo(f"Warning: Failed to read native state file {path}: {e}", err=True)
+        return {}
 
 
 def _save_native_state(project_root: Path, state: dict[str, dict]) -> None:

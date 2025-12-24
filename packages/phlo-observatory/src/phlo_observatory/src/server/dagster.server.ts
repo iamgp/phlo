@@ -91,7 +91,10 @@ interface ApiAssetDetails extends ApiAsset {
   op_names: Array<string>
   metadata: Array<{ key: string; value: string }>
   columns?: Array<{ name: string; type: string; description?: string }>
-  column_lineage?: Record<string, Array<{ asset_key: Array<string>; column_name: string }>>
+  column_lineage?: Record<
+    string,
+    Array<{ asset_key: Array<string>; column_name: string }>
+  >
   partition_definition?: { description: string }
 }
 
@@ -101,6 +104,7 @@ interface ApiMaterialization {
   status: string
   step_key?: string
   metadata: Array<{ key: string; value: string }>
+  duration?: number
 }
 
 // Transform functions
@@ -113,7 +117,10 @@ function transformAsset(a: ApiAsset): Asset {
     computeKind: a.compute_kind,
     groupName: a.group_name,
     lastMaterialization: a.last_materialization
-      ? { timestamp: a.last_materialization.timestamp, runId: a.last_materialization.run_id }
+      ? {
+          timestamp: a.last_materialization.timestamp,
+          runId: a.last_materialization.run_id,
+        }
       : undefined,
     hasMaterializePermission: a.has_materialize_permission,
   }
@@ -129,7 +136,10 @@ function transformAssetDetails(a: ApiAssetDetails): AssetDetails {
       ? Object.fromEntries(
           Object.entries(a.column_lineage).map(([k, v]) => [
             k,
-            v.map((d) => ({ assetKey: d.asset_key, columnName: d.column_name })),
+            v.map((d) => ({
+              assetKey: d.asset_key,
+              columnName: d.column_name,
+            })),
           ]),
         )
       : undefined,
@@ -162,7 +172,9 @@ export const getHealthMetrics = createServerFn()
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<HealthMetrics | { error: string }> => {
     try {
-      const result = await apiGet<ApiHealthMetrics | { error: string }>('/api/dagster/health')
+      const result = await apiGet<ApiHealthMetrics | { error: string }>(
+        '/api/dagster/health',
+      )
       if ('error' in result) return result
       return {
         assetsTotal: result.assets_total,
@@ -186,7 +198,9 @@ export const getAssets = createServerFn()
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<Array<Asset> | { error: string }> => {
     try {
-      const result = await apiGet<Array<ApiAsset> | { error: string }>('/api/dagster/assets')
+      const result = await apiGet<Array<ApiAsset> | { error: string }>(
+        '/api/dagster/assets',
+      )
       if ('error' in result) return result
       return result.map(transformAsset)
     } catch (error) {
@@ -199,9 +213,13 @@ export const getAssets = createServerFn()
  */
 export const getAssetDetails = createServerFn()
   .middleware([authMiddleware])
-  .inputValidator((input: { assetKey: Array<string>; dagsterUrl?: string }) => input)
+  .inputValidator(
+    (input: { assetKey: Array<string>; dagsterUrl?: string }) => input,
+  )
   .handler(
-    async ({ data: { assetKey } }): Promise<AssetDetails | { error: string }> => {
+    async ({
+      data: { assetKey },
+    }): Promise<AssetDetails | { error: string }> => {
       try {
         const keyPath = assetKey.join('/')
         const result = await apiGet<ApiAssetDetails | { error: string }>(
@@ -210,7 +228,9 @@ export const getAssetDetails = createServerFn()
         if ('error' in result) return result
         return transformAssetDetails(result)
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -221,7 +241,8 @@ export const getAssetDetails = createServerFn()
 export const getMaterializationHistory = createServerFn()
   .middleware([authMiddleware])
   .inputValidator(
-    (input: { assetKey: Array<string>; limit?: number; dagsterUrl?: string }) => input,
+    (input: { assetKey: Array<string>; limit?: number; dagsterUrl?: string }) =>
+      input,
   )
   .handler(
     async ({
@@ -229,10 +250,9 @@ export const getMaterializationHistory = createServerFn()
     }): Promise<Array<MaterializationEvent> | { error: string }> => {
       try {
         const keyPath = assetKey.join('/')
-        const result = await apiGet<Array<ApiMaterialization> | { error: string }>(
-          `/api/dagster/assets/${keyPath}/history`,
-          { limit },
-        )
+        const result = await apiGet<
+          Array<ApiMaterialization> | { error: string }
+        >(`/api/dagster/assets/${keyPath}/history`, { limit })
         if ('error' in result) return result
         return result.map((m) => ({
           timestamp: m.timestamp,
@@ -240,9 +260,12 @@ export const getMaterializationHistory = createServerFn()
           status: m.status,
           stepKey: m.step_key,
           metadata: m.metadata,
+          duration: m.duration,
         }))
       } catch (error) {
-        return { error: error instanceof Error ? error.message : 'Unknown error' }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )

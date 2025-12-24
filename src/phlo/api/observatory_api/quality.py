@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 import httpx
@@ -174,7 +174,7 @@ def to_epoch_ms(value: str | int | float) -> int:
 
 def to_iso_timestamp(value: str | int | float) -> str:
     """Convert to ISO timestamp."""
-    return datetime.fromtimestamp(to_epoch_ms(value) / 1000).isoformat()
+    return datetime.fromtimestamp(to_epoch_ms(value) / 1000, tz=timezone.utc).isoformat()
 
 
 def metadata_entries_to_dict(entries: list[dict[str, Any]] | None) -> dict[str, Any]:

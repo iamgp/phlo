@@ -54,6 +54,7 @@ interface ApiTableMetadata {
   table: ApiIcebergTable
   columns: Array<ApiTableColumn>
   row_count?: number
+  last_modified?: string
 }
 
 // Transform Python snake_case to TypeScript camelCase
@@ -101,14 +102,13 @@ export const getTables = createServerFn()
 
       return withCache(
         async () => {
-          const result = await apiGet<Array<ApiIcebergTable> | { error: string }>(
-            '/api/iceberg/tables',
-            {
-              branch,
-              catalog: effectiveCatalog,
-              preferred_schema: preferredSchema,
-            },
-          )
+          const result = await apiGet<
+            Array<ApiIcebergTable> | { error: string }
+          >('/api/iceberg/tables', {
+            branch,
+            catalog: effectiveCatalog,
+            preferred_schema: preferredSchema,
+          })
 
           if ('error' in result) {
             return result
@@ -141,18 +141,21 @@ export const getTableSchema = createServerFn()
     }): Promise<Array<TableColumn> | { error: string }> => {
       const effectiveCatalog = catalog ?? DEFAULT_CATALOG
       const effectiveSchema = schema ?? branch
-      const key = cacheKeys.tableSchema(effectiveCatalog, effectiveSchema, table)
+      const key = cacheKeys.tableSchema(
+        effectiveCatalog,
+        effectiveSchema,
+        table,
+      )
 
       return withCache(
         async () => {
-          const result = await apiGet<Array<ApiTableColumn> | { error: string }>(
-            `/api/iceberg/tables/${encodeURIComponent(table)}/schema`,
-            {
-              branch,
-              schema: effectiveSchema,
-              catalog: effectiveCatalog,
-            },
-          )
+          const result = await apiGet<
+            Array<ApiTableColumn> | { error: string }
+          >(`/api/iceberg/tables/${encodeURIComponent(table)}/schema`, {
+            branch,
+            schema: effectiveSchema,
+            catalog: effectiveCatalog,
+          })
 
           if ('error' in result) {
             return result
@@ -220,6 +223,7 @@ export const getTableMetadata = createServerFn()
         table: transformTable(result.table),
         columns: result.columns.map(transformColumn),
         rowCount: result.row_count,
+        lastModified: result.last_modified,
       }
     },
   )

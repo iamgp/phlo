@@ -63,12 +63,15 @@ async def get_search_index(
     include_columns: bool = Query(default=True),
 ) -> SearchIndex | dict[str, str]:
     """Get search index with all searchable entities."""
+    import asyncio
     from datetime import datetime
 
     try:
         # Fetch assets and tables in parallel
-        assets_result = await get_assets(dagster_url)
-        tables_result = await get_tables(branch, catalog, None, trino_url)
+        assets_result, tables_result = await asyncio.gather(
+            get_assets(dagster_url),
+            get_tables(branch, catalog, None, trino_url),
+        )
 
         # Handle errors
         if isinstance(assets_result, dict) and "error" in assets_result:
