@@ -844,6 +844,8 @@ def start(
             compose_config = yaml.safe_load(compose_file.read_text()) or {}
         except OSError as e:
             raise click.ClickException(f"Failed to read {compose_file}: {e}") from e
+        except yaml.YAMLError as e:
+            raise click.ClickException(f"Failed to parse {compose_file}: {e}") from e
         compose_service_names = list((compose_config.get("services") or {}).keys())
         docker_services_list = [n for n in compose_service_names if n not in native_service_names]
 
@@ -882,7 +884,8 @@ def start(
 
     try:
         if skip_docker_compose:
-            result = run_command(["true"], check=False, capture_output=False)
+            # Skip docker-compose - create a successful result
+            result = subprocess.CompletedProcess(args=[], returncode=0)
         else:
             result = run_command(cmd, check=False, capture_output=False)
 

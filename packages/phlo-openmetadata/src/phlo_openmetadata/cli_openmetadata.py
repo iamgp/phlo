@@ -28,7 +28,7 @@ def health() -> None:
         base_url=cfg.openmetadata_uri,
         username=cfg.openmetadata_username,
         password=cfg.openmetadata_password,
-        verify_ssl=False,
+        verify_ssl=cfg.openmetadata_verify_ssl,
         timeout=10,
     )
     ok = client.health_check()
@@ -93,3 +93,6 @@ def sync(
             console.print(f"[green]dbt sync[/green]: {dbt_stats}")
         except FileNotFoundError:
             console.print("[yellow]dbt manifest not found; skipping dbt sync[/yellow]")
+        except json.JSONDecodeError as e:
+            console.print(f"[red]Failed to parse dbt manifest: {e}[/red]")
+            sys.exit(1)

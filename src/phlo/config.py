@@ -201,6 +201,9 @@ class Settings(BaseSettings):
     openmetadata_port: int = Field(default=8585, description="OpenMetadata server port")
     openmetadata_username: str = Field(default="admin", description="OpenMetadata admin username")
     openmetadata_password: str = Field(default="admin", description="OpenMetadata admin password")
+    openmetadata_verify_ssl: bool = Field(
+        default=False, description="Verify SSL certificates for OpenMetadata connections"
+    )
     openmetadata_sync_enabled: bool = Field(
         default=True, description="Enable automatic metadata sync to OpenMetadata"
     )

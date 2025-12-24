@@ -10,7 +10,10 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    pass
 
 from phlo.quality.checks import (
     CountCheck,
@@ -202,7 +205,7 @@ class QualityCheckMapper:
         if isinstance(check, FreshnessCheck):
             return f"freshness_check_{check.timestamp_column}"
         if isinstance(check, CustomSQLCheck):
-            return check.name
+            return check.name_
         return type(check).__name__.lower()
 
     @staticmethod
@@ -225,7 +228,7 @@ class QualityCheckMapper:
                 f"{check.timestamp_column}"
             )
         if isinstance(check, CustomSQLCheck):
-            return f"Custom SQL quality check: {check.name}"
+            return f"Custom SQL quality check: {check.name_}"
         return "Quality check"
 
     @staticmethod
@@ -270,26 +273,21 @@ class QualityCheckMapper:
         if isinstance(check, NullCheck):
             params.append({"name": "columns", "value": ",".join(check.columns)})
             params.append({"name": "allow_threshold", "value": str(check.allow_threshold)})
-
-        if isinstance(check, RangeCheck):
+        elif isinstance(check, RangeCheck):
             params.append({"name": "column", "value": check.column})
             params.append({"name": "min_value", "value": str(check.min_value)})
             params.append({"name": "max_value", "value": str(check.max_value)})
-
-        if isinstance(check, UniqueCheck):
+        elif isinstance(check, UniqueCheck):
             params.append({"name": "columns", "value": ",".join(check.columns)})
-
-        if isinstance(check, CountCheck):
+        elif isinstance(check, CountCheck):
             if check.min_rows is not None:
                 params.append({"name": "min_rows", "value": str(check.min_rows)})
             if check.max_rows is not None:
                 params.append({"name": "max_rows", "value": str(check.max_rows)})
-
-        if isinstance(check, FreshnessCheck):
+        elif isinstance(check, FreshnessCheck):
             params.append({"name": "timestamp_column", "value": check.timestamp_column})
             params.append({"name": "max_age_hours", "value": str(check.max_age_hours)})
-
-        if isinstance(check, CustomSQLCheck):
+        elif isinstance(check, CustomSQLCheck):
             params.append({"name": "sql", "value": check.sql})
 
         return params
@@ -313,7 +311,7 @@ class QualityCheckPublisher:
     Handles creating test definitions, cases, and publishing results.
     """
 
-    def __init__(self, om_client: Any):  # OpenMetadataClient
+    def __init__(self, om_client: OpenMetadataClient):
         self.om_client = om_client
 
     def publish_test_definitions(
