@@ -8,7 +8,7 @@ import pytest
 import phlo.cli.services as services_cli
 from phlo.cli._services.selection import select_services_to_install
 from phlo.services.composer import ComposeGenerator
-from phlo.services.discovery import ServiceDefinition
+from phlo.discovery import ServiceDefinition
 
 
 def _service(

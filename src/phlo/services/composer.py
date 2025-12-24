@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-from phlo.services.discovery import ServiceDefinition, ServiceDiscovery
+from phlo.discovery import ServiceDefinition, ServiceDiscovery
 
 logger = logging.getLogger(__name__)
 

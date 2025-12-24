@@ -21,7 +21,7 @@ from typing import TextIO
 
 import httpx
 
-from phlo.services.discovery import ServiceDefinition
+from phlo.discovery import ServiceDefinition
 
 logger = logging.getLogger(__name__)
 

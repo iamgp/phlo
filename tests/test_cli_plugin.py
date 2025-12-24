@@ -13,7 +13,7 @@ from phlo.plugins import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
-from phlo.plugins.registry import get_global_registry
+from phlo.discovery import get_global_registry
 from phlo.plugins.registry_client import RegistryPlugin
 
 

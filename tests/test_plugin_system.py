@@ -25,7 +25,7 @@ from phlo.plugins import (
     list_plugins,
     validate_plugins,
 )
-from phlo.plugins.registry import get_global_registry
+from phlo.discovery import get_global_registry
 
 
 # Test plugins

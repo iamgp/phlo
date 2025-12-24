@@ -27,7 +27,7 @@ from phlo.cli._services.utils import (
     get_project_config,
     get_project_name,
 )
-from phlo.services.discovery import ServiceDefinition
+from phlo.discovery import ServiceDefinition
 
 PHLO_CONFIG_FILE = "phlo.yaml"
 NATIVE_STATE_FILE = "native-processes.json"
@@ -491,7 +491,7 @@ def init(
     }
 
     # Collect inline custom services (those with type: inline)
-    from phlo.services.discovery import ServiceDefinition
+    from phlo.discovery import ServiceDefinition
 
     inline_services = [
         ServiceDefinition.from_inline(name, cfg)

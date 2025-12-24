@@ -20,14 +20,13 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.discovery import get_global_registry, get_service
 from phlo.plugins import (
     discover_plugins,
     get_plugin_info,
     list_plugins,
     validate_plugins,
 )
-from phlo.plugins.discovery import get_service
-from phlo.plugins.registry import get_global_registry
 from phlo.plugins.registry_client import (
     get_plugin as get_registry_plugin,
 )
