@@ -60,5 +60,5 @@ def test_build_definitions_merges_user_defs() -> None:
             with patch("phlo.framework.definitions._default_executor", return_value=None):
                 from phlo.framework.definitions import build_definitions
 
-                result = build_definitions(workflows_path=\"workflows\")
+                result = build_definitions(workflows_path="workflows")
                 assert isinstance(result, dg.Definitions)
