@@ -5,10 +5,10 @@ This document outlines what changes are needed to achieve the [DX goals](./plugi
 ## Status (as of 2025-12-24)
 
 - **Phase 0**: COMPLETED - Package-first services, core is glue-only
-- **Phase 1**: NOT STARTED - Unified discovery flow (optional refactor)
-- **Phase 2**: NOT STARTED - Naming cleanup (low priority)
-- **Phase 3**: NOT STARTED - User service overrides
-- **Phase 4**: NOT STARTED - Registry integration
+- **Phase 1**: COMPLETED - Unified discovery flow
+- **Phase 2**: COMPLETED - Naming cleanup
+- **Phase 3**: COMPLETED - User service overrides
+- **Phase 4**: COMPLETED - Enable/disable services
 
 ## Key Architectural Changes
 
