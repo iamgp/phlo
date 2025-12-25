@@ -21,11 +21,11 @@ Without plugins, you'd fork the codebase or hack around limitations. With plugin
 
 Phlo supports three types of plugins:
 
-| Type | Purpose | Example |
-|------|---------|---------|
+| Type                  | Purpose                          | Example                          |
+| --------------------- | -------------------------------- | -------------------------------- |
 | **Source Connectors** | Fetch data from external systems | Salesforce, HubSpot, custom APIs |
-| **Quality Checks** | Custom validation rules | Business logic, compliance rules |
-| **Transforms** | Data transformation helpers | Domain-specific calculations |
+| **Quality Checks**    | Custom validation rules          | Business logic, compliance rules |
+| **Transforms**        | Data transformation helpers      | Domain-specific calculations     |
 
 Each type has a base class you inherit from, and Phlo discovers your plugins automatically via Python entry points.
 
@@ -64,6 +64,7 @@ When Phlo starts, it scans for installed packages that declare entry points:
 ```
 
 This means:
+
 - No manual registration required
 - Install a package, restart Phlo, plugin is available
 - Bad plugins don't crash the system (logged and skipped)
@@ -751,7 +752,7 @@ def metadata(self) -> PluginMetadata:
 def test_fetch_data_returns_records():
     source = JSONPlaceholderSource()
     records = list(source.fetch_data({"resource": "posts", "limit": 5}))
-    
+
     assert len(records) == 5
     assert all("id" in r for r in records)
     assert all("title" in r for r in records)
@@ -782,6 +783,7 @@ version = "1.0.1"  # Fix: handled edge case
 Plugins run with full access to your environment. Only install trusted plugins.
 
 **For organizations:**
+
 - Maintain an internal plugin registry
 - Review plugin code before deployment
 - Use `plugins_whitelist` in config to restrict allowed plugins:
@@ -807,11 +809,13 @@ The plugin system lets you extend Phlo without modifying core code:
 Plugins are discovered automatically via Python entry points, managed via CLI, and integrate seamlessly with Phlo's decorators and assets.
 
 **When to use plugins:**
+
 - You need a data source Phlo doesn't support
 - You have organization-specific quality rules
 - You want to share reusable logic across teams
 
 **When NOT to use plugins:**
+
 - One-off transformations (just write Python)
 - Simple quality checks (use built-in checks)
 - Anything that could be a dbt model
@@ -845,6 +849,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 ```
 
 **Actual Files to Study:**
+
 - Source plugin: `examples/phlo-plugin-example/src/phlo_example/source.py`
 - Quality check plugin: `examples/phlo-plugin-example/src/phlo_example/quality.py`
 - Transform plugin: `examples/phlo-plugin-example/src/phlo_example/transform.py`
@@ -852,11 +857,13 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 - Tests: `examples/phlo-plugin-example/tests/`
 
 **Base Classes:**
+
 - `phlo.plugins.SourceConnectorPlugin` - Inherit for source connectors
 - `phlo.plugins.QualityCheckPlugin` - Inherit for quality checks
 - `phlo.plugins.TransformationPlugin` - Inherit for transforms
 
 **Discovery Functions:**
+
 - `phlo.plugins.discover_plugins()` - Discover all plugins
 - `phlo.plugins.get_source_connector(name)` - Get source plugin
 - `phlo.plugins.get_quality_check(name)` - Get quality plugin
@@ -867,6 +874,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 **Previous**: [Part 12 - Production Deployment](12-production-deployment.md)
 
 **Series**:
+
 1. Data Lakehouse concepts
 2. Getting started
 3. Apache Iceberg

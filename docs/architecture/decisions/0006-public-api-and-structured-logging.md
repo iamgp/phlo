@@ -28,4 +28,3 @@ to standard logging.
 - basedpyright has a clearer view of the public surface area.
 - Users get consistent logs that can be routed/filtered across environments.
 - Some internal refactors are required to avoid import cycles while keeping exports explicit.
-

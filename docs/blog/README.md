@@ -3,6 +3,7 @@
 A comprehensive, hands-on guide to building a production-ready data lakehouse using Phlo.
 
 This 12-part series walks through:
+
 - Fundamental concepts of data lakehouses
 - Setting up Phlo step-by-step
 - Understanding Apache Iceberg and Project Nessie
@@ -16,6 +17,7 @@ This 12-part series walks through:
 - Production deployment
 
 Each post includes:
+
 - Clear explanations of concepts
 - Code examples you can run
 - Diagrams and visualizations
@@ -49,16 +51,19 @@ For detailed setup instructions, see [Part 2: Getting Started](02-setup-guide.md
 ## Prerequisites
 
 **System Requirements:**
+
 - **Minimum**: 4 GB RAM, Docker, 10 GB disk space
 - **Comfortable**: 8 GB RAM, 2+ CPU cores
 - **Optimal**: 16+ GB RAM, 4+ CPU cores, SSD
 
 **Skills:**
+
 - **Required**: Basic SQL knowledge, command line comfort
 - **Helpful**: Python familiarity, Docker basics
 - **Optional**: Data engineering experience (we'll teach you!)
 
 **Software:**
+
 - Docker & Docker Compose (required)
 - Git (required)
 - Python 3.11+ with uv (optional, for local development)
@@ -68,21 +73,21 @@ Don't worry if you're missing some skills - the series is designed to teach you 
 
 ## Blog Posts
 
-| # | Title | Topics | Time |
-|---|-------|--------|------|
-| 1 | [What is a Data Lakehouse?](01-intro-data-lakehouse.md) | Architecture, Iceberg, Nessie, overview | 15 min |
-| 2 | [Getting Started—Setup Guide](02-setup-guide.md) | Installation, services, first pipeline | 50 min |
-| 3 | [Apache Iceberg—Table Format](03-apache-iceberg-explained.md) | Snapshots, schema evolution, time travel | 20 min |
-| 4 | [Project Nessie—Git for Data](04-project-nessie-versioning.md) | Branching, versioning, governance | 15 min |
-| 5 | [Data Ingestion Patterns](05-data-ingestion.md) | DLT, PyIceberg, merge strategies, validation | 22 min |
-| 6 | [dbt Transformations](06-dbt-transformations.md) | Models, testing, layers, best practices | 22 min |
-| 7 | [Dagster Orchestration](07-orchestration-dagster.md) | Assets, partitions, scheduling, monitoring | 20 min |
-| 8 | [Real-World Example](08-real-world-example.md) | Complete glucose pipeline, end-to-end | 25 min |
-| 9 | [Data Quality with Pandera](09-data-quality-with-pandera.md) | Schemas, validation, asset checks | 20 min |
-| 10 | [Metadata and Governance](10-metadata-governance.md) | OpenMetadata, data contracts, schema evolution | 25 min |
-| 11 | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, alerting, lineage, debugging | 25 min |
-| 12 | [Production Deployment](12-production-deployment.md) | Infrastructure config, Kubernetes, HA, scaling | 35 min |
-| 13 | [Extending Phlo with Plugins](13-plugin-system.md) | Custom sources, quality checks, transforms | 20 min |
+| #   | Title                                                          | Topics                                         | Time   |
+| --- | -------------------------------------------------------------- | ---------------------------------------------- | ------ |
+| 1   | [What is a Data Lakehouse?](01-intro-data-lakehouse.md)        | Architecture, Iceberg, Nessie, overview        | 15 min |
+| 2   | [Getting Started—Setup Guide](02-setup-guide.md)               | Installation, services, first pipeline         | 50 min |
+| 3   | [Apache Iceberg—Table Format](03-apache-iceberg-explained.md)  | Snapshots, schema evolution, time travel       | 20 min |
+| 4   | [Project Nessie—Git for Data](04-project-nessie-versioning.md) | Branching, versioning, governance              | 15 min |
+| 5   | [Data Ingestion Patterns](05-data-ingestion.md)                | DLT, PyIceberg, merge strategies, validation   | 22 min |
+| 6   | [dbt Transformations](06-dbt-transformations.md)               | Models, testing, layers, best practices        | 22 min |
+| 7   | [Dagster Orchestration](07-orchestration-dagster.md)           | Assets, partitions, scheduling, monitoring     | 20 min |
+| 8   | [Real-World Example](08-real-world-example.md)                 | Complete glucose pipeline, end-to-end          | 25 min |
+| 9   | [Data Quality with Pandera](09-data-quality-with-pandera.md)   | Schemas, validation, asset checks              | 20 min |
+| 10  | [Metadata and Governance](10-metadata-governance.md)           | OpenMetadata, data contracts, schema evolution | 25 min |
+| 11  | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, alerting, lineage, debugging          | 25 min |
+| 12  | [Production Deployment](12-production-deployment.md)           | Infrastructure config, Kubernetes, HA, scaling | 35 min |
+| 13  | [Extending Phlo with Plugins](13-plugin-system.md)             | Custom sources, quality checks, transforms     | 20 min |
 
 **Total content**: ~8,000 lines, 275+ KB of educational material
 **Estimated reading time**: 4.5-6 hours (complete series)
@@ -179,6 +184,7 @@ graph TB
 ```
 
 **Key Components:**
+
 - **Dagster**: Orchestrates everything, schedules pipelines, monitors assets
 - **DLT + PyIceberg**: Two-step ingestion pattern (stage → merge)
 - **MinIO + Nessie**: S3-compatible storage with Git-like versioning
@@ -190,6 +196,7 @@ graph TB
 ## Learning Paths
 
 ### Path 1: Complete Beginner
+
 **Goal**: Understand data lakehouses from scratch
 
 1. Read [Part 1](01-intro-data-lakehouse.md) (architecture concepts)
@@ -201,6 +208,7 @@ graph TB
 **Time**: 2-3 hours reading + setup
 
 ### Path 2: Data Engineer
+
 **Goal**: Learn new tools and patterns
 
 1. Skim [Part 1](01-intro-data-lakehouse.md) (context)
@@ -215,6 +223,7 @@ graph TB
 **Time**: 3 hours reading + hands-on
 
 ### Path 3: Architect/Decision Maker
+
 **Goal**: Evaluate Phlo for your organization
 
 1. [Part 1](01-intro-data-lakehouse.md) (comparison to alternatives)
@@ -230,46 +239,51 @@ graph TB
 ## Key Topics by Post
 
 ### Data Architecture
+
 - [Part 1](01-intro-data-lakehouse.md): Overview of lakehouse concept
 - [Part 3](03-apache-iceberg-explained.md): Table format innovation
 - [Part 4](04-project-nessie-versioning.md): Git-like data versioning
 
 ### Getting Started
+
 - [Part 2](02-setup-guide.md): Installation and first run
 
 ### Technical Implementation
+
 - [Part 5](05-data-ingestion.md): Ingestion patterns with DLT and PyIceberg
 - [Part 6](06-dbt-transformations.md): SQL transformations and testing
 - [Part 7](07-orchestration-dagster.md): Scheduling and asset management
 - [Part 8](08-real-world-example.md): Complete end-to-end pipeline
 
 ### Data Quality and Governance
+
 - [Part 9](09-data-quality-with-pandera.md): Schema validation and the `@phlo_quality` decorator
 - [Part 10](10-metadata-governance.md): Data catalog, contracts, and schema evolution
 - [Part 11](11-observability-monitoring.md): Metrics, alerting, lineage, and debugging
 - [Part 12](12-production-deployment.md): Scaling and high availability
 
 ### Extensibility
+
 - [Part 13](13-plugin-system.md): Building custom sources, quality checks, and transforms
 
 ## Tools Reference
 
 Each tool has dedicated coverage:
 
-| Tool | Posts | Key Topics |
-|------|-------|-----------|
+| Tool               | Posts      | Key Topics                               |
+| ------------------ | ---------- | ---------------------------------------- |
 | **Apache Iceberg** | 1, 3, 5, 8 | Snapshots, time travel, schema evolution |
-| **Project Nessie** | 1, 4, 8 | Branching, merging, versioning |
-| **DLT** | 5, 8 | Data staging, schema normalization |
-| **PyIceberg** | 5, 8 | Iceberg operations, table management |
-| **dbt** | 1, 6, 8 | Transformations, testing, documentation |
-| **Dagster** | 1, 7, 8 | Orchestration, partitions, scheduling |
-| **Trino** | 1, 3, 5, 6 | Query engine, Iceberg integration |
-| **MinIO** | 1, 2 | Object storage setup and config |
-| **Postgres** | 2, 6, 8 | Marts, metadata, BI integration |
-| **Superset** | 2, 8 | Dashboarding, visualization |
-| **Pandera** | 5, 9 | Schema validation, data quality |
-| **OpenMetadata** | 10 | Data catalog, lineage, governance |
+| **Project Nessie** | 1, 4, 8    | Branching, merging, versioning           |
+| **DLT**            | 5, 8       | Data staging, schema normalization       |
+| **PyIceberg**      | 5, 8       | Iceberg operations, table management     |
+| **dbt**            | 1, 6, 8    | Transformations, testing, documentation  |
+| **Dagster**        | 1, 7, 8    | Orchestration, partitions, scheduling    |
+| **Trino**          | 1, 3, 5, 6 | Query engine, Iceberg integration        |
+| **MinIO**          | 1, 2       | Object storage setup and config          |
+| **Postgres**       | 2, 6, 8    | Marts, metadata, BI integration          |
+| **Superset**       | 2, 8       | Dashboarding, visualization              |
+| **Pandera**        | 5, 9       | Schema validation, data quality          |
+| **OpenMetadata**   | 10         | Data catalog, lineage, governance        |
 
 ## Hands-On Sections
 
@@ -311,6 +325,7 @@ By the end of this series, you'll have:
 - Operational monitoring and alerts
 
 Plus, knowledge to:
+
 - Add more data sources
 - Scale to millions of rows
 - Deploy to production

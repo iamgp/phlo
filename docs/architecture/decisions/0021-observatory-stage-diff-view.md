@@ -147,6 +147,7 @@ Add a "Compare with upstream" button in `NodeDetailPanel` that opens the diff vi
    ```bash
    cd packages/phlo-observatory/src/phlo_observatory && npm test -- diff.server.test
    ```
+
    - Test column diff: added, removed, renamed, unchanged
    - Test aggregate detection from SQL
    - Test transform type classification integration
@@ -160,7 +161,6 @@ Add a "Compare with upstream" button in `NodeDetailPanel` that opens the diff vi
    ```
 
 2. **Navigate to Data Explorer**:
-
    - Open http://localhost:3001/data/main
    - Select a gold table (e.g., `fct_daily_github_metrics`)
    - Click a row to open the Row Journey view

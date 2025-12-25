@@ -10,12 +10,12 @@ destinations:
     severity_levels: [ERROR, CRITICAL]
 
   - type: pagerduty
-    enabled: false  # Enable for production
+    enabled: false # Enable for production
     integration_key_env: PHLO_ALERT_PAGERDUTY_KEY
     severity_levels: [CRITICAL]
 
   - type: email
-    enabled: false  # Enable for production
+    enabled: false # Enable for production
     smtp_host_env: PHLO_ALERT_EMAIL_SMTP_HOST
     recipients_env: PHLO_ALERT_EMAIL_RECIPIENTS
     severity_levels: [WARNING, ERROR, CRITICAL]
@@ -53,7 +53,7 @@ rules:
 # Deduplication settings
 deduplication:
   enabled: true
-  window_minutes: 60  # Don't send duplicate alerts within 1 hour
+  window_minutes: 60 # Don't send duplicate alerts within 1 hour
 
 # Quiet hours (optional)
 quiet_hours:
@@ -61,4 +61,4 @@ quiet_hours:
   start: "22:00"
   end: "08:00"
   timezone: "America/Los_Angeles"
-  severity_threshold: CRITICAL  # Only allow CRITICAL alerts during quiet hours
+  severity_threshold: CRITICAL # Only allow CRITICAL alerts during quiet hours

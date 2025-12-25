@@ -231,23 +231,27 @@ def weather_observations(partition: str, context):
 ## Debugging Steps
 
 1. **Check API status**
+
    ```bash
    curl -I https://api.example.com/status
    ```
 
 2. **Test API credentials**
+
    ```bash
    export API_KEY="your-api-key"
    curl -H "Authorization: Bearer $API_KEY" https://api.example.com/test
    ```
 
 3. **Review Dagster logs**
+
    ```bash
    docker logs dagster-webserver
    docker logs dagster-daemon
    ```
 
 4. **Test asset locally**
+
    ```python
    from workflows.ingestion.weather.observations import weather_observations
 
@@ -257,6 +261,7 @@ def weather_observations(partition: str, context):
    ```
 
 5. **Check network connectivity**
+
    ```bash
    ping api.example.com
    nslookup api.example.com
@@ -264,6 +269,7 @@ def weather_observations(partition: str, context):
    ```
 
 6. **Monitor API rate limits**
+
    ```python
    response = requests.get(url, headers=headers)
 
@@ -277,16 +283,16 @@ def weather_observations(partition: str, context):
 
 ## Common API Error Codes
 
-| Status Code | Meaning | Solution |
-|------------|---------|----------|
-| 400 | Bad Request | Check request parameters |
-| 401 | Unauthorized | Verify API credentials |
-| 403 | Forbidden | Check API permissions |
-| 404 | Not Found | Verify endpoint URL |
-| 429 | Too Many Requests | Implement rate limiting |
-| 500 | Internal Server Error | Retry with backoff |
-| 503 | Service Unavailable | Wait and retry |
-| 504 | Gateway Timeout | Increase timeout |
+| Status Code | Meaning               | Solution                 |
+| ----------- | --------------------- | ------------------------ |
+| 400         | Bad Request           | Check request parameters |
+| 401         | Unauthorized          | Verify API credentials   |
+| 403         | Forbidden             | Check API permissions    |
+| 404         | Not Found             | Verify endpoint URL      |
+| 429         | Too Many Requests     | Implement rate limiting  |
+| 500         | Internal Server Error | Retry with backoff       |
+| 503         | Service Unavailable   | Wait and retry           |
+| 504         | Gateway Timeout       | Increase timeout         |
 
 ## Related Errors
 
@@ -297,6 +303,7 @@ def weather_observations(partition: str, context):
 ## Prevention
 
 1. **Implement health checks**
+
    ```python
    def check_api_health():
        try:
@@ -316,6 +323,7 @@ def weather_observations(partition: str, context):
    ```
 
 2. **Add monitoring and alerting**
+
    ```python
    from dagster import MetadataValue
 
@@ -346,6 +354,7 @@ def weather_observations(partition: str, context):
    ```
 
 3. **Use circuit breaker pattern**
+
    ```python
    from pybreaker import CircuitBreaker
 
@@ -361,6 +370,7 @@ def weather_observations(partition: str, context):
    ```
 
 4. **Test with mock data**
+
    ```python
    # tests/test_weather_ingestion.py
    from phlo_testing import mock_dlt_source

@@ -53,13 +53,11 @@ When `--profile` is specified without `--service`, the `start` command should on
 #### [MODIFY] [services.py](file:///Users/garethprice/Developer/phlo/src/phlo/cli/services.py)
 
 1. Add new `restart` command (~50-70 lines):
-
    - Accept `--profile`, `--service`, `--build`, `--dev` options
    - Execute `stop` logic followed by `start` logic
    - Share common code with existing commands
 
 2. Fix `start` command `--profile` behavior:
-
    - Add helper function `get_profile_services(profile_names)` to resolve profile names to service names
    - When `--profile` is specified without `--service`, automatically populate `services_list` with profile services
    - Use `docker compose up <services>` instead of `docker compose up` to target specific services

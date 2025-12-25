@@ -26,6 +26,7 @@ This guide teaches you everything about Dagster assets in Phlo - from basics to 
 An **asset** is a piece of data that you want to create and maintain.
 
 **Examples:**
+
 - A table in Iceberg
 - A file in S3
 - A machine learning model
@@ -45,6 +46,7 @@ def my_first_asset():
 ```
 
 That's it! Dagster will:
+
 - Track when it was last materialized
 - Let you materialize it on-demand
 - Show it in the UI
@@ -52,17 +54,20 @@ That's it! Dagster will:
 ### Materializing an Asset
 
 **In the UI:**
+
 1. Open http://localhost:3000
 2. Click "Assets"
 3. Find your asset
 4. Click "Materialize"
 
 **CLI:**
+
 ```bash
 dagster asset materialize -m phlo.framework.definitions -a my_first_asset
 ```
 
 **Programmatically:**
+
 ```python
 from dagster import materialize
 
@@ -135,6 +140,7 @@ def configured_asset(context: dg.AssetExecutionContext):
 ```
 
 **Parameters:**
+
 - `name`: Asset name (default: function name)
 - `description`: Shows in UI
 - `compute_kind`: Badge showing technology (python, sql, spark, etc.)
@@ -162,6 +168,7 @@ def downstream_asset(upstream_asset):  # Depends on upstream_asset
 ```
 
 Dagster automatically:
+
 - Knows `downstream_asset` depends on `upstream_asset`
 - Materializes `upstream_asset` first
 - Passes its return value to `downstream_asset`
@@ -179,6 +186,7 @@ def downstream_asset():
 ```
 
 Use `deps` when:
+
 - You don't need the upstream asset's return value
 - The upstream asset writes to a database/storage
 - You just need it to run first
@@ -212,6 +220,7 @@ def asset_c(asset_a, asset_b):  # Depends on both
 ```
 
 Graph:
+
 ```
 asset_a ─┐
          ├─> asset_c
@@ -247,6 +256,7 @@ def conditional_asset():
 ### What are Resources?
 
 **Resources** are external services your assets need:
+
 - Databases (Trino, Postgres)
 - APIs (Iceberg catalog)
 - File systems (S3)
@@ -309,6 +319,7 @@ def build_resources():
 ```
 
 **Use it:**
+
 ```python
 @dg.asset
 def weather_data(weather_api: WeatherAPIResource):
@@ -371,6 +382,7 @@ def daily_weather_data(context: dg.AssetExecutionContext):
 ```
 
 **Benefits:**
+
 - Process incrementally (one day at a time)
 - Backfill missing dates easily
 - Re-process specific dates if needed
@@ -379,6 +391,7 @@ def daily_weather_data(context: dg.AssetExecutionContext):
 ### Materializing Partitions
 
 **Single partition:**
+
 ```bash
 dagster asset materialize -m phlo.framework.definitions \
   -a daily_weather_data \
@@ -386,6 +399,7 @@ dagster asset materialize -m phlo.framework.definitions \
 ```
 
 **Range of partitions:**
+
 ```bash
 # Backfill last 7 days
 dagster asset backfill -m phlo.framework.definitions \
@@ -395,6 +409,7 @@ dagster asset backfill -m phlo.framework.definitions \
 ```
 
 **Latest partition:**
+
 ```bash
 dagster asset materialize -m phlo.framework.definitions \
   -a daily_weather_data \
@@ -585,6 +600,7 @@ def daily_weather_schedule():
 ```
 
 **Cron examples:**
+
 ```
 "0 * * * *"      # Every hour
 "0 0 * * *"      # Daily at midnight
@@ -818,13 +834,16 @@ def iceberg_io_manager(iceberg: IcebergResource):
 ### Asset Not Showing in UI
 
 **Check:**
+
 1. Is it discoverable under workflows/?
+
    ```python
    from phlo.framework.definitions import defs
    assert defs.get_asset_def("my_asset") is not None
    ```
 
 2. Restart Dagster:
+
    ```bash
    docker-compose restart dagster-webserver dagster-daemon
    ```
@@ -837,9 +856,11 @@ def iceberg_io_manager(iceberg: IcebergResource):
 ### Asset Fails to Materialize
 
 **Debug steps:**
+
 1. Check logs in Dagster UI (Runs → Failed run → Logs)
 
 2. Run locally:
+
    ```python
    from phlo.framework.definitions import defs
    from dagster import materialize
@@ -857,6 +878,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 **Common issues:**
 
 1. Typo in asset name:
+
    ```python
    # Wrong
    def downstream(upsteam_asset):  # Typo!
@@ -880,12 +902,14 @@ def iceberg_io_manager(iceberg: IcebergResource):
 **Common issues:**
 
 1. Partition key not found:
+
    ```python
    # Check partition exists
    context.log.info(f"Partition: {context.partition_key}")
    ```
 
 2. Partition dependency mismatch:
+
    ```python
    # Both assets must use same partition definition
    @asset(partitions_def=daily_partition)
@@ -914,7 +938,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
      deploy:
        resources:
          limits:
-           cpus: '2'
+           cpus: "2"
            memory: 4G
    ```
 
@@ -923,6 +947,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 ## Summary
 
 **Key Concepts:**
+
 - **Assets** = Data you want to create
 - **Dependencies** = What depends on what
 - **Resources** = External services
@@ -932,6 +957,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 - **Sensors** = Event-based triggers
 
 **Best Practices:**
+
 - ✅ Use meaningful asset names
 - ✅ Add descriptions and metadata
 - ✅ Group related assets

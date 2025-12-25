@@ -289,17 +289,17 @@ Custom Services (phlo.yaml):
 
 ## Summary
 
-| Phase | Description                     | Effort         |
-| ----- | ------------------------------- | -------------- |
-| **0** | Package-first Observatory + phlo-api | 2-3 days   |
-| **1** | Unified discovery flow          | 1 day          |
-| **2** | Naming cleanup (Cascade → Phlo) | 0.5 days       |
-| **3** | User service overrides          | 2 days         |
-| **4** | Enable/disable services         | 0.5 days       |
-| **5** | Inline custom services          | 1 day          |
-| **6** | Enhanced discoverability        | 1 day          |
-| **7** | Documentation & cleanup         | 1 day          |
-|       | **Total**                       | **~9-10 days** |
+| Phase | Description                          | Effort         |
+| ----- | ------------------------------------ | -------------- |
+| **0** | Package-first Observatory + phlo-api | 2-3 days       |
+| **1** | Unified discovery flow               | 1 day          |
+| **2** | Naming cleanup (Cascade → Phlo)      | 0.5 days       |
+| **3** | User service overrides               | 2 days         |
+| **4** | Enable/disable services              | 0.5 days       |
+| **5** | Inline custom services               | 1 day          |
+| **6** | Enhanced discoverability             | 1 day          |
+| **7** | Documentation & cleanup              | 1 day          |
+|       | **Total**                            | **~9-10 days** |
 
 ---
 

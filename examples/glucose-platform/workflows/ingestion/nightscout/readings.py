@@ -5,8 +5,8 @@ Replicates the example from workflows.ingestion.nightscout.glucose
 
 from __future__ import annotations
 
-from phlo_dlt import phlo_ingestion
 from dlt.sources.rest_api import rest_api
+from phlo_dlt import phlo_ingestion
 
 from workflows.schemas.nightscout import RawGlucoseEntries
 

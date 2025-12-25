@@ -20,27 +20,28 @@ cp templates/tests/test_ingestion.py tests/test_weather_ingestion.py
 
 ### Ingestion Templates
 
-| Template | Description | Use Case |
-|----------|-------------|----------|
+| Template        | Description        | Use Case                                         |
+| --------------- | ------------------ | ------------------------------------------------ |
 | **rest_api.py** | REST API ingestion | Third-party APIs (Stripe, GitHub, weather, etc.) |
-| **database.py** | Database ingestion | PostgreSQL, MySQL, Snowflake |
-| **file.py** | File ingestion | CSV, JSON, Parquet files |
+| **database.py** | Database ingestion | PostgreSQL, MySQL, Snowflake                     |
+| **file.py**     | File ingestion     | CSV, JSON, Parquet files                         |
 
 ### Schema Templates
 
-| Template | Description |
-|----------|-------------|
+| Template              | Description             |
+| --------------------- | ----------------------- | ---------------------------- |
 | **example_schema.py** | Pandera schema template | Define data validation rules |
 
 ### Test Templates
 
-| Template | Description |
-|----------|-------------|
+| Template              | Description           |
+| --------------------- | --------------------- | ---------------------------------- |
 | **test_ingestion.py** | Ingestion asset tests | Unit tests for ingestion workflows |
 
 ## Template Structure
 
 Each template includes:
+
 - ✅ Complete working example
 - ✅ Inline comments explaining each part
 - ✅ TODO markers for customization points
@@ -52,6 +53,7 @@ Each template includes:
 ### 1. Choose a Template
 
 Select the template that matches your workflow type:
+
 - REST API ingestion → `templates/ingestion/rest_api.py`
 - Database ingestion → `templates/ingestion/database.py`
 - File ingestion → `templates/ingestion/file.py`

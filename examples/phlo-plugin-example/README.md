@@ -11,6 +11,7 @@ This package includes examples of all three plugin types:
 ## Installation
 
 For development:
+
 ```bash
 cd examples/phlo-plugin-example
 pip install -e ".[dev]"
@@ -25,6 +26,7 @@ A source connector that fetches posts from [JSONPlaceholder API](https://jsonpla
 **Entry point:** `jsonplaceholder` (in `phlo.plugins.sources`)
 
 **Configuration:**
+
 ```python
 config = {
     "base_url": "https://jsonplaceholder.typicode.com",
@@ -33,6 +35,7 @@ config = {
 ```
 
 **Usage:**
+
 ```python
 from phlo.plugins import get_source_connector
 
@@ -48,6 +51,7 @@ A quality check plugin that validates values are within a threshold.
 **Entry point:** `threshold_check` (in `phlo.plugins.quality`)
 
 **Configuration:**
+
 ```python
 config = {
     "column": "value",
@@ -58,6 +62,7 @@ config = {
 ```
 
 **Usage:**
+
 ```python
 from phlo.plugins import get_quality_check
 
@@ -73,6 +78,7 @@ A transformation plugin that converts string columns to uppercase.
 **Entry point:** `uppercase` (in `phlo.plugins.transforms`)
 
 **Configuration:**
+
 ```python
 config = {
     "columns": ["title", "body"],  # Columns to transform
@@ -80,6 +86,7 @@ config = {
 ```
 
 **Usage:**
+
 ```python
 from phlo.plugins import get_transformation
 
@@ -90,11 +97,13 @@ result = plugin.transform(df, config={"columns": ["title"]})
 ## Testing
 
 Run tests:
+
 ```bash
 pytest tests/
 ```
 
 Run with coverage:
+
 ```bash
 pytest tests/ --cov=src/phlo_example
 ```
@@ -102,11 +111,13 @@ pytest tests/ --cov=src/phlo_example
 ## Code Quality
 
 Lint the code:
+
 ```bash
 ruff check src/
 ```
 
 Format the code:
+
 ```bash
 ruff format src/
 ```
@@ -131,7 +142,7 @@ class MySource(SourceConnectorPlugin):
             version="1.0.0",
             description="My data source",
         )
-    
+
     def fetch_data(self, config):
         # Yield records
         yield {"id": 1, "value": "data"}
@@ -153,7 +164,7 @@ class MyCheckPlugin(QualityCheckPlugin):
             name="my_check",
             version="1.0.0",
         )
-    
+
     def create_check(self, **kwargs) -> QualityCheck:
         # Return check instance
         return MyCheck(**kwargs)
@@ -176,7 +187,7 @@ class MyTransform(TransformationPlugin):
             name="my_transform",
             version="1.0.0",
         )
-    
+
     def transform(self, df, config):
         # Transform and return
         return df.copy()

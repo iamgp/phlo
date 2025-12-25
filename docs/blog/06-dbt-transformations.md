@@ -16,7 +16,7 @@ def transform_glucose():
     WHERE sgv IS NOT NULL
     """
     trino.execute(sql1)
-    
+
     sql2 = """
     CREATE TABLE silver_fct_readings AS
     SELECT
@@ -26,14 +26,14 @@ def transform_glucose():
     FROM bronze_stg_entries
     """
     trino.execute(sql2)
-    
+
     sql3 = """
     CREATE TABLE gold_dim_date AS
     SELECT DISTINCT DATE(reading_timestamp) as reading_date
     FROM silver_fct_readings
     """
     trino.execute(sql3)
-    
+
     # Problems:
     # 1. No documentation
     # 2. No testing (did the join work?)
@@ -73,6 +73,7 @@ FROM {{ ref('fct_glucose_readings') }}  -- dbt finds dependencies
 ```
 
 One command runs everything:
+
 ```bash
 dbt build
 # dbt figures out: run bronze first, then silver, then gold
@@ -112,6 +113,7 @@ SELECT * FROM cleaned
 ```
 
 dbt materializes this as:
+
 - **View**: Query source every time (slow for complex transforms)
 - **Table**: Precompute once, fast queries (Phlo uses this)
 - **Incremental**: Only process new data (for huge tables)
@@ -177,22 +179,29 @@ models:
     columns:
       - name: entry_id
         tests:
-          - unique      # Each entry_id appears once
-          - not_null    # No missing values
-          
+          - unique # Each entry_id appears once
+          - not_null # No missing values
+
       - name: glucose_mg_dl
         tests:
           - not_null
           - accepted_values:
-              values: [0]  # 0 for missing data
-              
+              values: [0] # 0 for missing data
+
       - name: glucose_category
         tests:
           - accepted_values:
-              values: ['hypoglycemia', 'in_range', 'hyperglycemia_mild', 'hyperglycemia_severe']
+              values:
+                [
+                  "hypoglycemia",
+                  "in_range",
+                  "hyperglycemia_mild",
+                  "hyperglycemia_severe",
+                ]
 ```
 
 Run tests:
+
 ```bash
 dbt test
 
@@ -219,24 +228,25 @@ models:
     description: |
       Enriched glucose readings with calculated metrics.
       Serves as foundation for all downstream analytics.
-    
+
     columns:
       - name: entry_id
         description: Unique Nightscout entry ID (MongoDB ObjectId)
-        
+
       - name: glucose_mg_dl
         description: Glucose reading in mg/dL
         tests:
           - not_null
-          
+
       - name: glucose_category
         description: Classification (hypoglycemia/in_range/hyperglycemia)
-        
+
       - name: hour_of_day
         description: Hour extracted from reading_timestamp (0-23)
 ```
 
 Run:
+
 ```bash
 dbt docs generate
 dbt docs serve  # Opens http://localhost:8000
@@ -365,21 +375,21 @@ Nessie branching is configured via different Trino catalogs:
 ```yaml
 # profiles.yml
 phlo:
-  target: dev  # development by default
-  
+  target: dev # development by default
+
   outputs:
     dev:
       type: trino
       host: trino
       port: 8080
-      catalog: iceberg_dev  # Dev branch catalog
+      catalog: iceberg_dev # Dev branch catalog
       schema: bronze
-    
+
     prod:
       type: trino
       host: trino
       port: 8080
-      catalog: iceberg      # Main branch catalog
+      catalog: iceberg # Main branch catalog
       schema: bronze
 ```
 
@@ -531,9 +541,9 @@ FROM {{ ref('stg_glucose_entries') }}
 columns:
   - name: entry_id
     tests:
-      - unique       # Must be unique
-      - not_null     # Cannot be missing
-  
+      - unique # Must be unique
+      - not_null # Cannot be missing
+
   - name: glucose_mg_dl
     tests:
       - not_null
@@ -602,6 +612,7 @@ See you there!
 ## Summary
 
 **dbt provides**:
+
 - Reusable SQL models
 - Auto-resolved dependencies
 - Built-in data quality tests
@@ -609,6 +620,7 @@ See you there!
 - Version control (git-friendly)
 
 **Phlo uses dbt for**:
+
 - Bronze: Raw data staging
 - Silver: Fact tables with business logic
 - Gold: Dimensions and metrics

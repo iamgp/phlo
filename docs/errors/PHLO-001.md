@@ -116,16 +116,19 @@ def weather_observations(partition: str):
 ## Debugging Steps
 
 1. **Check Dagster UI logs**
+
    ```bash
    docker logs dagster-webserver
    ```
 
 2. **List all discovered assets**
+
    ```bash
    dagster asset list
    ```
 
 3. **Test asset import directly**
+
    ```python
    from workflows.ingestion.weather.observations import weather_observations
    print(f"Asset discovered: {weather_observations}")
@@ -148,6 +151,7 @@ def weather_observations(partition: str):
    - Follow the domain-based organization structure
 
 2. **Test imports in CI/CD**
+
    ```python
    # tests/test_asset_discovery.py
    def test_all_assets_importable():

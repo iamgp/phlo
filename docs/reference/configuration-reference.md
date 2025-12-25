@@ -34,6 +34,7 @@ POSTGRES_MART_SCHEMA=marts
 ```
 
 **Connection string format**:
+
 ```
 postgresql://postgres:password@postgres:10000/cascade
 ```
@@ -54,6 +55,7 @@ MINIO_ROOT_PASSWORD=minioadmin
 ```
 
 **MinIO endpoint**:
+
 ```
 http://minio:10001
 ```
@@ -72,6 +74,7 @@ NESSIE_HOST=nessie
 ```
 
 **API endpoints**:
+
 - v1 API: `http://nessie:10003/api/v1`
 - v2 API: `http://nessie:10003/api/v2`
 - Iceberg REST: `http://nessie:10003/iceberg`
@@ -91,6 +94,7 @@ TRINO_CATALOG_NAME=iceberg_dev
 ```
 
 **Connection string**:
+
 ```
 trino://trino:10005/iceberg_dev
 ```
@@ -112,6 +116,7 @@ NESSIE_REF=main
 ```
 
 **Warehouse paths by branch**:
+
 ```python
 # main branch
 s3://lake/warehouse
@@ -135,6 +140,7 @@ BRANCH_CLEANUP_ENABLED=false
 ```
 
 **Behavior**:
+
 - `BRANCH_RETENTION_DAYS`: Days to keep successful pipeline branches
 - `BRANCH_RETENTION_DAYS_FAILED`: Days to keep failed pipeline branches
 - `AUTO_PROMOTE_ENABLED`: Auto-merge to main when quality checks pass
@@ -158,6 +164,7 @@ VALIDATION_RETRY_DELAY=1.0  # seconds
 ```
 
 **Pandera levels**:
+
 - `error`: Validation failures block pipeline
 - `warning`: Log warnings but continue
 - `skip`: Skip validation entirely (not recommended)
@@ -337,7 +344,7 @@ infrastructure:
   # Service-specific configuration
   services:
     dagster_webserver:
-      container_name: null  # Use pattern
+      container_name: null # Use pattern
       service_name: dagster-webserver
       host: localhost
       internal_host: dagster-webserver

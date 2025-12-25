@@ -114,6 +114,7 @@ Custom Services (phlo.yaml):
 ```
 
 The enhanced output shows:
+
 - **Status marker**: ✓ (running/enabled), ✗ (disabled), or blank (stopped)
 - **Running state**: Running, Stopped, or Disabled
 - **Exposed ports**: First exposed external port (e.g., :3000)

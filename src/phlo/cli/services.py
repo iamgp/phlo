@@ -138,6 +138,7 @@ def require_docker():
 # Re-export from utils for backwards compatibility
 __all__ = ["get_project_config", "get_project_name", "find_dagster_container"]
 
+
 def _normalize_hook_entries(hooks: object) -> list[dict[str, object]]:
     if hooks is None:
         return []

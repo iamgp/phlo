@@ -353,7 +353,11 @@ async function findServiceYamlFiles(root: string): Promise<Array<string>> {
     if (entry.name.startsWith('.')) {
       continue
     }
-    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'build') {
+    if (
+      entry.name === 'node_modules' ||
+      entry.name === 'dist' ||
+      entry.name === 'build'
+    ) {
       continue
     }
     const entryPath = join(root, entry.name)

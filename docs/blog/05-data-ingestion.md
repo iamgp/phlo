@@ -3,6 +3,7 @@
 We have our lakehouse infrastructure. Now: **how does data actually get in?**
 
 Phlo uses a two-step pattern:
+
 1. **DLT (Data Load Tool)**: Fetch and stage data
 2. **PyIceberg**: Merge staged data into Iceberg tables
 
@@ -27,14 +28,16 @@ Two Steps (Safe)
 ```
 
 The two-step pattern ensures:
--  If network fails during fetch → restart from API
+
+- If network fails during fetch → restart from API
 - 📦 If staging fails → S3 has backup
--  If merge fails → can retry with same data
--  Idempotent: run multiple times safely
+- If merge fails → can retry with same data
+- Idempotent: run multiple times safely
 
 ## Step 1: DLT (Data Load Tool)
 
 DLT is a Python library that:
+
 - Fetches data from sources
 - Normalizes schema (makes consistent)
 - Stages to parquet files
@@ -135,12 +138,14 @@ def api_events(partition_date: str):
 ```
 
 **Characteristics:**
+
 - Fastest performance (no deduplication overhead)
 - No checking for duplicates
 - Simply appends all new records
 - **Use for**: Server logs, clickstream events, time-series sensor data, immutable audit trails
 
 **Trade-offs:**
+
 - If you accidentally run the same partition twice, you'll get duplicates
 - No way to update existing records
 - Requires careful pipeline design to avoid re-runs
@@ -165,17 +170,21 @@ def user_profiles(partition_date: str):
 **Deduplication Strategies:**
 
 1. **`last` (default)**: Keep the most recent occurrence
+
    ```python
    merge_config={"deduplication_method": "last"}
    ```
+
    - Based on insertion order during the pipeline run
    - Most common choice for dimension tables
    - Example: User profile updates (keep latest email, phone, etc.)
 
 2. **`first`**: Keep the earliest occurrence
+
    ```python
    merge_config={"deduplication_method": "first"}
    ```
+
    - Useful when first value is authoritative
    - Example: Initial signup timestamp, first purchase date
 
@@ -183,30 +192,33 @@ def user_profiles(partition_date: str):
    ```python
    merge_config={"deduplication_method": "hash"}
    ```
+
    - Compares full record content, not just timestamp
    - Useful when you want to detect actual data changes
    - Example: Configuration snapshots (only update if content differs)
 
 **Characteristics:**
+
 - Performs upsert: UPDATE if `unique_key` exists, INSERT if new
 - Removes duplicates within the same batch
 - Idempotent: running multiple times produces same result
 - **Use for**: User profiles, product catalogs, reference data, slowly changing dimensions
 
 **Trade-offs:**
+
 - Slower than append (requires deduplication logic)
 - More memory usage during merge
 - Worth it for data correctness
 
 #### Strategy Comparison
 
-| Aspect | Append | Merge (last) | Merge (first) | Merge (hash) |
-|--------|--------|--------------|---------------|--------------|
-| **Performance** | Fastest | Medium | Medium | Slowest |
-| **Deduplication** | None | By order | By order | By content |
-| **Idempotency** | No | Yes | Yes | Yes |
-| **Updates** | No | Yes (keeps latest) | No (keeps first) | Yes (if changed) |
-| **Use Case** | Logs, events | Dimensions | Historical records | Config snapshots |
+| Aspect            | Append       | Merge (last)       | Merge (first)      | Merge (hash)     |
+| ----------------- | ------------ | ------------------ | ------------------ | ---------------- |
+| **Performance**   | Fastest      | Medium             | Medium             | Slowest          |
+| **Deduplication** | None         | By order           | By order           | By content       |
+| **Idempotency**   | No           | Yes                | Yes                | Yes              |
+| **Updates**       | No           | Yes (keeps latest) | No (keeps first)   | Yes (if changed) |
+| **Use Case**      | Logs, events | Dimensions         | Historical records | Config snapshots |
 
 #### Real-World Example: Glucose Data
 
@@ -228,6 +240,7 @@ The glucose ingestion uses merge strategy because:
 ```
 
 If we used `append` strategy instead:
+
 - Running the same partition twice would create duplicates
 - Corrected readings wouldn't update (you'd have both old and new)
 - dbt transformations downstream would need to handle deduplication
@@ -261,10 +274,11 @@ Parquet file with columns:
 ```
 
 DLT automatically:
--  Infers column types
+
+- Infers column types
 - 🚫 Handles nulls
 - 📛 Renames fields (snake_case)
--  Validates structure
+- Validates structure
 
 ### Pandera Schema Validation
 
@@ -323,6 +337,7 @@ class RawGlucoseEntries(DataFrameModel):
 ## Step 2: PyIceberg (Merge into Lakehouse)
 
 PyIceberg is the Python client for Iceberg. It:
+
 - Loads the staged parquet
 - Creates/updates Iceberg table
 - Performs idempotent merge (upsert)
@@ -354,6 +369,7 @@ catalog.create_table(
 ```
 
 Result in MinIO:
+
 ```
 s3://lake/warehouse/raw/glucose_entries/
 ├── metadata/
@@ -376,22 +392,22 @@ def merge_parquet(
 ) -> dict:
     """
     Merge parquet file into Iceberg table (idempotent upsert).
-    
+
     Args:
         table_name: "raw.glucose_entries"
         data_path: "/path/to/data.parquet"
         unique_key: Column to deduplicate on
-        
+
     Returns:
         Metrics: rows_inserted, rows_deleted, etc.
     """
-    
+
     # Load table
     table = self.catalog.load_table(table_name)
-    
+
     # Read new data from parquet
     new_df = read_parquet(data_path)
-    
+
     # SQL merge operation:
     # - If _id exists: delete old, insert new (deduplication)
     # - If _id new: insert it
@@ -402,9 +418,9 @@ def merge_parquet(
     WHEN MATCHED THEN DELETE
     WHEN NOT MATCHED THEN INSERT *
     """
-    
+
     result = self.trino.execute(merge_query)
-    
+
     return {
         'rows_inserted': result['inserted'],
         'rows_deleted': result['deleted'],
@@ -733,6 +749,7 @@ See you there!
 **Phlo's Ingestion with @phlo_ingestion**:
 
 The `@phlo_ingestion` decorator simplifies data ingestion by handling:
+
 1. **DLT pipeline execution**: Stages data from source to parquet
 2. **Schema validation**: Validates with Pandera before loading
 3. **Iceberg merge**: Performs idempotent upsert using unique_key
@@ -740,6 +757,7 @@ The `@phlo_ingestion` decorator simplifies data ingestion by handling:
 5. **Scheduling**: Supports cron-based execution
 
 **Decorator Parameters**:
+
 - `table_name`: Iceberg table to write to
 - `unique_key`: Column for deduplication
 - `validation_schema`: Pandera schema for validation
@@ -748,11 +766,13 @@ The `@phlo_ingestion` decorator simplifies data ingestion by handling:
 - `freshness_hours`: Expected data freshness (optional)
 
 **Your Function**:
+
 - Takes `partition_date: str` parameter
 - Returns a DLT source or resource
 - The decorator handles everything else
 
 **Why This Pattern Works**:
+
 - **Simple**: Write 10 lines, get full pipeline
 - **Idempotent**: Safe to retry/rerun
 - **Atomic**: All-or-nothing commits
@@ -761,6 +781,7 @@ The `@phlo_ingestion` decorator simplifies data ingestion by handling:
 - **Scalable**: Works from KB to TB
 
 **Quality Checks**:
+
 - Use `@phlo_quality` for declarative checks (NullCheck, RangeCheck, FreshnessCheck)
 - Or use traditional `@asset_check` for custom validation logic
 - Both integrate with Dagster's asset check system

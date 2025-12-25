@@ -57,7 +57,7 @@ export function fnLogger(fn: string, meta?: Record<string, unknown>) {
 export async function withTiming<T>(
   fn: string,
   operation: () => Promise<T>,
-  meta?: Record<string, unknown>
+  meta?: Record<string, unknown>,
 ): Promise<T> {
   const log = fnLogger(fn, meta);
   const start = performance.now();
@@ -89,7 +89,7 @@ export const previewData = createServerFn()
       () => {
         // existing logic
       },
-      { table: data.table, branch: data.branch }
+      { table: data.table, branch: data.branch },
     );
   });
 ```
@@ -123,7 +123,7 @@ export function withTimingBudget<T>(
   fn: string,
   budgetMs: number,
   operation: () => Promise<T>,
-  meta?: Record<string, unknown>
+  meta?: Record<string, unknown>,
 ): Promise<T> {
   const log = fnLogger(fn, meta);
   const start = performance.now();
@@ -194,7 +194,6 @@ export function withTimingBudget<T>(
 ### Manual Verification
 
 1. **Check structured logs appear**:
-
    - Start Observatory: `cd packages/phlo-observatory/src/phlo_observatory && npm run dev -- --port 3001`
    - Open browser to http://localhost:3001
    - Navigate to Data Explorer, select a table

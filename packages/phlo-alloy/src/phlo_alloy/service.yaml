@@ -21,7 +21,15 @@ compose:
     loki:
       condition: service_healthy
   healthcheck:
-    test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:12345/-/ready"]
+    test:
+      [
+        "CMD",
+        "wget",
+        "--quiet",
+        "--tries=1",
+        "--spider",
+        "http://localhost:12345/-/ready",
+      ]
     interval: 10s
     timeout: 5s
     retries: 5

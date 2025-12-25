@@ -30,4 +30,3 @@ Use a custom `DagsterDbtTranslator` to:
 - UIs and consumers can access compiled SQL when needed without polluting descriptions.
 - Metadata size is still bounded; truncation is explicit and discoverable.
 - Translator becomes the central place to evolve dbt→Dagster mapping semantics.
-

@@ -21,7 +21,7 @@ This error occurs when the `cron` schedule expression provided to the `@phlo_ing
 
 3. **Invalid ranges**
    - Values outside valid ranges (e.g., hour=25)
-   - Invalid step values (e.g., */0)
+   - Invalid step values (e.g., \*/0)
 
 4. **Quoting issues**
    - Missing quotes around cron expression
@@ -158,17 +158,18 @@ cron=0 */1 * * *  # SyntaxError!
 
 ## Cron Field Ranges
 
-| Field | Valid Values | Special Characters |
-|-------|--------------|-------------------|
-| minute | 0-59 | `*` `,` `-` `/` |
-| hour | 0-23 | `*` `,` `-` `/` |
-| day_of_month | 1-31 | `*` `,` `-` `/` `?` `L` `W` |
-| month | 1-12 | `*` `,` `-` `/` |
-| day_of_week | 0-6 (Sun=0) | `*` `,` `-` `/` `?` `L` `#` |
+| Field        | Valid Values | Special Characters          |
+| ------------ | ------------ | --------------------------- |
+| minute       | 0-59         | `*` `,` `-` `/`             |
+| hour         | 0-23         | `*` `,` `-` `/`             |
+| day_of_month | 1-31         | `*` `,` `-` `/` `?` `L` `W` |
+| month        | 1-12         | `*` `,` `-` `/`             |
+| day_of_week  | 0-6 (Sun=0)  | `*` `,` `-` `/` `?` `L` `#` |
 
 ## Common Patterns
 
 ### Hourly Schedules
+
 ```python
 cron="0 */1 * * *"     # Every hour
 cron="0 */2 * * *"     # Every 2 hours
@@ -177,6 +178,7 @@ cron="30 */1 * * *"    # Every hour at :30
 ```
 
 ### Daily Schedules
+
 ```python
 cron="0 0 * * *"       # Midnight
 cron="0 6 * * *"       # 6 AM
@@ -185,6 +187,7 @@ cron="0 18 * * *"      # 6 PM
 ```
 
 ### Weekly Schedules
+
 ```python
 cron="0 0 * * 0"       # Sunday midnight
 cron="0 9 * * 1"       # Monday 9 AM
@@ -192,6 +195,7 @@ cron="0 0 * * 5"       # Friday midnight
 ```
 
 ### Monthly Schedules
+
 ```python
 cron="0 0 1 * *"       # First day of month
 cron="0 0 15 * *"      # 15th of month
@@ -201,6 +205,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
 ## Debugging Steps
 
 1. **Validate cron syntax**
+
    ```python
    from croniter import croniter
    from datetime import datetime
@@ -215,6 +220,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
    ```
 
 2. **Test on crontab.guru**
+
    ```
    Visit: https://crontab.guru/
    Enter: 0 */1 * * *
@@ -222,6 +228,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
    ```
 
 3. **Check Dagster schedule**
+
    ```bash
    dagster schedule list
    dagster schedule logs my_schedule
@@ -241,6 +248,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
 ## Prevention
 
 1. **Use constants for common schedules**
+
    ```python
    # config.py
    HOURLY = "0 */1 * * *"
@@ -257,6 +265,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
    ```
 
 2. **Add cron validation tests**
+
    ```python
    # tests/test_schedules.py
    from croniter import croniter
@@ -275,6 +284,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
    ```
 
 3. **Document schedule rationale**
+
    ```python
    @phlo_ingestion(
        unique_key="observation_id",
@@ -292,6 +302,7 @@ cron="0 0 L * *"       # Last day of month (if supported)
    ```
 
 4. **Use schedule builders**
+
    ```python
    def hourly(minute: int = 0) -> str:
        """Generate hourly cron expression."""

@@ -44,6 +44,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -60,22 +61,24 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 
 ### Default Users
 
-| Username | Password | Role | Permissions |
-|----------|----------|------|-------------|
-| admin | admin123 | admin | Full access including SQL execution |
-| analyst | analyst123 | analyst | Read-only access to all endpoints |
+| Username | Password   | Role    | Permissions                         |
+| -------- | ---------- | ------- | ----------------------------------- |
+| admin    | admin123   | admin   | Full access including SQL execution |
+| analyst  | analyst123 | analyst | Read-only access to all endpoints   |
 
 **Production:** Change default passwords in JWT creation code or implement proper user management.
 
 ### Using Tokens
 
 **FastAPI:**
+
 ```bash
 curl -H "Authorization: Bearer YOUR_TOKEN" \
   http://localhost:8000/api/v1/glucose/readings
 ```
 
 **Hasura:**
+
 ```bash
 curl -X POST http://localhost:8081/v1/graphql \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -84,24 +87,25 @@ curl -X POST http://localhost:8081/v1/graphql \
 ```
 
 **JavaScript:**
+
 ```javascript
 const token = "YOUR_TOKEN";
 
 // FastAPI
-const response = await fetch('http://localhost:8000/api/v1/glucose/readings', {
-  headers: { 'Authorization': `Bearer ${token}` }
+const response = await fetch("http://localhost:8000/api/v1/glucose/readings", {
+  headers: { Authorization: `Bearer ${token}` },
 });
 
 // Hasura
-const graphqlResponse = await fetch('http://localhost:8081/v1/graphql', {
-  method: 'POST',
+const graphqlResponse = await fetch("http://localhost:8081/v1/graphql", {
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    query: '{ mrt_glucose_overview { date avg_glucose } }'
-  })
+    query: "{ mrt_glucose_overview { date avg_glucose } }",
+  }),
 });
 ```
 
@@ -118,6 +122,7 @@ Base URL: `http://localhost:8000/api/v1`
 Get JWT access token.
 
 **Request:**
+
 ```json
 {
   "username": "admin",
@@ -126,6 +131,7 @@ Get JWT access token.
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "eyJ...",
@@ -146,17 +152,20 @@ Query curated glucose data from Postgres marts (fast, cached).
 Get glucose readings with optional date filters.
 
 **Parameters:**
+
 - `start_date` (optional): Start date (YYYY-MM-DD)
 - `end_date` (optional): End date (YYYY-MM-DD)
 - `limit` (default: 1000, max: 10000): Number of readings
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   "http://localhost:8000/api/v1/glucose/readings?start_date=2024-01-01&limit=100"
 ```
 
 **Response:**
+
 ```json
 {
   "data": [
@@ -183,15 +192,18 @@ curl -H "Authorization: Bearer TOKEN" \
 Get summary for a specific day.
 
 **Parameters:**
+
 - `date` (required): Date (YYYY-MM-DD)
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   "http://localhost:8000/api/v1/glucose/daily-summary?date=2024-01-15"
 ```
 
 **Response:**
+
 ```json
 {
   "date": "2024-01-15",
@@ -212,12 +224,14 @@ curl -H "Authorization: Bearer TOKEN" \
 Get aggregated hourly patterns across all data.
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   http://localhost:8000/api/v1/glucose/hourly-patterns
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -242,15 +256,18 @@ curl -H "Authorization: Bearer TOKEN" \
 Get statistics for a time period.
 
 **Parameters:**
+
 - `period` (default: 7d): Time period (7d, 30d, or 90d)
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   "http://localhost:8000/api/v1/glucose/statistics?period=30d"
 ```
 
 **Response:**
+
 ```json
 {
   "period": "30d",
@@ -277,15 +294,18 @@ Query raw/bronze/silver/gold Iceberg tables via Trino.
 List all Iceberg tables, optionally filtered by schema.
 
 **Parameters:**
+
 - `schema` (optional): Filter by schema (raw, bronze, silver, gold)
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   http://localhost:8000/api/v1/iceberg/tables?schema=bronze
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -305,17 +325,20 @@ curl -H "Authorization: Bearer TOKEN" \
 Query data from an Iceberg table.
 
 **Parameters:**
+
 - `filter` (optional): SQL WHERE clause (without 'WHERE')
 - `order_by` (optional): SQL ORDER BY clause (without 'ORDER BY')
 - `limit` (default: 1000, max: 10000): Number of rows
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   "http://localhost:8000/api/v1/iceberg/bronze/stg_entries?filter=date>='2024-01-01'&limit=10"
 ```
 
 **Response:**
+
 ```json
 {
   "schema": "bronze",
@@ -332,6 +355,7 @@ curl -H "Authorization: Bearer TOKEN" \
 ```
 
 **Security:**
+
 - SQL injection protection (dangerous keywords rejected)
 - 30-second query timeout
 - 10,000 row limit enforced
@@ -349,6 +373,7 @@ Execute arbitrary SQL against Trino or Postgres.
 **Requires:** Admin role
 
 **Request:**
+
 ```json
 {
   "query": "SELECT date, avg_glucose FROM iceberg.gold.mrt_glucose_readings LIMIT 10",
@@ -358,6 +383,7 @@ Execute arbitrary SQL against Trino or Postgres.
 ```
 
 **Response:**
+
 ```json
 {
   "columns": ["date", "avg_glucose"],
@@ -371,6 +397,7 @@ Execute arbitrary SQL against Trino or Postgres.
 ```
 
 **Security:**
+
 - Admin-only access
 - Write operations blocked (DROP, DELETE, INSERT, UPDATE, CREATE, ALTER)
 - Query timeout: 30 seconds
@@ -387,11 +414,13 @@ Execute arbitrary SQL against Trino or Postgres.
 API health check (no auth required).
 
 **Example:**
+
 ```bash
 curl http://localhost:8000/api/v1/metadata/health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -406,12 +435,14 @@ curl http://localhost:8000/api/v1/metadata/health
 Get in-memory cache statistics.
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   http://localhost:8000/api/v1/metadata/cache/stats
 ```
 
 **Response:**
+
 ```json
 {
   "total_entries": 45,
@@ -427,12 +458,14 @@ curl -H "Authorization: Bearer TOKEN" \
 Get current user information.
 
 **Example:**
+
 ```bash
 curl -H "Authorization: Bearer TOKEN" \
   http://localhost:8000/api/v1/metadata/user/me
 ```
 
 **Response:**
+
 ```json
 {
   "user_id": "admin_001",
@@ -454,6 +487,7 @@ Console: `http://localhost:8081/console`
 Hasura automatically generates GraphQL types from the `marts` schema in Postgres.
 
 **Available Tables:**
+
 - `mrt_glucose_overview` - Daily glucose summaries
 - `mrt_glucose_hourly_patterns` - Hourly patterns
 
@@ -479,6 +513,7 @@ query GetGlucoseReadings($startDate: date!) {
 ```
 
 **Variables:**
+
 ```json
 {
   "startDate": "2024-01-01"
@@ -486,6 +521,7 @@ query GetGlucoseReadings($startDate: date!) {
 ```
 
 **cURL Example:**
+
 ```bash
 curl -X POST http://localhost:8081/v1/graphql \
   -H "Authorization: Bearer TOKEN" \
@@ -502,9 +538,7 @@ curl -X POST http://localhost:8081/v1/graphql \
 
 ```graphql
 query GetGlucoseStats {
-  mrt_glucose_overview_aggregate(
-    where: { date: { _gte: "2024-01-01" } }
-  ) {
+  mrt_glucose_overview_aggregate(where: { date: { _gte: "2024-01-01" } }) {
     aggregate {
       count
       avg {
@@ -530,10 +564,7 @@ Hasura supports rich filtering:
 ```graphql
 query GetHighGlucoseDays {
   mrt_glucose_overview(
-    where: {
-      avg_glucose: { _gt: 140 }
-      date: { _gte: "2024-01-01" }
-    }
+    where: { avg_glucose: { _gt: 140 }, date: { _gte: "2024-01-01" } }
     order_by: { avg_glucose: desc }
   ) {
     date
@@ -543,6 +574,7 @@ query GetHighGlucoseDays {
 ```
 
 **Filter Operators:**
+
 - `_eq` - Equal
 - `_neq` - Not equal
 - `_gt` - Greater than
@@ -560,10 +592,7 @@ Hasura supports GraphQL subscriptions for real-time data:
 
 ```graphql
 subscription WatchGlucoseReadings {
-  mrt_glucose_overview(
-    order_by: { date: desc }
-    limit: 10
-  ) {
+  mrt_glucose_overview(order_by: { date: desc }, limit: 10) {
     date
     avg_glucose
   }
@@ -578,11 +607,11 @@ subscription WatchGlucoseReadings {
 
 API rate limits are role-based:
 
-| Role | Limit |
-|------|-------|
-| Admin | 1000 requests/minute |
-| Analyst | 100 requests/minute |
-| Unauthenticated | 50 requests/minute |
+| Role            | Limit                |
+| --------------- | -------------------- |
+| Admin           | 1000 requests/minute |
+| Analyst         | 100 requests/minute  |
+| Unauthenticated | 50 requests/minute   |
 
 **429 Too Many Requests** response when limit exceeded.
 
@@ -601,6 +630,7 @@ API rate limits are role-based:
 ```
 
 **Common Status Codes:**
+
 - `200` - Success
 - `400` - Bad request (invalid parameters)
 - `401` - Unauthorized (missing/invalid token)
@@ -631,16 +661,17 @@ API rate limits are role-based:
 
 ### Cache Strategy
 
-| Endpoint | TTL | Reasoning |
-|----------|-----|-----------|
-| `/glucose/readings` | 1 hour | Fast-changing data |
-| `/glucose/hourly-patterns` | 6 hours | Slow-changing aggregates |
-| `/iceberg/*` | 30 minutes | Balance freshness/performance |
-| `/query/sql` | None | Always fresh |
+| Endpoint                   | TTL        | Reasoning                     |
+| -------------------------- | ---------- | ----------------------------- |
+| `/glucose/readings`        | 1 hour     | Fast-changing data            |
+| `/glucose/hourly-patterns` | 6 hours    | Slow-changing aggregates      |
+| `/iceberg/*`               | 30 minutes | Balance freshness/performance |
+| `/query/sql`               | None       | Always fresh                  |
 
 ### Cache Headers
 
 Responses include cache metadata in JSON body:
+
 ```json
 {
   "cached": true,
@@ -651,10 +682,12 @@ Responses include cache metadata in JSON body:
 ### Query Optimization
 
 **Fast queries (use these for dashboards):**
+
 - `/glucose/*` endpoints → Postgres marts (pre-aggregated)
 - Hasura queries → Postgres marts (indexed)
 
 **Slower queries (use for exploration):**
+
 - `/iceberg/*` endpoints → Trino (full table scans possible)
 - `/query/sql` with Trino → Analytical queries
 
@@ -713,17 +746,17 @@ print(f"Retrieved {readings['count']} readings")
 
 ```typescript
 // Login
-const loginResponse = await fetch('http://localhost:8000/api/v1/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ username: 'analyst', password: 'analyst123' })
+const loginResponse = await fetch("http://localhost:8000/api/v1/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ username: "analyst", password: "analyst123" }),
 });
 const { access_token } = await loginResponse.json();
 
 // Get readings
 const readingsResponse = await fetch(
-  'http://localhost:8000/api/v1/glucose/readings?start_date=2024-01-01',
-  { headers: { 'Authorization': `Bearer ${access_token}` } }
+  "http://localhost:8000/api/v1/glucose/readings?start_date=2024-01-01",
+  { headers: { Authorization: `Bearer ${access_token}` } },
 );
 const readings = await readingsResponse.json();
 console.log(`Retrieved ${readings.count} readings`);
@@ -732,38 +765,43 @@ console.log(`Retrieved ${readings.count} readings`);
 ### GraphQL with Apollo Client
 
 ```typescript
-import { ApolloClient, InMemoryCache, createHttpLink, gql } from '@apollo/client';
-import { setContext } from '@apollo/client/link/context';
+import {
+  ApolloClient,
+  InMemoryCache,
+  createHttpLink,
+  gql,
+} from "@apollo/client";
+import { setContext } from "@apollo/client/link/context";
 
 const httpLink = createHttpLink({
-  uri: 'http://localhost:8081/v1/graphql',
+  uri: "http://localhost:8081/v1/graphql",
 });
 
 const authLink = setContext((_, { headers }) => {
-  const token = 'YOUR_TOKEN';
+  const token = "YOUR_TOKEN";
   return {
     headers: {
       ...headers,
       authorization: token ? `Bearer ${token}` : "",
-    }
-  }
+    },
+  };
 });
 
 const client = new ApolloClient({
   link: authLink.concat(httpLink),
-  cache: new InMemoryCache()
+  cache: new InMemoryCache(),
 });
 
 // Query
 const { data } = await client.query({
   query: gql`
     query GetGlucoseReadings {
-      mrt_glucose_overview(order_by: {date: desc}, limit: 10) {
+      mrt_glucose_overview(order_by: { date: desc }, limit: 10) {
         date
         avg_glucose
       }
     }
-  `
+  `,
 });
 ```
 
@@ -779,6 +817,7 @@ const { data } = await client.query({
 4. **Register router** in `packages/phlo-api/src/phlo_api/main.py`
 
 **Example:**
+
 ```python
 # packages/phlo-api/src/phlo_api/observatory_api/weather.py
 from fastapi import APIRouter
@@ -866,6 +905,7 @@ curl http://localhost:8000/metrics
 ```
 
 **Key metrics:**
+
 - `http_requests_total` - Total requests
 - `http_request_duration_seconds` - Request latency
 - `http_requests_in_progress` - Active requests
@@ -891,15 +931,15 @@ docker compose logs -f hasura
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_PORT` | 8000 | FastAPI port |
-| `JWT_SECRET` | (default) | **Change in production** |
-| `JWT_ALGORITHM` | HS256 | JWT algorithm |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | 60 | Token expiration |
-| `HASURA_PORT` | 8081 | Hasura port |
-| `HASURA_VERSION` | v2.45.0 | Hasura version |
-| `HASURA_ADMIN_SECRET` | (default) | **Change in production** |
+| Variable                          | Default   | Description              |
+| --------------------------------- | --------- | ------------------------ |
+| `API_PORT`                        | 8000      | FastAPI port             |
+| `JWT_SECRET`                      | (default) | **Change in production** |
+| `JWT_ALGORITHM`                   | HS256     | JWT algorithm            |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | 60        | Token expiration         |
+| `HASURA_PORT`                     | 8081      | Hasura port              |
+| `HASURA_VERSION`                  | v2.45.0   | Hasura version           |
+| `HASURA_ADMIN_SECRET`             | (default) | **Change in production** |
 
 ### API Versions
 

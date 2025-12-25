@@ -11,21 +11,21 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
     ports:
-    - ${MINIO_API_PORT:-9000}:9000
-    - ${MINIO_CONSOLE_PORT:-9001}:9001
+      - ${MINIO_API_PORT:-9000}:9000
+      - ${MINIO_CONSOLE_PORT:-9001}:9001
     volumes:
-    - ./volumes/minio:/data
+      - ./volumes/minio:/data
     command:
-    - server
-    - /data
-    - --console-address
-    - :9001
+      - server
+      - /data
+      - --console-address
+      - :9001
     healthcheck:
       test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:9000/minio/health/ready
+        - CMD
+        - curl
+        - -f
+        - http://localhost:9000/minio/health/ready
       interval: 10s
       timeout: 5s
       retries: 10
@@ -37,96 +37,97 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
       POSTGRES_DB: ${POSTGRES_DB:-phlo}
     ports:
-    - ${POSTGRES_PORT:-5432}:5432
+      - ${POSTGRES_PORT:-5432}:5432
     volumes:
-    - ./volumes/postgres:/var/lib/postgresql/data
+      - ./volumes/postgres:/var/lib/postgresql/data
     healthcheck:
       test:
-      - CMD-SHELL
-      - pg_isready -U ${POSTGRES_USER:-phlo}
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-phlo}
       interval: 10s
       timeout: 5s
       retries: 10
   alloy:
     image: grafana/alloy:v1.4.2
     profiles:
-    - observability
+      - observability
     restart: unless-stopped
     ports:
-    - ${ALLOY_PORT:-12345}:12345
+      - ${ALLOY_PORT:-12345}:12345
     volumes:
-    - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
-    - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
-    - run
-    - --server.http.listen-addr=0.0.0.0:12345
-    - /etc/alloy/config.alloy
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/alloy/config.alloy
     healthcheck:
       test:
-      - CMD
-      - wget
-      - --quiet
-      - --tries=1
-      - --spider
-      - http://localhost:12345/-/ready
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:12345/-/ready
       interval: 10s
       timeout: 5s
       retries: 5
   prometheus:
     image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
     profiles:
-    - observability
+      - observability
     restart: unless-stopped
     ports:
-    - ${PROMETHEUS_PORT:-9090}:9090
+      - ${PROMETHEUS_PORT:-9090}:9090
     volumes:
-    - ./prometheus:/etc/prometheus:ro
-    - ./volumes/prometheus:/prometheus
+      - ./prometheus:/etc/prometheus:ro
+      - ./volumes/prometheus:/prometheus
     command:
-    - --config.file=/etc/prometheus/prometheus.yml
-    - --storage.tsdb.path=/prometheus
-    - --web.enable-lifecycle
-    - --storage.tsdb.retention.time=30d
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      - --storage.tsdb.retention.time=30d
     healthcheck:
       test:
-      - CMD
-      - wget
-      - --quiet
-      - --tries=1
-      - --spider
-      - http://localhost:9090/-/healthy
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:9090/-/healthy
       interval: 10s
       timeout: 5s
       retries: 5
   loki:
     image: grafana/loki:${LOKI_VERSION:-3.2.1}
     profiles:
-    - observability
+      - observability
     restart: unless-stopped
     ports:
-    - ${LOKI_PORT:-3100}:3100
+      - ${LOKI_PORT:-3100}:3100
     volumes:
-    - ./loki:/etc/loki:ro
-    - ./volumes/loki:/loki
+      - ./loki:/etc/loki:ro
+      - ./volumes/loki:/loki
     command: -config.file=/etc/loki/loki-config.yml
     healthcheck:
       test:
-      - CMD
-      - wget
-      - --quiet
-      - --tries=1
-      - --spider
-      - http://localhost:3100/ready
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:3100/ready
       interval: 10s
       timeout: 5s
       retries: 5
   minio-setup:
     image: minio/mc:latest
-    restart: 'no'
+    restart: "no"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
-    entrypoint: '/bin/sh -c " sleep 5 && mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER}
+    entrypoint:
+      '/bin/sh -c " sleep 5 && mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER}
       $${MINIO_ROOT_PASSWORD} && mc mb --ignore-existing myminio/lake && mc mb --ignore-existing
       myminio/lake/warehouse && mc mb --ignore-existing myminio/lake/stage && echo
       ''Buckets created successfully'' "
@@ -138,25 +139,26 @@ services:
   hasura:
     image: hasura/graphql-engine:${HASURA_VERSION:-v2.46.0}
     profiles:
-    - api
+      - api
     restart: unless-stopped
     environment:
       HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
-      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
-      HASURA_GRAPHQL_DEV_MODE: 'true'
-      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log,
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES:
+        startup, http-log, webhook-log, websocket-log,
         query-log
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-phlo-hasura-admin-secret}
       HASURA_GRAPHQL_UNAUTHORIZED_ROLE: anonymous
     ports:
-    - ${HASURA_PORT:-8082}:8080
+      - ${HASURA_PORT:-8082}:8080
     healthcheck:
       test:
-      - CMD
-      - wget
-      - -q
-      - --spider
-      - http://localhost:8080/healthz
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://localhost:8080/healthz
       interval: 10s
       timeout: 5s
       retries: 5
@@ -166,7 +168,7 @@ services:
   postgrest:
     image: postgrest/postgrest:${POSTGREST_VERSION:-v12.2.3}
     profiles:
-    - api
+      - api
     restart: unless-stopped
     environment:
       PGRST_DB_URI: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
@@ -176,14 +178,14 @@ services:
       PGRST_SERVER_PORT: 3000
       PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:${POSTGREST_PORT:-3002}
     ports:
-    - ${POSTGREST_PORT:-3002}:3000
+      - ${POSTGREST_PORT:-3002}:3000
     healthcheck:
       test:
-      - CMD
-      - wget
-      - -q
-      - --spider
-      - http://localhost:3000/
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://localhost:3000/
       interval: 10s
       timeout: 5s
       retries: 5
@@ -196,7 +198,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}?sslmode=disable
     ports:
-    - ${PGWEB_PORT:-8081}:8081
+      - ${PGWEB_PORT:-8081}:8081
     depends_on:
       postgres:
         condition: service_healthy
@@ -211,19 +213,19 @@ services:
       nessie.catalog.default-warehouse: warehouse
       nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse
       nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/
-      nessie.catalog.service.s3.default-options.path-style-access: 'true'
+      nessie.catalog.service.s3.default-options.path-style-access: "true"
       nessie.catalog.service.s3.default-options.region: us-east-1
       nessie.catalog.service.s3.default-options.access-key: urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
       nessie.catalog.secrets.access-key.name: ${MINIO_ROOT_USER:-minio}
       nessie.catalog.secrets.access-key.secret: ${MINIO_ROOT_PASSWORD:-minio123}
     ports:
-    - ${NESSIE_PORT:-19120}:19120
+      - ${NESSIE_PORT:-19120}:19120
     healthcheck:
       test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:19120/api/v1/config
+        - CMD
+        - curl
+        - -f
+        - http://localhost:19120/api/v1/config
       interval: 10s
       timeout: 5s
       retries: 10
@@ -236,25 +238,25 @@ services:
   grafana:
     image: grafana/grafana:${GRAFANA_VERSION:-11.3.1}
     profiles:
-    - observability
+      - observability
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
-    - ${GRAFANA_PORT:-3003}:3000
+      - ${GRAFANA_PORT:-3003}:3000
     volumes:
-    - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    - ./volumes/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./volumes/grafana:/var/lib/grafana
     healthcheck:
       test:
-      - CMD
-      - wget
-      - --quiet
-      - --tries=1
-      - --spider
-      - http://localhost:3000/api/health
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:3000/api/health
       interval: 10s
       timeout: 5s
       retries: 5
@@ -271,17 +273,17 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}
       AWS_REGION: us-east-1
       S3_ENDPOINT: http://minio:9000
-      S3_PATH_STYLE_ACCESS: 'true'
+      S3_PATH_STYLE_ACCESS: "true"
     ports:
-    - ${TRINO_PORT:-8080}:8080
+      - ${TRINO_PORT:-8080}:8080
     volumes:
-    - ./trino/catalog:/etc/trino/catalog:ro
+      - ./trino/catalog:/etc/trino/catalog:ro
     healthcheck:
       test:
-      - CMD
-      - curl
-      - -f
-      - http://localhost:8080/v1/info
+        - CMD
+        - curl
+        - -f
+        - http://localhost:8080/v1/info
       interval: 10s
       timeout: 5s
       retries: 10
@@ -307,7 +309,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}
       AWS_REGION: us-east-1
       AWS_S3_ENDPOINT: http://minio:9000
-      AWS_S3_USE_SSL: 'false'
+      AWS_S3_USE_SSL: "false"
       AWS_S3_URL_STYLE: path
       NESSIE_HOST: nessie
       NESSIE_PORT: 19120
@@ -325,26 +327,26 @@ services:
       DBT_PROJECT_DIR: /app/transforms/dbt
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
-      PHLO_DEV_MODE: 'true'
+      PHLO_DEV_MODE: "true"
     ports:
-    - ${DAGSTER_PORT:-3000}:3000
+      - ${DAGSTER_PORT:-3000}:3000
     volumes:
-    - ./dagster:/opt/dagster
-    - ../workflows:/app/workflows:ro
-    - ../transforms:/app/transforms
-    - ../tests:/app/tests:ro
-    - ../../..:/usr/local/lib/python3.11/site-packages/phlo:ro
-    - ../../../../..:/opt/phlo-dev:rw
+      - ./dagster:/opt/dagster
+      - ../workflows:/app/workflows:ro
+      - ../transforms:/app/transforms
+      - ../tests:/app/tests:ro
+      - ../../..:/usr/local/lib/python3.11/site-packages/phlo:ro
+      - ../../../../..:/opt/phlo-dev:rw
     env_file:
-    - ../.env
+      - ../.env
     command:
-    - dagster-webserver
-    - -h
-    - 0.0.0.0
-    - -p
-    - '3000'
-    - -w
-    - /opt/dagster/workspace.yaml
+      - dagster-webserver
+      - -h
+      - 0.0.0.0
+      - -p
+      - "3000"
+      - -w
+      - /opt/dagster/workspace.yaml
     depends_on:
       postgres:
         condition: service_healthy
@@ -368,10 +370,11 @@ services:
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
     ports:
-    - ${SUPERSET_PORT:-8088}:8088
+      - ${SUPERSET_PORT:-8088}:8088
     volumes:
-    - ./volumes/superset:/app/superset_home
-    command: '/bin/sh -c " superset db upgrade && superset fab create-admin --username
+      - ./volumes/superset:/app/superset_home
+    command:
+      '/bin/sh -c " superset db upgrade && superset fab create-admin --username
       $${SUPERSET_ADMIN_USER} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL}
       --password $${SUPERSET_ADMIN_PASSWORD} || true && superset init && superset
       run -h 0.0.0.0 -p 8088 --with-threads "
@@ -395,27 +398,27 @@ services:
       NESSIE_URL: http://nessie:19120/api/v2
       TRINO_URL: http://trino:8080
     ports:
-    - ${OBSERVATORY_PORT:-3001}:3000
+      - ${OBSERVATORY_PORT:-3001}:3000
     command:
-    - npm
-    - run
-    - dev
-    - --
-    - --host
-    - 0.0.0.0
-    - --port
-    - '3000'
+      - npm
+      - run
+      - dev
+      - --
+      - --host
+      - 0.0.0.0
+      - --port
+      - "3000"
     volumes:
-    - ../../../packages/phlo-observatory/src/phlo_observatory:/app
-    - /app/node_modules
+      - ../../../packages/phlo-observatory/src/phlo_observatory:/app
+      - /app/node_modules
     healthcheck:
       test:
-      - CMD
-      - wget
-      - --no-verbose
-      - --tries=1
-      - --spider
-      - http://127.0.0.1:3000/
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:3000/
       interval: 30s
       timeout: 10s
       retries: 3
@@ -439,7 +442,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}
       AWS_REGION: us-east-1
       AWS_S3_ENDPOINT: http://minio:9000
-      AWS_S3_USE_SSL: 'false'
+      AWS_S3_USE_SSL: "false"
       AWS_S3_URL_STYLE: path
       NESSIE_HOST: nessie
       NESSIE_PORT: 19120
@@ -457,21 +460,21 @@ services:
       DBT_PROJECT_DIR: /app/transforms/dbt
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
       PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
-      PHLO_DEV_MODE: 'true'
+      PHLO_DEV_MODE: "true"
     volumes:
-    - ./dagster:/opt/dagster
-    - ../workflows:/app/workflows:ro
-    - ../transforms:/app/transforms
-    - ../tests:/app/tests:ro
-    - ../../..:/usr/local/lib/python3.11/site-packages/phlo:ro
-    - ../../../../..:/opt/phlo-dev:rw
+      - ./dagster:/opt/dagster
+      - ../workflows:/app/workflows:ro
+      - ../transforms:/app/transforms
+      - ../tests:/app/tests:ro
+      - ../../..:/usr/local/lib/python3.11/site-packages/phlo:ro
+      - ../../../../..:/opt/phlo-dev:rw
     env_file:
-    - ../.env
+      - ../.env
     command:
-    - dagster-daemon
-    - run
-    - -w
-    - /opt/dagster/workspace.yaml
+      - dagster-daemon
+      - run
+      - -w
+      - /opt/dagster/workspace.yaml
     depends_on:
       dagster:
         condition: service_started

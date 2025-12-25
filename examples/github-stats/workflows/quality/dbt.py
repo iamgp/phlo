@@ -9,9 +9,9 @@ import os
 
 from dagster import AssetCheckExecutionContext, AssetCheckResult, AssetKey, asset_check
 from dagster_dbt import DbtCliResource
+from phlo_quality.contract import QualityCheckContract, dbt_check_name
 
 from phlo.config import get_settings
-from phlo_quality.contract import QualityCheckContract, dbt_check_name
 
 
 @asset_check(

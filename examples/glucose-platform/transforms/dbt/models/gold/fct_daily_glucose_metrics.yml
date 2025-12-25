@@ -17,7 +17,16 @@ models:
         data_tests:
           - not_null
           - accepted_values:
-              values: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+              values:
+                [
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                  "Sunday",
+                ]
 
       - name: day_of_week
         description: "Day of week (1-7)"

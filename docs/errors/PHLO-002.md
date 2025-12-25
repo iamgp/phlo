@@ -148,6 +148,7 @@ def weather_observations(partition: str):
 ## Debugging Steps
 
 1. **List schema fields**
+
    ```python
    from workflows.schemas.weather import WeatherObservations
    schema = WeatherObservations.to_schema()
@@ -155,6 +156,7 @@ def weather_observations(partition: str):
    ```
 
 2. **Compare unique_key with schema**
+
    ```python
    unique_key = "observation_id"
    schema_fields = list(WeatherObservations.to_schema().columns.keys())
@@ -167,6 +169,7 @@ def weather_observations(partition: str):
    ```
 
 3. **Check for case sensitivity**
+
    ```python
    # Case-insensitive search
    unique_key = "Observation_ID"
@@ -195,6 +198,7 @@ def weather_observations(partition: str):
 ## Prevention
 
 1. **Use constants for field names**
+
    ```python
    # schemas/weather.py
    class WeatherObservations(DataFrameModel):
@@ -212,6 +216,7 @@ def weather_observations(partition: str):
    ```
 
 2. **Add schema validation tests**
+
    ```python
    # tests/test_schemas.py
    def test_unique_key_in_schema():
@@ -226,6 +231,7 @@ def weather_observations(partition: str):
    - Reduces typos
 
 4. **Document schema fields**
+
    ```python
    class WeatherObservations(DataFrameModel):
        """

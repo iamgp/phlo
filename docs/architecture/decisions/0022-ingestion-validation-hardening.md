@@ -81,7 +81,6 @@ Remove `add_phlo_timestamp` from `phlo_dlt.phlo_ingestion.dlt_helpers`. All inge
 ### Automated Tests
 
 1.  **Strict Validation Tests**:
-
     - Verify `phlo_ingestion(..., strict_validation=True)` raises Failure on invalid data.
     - Verify `phlo_ingestion(..., strict_validation=False)` does NOT raise Failure but reports failed check.
     - Verify `validate_with_pandera(..., strict=True)` raises Exception.

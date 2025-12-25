@@ -36,7 +36,7 @@ Create `auth.server.ts` with a middleware function that all server functions can
 
 ```typescript
 export function requireAuth(
-  request: Request
+  request: Request,
 ): void | { error: string; status: 401 } {
   if (process.env.OBSERVATORY_AUTH_ENABLED !== "true") return;
 
@@ -87,7 +87,7 @@ Create `useRealtimePolling.ts`:
 export function useRealtimePolling<T>(
   queryFn: () => Promise<T>,
   queryKey: string[],
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean },
 ) {
   const { settings } = useObservatorySettings();
   const intervalMs = settings.realtime?.intervalMs ?? 5000;

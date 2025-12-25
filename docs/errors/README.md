@@ -4,23 +4,23 @@ Comprehensive documentation for all Phlo error codes with solutions, examples, a
 
 ## Quick Reference
 
-| Error Code | Description | Severity | Category |
-|------------|-------------|----------|----------|
-| [PHLO-001](#phlo-001) | Asset Not Discovered | High | Discovery |
-| [PHLO-002](#phlo-002) | Schema Mismatch | High | Configuration |
-| [PHLO-003](#phlo-003) | Invalid Cron Expression | Medium | Configuration |
-| [PHLO-004](#phlo-004) | Validation Failed | High | Validation |
-| [PHLO-005](#phlo-005) | Missing Schema | High | Configuration |
-| [PHLO-006](#phlo-006) | Ingestion Failed | High | Runtime |
-| [PHLO-007](#phlo-007) | Table Not Found | High | Runtime |
-| [PHLO-008](#phlo-008) | Infrastructure Error | Critical | Infrastructure |
-| [PHLO-200](#phlo-200) | Schema Conversion Error | High | Schema |
-| [PHLO-201](#phlo-201) | Type Conversion Error | Medium | Schema |
-| [PHLO-300](#phlo-300) | DLT Pipeline Failed | High | DLT |
-| [PHLO-301](#phlo-301) | DLT Source Error | High | DLT |
-| [PHLO-400](#phlo-400) | Iceberg Catalog Error | High | Iceberg |
-| [PHLO-401](#phlo-401) | Iceberg Table Error | High | Iceberg |
-| [PHLO-402](#phlo-402) | Iceberg Write Error | High | Iceberg |
+| Error Code            | Description             | Severity | Category       |
+| --------------------- | ----------------------- | -------- | -------------- |
+| [PHLO-001](#phlo-001) | Asset Not Discovered    | High     | Discovery      |
+| [PHLO-002](#phlo-002) | Schema Mismatch         | High     | Configuration  |
+| [PHLO-003](#phlo-003) | Invalid Cron Expression | Medium   | Configuration  |
+| [PHLO-004](#phlo-004) | Validation Failed       | High     | Validation     |
+| [PHLO-005](#phlo-005) | Missing Schema          | High     | Configuration  |
+| [PHLO-006](#phlo-006) | Ingestion Failed        | High     | Runtime        |
+| [PHLO-007](#phlo-007) | Table Not Found         | High     | Runtime        |
+| [PHLO-008](#phlo-008) | Infrastructure Error    | Critical | Infrastructure |
+| [PHLO-200](#phlo-200) | Schema Conversion Error | High     | Schema         |
+| [PHLO-201](#phlo-201) | Type Conversion Error   | Medium   | Schema         |
+| [PHLO-300](#phlo-300) | DLT Pipeline Failed     | High     | DLT            |
+| [PHLO-301](#phlo-301) | DLT Source Error        | High     | DLT            |
+| [PHLO-400](#phlo-400) | Iceberg Catalog Error   | High     | Iceberg        |
+| [PHLO-401](#phlo-401) | Iceberg Table Error     | High     | Iceberg        |
+| [PHLO-402](#phlo-402) | Iceberg Write Error     | High     | Iceberg        |
 
 ## Error Categories
 
@@ -29,16 +29,19 @@ Comprehensive documentation for all Phlo error codes with solutions, examples, a
 Errors related to asset discovery, configuration, and setup.
 
 #### PHLO-001: Asset Not Discovered
+
 **Exception:** `PhloDiscoveryError`
 
 Dagster cannot discover your asset definitions.
 
 **Common causes:**
+
 - Asset outside the workflows path
 - Missing decorator
 - Import errors in asset module
 
 **Quick fix:**
+
 ```python
 from phlo.framework.definitions import defs
 assert len(list(defs.assets or [])) > 0
@@ -49,16 +52,19 @@ assert len(list(defs.assets or [])) > 0
 ---
 
 #### PHLO-002: Schema Mismatch
+
 **Exception:** `PhloSchemaError`
 
 Mismatch between decorator configuration and Pandera schema.
 
 **Common causes:**
+
 - unique_key not in schema
 - Typo in field name
 - Case sensitivity issues
 
 **Quick fix:**
+
 ```python
 # Verify unique_key matches schema field
 @phlo_ingestion(
@@ -72,16 +78,19 @@ Mismatch between decorator configuration and Pandera schema.
 ---
 
 #### PHLO-003: Invalid Cron Expression
+
 **Exception:** `PhloCronError`
 
 Invalid or malformed cron schedule expression.
 
 **Common causes:**
+
 - Wrong number of fields (need 5)
 - Invalid field values
 - Incorrect syntax
 
 **Quick fix:**
+
 ```python
 # Use standard 5-field cron format
 @phlo_ingestion(
@@ -97,17 +106,20 @@ Invalid or malformed cron schedule expression.
 ---
 
 #### PHLO-004: Validation Failed
+
 **Exception:** `PhloValidationError`
 
 Data validation failed against Pandera schema.
 
 **Common causes:**
+
 - Data doesn't match schema constraints
 - Type mismatches
 - Null values in non-nullable fields
 - Values out of allowed range
 
 **Quick fix:**
+
 ```python
 # Check Pandera validation errors in logs
 # Fix data transformation to match schema constraints
@@ -118,16 +130,19 @@ Data validation failed against Pandera schema.
 ---
 
 #### PHLO-005: Missing Schema
+
 **Exception:** `PhloConfigError`
 
 Validation schema not provided to decorator.
 
 **Common causes:**
+
 - validation_schema parameter missing
 - Schema class not imported
 - Typo in schema name
 
 **Quick fix:**
+
 ```python
 from workflows.schemas.weather import WeatherObservations
 
@@ -146,17 +161,20 @@ from workflows.schemas.weather import WeatherObservations
 Errors during asset execution and external integrations.
 
 #### PHLO-006: Ingestion Failed
+
 **Exception:** `PhloIngestionError`
 
 Data ingestion failed during asset execution.
 
 **Common causes:**
+
 - API failures
 - Network issues
 - Authentication problems
 - Data processing errors
 
 **Quick fix:**
+
 ```python
 # Add retry logic and error handling
 from requests.adapters import HTTPAdapter
@@ -172,17 +190,20 @@ session.mount("http://", HTTPAdapter(max_retries=retry))
 ---
 
 #### PHLO-007: Table Not Found
+
 **Exception:** `PhloTableError`
 
 Iceberg table not found in catalog.
 
 **Common causes:**
+
 - Table hasn't been created yet
 - Wrong table name
 - Wrong catalog/namespace
 - Permissions issue
 
 **Quick fix:**
+
 ```python
 # Verify table exists in Iceberg catalog
 from phlo_iceberg.catalog import get_catalog
@@ -197,17 +218,20 @@ print(f"Available tables: {tables}")
 ---
 
 #### PHLO-008: Infrastructure Error
+
 **Exception:** `PhloInfrastructureError`
 
 Infrastructure services (Dagster, Trino, S3, etc.) are unavailable.
 
 **Common causes:**
+
 - Service not running
 - Connection refused
 - Network issues
 - Authentication failed
 
 **Quick fix:**
+
 ```bash
 # Check service status
 docker ps
@@ -227,16 +251,19 @@ docker-compose restart
 Errors related to schema conversion and type handling.
 
 #### PHLO-200: Schema Conversion Error
+
 **Exception:** `SchemaConversionError`
 
 Failed to convert Pandera schema to PyIceberg schema.
 
 **Common causes:**
+
 - Unsupported Pandera type
 - Custom type without converter
 - Complex nested types
 
 **Quick fix:**
+
 ```python
 # Use supported Pandera types:
 # str, int, float, bool, datetime, date, bytes
@@ -253,16 +280,19 @@ class MySchema(DataFrameModel):
 ---
 
 #### PHLO-201: Type Conversion Error
+
 **Exception:** `PhloError`
 
 Failed to convert data types during processing.
 
 **Common causes:**
+
 - Invalid data format
 - Type mismatch
 - Encoding issues
 
 **Quick fix:**
+
 ```python
 # Explicit type conversion
 df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
@@ -278,17 +308,20 @@ df["timestamp"] = pd.to_datetime(df["timestamp"])
 Errors specific to DLT (Data Load Tool) operations.
 
 #### PHLO-300: DLT Pipeline Failed
+
 **Exception:** `DLTPipelineError`
 
 DLT pipeline execution failed.
 
 **Common causes:**
+
 - Source connection failed
 - Data transformation error
 - Destination write failed
 - Pipeline configuration invalid
 
 **Quick fix:**
+
 ```python
 # Check DLT logs
 import dlt
@@ -302,17 +335,20 @@ dlt.config.log_level = "DEBUG"
 ---
 
 #### PHLO-301: DLT Source Error
+
 **Exception:** `PhloError`
 
 DLT source connector failed.
 
 **Common causes:**
+
 - Source not accessible
 - Invalid credentials
 - Rate limiting
 - Data format unexpected
 
 **Quick fix:**
+
 ```python
 # Test source connectivity
 source = my_source()
@@ -330,17 +366,20 @@ for item in source:
 Errors related to Apache Iceberg operations.
 
 #### PHLO-400: Iceberg Catalog Error
+
 **Exception:** `IcebergCatalogError`
 
 Iceberg catalog operations failed.
 
 **Common causes:**
+
 - Catalog not initialized
 - Connection to catalog failed
 - Catalog permissions issue
 - S3/backend unavailable
 
 **Quick fix:**
+
 ```python
 # Verify catalog connectivity
 from pyiceberg.catalog import load_catalog
@@ -354,17 +393,20 @@ print(f"Catalog namespaces: {catalog.list_namespaces()}")
 ---
 
 #### PHLO-401: Iceberg Table Error
+
 **Exception:** `PhloError`
 
 Iceberg table operations failed.
 
 **Common causes:**
+
 - Table not found
 - Schema mismatch
 - Concurrent modification
 - Permissions issue
 
 **Quick fix:**
+
 ```python
 # List available tables
 catalog = load_catalog("default")
@@ -377,17 +419,20 @@ print(f"Tables in bronze: {tables}")
 ---
 
 #### PHLO-402: Iceberg Write Error
+
 **Exception:** `PhloError`
 
 Failed to write data to Iceberg table.
 
 **Common causes:**
+
 - Schema mismatch
 - Partition spec invalid
 - S3 write failed
 - Insufficient permissions
 
 **Quick fix:**
+
 ```python
 # Verify schema matches table
 table_schema = table.schema()
@@ -516,21 +561,27 @@ Template for new error documentation:
 **Exception Class:** `ExceptionClassName`
 
 ## Description
+
 [Clear description of when this error occurs]
 
 ## Common Causes
+
 [List of common causes]
 
 ## Solutions
+
 [Step-by-step solutions]
 
 ## Examples
+
 [Code examples showing incorrect and correct usage]
 
 ## Related Errors
+
 [Links to related error codes]
 
 ## Prevention
+
 [Best practices to avoid this error]
 ```
 

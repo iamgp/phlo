@@ -31,7 +31,7 @@ sources:
               filter: {}
           - role: admin
             permission:
-              columns: '*'
+              columns: "*"
               filter: {}
 
       - table:
@@ -49,7 +49,7 @@ sources:
               filter: {}
           - role: admin
             permission:
-              columns: '*'
+              columns: "*"
               filter: {}
 
 # CLI commands used to generate this metadata:

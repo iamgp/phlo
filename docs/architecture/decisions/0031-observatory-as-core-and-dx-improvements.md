@@ -120,15 +120,15 @@ PACKAGES (swappable, installed separately):
 
 ### File Changes
 
-| Action | Path                                                                |
-| ------ | ------------------------------------------------------------------- |
-| Create | `packages/phlo-observatory/src/phlo_observatory/service.yaml`       |
-| Create | `packages/phlo-api/`                                                |
-| Update | `src/phlo/services/discovery.py` - Plugin-only service discovery    |
-| Update | `src/phlo/services/composer.py` - Apply user overrides              |
-| Update | `src/phlo/config_schema.py` - Add `ServiceOverride` model           |
-| Update | `pyproject.toml` - Workspace packages for services                  |
-| Delete | `src/phlo/core_services/`                                           |
+| Action | Path                                                             |
+| ------ | ---------------------------------------------------------------- |
+| Create | `packages/phlo-observatory/src/phlo_observatory/service.yaml`    |
+| Create | `packages/phlo-api/`                                             |
+| Update | `src/phlo/services/discovery.py` - Plugin-only service discovery |
+| Update | `src/phlo/services/composer.py` - Apply user overrides           |
+| Update | `src/phlo/config_schema.py` - Add `ServiceOverride` model        |
+| Update | `pyproject.toml` - Workspace packages for services               |
+| Delete | `src/phlo/core_services/`                                        |
 
 ## Consequences
 

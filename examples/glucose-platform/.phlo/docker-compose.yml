@@ -150,7 +150,16 @@ services:
       WORKFLOWS_PATH: /app/workflows
       CASCADE_HOST_PLATFORM: ${CASCADE_HOST_PLATFORM:-$$(uname -s)}
       DBT_PROJECT_DIR: /app/transforms/dbt
-    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/workspace.yaml"]
+    command:
+      [
+        "dagster-webserver",
+        "-h",
+        "0.0.0.0",
+        "-p",
+        "3000",
+        "-w",
+        "/opt/dagster/workspace.yaml",
+      ]
     ports:
       - "${DAGSTER_PORT:-3000}:3000"
     volumes:
@@ -273,7 +282,15 @@ services:
       - ./prometheus:/etc/prometheus:ro
       - ./volumes/prometheus:/prometheus
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9090/-/healthy",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -289,7 +306,15 @@ services:
       - ./loki:/etc/loki:ro
       - ./volumes/loki:/loki
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3100/ready",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -313,7 +338,15 @@ services:
       loki:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5

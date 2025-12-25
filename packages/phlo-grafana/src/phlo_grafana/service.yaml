@@ -23,7 +23,15 @@ compose:
     - ./grafana/dashboards:/etc/grafana/dashboards:ro
     - ./volumes/grafana:/var/lib/grafana
   healthcheck:
-    test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+    test:
+      [
+        "CMD",
+        "wget",
+        "--quiet",
+        "--tries=1",
+        "--spider",
+        "http://localhost:3000/api/health",
+      ]
     interval: 10s
     timeout: 5s
     retries: 5

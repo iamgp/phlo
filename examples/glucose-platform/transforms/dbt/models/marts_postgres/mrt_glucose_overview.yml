@@ -6,7 +6,7 @@ models:
   - name: mrt_glucose_overview
     description: "PostgreSQL mart providing denormalized daily glucose metrics"
     config:
-      tags: ['nightscout', 'mart', 'api', 'analyst']
+      tags: ["nightscout", "mart", "api", "analyst"]
     columns:
       - name: reading_date
         description: "Date of glucose readings"

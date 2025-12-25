@@ -29,7 +29,17 @@ models:
         description: "Trend direction of glucose levels"
         data_tests:
           - accepted_values:
-              values: ['Flat', 'FortyFiveUp', 'FortyFiveDown', 'SingleUp', 'SingleDown', 'DoubleUp', 'DoubleDown', 'NONE']
+              values:
+                [
+                  "Flat",
+                  "FortyFiveUp",
+                  "FortyFiveDown",
+                  "SingleUp",
+                  "SingleDown",
+                  "DoubleUp",
+                  "DoubleDown",
+                  "NONE",
+                ]
 
       - name: device
         description: "Device name"

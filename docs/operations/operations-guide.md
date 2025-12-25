@@ -13,6 +13,7 @@ phlo services status
 ```
 
 Expected output:
+
 ```
 SERVICE              STATUS    PORTS
 postgres             running   10000
@@ -346,17 +347,17 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4'
+          cpus: "4"
           memory: 8G
         reservations:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
 
   postgres:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
 ```
 
@@ -449,7 +450,7 @@ services:
       - backend
       - frontend
     ports:
-      - "10006:10006"  # Only expose webserver
+      - "10006:10006" # Only expose webserver
 ```
 
 **Firewall rules**:
@@ -529,6 +530,7 @@ minio_disk_storage_used_bytes
 **Import dashboards**:
 
 1. Start with observability profile:
+
 ```bash
 phlo services start --profile observability
 ```
@@ -589,6 +591,7 @@ SLACK_CHANNEL=#data-alerts
 **Recovery steps**:
 
 1. **Restore PostgreSQL**:
+
 ```bash
 # Stop services
 phlo services stop
@@ -601,12 +604,14 @@ phlo services start
 ```
 
 2. **Restore MinIO**:
+
 ```bash
 # Sync from backup
 mc mirror /backups/minio/lake local/lake
 ```
 
 3. **Verify Nessie catalog**:
+
 ```bash
 # Check branches
 phlo branch list
@@ -616,6 +621,7 @@ curl http://localhost:10003/api/v2/trees/main
 ```
 
 4. **Re-materialize recent partitions**:
+
 ```bash
 # Last 7 days
 for i in {0..6}; do

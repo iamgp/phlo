@@ -29,6 +29,7 @@ This guide walks you through creating a complete data pipeline from scratch. We'
 ### What We're Building
 
 A weather data pipeline that:
+
 1. Fetches weather data from OpenWeather API
 2. Stores raw data in Iceberg (Bronze)
 3. Cleans and standardizes data (Silver)
@@ -146,6 +147,7 @@ class WeatherReadingSchema(pa.DataFrameModel):
 ```
 
 **What this does:**
+
 - Defines the structure of our data
 - Validates data types
 - Adds constraints (e.g., humidity 0-100%)
@@ -216,11 +218,13 @@ Add your API configuration to `.env`:
 OPENWEATHER_API_KEY=your_api_key_here
 OPENWEATHER_CITIES=London,GB;New York,US;Tokyo,JP;Sydney,AU
 ```
+
 ### 2.2 Create the Ingestion Asset
 
 Create: `workflows/ingestion/weather_assets.py`
 
 **Important:** We use **DLT (Data Load Tool)** for ingestion, following Phlo's established pattern. DLT handles:
+
 - Robust data loading with retries
 - Schema inference and validation
 - Parquet file staging
@@ -461,12 +465,14 @@ dagster asset materialize -m phlo.framework.definitions -a dlt_weather_data
 ```
 
 **What just happened?**
+
 1. Fetched weather data from the OpenWeather API
 2. DLT staged the data to local parquet files with schema validation
 3. PyIceberg appended the parquet to the Iceberg table
 4. Nessie catalog updated with the new snapshot
 
 **Why DLT?**
+
 - Consistent with the glucose example pattern (`dlt_glucose_entries`)
 - Handles schema evolution automatically
 - Robust parquet file generation with proper typing
@@ -475,6 +481,7 @@ dagster asset materialize -m phlo.framework.definitions -a dlt_weather_data
 - Matches established Phlo pattern for all ingestion assets
 
 **Verify:**
+
 ```sql
 -- Connect to Trino
 docker-compose exec trino trino
@@ -582,6 +589,7 @@ SELECT * FROM cleaned
 ```
 
 **What this does:**
+
 - Standardizes column names (e.g., `temperature` → `temperature_c`)
 - Converts types explicitly
 - Rounds numeric values
@@ -721,6 +729,7 @@ SELECT * FROM enriched
 ```
 
 **What this does:**
+
 - Converts Celsius to Fahrenheit
 - Categorizes temperature (Freezing/Cold/Mild/Warm/Hot)
 - Calculates comfort level
@@ -756,7 +765,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Freezing', 'Cold', 'Mild', 'Warm', 'Hot']
+              values: ["Freezing", "Cold", "Mild", "Warm", "Hot"]
 
       - name: is_daytime
         description: "True if observation during daylight"
@@ -1167,7 +1176,7 @@ weather:
       postgres_table: "mrt_weather_overview"
       postgres_schema: "marts"
       description: "Daily weather summary by location"
-      mode: "replace"  # Options: replace, append, upsert
+      mode: "replace" # Options: replace, append, upsert
 
     - iceberg_table: "marts.mrt_recent_weather"
       postgres_table: "mrt_recent_weather"
@@ -1181,6 +1190,7 @@ weather:
 The publishing asset is already generic and will pick up your config automatically. Just ensure it runs after your dbt models.
 
 Test it:
+
 ```bash
 dagster asset materialize -m phlo.framework.definitions -a publish_postgres_marts
 ```
@@ -1414,6 +1424,7 @@ def get_api_client():
 🎉 **Congratulations!** You've built a complete data pipeline from scratch.
 
 **What you've learned:**
+
 - ✅ Define schemas
 - ✅ Create ingestion assets
 - ✅ Build Bronze/Silver/Gold layers with dbt
@@ -1423,12 +1434,14 @@ def get_api_client():
 - ✅ Create BI dashboards
 
 **Continue learning:**
+
 - [Data Modeling Guide](data-modeling.md) - Best practices for schema design
 - [Dagster Assets Tutorial](dagster-assets.md) - Advanced orchestration patterns
 - [dbt Development Guide](dbt-development.md) - Advanced SQL techniques
 - [Troubleshooting Guide](../operations/troubleshooting.md) - Debug common issues
 
 **Try these challenges:**
+
 1. Add more cities to monitor
 2. Create hourly aggregations
 3. Add weather alerts (e.g., temperature > 35°C)

@@ -48,7 +48,9 @@ class NessieResource:
                         created_at = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
                     except ValueError:
                         created_at = None
-            branches.append(BranchInfo(name=ref.get("name", ""), hash=ref.get("hash"), created_at=created_at))
+            branches.append(
+                BranchInfo(name=ref.get("name", ""), hash=ref.get("hash"), created_at=created_at)
+            )
         return branches
 
     def get_branch_hash(self, name: str) -> str | None:

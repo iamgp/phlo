@@ -1,6 +1,7 @@
 # Part 2: Getting Started with Phlo—Setup Guide
 
 In this post, we'll get Phlo running on your machine. By the end, you'll have:
+
 - All services running (Postgres, MinIO, Nessie, Trino, Dagster)
 - Sample data ingested
 - Your first data pipeline executed
@@ -11,14 +12,17 @@ In this post, we'll get Phlo running on your machine. By the end, you'll have:
 ### What You Need
 
 1. **Docker & Docker Compose** (required)
+
    ```bash
    # Verify installation
    docker --version
    docker compose --version
    ```
+
    [Install Docker](https://docs.docker.com/get-docker/) if you don't have it
 
 2. **uv** (Python package manager, optional but recommended)
+
    ```bash
    # Install uv (10x faster than pip)
    curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -32,12 +36,12 @@ In this post, we'll get Phlo running on your machine. By the end, you'll have:
 
 ### System Requirements
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| CPU | 2 cores | 4+ cores |
-| RAM | 4 GB | 8+ GB |
-| Disk | 10 GB | 20+ GB |
-| OS | Linux/Mac/Windows | Mac/Linux |
+| Component | Minimum           | Recommended |
+| --------- | ----------------- | ----------- |
+| CPU       | 2 cores           | 4+ cores    |
+| RAM       | 4 GB              | 8+ GB       |
+| Disk      | 10 GB             | 20+ GB      |
+| OS        | Linux/Mac/Windows | Mac/Linux   |
 
 If you have less than 4GB RAM, you can start a minimal setup (Postgres + MinIO only) and add services gradually.
 
@@ -78,6 +82,7 @@ DAGSTER_VERSION=1.8.0
 **For production**: Change all passwords to strong values.
 
 > **SECURITY WARNING**: The default configuration uses weak passwords (`admin/admin`, `minioadmin/minioadmin123`, etc.) and has no authentication enabled on most services. This is fine for local development, but **NEVER expose these services to a network or the internet** without:
+>
 > - Changing all default passwords to strong, unique values
 > - Enabling authentication on all services (Dagster, Trino, MinIO, Superset)
 > - Using TLS/SSL for encrypted connections
@@ -147,6 +152,7 @@ docker compose ps
 ```
 
 If any show "Exited", check logs:
+
 ```bash
 docker compose logs <service-name>
 ```
@@ -228,12 +234,14 @@ docker compose logs -f dagster-daemon
 ```
 
 The ingestion does:
+
 1. Fetches glucose entries from Nightscout API
 2. Validates with Pandera schemas
 3. Stages to MinIO as parquet
 4. Merges to Iceberg with deduplication
 
 You should see output like:
+
 ```
 2024-10-15 10:30:45 - Successfully fetched 288 entries from API
 2024-10-15 10:30:46 - Raw data validation passed for 288 entries
@@ -248,12 +256,14 @@ Once ingestion completes, run dbt transforms:
 In Dagster, click **Materialize this asset** on `stg_glucose_entries`
 
 This will:
+
 1. Run dbt bronze layer (staging)
 2. Run dbt silver layer (fact tables with business logic)
 3. Run dbt gold layer (dimensions)
 4. Publish to Postgres marts
 
 Watch it propagate through the graph:
+
 ```
 glucose_entries [SUCCESS]
   ↓
@@ -269,6 +279,7 @@ postgres_marts ⏳ (waiting)
 Once complete, verify data in the databases:
 
 **Option 1: Postgres Web UI**
+
 ```bash
 make pgweb
 # Opens http://localhost:8081
@@ -278,6 +289,7 @@ make pgweb
 ```
 
 **Option 2: Trino CLI**
+
 ```bash
 docker exec -it trino trino \
   --catalog iceberg \
@@ -291,6 +303,7 @@ docker exec -it trino trino \
 ```
 
 **Option 3: DuckDB (Local Analysis)**
+
 ```bash
 # If you have DuckDB installed locally
 duckdb
@@ -311,6 +324,7 @@ make superset
 ```
 
 First-time setup:
+
 1. Click **Create Account**
 2. Fill in details (username: `admin`, password: `admin123`)
 3. Click **Next**
@@ -453,6 +467,7 @@ echo "All systems ready for data engineering!"
 ```
 
 Run it:
+
 ```bash
 chmod +x health-check.sh
 ./health-check.sh
@@ -461,6 +476,7 @@ chmod +x health-check.sh
 ## Summary
 
 You've successfully:
+
 - Set up Phlo with all services
 - Ingested real glucose data
 - Ran transformations

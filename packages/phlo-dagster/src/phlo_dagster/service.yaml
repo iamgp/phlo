@@ -46,7 +46,15 @@ compose:
     SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
     PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
   command:
-    ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/workspace.yaml"]
+    [
+      "dagster-webserver",
+      "-h",
+      "0.0.0.0",
+      "-p",
+      "3000",
+      "-w",
+      "/opt/dagster/workspace.yaml",
+    ]
   ports:
     - "${DAGSTER_PORT:-3000}:3000"
   volumes:

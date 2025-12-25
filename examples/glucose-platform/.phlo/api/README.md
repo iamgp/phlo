@@ -59,10 +59,7 @@ Access the Hasura Console at http://localhost:8080 and run GraphQL queries:
 
 ```graphql
 query GetRecentGlucoseOverview {
-  api_glucose_overview(
-    order_by: {reading_date: desc}
-    limit: 30
-  ) {
+  api_glucose_overview(order_by: { reading_date: desc }, limit: 30) {
     reading_date
     avg_glucose_mg_dl
     time_in_range_pct
@@ -72,9 +69,7 @@ query GetRecentGlucoseOverview {
 }
 
 query GetHourlyPatterns {
-  api_hourly_patterns(
-    order_by: {hour_of_day: asc}
-  ) {
+  api_hourly_patterns(order_by: { hour_of_day: asc }) {
     hour_of_day
     avg_glucose_mg_dl
     reading_count
@@ -84,8 +79,8 @@ query GetHourlyPatterns {
 
 query GetHighVariabilityDays {
   api_glucose_overview(
-    where: {coefficient_of_variation: {_gte: 35}}
-    order_by: {reading_date: desc}
+    where: { coefficient_of_variation: { _gte: 35 } }
+    order_by: { reading_date: desc }
   ) {
     reading_date
     avg_glucose_mg_dl
@@ -123,18 +118,21 @@ To modify permissions, edit `views.sql` and reapply.
 ## Integration with dbt
 
 The dbt mart models are tagged with:
+
 - `api` - Indicates this table should be exposed via API
 - `analyst` - Maps to the analyst permission role
 
 To add new models to the API:
 
 1. Tag the dbt model in its YAML file:
+
    ```yaml
    config:
-     tags: ['api', 'analyst']
+     tags: ["api", "analyst"]
    ```
 
 2. Regenerate views:
+
    ```bash
    phlo api generate-views --models mrt_* --apply
    ```

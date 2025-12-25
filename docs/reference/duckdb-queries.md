@@ -324,15 +324,19 @@ GROUP BY date_partition;
 Query these Iceberg tables based on your pipeline layer:
 
 ### Raw Layer
+
 - `s3://lake/warehouse/raw/entries` - Nightscout CGM entries (raw ingestion)
 
 ### Bronze Layer (via dbt)
+
 - `s3://lake/warehouse/bronze/stg_entries` - Staged entries with basic transformations
 
 ### Silver Layer (via dbt)
+
 - `s3://lake/warehouse/silver/fct_glucose_readings` - Cleaned glucose facts
 
 ### Gold Layer (via dbt)
+
 - `s3://lake/warehouse/gold/dim_date` - Date dimension table
 - `s3://lake/warehouse/gold/mrt_glucose_readings` - Glucose mart (materialized)
 
@@ -345,6 +349,7 @@ Error: Connection failed to localhost:10001
 ```
 
 **Solution**: Ensure MinIO is running and accessible:
+
 ```bash
 # Check if MinIO is running
 docker compose ps minio
@@ -360,6 +365,7 @@ Error: Access Denied
 ```
 
 **Solution**: Verify credentials match your `.env` file:
+
 ```bash
 # Check .env file
 grep MINIO .env
@@ -376,6 +382,7 @@ Error: Failed to read Iceberg table metadata
 ```
 
 **Solution**:
+
 1. Verify the table path exists in MinIO
 2. Check that ingestion pipeline has run successfully
 3. Ensure you're using the correct warehouse path
@@ -392,20 +399,21 @@ Error: SSL peer certificate validation failed
 ```
 
 **Solution**: Ensure SSL is disabled for MinIO:
+
 ```sql
 SET s3_use_ssl = false;
 ```
 
 ## Comparison: DuckDB vs Trino
 
-| Feature | DuckDB + Iceberg | Trino (via dbt/Dagster) |
-|---------|------------------|-------------------------|
-| **Use Case** | Ad-hoc analysis, exploration | Production pipelines, transformations |
-| **Setup** | Local CLI/Python | Requires Trino service |
-| **Performance** | Fast for local queries | Distributed queries |
-| **Branching** | Manual metadata paths | Full Nessie integration |
-| **Write Support** | Read-only | Read and write |
-| **Best For** | Analysts, data scientists | Data engineers, pipelines |
+| Feature           | DuckDB + Iceberg             | Trino (via dbt/Dagster)               |
+| ----------------- | ---------------------------- | ------------------------------------- |
+| **Use Case**      | Ad-hoc analysis, exploration | Production pipelines, transformations |
+| **Setup**         | Local CLI/Python             | Requires Trino service                |
+| **Performance**   | Fast for local queries       | Distributed queries                   |
+| **Branching**     | Manual metadata paths        | Full Nessie integration               |
+| **Write Support** | Read-only                    | Read and write                        |
+| **Best For**      | Analysts, data scientists    | Data engineers, pipelines             |
 
 ## Best Practices
 

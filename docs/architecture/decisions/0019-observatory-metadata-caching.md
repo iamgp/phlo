@@ -19,6 +19,7 @@ Observatory has no caching layer. The TanStack Start server functions (`createSe
 the Node.js SSR context and query upstream services directly on every request.
 
 Related beads:
+
 - `phlo-b1w`: Observatory: Metadata caching (this decision)
 - `phlo-13a`: Observatory: Table browser improvements (depends on caching)
 - `phlo-8aw`: Observatory: Command palette (uses search index)
@@ -62,12 +63,13 @@ event-based invalidation.
    - `getStats` for hit/miss metrics
 
 2. **Cache wrapper** (`withCache` HOF):
+
    ```typescript
    export function withCache<T>(
      fn: () => Promise<T>,
      key: string,
-     ttlMs: number = DEFAULT_TTL_MS
-   ): Promise<T>
+     ttlMs: number = DEFAULT_TTL_MS,
+   ): Promise<T>;
    ```
 
 3. **TTL configuration** (environment variables with sensible defaults):
@@ -79,6 +81,7 @@ event-based invalidation.
    | Search index | 5 min | Composite of above, balanced freshness |
 
 4. **Cache key structure**:
+
    ```
    iceberg:tables:{catalog}:{branch}
    iceberg:schema:{catalog}:{schema}:{table}
@@ -98,12 +101,14 @@ and the 2-5 minute staleness is acceptable for metadata. Event-based invalidatio
 (webhook setup, Dagster sensor configuration) for marginal benefit.
 
 If needed later:
+
 - Dagster sensor emits webhook on asset materialization
 - Webhook handler calls `cache.invalidatePattern('iceberg:*')` for schema-affecting materializations
 
 ### Fallback Behavior
 
 On cache miss or cache error:
+
 1. Execute the underlying query directly
 2. Log the cache miss/error
 3. Attempt to populate cache with result
