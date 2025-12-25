@@ -39,8 +39,7 @@ cli.add_command(config)
 
 
 def _load_cli_plugin_commands() -> None:
-    from phlo.plugins.discovery import discover_plugins
-    from phlo.plugins.registry import get_global_registry
+    from phlo.discovery import discover_plugins, get_global_registry
 
     discover_plugins(plugin_type="cli_commands", auto_register=True)
     registry = get_global_registry()

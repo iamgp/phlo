@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from phlo.plugins import PluginMetadata, ServicePlugin
 from phlo.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
+from phlo.plugins import PluginMetadata, ServicePlugin
 
 
 class DummyServicePlugin(ServicePlugin):
@@ -41,7 +41,7 @@ def test_service_discovery_includes_plugins(
     registry.register_service(DummyServicePlugin(), replace=True)
 
     monkeypatch.setattr(
-        "phlo.services.discovery.discover_plugins",
+        "phlo.discovery.services.discover_plugins",
         lambda plugin_type, auto_register: None,
     )
 

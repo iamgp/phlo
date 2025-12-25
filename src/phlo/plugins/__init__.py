@@ -141,6 +141,7 @@ from phlo.plugins.base import (
     TransformationPlugin,
 )
 
+
 # Import discovery functions lazily to avoid circular imports
 # These will be imported from phlo.discovery when accessed
 def __getattr__(name):

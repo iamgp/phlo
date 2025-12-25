@@ -139,8 +139,7 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
 
 
 def _collect_dagster_extension_definitions() -> Definitions:
-    from phlo.plugins.discovery import discover_plugins
-    from phlo.plugins.registry import get_global_registry
+    from phlo.discovery import discover_plugins, get_global_registry
 
     discover_plugins(plugin_type="dagster_extensions", auto_register=True)
     registry = get_global_registry()
@@ -165,8 +164,7 @@ def _clear_asset_registries() -> None:
     This clears the global registries that decorators append to,
     allowing fresh discovery in test scenarios.
     """
-    from phlo.plugins.discovery import discover_plugins
-    from phlo.plugins.registry import get_global_registry
+    from phlo.discovery import discover_plugins, get_global_registry
 
     discover_plugins(plugin_type="dagster_extensions", auto_register=True)
     registry = get_global_registry()

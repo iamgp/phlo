@@ -178,7 +178,7 @@ def _run_service_hooks(
     if not service_names:
         return
 
-    from phlo.services.discovery import ServiceDiscovery
+    from phlo.discovery import ServiceDiscovery
 
     discovery = ServiceDiscovery()
     for name in service_names:
@@ -628,7 +628,7 @@ def list_services(show_all: bool, output_json: bool):
                         "status": container_info.get("State", ""),
                         "ports": container_info.get("Ports", ""),
                     }
-    except Exception as e:
+    except Exception:
         # Silently handle errors - services list should work even without docker
         running_containers = {}
 
@@ -784,7 +784,7 @@ def start(
     # then start native processes for the excluded services.
     native_service_names: set[str] = set()
     if native:
-        from phlo.services.discovery import ServiceDiscovery
+        from phlo.discovery import ServiceDiscovery
         from phlo.services.native import NativeProcessManager
 
         discovery = ServiceDiscovery()
@@ -856,7 +856,7 @@ def start(
             if native:
                 import asyncio
 
-                from phlo.services.discovery import ServiceDiscovery
+                from phlo.discovery import ServiceDiscovery
                 from phlo.services.native import NativeProcessManager
 
                 discovery = ServiceDiscovery()

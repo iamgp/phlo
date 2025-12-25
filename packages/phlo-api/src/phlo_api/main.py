@@ -88,7 +88,7 @@ def get_config() -> dict[str, Any]:
 def get_plugins() -> dict[str, list[str]]:
     """List all installed plugins by type."""
     try:
-        from phlo.plugins.discovery import list_plugins
+        from phlo.discovery import list_plugins
 
         return list_plugins()
     except ImportError:
@@ -104,7 +104,7 @@ def get_plugins() -> dict[str, list[str]]:
 def get_plugins_by_type(plugin_type: str) -> list[str]:
     """List plugins of a specific type."""
     try:
-        from phlo.plugins.discovery import list_plugins
+        from phlo.discovery import list_plugins
 
         all_plugins = list_plugins()
         if plugin_type not in all_plugins:
@@ -118,7 +118,7 @@ def get_plugins_by_type(plugin_type: str) -> list[str]:
 def get_plugin_info(plugin_type: str, name: str) -> dict[str, Any]:
     """Get detailed information about a specific plugin."""
     try:
-        from phlo.plugins.discovery import get_plugin_info as _get_plugin_info
+        from phlo.discovery import get_plugin_info as _get_plugin_info
 
         info = _get_plugin_info(plugin_type, name)
         if not info:
@@ -132,7 +132,7 @@ def get_plugin_info(plugin_type: str, name: str) -> dict[str, Any]:
 def get_services() -> list[dict[str, Any]]:
     """List all discovered services."""
     try:
-        from phlo.services.discovery import ServiceDiscovery
+        from phlo.discovery import ServiceDiscovery
 
         discovery = ServiceDiscovery()
         services = discovery.discover()
@@ -155,7 +155,7 @@ def get_services() -> list[dict[str, Any]]:
 def get_service_info(name: str) -> dict[str, Any]:
     """Get detailed information about a specific service."""
     try:
-        from phlo.services.discovery import ServiceDiscovery
+        from phlo.discovery import ServiceDiscovery
 
         discovery = ServiceDiscovery()
         service = discovery.get_service(name)
