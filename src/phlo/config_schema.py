@@ -180,11 +180,3 @@ class InfrastructureConfig(BaseModel):
         if not service:
             return None
         return service.get_container_name(project_name, self.container_naming_pattern)
-
-
-def get_default_infrastructure_config() -> InfrastructureConfig:
-    """Get default infrastructure configuration with no service overrides."""
-    return InfrastructureConfig(
-        container_naming_pattern="{project}-{service}-1",
-        services={},
-    )

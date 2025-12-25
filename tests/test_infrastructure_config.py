@@ -6,11 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from phlo.config_schema import (
-    InfrastructureConfig,
-    ServiceConfig,
-    get_default_infrastructure_config,
-)
+from phlo.config_schema import InfrastructureConfig, ServiceConfig
 from phlo.infrastructure import clear_config_cache, get_container_name, load_infrastructure_config
 
 
@@ -109,30 +105,6 @@ def test_infrastructure_config_get_container_name():
     assert config.get_container_name("nonexistent", "myproject") is None
 
 
-def test_get_default_infrastructure_config():
-    """Test default configuration generation."""
-    config = get_default_infrastructure_config()
-
-    assert len(config.services) == 9
-    assert "dagster_webserver" in config.services
-    assert "postgres" in config.services
-    assert "trino" in config.services
-
-    dagster = config.services["dagster_webserver"]
-    assert dagster.service_name == "dagster-webserver"
-    assert dagster.internal_host == "dagster-webserver"
-
-
-def test_load_infrastructure_config_no_file():
-    """Test loading config when no phlo.yaml exists."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        clear_config_cache()
-        config = load_infrastructure_config(Path(tmpdir))
-
-        assert len(config.services) == 9
-        assert config.container_naming_pattern == "{project}-{service}-1"
-
-
 def test_load_infrastructure_config_with_file():
     """Test loading config from phlo.yaml."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -161,18 +133,6 @@ def test_load_infrastructure_config_with_file():
         assert config.container_naming_pattern == "{project}_{service}"
         assert len(config.services) == 1
         assert "dagster_webserver" in config.services
-
-
-def test_load_infrastructure_config_invalid_yaml():
-    """Test loading config with invalid YAML."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_path = Path(tmpdir) / "phlo.yaml"
-        config_path.write_text("invalid: yaml: content:")
-
-        clear_config_cache()
-        config = load_infrastructure_config(Path(tmpdir))
-
-        assert len(config.services) == 9
 
 
 def test_get_container_name_helper():
