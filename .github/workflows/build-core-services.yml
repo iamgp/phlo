@@ -5,13 +5,13 @@ on:
     branches: [main]
     paths:
       - "packages/phlo-observatory/**"
-      - "src/phlo/core_services/phlo_api/**"
+      - "packages/phlo-api/**"
       - ".github/workflows/build-core-services.yml"
   pull_request:
     branches: [main]
     paths:
       - "packages/phlo-observatory/**"
-      - "src/phlo/core_services/phlo_api/**"
+      - "packages/phlo-api/**"
   release:
     types: [published]
 
@@ -98,7 +98,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: src/phlo/core_services/phlo_api
+          context: packages/phlo-api/src/phlo_api
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
