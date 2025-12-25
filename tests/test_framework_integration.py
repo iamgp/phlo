@@ -8,7 +8,6 @@ for user projects using Phlo as an installable package.
 import tempfile
 from pathlib import Path
 
-import pytest
 from dagster import Definitions
 
 from phlo.framework.definitions import build_definitions
