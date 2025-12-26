@@ -10,7 +10,7 @@ Phlo has a clear separation between **core** (bundled, non-swappable) and **pack
 ┌─────────────────────────────────────────────────────────────┐
 │                     PHLO CORE (Glue)                        │
 │  - CLI (phlo services, phlo materialize, etc.)              │
-│  - Decorators (@phlo.ingestion, @phlo.quality)              │
+│  - Decorators (@phlo_ingestion, @phlo_quality)              │
 │  - Config system (phlo.yaml parsing)                        │
 │  - Plugin registry & discovery                              │
 │  - Service composer (docker-compose generation)             │
@@ -151,7 +151,8 @@ This is achieved through:
 
 ```bash
 # Dev mode mounts source for live changes
-phlo services start --dev
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start
 
 # My custom service code changes are immediately reflected
 ```

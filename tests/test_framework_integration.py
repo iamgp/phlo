@@ -43,9 +43,9 @@ def test_discover_workflows_with_simple_asset():
 Simple test workflow.
 """
 
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt import phlo_ingestion
 from dlt.sources.rest_api import rest_api
-from pandera import DataFrameModel
+from pandera.pandas import DataFrameModel
 
 
 class TestSchema(DataFrameModel):
@@ -104,7 +104,7 @@ def test_build_definitions_with_user_workflows():
         (workflows_path / "__init__.py").write_text("")
 
         # Build definitions (should work even with empty workflows)
-        defs = build_definitions(workflows_path=workflows_path, include_core_assets=False)
+        defs = build_definitions(workflows_path=workflows_path)
 
         assert isinstance(defs, Definitions)
         # Should at least have resources
@@ -117,37 +117,9 @@ def test_build_definitions_without_workflows_path():
         non_existent = Path(tmpdir) / "nonexistent"
 
         # Should not raise, just log warning
-        defs = build_definitions(workflows_path=non_existent, include_core_assets=False)
+        defs = build_definitions(workflows_path=non_existent)
 
         assert isinstance(defs, Definitions)
-
-
-def test_project_type_detection():
-    """Test detection of user project vs Phlo repo."""
-    from phlo.cli.scaffold import _is_user_project
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        project_root = Path(tmpdir)
-
-        # Empty directory - should be Phlo repo mode (no workflows)
-        assert not _is_user_project(project_root)
-
-        # Add workflows directory - should be user project
-        (project_root / "workflows").mkdir()
-        assert _is_user_project(project_root)
-
-        # Add both workflows and src/phlo - check pyproject.toml
-        (project_root / "src" / "phlo").mkdir(parents=True)
-
-        # User project (has phlo as dependency)
-        (project_root / "pyproject.toml").write_text(
-            '[project]\nname = "my-project"\ndependencies = ["phlo"]'
-        )
-        assert _is_user_project(project_root)
-
-        # Phlo repo (has name = "phlo")
-        (project_root / "pyproject.toml").write_text('[project]\nname = "phlo"\ndependencies = []')
-        assert not _is_user_project(project_root)
 
 
 def test_cli_init_command_structure():

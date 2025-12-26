@@ -20,7 +20,7 @@ class GrafanaServicePlugin(ServicePlugin):
             version="0.1.0",
             description="Metrics visualization and dashboards",
             author="Phlo Team",
-            tags=['observability', 'metrics', 'dashboards'],
+            tags=["observability", "metrics", "dashboards"],
         )
 
     @property

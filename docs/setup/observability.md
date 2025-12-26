@@ -31,6 +31,7 @@ make grafana
 ```
 
 Default credentials:
+
 - **Grafana**: admin / admin123 (change in `.env`)
 - **Prometheus**: No authentication (localhost only)
 
@@ -66,6 +67,7 @@ Default credentials:
 ### Component Details
 
 #### Prometheus (Port 9090)
+
 - Scrapes metrics from all services every 15 seconds
 - 30-day retention period
 - Collects:
@@ -76,6 +78,7 @@ Default credentials:
   - Container metrics (CPU, memory, network)
 
 #### Loki (Port 3100)
+
 - Aggregates logs from all Docker containers
 - 30-day retention period
 - Automatically extracts log levels (ERROR, WARN, INFO, DEBUG)
@@ -83,6 +86,7 @@ Default credentials:
 - Integrated with Grafana for log exploration
 
 #### Grafana Alloy (Port 12345)
+
 - Modern replacement for Prometheus exporters + Promtail
 - Discovers Docker containers automatically
 - Adds phlo-specific labels (component, service, job)
@@ -90,17 +94,19 @@ Default credentials:
 - Forwards metrics to Prometheus, logs to Loki
 
 #### Grafana (Port 3001)
+
 - Pre-configured datasources (Prometheus + Loki)
 - Pre-built dashboards:
   - **Phlo Overview** - Service health, errors, key metrics
   - **Infrastructure** - Detailed per-service metrics and logs
-- Custom dashboards stored in `docker/grafana/dashboards/`
+- Custom dashboards stored in `.phlo/grafana/dashboards/`
 
 ## Metrics
 
 ### Available Metrics
 
 #### Trino
+
 ```promql
 # Query execution rate
 rate(trino_execution_QueuedQueries[5m])
@@ -113,6 +119,7 @@ trino_memory_ClusterMemoryPool_general_ReservedBytes
 ```
 
 #### Nessie
+
 ```promql
 # HTTP request rate by endpoint
 rate(http_server_requests_seconds_count{job="nessie"}[5m])
@@ -125,6 +132,7 @@ nessie_catalog_operations_total
 ```
 
 #### MinIO
+
 ```promql
 # Bucket usage
 minio_bucket_usage_total_bytes
@@ -138,6 +146,7 @@ minio_bucket_usage_object_total
 ```
 
 #### Postgres
+
 ```promql
 # Active connections
 pg_stat_database_numbackends{datname="lakehouse"}
@@ -154,10 +163,10 @@ pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_r
 
 ### Creating Alerts
 
-Add alert rules to `docker/prometheus/alerts/` (create directory):
+Add alert rules to `.phlo/prometheus/alerts/` (create directory):
 
 ```yaml
-# docker/prometheus/alerts/phlo.yml
+# .phlo/prometheus/alerts/phlo.yml
 groups:
   - name: cascade_lakehouse
     interval: 30s
@@ -180,7 +189,7 @@ groups:
           summary: "High HTTP error rate detected"
 ```
 
-Then update `docker/prometheus/prometheus.yml`:
+Then update `.phlo/prometheus/prometheus.yml`:
 
 ```yaml
 rule_files:
@@ -218,7 +227,7 @@ rule_files:
 Dagster sensors emit structured logs that Loki automatically indexes:
 
 ```python
-# From src/phlo/defs/sensors/failure_monitoring.py
+# From workflows/sensors/failure_monitoring.py
 context.log.error(
     "Pipeline failure detected",
     extra={
@@ -231,6 +240,7 @@ context.log.error(
 ```
 
 Query in LogQL:
+
 ```logql
 {cascade_component=~"dagster-.*"} | json | event_type="pipeline_failure"
 ```
@@ -240,13 +250,16 @@ Query in LogQL:
 ### Pre-built Dashboards
 
 #### Phlo Overview
+
 - Service status indicators (up/down)
 - Recent errors from all services
 - MinIO bucket usage
 - Postgres connection count
 
 #### Infrastructure
+
 Organized by service layer:
+
 - **Service Health**: All service status in one view
 - **Trino**: Query logs and JMX metrics
 - **Nessie**: HTTP request rate, catalog operations, logs
@@ -260,7 +273,7 @@ Organized by service layer:
 2. Create Dashboard → Add Visualization
 3. Select datasource (Prometheus or Loki)
 4. Build query using visual builder or code
-5. Save dashboard to `docker/grafana/dashboards/my-dashboard.json`
+5. Save dashboard to `.phlo/grafana/dashboards/my-dashboard.json`
 
 Example query panel (Prometheus):
 
@@ -282,6 +295,7 @@ Example query panel (Prometheus):
 Phlo includes three monitoring sensors:
 
 #### pipeline_failure_sensor
+
 - Triggers on any pipeline failure
 - Logs structured error information
 - Picked up by Loki for alerting
@@ -299,11 +313,13 @@ def pipeline_failure_sensor(context):
 ```
 
 #### pipeline_success_sensor
+
 - Logs successful completions
 - Provides SLO tracking data
 - Useful for measuring pipeline duration
 
 #### iceberg_freshness_sensor
+
 - Monitors critical Iceberg table updates
 - Complements Dagster FreshnessPolicy
 - Asset-level monitoring for data quality
@@ -326,6 +342,7 @@ def pipeline_failure_sensor(context):
 ### Service Won't Start
 
 Check logs:
+
 ```bash
 docker compose logs prometheus
 docker compose logs loki
@@ -334,9 +351,10 @@ docker compose logs grafana
 ```
 
 Common issues:
+
 - **Permission errors**: Check volume permissions in `volumes/`
 - **Port conflicts**: Ensure ports 9090, 3100, 3001, 12345 are free
-- **Config errors**: Validate YAML syntax in `docker/prometheus/`, `docker/loki/`, `docker/alloy/`
+- **Config errors**: Validate YAML syntax in `.phlo/prometheus/`, `.phlo/loki/`, `.phlo/alloy/`
 
 ### No Metrics Appearing
 
@@ -363,6 +381,7 @@ Common issues:
 ### High Resource Usage
 
 Observability stack resource profile (typical):
+
 - Prometheus: ~200-500 MB RAM
 - Loki: ~100-300 MB RAM
 - Alloy: ~50-100 MB RAM
@@ -371,6 +390,7 @@ Observability stack resource profile (typical):
 Total: ~450 MB - 1.1 GB additional overhead
 
 To reduce:
+
 - Decrease scrape intervals in `prometheus.yml`
 - Reduce retention periods (30d → 7d)
 - Limit log volume via Alloy filters
@@ -391,20 +411,20 @@ GRAFANA_ADMIN_PASSWORD=<strong-password>
 ### Retention Tuning
 
 ```yaml
-# docker/prometheus/prometheus.yml
+# .phlo/prometheus/prometheus.yml
 global:
   # Reduce for less storage
   scrape_interval: 30s
 
 # Add storage retention flags
 command:
-  - '--storage.tsdb.retention.time=7d'  # Reduce from 30d
+  - "--storage.tsdb.retention.time=7d" # Reduce from 30d
 ```
 
 ```yaml
-# docker/loki/loki-config.yml
+# .phlo/loki/loki-config.yml
 limits_config:
-  retention_period: 168h  # 7 days instead of 30
+  retention_period: 168h # 7 days instead of 30
 ```
 
 ### Alerting
@@ -418,7 +438,7 @@ alertmanager:
   ports:
     - "9093:9093"
   volumes:
-    - ./docker/alertmanager:/etc/alertmanager
+    - ./.phlo/alertmanager:/etc/alertmanager
 ```
 
 Configure routes for Slack, PagerDuty, email, etc.
@@ -427,13 +447,13 @@ Configure routes for Slack, PagerDuty, email, etc.
 
 ### Key Metrics to Watch
 
-| Metric | Threshold | Action |
-|--------|-----------|--------|
-| Trino query duration p95 | > 30s | Investigate slow queries |
-| MinIO S3 operations/sec | Sudden spike | Check ingestion jobs |
-| Postgres connections | > 80% max | Scale or pool tuning |
-| Nessie HTTP 5xx rate | > 1% | Check catalog health |
-| Dagster failure rate | > 5% | Review pipeline logs |
+| Metric                   | Threshold    | Action                   |
+| ------------------------ | ------------ | ------------------------ |
+| Trino query duration p95 | > 30s        | Investigate slow queries |
+| MinIO S3 operations/sec  | Sudden spike | Check ingestion jobs     |
+| Postgres connections     | > 80% max    | Scale or pool tuning     |
+| Nessie HTTP 5xx rate     | > 1%         | Check catalog health     |
+| Dagster failure rate     | > 5%         | Review pipeline logs     |
 
 ### Creating SLOs
 
@@ -496,7 +516,8 @@ Integrate with Dagster, Trino, and dbt for end-to-end trace visibility.
 ## Support
 
 For issues specific to Phlo observability:
+
 1. Check logs: `docker compose logs <service>`
 2. Verify health: `make health-observability`
-3. Review configurations in `docker/prometheus/`, `docker/loki/`, `docker/alloy/`
+3. Review configurations in `.phlo/prometheus/`, `.phlo/loki/`, `.phlo/alloy/`
 4. Consult upstream documentation for Prometheus, Loki, Grafana

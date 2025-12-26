@@ -34,6 +34,7 @@ phlo materialize dlt_glucose_entries
 ## Documentation Structure
 
 ### Getting Started
+
 Essential guides for new users:
 
 - [Installation Guide](getting-started/installation.md) - Complete installation instructions
@@ -41,6 +42,7 @@ Essential guides for new users:
 - [Core Concepts](getting-started/core-concepts.md) - Understand Phlo's architecture and patterns
 
 ### Guides
+
 In-depth tutorials and how-tos:
 
 - [Developer Guide](guides/developer-guide.md) - Master decorators and workflow development
@@ -52,6 +54,7 @@ In-depth tutorials and how-tos:
 - [GitHub Workflow](guides/github-workflow.md) - Git branching and CI/CD
 
 ### Setup
+
 Configure additional services:
 
 - [OpenMetadata](setup/openmetadata.md) - Data catalog and governance
@@ -60,6 +63,7 @@ Configure additional services:
 - [Observability](setup/observability.md) - Monitoring with Grafana
 
 ### Reference
+
 Technical documentation:
 
 - [CLI Reference](reference/cli-reference.md) - Complete command-line interface guide
@@ -70,6 +74,7 @@ Technical documentation:
 - [Common Errors](reference/common-errors.md) - Error messages explained
 
 ### Operations
+
 Production operations and maintenance:
 
 - [Operations Guide](operations/operations-guide.md) - Daily operations, backups, scaling, security
@@ -78,6 +83,7 @@ Production operations and maintenance:
 - [Testing Guide](operations/testing.md) - Testing strategies
 
 ### Blog
+
 Tutorial series and deep dives:
 
 - See [blog/](blog/) for the complete 13-part article series
@@ -85,6 +91,7 @@ Tutorial series and deep dives:
 ## Learning Paths
 
 ### Path 1: Complete Beginner to First Pipeline
+
 ```
 1. getting-started/installation.md        (Install Phlo)
 2. getting-started/core-concepts.md       (Understand architecture)
@@ -92,9 +99,11 @@ Tutorial series and deep dives:
 4. guides/developer-guide.md              (Build custom workflows)
 5. operations/troubleshooting.md          (Fix issues)
 ```
+
 **Outcome:** Working data pipeline with custom ingestion and quality checks
 
 ### Path 2: Developer to Production Expert
+
 ```
 1. getting-started/core-concepts.md       (Understand patterns)
 2. guides/developer-guide.md              (Master decorators)
@@ -103,15 +112,18 @@ Tutorial series and deep dives:
 5. operations/operations-guide.md         (Production operations)
 6. setup/observability.md                 (Monitoring)
 ```
+
 **Outcome:** Production-ready pipelines with monitoring and automation
 
 ### Path 3: Quick Setup to Running System
+
 ```
 1. getting-started/installation.md        (Install)
 2. getting-started/quickstart.md          (Start services)
 3. reference/configuration-reference.md   (Configure)
 4. operations/troubleshooting.md          (Debug)
 ```
+
 **Outcome:** Running Phlo instance ready for development
 
 ## Getting Help
@@ -137,15 +149,19 @@ Phlo is open source. Contributions welcome!
 ## Key Features
 
 ### Decorator-Driven Development
-Reduce boilerplate by 74% with `@phlo.ingestion` and `@phlo.quality` decorators.
+
+Reduce boilerplate by 74% with `@phlo_ingestion` and `@phlo_quality` decorators.
 
 ### Write-Audit-Publish Pattern
+
 Automated branch lifecycle with quality gates and auto-promotion to production.
 
 ### Schema-First Development
+
 Pandera schemas auto-generate Iceberg schemas and enforce validation.
 
 ### Production-Ready
+
 Built-in monitoring, alerting, backups, and disaster recovery patterns.
 
 ---

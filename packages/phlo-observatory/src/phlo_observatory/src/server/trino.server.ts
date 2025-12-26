@@ -1,23 +1,14 @@
 /**
  * Trino Server Functions
  *
- * Server-side functions for executing queries against Trino via HTTP API.
- * Enables data preview, column profiling, and table metrics in Observatory.
+ * Thin wrappers that forward to phlo-api (Python backend).
+ * Preserves SSR while keeping business logic in Python.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
-import type {
-  QueryExecutionError,
-  QueryGuardrails,
-} from '@/server/queryGuardrails'
 import { authMiddleware } from '@/server/auth.server'
-import { withTiming } from '@/server/logger.server'
-import { validateAndRewriteQuery } from '@/server/queryGuardrails'
-import {
-  isProbablyQualifiedTable,
-  qualifyTableName,
-} from '@/utils/sqlIdentifiers'
+import { apiGet, apiPost } from '@/server/phlo-api'
 
 // Types for Trino responses
 export interface TrinoConnectionStatus {
@@ -56,122 +47,59 @@ export interface TableMetrics {
   partitionCount?: number
 }
 
-const DEFAULT_CATALOG = 'iceberg'
-const DEFAULT_TRINO_URL = 'http://localhost:8080'
-
-function resolveTrinoUrl(override?: string): string {
-  const envUrl = process.env.TRINO_URL
-  if (override && override.trim()) {
-    if (envUrl && override.trim() === DEFAULT_TRINO_URL) {
-      return envUrl
-    }
-    return override
-  }
-  return envUrl || DEFAULT_TRINO_URL
+export interface QueryExecutionError {
+  ok: false
+  error: string
+  kind: 'timeout' | 'trino' | 'validation'
 }
-
-export type { QueryExecutionError } from '@/server/queryGuardrails'
 
 export type QueryExecutionResult = DataPreviewResult & {
   effectiveQuery: string
 }
 
-/**
- * Execute a query against Trino and wait for results
- * Trino uses a multi-stage query execution model
- */
-async function executeTrinoQuery(
-  query: string,
-  catalog: string = DEFAULT_CATALOG,
-  schema: string = 'main',
-  options?: { trinoUrl?: string; timeoutMs?: number },
-): Promise<
-  | { columns: Array<string>; columnTypes: Array<string>; rows: Array<DataRow> }
-  | QueryExecutionError
-> {
-  const trinoUrl = resolveTrinoUrl(options?.trinoUrl)
-  const timeoutMs = options?.timeoutMs ?? 30_000
+// Python API response types (snake_case)
+interface ApiConnectionStatus {
+  connected: boolean
+  error?: string
+  cluster_version?: string
+}
 
-  return withTiming(
-    'executeTrinoQuery',
-    async () => {
-      // Submit query
-      const submitResponse = await fetch(`${trinoUrl}/v1/statement`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-          'X-Trino-User': 'observatory',
-          'X-Trino-Catalog': catalog,
-          'X-Trino-Schema': schema,
-        },
-        body: query,
-        signal: AbortSignal.timeout(timeoutMs),
-      })
+interface ApiDataPreviewResult {
+  columns: Array<string>
+  column_types: Array<string>
+  rows: Array<DataRow>
+  total_rows?: number
+  has_more: boolean
+}
 
-      if (!submitResponse.ok) {
-        const errorText = await submitResponse.text()
-        throw new Error(`Trino error: ${errorText}`)
-      }
+interface ApiColumnProfile {
+  column: string
+  type: string
+  null_count: number
+  null_percentage: number
+  distinct_count: number
+  min_value?: string
+  max_value?: string
+}
 
-      let result = await submitResponse.json()
+interface ApiTableMetrics {
+  row_count: number
+  size_bytes?: number
+}
 
-      // Poll until query completes
-      const maxPolls = 100
-      let polls = 0
-      const allData: Array<Array<unknown>> = []
-      let columns: Array<string> = []
-      let columnTypes: Array<string> = []
+interface ApiQueryResult extends ApiDataPreviewResult {
+  effective_query?: string
+}
 
-      while (result.nextUri && polls < maxPolls) {
-        polls++
-        await new Promise((resolve) => setTimeout(resolve, 100))
-
-        const pollResponse = await fetch(result.nextUri, {
-          headers: {
-            'X-Trino-User': 'observatory',
-          },
-          signal: AbortSignal.timeout(timeoutMs),
-        })
-
-        if (!pollResponse.ok) {
-          const errorText = await pollResponse.text()
-          throw new Error(`Trino poll error: ${errorText}`)
-        }
-
-        result = await pollResponse.json()
-
-        if (result.columns && columns.length === 0) {
-          columns = result.columns.map((c: { name: string }) => c.name)
-          columnTypes = result.columns.map((c: { type: string }) => c.type)
-        }
-
-        if (result.data) {
-          allData.push(...result.data)
-        }
-
-        if (result.error) {
-          throw new Error(result.error.message || 'Query failed')
-        }
-      }
-
-      const rows: Array<DataRow> = allData.map((row) => {
-        const obj: DataRow = {}
-        columns.forEach((col, idx) => {
-          obj[col] = (row as Array<string | number | boolean | null>)[idx]
-        })
-        return obj
-      })
-
-      return { columns, columnTypes, rows }
-    },
-    { catalog, schema },
-  ).catch((error): QueryExecutionError => {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    if (message.toLowerCase().includes('timeout')) {
-      return { ok: false, error: message, kind: 'timeout' }
-    }
-    return { ok: false, error: message, kind: 'trino' }
-  })
+// Transform functions
+function transformPreviewResult(r: ApiDataPreviewResult): DataPreviewResult {
+  return {
+    columns: r.columns,
+    columnTypes: r.column_types,
+    rows: r.rows,
+    totalRows: r.total_rows,
+    hasMore: r.has_more,
+  }
 }
 
 /**
@@ -180,26 +108,13 @@ async function executeTrinoQuery(
 export const checkTrinoConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { trinoUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<TrinoConnectionStatus> => {
-    const trinoUrl = resolveTrinoUrl(data.trinoUrl)
-
+  .handler(async (): Promise<TrinoConnectionStatus> => {
     try {
-      const response = await fetch(`${trinoUrl}/v1/info`, {
-        signal: AbortSignal.timeout(5000),
-      })
-
-      if (!response.ok) {
-        return {
-          connected: false,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-        }
-      }
-
-      const info = await response.json()
-
+      const result = await apiGet<ApiConnectionStatus>('/api/trino/connection')
       return {
-        connected: true,
-        clusterVersion: info.nodeVersion?.version || 'unknown',
+        connected: result.connected,
+        error: result.error,
+        clusterVersion: result.cluster_version,
       }
     } catch (error) {
       return {
@@ -236,50 +151,20 @@ export const previewData = createServerFn()
         schema,
         limit = 100,
         offset = 0,
-        trinoUrl,
-        timeoutMs,
-        maxLimit,
       },
     }): Promise<DataPreviewResult | { error: string }> => {
-      const effectiveLimit = Math.min(limit, maxLimit ?? limit)
-      // Build query - note: Trino doesn't support standard OFFSET syntax
-      // For pagination, use FETCH FIRST / OFFSET FETCH syntax if needed
-      // For simple preview, just use LIMIT
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const effectiveSchema = schema ?? branch // In Nessie, the branch is the schema
-      const resolvedTable = isProbablyQualifiedTable(table)
-        ? table
-        : qualifyTableName({
-            catalog: effectiveCatalog,
-            schema: effectiveSchema,
-            table,
-          })
+      try {
+        const result = await apiGet<ApiDataPreviewResult | { error: string }>(
+          `/api/trino/preview/${encodeURIComponent(table)}`,
+          { branch, catalog, schema, limit, offset },
+        )
 
-      // Trino uses "OFFSET n ROWS FETCH FIRST m ROWS ONLY" syntax but for simplicity just use LIMIT
-      const query =
-        offset > 0
-          ? `SELECT * FROM ${resolvedTable} OFFSET ${offset} ROWS FETCH FIRST ${effectiveLimit} ROWS ONLY`
-          : `SELECT * FROM ${resolvedTable} LIMIT ${effectiveLimit}`
-
-      const result = await executeTrinoQuery(
-        query,
-        effectiveCatalog,
-        effectiveSchema,
-        {
-          trinoUrl,
-          timeoutMs,
-        },
-      )
-
-      if ('error' in result) {
-        return { error: result.error }
-      }
-
-      return {
-        columns: result.columns,
-        columnTypes: result.columnTypes,
-        rows: result.rows,
-        hasMore: result.rows.length === effectiveLimit,
+        if ('error' in result) return result
+        return transformPreviewResult(result)
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -302,68 +187,28 @@ export const profileColumn = createServerFn()
   )
   .handler(
     async ({
-      data: {
-        table,
-        column,
-        branch = 'main',
-        catalog,
-        schema,
-        trinoUrl,
-        timeoutMs,
-      },
+      data: { table, column, branch = 'main', catalog, schema },
     }): Promise<ColumnProfile | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const effectiveSchema = schema ?? branch
-      const resolvedTable = isProbablyQualifiedTable(table)
-        ? table
-        : qualifyTableName({
-            catalog: effectiveCatalog,
-            schema: effectiveSchema,
-            table,
-          })
+      try {
+        const result = await apiGet<ApiColumnProfile | { error: string }>(
+          `/api/trino/profile/${encodeURIComponent(table)}/${encodeURIComponent(column)}`,
+          { branch, catalog, schema },
+        )
 
-      // Build profiling query
-      const query = `
-        SELECT
-          COUNT(*) as total_count,
-          COUNT("${column}") as non_null_count,
-          COUNT(DISTINCT "${column}") as distinct_count,
-          MIN(CAST("${column}" AS VARCHAR)) as min_value,
-          MAX(CAST("${column}" AS VARCHAR)) as max_value
-        FROM ${resolvedTable}
-      `
-
-      const result = await executeTrinoQuery(
-        query,
-        effectiveCatalog,
-        effectiveSchema,
-        {
-          trinoUrl,
-          timeoutMs,
-        },
-      )
-
-      if ('error' in result) {
-        return { error: result.error }
-      }
-
-      if (result.rows.length === 0) {
-        return { error: 'No data returned from profile query' }
-      }
-
-      const row = result.rows[0]
-      const totalCount = Number(row.total_count) || 0
-      const nonNullCount = Number(row.non_null_count) || 0
-      const nullCount = totalCount - nonNullCount
-
-      return {
-        column,
-        type: 'unknown',
-        nullCount,
-        nullPercentage: totalCount > 0 ? (nullCount / totalCount) * 100 : 0,
-        distinctCount: Number(row.distinct_count) || 0,
-        minValue: row.min_value as string | undefined,
-        maxValue: row.max_value as string | undefined,
+        if ('error' in result) return result
+        return {
+          column: result.column,
+          type: result.type,
+          nullCount: result.null_count,
+          nullPercentage: result.null_percentage,
+          distinctCount: result.distinct_count,
+          minValue: result.min_value,
+          maxValue: result.max_value,
+        }
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
@@ -385,46 +230,29 @@ export const getTableMetrics = createServerFn()
   )
   .handler(
     async ({
-      data: { table, branch = 'main', catalog, schema, trinoUrl, timeoutMs },
+      data: { table, branch = 'main', catalog, schema },
     }): Promise<TableMetrics | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const effectiveSchema = schema ?? branch
-      const resolvedTable = isProbablyQualifiedTable(table)
-        ? table
-        : qualifyTableName({
-            catalog: effectiveCatalog,
-            schema: effectiveSchema,
-            table,
-          })
+      try {
+        const result = await apiGet<ApiTableMetrics | { error: string }>(
+          `/api/trino/metrics/${encodeURIComponent(table)}`,
+          { branch, catalog, schema },
+        )
 
-      const query = `SELECT COUNT(*) as row_count FROM ${resolvedTable}`
-
-      const result = await executeTrinoQuery(
-        query,
-        effectiveCatalog,
-        effectiveSchema,
-        {
-          trinoUrl,
-          timeoutMs,
-        },
-      )
-
-      if ('error' in result) {
-        return { error: result.error }
-      }
-
-      if (result.rows.length === 0) {
-        return { error: 'No data returned from count query' }
-      }
-
-      return {
-        rowCount: Number(result.rows[0].row_count) || 0,
+        if ('error' in result) return result
+        return {
+          rowCount: result.row_count,
+          sizeBytes: result.size_bytes,
+        }
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )
 
 /**
- * Run an arbitrary read-only query (for advanced users)
+ * Run an arbitrary read-only query
  */
 export const executeQuery = createServerFn()
   .middleware([authMiddleware])
@@ -449,60 +277,46 @@ export const executeQuery = createServerFn()
         branch = 'main',
         catalog,
         schema,
-        trinoUrl,
-        timeoutMs,
         readOnlyMode = true,
         defaultLimit = 100,
         maxLimit = 5000,
-        allowUnsafe = false,
       },
     }): Promise<QueryExecutionResult | QueryExecutionError> => {
-      const guardrails: QueryGuardrails = {
-        readOnlyMode,
-        defaultLimit,
-        maxLimit,
-      }
+      try {
+        const result = await apiPost<ApiQueryResult | QueryExecutionError>(
+          '/api/trino/query',
+          {
+            query,
+            branch,
+            catalog,
+            schema,
+            read_only_mode: readOnlyMode,
+            default_limit: defaultLimit,
+            max_limit: maxLimit,
+          },
+        )
 
-      const validated = validateAndRewriteQuery({
-        query,
-        guardrails,
-        allowUnsafe,
-      })
+        if ('ok' in result && result.ok === false) return result
+        if ('error' in result) {
+          return { ok: false, error: result.error, kind: 'trino' }
+        }
 
-      if (!validated.ok) {
-        return validated
-      }
-
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const effectiveSchema = schema ?? branch
-
-      const result = await executeTrinoQuery(
-        validated.effectiveQuery,
-        effectiveCatalog,
-        effectiveSchema,
-        {
-          trinoUrl,
-          timeoutMs,
-        },
-      )
-
-      if ('error' in result) {
-        return result
-      }
-
-      return {
-        columns: result.columns,
-        columnTypes: result.columnTypes,
-        rows: result.rows,
-        hasMore: false,
-        effectiveQuery: validated.effectiveQuery,
+        return {
+          ...transformPreviewResult(result),
+          effectiveQuery: result.effective_query ?? query,
+        }
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          kind: 'trino',
+        }
       }
     },
   )
 
 /**
  * Query a table with specific column value filters
- * Used for tracking row data across transformations
  */
 export const queryTableWithFilters = createServerFn()
   .middleware([authMiddleware])
@@ -518,72 +332,32 @@ export const queryTableWithFilters = createServerFn()
   )
   .handler(
     async ({
-      data: { tableName, schema, filters, catalog, trinoUrl, timeoutMs },
+      data: { tableName, schema, filters, catalog },
     }): Promise<DataPreviewResult | { error: string }> => {
-      // Build WHERE clause from filters
-      const whereConditions = Object.entries(filters)
-        .map(([column, value]) => {
-          if (value === null || value === undefined) {
-            return `${column} IS NULL`
-          }
-          if (typeof value === 'string') {
-            // Escape single quotes in string values
-            const escapedValue = value.replace(/'/g, "''")
-            return `${column} = '${escapedValue}'`
-          }
-          if (typeof value === 'number') {
-            return `${column} = ${value}`
-          }
-          if (typeof value === 'boolean') {
-            return `${column} = ${value}`
-          }
-          return null
-        })
-        .filter(Boolean)
-        .join(' AND ')
+      try {
+        const result = await apiPost<ApiDataPreviewResult | { error: string }>(
+          '/api/trino/query-with-filters',
+          {
+            table_name: tableName,
+            schema,
+            catalog: catalog || 'iceberg',
+            filters,
+            limit: 10,
+          },
+        )
 
-      if (whereConditions.length === 0) {
+        if ('error' in result) return { error: result.error }
+        return transformPreviewResult(result)
+      } catch (error) {
         return {
-          columns: [],
-          columnTypes: [],
-          rows: [],
-          hasMore: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
         }
-      }
-
-      const resolvedTable = qualifyTableName({
-        catalog: catalog ?? DEFAULT_CATALOG,
-        schema,
-        table: tableName,
-      })
-      const query = `SELECT * FROM ${resolvedTable} WHERE ${whereConditions} LIMIT 10`
-
-      const result = await executeTrinoQuery(
-        query,
-        catalog ?? DEFAULT_CATALOG,
-        schema,
-        {
-          trinoUrl,
-          timeoutMs,
-        },
-      )
-
-      if ('error' in result) {
-        return { error: result.error }
-      }
-
-      return {
-        columns: result.columns,
-        columnTypes: result.columnTypes,
-        rows: result.rows,
-        hasMore: false,
       }
     },
   )
 
 /**
  * Get a single row by its _phlo_row_id
- * Used for deep linking to row-level data journeys
  */
 export const getRowById = createServerFn()
   .middleware([authMiddleware])
@@ -599,45 +373,20 @@ export const getRowById = createServerFn()
   )
   .handler(
     async ({
-      data: { table, rowId, catalog, schema, trinoUrl, timeoutMs },
+      data: { table, rowId, catalog, schema },
     }): Promise<DataPreviewResult | { error: string }> => {
-      const effectiveCatalog = catalog ?? DEFAULT_CATALOG
-      const effectiveSchema = schema ?? 'main'
-      const resolvedTable = isProbablyQualifiedTable(table)
-        ? table
-        : qualifyTableName({
-            catalog: effectiveCatalog,
-            schema: effectiveSchema,
-            table,
-          })
+      try {
+        const result = await apiGet<ApiDataPreviewResult | { error: string }>(
+          `/api/trino/row/${encodeURIComponent(table)}/${encodeURIComponent(rowId)}`,
+          { catalog, schema },
+        )
 
-      // Escape single quotes in rowId to prevent SQL injection
-      const escapedRowId = rowId.replace(/'/g, "''")
-      const query = `SELECT * FROM ${resolvedTable} WHERE "_phlo_row_id" = '${escapedRowId}' LIMIT 1`
-
-      const result = await executeTrinoQuery(
-        query,
-        effectiveCatalog,
-        effectiveSchema,
-        {
-          trinoUrl,
-          timeoutMs,
-        },
-      )
-
-      if ('error' in result) {
-        return { error: result.error }
-      }
-
-      if (result.rows.length === 0) {
-        return { error: 'Row not found' }
-      }
-
-      return {
-        columns: result.columns,
-        columnTypes: result.columnTypes,
-        rows: result.rows,
-        hasMore: false,
+        if ('error' in result) return result
+        return transformPreviewResult(result)
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       }
     },
   )

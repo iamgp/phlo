@@ -5,6 +5,7 @@
 Traditional data pipelines have a fundamental problem: **they force you to choose**.
 
 Either you have:
+
 - **A Data Lake**: cheap, flexible storage but chaotic and hard to query
 - **A Data Warehouse**: organized, fast queries but rigid and expensive
 
@@ -13,16 +14,19 @@ Phlo solves this by combining the best of both worlds into a **lakehouse**.
 ## The Three Eras of Data Architecture
 
 ### Era 1: The Data Warehouse (1990s-2010s)
+
 - Structured SQL queries
 - Fast analytics
 - Problem: Expensive, rigid schema, can't scale easily
 
 ### Era 2: The Data Lake (2010s-2020s)
+
 - Store raw data cheaply in object storage
 - Flexible schema
 - Problem: "Swamp" syndrome—data is disorganized, hard to query, poor governance
 
 ### Era 3: The Data Lakehouse (2020s+)
+
 - **Open table formats** (Apache Iceberg) provide structure on top of cheap object storage
 - Git-like versioning (Project Nessie) for data governance
 - ACID transactions and schema enforcement
@@ -53,14 +57,14 @@ graph TB
     E["Versioning<br/>Project Nessie"]
     F["Transform<br/>dbt, Trino"]
     G["Analytics<br/>Superset, API"]
-    
+
     A -->|Raw data| B
     B -->|Parquet files| C
     C -->|Read/Write| D
     D -->|Metadata| E
     E -->|Branch control| F
     F -->|Transformed data| G
-    
+
     style D fill:#e1f5ff
     style E fill:#e1f5ff
     style F fill:#fff4e1
@@ -90,6 +94,7 @@ s3://lake/entries/
 ```
 
 **Benefits**:
+
 - ACID transactions (consistent reads/writes)
 - Time travel (query data as it was on Oct 15)
 - Schema evolution (change structure without rewriting data)
@@ -111,6 +116,7 @@ nessie merge dev -> main
 ```
 
 **Why it matters**:
+
 - Dev/test/prod data isolation
 - Atomic multi-table commits
 - Reproducibility (tag versions)
@@ -124,7 +130,7 @@ A distributed SQL query engine that understands Iceberg tables:
 -- Trino queries Iceberg tables natively
 SET SESSION iceberg.nessie_reference_name = 'main';
 
-SELECT 
+SELECT
   date_trunc('hour', reading_timestamp) as hour,
   avg(glucose_mg_dl) as avg_glucose
 FROM iceberg.silver.fct_glucose_readings
@@ -143,7 +149,7 @@ SELECT
   entry_id,
   glucose_mg_dl,
   reading_timestamp,
-  CASE 
+  CASE
     WHEN glucose_mg_dl < 70 THEN 'hypoglycemia'
     WHEN glucose_mg_dl <= 180 THEN 'in_range'
     ELSE 'hyperglycemia'
@@ -152,6 +158,7 @@ FROM {{ ref('stg_glucose_entries') }}
 ```
 
 dbt handles:
+
 - SQL execution and dependencies
 - Data quality tests
 - Documentation generation
@@ -164,7 +171,7 @@ Declarative asset orchestration that tracks what data depends on what:
 ```python
 import phlo
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -237,15 +244,15 @@ def publish_marts() -> None:
 
 ## Why This Matters (Real Benefits)
 
-| Problem | Traditional | Phlo Solution |
-|---------|-------------|------------------|
-| Data costs | High (warehouse fees) | Low (S3 storage) |
-| Query speed | Fast | Fast (Trino optimization) |
-| Schema changes | Painful rewrites | Easy evolution |
-| Governance | Manual processes | Git-like branching |
-| Vendor lock-in | Yes (Snowflake, Redshift) | No (open formats) |
-| Time travel | Not available | Query any past state |
-| Data quality | Ad-hoc testing | Built-in (Iceberg snapshots) |
+| Problem        | Traditional               | Phlo Solution                |
+| -------------- | ------------------------- | ---------------------------- |
+| Data costs     | High (warehouse fees)     | Low (S3 storage)             |
+| Query speed    | Fast                      | Fast (Trino optimization)    |
+| Schema changes | Painful rewrites          | Easy evolution               |
+| Governance     | Manual processes          | Git-like branching           |
+| Vendor lock-in | Yes (Snowflake, Redshift) | No (open formats)            |
+| Time travel    | Not available             | Query any past state         |
+| Data quality   | Ad-hoc testing            | Built-in (Iceberg snapshots) |
 
 ## What You'll Learn in This Series
 
@@ -269,6 +276,7 @@ Each post includes hands-on examples and code you can run.
 ## Next Steps
 
 Ready to build? In Part 2, we'll:
+
 - Clone the Phlo repository
 - Set up Docker and dependencies
 - Start all services with one command

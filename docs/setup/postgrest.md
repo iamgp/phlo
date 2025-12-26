@@ -7,6 +7,7 @@ This guide covers deploying PostgREST alongside the existing FastAPI service in 
 PostgREST is a standalone web server that automatically generates a RESTful API from your PostgreSQL database schema. This deployment implements Phase 1 of the [PostgREST Migration PRD](prd-postgrest-migration.md).
 
 **Key Benefits:**
+
 - Zero-code API generation from database schema
 - Auto-generated OpenAPI documentation
 - Database-native authentication with JWT
@@ -64,6 +65,7 @@ cd migrations/postgrest
 ```
 
 This will:
+
 1. Install PostgreSQL extensions (`pgcrypto`)
 2. Create `auth` schema with users table
 3. Create JWT signing/verification functions
@@ -82,6 +84,7 @@ WHERE schemaname = 'api';
 ```
 
 Expected output:
+
 ```
  schemaname |        viewname
 ------------+--------------------------
@@ -109,6 +112,7 @@ docker-compose ps postgrest
 ```
 
 Expected output:
+
 ```
 NAME        IMAGE                       STATUS
 postgrest   postgrest/postgrest:v12.2.3 Up (healthy)
@@ -121,6 +125,7 @@ docker-compose logs -f postgrest
 ```
 
 Expected logs:
+
 ```
 postgrest | Listening on port 3000
 postgrest | Admin server listening on port 3001
@@ -137,8 +142,9 @@ curl http://localhost:10019/live
 ```
 
 Expected response:
+
 ```json
-{"status":"UP"}
+{ "status": "UP" }
 ```
 
 ---
@@ -157,6 +163,7 @@ curl -X POST http://localhost:10018/rpc/login \
 ```
 
 Expected response:
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -189,6 +196,7 @@ curl "http://localhost:10018/glucose_readings?order=reading_date.desc&limit=5" \
 ```
 
 Expected response (array of glucose readings):
+
 ```json
 [
   {
@@ -221,6 +229,7 @@ curl "http://localhost:10018/glucose_readings?select=reading_date,avg_glucose_mg
 ```
 
 **Filtering Operators:**
+
 - `eq` - equals
 - `gt` - greater than
 - `gte` - greater than or equal
@@ -257,6 +266,7 @@ curl "http://localhost:10018/rpc/glucose_statistics?period_days=7" \
 ```
 
 Expected response:
+
 ```json
 {
   "period_days": 7,
@@ -279,6 +289,7 @@ curl "http://localhost:10018/rpc/user_info" \
 ```
 
 Expected response:
+
 ```json
 {
   "user_id": "uuid-here",
@@ -317,12 +328,14 @@ curl "http://localhost:10018/" \
 ### Response Format Comparison
 
 **FastAPI** (current):
+
 ```bash
 curl "http://localhost:10010/api/v1/glucose/readings?limit=1" \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
 **PostgREST** (new):
+
 ```bash
 curl "http://localhost:10018/glucose_readings?limit=1" \
   -H "Authorization: Bearer $TOKEN" | jq .
@@ -337,11 +350,13 @@ Both should return similar data structures. If there are differences, adjust the
 ### Health Checks
 
 **Liveness probe** (is service running?):
+
 ```bash
 curl http://localhost:10019/live
 ```
 
 **Readiness probe** (is service ready to accept requests?):
+
 ```bash
 curl http://localhost:10019/ready
 ```
@@ -355,6 +370,7 @@ PostgREST doesn't include built-in Prometheus metrics, but you can monitor via:
    - Connection pool usage: `pg_stat_activity`
 
 2. **Database logs**:
+
    ```bash
    docker-compose logs -f postgres | grep "duration:"
    ```
@@ -371,17 +387,21 @@ PostgREST doesn't include built-in Prometheus metrics, but you can monitor via:
 ### Issue: "Connection refused" error
 
 **Symptom:**
+
 ```
 psql: error: connection to server at "localhost" (127.0.0.1), port 10000 failed: Connection refused
 ```
 
 **Solution:**
+
 1. Ensure PostgreSQL is running:
+
    ```bash
    docker-compose ps postgres
    ```
 
 2. Start PostgreSQL if needed:
+
    ```bash
    docker-compose up -d postgres
    ```
@@ -394,12 +414,14 @@ psql: error: connection to server at "localhost" (127.0.0.1), port 10000 failed:
 ### Issue: "relation does not exist" error
 
 **Symptom:**
+
 ```
 ERROR:  relation "api.glucose_readings" does not exist
 ```
 
 **Solution:**
 Migrations not applied. Run:
+
 ```bash
 cd migrations/postgrest
 ./apply_migrations.sh
@@ -408,6 +430,7 @@ cd migrations/postgrest
 ### Issue: "JWT token invalid or expired"
 
 **Symptom:**
+
 ```
 HTTP 401 Unauthorized
 ```
@@ -415,12 +438,14 @@ HTTP 401 Unauthorized
 **Solutions:**
 
 1. **Check JWT secret matches:**
+
    ```bash
    echo $JWT_SECRET
    docker-compose exec postgrest env | grep PGRST_JWT_SECRET
    ```
 
 2. **Regenerate token:**
+
    ```bash
    TOKEN=$(curl -s -X POST http://localhost:10018/rpc/login \
      -H "Content-Type: application/json" \
@@ -435,12 +460,14 @@ HTTP 401 Unauthorized
 ### Issue: "permission denied for schema api"
 
 **Symptom:**
+
 ```
 ERROR: permission denied for schema api
 ```
 
 **Solution:**
 Role permissions not granted. Re-run migration:
+
 ```bash
 psql -h localhost -p 10000 -U lake -d lakehouse -f migrations/postgrest/006_roles_and_rls.sql
 ```
@@ -448,16 +475,19 @@ psql -h localhost -p 10000 -U lake -d lakehouse -f migrations/postgrest/006_role
 ### Issue: PostgREST container keeps restarting
 
 **Check logs:**
+
 ```bash
 docker-compose logs postgrest
 ```
 
 **Common causes:**
+
 1. **Database connection failed:** Verify `PGRST_DB_URI` in docker-compose.yml
 2. **Invalid configuration:** Check environment variables
 3. **Port conflict:** Ensure ports 10018/10019 are not in use
 
 **Verify database connection manually:**
+
 ```bash
 psql "postgresql://authenticator:authenticator_password_change_in_production@localhost:10000/lakehouse" -c "SELECT 1;"
 ```
@@ -496,6 +526,7 @@ pytest tests/integration/test_postgrest.py -v
 ### Phase 4: Migration
 
 Once validated:
+
 1. Update client applications to use PostgREST endpoints
 2. Monitor error rates and performance
 3. Gradually shift traffic from FastAPI to PostgREST
@@ -507,52 +538,60 @@ Once validated:
 
 ### Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/rpc/login` | POST | Authenticate and get JWT token | No |
-| `/glucose_readings` | GET | Get glucose readings | Yes |
-| `/glucose_daily_summary` | GET | Get daily summary | Yes |
-| `/glucose_hourly_patterns` | GET | Get hourly patterns | Yes |
-| `/rpc/glucose_statistics` | GET/POST | Get statistics for period | Yes |
-| `/rpc/user_info` | GET/POST | Get current user info | Yes |
-| `/rpc/health` | GET/POST | Health check | No |
-| `/` | GET | OpenAPI spec (with Accept header) | No |
+| Endpoint                   | Method   | Description                       | Auth Required |
+| -------------------------- | -------- | --------------------------------- | ------------- |
+| `/rpc/login`               | POST     | Authenticate and get JWT token    | No            |
+| `/glucose_readings`        | GET      | Get glucose readings              | Yes           |
+| `/glucose_daily_summary`   | GET      | Get daily summary                 | Yes           |
+| `/glucose_hourly_patterns` | GET      | Get hourly patterns               | Yes           |
+| `/rpc/glucose_statistics`  | GET/POST | Get statistics for period         | Yes           |
+| `/rpc/user_info`           | GET/POST | Get current user info             | Yes           |
+| `/rpc/health`              | GET/POST | Health check                      | No            |
+| `/`                        | GET      | OpenAPI spec (with Accept header) | No            |
 
 ### URL Parameters (for GET requests)
 
 **Filtering:**
+
 ```
 ?column=operator.value
 ```
 
 Examples:
+
 - `?reading_date=gte.2024-01-01`
 - `?avg_glucose_mg_dl=gt.120&time_in_range_pct=gte.70`
 
 **Ordering:**
+
 ```
 ?order=column.asc|desc
 ```
 
 Examples:
+
 - `?order=reading_date.desc`
 - `?order=time_in_range_pct.desc,reading_date.asc`
 
 **Limiting:**
+
 ```
 ?limit=N&offset=M
 ```
 
 Examples:
+
 - `?limit=10` (first 10 rows)
 - `?limit=10&offset=20` (rows 21-30)
 
 **Column selection:**
+
 ```
 ?select=col1,col2,col3
 ```
 
 Examples:
+
 - `?select=reading_date,avg_glucose_mg_dl`
 
 ---
@@ -569,6 +608,7 @@ Examples:
 ## Support
 
 For issues or questions:
+
 1. Check logs: `docker-compose logs postgrest`
 2. Verify database connection: `psql -h localhost -p 10000 -U lake -d lakehouse`
 3. Review PRD risk mitigation strategies

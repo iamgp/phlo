@@ -30,19 +30,20 @@ RAW → BRONZE → SILVER → GOLD → MARTS
 
 **Purpose of each layer:**
 
-| Layer | Purpose | Who Uses It | Materialization |
-|-------|---------|-------------|-----------------|
-| **Raw** | Exact copy of source data | Data engineers debugging | Tables |
-| **Bronze** | Cleaned, standardized | Data engineers | Tables/Views |
-| **Silver** | Business logic applied | Analysts, Data Scientists | Tables |
-| **Gold** | Aggregated, conformed | Business users | Tables |
-| **Marts** | Published to BI tools | Dashboard consumers | Tables (Postgres) |
+| Layer      | Purpose                   | Who Uses It               | Materialization   |
+| ---------- | ------------------------- | ------------------------- | ----------------- |
+| **Raw**    | Exact copy of source data | Data engineers debugging  | Tables            |
+| **Bronze** | Cleaned, standardized     | Data engineers            | Tables/Views      |
+| **Silver** | Business logic applied    | Analysts, Data Scientists | Tables            |
+| **Gold**   | Aggregated, conformed     | Business users            | Tables            |
+| **Marts**  | Published to BI tools     | Dashboard consumers       | Tables (Postgres) |
 
 ###
 
- Why This Pattern?
+Why This Pattern?
 
 **Benefits:**
+
 - ✅ **Reproducibility** - Can always rebuild from raw
 - ✅ **Debuggability** - Easy to isolate issues
 - ✅ **Flexibility** - Change downstream without reingesting
@@ -52,6 +53,7 @@ RAW → BRONZE → SILVER → GOLD → MARTS
 **Real-world analogy:**
 
 Think of it like food processing:
+
 - **Raw**: Fresh ingredients from the farm (messy, varied)
 - **Bronze**: Washed and sorted ingredients
 - **Silver**: Prepped and measured ingredients
@@ -69,6 +71,7 @@ The Bronze layer **cleanses and standardizes** raw data without applying busines
 ### What Happens Here
 
 **Type conversions:**
+
 ```sql
 -- Raw: date stored as bigint (milliseconds)
 CAST(date_ms AS TIMESTAMP) AS date_timestamp
@@ -78,6 +81,7 @@ CAST(value_str AS DOUBLE) AS value_numeric
 ```
 
 **Standardization:**
+
 ```sql
 -- Lowercase for consistency
 LOWER(TRIM(category)) AS category
@@ -87,6 +91,7 @@ NULLIF(TRIM(field), '') AS field  -- Empty strings → NULL
 ```
 
 **Column renaming:**
+
 ```sql
 -- Make names descriptive and consistent
 sgv AS glucose_value,
@@ -95,6 +100,7 @@ ts AS timestamp_utc
 ```
 
 **Data cleaning:**
+
 ```sql
 -- Remove duplicates
 SELECT DISTINCT * FROM source
@@ -106,14 +112,15 @@ WHERE created_at IS NOT NULL
 
 ### What DOESN'T Happen Here
 
-❌ **NO business logic** (no "is_active", "status_category", etc.)
+❌ **NO business logic** (no "is*active", "status_category", etc.)
 ❌ **NO aggregations** (no GROUP BY)
-❌ **NO enrichments** (no calculated fields like "days_since_")
+❌ **NO enrichments** (no calculated fields like "days_since*")
 ❌ **NO joins** (single-source transformations only)
 
 ### Bronze Layer Best Practices
 
 **1. Keep it close to source**
+
 ```sql
 -- GOOD: Minimal transformation
 SELECT
@@ -136,6 +143,7 @@ FROM {{ source('raw', 'orders') }}
 ```
 
 **2. Document all transformations**
+
 ```sql
 -- Good practice: Comment why you're doing something
 SELECT
@@ -152,6 +160,7 @@ FROM {{ source('raw', 'observations') }}
 ```
 
 **3. Filter only technical invalids**
+
 ```sql
 -- GOOD: Filter technical problems
 WHERE id IS NOT NULL  -- Can't process without ID
@@ -185,6 +194,7 @@ The Silver layer adds **business logic and context** to create analytics-ready f
 ### What Happens Here
 
 **Calculated fields:**
+
 ```sql
 -- Business metrics
 amount * tax_rate AS tax_amount,
@@ -205,6 +215,7 @@ END AS is_fulfilled
 ```
 
 **Enrichments:**
+
 ```sql
 -- Date parts for easy filtering
 DATE(created_timestamp) AS created_date,
@@ -219,6 +230,7 @@ AGE(customer_birthdate, current_date) AS customer_age
 ```
 
 **Window functions:**
+
 ```sql
 -- Running totals
 SUM(amount) OVER (
@@ -240,6 +252,7 @@ AVG(amount) OVER (
 ```
 
 **Joins (denormalization):**
+
 ```sql
 -- Join related entities for analysis
 SELECT
@@ -255,7 +268,8 @@ LEFT JOIN {{ ref('stg_products') }} p ON o.product_id = p.product_id
 
 ### Fact vs Dimension Tables
 
-**Fact Tables (fct_):**
+**Fact Tables (fct\_):**
+
 - Measurements, metrics, transactions
 - Grain: One row per event/transaction
 - Many rows (millions+)
@@ -281,7 +295,8 @@ SELECT
 FROM {{ ref('stg_orders') }}
 ```
 
-**Dimension Tables (dim_):**
+**Dimension Tables (dim\_):**
+
 - Descriptive attributes
 - Grain: One row per entity
 - Fewer rows (thousands)
@@ -311,6 +326,7 @@ FROM {{ ref('stg_customers') }}
 ### Silver Layer Best Practices
 
 **1. Design for analytics**
+
 ```sql
 -- GOOD: Denormalized, ready for queries
 SELECT
@@ -331,6 +347,7 @@ FROM orders  -- Analyst must join to get customer/product info
 ```
 
 **2. Document business logic**
+
 ```sql
 -- GOOD: Clear business rule documentation
 -- Business rule (2024-06-01): Orders over $100 get free shipping
@@ -379,6 +396,7 @@ The Gold layer creates **aggregated, business-ready datasets** optimized for spe
 ### What Happens Here
 
 **Aggregations:**
+
 ```sql
 -- Daily aggregations
 SELECT
@@ -394,6 +412,7 @@ GROUP BY order_date, customer_segment
 ```
 
 **Rollups:**
+
 ```sql
 -- Multi-grain aggregations
 SELECT
@@ -409,6 +428,7 @@ GROUP BY ROLLUP(year, quarter, month, product_category)
 ```
 
 **Conformed dimensions:**
+
 ```sql
 -- Shared dimension across business units
 CREATE TABLE gold.dim_date AS
@@ -430,6 +450,7 @@ FROM date_spine
 ```
 
 **Business metrics:**
+
 ```sql
 -- KPIs calculated once, used everywhere
 SELECT
@@ -452,6 +473,7 @@ GROUP BY customer_id
 ### Gold Layer Best Practices
 
 **1. Design for specific use cases**
+
 ```sql
 -- GOOD: Purpose-built for executive dashboard
 -- Gold table: agg_executive_daily_metrics
@@ -481,6 +503,7 @@ FROM hourly_warehouse_stats
 ```
 
 **2. Pre-calculate expensive computations**
+
 ```sql
 -- Calculate once in Gold, not every query
 WITH cohorts AS (
@@ -524,6 +547,7 @@ The Marts layer **publishes** data to BI tools and applications, optimized for s
 ### What Happens Here
 
 **Simplification:**
+
 ```sql
 -- Remove unnecessary columns
 -- Add business-friendly names
@@ -541,6 +565,7 @@ ORDER BY date DESC
 ```
 
 **Denormalization:**
+
 ```sql
 -- Fully denormalized - no joins needed in BI tool
 SELECT
@@ -563,6 +588,7 @@ LEFT JOIN {{ ref('dim_warehouses') }} w ON o.warehouse_id = w.warehouse_id
 ```
 
 **Performance optimization:**
+
 ```sql
 -- Published to PostgreSQL for fast BI queries
 -- Indexes added on common filter columns
@@ -573,6 +599,7 @@ LEFT JOIN {{ ref('dim_warehouses') }} w ON o.warehouse_id = w.warehouse_id
 ### Marts Layer Best Practices
 
 **1. Design for your BI tool**
+
 ```sql
 -- GOOD: Tableau-friendly structure
 SELECT
@@ -638,12 +665,12 @@ Marts:  "Average Temperature": 36.8°C, "Status": "Normal"
 
 ### Principle 3: Optimize for Different Users
 
-| Layer | Optimized For | Query Pattern |
-|-------|---------------|---------------|
-| Bronze | Engineers | Debugging, investigation |
-| Silver | Analysts | Exploratory analysis |
-| Gold | Business Users | Standard reports |
-| Marts | Executives | Dashboards |
+| Layer  | Optimized For  | Query Pattern            |
+| ------ | -------------- | ------------------------ |
+| Bronze | Engineers      | Debugging, investigation |
+| Silver | Analysts       | Exploratory analysis     |
+| Gold   | Business Users | Standard reports         |
+| Marts  | Executives     | Dashboards               |
 
 ### Principle 4: Schema Flexibility
 
@@ -677,6 +704,7 @@ CREATE TABLE fct_events (
 ### Pattern 1: Slowly Changing Dimensions (SCD)
 
 **Type 1: Overwrite**
+
 ```sql
 -- Just update the dimension
 UPDATE dim_customers
@@ -685,6 +713,7 @@ WHERE customer_id = 123
 ```
 
 **Type 2: Track history**
+
 ```sql
 CREATE TABLE dim_customers (
     customer_key INT,  -- Surrogate key
@@ -821,6 +850,7 @@ DROP COLUMN old_column;
 ### Example 1: E-Commerce Orders
 
 **Raw → Bronze:**
+
 ```sql
 -- Bronze: Clean and standardize
 SELECT
@@ -834,6 +864,7 @@ WHERE order_id IS NOT NULL
 ```
 
 **Bronze → Silver:**
+
 ```sql
 -- Silver: Add business logic
 SELECT
@@ -857,6 +888,7 @@ FROM {{ ref('stg_orders') }}
 ```
 
 **Silver → Gold:**
+
 ```sql
 -- Gold: Aggregate
 SELECT
@@ -872,6 +904,7 @@ GROUP BY order_date, value_tier
 ```
 
 **Gold → Marts:**
+
 ```sql
 -- Marts: Business-friendly
 SELECT
@@ -892,24 +925,28 @@ ORDER BY order_date DESC
 ## Summary
 
 **Bronze Layer:**
+
 - Clean and standardize
 - Type conversions, column renaming
 - Remove technical invalids
 - No business logic
 
 **Silver Layer:**
+
 - Add business logic
 - Calculated fields, categorizations
 - Fact and dimension tables
 - Join related entities
 
 **Gold Layer:**
+
 - Aggregate and rollup
 - Business metrics
 - Purpose-built datasets
 - Conformed dimensions
 
 **Marts Layer:**
+
 - Publish to BI tools
 - Denormalized, optimized
 - Business-friendly names

@@ -62,6 +62,7 @@ make health-catalog
 ```
 
 **Expected output:**
+
 ```
 === Data Catalog Health Check ===
 OpenMetadata:
@@ -83,6 +84,7 @@ make catalog
 ```
 
 **Default credentials:**
+
 - Username: `admin`
 - Password: `admin`
 
@@ -119,11 +121,13 @@ After first-time setup, you MUST complete these steps in order:
 ### Step 2: Configure Trino Connection
 
 **Service Name:**
+
 ```
 trino
 ```
 
 **Description (optional):**
+
 ```
 Phlo lakehouse Trino query engine with Iceberg catalog
 ```
@@ -132,26 +136,29 @@ Phlo lakehouse Trino query engine with Iceberg catalog
 
 Click on **Basic** authentication type, then configure:
 
-| Field | Value | Notes |
-|-------|-------|-------|
-| **Host** | `trino` | Docker service name (internal network) |
-| **Port** | `8080` | Internal container port (NOT 10005!) |
-| **Username** | `phlo` | Any username (no auth in dev) |
-| **Catalog** | Leave empty | We'll filter by catalog in ingestion |
-| **Database Schema** | Leave empty | - |
+| Field               | Value       | Notes                                  |
+| ------------------- | ----------- | -------------------------------------- |
+| **Host**            | `trino`     | Docker service name (internal network) |
+| **Port**            | `8080`      | Internal container port (NOT 10005!)   |
+| **Username**        | `phlo`      | Any username (no auth in dev)          |
+| **Catalog**         | Leave empty | We'll filter by catalog in ingestion   |
+| **Database Schema** | Leave empty | -                                      |
 
 > **Port Note:** Trino runs on port `8080` inside the Docker network. The external host port `10005` is only for accessing Trino from your laptop. OpenMetadata uses the internal port `8080`.
 
 **Advanced Options (leave defaults):**
+
 - Connection Options: (empty)
 - Connection Arguments: (empty)
 
 Click **Test Connection** - you should see:
+
 ```
 Connection test was successful
 ```
 
 If the test fails, verify Trino is running:
+
 ```bash
 docker ps --filter name=trino
 curl http://localhost:8080/v1/info
@@ -189,18 +196,19 @@ Table Filter Pattern:
 
 Enable/disable these options:
 
-| Option | Enable? | Reason |
-|--------|---------|--------|
-| Include Tables | ✅ Yes | Core metadata |
-| Include Views | ✅ Yes | Include views |
-| Include Tags | ✅ Yes | Catalog tags |
-| Include Owners | ❌ No | Not used in dev |
-| Include Stored Procedures | ❌ **NO** | **Causes crashes** |
+| Option                         | Enable?   | Reason             |
+| ------------------------------ | --------- | ------------------ |
+| Include Tables                 | ✅ Yes    | Core metadata      |
+| Include Views                  | ✅ Yes    | Include views      |
+| Include Tags                   | ✅ Yes    | Catalog tags       |
+| Include Owners                 | ❌ No     | Not used in dev    |
+| Include Stored Procedures      | ❌ **NO** | **Causes crashes** |
 | Mark Deleted Stored Procedures | ❌ **NO** | **Causes crashes** |
-| Include DDL | ❌ No | Not needed |
-| Override Metadata | ❌ No | - |
+| Include DDL                    | ❌ No     | Not needed         |
+| Override Metadata              | ❌ No     | -                  |
 
 **Ingestion Settings:**
+
 - Thread Count: `1` (default)
 - Timeout: `300` seconds (default)
 
@@ -213,11 +221,13 @@ Click **Next**.
 **Schedule Type:** Choose one:
 
 **Option A: Manual (Recommended for Development)**
+
 - Select **Manual**
 - Run ingestion on-demand when you need to refresh metadata
 - Good for: Development, testing
 
 **Option B: Scheduled (Recommended for Production)**
+
 - Select **Scheduled**
 - Choose **Cron Expression**
 - Enter: `0 3 * * *` (runs daily at 3 AM, after Dagster pipelines complete)
@@ -304,6 +314,7 @@ After initial ingestion, search will NOT work until you populate the search inde
 - Enables Explore page and search functionality
 
 **Without this step:**
+
 - Explore page will show error: "Search failed due to Elasticsearch exception"
 - Global search will not work
 - You can only navigate by direct URLs
@@ -328,16 +339,19 @@ After initial ingestion, search will NOT work until you populate the search inde
    - Sample data (if profiling enabled)
 
 **Direct URL Access:**
+
 ```
 http://localhost:10020/table/trino.iceberg.raw.glucose_entries
 ```
 
 **Verify in Airflow:**
+
 ```bash
 docker logs openmetadata-ingestion | grep "Successfully ingested"
 ```
 
 **Check Elasticsearch Indices:**
+
 ```bash
 # Verify tables are indexed
 docker exec openmetadata-elasticsearch curl -s \
@@ -414,6 +428,7 @@ This is what your pipeline configuration looks like (stored in `volumes/openmeta
 ### Editing Configuration Later
 
 **Via UI:**
+
 1. Go to **Settings → Databases → trino**
 2. Click **Ingestions** tab
 3. Click **Edit** (pencil icon) on your pipeline
@@ -422,6 +437,7 @@ This is what your pipeline configuration looks like (stored in `volumes/openmeta
 6. Re-run the pipeline
 
 **Via File (Advanced):**
+
 ```bash
 # Find your pipeline configuration
 ls volumes/openmetadata-ingestion-dags/
@@ -438,17 +454,21 @@ docker restart openmetadata-ingestion
 After ingestion, you'll see:
 
 ### Bronze Layer (Staging)
+
 - `bronze.entries_cleaned` - CGM entries with type conversions
 - `bronze.device_status_cleaned` - Device status events
 
 ### Silver Layer (Facts)
+
 - `silver.glucose_daily_stats` - Daily glucose aggregations
 - `silver.glucose_weekly_stats` - Weekly glucose aggregations
 
 ### Gold Layer (Dimensions)
+
 - `gold.dim_date` - Date dimension table
 
 ### Marts (BI-Ready)
+
 - `marts.glucose_analytics_mart` - Published to Postgres for Superset
 
 ## Using the Data Catalog
@@ -480,13 +500,16 @@ Click on any table to see:
 
 ```markdown
 ## Description
+
 Daily aggregated glucose statistics including mean, standard deviation,
 time in range, and estimated A1C.
 
 ## Update Schedule
+
 Updated daily at 2:00 AM UTC via Dagster pipeline.
 
 ## Business Logic
+
 - `time_in_range_pct`: Percentage of readings between 70-180 mg/dL
 - `estimated_a1c`: Calculated using formula: (mean_glucose + 46.7) / 28.7
 ```
@@ -533,6 +556,7 @@ Superset Dashboard: "CGM Overview"
 ### Enable Lineage Tracking with dbt
 
 Lineage is automatically extracted from:
+
 - **dbt models** - Shows dependencies between models and tables
 - **SQL queries** - Enable query log ingestion (advanced)
 
@@ -543,11 +567,11 @@ Lineage is automatically extracted from:
 3. Select **dbt**
 4. Configure:
 
-| Field | Value |
-|-------|-------|
-| **Name** | `phlo-dbt` |
-| **dbt Cloud API URL** | Leave empty (we use local files) |
-| **dbt Cloud Account ID** | Leave empty |
+| Field                    | Value                            |
+| ------------------------ | -------------------------------- |
+| **Name**                 | `phlo-dbt`                       |
+| **dbt Cloud API URL**    | Leave empty (we use local files) |
+| **dbt Cloud Account ID** | Leave empty                      |
 
 Click **Next**.
 
@@ -555,12 +579,12 @@ Click **Next**.
 
 1. **Source Configuration:**
 
-| Field | Value | Notes |
-|-------|-------|-------|
-| **dbt Configuration Source** | `Local` | We're using local files, not dbt Cloud |
-| **dbt Catalog File Path** | `/dbt/target/catalog.json` | Contains column-level metadata |
-| **dbt Manifest File Path** | `/dbt/target/manifest.json` | Contains lineage and dependencies |
-| **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results |
+| Field                         | Value                          | Notes                                  |
+| ----------------------------- | ------------------------------ | -------------------------------------- |
+| **dbt Configuration Source**  | `Local`                        | We're using local files, not dbt Cloud |
+| **dbt Catalog File Path**     | `/dbt/target/catalog.json`     | Contains column-level metadata         |
+| **dbt Manifest File Path**    | `/dbt/target/manifest.json`    | Contains lineage and dependencies      |
+| **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results                 |
 
 2. **Database Service Name:** `trino`
    - This links dbt models to your Trino tables
@@ -574,10 +598,12 @@ Click **Next**.
 **Step 3: Schedule dbt Ingestion**
 
 **For Development:**
+
 - Select **Manual**
 - Run after `dbt run` or `dbt build` completes
 
 **For Production:**
+
 - Select **Scheduled**
 - Cron: `0 4 * * *` (4 AM, after Dagster + Trino ingestion)
 
@@ -586,6 +612,7 @@ Click **Next** → **Deploy**.
 **Step 4: Run dbt Ingestion**
 
 1. Ensure dbt artifacts are fresh:
+
    ```bash
    # From your local machine
    cd transforms/dbt
@@ -601,6 +628,7 @@ Click **Next** → **Deploy**.
 5. Click **Run** (play button)
 
 **Expected Output:**
+
 ```
 INFO - Starting dbt metadata ingestion
 INFO - Reading manifest from /dbt/target/manifest.json
@@ -614,6 +642,7 @@ INFO - Successfully ingested dbt metadata
 **What You'll See:**
 
 After ingestion:
+
 1. **Enhanced Table Descriptions**: dbt model descriptions appear on tables
 2. **Column Descriptions**: From dbt schema YAML files
 3. **Lineage Graphs**: Visual connections between models
@@ -623,6 +652,7 @@ After ingestion:
 **Verify dbt Integration:**
 
 Navigate to a table created by dbt (e.g., `silver.glucose_daily_stats`):
+
 - **Lineage** tab: Shows upstream dependencies
 - **Schema** tab: Has column descriptions from dbt
 - **Data Quality** tab: Shows dbt test results
@@ -717,11 +747,13 @@ docker logs openmetadata-elasticsearch
 ```
 
 **Common causes:**
+
 1. Database migrations haven't run yet
 2. Server still initializing (wait 2-3 minutes)
 3. Dependency services not healthy
 
 **Check migration status:**
+
 ```bash
 # Verify migration completed successfully
 docker logs openmetadata-migrate
@@ -733,6 +765,7 @@ docker inspect openmetadata-migrate --format='{{.State.ExitCode}}'
 ### Search Not Working / "All Shards Failed" Error
 
 **Symptom:**
+
 - Explore page shows: "Search failed due to Elasticsearch exception [type=search_phase_execution_exception, reason=all shards failed]"
 - Global search returns no results
 - Direct table URLs work fine
@@ -759,6 +792,7 @@ docker exec openmetadata-elasticsearch curl -s -X DELETE "http://localhost:9200/
 ```
 
 **Verify search is working:**
+
 ```bash
 # Check all alias exists and points to indices
 docker exec openmetadata-elasticsearch curl -s "http://localhost:9200/_cat/aliases?v" | grep all
@@ -775,6 +809,7 @@ docker exec openmetadata-elasticsearch curl -s \
 This occurs when connecting ingestion pipelines after a fresh install.
 
 **Solution:**
+
 ```bash
 # Reset Airflow admin password
 docker exec openmetadata-ingestion airflow users reset-password -u admin -p admin
@@ -790,6 +825,7 @@ docker restart openmetadata-ingestion
 **Root cause:** OpenMetadata should create Elasticsearch indices automatically on startup. If you see this error, it indicates the initialization failed.
 
 **Verification:**
+
 ```bash
 # Check if indices exist
 docker exec openmetadata-elasticsearch curl -s http://localhost:9200/_cat/indices | grep search_index
@@ -799,11 +835,13 @@ docker exec openmetadata-elasticsearch curl -s http://localhost:9200/_cat/indice
 Indices should be created automatically by OpenMetadata. If they're missing after a fresh install:
 
 1. Check OpenMetadata server logs for initialization errors:
+
    ```bash
    docker logs openmetadata-server | grep -i "elastic\|index"
    ```
 
 2. Restart OpenMetadata server to trigger re-initialization:
+
    ```bash
    docker restart openmetadata-server
    ```
@@ -813,6 +851,7 @@ Indices should be created automatically by OpenMetadata. If they're missing afte
 ### Server Crashes During Ingestion
 
 **Symptoms:**
+
 - OpenMetadata server keeps restarting
 - Container shows "Restarting (137)" or "Killed"
 - Logs show signal 9 or OOM errors
@@ -827,6 +866,7 @@ Indices should be created automatically by OpenMetadata. If they're missing afte
    - Advanced Options → Uncheck "Mark Deleted Stored Procedures"
 
 2. **Add schema filters** to reduce scope:
+
    ```yaml
    Include Schemas: raw,bronze,silver,gold
    Exclude Schemas: information_schema,system
@@ -838,7 +878,7 @@ Indices should be created automatically by OpenMetadata. If they're missing afte
    # In docker-compose.yml
    openmetadata-server:
      environment:
-       OPENMETADATA_HEAP_OPTS: "-Xmx4G -Xms4G"  # Increase from default
+       OPENMETADATA_HEAP_OPTS: "-Xmx4G -Xms4G" # Increase from default
    ```
 
 ### Elasticsearch Out of Memory
@@ -849,7 +889,7 @@ If you see OOM errors, increase memory:
 # In docker-compose.yml
 openmetadata-elasticsearch:
   environment:
-    ES_JAVA_OPTS: "-Xms1g -Xmx1g"  # Increase from 512m
+    ES_JAVA_OPTS: "-Xms1g -Xmx1g" # Increase from 512m
 ```
 
 ### Trino Connection Failed
@@ -889,6 +929,7 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 **Solutions:**
 
 1. **Check if ingestion actually found tables:**
+
    ```bash
    docker logs openmetadata-ingestion | grep "Successfully ingested"
    ```
@@ -912,11 +953,13 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ## Resource Requirements
 
 **Minimum:**
+
 - 6 GB RAM
 - 4 vCPUs
 - 10 GB disk space
 
 **Recommended:**
+
 - 8 GB RAM
 - 6 vCPUs
 - 20 GB disk space
@@ -932,13 +975,13 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 
 ## Comparison with Alternatives
 
-| Feature | OpenMetadata | Amundsen | DataHub |
-|---------|--------------|----------|---------|
-| Setup Ease | ⭐⭐ Moderate | ⭐ Easy | ⭐⭐⭐ Complex |
-| Active Development | ✅ Active | ⚠️ Slowed | ✅ Very Active |
-| UI/UX | Excellent | Good | Very Good |
-| Resource Usage | Medium (6GB) | Low | High (Kafka) |
-| Iceberg Support | ✅ Yes | ❌ No | ✅ Yes |
+| Feature            | OpenMetadata  | Amundsen  | DataHub        |
+| ------------------ | ------------- | --------- | -------------- |
+| Setup Ease         | ⭐⭐ Moderate | ⭐ Easy   | ⭐⭐⭐ Complex |
+| Active Development | ✅ Active     | ⚠️ Slowed | ✅ Very Active |
+| UI/UX              | Excellent     | Good      | Very Good      |
+| Resource Usage     | Medium (6GB)  | Low       | High (Kafka)   |
+| Iceberg Support    | ✅ Yes        | ❌ No     | ✅ Yes         |
 
 ## Next Steps
 

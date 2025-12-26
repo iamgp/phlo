@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install phlo from PyPI (or specific version if provided)
 RUN if [ -n "$PHLO_VERSION" ]; then \
-        uv pip install --system "phlo==$PHLO_VERSION" dagster-postgres pyiceberg[s3]; \
+        uv pip install --system "phlo[defaults]==$PHLO_VERSION" dagster-postgres; \
     else \
-        uv pip install --system phlo dagster-postgres pyiceberg[s3]; \
+        uv pip install --system "phlo[defaults]" dagster-postgres; \
     fi
 
 # Copy entrypoint script for dev mode dependency sync

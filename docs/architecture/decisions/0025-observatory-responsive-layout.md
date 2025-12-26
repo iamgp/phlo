@@ -124,14 +124,12 @@ Add to `styles.css`:
 ### Manual Verification Checklist
 
 1. **Mobile (375px)**:
-
    - [ ] Sidebar opens as sheet overlay when hamburger tapped
    - [ ] Header shows search icon only (no "Search" text)
    - [ ] Data tables scroll horizontally without page scroll
    - [ ] Table rows are tappable (44px+ height)
 
 2. **Tablet (768px)**:
-
    - [ ] Sidebar starts collapsed (icon-only)
    - [ ] Can expand sidebar with trigger button
    - [ ] Query editor has reasonable height
@@ -143,7 +141,7 @@ Add to `styles.css`:
 ### TypeScript/Lint
 
 ```bash
-cd services/observatory && npm run lint && npm run typecheck
+cd packages/phlo-observatory/src/phlo_observatory && npm run lint && npm run typecheck
 ```
 
 ## Beads

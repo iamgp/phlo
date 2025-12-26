@@ -5,6 +5,7 @@ Step-by-step guide to configuring Hasura for the Phlo lakehouse.
 ## Overview
 
 Hasura auto-generates a GraphQL API from your Postgres `marts` schema, providing:
+
 - Instant GraphQL queries and mutations
 - Real-time subscriptions
 - Role-based permissions
@@ -75,6 +76,7 @@ By default, tracked tables have NO permissions. You must configure access.
 #### Repeat for All Tables
 
 Repeat the above for:
+
 - `mrt_glucose_hourly_patterns`
 - Any other marts tables
 
@@ -88,7 +90,7 @@ Repeat the above for:
 
 ```graphql
 query GetGlucoseReadings {
-  mrt_glucose_overview(limit: 10, order_by: {date: desc}) {
+  mrt_glucose_overview(limit: 10, order_by: { date: desc }) {
     date
     avg_glucose
     min_glucose
@@ -117,6 +119,7 @@ For authenticated requests:
 ```
 
 3. Get token from FastAPI login:
+
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
@@ -136,6 +139,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 Create views in Postgres for common queries, then track them in Hasura.
 
 **Example:**
+
 ```sql
 CREATE VIEW marts.v_recent_readings AS
 SELECT *
@@ -154,6 +158,7 @@ If you have foreign keys between tables, Hasura can auto-track relationships.
 **Example:** If you add a `user_id` column to marts tables:
 
 1. Create foreign key in Postgres:
+
 ```sql
 ALTER TABLE marts.mrt_glucose_overview
 ADD COLUMN user_id TEXT REFERENCES users(id);
@@ -167,7 +172,8 @@ query GetUserWithReadings {
   users {
     id
     name
-    glucose_readings {  # Auto-generated relationship
+    glucose_readings {
+      # Auto-generated relationship
       date
       avg_glucose
     }
@@ -195,18 +201,20 @@ $$ LANGUAGE SQL STABLE;
 ```
 
 Add computed field in Hasura:
+
 1. **Data** → `mrt_glucose_overview` → **Modify** tab
 2. **Add a computed field**
 3. Function: `glucose_status`
 4. Save
 
 Query with computed field:
+
 ```graphql
 query {
   mrt_glucose_overview {
     date
     avg_glucose
-    status  # Computed field
+    status # Computed field
   }
 }
 ```
@@ -261,6 +269,7 @@ type RefreshResponse {
 5. Save
 
 Query:
+
 ```graphql
 mutation {
   refreshGlucoseData {
@@ -283,6 +292,7 @@ Run webhooks when data changes.
 3. Operations: Insert, Update
 4. Webhook: `http://api:8000/api/v1/webhooks/glucose-alert`
 5. Add condition:
+
 ```json
 {
   "avg_glucose": {
@@ -290,6 +300,7 @@ Run webhooks when data changes.
   }
 }
 ```
+
 6. Save
 
 Hasura will POST to webhook when condition matches.
@@ -301,12 +312,10 @@ Hasura will POST to webhook when condition matches.
 Real-time data via WebSockets.
 
 **Example subscription:**
+
 ```graphql
 subscription WatchGlucose {
-  mrt_glucose_overview(
-    limit: 1
-    order_by: {date: desc}
-  ) {
+  mrt_glucose_overview(limit: 1, order_by: { date: desc }) {
     date
     avg_glucose
   }
@@ -316,27 +325,28 @@ subscription WatchGlucose {
 Client will receive updates when data changes.
 
 **JavaScript client:**
+
 ```javascript
-import { createClient } from 'graphql-ws';
+import { createClient } from "graphql-ws";
 
 const client = createClient({
-  url: 'ws://localhost:8081/v1/graphql',
+  url: "ws://localhost:8081/v1/graphql",
   connectionParams: {
     headers: {
-      Authorization: 'Bearer YOUR_TOKEN'
-    }
-  }
+      Authorization: "Bearer YOUR_TOKEN",
+    },
+  },
 });
 
 client.subscribe(
   {
-    query: `subscription { mrt_glucose_overview(limit: 1, order_by: {date: desc}) { date avg_glucose } }`
+    query: `subscription { mrt_glucose_overview(limit: 1, order_by: {date: desc}) { date avg_glucose } }`,
   },
   {
-    next: (data) => console.log('Update:', data),
-    error: (error) => console.error('Error:', error),
-    complete: () => console.log('Done')
-  }
+    next: (data) => console.log("Update:", data),
+    error: (error) => console.error("Error:", error),
+    complete: () => console.log("Done"),
+  },
 );
 ```
 
@@ -360,6 +370,7 @@ hasura metadata export \
 ```
 
 Creates `metadata/` directory with:
+
 - Tables tracking
 - Permissions
 - Relationships
@@ -381,6 +392,7 @@ hasura metadata apply \
 ```
 
 Useful for:
+
 - Development → Production deployment
 - Team collaboration
 - Disaster recovery
@@ -428,11 +440,13 @@ Keeps database schema and Hasura metadata in sync.
 Hasura validates JWT tokens using shared secret with FastAPI.
 
 **Current config** (in docker-compose.yml):
+
 ```yaml
 HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256","key":"${JWT_SECRET}"}'
 ```
 
 **JWT payload structure:**
+
 ```json
 {
   "sub": "admin",
@@ -459,6 +473,7 @@ Hasura reads `x-hasura-*` claims for permission checks.
 **Issue:** Tables not appearing in Hasura console
 
 **Solutions:**
+
 1. Verify Postgres connection: Check `HASURA_GRAPHQL_DATABASE_URL` in docker-compose.yml
 2. Check schema: Ensure tables are in correct schema (`marts` or `public`)
 3. Reload metadata: **Data** tab → gear icon → **Reload**
@@ -471,6 +486,7 @@ Hasura reads `x-hasura-*` claims for permission checks.
 **Issue:** GraphQL query returns permission denied
 
 **Solutions:**
+
 1. Check role in JWT token matches configured role (`admin` or `analyst`)
 2. Verify permissions set for that role in Hasura console
 3. Check row-level security conditions
@@ -483,10 +499,13 @@ Hasura reads `x-hasura-*` claims for permission checks.
 **Issue:** GraphQL queries taking too long
 
 **Solutions:**
+
 1. Add indexes to Postgres tables:
+
 ```sql
 CREATE INDEX idx_glucose_date ON marts.mrt_glucose_overview(date);
 ```
+
 2. Limit query depth in Hasura settings
 3. Use pagination with `limit` and `offset`
 4. Enable query caching (requires Hasura Pro)
@@ -499,11 +518,14 @@ CREATE INDEX idx_glucose_date ON marts.mrt_glucose_overview(date);
 **Issue:** `JWTInvalid` or `JWTExpired` errors
 
 **Solutions:**
+
 1. Verify JWT secret matches between FastAPI and Hasura:
+
 ```bash
 docker compose exec api env | grep JWT_SECRET
 docker compose exec hasura env | grep JWT_SECRET
 ```
+
 2. Check token expiration (default 60 minutes)
 3. Verify token format in request header: `Bearer YOUR_TOKEN`
 4. Test token at https://jwt.io (paste token, verify signature with secret)
@@ -521,7 +543,7 @@ query GetReadingsPaginated($limit: Int!, $offset: Int!) {
   mrt_glucose_overview(
     limit: $limit
     offset: $offset
-    order_by: {date: desc}
+    order_by: { date: desc }
   ) {
     date
     avg_glucose
@@ -538,9 +560,15 @@ query GetStats {
   mrt_glucose_overview_aggregate {
     aggregate {
       count
-      avg { avg_glucose }
-      max { max_glucose }
-      min { min_glucose }
+      avg {
+        avg_glucose
+      }
+      max {
+        max_glucose
+      }
+      min {
+        min_glucose
+      }
     }
   }
 }

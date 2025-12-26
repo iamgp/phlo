@@ -5,6 +5,7 @@ Get Phlo running and see your first data pipeline in action in under 10 minutes.
 ## What You'll Build
 
 A simple glucose data ingestion pipeline that:
+
 1. Fetches data from Nightscout API
 2. Validates with Pandera schemas
 3. Stores in Apache Iceberg table
@@ -43,14 +44,14 @@ You'll see the existing glucose ingestion asset already defined!
 
 ## Step 3: Understand the Asset (2 minutes)
 
-Open `src/phlo/defs/ingestion/nightscout/glucose.py`:
+Open `workflows/ingestion/nightscout/glucose.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
 import phlo
-from phlo.schemas.glucose import RawGlucoseEntries
+from workflows.schemas.glucose import RawGlucoseEntries
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -83,7 +84,8 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-**Notice**: Only 60 lines! The `@phlo.ingestion` decorator handles:
+**Notice**: Only 60 lines! The `@phlo_ingestion` decorator handles:
+
 - DLT pipeline setup
 - Pandera validation
 - Iceberg table creation
@@ -101,6 +103,7 @@ docker exec dagster-webserver dagster asset materialize --select glucose_entries
 ```
 
 Watch the execution in the Dagster UI. You'll see:
+
 1. DLT fetching data from API
 2. Pandera validation
 3. Staging to parquet
@@ -145,13 +148,15 @@ print(result)
 ## What You Just Did
 
 In 10 minutes, you:
+
 1. Started Phlo's lakehouse platform
 2. Explored an ingestion asset
 3. Materialized data to Iceberg
 4. Queried with SQL engines
 
 **Key Concepts**:
-- **Decorator-driven**: Minimal boilerplate with `@phlo.ingestion`
+
+- **Decorator-driven**: Minimal boilerplate with `@phlo_ingestion`
 - **Schema-first**: Pandera validates data quality
 - **Iceberg tables**: ACID transactions, time travel, schema evolution
 - **Multi-engine**: Query with Trino, DuckDB, Spark
@@ -160,7 +165,7 @@ In 10 minutes, you:
 
 ### Create Your Own Ingestion Asset (15 minutes)
 
-1. Define schema in `src/phlo/schemas/mydata.py`:
+1. Define schema in `workflows/schemas/mydata.py`:
 
 ```python
 import pandera as pa
@@ -176,14 +181,14 @@ class RawWeatherData(pa.DataFrameModel):
         coerce = True
 ```
 
-2. Create asset in `src/phlo/defs/ingestion/weather/observations.py`:
+2. Create asset in `workflows/ingestion/weather/observations.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
 import phlo
-from phlo.schemas.mydata import RawWeatherData
+from workflows.schemas.mydata import RawWeatherData
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="weather_observations",
     unique_key="timestamp",
     validation_schema=RawWeatherData,
@@ -210,11 +215,7 @@ def weather_observations(partition_date: str):
     return source
 ```
 
-3. Register domain in `src/phlo/defs/ingestion/__init__.py`:
-
-```python
-from phlo.defs.ingestion import weather  # noqa: F401
-```
+3. No manual registration is needed. Phlo discovers assets under `workflows/`.
 
 4. Restart Dagster:
 
@@ -227,9 +228,11 @@ docker restart dagster-webserver
 ### Build Complete Pipeline (60 minutes)
 
 Follow the comprehensive tutorial:
+
 - **[Workflow Development Guide](../guides/workflow-development.md)** (42KB, 10-step tutorial)
 
 This covers:
+
 - Bronze/Silver/Gold layers with dbt
 - Data quality checks
 - Publishing to Postgres
@@ -253,6 +256,7 @@ This covers:
 ## Common Issues
 
 **"Services won't start"**
+
 ```bash
 # Check Docker is running
 docker ps
@@ -266,22 +270,24 @@ make up-core up-query
 ```
 
 **"Asset not showing in UI"**
+
 ```bash
 # Restart Dagster webserver
 docker restart dagster-webserver
 
-# Check import in defs/ingestion/__init__.py
-# Ensure domain is imported: from phlo.defs.ingestion import weather
+# Ensure asset file lives under workflows/ and imports cleanly
 ```
 
 **"Validation failed"**
+
 ```bash
 # Check schema matches your data types
 # Common issue: timestamp as datetime instead of string
-# Review Pandera schema in src/phlo/schemas/
+# Review Pandera schema in workflows/schemas/
 ```
 
 **"Permission denied in MinIO"**
+
 ```bash
 # Check .env has correct MinIO credentials
 # Default: MINIO_ROOT_USER=minioadmin, MINIO_ROOT_PASSWORD=minioadmin
@@ -291,16 +297,17 @@ docker restart dagster-webserver
 
 **74% less boilerplate** vs manual Dagster/Iceberg/DLT integration:
 
-| Operation | Manual Code | With Phlo | Reduction |
-|-----------|-------------|--------------|-----------|
-| DLT setup | ~50 lines | 0 lines | 100% |
-| Iceberg schema | ~40 lines | 0 lines (auto-generated) | 100% |
-| Merge logic | ~60 lines | 0 lines | 100% |
-| Error handling | ~40 lines | 0 lines | 100% |
-| Timing/logging | ~30 lines | 0 lines | 100% |
-| **Total** | **~270 lines** | **~60 lines** | **74%** |
+| Operation      | Manual Code    | With Phlo                | Reduction |
+| -------------- | -------------- | ------------------------ | --------- |
+| DLT setup      | ~50 lines      | 0 lines                  | 100%      |
+| Iceberg schema | ~40 lines      | 0 lines (auto-generated) | 100%      |
+| Merge logic    | ~60 lines      | 0 lines                  | 100%      |
+| Error handling | ~40 lines      | 0 lines                  | 100%      |
+| Timing/logging | ~30 lines      | 0 lines                  | 100%      |
+| **Total**      | **~270 lines** | **~60 lines**            | **74%**   |
 
 **Unique Features**:
+
 - Git-like branching for data (Nessie)
 - Time travel queries (Iceberg)
 - Schema auto-generation (Pandera → PyIceberg)

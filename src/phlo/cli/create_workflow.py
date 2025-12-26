@@ -228,7 +228,7 @@ def _generate_asset_template(config: dict[str, Any]) -> str:
 """
 
 from dlt.sources.rest_api import rest_api
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt import phlo_ingestion
 from workflows.schemas.{domain} import {schema_class}
 
 

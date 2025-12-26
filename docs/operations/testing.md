@@ -5,6 +5,7 @@ A comprehensive guide to testing Phlo workflows.
 ## Overview
 
 This guide covers:
+
 - **Unit Testing**: Test schemas and business logic (fast, no Docker)
 - **Integration Testing**: Test full pipelines (slower, requires Docker)
 - **Best Practices**: Patterns and recommendations
@@ -47,7 +48,7 @@ Test that your schema validates data correctly:
 ```python
 import pytest
 import pandas as pd
-from phlo.schemas.weather import RawWeatherData
+from workflows.schemas.weather import RawWeatherData
 
 def test_valid_weather_data_passes_validation():
     """Test that valid weather data passes schema validation."""
@@ -114,7 +115,7 @@ Verify decorator parameters:
 
 ```python
 import inspect
-from phlo.defs.ingestion.weather.observations import weather_observations
+from workflows.ingestion.weather.observations import weather_observations
 
 def test_asset_has_correct_table_name():
     """Test that asset has correct table name."""
@@ -177,6 +178,7 @@ Phlo provides powerful testing utilities for fast, local testing without Docker.
 Test Iceberg table operations in-memory using DuckDB backend.
 
 **Features**:
+
 - ⚡ **< 5 second execution** (vs 30-60 sec with Docker)
 - 🧪 In-memory DuckDB backend (no persistence)
 - ✅ PyIceberg-compatible API
@@ -184,10 +186,11 @@ Test Iceberg table operations in-memory using DuckDB backend.
 - 📊 Convert to Pandas or Arrow
 
 **Example**:
+
 ```python
-from phlo.testing import mock_iceberg_catalog
-from phlo.schemas.converter import pandera_to_iceberg
-from phlo.schemas.weather import RawWeatherData
+from phlo_testing import mock_iceberg_catalog
+from phlo_dlt.converter import pandera_to_iceberg
+from workflows.schemas.weather import RawWeatherData
 import pandas as pd
 
 def test_iceberg_operations():
@@ -228,6 +231,7 @@ def test_iceberg_operations():
 ```
 
 **API Reference**:
+
 ```python
 # Create catalog
 with mock_iceberg_catalog() as catalog:
@@ -262,15 +266,17 @@ table.drop()                              # Drop table
 Test asset functions directly without Dagster or Docker.
 
 **Features**:
+
 - 🚀 Execute asset logic directly
 - 🧪 Mock data support
 - ✅ Schema validation
 - 📊 Returns TestAssetResult with success/failure
 
 **Example**:
+
 ```python
-from phlo.testing import test_asset_execution
-from phlo.schemas.weather import RawWeatherData
+from phlo_testing import test_asset_execution
+from workflows.schemas.weather import RawWeatherData
 
 def test_weather_asset():
     """Test asset with mock data."""
@@ -302,6 +308,7 @@ def test_weather_asset():
 ```
 
 **Without Mock Data** (tests actual API):
+
 ```python
 def test_weather_asset_real_api():
     """Test with real API call."""
@@ -318,6 +325,7 @@ def test_weather_asset_real_api():
 ```
 
 **API Reference**:
+
 ```python
 result = test_asset_execution(
     asset_fn=my_asset_function,           # Asset function (NOT decorated)
@@ -340,9 +348,9 @@ result.metadata     # dict: metadata (validation status, etc.)
 Full end-to-end test without Docker:
 
 ```python
-from phlo.testing import test_asset_execution, mock_iceberg_catalog
-from phlo.schemas.converter import pandera_to_iceberg
-from phlo.schemas.weather import RawWeatherData
+from phlo_testing import test_asset_execution, mock_iceberg_catalog
+from phlo_dlt.converter import pandera_to_iceberg
+from workflows.schemas.weather import RawWeatherData
 
 def test_full_pipeline_local():
     """Test complete ingestion → Iceberg pipeline locally."""
@@ -754,6 +762,7 @@ def test_asset_decorator_configuration():
 **Problem**: `pytest` doesn't find your tests
 
 **Solution**:
+
 - Ensure test files start with `test_`
 - Ensure test functions start with `test_`
 - Ensure test classes start with `Test`
@@ -764,6 +773,7 @@ def test_asset_decorator_configuration():
 **Problem**: `ModuleNotFoundError` when running tests
 
 **Solution**:
+
 ```bash
 # Install phlo in editable mode
 pip install -e .
@@ -777,6 +787,7 @@ export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
 **Problem**: Valid data fails schema validation
 
 **Solution**:
+
 - Check field types match (str vs datetime)
 - Check nullable settings
 - Check constraint values (ge, le, etc.)
@@ -787,6 +798,7 @@ export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
 **Problem**: Integration tests fail with connection errors
 
 **Solution**:
+
 ```bash
 # Check Docker services are running
 docker compose ps
@@ -819,7 +831,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"

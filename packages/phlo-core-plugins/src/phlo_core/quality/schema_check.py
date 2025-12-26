@@ -3,7 +3,7 @@
 from typing import Any
 
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo.quality.checks import SchemaCheck
+from phlo_quality.checks import SchemaCheck
 
 
 class SchemaCheckPlugin(QualityCheckPlugin):

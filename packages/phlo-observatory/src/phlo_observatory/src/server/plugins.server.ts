@@ -11,7 +11,8 @@ import { createServerFn } from '@tanstack/react-start'
 const execAsync = promisify(exec)
 const pluginCommand = process.env.PHLO_PLUGIN_COMMAND ?? 'phlo'
 const registryUrl =
-  process.env.PHLO_PLUGIN_REGISTRY_URL ?? 'https://registry.phlo.dev/plugins.json'
+  process.env.PHLO_PLUGIN_REGISTRY_URL ??
+  'https://registry.phlo.dev/plugins.json'
 
 export interface PluginInfo {
   name: string
@@ -31,10 +32,16 @@ export interface PluginInfo {
 }
 
 interface RegistryPayload {
-  plugins?: Record<string, Omit<PluginInfo, 'name' | 'type'> & { type?: PluginInfo['type'] }>
+  plugins?: Record<
+    string,
+    Omit<PluginInfo, 'name' | 'type'> & { type?: PluginInfo['type'] }
+  >
 }
 
-function parseCliOutput(stdout: string): { installed: Array<PluginInfo>; available: Array<PluginInfo> } {
+function parseCliOutput(stdout: string): {
+  installed: Array<PluginInfo>
+  available: Array<PluginInfo>
+} {
   const parsed = JSON.parse(stdout)
   if (Array.isArray(parsed)) {
     return { installed: parsed as Array<PluginInfo>, available: [] }
@@ -71,7 +78,9 @@ async function getPluginLists(): Promise<{
   available: Array<PluginInfo>
 }> {
   try {
-    const { stdout } = await execAsync(`${pluginCommand} plugin list --all --json`)
+    const { stdout } = await execAsync(
+      `${pluginCommand} plugin list --all --json`,
+    )
     return parseCliOutput(stdout)
   } catch (error) {
     const available = await fetchRegistryPlugins()
@@ -87,7 +96,10 @@ export const getPlugins = createServerFn().handler(
 )
 
 export const getAvailablePlugins = createServerFn().handler(
-  async (): Promise<{ installed: Array<PluginInfo>; available: Array<PluginInfo> }> => {
+  async (): Promise<{
+    installed: Array<PluginInfo>
+    available: Array<PluginInfo>
+  }> => {
     return getPluginLists()
   },
 )

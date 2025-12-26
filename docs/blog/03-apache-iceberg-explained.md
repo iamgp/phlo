@@ -1,6 +1,6 @@
 # Part 3: Apache Iceberg—The Table Format That Changed Everything
 
-In Part 1, we mentioned Iceberg as the magic ingredient. Let's understand *why* it's such a game-changer.
+In Part 1, we mentioned Iceberg as the magic ingredient. Let's understand _why_ it's such a game-changer.
 
 ## The Problem With Traditional Parquet
 
@@ -18,11 +18,12 @@ s3://lake/glucose-data/
 ```
 
 **Problems**:
+
 - 🤔 Which files are "current"? You have to track metadata yourself
 - Schema changes require rewriting all files
--  Queries must scan ALL files (no partition pruning)
--  Concurrent writes = conflicting files
--  No time travel—data is gone when you delete it
+- Queries must scan ALL files (no partition pruning)
+- Concurrent writes = conflicting files
+- No time travel—data is gone when you delete it
 
 ## What Iceberg Provides
 
@@ -45,6 +46,7 @@ s3://lake/glucose-data/
 ```
 
 The metadata files answer:
+
 - "What's the current version?" → v1.metadata.json
 - "What files make up snapshot 5678?" → manifest-99.avro
 - "What schema is this data?" → snap-5678.avro
@@ -58,7 +60,7 @@ Each write creates a new **snapshot**—a complete, immutable view of the table 
 
 ```python
 # In Python, using PyIceberg
-from phlo.iceberg.catalog import get_catalog
+from phlo_iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 table = catalog.load_table("raw.glucose_entries")
@@ -68,7 +70,7 @@ for snapshot in table.snapshots():
     print(f"Snapshot {snapshot.snapshot_id}:")
     print(f"  Created: {snapshot.timestamp_ms}")
     print(f"  Files: {len(snapshot.manifest_list)}")
-    
+
 # Output:
 # Snapshot 1234567890:
 #   Created: 2024-10-15 10:30:00
@@ -82,6 +84,7 @@ for snapshot in table.snapshots():
 ```
 
 Each snapshot points to:
+
 - **Data files**: Actual parquet/avro/orc files with rows
 - **Manifest files**: Which data files are in this snapshot
 - **Schema**: Table structure at that moment
@@ -101,6 +104,7 @@ Snapshot 1234567892:
 ```
 
 Why manifests? Query optimization:
+
 - Scanner reads manifest, not S3 listing
 - Knows exact file count before scanning
 - Filters files by partition before opening
@@ -108,16 +112,18 @@ Why manifests? Query optimization:
 ### 3. Hidden Partitioning
 
 Traditional table partitioning:
+
 ```sql
 -- You explicitly filter by partition
-SELECT * FROM glucose_data 
+SELECT * FROM glucose_data
 WHERE year=2024 AND month=10 AND day=15;
 ```
 
 Iceberg partitioning:
+
 ```sql
 -- Iceberg does this automatically!
-SELECT * FROM glucose_data 
+SELECT * FROM glucose_data
 WHERE reading_timestamp = '2024-10-15';
 
 -- Iceberg transforms to:
@@ -139,6 +145,7 @@ table = catalog.load_table("raw.glucose_entries")
 ### 4. Schema Evolution (Adding Columns Without Rewriting)
 
 **Before Iceberg** (bad):
+
 ```sql
 -- Want to add a field? Must rewrite all files
 ALTER TABLE glucose_entries ADD COLUMN a1c_level FLOAT;
@@ -146,12 +153,13 @@ ALTER TABLE glucose_entries ADD COLUMN a1c_level FLOAT;
 ```
 
 **With Iceberg** (good):
+
 ```sql
 -- Add a column with a default
-ALTER TABLE iceberg.raw.glucose_entries 
+ALTER TABLE iceberg.raw.glucose_entries
 ADD COLUMN a1c_level FLOAT DEFAULT 0.0;
 
--- Old files don't have this column? 
+-- Old files don't have this column?
 -- Iceberg fills in the default when reading
 -- Query still works, no rewrite needed
 ```
@@ -187,9 +195,10 @@ FROM iceberg.raw.glucose_entries;  -- Current
 ```
 
 **Why time travel matters**:
+
 - 🐛 Data quality issue today? Check what you ingested yesterday
--  Audit trail: see exactly what changed and when
--  Reproducibility: re-run yesterday's analysis with yesterday's data
+- Audit trail: see exactly what changed and when
+- Reproducibility: re-run yesterday's analysis with yesterday's data
 - ↩️ No "undo" button needed—just query the previous snapshot
 
 ## ACID Transactions
@@ -197,6 +206,7 @@ FROM iceberg.raw.glucose_entries;  -- Current
 Iceberg ensures **Atomicity, Consistency, Isolation, Durability**.
 
 **Atomicity**: Either all changes or none
+
 ```
 Write to iceberg.raw.glucose_entries:
   ✓ Write 500 new rows
@@ -206,6 +216,7 @@ Write to iceberg.raw.glucose_entries:
 ```
 
 **Isolation**: Readers see consistent snapshots
+
 ```
 Writer is updating glucose_entries (slow, 1 minute)
 Reader queries same table (right now)
@@ -217,7 +228,7 @@ Reader queries same table (right now)
 **In Phlo's Code**:
 
 ```python
-# From defs/ingestion/dlt_assets.py
+# From workflows/ingestion/dlt_assets.py
 # Merge with idempotent deduplication
 
 merge_metrics = iceberg.merge_parquet(
@@ -240,7 +251,7 @@ Let's see how Phlo uses Iceberg in practice.
 ### Reading Data (in dbt)
 
 ```sql
--- File: examples/glucose-platform/transforms/dbt/models/bronze/stg_glucose_entries.sql
+-- File: phlo-examples/nightscout/transforms/dbt/models/bronze/stg_glucose_entries.sql
 {{ config(
     materialized='view',
 ) }}
@@ -259,21 +270,22 @@ WHERE sgv IS NOT NULL
 ```
 
 This dbt model:
-- Reads from Iceberg table `glucose_entries` (created by @phlo.ingestion)
+
+- Reads from Iceberg table `glucose_entries` (created by @phlo_ingestion)
 - Applies transformations
 - Writes to Iceberg table `bronze.stg_glucose_entries`
 - **All tracked as a snapshot**
 
-### Writing Data (with @phlo.ingestion)
+### Writing Data (with @phlo_ingestion)
 
-The `@phlo.ingestion` decorator handles Iceberg writes automatically:
+The `@phlo_ingestion` decorator handles Iceberg writes automatically:
 
 ```python
-# From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",  # Deduplicate on this column
     validation_schema=RawGlucoseEntries,
@@ -313,15 +325,15 @@ docker exec trino trino \
 
 ## Comparison: Before vs After Iceberg
 
-| Aspect | Without Iceberg (S3 Files) | With Iceberg |
-|--------|---------------------------|--------------|
-| **Current version** | Manual tracking (fragile) | Metadata files (reliable) |
-| **Schema changes** | Rewrite all files | Add columns instantly |
-| **Time travel** | Impossible | `FOR VERSION AS OF` |
-| **Concurrent writes** | Risk of conflicts | Atomic snapshots |
-| **Partition pruning** | Manual WHERE clauses | Automatic |
-| **Data quality** | Corrupted files? Undetectable | Checksums in metadata |
-| **Query cost** | Scan ALL files | Scan only necessary files |
+| Aspect                | Without Iceberg (S3 Files)    | With Iceberg              |
+| --------------------- | ----------------------------- | ------------------------- |
+| **Current version**   | Manual tracking (fragile)     | Metadata files (reliable) |
+| **Schema changes**    | Rewrite all files             | Add columns instantly     |
+| **Time travel**       | Impossible                    | `FOR VERSION AS OF`       |
+| **Concurrent writes** | Risk of conflicts             | Atomic snapshots          |
+| **Partition pruning** | Manual WHERE clauses          | Automatic                 |
+| **Data quality**      | Corrupted files? Undetectable | Checksums in metadata     |
+| **Query cost**        | Scan ALL files                | Scan only necessary files |
 
 ## How Phlo Stores Data
 
@@ -369,7 +381,7 @@ Note: Staging is temporary (cleaned up after merge). Only warehouse tables persi
 ```bash
 # Use Python to explore snapshots
 python3 << 'EOF'
-from phlo.iceberg.catalog import get_catalog
+from phlo_iceberg.catalog import get_catalog
 
 catalog = get_catalog()
 table = catalog.load_table("glucose_entries")
@@ -400,6 +412,7 @@ We'll explore that in the next post.
 ## Summary
 
 Apache Iceberg:
+
 - Tracks table versions with metadata (snapshots)
 - Enables time travel (query any historical version)
 - ACID transactions (safe concurrent access)
@@ -408,6 +421,7 @@ Apache Iceberg:
 - Works with any S3-compatible storage
 
 Phlo uses Iceberg to ensure:
+
 - Safe ingestion (idempotent merges)
 - Reliable transformations (atomic snapshots)
 - Data governance (audit trail via time travel)

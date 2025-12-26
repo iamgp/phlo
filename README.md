@@ -15,9 +15,9 @@
 ## Features
 
 - **Write-Audit-Publish pattern** - Branch isolation with automatic promotion
-- **@phlo.ingestion decorator** - 74% less boilerplate for data ingestion
+- **@phlo_ingestion decorator** - 74% less boilerplate for data ingestion
 - **Configurable merge strategies** - Append-only or upsert with deduplication (first/last/hash)
-- **@phlo.quality decorator** - Declarative quality checks
+- **@phlo_quality decorator** - Declarative quality checks
 - **Auto-publishing** - Marts automatically published to Postgres for BI
 - **CLI tools** - `phlo services`, `phlo materialize`, `phlo create-workflow`
 - **Infrastructure config** - Multi-project support with phlo.yaml

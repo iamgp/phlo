@@ -11,7 +11,7 @@ pytestmark = pytest.mark.integration
 
 # These imports trigger dbt manifest loading - skip module if unavailable
 try:
-    from phlo.definitions import defs
+    from phlo.framework.definitions import defs
 except Exception as e:
     pytest.skip(f"Skipping module: dbt manifest not available ({e})", allow_module_level=True)
 
