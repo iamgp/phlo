@@ -18,6 +18,7 @@ class ExampleCacheServicePlugin(ServicePlugin):
     @property
     def service_definition(self) -> dict:
         return {
+            "name": "example_cache",
             "category": "core",
             "default": False,
             "compose": {
