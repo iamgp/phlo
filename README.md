@@ -14,15 +14,13 @@
 
 ## Features
 
-- **Write-Audit-Publish pattern** - Branch isolation with automatic promotion
-- **@phlo_ingestion decorator** - 74% less boilerplate for data ingestion
-- **Configurable merge strategies** - Append-only or upsert with deduplication (first/last/hash)
-- **@phlo_quality decorator** - Declarative quality checks
-- **Auto-publishing** - Marts automatically published to Postgres for BI
-- **Plugin system** - Extensible architecture with service, source, and quality plugins
-- **CLI tools** - `phlo services`, `phlo plugin`, `phlo materialize`, `phlo create-workflow`
-- **Observatory UI** - Web-based interface for data exploration and lineage
-- **Infrastructure config** - Multi-project support with phlo.yaml
+- **Decorator-driven development** - Reduce boilerplate by 74% with `@phlo_ingestion` and `@phlo_quality`
+- **Write-Audit-Publish pattern** - Git-like branching with automatic quality gates and promotion
+- **Type-safe data quality** - Pandera schemas enforce validation and generate Iceberg tables
+- **Plugin architecture** - Extensible via service, source, quality, and transformation plugins
+- **Observatory UI** - Web-based interface for data exploration, lineage, and monitoring
+- **Production-ready patterns** - Auto-publishing to Postgres, configurable merge strategies, freshness policies
+- **Modern tooling** - Built on Dagster, DLT, Iceberg, Nessie, dbt, and Trino
 
 ## Quick Start
 
