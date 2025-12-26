@@ -104,7 +104,12 @@ jobs:
         run: uv sync --dev --group dev
 
       - name: Lint SQL with sqlfluff
-        run: uv run sqlfluff lint examples/glucose-platform/transforms/dbt/models --ignore parsing
+        run: |
+          if [ -d "examples/glucose-platform/transforms/dbt/models" ]; then
+            uv run sqlfluff lint examples/glucose-platform/transforms/dbt/models --ignore parsing
+          else
+            echo "Skipping sqlfluff: examples moved to phlo-examples."
+          fi
 
   lint-ts:
     runs-on: ubuntu-latest
