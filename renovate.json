@@ -1,7 +1,38 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
+  "schedule": ["every weekend"],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 4,
+  "labels": ["dependencies"],
   "packageRules": [
+    {
+      "description": "Group GitHub Actions updates.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Group Python dependency updates.",
+      "matchManagers": ["pep621", "poetry", "pip_requirements", "pip_setup"],
+      "groupName": "python-deps"
+    },
+    {
+      "description": "Group Observatory (JS/TS) dependencies.",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["packages/phlo-observatory/src/phlo_observatory/package.json"],
+      "groupName": "observatory-js"
+    },
+    {
+      "description": "Automerge patch/minor dev-only updates.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Keep major updates manual.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
     {
       "matchPackageNames": ["python"],
       "matchDatasources": ["docker"],
