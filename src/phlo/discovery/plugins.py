@@ -22,6 +22,7 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.hooks import HookPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ ENTRY_POINT_GROUPS = {
     "services": "phlo.plugins.services",
     "dagster_extensions": "phlo.plugins.dagster",
     "cli_commands": "phlo.plugins.cli",
+    "hooks": "phlo.plugins.hooks",
 }
 
 
@@ -102,6 +104,7 @@ def discover_plugins(
             "services": [],
             "dagster_extensions": [],
             "cli_commands": [],
+            "hooks": [],
         }
 
     discovered: dict[str, list[Plugin]] = {
@@ -111,6 +114,7 @@ def discover_plugins(
         "services": [],
         "dagster_extensions": [],
         "cli_commands": [],
+        "hooks": [],
     }
 
     # Determine which plugin types to discover
@@ -168,6 +172,7 @@ def discover_plugins(
                     "services": ServicePlugin,
                     "dagster_extensions": DagsterExtensionPlugin,
                     "cli_commands": CliCommandPlugin,
+                    "hooks": HookPlugin,
                 }[ptype]
 
                 if not isinstance(plugin, expected_type):
@@ -199,6 +204,8 @@ def discover_plugins(
                         registry.register_dagster_extension(plugin, replace=True)
                     elif ptype == "cli_commands":
                         registry.register_cli_command_plugin(plugin, replace=True)
+                    elif ptype == "hooks":
+                        registry.register_hook_plugin(plugin, replace=True)
 
             except Exception as exc:
                 logger.error(f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True)
@@ -250,7 +257,7 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
 
     Args:
         plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
-            "services")
+            "services", "dagster_extensions", "cli_commands", "hooks")
         name: Plugin name
 
     Returns:
@@ -273,6 +280,12 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
         return registry.get_transformation(name)
     elif plugin_type == "services":
         return registry.get_service(name)
+    elif plugin_type == "dagster_extensions":
+        return registry.get_dagster_extension(name)
+    elif plugin_type == "cli_commands":
+        return registry.get_cli_command_plugin(name)
+    elif plugin_type == "hooks":
+        return registry.get_hook_plugin(name)
     else:
         logger.warning(f"Unknown plugin type: {plugin_type}")
         return None
@@ -355,13 +368,27 @@ def get_service(name: str) -> ServicePlugin | None:
     return registry.get_service(name)
 
 
+def get_hook_plugin(name: str) -> HookPlugin | None:
+    """
+    Get a hook plugin by name.
+
+    Args:
+        name: Plugin name
+
+    Returns:
+        HookPlugin instance or None if not found
+    """
+    registry = get_global_registry()
+    return registry.get_hook_plugin(name)
+
+
 def get_plugin_info(plugin_type: str, name: str) -> dict | None:
     """
     Get detailed information about a plugin.
 
     Args:
         plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
-            "services")
+            "services", "dagster_extensions", "cli_commands", "hooks")
         name: Plugin name
 
     Returns:
@@ -407,6 +434,12 @@ def validate_plugins() -> dict[str, list[str]]:
                 plugin = registry.get_transformation(name)
             elif plugin_type == "services":
                 plugin = registry.get_service(name)
+            elif plugin_type == "dagster_extensions":
+                plugin = registry.get_dagster_extension(name)
+            elif plugin_type == "cli_commands":
+                plugin = registry.get_cli_command_plugin(name)
+            elif plugin_type == "hooks":
+                plugin = registry.get_hook_plugin(name)
 
             if plugin and registry.validate_plugin(plugin):
                 valid.append(f"{plugin_type}:{name}")

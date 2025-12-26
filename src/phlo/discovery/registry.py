@@ -16,6 +16,7 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.hooks import HookPlugin
 
 
 class PluginRegistry:
@@ -34,6 +35,7 @@ class PluginRegistry:
         self._services: dict[str, ServicePlugin] = {}
         self._dagster_extensions: dict[str, DagsterExtensionPlugin] = {}
         self._cli_commands: dict[str, CliCommandPlugin] = {}
+        self._hooks: dict[str, HookPlugin] = {}
         self._all_plugins: dict[str, Plugin] = {}
 
     def register_source_connector(
@@ -156,6 +158,16 @@ class PluginRegistry:
         self._cli_commands[name] = plugin
         self._all_plugins[f"cli:{name}"] = plugin
 
+    def register_hook_plugin(self, plugin: HookPlugin, replace: bool = False) -> None:
+        """Register a hook plugin."""
+        name = plugin.metadata.name
+        if name in self._hooks and not replace:
+            raise ValueError(
+                f"Hook plugin '{name}' is already registered. Use replace=True to overwrite."
+            )
+        self._hooks[name] = plugin
+        self._all_plugins[f"hooks:{name}"] = plugin
+
     def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
         """
         Get a source connector plugin by name.
@@ -212,6 +224,10 @@ class PluginRegistry:
         """Get a CLI command plugin by name."""
         return self._cli_commands.get(name)
 
+    def get_hook_plugin(self, name: str) -> HookPlugin | None:
+        """Get a hook plugin by name."""
+        return self._hooks.get(name)
+
     def list_source_connectors(self) -> list[str]:
         """
         List all registered source connector plugins.
@@ -256,6 +272,10 @@ class PluginRegistry:
         """List all registered CLI command plugins."""
         return list(self._cli_commands.keys())
 
+    def list_hook_plugins(self) -> list[str]:
+        """List all registered hook plugins."""
+        return list(self._hooks.keys())
+
     def list_all_plugins(self) -> dict[str, list[str]]:
         """
         List all registered plugins by type.
@@ -270,6 +290,7 @@ class PluginRegistry:
             "services": self.list_services(),
             "dagster_extensions": self.list_dagster_extensions(),
             "cli_commands": self.list_cli_command_plugins(),
+            "hooks": self.list_hook_plugins(),
         }
 
     def clear(self) -> None:
@@ -280,7 +301,12 @@ class PluginRegistry:
         self._services.clear()
         self._dagster_extensions.clear()
         self._cli_commands.clear()
+        self._hooks.clear()
         self._all_plugins.clear()
+
+    def iter_plugins(self) -> list[Plugin]:
+        """Return all registered plugin instances."""
+        return list(self._all_plugins.values())
 
     def __len__(self) -> int:
         """Return total number of registered plugins."""
@@ -311,6 +337,8 @@ class PluginRegistry:
             plugin = self.get_transformation(name)
         elif plugin_type == "services":
             plugin = self.get_service(name)
+        elif plugin_type == "hooks":
+            plugin = self.get_hook_plugin(name)
 
         if not plugin:
             return None
@@ -368,6 +396,8 @@ class PluginRegistry:
             except Exception:
                 return False
             return isinstance(service_definition, dict)
+        elif isinstance(plugin, HookPlugin):
+            return hasattr(plugin, "get_hooks") and callable(plugin.get_hooks)
 
         return True
 

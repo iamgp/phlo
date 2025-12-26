@@ -140,6 +140,7 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
 
 
 # Import discovery functions lazily to avoid circular imports
@@ -151,6 +152,7 @@ def __getattr__(name):
         "get_plugin_info",
         "get_quality_check",
         "get_service",
+        "get_hook_plugin",
         "get_source_connector",
         "get_transformation",
         "list_plugins",
@@ -171,6 +173,11 @@ __all__ = [
     "QualityCheckPlugin",
     "ServicePlugin",
     "TransformationPlugin",
+    "HookPlugin",
+    "HookProvider",
+    "HookHandler",
+    "HookFilter",
+    "FailurePolicy",
     # Discovery
     "discover_plugins",
     "list_plugins",
