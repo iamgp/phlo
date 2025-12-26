@@ -40,3 +40,13 @@ env_vars:
   NESSIE_PORT:
     default: 19120
     description: Nessie API port
+
+hooks:
+  post_start:
+    - name: init-branches
+      command:
+        - python
+        - -m
+        - phlo_nessie.hooks
+        - init-branches
+      timeout_seconds: 60

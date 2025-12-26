@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read   # Required to checkout private repo
-  id-token: write  # Required for trusted publishing
+  contents: read # Required to checkout private repo
+  id-token: write # Required for trusted publishing
 
 jobs:
   build:
@@ -35,7 +35,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    environment: pypi  # Configure this in GitHub repo settings
+    environment: pypi # Configure this in GitHub repo settings
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4

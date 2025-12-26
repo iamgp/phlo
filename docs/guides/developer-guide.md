@@ -6,8 +6,8 @@ Complete guide to building data pipelines with Phlo's decorator-driven framework
 
 Phlo provides powerful decorators that transform simple functions into complete data pipelines. This guide covers:
 
-- Using `@phlo.ingestion` for data ingestion
-- Using `@phlo.quality` for data quality checks
+- Using `@phlo_ingestion` for data ingestion
+- Using `@phlo_quality` for data quality checks
 - Schema definition with Pandera
 - Integration with dbt
 - Publishing to BI tools
@@ -32,7 +32,7 @@ from dlt.sources.rest_api import rest_api
 import phlo
 from workflows.schemas.api import EventSchema
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,
@@ -50,10 +50,10 @@ def api_events(partition_date: str):
     })
 
 # workflows/quality/api.py
-from phlo.quality.checks import NullCheck, RangeCheck, UniqueCheck
+from phlo_quality.checks import NullCheck, RangeCheck, UniqueCheck
 import phlo
 
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -66,6 +66,7 @@ def events_quality():
 ```
 
 That's it! You get:
+
 - Automatic DLT pipeline setup
 - Iceberg table creation from Pandera schema
 - Merge with deduplication
@@ -75,12 +76,12 @@ That's it! You get:
 - Retry handling
 - Metrics tracking
 
-## @phlo.ingestion Decorator
+## @phlo_ingestion Decorator
 
 ### Basic Usage
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="my_table",
     unique_key="id",
     validation_schema=MySchema,
@@ -96,21 +97,25 @@ def my_ingestion(partition_date: str):
 **Required**:
 
 `table_name` (str): Name of target Iceberg table
+
 ```python
 table_name="events"  # Creates bronze.events
 ```
 
 `unique_key` (str): Column used for deduplication
+
 ```python
 unique_key="id"  # Primary key column
 ```
 
 `validation_schema` (pa.DataFrameModel): Pandera schema for validation
+
 ```python
 validation_schema=EventSchema  # Must be a Pandera DataFrameModel
 ```
 
 `group` (str): Logical grouping for organization
+
 ```python
 group="api"  # Groups assets in Dagster UI
 ```
@@ -118,23 +123,27 @@ group="api"  # Groups assets in Dagster UI
 **Optional**:
 
 `cron` (str): Cron schedule expression
+
 ```python
 cron="0 */1 * * *"  # Every hour
 cron="0 0 * * *"    # Daily at midnight
 ```
 
 `freshness_hours` (tuple): Freshness policy (warn, error)
+
 ```python
 freshness_hours=(1, 24)  # Warn after 1h, error after 24h
 ```
 
 `merge_strategy` (str): How to handle updates
+
 ```python
 merge_strategy="merge"   # Upsert (default)
 merge_strategy="append"  # Insert-only
 ```
 
 `merge_config` (dict): Merge and deduplication configuration
+
 ```python
 merge_config={"deduplication_method": "last"}   # Keep last occurrence (default)
 merge_config={"deduplication_method": "first"}  # Keep first occurrence
@@ -142,6 +151,7 @@ merge_config={"deduplication_method": "hash"}   # Keep based on content hash
 ```
 
 `retry_policy` (dict): Retry configuration
+
 ```python
 retry_policy={
     "max_retries": 3,
@@ -150,11 +160,13 @@ retry_policy={
 ```
 
 `timeout` (int): Execution timeout in seconds
+
 ```python
 timeout=3600  # 1 hour
 ```
 
 `tags` (dict): Custom tags for filtering
+
 ```python
 tags={"env": "prod", "team": "data"}
 ```
@@ -164,10 +176,11 @@ tags={"env": "prod", "team": "data"}
 Phlo works with any DLT source. Common patterns:
 
 **REST API Source**:
+
 ```python
 from dlt.sources.rest_api import rest_api
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def api_data(partition_date: str):
     return rest_api({
         "client": {
@@ -192,6 +205,7 @@ def api_data(partition_date: str):
 ```
 
 **Custom Python Source**:
+
 ```python
 import dlt
 
@@ -204,16 +218,17 @@ def my_source(start_date: str):
             yield record
     return events
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def custom_data(partition_date: str):
     return my_source(start_date=partition_date)
 ```
 
 **File Source**:
+
 ```python
 from dlt.sources.filesystem import filesystem
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def file_data(partition_date: str):
     return filesystem(
         bucket_url=f"s3://bucket/data/{partition_date}",
@@ -222,11 +237,12 @@ def file_data(partition_date: str):
 ```
 
 **SQL Source**:
+
 ```python
 import dlt
 from sqlalchemy import create_engine
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def sql_data(partition_date: str):
     @dlt.resource
     def query():
@@ -241,8 +257,9 @@ def sql_data(partition_date: str):
 ### Merge Strategies
 
 **Append Strategy** (fastest, no deduplication):
+
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="logs",
     unique_key="id",
     merge_strategy="append",  # Insert-only
@@ -254,8 +271,9 @@ def logs(partition_date: str):
 ```
 
 **Merge Strategy** (upsert with deduplication):
+
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="users",
     unique_key="user_id",
     merge_strategy="merge",
@@ -270,18 +288,21 @@ def users(partition_date: str):
 **Deduplication Strategies**:
 
 `last` (default): Keep last occurrence by partition
+
 ```python
 merge_config={"deduplication_method": "last"}
 # If same ID appears twice, keep the one with latest timestamp
 ```
 
 `first`: Keep first occurrence
+
 ```python
 merge_config={"deduplication_method": "first"}
 # If same ID appears twice, keep the one with earliest timestamp
 ```
 
 `hash`: Keep based on content hash
+
 ```python
 merge_config={"deduplication_method": "hash"}
 # If same ID appears twice, keep the one with different content
@@ -292,7 +313,7 @@ merge_config={"deduplication_method": "hash"}
 Phlo uses daily partitioning by default:
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def my_data(partition_date: str):
     # partition_date is automatically provided by Dagster
     # Format: "YYYY-MM-DD"
@@ -312,6 +333,7 @@ def my_data(partition_date: str):
 ```
 
 **Backfills**:
+
 ```bash
 # Backfill specific date
 phlo materialize my_data --partition 2025-01-15
@@ -455,15 +477,15 @@ Schema(
 )
 ```
 
-## @phlo.quality Decorator
+## @phlo_quality Decorator
 
 ### Basic Usage
 
 ```python
-from phlo.quality.checks import NullCheck, RangeCheck
+from phlo_quality.checks import NullCheck, RangeCheck
 import phlo
 
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -477,17 +499,20 @@ def events_quality():
 ### Built-in Checks
 
 **NullCheck**: Ensure no null values
+
 ```python
 NullCheck(columns=["id", "email", "timestamp"])
 ```
 
 **RangeCheck**: Numeric values within bounds
+
 ```python
 RangeCheck(column="age", min_value=0, max_value=150)
 RangeCheck(column="temperature", min_value=-50.0, max_value=50.0)
 ```
 
 **FreshnessCheck**: Data recency
+
 ```python
 FreshnessCheck(
     column="timestamp",
@@ -496,12 +521,14 @@ FreshnessCheck(
 ```
 
 **UniqueCheck**: No duplicate values
+
 ```python
 UniqueCheck(columns=["id"])
 UniqueCheck(columns=["user_id", "timestamp"])  # Composite key
 ```
 
 **CountCheck**: Row count validation
+
 ```python
 CountCheck(min_count=1)  # At least 1 row
 CountCheck(max_count=1000000)  # At most 1M rows
@@ -509,6 +536,7 @@ CountCheck(min_count=100, max_count=10000)  # Between 100-10k
 ```
 
 **SchemaCheck**: Full Pandera schema validation
+
 ```python
 from workflows.schemas.api import EventSchema
 
@@ -516,6 +544,7 @@ SchemaCheck(schema=EventSchema)
 ```
 
 **CustomSQLCheck**: Arbitrary SQL validation
+
 ```python
 CustomSQLCheck(
     query="SELECT COUNT(*) FROM bronze.events WHERE value < 0",
@@ -527,8 +556,9 @@ CustomSQLCheck(
 ### Advanced Quality Checks
 
 **Multiple tables**:
+
 ```python
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         CustomSQLCheck(
@@ -548,8 +578,9 @@ def referential_integrity():
 ```
 
 **Conditional checks**:
+
 ```python
-from phlo.quality.checks import Check
+from phlo_quality.checks import Check
 
 class ConditionalCheck(Check):
     def execute(self, context):
@@ -561,7 +592,7 @@ class ConditionalCheck(Check):
         result = self.validate()
         return CheckResult(passed=result)
 
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[ConditionalCheck()]
 )
@@ -586,6 +617,7 @@ Check results include rich metadata:
 ```
 
 Displayed in Dagster UI with:
+
 - Pass/fail status
 - Detailed metrics table
 - Execution timing
@@ -630,6 +662,7 @@ sources:
 ### Model Development
 
 **Bronze (staging)**:
+
 ```sql
 -- models/bronze/stg_events.sql
 {{
@@ -655,6 +688,7 @@ WHERE timestamp > (SELECT MAX(timestamp) FROM {{ this }})
 ```
 
 **Silver (cleaned)**:
+
 ```sql
 -- models/silver/events_cleaned.sql
 {{
@@ -679,6 +713,7 @@ AND timestamp > (SELECT MAX(timestamp) FROM {{ this }})
 ```
 
 **Gold (marts)**:
+
 ```sql
 -- models/gold/daily_aggregates.sql
 {{
@@ -704,9 +739,9 @@ GROUP BY 1, 2
 dbt models automatically become Dagster assets:
 
 ```python
-# src/phlo/defs/transform/dbt.py
+# workflows/transform/dbt.py
 from dagster_dbt import DbtCliResource, dbt_assets
-from phlo.defs.transform.translator import CustomDbtTranslator
+from phlo_dbt.translator import CustomDbtTranslator
 
 @dbt_assets(
     manifest=DBT_PROJECT_DIR / "target" / "manifest.json",
@@ -718,6 +753,7 @@ def all_dbt_assets(context, dbt: DbtCliResource):
 ```
 
 **Custom Translator** maps dbt sources to Dagster assets:
+
 - `dlt_{table}` convention for ingestion assets
 - Group inference from folder structure
 - Partition support
@@ -725,10 +761,12 @@ def all_dbt_assets(context, dbt: DbtCliResource):
 ### Running dbt
 
 **Via Dagster UI**:
+
 - Navigate to asset in UI
 - Click "Materialize"
 
 **Via CLI**:
+
 ```bash
 # Materialize specific model
 phlo materialize stg_events
@@ -747,9 +785,9 @@ Automatically publish Iceberg marts to PostgreSQL for BI tools.
 ### Publishing Asset
 
 ```python
-# src/phlo/defs/publishing/events.py
+# workflows/publishing/events.py
 from dagster import asset
-from phlo.defs.publishing.trino_to_postgres import _publish_marts_to_postgres
+from workflows.publishing.trino_to_postgres import _publish_marts_to_postgres
 
 @asset(
     deps=["marts__daily_aggregates"],  # Depends on dbt mart
@@ -803,7 +841,7 @@ Connect Superset to PostgreSQL:
 Create custom Dagster resources:
 
 ```python
-# src/phlo/defs/resources/custom.py
+# workflows/resources/custom.py
 from dagster import ConfigurableResource
 
 class MyAPIResource(ConfigurableResource):
@@ -815,7 +853,7 @@ class MyAPIResource(ConfigurableResource):
         pass
 
 # Usage in asset:
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def my_data(context, my_api: MyAPIResource):
     data = my_api.fetch_data("/events")
     return data
@@ -826,7 +864,7 @@ def my_data(context, my_api: MyAPIResource):
 Create custom sensors for automation:
 
 ```python
-# src/phlo/defs/sensors/custom.py
+# workflows/sensors/custom.py
 from dagster import sensor, RunRequest
 
 @sensor(job=my_job)
@@ -844,7 +882,7 @@ def file_sensor(context):
 ### Conditional Execution
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def conditional_data(context):
     # Skip on weekends
     if datetime.now().weekday() >= 5:
@@ -857,10 +895,13 @@ def conditional_data(context):
 ## Best Practices
 
 ### 1. Schema-First Development
+
 Always define Pandera schemas before writing ingestion code.
 
 ### 2. Incremental Loading
+
 Use partition-aware queries to load only new data:
+
 ```python
 def my_data(partition_date: str):
     return rest_api({
@@ -869,9 +910,11 @@ def my_data(partition_date: str):
 ```
 
 ### 3. Error Handling
+
 Let Phlo handle retries, but add custom handling where needed:
+
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     retry_policy={"max_retries": 3, "delay": 1.0},
     timeout=3600
 )
@@ -884,7 +927,9 @@ def robust_data(partition_date: str):
 ```
 
 ### 4. Testing
+
 Write tests for schemas and workflows:
+
 ```python
 # tests/test_schemas.py
 def test_event_schema():
@@ -901,7 +946,9 @@ def test_api_events():
 ```
 
 ### 5. Documentation
+
 Document schemas and workflows:
+
 ```python
 class EventSchema(pa.DataFrameModel):
     """Event data from API.

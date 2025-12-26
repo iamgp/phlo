@@ -88,30 +88,38 @@ services:
 ## Discovering Services
 
 ```bash
-# List installed services
+# List installed services with runtime status
 phlo services list
 
 # Show all including optional profiles
 phlo services list --all
 
-# JSON output
+# JSON output with status details
 phlo services list --json
 ```
 
 Example output:
 
 ```
-CORE SERVICES (bundled with phlo):
-  ✓ observatory: Phlo Observatory - Data platform visibility and lineage UI
-  ✓ phlo-api: Phlo API - Backend service exposing phlo internals
+Package Services (installed):
+  ✓ dagster            Running    :3000   Data orchestration platform for workflows and pipelines
+  ✓ postgres           Running    :5432   PostgreSQL database for metadata and operational storage
+  ✓ trino              Running    :8080   Distributed SQL query engine for the data lake
+  ✓ minio              Running    :9001   S3-compatible object storage for data lake
+  ✓ nessie             Running    :19120  Git-like catalog for Iceberg tables
+  ✗ superset           Disabled           Business intelligence platform (disabled in phlo.yaml)
 
-ORCHESTRATION (packages):
-  ✓ dagster: Data orchestration platform
-  ✓ dagster-daemon: Dagster daemon for schedules and sensors
-
-BI (packages):
-  ✓ superset: Apache Superset for business intelligence
+Custom Services (phlo.yaml):
+  ✓ custom-api         Running    :4000   Custom API backend (inline)
 ```
+
+The enhanced output shows:
+
+- **Status marker**: ✓ (running/enabled), ✗ (disabled), or blank (stopped)
+- **Running state**: Running, Stopped, or Disabled
+- **Exposed ports**: First exposed external port (e.g., :3000)
+- **Service description**: From package or phlo.yaml
+- **Configuration notes**: (disabled in phlo.yaml), (inline), etc.
 
 ## Development Mode
 
@@ -119,7 +127,7 @@ Mount local package sources into containers for live development:
 
 ```bash
 phlo services init --dev --phlo-source /path/to/phlo
-phlo services start --dev
+phlo services start
 ```
 
 Dev mode uses the `dev` section in each service's `service.yaml` to override commands, volumes, and environment.

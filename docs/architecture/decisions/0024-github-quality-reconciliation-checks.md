@@ -1,4 +1,4 @@
-# 24. GitHub Example: phlo.quality Reconciliation Checks
+# 24. GitHub Example: phlo_quality Reconciliation Checks
 
 Date: 2025-12-19
 
@@ -8,11 +8,11 @@ Accepted
 
 ## Beads
 
-- `phlo-2md`: Docs/examples: Add phlo.quality reconciliation checks (GitHub)
+- `phlo-2md`: Docs/examples: Add phlo_quality reconciliation checks (GitHub)
 
 ## Context
 
-Users need working examples demonstrating how to use `phlo.quality` for warehouse-native reconciliation and aggregate consistency checks. These checks ensure data integrity across pipeline stages:
+Users need working examples demonstrating how to use `phlo_quality` for warehouse-native reconciliation and aggregate consistency checks. These checks ensure data integrity across pipeline stages:
 
 - **Row count parity**: Verify staging tables match expected row counts in fact tables (per partition)
 - **Aggregate consistency**: Verify computed aggregates match source data sums
@@ -29,7 +29,7 @@ Add two partition-aware reconciliation checks to the GitHub example:
 A new `ReconciliationCheck` class that compares row counts between staging and fact tables for a given partition:
 
 ```python
-@phlo.quality(
+@phlo_quality(
     table="gold.fct_daily_github_metrics",
     checks=[
         ReconciliationCheck(
@@ -51,7 +51,7 @@ def daily_metrics_reconciliation():
 A check that validates computed aggregates match their source:
 
 ```python
-@phlo.quality(
+@phlo_quality(
     table="gold.fct_daily_github_metrics",
     checks=[
         AggregateConsistencyCheck(
@@ -74,20 +74,20 @@ def daily_metrics_aggregate_consistency():
 
 ### New Files
 
-#### [NEW] `src/phlo/quality/reconciliation.py`
+#### [NEW] `packages/phlo-quality/src/phlo_quality/reconciliation.py`
 
 Contains:
 
 - `ReconciliationCheck`: Compare row counts or other metrics across tables
 - `AggregateConsistencyCheck`: Verify aggregates match source computations
 
-#### [MODIFY] `examples/github-stats/workflows/quality/github.py`
+#### [MODIFY] `phlo-examples/github/workflows/quality/github.py`
 
 Add reconciliation check examples using the new check classes.
 
-#### [MODIFY] `examples/github-stats/workflows/quality/__init__.py`
+#### [MODIFY] `phlo-examples/github/workflows/quality/__init__.py`
 
-Export new reconciliation quality functions.
+Optional: keep module exports for organization; no registration step is required.
 
 ### Verification Plan
 
@@ -98,7 +98,7 @@ Export new reconciliation quality functions.
 pytest tests/test_quality*.py -v
 
 # Run strict validation tests (related)
-pytest tests/test_strict_validation.py -v
+pytest packages/phlo-dlt/tests/test_strict_validation.py -v
 ```
 
 #### Manual Verification

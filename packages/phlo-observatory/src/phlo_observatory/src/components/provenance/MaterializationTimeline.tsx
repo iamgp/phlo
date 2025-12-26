@@ -43,7 +43,7 @@ export function MaterializationTimeline({
       setError(null)
       try {
         const result = await getMaterializationHistory({
-          data: { assetKey, limit },
+          data: { assetKey: assetKey.split('/'), limit },
         })
         if ('error' in result) {
           setError(result.error)

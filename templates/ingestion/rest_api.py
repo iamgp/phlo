@@ -4,20 +4,19 @@ REST API Ingestion Template
 This template shows how to create a Phlo ingestion asset for REST API data sources.
 
 TODO: Customize this template:
-1. Copy this file to src/phlo/defs/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
+1. Copy this file to workflows/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
 2. Update the schema import to match your schema file
 3. Configure the @phlo_ingestion decorator parameters
 4. Configure the DLT rest_api source
-5. Register domain in src/phlo/defs/ingestion/__init__.py
+5. Ensure the file lives under workflows/ so it is auto-discovered
 """
 
 from dlt.sources.rest_api import rest_api
-
-from phlo.ingestion import phlo_ingestion
-from phlo.schemas.example import RawExampleData
+from phlo_dlt import phlo_ingestion
+from workflows.schemas.example import RawExampleData
 
 # TODO: Update this import to match your schema file
-# Example: from phlo.schemas.weather import RawWeatherObservations
+# Example: from workflows.schemas.weather import RawWeatherObservations
 
 
 @phlo_ingestion(
@@ -273,18 +272,17 @@ def example_data_ingestion(partition_date: str):
 # ===========
 #
 # 1. Copy this template to your domain directory:
-#    cp templates/ingestion/rest_api.py src/phlo/defs/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
+#    cp templates/ingestion/rest_api.py workflows/ingestion/YOUR_DOMAIN/YOUR_ASSET.py
 #
 # 2. Create corresponding schema:
-#    cp templates/schemas/example_schema.py src/phlo/schemas/YOUR_DOMAIN.py
+#    cp templates/schemas/example_schema.py workflows/schemas/YOUR_DOMAIN.py
 #
 # 3. Edit both files and replace all TODOs
 #
-# 4. Register domain in src/phlo/defs/ingestion/__init__.py:
-#    from phlo.defs.ingestion import YOUR_DOMAIN  # noqa: F401
+# 4. No manual registration needed; workflows/ is auto-discovered
 #
-# 5. Restart Dagster:
-#    docker restart dagster-webserver
+# 5. Restart Dagster if needed:
+#    phlo services restart dagster
 #
 # 6. Test in Dagster UI:
 #    http://localhost:3000 → Assets → YOUR_ASSET → Materialize

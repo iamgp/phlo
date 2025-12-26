@@ -73,7 +73,7 @@ def create_session_with_retries():
     return session
 
 # Use in asset
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def weather_observations(partition: str):
     session = create_session_with_retries()
     response = session.get(f"https://api.weather.com/observations/{partition}")
@@ -116,7 +116,7 @@ def validate_api_credentials():
             ]
         )
 
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def weather_observations(partition: str):
     validate_api_credentials()
     # ... fetch data
@@ -127,7 +127,7 @@ def weather_observations(partition: str):
 Wrap data fetching in try/except with detailed logging:
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def weather_observations(partition: str, context):
     try:
         context.log.info(f"Fetching data for partition: {partition}")
@@ -184,7 +184,7 @@ def weather_observations(partition: str, context):
 ### ❌ Incorrect: No error handling
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def weather_observations(partition: str):
     # ❌ No error handling - will fail silently
     response = requests.get(f"https://api.weather.com/obs/{partition}")
@@ -194,7 +194,7 @@ def weather_observations(partition: str):
 ### ✅ Correct: Comprehensive error handling
 
 ```python
-@phlo.ingestion(...)
+@phlo_ingestion(...)
 def weather_observations(partition: str, context):
     try:
         context.log.info(f"Fetching data for {partition}")
@@ -231,25 +231,29 @@ def weather_observations(partition: str, context):
 ## Debugging Steps
 
 1. **Check API status**
+
    ```bash
    curl -I https://api.example.com/status
    ```
 
 2. **Test API credentials**
+
    ```bash
    export API_KEY="your-api-key"
    curl -H "Authorization: Bearer $API_KEY" https://api.example.com/test
    ```
 
 3. **Review Dagster logs**
+
    ```bash
    docker logs dagster-webserver
    docker logs dagster-daemon
    ```
 
 4. **Test asset locally**
+
    ```python
-   from phlo.defs.ingestion.weather.observations import weather_observations
+   from workflows.ingestion.weather.observations import weather_observations
 
    # Test with specific partition
    result = weather_observations(partition="2024-01-15")
@@ -257,6 +261,7 @@ def weather_observations(partition: str, context):
    ```
 
 5. **Check network connectivity**
+
    ```bash
    ping api.example.com
    nslookup api.example.com
@@ -264,6 +269,7 @@ def weather_observations(partition: str, context):
    ```
 
 6. **Monitor API rate limits**
+
    ```python
    response = requests.get(url, headers=headers)
 
@@ -277,16 +283,16 @@ def weather_observations(partition: str, context):
 
 ## Common API Error Codes
 
-| Status Code | Meaning | Solution |
-|------------|---------|----------|
-| 400 | Bad Request | Check request parameters |
-| 401 | Unauthorized | Verify API credentials |
-| 403 | Forbidden | Check API permissions |
-| 404 | Not Found | Verify endpoint URL |
-| 429 | Too Many Requests | Implement rate limiting |
-| 500 | Internal Server Error | Retry with backoff |
-| 503 | Service Unavailable | Wait and retry |
-| 504 | Gateway Timeout | Increase timeout |
+| Status Code | Meaning               | Solution                 |
+| ----------- | --------------------- | ------------------------ |
+| 400         | Bad Request           | Check request parameters |
+| 401         | Unauthorized          | Verify API credentials   |
+| 403         | Forbidden             | Check API permissions    |
+| 404         | Not Found             | Verify endpoint URL      |
+| 429         | Too Many Requests     | Implement rate limiting  |
+| 500         | Internal Server Error | Retry with backoff       |
+| 503         | Service Unavailable   | Wait and retry           |
+| 504         | Gateway Timeout       | Increase timeout         |
 
 ## Related Errors
 
@@ -297,6 +303,7 @@ def weather_observations(partition: str, context):
 ## Prevention
 
 1. **Implement health checks**
+
    ```python
    def check_api_health():
        try:
@@ -305,7 +312,7 @@ def weather_observations(partition: str, context):
        except:
            return False
 
-   @phlo.ingestion(...)
+   @phlo_ingestion(...)
    def weather_observations(partition: str):
        if not check_api_health():
            raise PhloIngestionError(
@@ -316,10 +323,11 @@ def weather_observations(partition: str, context):
    ```
 
 2. **Add monitoring and alerting**
+
    ```python
    from dagster import MetadataValue
 
-   @phlo.ingestion(...)
+   @phlo_ingestion(...)
    def weather_observations(partition: str, context):
        start_time = time.time()
 
@@ -346,12 +354,13 @@ def weather_observations(partition: str, context):
    ```
 
 3. **Use circuit breaker pattern**
+
    ```python
    from pybreaker import CircuitBreaker
 
    breaker = CircuitBreaker(fail_max=5, timeout_duration=60)
 
-   @phlo.ingestion(...)
+   @phlo_ingestion(...)
    def weather_observations(partition: str):
        @breaker
        def fetch():
@@ -361,9 +370,10 @@ def weather_observations(partition: str, context):
    ```
 
 4. **Test with mock data**
+
    ```python
    # tests/test_weather_ingestion.py
-   from phlo.testing import mock_dlt_source
+   from phlo_testing import mock_dlt_source
 
    def test_weather_ingestion():
        mock_data = [

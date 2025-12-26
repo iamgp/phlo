@@ -66,8 +66,8 @@ Each package bundles its `service.yaml` and uses `importlib.resources` to load d
 
 ### Phase 6: Observatory Integration
 
-- `services/observatory/src/server/plugins.server.ts` - Server functions
-- `services/observatory/src/routes/hub/plugins.tsx` - Plugin management page
+- `packages/phlo-observatory/src/phlo_observatory/src/server/plugins.server.ts` - Server functions
+- `packages/phlo-observatory/src/phlo_observatory/src/routes/hub/plugins.tsx` - Plugin management page
 
 ## Consequences
 

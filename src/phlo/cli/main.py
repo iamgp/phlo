@@ -12,7 +12,7 @@ from typing import Optional
 
 import click
 
-from phlo.cli.services import find_dagster_container, get_project_name, services
+from phlo.cli.services import services
 
 
 @click.group()
@@ -31,47 +31,27 @@ def cli():
 # Add services subcommand
 cli.add_command(services)
 
-# Add validation commands
-from phlo.cli.alerts import alerts_group
-
-# Import API subcommands to register with the existing api group (defined below)
-from phlo.cli.api import hasura, postgrest
-from phlo.cli.backfill import backfill
-from phlo.cli.branch import branch
-from phlo.cli.catalog import catalog
-
-# Add configuration management commands
 from phlo.cli.config import config
-from phlo.cli.lineage import lineage_group
-from phlo.cli.logs import logs
-
-# Add observability commands
-from phlo.cli.metrics import metrics_group
-
-# Add plugin management commands
 from phlo.cli.plugin import plugin_group
-from phlo.cli.publishing import publishing
 
-# Add catalog management commands
-from phlo.cli.schema import schema
-from phlo.cli.status import status
-from phlo.cli.validate import validate_schema, validate_workflow
-
-cli.add_command(validate_schema)
-cli.add_command(validate_workflow)
-cli.add_command(status)
-cli.add_command(backfill)
-cli.add_command(logs)
-cli.add_command(schema)
-cli.add_command(catalog)
-cli.add_command(branch)
-
-cli.add_command(metrics_group)
-cli.add_command(lineage_group)
-cli.add_command(alerts_group)
 cli.add_command(plugin_group)
 cli.add_command(config)
-cli.add_command(publishing)
+
+
+def _load_cli_plugin_commands() -> None:
+    from phlo.discovery import discover_plugins, get_global_registry
+
+    discover_plugins(plugin_type="cli_commands", auto_register=True)
+    registry = get_global_registry()
+    for name in registry.list_cli_command_plugins():
+        plugin = registry.get_cli_command_plugin(name)
+        if plugin is None:
+            continue
+        for command in plugin.get_cli_commands():
+            cli.add_command(command)
+
+
+_load_cli_plugin_commands()
 
 
 @cli.command()
@@ -100,7 +80,7 @@ def test(
     click.echo("Running Phlo tests...\n")
 
     # Build pytest command
-    pytest_args = ["pytest", "tests/"]
+    pytest_args = ["pytest"]
 
     if asset_name:
         # Run tests for specific asset
@@ -137,86 +117,6 @@ def test(
         sys.exit(result.returncode)
     except FileNotFoundError:
         click.echo("Error: pytest not found. Install with: pip install pytest", err=True)
-        sys.exit(1)
-
-
-@cli.command()
-@click.argument("asset_name")
-@click.option("-p", "--partition", help="Partition date (YYYY-MM-DD)")
-@click.option("--select", help="Asset selector expression")
-@click.option("--dry-run", is_flag=True, help="Show command without executing")
-def materialize(
-    asset_name: str,
-    partition: Optional[str],
-    select: Optional[str],
-    dry_run: bool,
-):
-    """
-    Materialize Dagster assets via Docker.
-
-    Examples:
-        phlo materialize dlt_glucose_entries
-        phlo materialize dlt_glucose_entries --partition 2025-01-15
-        phlo materialize --select "tag:nightscout"
-        phlo materialize dlt_glucose_entries --dry-run
-    """
-    # Get project name and find running container
-    project_name = get_project_name()
-    container_name = find_dagster_container(project_name)
-
-    # Detect host platform for executor selection in container
-    import platform
-
-    host_platform = platform.system()
-
-    # Build docker exec command with working directory set to /app
-    cmd = [
-        "docker",
-        "exec",
-        "-e",
-        f"PHLO_HOST_PLATFORM={host_platform}",
-        "-w",
-        "/app",
-        container_name,
-        "dagster",
-        "asset",
-        "materialize",
-        "-m",
-        "phlo.framework.definitions",
-    ]
-
-    if select:
-        cmd.extend(["--select", select])
-    else:
-        cmd.extend(["--select", asset_name])
-
-    if partition:
-        cmd.extend(["--partition", partition])
-
-    if dry_run:
-        click.echo("Dry run - would execute:\n")
-        click.echo(" ".join(cmd))
-        sys.exit(0)
-
-    click.echo(f"Materializing {asset_name}...\n")
-
-    # Execute command
-    try:
-        result = subprocess.run(cmd, check=False)
-        if result.returncode == 0:
-            click.echo(f"\nSuccessfully materialized {asset_name}")
-        else:
-            click.echo(
-                f"\nMaterialization failed with exit code {result.returncode}",
-                err=True,
-            )
-        sys.exit(result.returncode)
-    except FileNotFoundError:
-        click.echo(
-            f"Error: Docker not found or {container_name} container not running",
-            err=True,
-        )
-        click.echo("\nStart services with: phlo services start", err=True)
         sys.exit(1)
 
 
@@ -617,61 +517,6 @@ Phlo data workflows for {project_name}.
         description=f"{project_name} data workflows",
     )
     (project_dir / "phlo.yaml").write_text(phlo_config_content)
-
-
-@cli.group()
-def api():
-    """API infrastructure management commands."""
-    pass
-
-
-# Register API subcommands
-api.add_command(postgrest)
-api.add_command(hasura)
-
-
-@api.command("setup-postgrest")
-@click.option("--host", help="PostgreSQL host")
-@click.option("--port", type=int, help="PostgreSQL port")
-@click.option("--database", help="PostgreSQL database name")
-@click.option("--user", help="PostgreSQL user")
-@click.option("--password", help="PostgreSQL password")
-@click.option("--force", is_flag=True, help="Force re-setup even if already exists")
-@click.option("-q", "--quiet", is_flag=True, help="Suppress output")
-def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
-    """Set up PostgREST authentication infrastructure.
-
-    This command sets up the core PostgREST infrastructure:
-    - PostgreSQL extensions (pgcrypto)
-    - Auth schema and users table
-    - JWT signing/verification functions
-    - Database roles (anon, authenticated, analyst, admin)
-    - Row-Level Security policies
-
-    Examples:
-        phlo api setup-postgrest
-        phlo api setup-postgrest --host localhost --port 10000
-        phlo api setup-postgrest --force  # Re-apply setup
-    """
-    try:
-        from phlo.api.postgrest import setup_postgrest
-
-        setup_postgrest(
-            host=host,
-            port=port,
-            database=database,
-            user=user,
-            password=password,
-            force=force,
-            verbose=not quiet,
-        )
-    except ImportError as e:
-        click.echo(f"Error: Missing dependency - {e}", err=True)
-        click.echo("Install with: pip install psycopg2-binary", err=True)
-        sys.exit(1)
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
 
 
 def main():

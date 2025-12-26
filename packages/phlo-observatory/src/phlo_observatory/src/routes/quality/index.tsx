@@ -284,7 +284,7 @@ function QualityScoreCard({ score, totalChecks }: QualityScoreCardProps) {
           {totalChecks === 0 && (
             <div className="text-sm text-muted-foreground">
               Add{' '}
-              <code className="bg-muted px-1 rounded-none">@phlo.quality</code>{' '}
+              <code className="bg-muted px-1 rounded-none">@phlo_quality</code>{' '}
               to enable checks
             </div>
           )}

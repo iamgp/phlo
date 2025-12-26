@@ -6,17 +6,17 @@ You've built, tested, and monitored your data lakehouse. Now let's deploy it to 
 
 What differs between your laptop and production:
 
-| Aspect | Development | Production |
-|--------|-----------|-----------|
-| **Uptime SLA** | None (stop anytime) | 99.9%+ |
-| **Data Retention** | Days | Years |
-| **Backup Strategy** | Optional | Required (PITR) |
-| **Access Control** | All devs have all access | Role-based, audited |
-| **Failure Recovery** | Restart containers | Auto-recovery, failover |
-| **Monitoring** | None (ad-hoc) | Continuous |
-| **Capacity** | 16GB RAM, 1TB disk | 256GB+ RAM, PB+ storage |
-| **Cost** | Minimal | Optimized |
-| **Compliance** | None | HIPAA, GDPR, etc. |
+| Aspect               | Development              | Production              |
+| -------------------- | ------------------------ | ----------------------- |
+| **Uptime SLA**       | None (stop anytime)      | 99.9%+                  |
+| **Data Retention**   | Days                     | Years                   |
+| **Backup Strategy**  | Optional                 | Required (PITR)         |
+| **Access Control**   | All devs have all access | Role-based, audited     |
+| **Failure Recovery** | Restart containers       | Auto-recovery, failover |
+| **Monitoring**       | None (ad-hoc)            | Continuous              |
+| **Capacity**         | 16GB RAM, 1TB disk       | 256GB+ RAM, PB+ storage |
+| **Cost**             | Minimal                  | Optimized               |
+| **Compliance**       | None                     | HIPAA, GDPR, etc.       |
 
 ## Architecture: From Laptop to Kubernetes
 
@@ -175,6 +175,7 @@ For production deployments, especially when running multiple Phlo projects or cu
 #### Why Infrastructure Configuration?
 
 Environment variables (`.env`) handle secrets and connection strings, but they don't handle:
+
 - **Multi-project deployments**: Running multiple Phlo instances on the same host
 - **Container naming patterns**: Custom naming for service discovery
 - **Port customization**: Per-project port assignments
@@ -197,7 +198,7 @@ infrastructure:
   # Service-specific configuration
   services:
     dagster_webserver:
-      container_name: null  # Use pattern above
+      container_name: null # Use pattern above
       service_name: dagster-webserver
       host: localhost
       internal_host: dagster-webserver
@@ -211,7 +212,7 @@ infrastructure:
       port: 10000
       credentials:
         user: postgres
-        password: ${POSTGRES_PASSWORD}  # References .env
+        password: ${POSTGRES_PASSWORD} # References .env
         database: cascade
 
     minio:
@@ -242,6 +243,7 @@ infrastructure:
 Running two Phlo projects on the same server:
 
 **Project 1: Analytics Lakehouse**
+
 ```yaml
 # analytics/phlo.yaml
 name: analytics
@@ -251,13 +253,14 @@ infrastructure:
   container_naming_pattern: "{{project}}-{{service}}-1"
   services:
     dagster_webserver:
-      port: 11006  # Different port
+      port: 11006 # Different port
     postgres:
       port: 11000
     # ... other services with unique ports
 ```
 
 **Project 2: ML Platform**
+
 ```yaml
 # ml-platform/phlo.yaml
 name: ml-platform
@@ -267,7 +270,7 @@ infrastructure:
   container_naming_pattern: "{{project}}-{{service}}-1"
   services:
     dagster_webserver:
-      port: 12006  # Different port
+      port: 12006 # Different port
     postgres:
       port: 12000
     # ... other services with unique ports
@@ -328,12 +331,14 @@ print(postgres_config["internal_host"])  # "postgres"
 #### Production Best Practices
 
 **1. Use descriptive project names:**
+
 ```yaml
 name: prod-analytics-us-east
 description: Production analytics lakehouse (US East region)
 ```
 
 **2. Document service purposes:**
+
 ```yaml
 services:
   dagster_webserver:
@@ -342,13 +347,15 @@ services:
 ```
 
 **3. Reference secrets from .env:**
+
 ```yaml
 postgres:
   credentials:
-    password: ${POSTGRES_PASSWORD}  # Never hardcode secrets
+    password: ${POSTGRES_PASSWORD} # Never hardcode secrets
 ```
 
 **4. Version control phlo.yaml:**
+
 ```bash
 # Commit to git (no secrets here)
 git add phlo.yaml
@@ -359,6 +366,7 @@ echo ".env" >> .gitignore
 ```
 
 **5. Use different configs per environment:**
+
 ```bash
 phlo.yaml              # Base configuration
 phlo.staging.yaml      # Staging overrides
@@ -429,6 +437,7 @@ docker-compose ps
 ```
 
 The actual `docker-compose.yml` includes:
+
 - **Core Services**: postgres, minio, nessie, trino, dagster-webserver, dagster-daemon, superset
 - **Observability** (profile: observability): prometheus, loki, grafana, alloy, postgres-exporter
 - **API Layer** (profile: api): FastAPI, Hasura GraphQL, PostgREST
@@ -525,6 +534,7 @@ docker-compose --profile observability up -d
 ```
 
 The observability stack includes:
+
 - **Prometheus**: Metrics collection and storage
 - **Loki**: Log aggregation
 - **Grafana**: Dashboards and visualization
@@ -560,75 +570,75 @@ spec:
     spec:
       serviceAccountName: dagster
       containers:
-      - name: dagster-webserver
-        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/phlo:1.0.0
-        ports:
-        - containerPort: 3000
-          name: http
-        - containerPort: 9090
-          name: metrics
-        
-        # Resource limits
-        resources:
-          requests:
-            memory: "2Gi"
-            cpu: "1000m"
-          limits:
-            memory: "4Gi"
-            cpu: "2000m"
-        
-        # Environment from secrets
-        envFrom:
-        - secretRef:
-            name: phlo-secrets
-        - configMapRef:
-            name: phlo-config
-        
-        # Health checks
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 40
-          periodSeconds: 30
-          timeoutSeconds: 10
-          failureThreshold: 3
-        
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 3000
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 5
-          failureThreshold: 1
-        
-        # Logging
-        volumeMounts:
-        - name: logs
-          mountPath: /app/logs
-      
+        - name: dagster-webserver
+          image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/phlo:1.0.0
+          ports:
+            - containerPort: 3000
+              name: http
+            - containerPort: 9090
+              name: metrics
+
+          # Resource limits
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+
+          # Environment from secrets
+          envFrom:
+            - secretRef:
+                name: phlo-secrets
+            - configMapRef:
+                name: phlo-config
+
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 1
+
+          # Logging
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+
       # Node selection
       nodeSelector:
         workload: compute
-      
+
       # Pod disruption budget (for rolling updates)
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - dagster-webserver
-              topologyKey: kubernetes.io/hostname
-      
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - dagster-webserver
+                topologyKey: kubernetes.io/hostname
+
       volumes:
-      - name: logs
-        emptyDir: {}
+        - name: logs
+          emptyDir: {}
 
 ---
 apiVersion: v1
@@ -641,9 +651,9 @@ spec:
   selector:
     app: dagster-webserver
   ports:
-  - port: 80
-    targetPort: 3000
-    protocol: TCP
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
 ```
 
 **Future Kubernetes deployment** would look like:
@@ -707,31 +717,31 @@ spec:
   minReplicas: 1
   maxReplicas: 20
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 300
       policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
     scaleUp:
       stabilizationWindowSeconds: 0
       policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 30
+        - type: Percent
+          value: 100
+          periodSeconds: 30
       selectPolicy: Max
 ```
 
@@ -849,32 +859,32 @@ import boto3
 
 def estimate_monthly_cost():
     """Estimate AWS costs."""
-    
+
     # S3 storage costs
     s3 = boto3.client('s3')
     response = s3.list_bucket_metrics_configurations(Bucket='phlo-prod-lake')
-    
+
     storage_size_gb = get_bucket_size() / (1024**3)
     storage_cost = storage_size_gb * 0.023  # $0.023/GB/month
-    
+
     # RDS costs
     rds = boto3.client('rds')
     instances = rds.describe_db_instances()
     rds_cost = len(instances) * 365  # Estimate
-    
+
     # Compute costs (EC2/ECS)
     ec2 = boto3.client('ec2')
     instances = ec2.describe_instances()
     compute_cost = len(instances) * 150  # Estimate
-    
+
     total = storage_cost + rds_cost + compute_cost
-    
+
     print(f"Monthly cost estimate:")
     print(f"  Storage (S3): ${storage_cost:,.0f}")
     print(f"  Database (RDS): ${rds_cost:,.0f}")
     print(f"  Compute (K8s): ${compute_cost:,.0f}")
     print(f"  Total: ${total:,.0f}")
-    
+
     return {
         "storage": storage_cost,
         "database": rds_cost,
@@ -885,19 +895,19 @@ def estimate_monthly_cost():
 # Optimization strategies
 def optimize_costs():
     """Implement cost optimization."""
-    
+
     # 1. S3 Intelligent-Tiering
     # Automatically move old data to cheaper storage classes
-    
+
     # 2. Reserved Instances
     # Commit to 1-3 year terms for 40% discount
-    
+
     # 3. Spot instances for Trino workers
     # Use spot instances for non-critical compute
-    
+
     # 4. Data lifecycle policies
     # Archive to Glacier after 90 days
-    
+
     # 5. Compression
     # Compress old Parquet files
     pass
@@ -921,7 +931,8 @@ docker-compose --profile observability up -d
 # Available via Grafana Explore interface
 ```
 
-Grafana dashboards are pre-provisioned in `docker/grafana/dashboards/`:
+Grafana dashboards are pre-provisioned in `.phlo/grafana/dashboards/`:
+
 - Lakehouse overview
 - Dagster pipeline metrics
 - PostgreSQL database metrics
@@ -965,6 +976,7 @@ Production deployment with Phlo:
 ### Production Readiness Checklist
 
 ✅ **Implemented**:
+
 - Docker Compose orchestration with health checks
 - Environment-based configuration (.env files)
 - Observability stack (Grafana, Prometheus, Loki)
@@ -973,6 +985,7 @@ Production deployment with Phlo:
 - Multi-profile deployment (core, observability, api, catalog)
 
 📋 **Recommended for Production**:
+
 - Replace MinIO with AWS S3 or similar object storage
 - Use managed PostgreSQL (RDS, Cloud SQL)
 - Implement backup automation
@@ -982,6 +995,7 @@ Production deployment with Phlo:
 - Enable audit logging
 
 🔮 **Future (Kubernetes)**:
+
 - Kubernetes manifests for k8s/ directory
 - Horizontal pod autoscaling
 - Multi-region deployment
@@ -1010,6 +1024,7 @@ docker-compose --profile all up -d
 **Next**: [Part 13 - Plugin System](13-plugin-system.md) - Extend Phlo with custom plugins
 
 **Series**:
+
 1. Data Lakehouse concepts
 2. Getting started
 3. Apache Iceberg

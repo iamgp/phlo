@@ -27,7 +27,15 @@
     "plugin": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "package", "version", "description", "author", "tags", "verified"],
+      "required": [
+        "type",
+        "package",
+        "version",
+        "description",
+        "author",
+        "tags",
+        "verified"
+      ],
       "properties": {
         "type": {
           "type": "string",

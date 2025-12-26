@@ -1,0 +1,46 @@
+"""
+Iceberg catalog management using Nessie REST catalog.
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+from phlo.config import config
+from pyiceberg.catalog import load_catalog
+
+
+@lru_cache
+def get_catalog(ref: str = "main"):
+    """
+    Get PyIceberg catalog configured for Nessie.
+
+    Args:
+        ref: Nessie branch/tag reference (default: main)
+    """
+    catalog_config = config.get_pyiceberg_catalog_config(ref=ref)
+    return load_catalog(name=f"nessie_{ref}", **catalog_config)
+
+
+def list_tables(namespace: str | None = None, ref: str = "main") -> list[str]:
+    """List tables in a namespace (or all namespaces)."""
+    catalog = get_catalog(ref=ref)
+
+    if namespace:
+        return [str(table) for table in catalog.list_tables(namespace)]
+
+    all_tables: list[str] = []
+    for ns in catalog.list_namespaces():
+        ns_name = ".".join(ns)
+        all_tables.extend([str(table) for table in catalog.list_tables(ns_name)])
+    return all_tables
+
+
+def create_namespace(namespace: str, ref: str = "main") -> None:
+    """Create a namespace if it doesn't exist."""
+    catalog = get_catalog(ref=ref)
+    try:
+        catalog.create_namespace(namespace)
+    except Exception:
+        # Namespace might already exist
+        return None

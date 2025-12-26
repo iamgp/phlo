@@ -168,16 +168,16 @@ curl http://localhost:19120/api/v2/trees
 In Phlo, Dagster automatically creates `dev` branch:
 
 ```python
-# From src/phlo/defs/nessie/operations.py
+# From workflows/nessie/operations.py
 
 @asset(name="nessie_dev_branch")
 def create_dev_branch(nessie_client: NessieResource) -> None:
     """Ensure dev branch exists for safe transformations."""
-    
+
     # List existing branches
     branches = nessie_client.list_branches()
     branch_names = [b.name for b in branches]
-    
+
     # Create dev if it doesn't exist
     if 'dev' not in branch_names:
         nessie_client.create_branch(
@@ -237,7 +237,7 @@ def auto_promotion_sensor(context, nessie, branch_manager):
     # Check recent runs for passing quality checks
     # If all pass → merge branch to main
     # Create timestamped tag (v20251126_143000)
-    
+
 # 3. branch_cleanup_sensor - Deletes old branches
 @sensor(minimum_interval_seconds=3600)
 def branch_cleanup_sensor(context, branch_manager):
@@ -272,14 +272,14 @@ Query different branches by using different catalogs:
 -- Query main (production)
 SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
 
--- Query dev (development)  
+-- Query dev (development)
 SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
 ```
 
 ### Using Branch in Code
 
 ```python
-from phlo.defs.resources.trino import TrinoResource
+from phlo_trino.resource import TrinoResource
 
 trino = TrinoResource()
 
@@ -360,10 +360,10 @@ SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
 -- Result: 5500 (includes new test data)
 
 -- Compare between branches
-SELECT 
+SELECT
     'main' as branch, COUNT(*) as rows FROM iceberg.raw.glucose_entries
 UNION ALL
-SELECT 
+SELECT
     'dev' as branch, COUNT(*) as rows FROM iceberg_dev.raw.glucose_entries;
 ```
 
@@ -377,13 +377,13 @@ phlo:
     dev:
       type: trino
       host: trino
-      catalog: iceberg_dev  # ← Dev branch catalog
+      catalog: iceberg_dev # ← Dev branch catalog
       schema: bronze
-        
+
     prod:
       type: trino
       host: trino
-      catalog: iceberg  # ← Main branch catalog
+      catalog: iceberg # ← Main branch catalog
       schema: bronze
 ```
 
@@ -427,7 +427,7 @@ curl -X DELETE "http://localhost:19120/api/v1/trees/branch/feature/new-metrics?e
 Or use the `NessieResource` in Python:
 
 ```python
-from phlo.defs.nessie import NessieResource
+from phlo_nessie.resource import NessieResource
 
 nessie = NessieResource()
 
@@ -489,7 +489,7 @@ Tables Modified:
   silver.fct_glucose_readings
     + Column: estimated_a1c (float)
     ~ Column: glucose_category (type unchanged, constraint added)
-  
+
 Tables Added:
   gold.dim_glucose_ranges (new table)
 
@@ -574,24 +574,24 @@ $ phlo branch delete feature/add-a1c-calculation
 
 ### Branch Naming Conventions
 
-| Pattern | Use Case |
-|---------|----------|
-| `feature/xyz` | New features, schema changes |
-| `fix/xyz` | Bug fixes to transformations |
+| Pattern          | Use Case                            |
+| ---------------- | ----------------------------------- |
+| `feature/xyz`    | New features, schema changes        |
+| `fix/xyz`        | Bug fixes to transformations        |
 | `experiment/xyz` | Exploratory work (may be abandoned) |
-| `release/v1.2` | Tagged releases for rollback points |
-| `dev` | Shared development branch |
+| `release/v1.2`   | Tagged releases for rollback points |
+| `dev`            | Shared development branch           |
 
 ### When to Use Branches
 
-| Scenario | Use Branch? |
-|----------|-------------|
-| Adding new column to existing table | Yes |
-| Changing data type | Yes |
-| Testing new transformation logic | Yes |
-| Daily data ingestion | No (use main) |
-| Bug fix to production | Yes (then merge quickly) |
-| Exploratory analysis | Optional (nice for isolation) |
+| Scenario                            | Use Branch?                   |
+| ----------------------------------- | ----------------------------- |
+| Adding new column to existing table | Yes                           |
+| Changing data type                  | Yes                           |
+| Testing new transformation logic    | Yes                           |
+| Daily data ingestion                | No (use main)                 |
+| Bug fix to production               | Yes (then merge quickly)      |
+| Exploratory analysis                | Optional (nice for isolation) |
 
 ## Nessie vs Iceberg: Understanding the Layers
 
@@ -681,6 +681,7 @@ nessie:
 ```
 
 Breaking this down:
+
 - **JDBC**: Nessie metadata (commits, branches) in Postgres
 - **Warehouse**: Iceberg data files in MinIO S3
 - **S3 access**: Credentials for MinIO
@@ -688,6 +689,7 @@ Breaking this down:
 ## Next: Data Ingestion
 
 Now we understand:
+
 - Iceberg: Table format with snapshots and time travel
 - Nessie: Git-like branching on top of Iceberg
 
@@ -700,6 +702,7 @@ See you then!
 ## Summary
 
 **Project Nessie**:
+
 - Branch isolation (dev/staging/prod)
 - Atomic merges (all-or-nothing)
 - Commit history (audit trail)
@@ -707,6 +710,7 @@ See you then!
 - REST API for automation
 
 **In Phlo (Write-Audit-Publish)**:
+
 - `branch_creation_sensor` - Auto-creates pipeline branch on job start
 - `auto_promotion_sensor` - Auto-merges to main when quality checks pass
 - `branch_cleanup_sensor` - Cleans up old branches after retention period

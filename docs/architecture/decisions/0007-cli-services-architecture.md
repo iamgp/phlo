@@ -25,4 +25,3 @@ selection, command runner), and keep the Click/Typer command layer thin.
 - Core logic becomes unit-testable and easier to reason about.
 - Error messages are more consistent and actionable.
 - Some internal module boundaries are introduced and must be maintained to avoid regressions.
-

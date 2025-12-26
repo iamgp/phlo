@@ -1,13 +1,14 @@
 /**
  * Nessie Server Functions
  *
- * Server-side functions for interacting with the Nessie REST API.
- * Enables git-like data versioning features in Observatory.
+ * Thin wrappers that forward to phlo-api (Python backend).
+ * Preserves SSR while keeping business logic in Python.
  */
 
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
+import { apiDelete, apiGet, apiPost } from '@/server/phlo-api'
 
 // Types for Nessie data structures
 export interface Branch {
@@ -38,17 +39,44 @@ export interface NessieConfig {
   defaultBranch?: string
 }
 
-const DEFAULT_NESSIE_URL = 'http://localhost:19120/api/v2'
+// Python API response types (snake_case)
+interface ApiConnectionStatus {
+  connected: boolean
+  error?: string
+  default_branch?: string
+}
 
-function resolveNessieUrl(override?: string): string {
-  const envUrl = process.env.NESSIE_URL
-  if (override && override.trim()) {
-    if (envUrl && override.trim() === DEFAULT_NESSIE_URL) {
-      return envUrl
-    }
-    return override
+interface ApiCommitMeta {
+  hash: string
+  message: string
+  committer?: string
+  authors: Array<string>
+  commit_time?: string
+  author_time?: string
+  parent_commit_hashes: Array<string>
+}
+
+interface ApiLogEntry {
+  commit_meta: ApiCommitMeta
+  parent_commit_hash?: string
+  operations?: Array<object>
+}
+
+// Transform functions
+function transformLogEntry(e: ApiLogEntry): LogEntry {
+  return {
+    commitMeta: {
+      hash: e.commit_meta.hash,
+      message: e.commit_meta.message,
+      committer: e.commit_meta.committer || '',
+      authors: e.commit_meta.authors,
+      commitTime: e.commit_meta.commit_time || '',
+      authorTime: e.commit_meta.author_time || '',
+      parentCommitHashes: e.commit_meta.parent_commit_hashes,
+    },
+    parentCommitHash: e.parent_commit_hash || '',
+    operations: e.operations || null,
   }
-  return envUrl || DEFAULT_NESSIE_URL
 }
 
 /**
@@ -57,26 +85,13 @@ function resolveNessieUrl(override?: string): string {
 export const checkNessieConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<NessieConfig> => {
-    const nessieUrl = resolveNessieUrl(data.nessieUrl)
-
+  .handler(async (): Promise<NessieConfig> => {
     try {
-      const response = await fetch(`${nessieUrl}/config`, {
-        signal: AbortSignal.timeout(5000),
-      })
-
-      if (!response.ok) {
-        return {
-          connected: false,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-        }
-      }
-
-      const config = await response.json()
-
+      const result = await apiGet<ApiConnectionStatus>('/api/nessie/connection')
       return {
-        connected: true,
-        defaultBranch: config.defaultBranch || 'main',
+        connected: result.connected,
+        error: result.error,
+        defaultBranch: result.default_branch,
       }
     } catch (error) {
       return {
@@ -92,20 +107,11 @@ export const checkNessieConnection = createServerFn()
 export const getBranches = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async ({ data }): Promise<Array<Branch> | { error: string }> => {
-    const nessieUrl = resolveNessieUrl(data.nessieUrl)
-
+  .handler(async (): Promise<Array<Branch> | { error: string }> => {
     try {
-      const response = await fetch(`${nessieUrl}/trees`, {
-        signal: AbortSignal.timeout(10000),
-      })
-
-      if (!response.ok) {
-        return { error: `HTTP ${response.status}: ${response.statusText}` }
-      }
-
-      const payload = await response.json()
-      return payload.references || []
+      return await apiGet<Array<Branch> | { error: string }>(
+        '/api/nessie/branches',
+      )
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
@@ -117,37 +123,19 @@ export const getBranches = createServerFn()
 export const getBranch = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { branchName: string; nessieUrl?: string }) => input)
-  .handler(async ({ data }): Promise<Branch | { error: string }> => {
-    const nessieUrl = resolveNessieUrl(data.nessieUrl)
-    const branchName = data.branchName
-
-    try {
-      const response = await fetch(
-        `${nessieUrl}/trees/${encodeURIComponent(branchName)}`,
-        {
-          signal: AbortSignal.timeout(5000),
-        },
-      )
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { error: `Branch '${branchName}' not found` }
+  .handler(
+    async ({ data: { branchName } }): Promise<Branch | { error: string }> => {
+      try {
+        return await apiGet<Branch | { error: string }>(
+          `/api/nessie/branches/${encodeURIComponent(branchName)}`,
+        )
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
         }
-        return { error: `HTTP ${response.status}: ${response.statusText}` }
       }
-
-      const payload = await response.json()
-      return {
-        type: payload.type || 'BRANCH',
-        name: payload.name,
-        hash: payload.hash,
-      }
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
-    }
-  })
+    },
+  )
 
 /**
  * Get commit history for a branch
@@ -159,29 +147,16 @@ export const getCommits = createServerFn()
   )
   .handler(
     async ({
-      data: { branch, limit = 50, nessieUrl: nessieUrlOverride },
+      data: { branch, limit = 50 },
     }): Promise<Array<LogEntry> | { error: string }> => {
-      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
-
       try {
-        const url = new URL(
-          `${nessieUrl}/trees/${encodeURIComponent(branch)}/history`,
+        const result = await apiGet<Array<ApiLogEntry> | { error: string }>(
+          `/api/nessie/branches/${encodeURIComponent(branch)}/history`,
+          { limit },
         )
-        url.searchParams.set('maxRecords', String(limit))
 
-        const response = await fetch(url.toString(), {
-          signal: AbortSignal.timeout(10000),
-        })
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            return { error: `Branch '${branch}' not found` }
-          }
-          return { error: `HTTP ${response.status}: ${response.statusText}` }
-        }
-
-        const data = await response.json()
-        return data.logEntries || []
+        if ('error' in result) return result
+        return result.map(transformLogEntry)
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -200,31 +175,13 @@ export const getContents = createServerFn()
   )
   .handler(
     async ({
-      data: { branch, prefix, nessieUrl: nessieUrlOverride },
+      data: { branch, prefix },
     }): Promise<Array<object> | { error: string }> => {
-      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
-
       try {
-        const url = new URL(
-          `${nessieUrl}/trees/${encodeURIComponent(branch)}/entries`,
+        return await apiGet<Array<object> | { error: string }>(
+          `/api/nessie/branches/${encodeURIComponent(branch)}/entries`,
+          { prefix },
         )
-        if (prefix) {
-          url.searchParams.set(
-            'filter',
-            `entry.namespace.startsWith('${prefix}')`,
-          )
-        }
-
-        const response = await fetch(url.toString(), {
-          signal: AbortSignal.timeout(10000),
-        })
-
-        if (!response.ok) {
-          return { error: `HTTP ${response.status}: ${response.statusText}` }
-        }
-
-        const data = await response.json()
-        return data.entries || []
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -244,25 +201,12 @@ export const compareBranches = createServerFn()
   )
   .handler(
     async ({
-      data: { fromBranch, toBranch, nessieUrl: nessieUrlOverride },
+      data: { fromBranch, toBranch },
     }): Promise<object | { error: string }> => {
-      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
-
       try {
-        const url = new URL(
-          `${nessieUrl}/trees/${encodeURIComponent(toBranch)}/diff/${encodeURIComponent(fromBranch)}`,
+        return await apiGet<object>(
+          `/api/nessie/diff/${encodeURIComponent(fromBranch)}/${encodeURIComponent(toBranch)}`,
         )
-
-        const response = await fetch(url.toString(), {
-          signal: AbortSignal.timeout(10000),
-        })
-
-        if (!response.ok) {
-          return { error: `HTTP ${response.status}: ${response.statusText}` }
-        }
-
-        const data = await response.json()
-        return data
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -281,48 +225,12 @@ export const createBranch = createServerFn()
   )
   .handler(
     async ({
-      data: { name, fromBranch, nessieUrl: nessieUrlOverride },
+      data: { name, fromBranch },
     }): Promise<Branch | { error: string }> => {
-      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
-
       try {
-        // First get the source branch hash
-        const sourceResponse = await fetch(
-          `${nessieUrl}/trees/${encodeURIComponent(fromBranch)}`,
-          {
-            signal: AbortSignal.timeout(5000),
-          },
+        return await apiPost<Branch | { error: string }>(
+          `/api/nessie/branches?name=${encodeURIComponent(name)}&from_branch=${encodeURIComponent(fromBranch)}`,
         )
-
-        if (!sourceResponse.ok) {
-          return { error: `Source branch '${fromBranch}' not found` }
-        }
-
-        const sourceBranch = await sourceResponse.json()
-
-        // Create the new branch
-        const createResponse = await fetch(`${nessieUrl}/trees`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'BRANCH',
-            name,
-            hash: sourceBranch.hash,
-          }),
-          signal: AbortSignal.timeout(10000),
-        })
-
-        if (!createResponse.ok) {
-          const errorText = await createResponse.text()
-          return { error: `Failed to create branch: ${errorText}` }
-        }
-
-        const newBranch = await createResponse.json()
-        return {
-          type: 'BRANCH',
-          name: newBranch.name,
-          hash: newBranch.hash,
-        }
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -341,25 +249,13 @@ export const deleteBranch = createServerFn()
   )
   .handler(
     async ({
-      data: { name, hash, nessieUrl: nessieUrlOverride },
+      data: { name, hash },
     }): Promise<{ success: boolean } | { error: string }> => {
-      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
-
       try {
-        const url = new URL(`${nessieUrl}/trees/${encodeURIComponent(name)}`)
-        url.searchParams.set('expectedHash', hash)
-
-        const response = await fetch(url.toString(), {
-          method: 'DELETE',
-          signal: AbortSignal.timeout(10000),
-        })
-
-        if (!response.ok) {
-          const errorText = await response.text()
-          return { error: `Failed to delete branch: ${errorText}` }
-        }
-
-        return { success: true }
+        return await apiDelete<{ success: boolean } | { error: string }>(
+          `/api/nessie/branches/${encodeURIComponent(name)}`,
+          { expected_hash: hash },
+        )
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -383,63 +279,14 @@ export const mergeBranch = createServerFn()
   )
   .handler(
     async ({
-      data: { fromBranch, intoBranch, message, nessieUrl: nessieUrlOverride },
+      data: { fromBranch, intoBranch, message },
     }): Promise<{ success: boolean; hash?: string } | { error: string }> => {
-      const nessieUrl = resolveNessieUrl(nessieUrlOverride)
-
       try {
-        // Get source branch hash
-        const sourceResponse = await fetch(
-          `${nessieUrl}/trees/${encodeURIComponent(fromBranch)}`,
-          {
-            signal: AbortSignal.timeout(5000),
-          },
+        return await apiPost<
+          { success: boolean; hash?: string } | { error: string }
+        >(
+          `/api/nessie/merge?from_branch=${encodeURIComponent(fromBranch)}&into_branch=${encodeURIComponent(intoBranch)}${message ? `&message=${encodeURIComponent(message)}` : ''}`,
         )
-
-        if (!sourceResponse.ok) {
-          return { error: `Source branch '${fromBranch}' not found` }
-        }
-
-        const sourceBranch = await sourceResponse.json()
-
-        // Get target branch hash
-        const targetResponse = await fetch(
-          `${nessieUrl}/trees/${encodeURIComponent(intoBranch)}`,
-          {
-            signal: AbortSignal.timeout(5000),
-          },
-        )
-
-        if (!targetResponse.ok) {
-          return { error: `Target branch '${intoBranch}' not found` }
-        }
-
-        const targetBranch = await targetResponse.json()
-
-        // Perform merge
-        const url = new URL(
-          `${nessieUrl}/trees/${encodeURIComponent(intoBranch)}/history/merge`,
-        )
-        url.searchParams.set('expectedHash', targetBranch.hash)
-
-        const mergeResponse = await fetch(url.toString(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fromRefName: fromBranch,
-            fromHash: sourceBranch.hash,
-            message: message || `Merge ${fromBranch} into ${intoBranch}`,
-          }),
-          signal: AbortSignal.timeout(10000),
-        })
-
-        if (!mergeResponse.ok) {
-          const errorText = await mergeResponse.text()
-          return { error: `Merge failed: ${errorText}` }
-        }
-
-        const result = await mergeResponse.json()
-        return { success: true, hash: result.resultantTargetHash }
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',

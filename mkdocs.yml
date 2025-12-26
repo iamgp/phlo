@@ -54,9 +54,9 @@ nav:
       - Architecture: architecture.md
       - Configuration: configuration.md
   - Guides:
-       - API: API.md
-       - DuckDB Iceberg Queries: duckdb-iceberg-queries.md
-       - Hasura Setup: HASURA_SETUP.md
-       - Observability: OBSERVABILITY.md
+      - API: API.md
+      - DuckDB Iceberg Queries: duckdb-iceberg-queries.md
+      - Hasura Setup: HASURA_SETUP.md
+      - Observability: OBSERVABILITY.md
   - API Reference: api/
   - Code Reference: reference/

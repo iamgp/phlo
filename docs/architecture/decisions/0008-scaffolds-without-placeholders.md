@@ -28,4 +28,3 @@ All `phlo` scaffolding commands should:
 - Scaffolds are more reliable and reduce follow-up manual work.
 - Users may need to supply more inputs up front (a deliberate tradeoff).
 - Template logic must remain strict to prevent regressions into placeholder output.
-

@@ -20,7 +20,7 @@ class PrometheusServicePlugin(ServicePlugin):
             version="0.1.0",
             description="Metrics collection and monitoring",
             author="Phlo Team",
-            tags=['observability', 'metrics'],
+            tags=["observability", "metrics"],
         )
 
     @property

@@ -701,7 +701,7 @@ export function RowJourney({
         const [assetInfo, qualityInfo] = await Promise.all([
           getAssetDetails({
             data: {
-              assetKeyPath: selectedNode!,
+              assetKey: selectedNode!.split('/'),
               dagsterUrl: settings.connections.dagsterGraphqlUrl,
             },
           }),

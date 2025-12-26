@@ -58,7 +58,7 @@ def validate_with_pandera(
 
 ### 2. Remove Deprecated Code
 
-Remove `add_phlo_timestamp` from `phlo.ingestion.dlt_helpers`. All ingestion paths should now use `inject_metadata_columns` which handles `_phlo_row_id` generation and other metadata consistently.
+Remove `add_phlo_timestamp` from `phlo_dlt.phlo_ingestion.dlt_helpers`. All ingestion paths should now use `inject_metadata_columns` which handles `_phlo_row_id` generation and other metadata consistently.
 
 ## Consequences
 
@@ -81,7 +81,6 @@ Remove `add_phlo_timestamp` from `phlo.ingestion.dlt_helpers`. All ingestion pat
 ### Automated Tests
 
 1.  **Strict Validation Tests**:
-
     - Verify `phlo_ingestion(..., strict_validation=True)` raises Failure on invalid data.
     - Verify `phlo_ingestion(..., strict_validation=False)` does NOT raise Failure but reports failed check.
     - Verify `validate_with_pandera(..., strict=True)` raises Exception.

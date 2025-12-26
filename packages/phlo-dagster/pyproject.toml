@@ -14,7 +14,9 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
+    "dagster-graphql",
     "pyyaml>=6.0.1",
+    "requests",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +28,9 @@ dev = [
 [project.entry-points."phlo.plugins.services"]
 dagster = "phlo_dagster.plugin:DagsterServicePlugin"
 dagster-daemon = "phlo_dagster.plugin:DagsterDaemonServicePlugin"
+
+[project.entry-points."phlo.plugins.cli"]
+dagster = "phlo_dagster.cli_plugin:DagsterCliPlugin"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

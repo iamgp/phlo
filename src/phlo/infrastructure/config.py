@@ -14,11 +14,7 @@ from typing import Optional
 import yaml
 from pydantic import ValidationError
 
-from phlo.config_schema import (
-    InfrastructureConfig,
-    ServiceConfig,
-    get_default_infrastructure_config,
-)
+from phlo.config_schema import InfrastructureConfig, ServiceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -32,24 +28,24 @@ def load_infrastructure_config(project_root: Optional[Path] = None) -> Infrastru
     config_path = project_root / "phlo.yaml"
 
     if not config_path.exists():
-        return get_default_infrastructure_config()
+        return InfrastructureConfig()
 
     try:
         with open(config_path) as f:
             project_config = yaml.safe_load(f)
 
         if not project_config:
-            return get_default_infrastructure_config()
+            return InfrastructureConfig()
 
         infra_config_data = project_config.get("infrastructure", {})
 
         if not infra_config_data:
-            return get_default_infrastructure_config()
+            return InfrastructureConfig()
 
         return InfrastructureConfig(**infra_config_data)
 
     except (yaml.YAMLError, ValidationError):
-        return get_default_infrastructure_config()
+        return InfrastructureConfig()
 
 
 def get_project_name_from_config(project_root: Optional[Path] = None) -> Optional[str]:
