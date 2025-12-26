@@ -20,7 +20,7 @@ class PgwebServicePlugin(ServicePlugin):
             version="0.1.0",
             description="Web-based PostgreSQL database browser",
             author="Phlo Team",
-            tags=['admin', 'postgres', 'ui'],
+            tags=["admin", "postgres", "ui"],
         )
 
     @property

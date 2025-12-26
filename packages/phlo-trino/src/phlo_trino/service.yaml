@@ -39,3 +39,5 @@ env_vars:
 files:
   - source: catalog/iceberg.properties
     dest: trino/catalog/iceberg.properties
+  - source: catalog/iceberg_dev.properties
+    dest: trino/catalog/iceberg_dev.properties

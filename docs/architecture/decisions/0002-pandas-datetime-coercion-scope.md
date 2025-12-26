@@ -34,4 +34,3 @@ All other columns are left untouched and Pandera validation remains the source o
 - Performance improves on wide tables where only a small number of datetime columns exist.
 - Some dirty-but-coercible values may still pass; this remains a schema design choice (strictness
   should live in the schema, not hidden coercion logic).
-

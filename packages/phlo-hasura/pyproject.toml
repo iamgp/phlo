@@ -26,6 +26,9 @@ dev = [
 [project.entry-points."phlo.plugins.services"]
 hasura = "phlo_hasura.plugin:HasuraServicePlugin"
 
+[project.entry-points."phlo.plugins.cli"]
+hasura = "phlo_hasura.cli_plugin:HasuraCliPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

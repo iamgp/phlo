@@ -30,4 +30,3 @@ Implement `phlo publishing scaffold` that:
 - Publishing config stays in sync with dbt with low manual effort.
 - The scaffold must be careful about merge semantics; “preserve edits” becomes a contract.
 - The CLI depends on dbt artifacts being present (manifest generation becomes part of workflow).
-

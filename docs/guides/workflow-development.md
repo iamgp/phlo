@@ -29,6 +29,7 @@ This guide walks you through creating a complete data pipeline from scratch. We'
 ### What We're Building
 
 A weather data pipeline that:
+
 1. Fetches weather data from OpenWeather API
 2. Stores raw data in Iceberg (Bronze)
 3. Cleans and standardizes data (Silver)
@@ -83,7 +84,7 @@ First, let's define what our data looks like.
 
 ### 1.1 Create Schema Definition
 
-Create a new file: `src/phlo/schemas/weather.py`
+Create a new file: `workflows/schemas/weather.py`
 
 ```python
 """Schema definitions for weather data."""
@@ -146,15 +147,16 @@ class WeatherReadingSchema(pa.DataFrameModel):
 ```
 
 **What this does:**
+
 - Defines the structure of our data
 - Validates data types
 - Adds constraints (e.g., humidity 0-100%)
 - Documents each field
 - Enables automatic testing
 
-### 1.2 Create Iceberg Table Schema
+### 1.2 Create Iceberg Table Schema (Optional)
 
-Create: `src/phlo/iceberg/schemas/weather.py`
+Create: `workflows/schemas/iceberg_weather.py`
 
 ```python
 """Iceberg table schemas for weather data."""
@@ -209,24 +211,7 @@ Now let's fetch data from the OpenWeather API and store it in Iceberg.
 
 ### 2.1 Add API Configuration
 
-Edit `src/phlo/config.py` and add:
-
-```python
-class PhloConfig(BaseSettings):
-    # ... existing config ...
-
-    # Weather API
-    openweather_api_key: str = Field(
-        default="",
-        description="OpenWeather API key"
-    )
-    openweather_cities: str = Field(
-        default="London,GB;New York,US;Tokyo,JP",
-        description="Semicolon-separated list of city,country pairs"
-    )
-```
-
-### 2.2 Add to `.env`
+Add your API configuration to `.env`:
 
 ```bash
 # Weather API Configuration
@@ -234,11 +219,12 @@ OPENWEATHER_API_KEY=your_api_key_here
 OPENWEATHER_CITIES=London,GB;New York,US;Tokyo,JP;Sydney,AU
 ```
 
-### 2.3 Create the Ingestion Asset
+### 2.2 Create the Ingestion Asset
 
-Create: `src/phlo/defs/ingestion/weather_assets.py`
+Create: `workflows/ingestion/weather_assets.py`
 
 **Important:** We use **DLT (Data Load Tool)** for ingestion, following Phlo's established pattern. DLT handles:
+
 - Robust data loading with retries
 - Schema inference and validation
 - Parquet file staging
@@ -259,9 +245,9 @@ import dlt
 import requests
 
 from phlo.config import config
-from phlo.defs.resources.iceberg import IcebergResource
-from phlo.schemas.weather import WeatherObservationSchema
-from phlo.iceberg.schemas.weather import WEATHER_OBSERVATION_SCHEMA
+from phlo_iceberg.resource import IcebergResource
+from workflows.schemas.weather import WeatherObservationSchema
+from workflows.schemas.iceberg_weather import WEATHER_OBSERVATION_SCHEMA
 
 
 @dg.asset(
@@ -460,27 +446,9 @@ def build_weather_ingestion_defs() -> dg.Definitions:
     )
 ```
 
-### 2.4 Register the Asset
+### 2.4 Registration
 
-Edit `src/phlo/defs/ingestion/__init__.py`:
-
-```python
-"""Ingestion assets module."""
-
-import dagster as dg
-
-from .dlt_assets import build_dlt_defs
-from .github_assets import build_github_ingestion_defs
-from .weather_assets import build_weather_ingestion_defs  # Add this
-
-def build_ingestion_defs() -> dg.Definitions:
-    """Build all ingestion definitions."""
-    return dg.Definitions.merge(
-        build_dlt_defs(),
-        build_github_ingestion_defs(),
-        build_weather_ingestion_defs(),  # Add this
-    )
-```
+No manual registration is needed. Phlo discovers all Python files under `workflows/` automatically.
 
 ### 2.5 Test the Ingestion
 
@@ -493,16 +461,18 @@ docker-compose restart dagster-webserver dagster-daemon
 # Click "Materialize"
 
 # Or use CLI
-dagster asset materialize -m phlo.definitions -a dlt_weather_data
+dagster asset materialize -m phlo.framework.definitions -a dlt_weather_data
 ```
 
 **What just happened?**
+
 1. Fetched weather data from the OpenWeather API
 2. DLT staged the data to local parquet files with schema validation
 3. PyIceberg appended the parquet to the Iceberg table
 4. Nessie catalog updated with the new snapshot
 
 **Why DLT?**
+
 - Consistent with the glucose example pattern (`dlt_glucose_entries`)
 - Handles schema evolution automatically
 - Robust parquet file generation with proper typing
@@ -511,6 +481,7 @@ dagster asset materialize -m phlo.definitions -a dlt_weather_data
 - Matches established Phlo pattern for all ingestion assets
 
 **Verify:**
+
 ```sql
 -- Connect to Trino
 docker-compose exec trino trino
@@ -618,6 +589,7 @@ SELECT * FROM cleaned
 ```
 
 **What this does:**
+
 - Standardizes column names (e.g., `temperature` → `temperature_c`)
 - Converts types explicitly
 - Rounds numeric values
@@ -757,6 +729,7 @@ SELECT * FROM enriched
 ```
 
 **What this does:**
+
 - Converts Celsius to Fahrenheit
 - Categorizes temperature (Freezing/Cold/Mild/Warm/Hot)
 - Calculates comfort level
@@ -792,7 +765,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Freezing', 'Cold', 'Mild', 'Warm', 'Hot']
+              values: ["Freezing", "Cold", "Mild", "Warm", "Hot"]
 
       - name: is_daytime
         description: "True if observation during daylight"
@@ -1054,7 +1027,7 @@ Quality checks ensure your data meets expectations.
 
 ### 7.1 Create Quality Check Asset
 
-Create: `src/phlo/defs/quality/weather.py`
+Create: `workflows/quality/weather.py`
 
 ```python
 """Data quality checks for weather pipeline."""
@@ -1063,8 +1036,8 @@ import dagster as dg
 import pandas as pd
 from dagster_pandera import pandera_schema_to_dagster_type
 
-from phlo.schemas.weather import WeatherObservationSchema, WeatherReadingSchema
-from phlo.defs.resources import TrinoResource
+from workflows.schemas.weather import WeatherObservationSchema, WeatherReadingSchema
+from phlo_trino.resource import TrinoResource
 
 
 @dg.asset(
@@ -1178,27 +1151,9 @@ def build_weather_quality_defs() -> dg.Definitions:
     )
 ```
 
-### 7.2 Register Quality Checks
+### 7.2 Quality Check Discovery
 
-Edit `src/phlo/defs/quality/__init__.py`:
-
-```python
-"""Quality check assets module."""
-
-import dagster as dg
-
-from .nightscout import build_nightscout_quality_defs
-from .github import build_github_quality_defs
-from .weather import build_weather_quality_defs  # Add this
-
-def build_quality_defs() -> dg.Definitions:
-    """Build all quality check definitions."""
-    return dg.Definitions.merge(
-        build_nightscout_quality_defs(),
-        build_github_quality_defs(),
-        build_weather_quality_defs(),  # Add this
-    )
-```
+No manual registration is needed. Phlo discovers quality workflows under `workflows/quality/`.
 
 ---
 
@@ -1208,7 +1163,7 @@ Configure which tables get published to PostgreSQL for BI tools.
 
 ### 8.1 Update Publishing Config
 
-Edit: `src/phlo/defs/publishing/config.yaml`
+Edit: `workflows/publishing/config.yaml`
 
 ```yaml
 # Existing configurations...
@@ -1221,7 +1176,7 @@ weather:
       postgres_table: "mrt_weather_overview"
       postgres_schema: "marts"
       description: "Daily weather summary by location"
-      mode: "replace"  # Options: replace, append, upsert
+      mode: "replace" # Options: replace, append, upsert
 
     - iceberg_table: "marts.mrt_recent_weather"
       postgres_table: "mrt_recent_weather"
@@ -1235,8 +1190,9 @@ weather:
 The publishing asset is already generic and will pick up your config automatically. Just ensure it runs after your dbt models.
 
 Test it:
+
 ```bash
-dagster asset materialize -m phlo.definitions -a publish_postgres_marts
+dagster asset materialize -m phlo.framework.definitions -a publish_postgres_marts
 ```
 
 ---
@@ -1247,7 +1203,7 @@ Schedule your pipeline to run automatically.
 
 ### 9.1 Create Schedule
 
-Edit: `src/phlo/defs/schedules/schedules.py`
+Edit: `workflows/schedules/schedules.py`
 
 ```python
 # Add to existing schedules
@@ -1312,7 +1268,7 @@ def weather_freshness_sensor(context: dg.SensorEvaluationContext):
 
 ```bash
 # Materialize all weather assets
-dagster asset materialize -m phlo.definitions \
+dagster asset materialize -m phlo.framework.definitions \
   --select "tag:weather"
 
 # Or use Dagster UI:
@@ -1468,6 +1424,7 @@ def get_api_client():
 🎉 **Congratulations!** You've built a complete data pipeline from scratch.
 
 **What you've learned:**
+
 - ✅ Define schemas
 - ✅ Create ingestion assets
 - ✅ Build Bronze/Silver/Gold layers with dbt
@@ -1477,12 +1434,14 @@ def get_api_client():
 - ✅ Create BI dashboards
 
 **Continue learning:**
+
 - [Data Modeling Guide](data-modeling.md) - Best practices for schema design
 - [Dagster Assets Tutorial](dagster-assets.md) - Advanced orchestration patterns
 - [dbt Development Guide](dbt-development.md) - Advanced SQL techniques
 - [Troubleshooting Guide](../operations/troubleshooting.md) - Debug common issues
 
 **Try these challenges:**
+
 1. Add more cities to monitor
 2. Create hourly aggregations
 3. Add weather alerts (e.g., temperature > 35°C)

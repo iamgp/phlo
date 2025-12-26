@@ -24,8 +24,8 @@ This decision is tracked and implemented by bead `phlo-nwk.3.5` (closed).
 
 - Add `phlo schema generate`:
   - Accepts a Python reference to either:
-    - a *callable* returning a DLT source/resource (or iterable of records), or
-    - a Dagster `AssetsDefinition` created via `@phlo.ingestion`, from which we extract the wrapped
+    - a _callable_ returning a DLT source/resource (or iterable of records), or
+    - a Dagster `AssetsDefinition` created via `@phlo_ingestion`, from which we extract the wrapped
       source-building function.
   - Executes a bounded “sample run” to a local filesystem destination and reads DLT’s inferred
     schema from the resulting pipeline schema.

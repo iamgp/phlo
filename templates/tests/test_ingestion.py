@@ -15,10 +15,10 @@ import pytest
 
 # TODO: Update these imports to match your asset and schema
 # Example:
-# from phlo.defs.ingestion.weather.observations import weather_observations
-# from phlo.schemas.weather import RawWeatherData
-from phlo.defs.ingestion.example.data import example_data_ingestion
-from phlo.schemas.example import RawExampleData
+# from workflows.ingestion.weather.observations import weather_observations
+# from workflows.schemas.weather import RawWeatherData
+from workflows.ingestion.example.data import example_data_ingestion
+from workflows.schemas.example import RawExampleData
 
 
 class TestSchemaValidation:
@@ -129,7 +129,7 @@ class TestAssetExecution:
     Test asset execution.
 
     Note: These tests require mocking DLT, Iceberg, and Dagster context.
-    In production, consider using phlo.testing utilities (when available).
+    In production, consider using phlo_testing utilities (when available).
     """
 
     @pytest.mark.skip(reason="Requires full Docker stack or extensive mocking")
@@ -137,9 +137,9 @@ class TestAssetExecution:
         """
         Test asset execution with mocked dependencies.
 
-        TODO: Implement once phlo.testing module is available:
+        TODO: Implement once phlo_testing module is available:
 
-        from phlo.testing import mock_dlt_source, mock_iceberg_catalog
+        from phlo_testing import mock_dlt_source, mock_iceberg_catalog
 
         def test_execution():
             with mock_dlt_source(data=[...]) as source:
@@ -334,6 +334,6 @@ def sample_invalid_data():
 #    - Track test coverage
 #
 # 6. Expand test coverage:
-#    - Add integration tests when phlo.testing is available
+#    - Add integration tests when phlo_testing is available
 #    - Test edge cases and error conditions
 #    - Test data transformations and business logic

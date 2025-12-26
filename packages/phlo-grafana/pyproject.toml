@@ -34,7 +34,12 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_grafana = ['service.yaml', 'provisioning/datasources/datasources.yml']
+phlo_grafana = [
+    'service.yaml',
+    'provisioning/datasources/datasources.yml',
+    'provisioning/dashboards/dashboards.yml',
+    'dashboards/*.json',
+]
 
 [tool.ruff]
 line-length = 100

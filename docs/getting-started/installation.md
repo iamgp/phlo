@@ -5,12 +5,14 @@ Complete guide to installing and setting up Phlo on your system.
 ## Prerequisites
 
 ### Required
+
 - **Docker**: Version 20.10 or later
 - **Docker Compose**: Version 2.0 or later
 - **Python**: 3.11 or later (for CLI usage)
 - **Git**: For cloning the repository
 
 ### Recommended
+
 - **uv**: Fast Python package installer (optional, but recommended)
 - **Make**: For using convenience commands
 - **8GB RAM**: Minimum for running all services
@@ -124,6 +126,7 @@ phlo services start
 ```
 
 This starts:
+
 - PostgreSQL (port 10000)
 - MinIO (ports 10001-10002)
 - Nessie (port 10003)
@@ -140,6 +143,7 @@ phlo services status
 ```
 
 Expected output:
+
 ```
 SERVICE              STATUS    PORTS
 postgres             running   10000
@@ -151,6 +155,7 @@ dagster-daemon       running
 ```
 
 Access Dagster UI:
+
 ```bash
 # Open in browser
 open http://localhost:10006
@@ -173,10 +178,11 @@ Or use the Dagster UI to materialize assets.
 Mount local source code for development:
 
 ```bash
-phlo services start --dev
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start
 ```
 
-This rebuilds containers using `Dockerfile.dev` with local source mounted.
+This mounts the phlo monorepo into the Dagster container and installs `phlo[defaults]` as an editable install.
 
 ### With Optional Services
 
@@ -200,21 +206,26 @@ For production deployments, see the [Production Deployment Guide](../operations/
 ## Verify Components
 
 ### PostgreSQL
+
 ```bash
 docker exec -it phlo-postgres-1 psql -U postgres
 ```
 
 ### MinIO
+
 Open http://localhost:10001 in browser
+
 - Username: minioadmin
 - Password: minioadmin
 
 ### Nessie
+
 ```bash
 curl http://localhost:10003/api/v2/config
 ```
 
 ### Trino
+
 ```bash
 docker exec -it phlo-trino-1 trino
 ```
@@ -224,11 +235,13 @@ docker exec -it phlo-trino-1 trino
 ### Services won't start
 
 Check Docker is running:
+
 ```bash
 docker ps
 ```
 
 View logs:
+
 ```bash
 phlo services logs -f
 ```
@@ -236,6 +249,7 @@ phlo services logs -f
 ### Port conflicts
 
 If ports are already in use, edit `.env` to change port numbers:
+
 ```bash
 POSTGRES_PORT=15432
 MINIO_PORT=19000
@@ -245,12 +259,14 @@ MINIO_PORT=19000
 ### Insufficient resources
 
 Ensure Docker has enough resources:
+
 - **Docker Desktop**: Settings → Resources → 8GB RAM minimum
 - **Linux**: Check `docker info` for resource limits
 
 ### Permission errors
 
 On Linux, you may need to fix permissions:
+
 ```bash
 sudo chown -R $USER:$USER .phlo/
 ```
@@ -268,6 +284,7 @@ phlo services stop --volumes
 ```
 
 Remove Phlo directory:
+
 ```bash
 cd ..
 rm -rf phlo

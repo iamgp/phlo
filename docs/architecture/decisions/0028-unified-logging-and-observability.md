@@ -63,7 +63,7 @@ return withTiming(
   async () => {
     // logic
   },
-  { catalog, run_id }
+  { catalog, run_id },
 );
 ```
 

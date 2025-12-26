@@ -20,7 +20,7 @@ class HasuraServicePlugin(ServicePlugin):
             version="0.1.0",
             description="GraphQL API engine with real-time subscriptions",
             author="Phlo Team",
-            tags=['api', 'graphql'],
+            tags=["api", "graphql"],
         )
 
     @property

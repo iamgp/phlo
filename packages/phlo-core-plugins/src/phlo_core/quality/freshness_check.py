@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo.quality.checks import FreshnessCheck
+from phlo_quality.checks import FreshnessCheck
 
 
 class FreshnessCheckPlugin(QualityCheckPlugin):

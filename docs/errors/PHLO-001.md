@@ -6,53 +6,51 @@
 
 ## Description
 
-This error occurs when Dagster cannot discover your asset definitions. Phlo uses Python decorators like `@phlo.ingestion` to define assets, and Dagster needs to be able to find and load these definitions.
+This error occurs when Dagster cannot discover your asset definitions. Phlo uses Python decorators like `@phlo_ingestion` to define assets, and Dagster needs to be able to find and load these definitions.
 
 ## Common Causes
 
-1. **Asset not imported in definitions.py**
-   - Your asset module is not imported in the Dagster definitions file
-   - Dagster cannot discover assets that aren't imported
+1. **Workflow file not in the workflows path**
+   - Asset lives outside the configured `workflows/` directory
+   - `PHLO_WORKFLOWS_PATH` points to the wrong location
 
 2. **Incorrect decorator usage**
-   - Missing `@phlo.ingestion` decorator
-   - Decorator applied to non-function object
+   - Missing `@phlo_ingestion` or `@phlo_quality` decorator
+   - Decorator applied to a non-function object
 
 3. **Import errors in asset module**
    - Syntax errors preventing module import
    - Missing dependencies
    - Circular import issues
 
-4. **Asset definition outside of tracked paths**
-   - Asset defined in directory not scanned by Dagster
-   - Custom asset location not registered
+4. **Dagster not loading `phlo.framework.definitions`**
+   - Workspace points at the wrong module
+   - Dagster is not using `phlo.framework.definitions` as the entry point
 
 ## Solutions
 
-### Solution 1: Import asset in definitions.py
+### Solution 1: Verify workflow placement
 
-Ensure your asset is imported in `src/phlo/definitions.py`:
+Ensure your workflow module is under the configured workflows path (default: `workflows/`):
 
-```python
-# definitions.py
-from phlo.defs.ingestion.weather.observations import weather_observations_asset
-
-defs = dg.Definitions(
-    assets=[weather_observations_asset],
-    # ... other definitions
-)
+```
+workflows/
+└── ingestion/
+    └── weather/
+        └── observations.py
 ```
 
-### Solution 2: Use build_defs() pattern
+If you use a custom workflows directory, set `PHLO_WORKFLOWS_PATH` or update `phlo.yaml`.
 
-If using the domain-based organization, ensure `build_defs()` is called:
+### Solution 2: Ensure Dagster loads phlo.framework.definitions
 
-```python
-# src/phlo/defs/ingestion/weather/__init__.py
-from phlo.defs.ingestion.weather.observations import build_defs
+Your Dagster workspace should point at `phlo.framework.definitions`:
 
-# Export build_defs so it can be discovered
-__all__ = ["build_defs"]
+```yaml
+# workspace.yaml
+load_from:
+  - python_module:
+      module_name: phlo.framework.definitions
 ```
 
 ### Solution 3: Check for import errors
@@ -60,7 +58,7 @@ __all__ = ["build_defs"]
 Test that your asset module can be imported:
 
 ```bash
-python -c "from phlo.defs.ingestion.weather.observations import weather_observations_asset"
+python -c "from workflows.ingestion.weather.observations import weather_observations_asset"
 ```
 
 If you see an error, fix the import issue first.
@@ -71,9 +69,9 @@ Ensure you're using the decorator correctly:
 
 ```python
 import phlo
-from phlo.schemas.weather import WeatherObservations
+from workflows.schemas.weather import WeatherObservations
 
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -84,38 +82,30 @@ def weather_observations(partition: str):
 
 ## Examples
 
-### ❌ Incorrect: Asset not imported
+### ❌ Incorrect: Asset outside workflows path
 
-```python
-# definitions.py
-defs = dg.Definitions(
-    assets=[],  # Empty! Asset not imported
-)
+```
+custom_assets/observations.py  # Not under workflows/
 ```
 
-### ✅ Correct: Asset properly imported
+### ✅ Correct: Asset under workflows path
 
-```python
-# definitions.py
-from phlo.defs.ingestion.weather.observations import weather_observations
-
-defs = dg.Definitions(
-    assets=[weather_observations],
-)
+```
+workflows/ingestion/weather/observations.py
 ```
 
 ### ❌ Incorrect: Missing decorator
 
 ```python
 def weather_observations(partition: str):
-    # Missing @phlo.ingestion decorator
+    # Missing @phlo_ingestion decorator
     return fetch_weather_data(partition)
 ```
 
 ### ✅ Correct: Decorator applied
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="observation_id",
     validation_schema=WeatherObservations,
 )
@@ -126,24 +116,27 @@ def weather_observations(partition: str):
 ## Debugging Steps
 
 1. **Check Dagster UI logs**
+
    ```bash
    docker logs dagster-webserver
    ```
 
 2. **List all discovered assets**
+
    ```bash
    dagster asset list
    ```
 
 3. **Test asset import directly**
+
    ```python
-   from phlo.defs.ingestion.weather.observations import weather_observations
+   from workflows.ingestion.weather.observations import weather_observations
    print(f"Asset discovered: {weather_observations}")
    ```
 
 4. **Check for circular imports**
    ```bash
-   python -m py_compile src/phlo/defs/ingestion/weather/observations.py
+   python -m py_compile workflows/ingestion/weather/observations.py
    ```
 
 ## Related Errors
@@ -153,15 +146,16 @@ def weather_observations(partition: str):
 
 ## Prevention
 
-1. **Use consistent import patterns**
-   - Always import assets in definitions.py
+1. **Use consistent workflow placement**
+   - Keep assets under `workflows/`
    - Follow the domain-based organization structure
 
 2. **Test imports in CI/CD**
+
    ```python
    # tests/test_asset_discovery.py
    def test_all_assets_importable():
-       from phlo.definitions import defs
+       from phlo.framework.definitions import defs
        assert len(defs.assets) > 0
    ```
 

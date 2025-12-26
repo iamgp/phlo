@@ -32,4 +32,3 @@ Adopt a shared severity mapping:
 - Users get sensible defaults without needing to annotate every test.
 - Teams can still override per-test behavior via tags.
 - Consumers (Observatory, sensors) can treat WARN and ERROR differently without custom heuristics.
-

@@ -20,7 +20,7 @@ class PostgrestServicePlugin(ServicePlugin):
             version="0.1.0",
             description="RESTful API automatically generated from PostgreSQL schema",
             author="Phlo Team",
-            tags=['api', 'rest'],
+            tags=["api", "rest"],
         )
 
     @property

@@ -32,4 +32,3 @@ issued from the UI.
 - Observatory stays Dagster-check-native and does not need to understand Pandera/dbt internals.
 - Caching improves perceived performance but introduces brief staleness (acceptable for monitoring).
 - Deep linking depends on stable URL and query-handling semantics in the Data Explorer.
-

@@ -3,6 +3,7 @@
 We have our lakehouse infrastructure. Now: **how does data actually get in?**
 
 Phlo uses a two-step pattern:
+
 1. **DLT (Data Load Tool)**: Fetch and stage data
 2. **PyIceberg**: Merge staged data into Iceberg tables
 
@@ -27,30 +28,32 @@ Two Steps (Safe)
 ```
 
 The two-step pattern ensures:
--  If network fails during fetch → restart from API
+
+- If network fails during fetch → restart from API
 - 📦 If staging fails → S3 has backup
--  If merge fails → can retry with same data
--  Idempotent: run multiple times safely
+- If merge fails → can retry with same data
+- Idempotent: run multiple times safely
 
 ## Step 1: DLT (Data Load Tool)
 
 DLT is a Python library that:
+
 - Fetches data from sources
 - Normalizes schema (makes consistent)
 - Stages to parquet files
 
-### The @phlo.ingestion Decorator
+### The @phlo_ingestion Decorator
 
-Phlo provides the `@phlo.ingestion` decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:
+Phlo provides the `@phlo_ingestion` decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:
 
 ```python
-# From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -103,7 +106,7 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-### What @phlo.ingestion Does
+### What @phlo_ingestion Does
 
 The decorator handles all the complexity:
 
@@ -123,7 +126,7 @@ Phlo supports two merge strategies, allowing you to optimize for different data 
 Best for immutable event streams where you never update existing records:
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="api_events",
     unique_key="event_id",
     validation_schema=EventSchema,
@@ -135,12 +138,14 @@ def api_events(partition_date: str):
 ```
 
 **Characteristics:**
+
 - Fastest performance (no deduplication overhead)
 - No checking for duplicates
 - Simply appends all new records
 - **Use for**: Server logs, clickstream events, time-series sensor data, immutable audit trails
 
 **Trade-offs:**
+
 - If you accidentally run the same partition twice, you'll get duplicates
 - No way to update existing records
 - Requires careful pipeline design to avoid re-runs
@@ -150,7 +155,7 @@ def api_events(partition_date: str):
 Best for dimension tables and data that may need updates:
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="user_profiles",
     unique_key="user_id",
     validation_schema=UserSchema,
@@ -165,17 +170,21 @@ def user_profiles(partition_date: str):
 **Deduplication Strategies:**
 
 1. **`last` (default)**: Keep the most recent occurrence
+
    ```python
    merge_config={"deduplication_method": "last"}
    ```
+
    - Based on insertion order during the pipeline run
    - Most common choice for dimension tables
    - Example: User profile updates (keep latest email, phone, etc.)
 
 2. **`first`**: Keep the earliest occurrence
+
    ```python
    merge_config={"deduplication_method": "first"}
    ```
+
    - Useful when first value is authoritative
    - Example: Initial signup timestamp, first purchase date
 
@@ -183,30 +192,33 @@ def user_profiles(partition_date: str):
    ```python
    merge_config={"deduplication_method": "hash"}
    ```
+
    - Compares full record content, not just timestamp
    - Useful when you want to detect actual data changes
    - Example: Configuration snapshots (only update if content differs)
 
 **Characteristics:**
+
 - Performs upsert: UPDATE if `unique_key` exists, INSERT if new
 - Removes duplicates within the same batch
 - Idempotent: running multiple times produces same result
 - **Use for**: User profiles, product catalogs, reference data, slowly changing dimensions
 
 **Trade-offs:**
+
 - Slower than append (requires deduplication logic)
 - More memory usage during merge
 - Worth it for data correctness
 
 #### Strategy Comparison
 
-| Aspect | Append | Merge (last) | Merge (first) | Merge (hash) |
-|--------|--------|--------------|---------------|--------------|
-| **Performance** | Fastest | Medium | Medium | Slowest |
-| **Deduplication** | None | By order | By order | By content |
-| **Idempotency** | No | Yes | Yes | Yes |
-| **Updates** | No | Yes (keeps latest) | No (keeps first) | Yes (if changed) |
-| **Use Case** | Logs, events | Dimensions | Historical records | Config snapshots |
+| Aspect            | Append       | Merge (last)       | Merge (first)      | Merge (hash)     |
+| ----------------- | ------------ | ------------------ | ------------------ | ---------------- |
+| **Performance**   | Fastest      | Medium             | Medium             | Slowest          |
+| **Deduplication** | None         | By order           | By order           | By content       |
+| **Idempotency**   | No           | Yes                | Yes                | Yes              |
+| **Updates**       | No           | Yes (keeps latest) | No (keeps first)   | Yes (if changed) |
+| **Use Case**      | Logs, events | Dimensions         | Historical records | Config snapshots |
 
 #### Real-World Example: Glucose Data
 
@@ -217,7 +229,7 @@ The glucose ingestion uses merge strategy because:
 3. **Idempotency**: We want `materialize --partition 2024-10-15` to be safe to run multiple times
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",              # Nightscout's unique entry ID
     merge_strategy="merge",        # Upsert mode
@@ -228,6 +240,7 @@ The glucose ingestion uses merge strategy because:
 ```
 
 If we used `append` strategy instead:
+
 - Running the same partition twice would create duplicates
 - Corrected readings wouldn't update (you'd have both old and new)
 - dbt transformations downstream would need to handle deduplication
@@ -261,14 +274,15 @@ Parquet file with columns:
 ```
 
 DLT automatically:
--  Infers column types
+
+- Infers column types
 - 🚫 Handles nulls
 - 📛 Renames fields (snake_case)
--  Validates structure
+- Validates structure
 
 ### Pandera Schema Validation
 
-The validation schema is defined in `examples/glucose-platform/workflows/schemas/nightscout.py`:
+The validation schema is defined in `phlo-examples/nightscout/workflows/schemas/nightscout.py`:
 
 ```python
 # From workflows/schemas/nightscout.py
@@ -323,6 +337,7 @@ class RawGlucoseEntries(DataFrameModel):
 ## Step 2: PyIceberg (Merge into Lakehouse)
 
 PyIceberg is the Python client for Iceberg. It:
+
 - Loads the staged parquet
 - Creates/updates Iceberg table
 - Performs idempotent merge (upsert)
@@ -332,7 +347,7 @@ PyIceberg is the Python client for Iceberg. It:
 First, ensure the table exists:
 
 ```python
-# From src/phlo/iceberg/tables.py
+# From packages/phlo-iceberg/src/phlo_iceberg/tables.py
 
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, IntegerType, TimestampType
@@ -354,6 +369,7 @@ catalog.create_table(
 ```
 
 Result in MinIO:
+
 ```
 s3://lake/warehouse/raw/glucose_entries/
 ├── metadata/
@@ -366,7 +382,7 @@ s3://lake/warehouse/raw/glucose_entries/
 Now merge staged parquet into Iceberg:
 
 ```python
-# From src/phlo/defs/resources/iceberg.py
+# From workflows/resources/iceberg.py
 
 def merge_parquet(
     self,
@@ -376,22 +392,22 @@ def merge_parquet(
 ) -> dict:
     """
     Merge parquet file into Iceberg table (idempotent upsert).
-    
+
     Args:
         table_name: "raw.glucose_entries"
         data_path: "/path/to/data.parquet"
         unique_key: Column to deduplicate on
-        
+
     Returns:
         Metrics: rows_inserted, rows_deleted, etc.
     """
-    
+
     # Load table
     table = self.catalog.load_table(table_name)
-    
+
     # Read new data from parquet
     new_df = read_parquet(data_path)
-    
+
     # SQL merge operation:
     # - If _id exists: delete old, insert new (deduplication)
     # - If _id new: insert it
@@ -402,9 +418,9 @@ def merge_parquet(
     WHEN MATCHED THEN DELETE
     WHEN NOT MATCHED THEN INSERT *
     """
-    
+
     result = self.trino.execute(merge_query)
-    
+
     return {
         'rows_inserted': result['inserted'],
         'rows_deleted': result['deleted'],
@@ -414,9 +430,9 @@ def merge_parquet(
 
 This ensures **idempotency**: running the same ingestion multiple times produces the same result.
 
-### Real Example: Glucose Ingestion with @phlo.ingestion
+### Real Example: Glucose Ingestion with @phlo_ingestion
 
-Let's trace through what happens when you materialize a `@phlo.ingestion` asset:
+Let's trace through what happens when you materialize a `@phlo_ingestion` asset:
 
 ```bash
 # Timeline: 2024-10-15
@@ -425,7 +441,7 @@ Let's trace through what happens when you materialize a `@phlo.ingestion` asset:
 dagster asset materialize --select glucose_entries \
   --partition "2024-10-15"
 
-# 2. The @phlo.ingestion decorator executes your function
+# 2. The @phlo_ingestion decorator executes your function
 # Your function returns a DLT source configured for 2024-10-15
 
 # 3. Decorator automatically stages data via DLT
@@ -474,17 +490,17 @@ s3://lake/warehouse/raw/glucose_entries/
         └── 00003.parquet (88 rows)
 ```
 
-## Quality Checks with @phlo.quality
+## Quality Checks with @phlo_quality
 
-After ingestion and transformation, Phlo validates data with quality checks. The `@phlo.quality` decorator provides a declarative way to define quality checks:
+After ingestion and transformation, Phlo validates data with quality checks. The `@phlo_quality` decorator provides a declarative way to define quality checks:
 
 ```python
-# From examples/glucose-platform/workflows/quality/nightscout.py
+# From phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
-from phlo.quality import FreshnessCheck, NullCheck, RangeCheck
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -496,11 +512,11 @@ from phlo.quality import FreshnessCheck, NullCheck, RangeCheck
     blocking=True,
 )
 def glucose_readings_quality():
-    """Declarative quality checks for glucose readings using @phlo.quality."""
+    """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
 ```
 
-The `@phlo.quality` decorator provides:
+The `@phlo_quality` decorator provides:
 
 1. **NullCheck**: Ensures critical columns have no null values
 2. **RangeCheck**: Validates numeric values are within expected ranges
@@ -556,9 +572,9 @@ This approach gives you more control over the validation logic and error handlin
 
 ## Handling Different Data Sources
 
-The `@phlo.ingestion` decorator works with any DLT source. You just return a DLT source/resource and the decorator handles the rest.
+The `@phlo_ingestion` decorator works with any DLT source. You just return a DLT source/resource and the decorator handles the rest.
 
-**Pattern**: Define your data source, return it, and let `@phlo.ingestion` handle staging, validation, and merging.
+**Pattern**: Define your data source, return it, and let `@phlo_ingestion` handle staging, validation, and merging.
 
 ```python
 # Example: Custom API ingestion
@@ -566,7 +582,7 @@ The `@phlo.ingestion` decorator works with any DLT source. You just return a DLT
 import phlo
 from dlt.sources.rest_api import rest_api
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="github_events",
     unique_key="event_id",
     validation_schema=GitHubEventSchema,
@@ -597,7 +613,7 @@ def github_events(partition_date: str):
     )
 
     return source
-    # @phlo.ingestion automatically:
+    # @phlo_ingestion automatically:
     # 1. Runs DLT pipeline to stage to parquet
     # 2. Validates with GitHubEventSchema
     # 3. Merges to Iceberg table with deduplication on event_id
@@ -647,14 +663,14 @@ All follow the same pattern for safety and idempotency.
 
 ```bash
 # Run ingestion and watch the flow
-# This uses the @phlo.ingestion decorated function
+# This uses the @phlo_ingestion decorated function
 dagster asset materialize \
   --select glucose_entries \
   --partition "2024-10-15"
 
 # Check Iceberg table via PyIceberg
 python3 << 'EOF'
-from phlo.iceberg.catalog import get_catalog
+from phlo_iceberg.catalog import get_catalog
 import pandas as pd
 
 catalog = get_catalog()
@@ -730,9 +746,10 @@ See you there!
 
 ## Summary
 
-**Phlo's Ingestion with @phlo.ingestion**:
+**Phlo's Ingestion with @phlo_ingestion**:
 
-The `@phlo.ingestion` decorator simplifies data ingestion by handling:
+The `@phlo_ingestion` decorator simplifies data ingestion by handling:
+
 1. **DLT pipeline execution**: Stages data from source to parquet
 2. **Schema validation**: Validates with Pandera before loading
 3. **Iceberg merge**: Performs idempotent upsert using unique_key
@@ -740,6 +757,7 @@ The `@phlo.ingestion` decorator simplifies data ingestion by handling:
 5. **Scheduling**: Supports cron-based execution
 
 **Decorator Parameters**:
+
 - `table_name`: Iceberg table to write to
 - `unique_key`: Column for deduplication
 - `validation_schema`: Pandera schema for validation
@@ -748,11 +766,13 @@ The `@phlo.ingestion` decorator simplifies data ingestion by handling:
 - `freshness_hours`: Expected data freshness (optional)
 
 **Your Function**:
+
 - Takes `partition_date: str` parameter
 - Returns a DLT source or resource
 - The decorator handles everything else
 
 **Why This Pattern Works**:
+
 - **Simple**: Write 10 lines, get full pipeline
 - **Idempotent**: Safe to retry/rerun
 - **Atomic**: All-or-nothing commits
@@ -761,7 +781,8 @@ The `@phlo.ingestion` decorator simplifies data ingestion by handling:
 - **Scalable**: Works from KB to TB
 
 **Quality Checks**:
-- Use `@phlo.quality` for declarative checks (NullCheck, RangeCheck, FreshnessCheck)
+
+- Use `@phlo_quality` for declarative checks (NullCheck, RangeCheck, FreshnessCheck)
 - Or use traditional `@asset_check` for custom validation logic
 - Both integrate with Dagster's asset check system
 

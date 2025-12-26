@@ -53,24 +53,28 @@ Phlo is a data lakehouse framework that combines best-in-class tools into a cohe
 Phlo implements an automated Write-Audit-Publish pattern using Nessie branches:
 
 **Write Phase**
+
 - Data lands on isolated branch: `pipeline/run-{run_id}`
 - No impact on production `main` branch
 - Multiple pipelines can run concurrently
 
 **Audit Phase**
+
 - Quality checks validate data
 - Dagster asset checks execute automatically
 - Failures prevent promotion
 
 **Publish Phase**
+
 - Auto-promotion sensor merges to `main` when checks pass
 - Atomic commit of all tables
 - Old branches cleaned up after retention period
 
 **Implementation**
+
 ```python
 # Automatic branch creation on job start
-# src/phlo/defs/sensors/branch_lifecycle.py
+# workflows/sensors/branch_lifecycle.py
 @sensor(name="branch_creation_sensor")
 def branch_creation_sensor(context):
     # Creates pipeline/run-{id} branch
@@ -90,12 +94,12 @@ def branch_cleanup_sensor(context):
 
 Phlo reduces boilerplate through powerful decorators that auto-generate Dagster assets.
 
-#### @phlo.ingestion Decorator
+#### @phlo_ingestion Decorator
 
 Transforms a simple function into a complete ingestion pipeline:
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="events",
     unique_key="id",
     validation_schema=EventSchema,  # Pandera schema
@@ -109,6 +113,7 @@ def api_events(partition_date: str):
 ```
 
 **What it does**:
+
 1. Creates Dagster asset with partitioning
 2. Sets up DLT pipeline with filesystem destination
 3. Stages data to Parquet files
@@ -119,6 +124,7 @@ def api_events(partition_date: str):
 8. Tracks metrics and timing
 
 **Without decorator (manual)**:
+
 ```python
 # Would require ~270 lines of boilerplate:
 # - DLT pipeline setup (~50 lines)
@@ -129,12 +135,12 @@ def api_events(partition_date: str):
 # - Dagster asset wrapper (~50 lines)
 ```
 
-#### @phlo.quality Decorator
+#### @phlo_quality Decorator
 
 Creates data quality checks:
 
 ```python
-@phlo.quality(
+@phlo_quality(
     table="bronze.events",
     checks=[
         NullCheck(columns=["id", "timestamp"]),
@@ -148,6 +154,7 @@ def events_quality():
 ```
 
 **Built-in check types**:
+
 - `NullCheck`: No null values in columns
 - `RangeCheck`: Numeric values within bounds
 - `FreshnessCheck`: Data recency validation
@@ -157,11 +164,12 @@ def events_quality():
 - `CustomSQLCheck`: Arbitrary SQL validation
 
 **Quality check contract (for Observatory)**:
+
 - Pandera schema contract checks use the name `pandera_contract`
 - dbt test checks use the name `dbt__<test_type>__<target>`
 - Checks should emit metadata keys: `source`, `partition_key` (if applicable), `failed_count`, `total_count` (if available), `query_or_sql` (if applicable), `sample` (<= 20 rows/ids)
 - Checks may also emit `repro_sql` (a safe SQL snippet, e.g. with `LIMIT`, for Trino reproduction).
- - Partitioned runs scope checks to the run partition by default (using `_phlo_partition_date` unless overridden).
+- Partitioned runs scope checks to the run partition by default (using `_phlo_partition_date` unless overridden).
 
 ### 3. Schema-First Development
 
@@ -202,6 +210,7 @@ class EventSchema(pa.DataFrameModel):
 ```
 
 **Benefits**:
+
 - Type safety at runtime
 - Auto-generated Iceberg schemas
 - Validation enforced automatically
@@ -209,8 +218,9 @@ class EventSchema(pa.DataFrameModel):
 - IDE autocomplete support
 
 **Schema Conversion** (Pandera → Iceberg):
+
 ```python
-# src/phlo/schemas/converter.py
+# packages/phlo-dlt/src/phlo_dlt/converter.py
 str → StringType()
 int → LongType()
 float → DoubleType()
@@ -223,18 +233,22 @@ bool → BooleanType()
 Phlo supports flexible merge strategies for handling updates:
 
 **Append Strategy**
+
 ```python
 merge_strategy="append"
 ```
+
 - Insert-only, no deduplication
 - Fastest performance
 - Use for immutable event streams
 
 **Merge Strategy**
+
 ```python
 merge_strategy="merge"
 merge_config={"deduplication_method": "last"}  # or "first" or "hash"
 ```
+
 - Upsert based on `unique_key`
 - Deduplication strategies:
   - `first`: Keep first occurrence
@@ -242,8 +256,9 @@ merge_config={"deduplication_method": "last"}  # or "first" or "hash"
   - `hash`: Keep based on content hash
 
 **Implementation**:
+
 ```python
-# src/phlo/ingestion/dlt_helpers.py
+# packages/phlo-dlt/src/phlo_dlt/dlt_helpers.py
 def merge_to_iceberg(
     table: Table,
     new_data: DataFrame,
@@ -277,6 +292,7 @@ def partition_config(start, end):
 ```
 
 **Benefits**:
+
 - Partition pruning for faster queries
 - Incremental processing
 - Time-based data management
@@ -287,24 +303,28 @@ def partition_config(start, end):
 Phlo follows medallion architecture for data transformation:
 
 **Bronze Layer** (Raw)
+
 - Ingested data from sources
 - Minimal transformation
 - Schema validated with Pandera
 - Tables: `bronze.{table_name}`
 
 **Silver Layer** (Cleaned)
+
 - Cleaned and conformed data
 - Type conversions, deduplication
 - Business logic applied
 - Tables: `silver.{table_name}`
 
 **Gold Layer** (Marts)
+
 - Aggregated, business-ready data
 - Optimized for BI tools
 - Published to PostgreSQL
 - Tables: `marts.{table_name}`
 
 **dbt Implementation**:
+
 ```sql
 -- models/bronze/stg_events.sql
 {{ config(
@@ -377,6 +397,7 @@ def my_asset(context):
 ```
 
 **Benefits**:
+
 - Automatic lineage tracking
 - Partition-aware dependencies
 - Freshness monitoring
@@ -407,7 +428,7 @@ def silver_events():
 Automatic publishing of marts to PostgreSQL for BI:
 
 ```python
-# src/phlo/defs/publishing/trino_to_postgres.py
+# workflows/publishing/trino_to_postgres.py
 @asset(deps=[marts.daily_aggregates])
 def publish_daily_aggregates(context, trino, postgres):
     _publish_marts_to_postgres(
@@ -420,6 +441,7 @@ def publish_daily_aggregates(context, trino, postgres):
 ```
 
 **Process**:
+
 1. Query Iceberg table via Trino
 2. Drop existing PostgreSQL table
 3. Create new table with inferred schema
@@ -433,13 +455,13 @@ Complete end-to-end flow:
 ```
 1. API Source
    ↓
-2. @phlo.ingestion decorator
+2. @phlo_ingestion decorator
    ↓ DLT → Parquet staging
    ↓
 3. Iceberg table (bronze.events)
    ↓ on branch: pipeline/run-abc123
    ↓
-4. @phlo.quality checks
+4. @phlo_quality checks
    ↓ validation passes
    ↓
 5. Auto-promotion sensor
@@ -456,17 +478,17 @@ Complete end-to-end flow:
 
 ## Key Files & Locations
 
-**Ingestion workflows**: `src/phlo/defs/ingestion/{domain}/{workflow}.py`
+**Ingestion workflows**: `workflows/ingestion/{domain}/{workflow}.py`
 
-**Schemas**: `src/phlo/schemas/{domain}.py`
+**Schemas**: `workflows/schemas/{domain}.py`
 
-**Quality checks**: `src/phlo/quality/checks.py`
+**Quality checks**: `workflows/quality/{domain}.py`
 
 **dbt models**: `transforms/dbt/models/{layer}/{model}.sql`
 
-**Configuration**: `src/phlo/config.py`, `.env`
+**Configuration**: `phlo.config`, `.env`, `phlo.yaml`
 
-**Sensors**: `src/phlo/defs/sensors/branch_lifecycle.py`
+**Sensors**: `workflows/sensors/branch_lifecycle.py`
 
 ## Next Steps
 

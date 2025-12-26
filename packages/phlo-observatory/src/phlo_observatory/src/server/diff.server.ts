@@ -239,7 +239,7 @@ export const getStageDiff = createServerFn()
       downstreamColumns: Array<string>
     }) => input,
   )
-  .handler(async ({ data }): Promise<StageDiffResult> => {
+  .handler(({ data }): StageDiffResult => {
     const { transformationSql, upstreamColumns, downstreamColumns } = data
 
     // Analyze the SQL
@@ -300,7 +300,7 @@ export const getSimpleStageDiff = createServerFn()
       downstreamColumns: Array<string>
     }) => input,
   )
-  .handler(async ({ data }): Promise<StageDiffResult> => {
+  .handler(({ data }): StageDiffResult => {
     const { upstreamColumns, downstreamColumns } = data
 
     const upstreamSet = new Set(upstreamColumns.map((c) => c.toLowerCase()))

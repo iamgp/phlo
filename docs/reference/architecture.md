@@ -5,24 +5,28 @@ Phlo is built on modern lakehouse principles using Apache Iceberg as the table f
 ## Design Principles
 
 ### 1. Open Standards
+
 - Apache Iceberg for table format (open spec, multi-engine support)
 - S3-compatible storage (portable across cloud providers)
 - Standard SQL via Trino
 - Open-source components throughout
 
 ### 2. Stateless Services
+
 - All state stored in volumes (MinIO, PostgreSQL)
 - Services can be restarted without data loss
 - Configuration via environment variables
 - 12-factor app compliance
 
 ### 3. Git-Like Workflows
+
 - Branch isolation (dev/staging/prod)
 - Atomic multi-table commits
 - Time travel to any point in history
 - Tag releases for reproducibility
 
 ### 4. Asset-Based Orchestration
+
 - Declarative data assets in Dagster
 - Automatic lineage tracking
 - Partition-aware dependencies
@@ -97,20 +101,24 @@ graph TB
 ## Key Components
 
 ### Storage Layer
+
 - **MinIO**: S3-compatible object storage for data files and Iceberg metadata
 - **Nessie**: Git-like catalog for table metadata and branching
 - **PostgreSQL**: Relational database for operational metadata and analytics marts
 
 ### Compute Layer
+
 - **Trino**: Distributed SQL query engine for analytics
 - **dbt**: Data transformation framework with SQL
 - **DuckDB**: Embedded analytical database for ad-hoc queries
 
 ### Orchestration
+
 - **Dagster**: Asset-based data orchestration platform
 - **Schedules & Sensors**: Automated pipeline triggers
 
 ### Analytics Layer
+
 - **PostgreSQL Marts**: Curated datasets for BI tools
 - **Superset**: Business intelligence and visualization
 

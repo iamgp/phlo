@@ -40,4 +40,3 @@ Adopt a small, shared contract for all asset checks:
   needing per-source logic.
 - Check producers must follow the contract; deviations are treated as bugs.
 - Some metadata is necessarily best-effort (e.g., `total_count` or `repro_sql`) depending on source.
-

@@ -20,7 +20,7 @@ class AlloyServicePlugin(ServicePlugin):
             version="0.1.0",
             description="Grafana Alloy for log collection and shipping to Loki",
             author="Phlo Team",
-            tags=['observability', 'logs', 'agent'],
+            tags=["observability", "logs", "agent"],
         )
 
     @property

@@ -140,18 +140,28 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
-from phlo.plugins.discovery import (
-    discover_plugins,
-    get_plugin,
-    get_plugin_info,
-    get_quality_check,
-    get_service,
-    get_source_connector,
-    get_transformation,
-    list_plugins,
-    validate_plugins,
-)
-from phlo.plugins.registry import PluginRegistry
+
+
+# Import discovery functions lazily to avoid circular imports
+# These will be imported from phlo.discovery when accessed
+def __getattr__(name):
+    if name in [
+        "discover_plugins",
+        "get_plugin",
+        "get_plugin_info",
+        "get_quality_check",
+        "get_service",
+        "get_source_connector",
+        "get_transformation",
+        "list_plugins",
+        "validate_plugins",
+        "PluginRegistry",
+    ]:
+        import phlo.discovery
+
+        return getattr(phlo.discovery, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     # Base classes

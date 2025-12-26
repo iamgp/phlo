@@ -20,6 +20,9 @@ dev = [
     "ruff>=0.1.0",
 ]
 
+[project.entry-points."phlo.plugins.services"]
+observatory = "phlo_observatory.plugin:ObservatoryServicePlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

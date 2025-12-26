@@ -27,6 +27,7 @@ This guide teaches you how to use dbt effectively in Phlo for data transformatio
 **dbt** (data build tool) transforms data in your warehouse using SQL SELECT statements.
 
 **Philosophy:**
+
 - Transformations are SELECT statements (not INSERT/UPDATE)
 - Version control your SQL
 - Test data quality automatically
@@ -122,8 +123,8 @@ version: 2
 sources:
   - name: raw
     description: "Raw data layer"
-    schema: raw  # Iceberg schema
-    database: iceberg  # Trino catalog
+    schema: raw # Iceberg schema
+    database: iceberg # Trino catalog
 
     tables:
       - name: weather_observations
@@ -164,6 +165,7 @@ FROM {{ source('raw', 'weather_observations') }}
 ```
 
 **Benefits:**
+
 - dbt knows dependencies
 - Tests run on source data
 - Documentation auto-generated
@@ -177,17 +179,18 @@ Check if source data is stale:
 sources:
   - name: raw
     freshness:
-      warn_after: {count: 2, period: hour}
-      error_after: {count: 24, period: hour}
+      warn_after: { count: 2, period: hour }
+      error_after: { count: 24, period: hour }
 
     tables:
       - name: weather_observations
         loaded_at_field: observation_time
         freshness:
-          warn_after: {count: 1, period: hour}
+          warn_after: { count: 1, period: hour }
 ```
 
 Check freshness:
+
 ```bash
 dbt source freshness --project-dir /opt/dagster/app/transforms/dbt
 ```
@@ -256,6 +259,7 @@ models:
 ### Materialization Types
 
 **1. Table (default)**
+
 ```sql
 {{ config(materialized='table') }}
 
@@ -265,6 +269,7 @@ models:
 ```
 
 **2. View**
+
 ```sql
 {{ config(materialized='view') }}
 
@@ -274,6 +279,7 @@ models:
 ```
 
 **3. Incremental**
+
 ```sql
 {{ config(materialized='incremental', unique_key='id') }}
 
@@ -289,6 +295,7 @@ SELECT * FROM {{ source('raw', 'events') }}
 ```
 
 **4. Ephemeral**
+
 ```sql
 {{ config(materialized='ephemeral') }}
 
@@ -311,6 +318,7 @@ FROM {{ ref('stg_weather_observations') }}
 ```
 
 **Dependency graph automatically built:**
+
 ```
 raw.weather_observations (source)
     ↓
@@ -322,31 +330,37 @@ fct_weather_readings (ref)
 ### Model Selection
 
 **Run specific model:**
+
 ```bash
 dbt run --select stg_weather_observations
 ```
 
 **Run model and upstream:**
+
 ```bash
 dbt run --select +stg_weather_observations
 ```
 
 **Run model and downstream:**
+
 ```bash
 dbt run --select stg_weather_observations+
 ```
 
 **Run by tag:**
+
 ```bash
 dbt run --select tag:weather
 ```
 
 **Run by directory:**
+
 ```bash
 dbt run --select bronze.*
 ```
 
 **Exclude models:**
+
 ```bash
 dbt run --exclude tag:deprecated
 ```
@@ -369,8 +383,8 @@ models:
       - name: city_name
         description: "City name"
         tests:
-          - not_null           # No NULL values
-          - unique             # No duplicates
+          - not_null # No NULL values
+          - unique # No duplicates
 
       - name: temperature_c
         description: "Temperature in Celsius"
@@ -386,7 +400,7 @@ models:
       - name: temp_category
         tests:
           - accepted_values:
-              values: ['Freezing', 'Cold', 'Mild', 'Warm', 'Hot']
+              values: ["Freezing", "Cold", "Mild", "Warm", "Hot"]
 
       - name: observation_timestamp
         tests:
@@ -456,11 +470,11 @@ columns:
   - name: temperature_c
     tests:
       - not_null:
-          severity: error  # Fails build (default)
+          severity: error # Fails build (default)
 
       - accepted_values:
           values: [...]
-          severity: warn   # Warning only, doesn't fail
+          severity: warn # Warning only, doesn't fail
 ```
 
 ---
@@ -652,6 +666,7 @@ FROM {{ ref('stg_weather_observations') }}
 ### Incremental Strategies
 
 **1. Append (default)**
+
 ```sql
 {{ config(
     materialized='incremental',
@@ -663,6 +678,7 @@ FROM {{ ref('stg_weather_observations') }}
 ```
 
 **2. Merge (upsert)**
+
 ```sql
 {{ config(
     materialized='incremental',
@@ -675,6 +691,7 @@ FROM {{ ref('stg_weather_observations') }}
 ```
 
 **3. Delete+Insert**
+
 ```sql
 {{ config(
     materialized='incremental',
@@ -748,6 +765,7 @@ mrt_patient_glucose_overview
 ### 2. DRY (Don't Repeat Yourself)
 
 **Bad:**
+
 ```sql
 -- orders_2023.sql
 SELECT * FROM raw.orders WHERE YEAR(order_date) = 2023
@@ -757,6 +775,7 @@ SELECT * FROM raw.orders WHERE YEAR(order_date) = 2024
 ```
 
 **Good:**
+
 ```sql
 -- macros/filter_by_year.sql
 {% macro filter_by_year(year) %}
@@ -833,6 +852,7 @@ SELECT * FROM customer_ltv
 ### 5. Keep Models Focused
 
 **Bad: One huge model**
+
 ```sql
 -- orders_with_everything.sql (1000 lines)
 WITH orders AS (...),
@@ -845,6 +865,7 @@ WITH orders AS (...),
 ```
 
 **Good: Separate models**
+
 ```
 stg_orders.sql
 stg_customers.sql
@@ -880,7 +901,7 @@ models:
         tests:
           - not_null
           - dbt_utils.expression_is_true:
-              expression: ">= 0"  # No negative amounts
+              expression: ">= 0" # No negative amounts
 ```
 
 ### 7. Document Important Logic
@@ -910,14 +931,16 @@ models:
 ### 8. Use Variables for Configuration
 
 **dbt_project.yml:**
+
 ```yaml
 vars:
-  start_date: '2024-01-01'
+  start_date: "2024-01-01"
   tax_rate: 0.1
   free_shipping_threshold: 100
 ```
 
 **In models:**
+
 ```sql
 SELECT
     *,
@@ -931,17 +954,18 @@ WHERE order_date >= '{{ var('start_date') }}'
 ```yaml
 models:
   bronze:
-    +tags: ['bronze', 'staging']
+    +tags: ["bronze", "staging"]
 
   silver:
     fct_orders:
-      +tags: ['silver', 'fact', 'revenue', 'daily']
+      +tags: ["silver", "fact", "revenue", "daily"]
 
     dim_customers:
-      +tags: ['silver', 'dimension', 'customer']
+      +tags: ["silver", "dimension", "customer"]
 ```
 
 **Run by tag:**
+
 ```bash
 dbt run --select tag:revenue
 dbt test --select tag:critical
@@ -950,6 +974,7 @@ dbt test --select tag:critical
 ### 10. Version Control Everything
 
 **.gitignore:**
+
 ```
 target/
 dbt_packages/
@@ -958,6 +983,7 @@ logs/
 ```
 
 **Commit:**
+
 - ✅ Models (.sql)
 - ✅ Tests (.yml, .sql)
 - ✅ Macros (.sql)
@@ -971,6 +997,7 @@ logs/
 ## Summary
 
 **Key Concepts:**
+
 - **Sources** = External tables
 - **Models** = SELECT statements
 - **Refs** = Dependencies
@@ -980,6 +1007,7 @@ logs/
 - **Incremental** = Process only new data
 
 **Common Commands:**
+
 ```bash
 # Compile (check for errors)
 dbt compile
@@ -999,6 +1027,7 @@ dbt docs serve
 ```
 
 **Best Practices:**
+
 - ✅ Use naming conventions
 - ✅ Keep models focused
 - ✅ Use CTEs for readability

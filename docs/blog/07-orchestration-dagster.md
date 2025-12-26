@@ -39,6 +39,7 @@ With Dagster:
 ### 1. Assets (Declarative Data Dependencies)
 
 Instead of telling Dagster "run this code", you declare:
+
 - **What**: What data does this produce?
 - **When**: When should it run?
 - **Where**: Where does it come from?
@@ -77,6 +78,7 @@ def dbt_silver() -> None:
 ```
 
 Dagster automatically:
+
 - Detects dependencies (bronze depends on ingestion)
 - Builds DAG (directed acyclic graph)
 - Executes in correct order
@@ -90,7 +92,7 @@ Large datasets need splitting. Dagster partitions by time:
 
 ```python
 # Define daily partitions starting from a date
-from phlo.defs.partitions import daily_partition
+from phlo_dagster.partitions import daily_partition
 
 @dg.asset(
     partitions_def=daily_partition,
@@ -99,18 +101,18 @@ from phlo.defs.partitions import daily_partition
 def dlt_glucose_entries(context) -> MaterializeResult:
     """
     Materialize for each day independently.
-    
+
     Daily partition ensures:
     - Idempotency (re-run one day without affecting others)
     - Incremental loading (only process new data per day)
     - Easy recovery (re-run single failed day)
     """
     partition_date = context.partition_key  # "2024-10-15"
-    
+
     # Fetch data for this date range only
     start = f"{partition_date}T00:00:00.000Z"
     end = f"{partition_date}T23:59:59.999Z"
-    
+
     entries = fetch_from_nightscout(start, end)
     # ... ingest ...
     return MaterializeResult(metadata={...})
@@ -130,6 +132,7 @@ Oct 17 ⚪ (not run yet)
 Run assets automatically:
 
 **Schedule**: Run at specific times
+
 ```python
 @dg.daily_schedule
 def daily_ingestion():
@@ -140,6 +143,7 @@ def daily_ingestion():
 ```
 
 **Sensor**: Run when something happens
+
 ```python
 @dg.sensor
 def nightscout_api_sensor():
@@ -154,7 +158,7 @@ def nightscout_api_sensor():
 In Phlo's code:
 
 ```python
-# From src/phlo/defs/ingestion/dlt_assets.py
+# From workflows/ingestion/dlt_assets.py
 
 @dg.asset(
     partitions_def=daily_partition,
@@ -195,6 +199,7 @@ def dlt_glucose_entries(iceberg: IcebergResource) -> MaterializeResult:
 ```
 
 Resources are:
+
 - Configured centrally (no hardcoding)
 - Testable (swap real for mock)
 - Shared across assets
@@ -208,10 +213,10 @@ Beyond dbt tests, add explicit checks:
 @dg.asset_check(asset=dlt_glucose_entries)
 def glucose_not_null(context) -> dg.AssetCheckResult:
     """Ensure no null glucose values."""
-    
+
     table = get_table("raw.glucose_entries")
     null_count = table.scan().filter("sgv IS NULL").count()
-    
+
     return dg.AssetCheckResult(
         passed=null_count == 0,
         metadata={
@@ -224,13 +229,13 @@ def glucose_not_null(context) -> dg.AssetCheckResult:
 @dg.asset_check(asset=fct_glucose_readings)
 def range_check(context) -> dg.AssetCheckResult:
     """Ensure glucose values in physiologically plausible range."""
-    
+
     table = get_table("silver.fct_glucose_readings")
-    
+
     out_of_range = table.scan().filter(
         "(glucose_mg_dl < 20) OR (glucose_mg_dl > 600)"
     ).count()
-    
+
     return dg.AssetCheckResult(
         passed=out_of_range == 0,
         metadata={
@@ -284,17 +289,17 @@ Analytics
 All dependencies auto-detected by Dagster:
 
 ```python
-# File: src/phlo/defs/ingestion/dlt_assets.py
+# File: workflows/ingestion/dlt_assets.py
 @dg.asset(name="dlt_glucose_entries")
 def entries() -> MaterializeResult:
     """Produces raw.glucose_entries"""
     pass
 
-# File: src/phlo/defs/transform/dbt.py
+# File: workflows/transform/dbt.py
 @dbt_assets(...)
 def all_dbt_assets(dbt: DbtCliResource):
     """
-    Produces bronze.*, silver.*, gold.* 
+    Produces bronze.*, silver.*, gold.*
     Depends on dlt_glucose_entries (via dbt source definition)
     """
     dbt.cli(["build"])
@@ -310,11 +315,13 @@ def all_dbt_assets(dbt: DbtCliResource):
 Open Dagster UI (http://localhost:3000):
 
 **Asset Graph**:
+
 - Visual DAG of dependencies
 - Color-coded by status (complete, ⏳ running, failed)
 - Click to drill down
 
 **Asset Details**:
+
 ```
 dlt_glucose_entries
 ├── Dependencies
@@ -368,7 +375,7 @@ docker exec dagster-webserver dagster asset materialize \
 ### Via Python API
 
 ```python
-# From src/phlo/defs/...
+# From workflows/...
 
 from dagster import materialize
 
@@ -382,6 +389,7 @@ materialize(
 ## Backfilling Historical Data
 
 Single materializations work for daily operations, but what about:
+
 - Loading historical data when you first set up
 - Re-processing after a bug fix
 - Filling gaps from outages
@@ -456,6 +464,7 @@ Estimated Time: ~90 minutes
 ```
 
 **Parallel considerations:**
+
 - More workers = faster, but more resource usage
 - Don't exceed your database connection pool
 - Start with 2-4 workers, increase if stable
@@ -525,13 +534,13 @@ Run without --dry-run to execute.
 
 ### Backfill Strategies
 
-| Scenario | Strategy |
-|----------|----------|
-| Initial load | `--start-date` from earliest data, `--parallel 4` |
-| Bug fix re-process | Date range of affected data, `--parallel 2` |
-| Fill gaps | `--partitions` with explicit list |
-| Monthly refresh | `--start-date` first of month, `--end-date` last |
-| Testing | `--dry-run` first, then small range |
+| Scenario           | Strategy                                          |
+| ------------------ | ------------------------------------------------- |
+| Initial load       | `--start-date` from earliest data, `--parallel 4` |
+| Bug fix re-process | Date range of affected data, `--parallel 2`       |
+| Fill gaps          | `--partitions` with explicit list                 |
+| Monthly refresh    | `--start-date` first of month, `--end-date` last  |
+| Testing            | `--dry-run` first, then small range               |
 
 ### Backfills in Production
 
@@ -571,7 +580,7 @@ def dlt_glucose_entries(context) -> MaterializeResult:
     context.log.info("Starting ingestion...")
     context.log.warning("Got 288 entries")
     context.log.error("Failed to connect to MinIO")
-    
+
     # Metadata attached to run
     return dg.MaterializeResult(
         metadata={
@@ -590,14 +599,14 @@ View logs in Dagster UI → Runs → Click run → Logs tab
 @dg.sensor
 def failure_alert_sensor(context):
     """Alert on pipeline failures."""
-    
+
     failed_runs = context.instance.get_runs(
         filters=[
             DagsterRunStatus.FAILURE
         ],
         limit=10
     )
-    
+
     for run in failed_runs:
         send_slack_alert(f"Pipeline failed: {run.asset_selection}")
 ```
@@ -625,22 +634,22 @@ def dlt_glucose_entries() -> MaterializeResult:
 Phlo uses `phlo/config.py` for centralized config:
 
 ```python
-# src/phlo/config.py
+# phlo/config.py
 from pydantic_settings import BaseSettings
 
 class PhloConfig(BaseSettings):
     # Iceberg
     iceberg_warehouse_path: str = "s3://lake/warehouse"
     iceberg_staging_path: str = "s3://lake/stage"
-    
+
     # Nessie
     nessie_uri: str = "http://nessie:19120"
     nessie_branch: str = "dev"
-    
+
     # Trino
     trino_host: str = "trino"
     trino_port: int = 8080
-    
+
     class Config:
         env_file = ".env"  # Read from .env
 
@@ -713,6 +722,7 @@ dagster-daemon:
 ```
 
 The daemon needs:
+
 - Access to PostgreSQL (run history)
 - Access to code (asset definitions)
 - Compute resources (run actual ops)
@@ -734,7 +744,7 @@ def dlt_glucose_entries() -> MaterializeResult:
 
 ## Next: Data Quality
 
-Orchestration keeps pipelines running. But are they running *correctly*?
+Orchestration keeps pipelines running. But are they running _correctly_?
 
 **Part 8: Data Quality and Testing**
 
@@ -743,6 +753,7 @@ See you there!
 ## Summary
 
 **Dagster provides**:
+
 - Asset-based orchestration (declare dependencies)
 - Automatic scheduling (run on cron)
 - Partitioning (split by time)
@@ -751,6 +762,7 @@ See you there!
 - Monitoring and alerting
 
 **In Phlo**:
+
 - Assets for ingestion, transformation, publishing
 - Daily partitions for scalability
 - Automatic dependency resolution

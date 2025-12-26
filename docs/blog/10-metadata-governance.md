@@ -88,6 +88,7 @@ make health-catalog
 ```
 
 Expected output:
+
 ```
 === Data Catalog Health Check ===
 OpenMetadata:
@@ -109,6 +110,7 @@ make catalog
 ```
 
 Default credentials:
+
 - Username: `admin`
 - Password: `admin`
 
@@ -127,11 +129,13 @@ Default credentials:
 ### Step 2: Configure Trino Connection
 
 **Service Name:**
+
 ```
 trino
 ```
 
 **Description:**
+
 ```
 Phlo lakehouse Trino query engine with Iceberg catalog
 ```
@@ -140,17 +144,18 @@ Phlo lakehouse Trino query engine with Iceberg catalog
 
 Click on **Basic** authentication type, then configure:
 
-| Field | Value | Notes |
-|-------|-------|-------|
-| **Host** | `trino` | Docker service name (internal network) |
-| **Port** | `8080` | Internal container port |
-| **Username** | `phlo` | Any username (no auth in dev) |
-| **Catalog** | Leave empty | We'll filter by catalog in ingestion |
-| **Database Schema** | Leave empty | - |
+| Field               | Value       | Notes                                  |
+| ------------------- | ----------- | -------------------------------------- |
+| **Host**            | `trino`     | Docker service name (internal network) |
+| **Port**            | `8080`      | Internal container port                |
+| **Username**        | `phlo`      | Any username (no auth in dev)          |
+| **Catalog**         | Leave empty | We'll filter by catalog in ingestion   |
+| **Database Schema** | Leave empty | -                                      |
 
 > Port Note: Trino runs on port `8080` inside the Docker network. The external host port `10005` is only for accessing Trino from your laptop. OpenMetadata uses the internal port `8080`.
 
 Click **Test Connection** - you should see:
+
 ```
 Connection test was successful
 ```
@@ -185,18 +190,19 @@ Table Filter Pattern:
 
 Enable/disable these options:
 
-| Option | Enable? | Reason |
-|--------|---------|--------|
-| Include Tables | Yes | Core metadata |
-| Include Views | Yes | Include views |
-| Include Tags | Yes | Catalog tags |
-| Include Owners | No | Not used in dev |
-| Include Stored Procedures | **NO** | **Causes crashes** |
-| Mark Deleted Stored Procedures | **NO** | **Causes crashes** |
-| Include DDL | No | Not needed |
-| Override Metadata | No | - |
+| Option                         | Enable? | Reason             |
+| ------------------------------ | ------- | ------------------ |
+| Include Tables                 | Yes     | Core metadata      |
+| Include Views                  | Yes     | Include views      |
+| Include Tags                   | Yes     | Catalog tags       |
+| Include Owners                 | No      | Not used in dev    |
+| Include Stored Procedures      | **NO**  | **Causes crashes** |
+| Mark Deleted Stored Procedures | **NO**  | **Causes crashes** |
+| Include DDL                    | No      | Not needed         |
+| Override Metadata              | No      | -                  |
 
 **Ingestion Settings:**
+
 - Thread Count: `1` (default)
 - Timeout: `300` seconds (default)
 
@@ -207,11 +213,13 @@ Click **Next**.
 **Schedule Type:** Choose one:
 
 **Option A: Manual (Recommended for Development)**
+
 - Select **Manual**
 - Run ingestion on-demand when you need to refresh metadata
 - Good for: Development, testing
 
 **Option B: Scheduled (Recommended for Production)**
+
 - Select **Scheduled**
 - Choose **Cron Expression**
 - Enter: `0 3 * * *` (runs daily at 3 AM, after Dagster pipelines complete)
@@ -231,6 +239,7 @@ Click **Next** → **Deploy**.
 6. Monitor progress in real-time
 
 Expected output:
+
 ```
 INFO - Starting metadata ingestion
 INFO - Connecting to Trino at trino:8080
@@ -276,6 +285,7 @@ After initial ingestion, search will NOT work until you populate the search inde
 - Enables Explore page and search functionality
 
 **Without this step:**
+
 - Explore page will show error: "Search failed due to Elasticsearch exception"
 - Global search will not work
 - You can only navigate by direct URLs
@@ -309,12 +319,15 @@ Click on any table to see:
 
 ```markdown
 ## Description
+
 Fact table of glucose readings with calculated categories and metrics.
 
 ## Update Schedule
+
 Updated every 5 minutes via Dagster pipeline.
 
 ## Business Logic
+
 - `glucose_category`: Categorized as hypoglycemia (<70), in_range (70-180), or hyperglycemia (>180)
 - `reading_timestamp`: UTC timestamp of the reading
 ```
@@ -361,6 +374,7 @@ marts.mrt_glucose_overview (Trino publish)
 ### Enable Lineage Tracking with dbt
 
 Lineage is automatically extracted from:
+
 - **dbt models** - Shows dependencies between models and tables
 - **SQL queries** - Enable query log ingestion (advanced)
 
@@ -371,11 +385,11 @@ Lineage is automatically extracted from:
 3. Select **dbt**
 4. Configure:
 
-| Field | Value |
-|-------|-------|
-| **Name** | `phlo-dbt` |
-| **dbt Cloud API URL** | Leave empty (we use local files) |
-| **dbt Cloud Account ID** | Leave empty |
+| Field                    | Value                            |
+| ------------------------ | -------------------------------- |
+| **Name**                 | `phlo-dbt`                       |
+| **dbt Cloud API URL**    | Leave empty (we use local files) |
+| **dbt Cloud Account ID** | Leave empty                      |
 
 Click **Next**.
 
@@ -383,12 +397,12 @@ Click **Next**.
 
 1. **Source Configuration:**
 
-| Field | Value | Notes |
-|-------|-------|-------|
-| **dbt Configuration Source** | `Local` | We're using local files, not dbt Cloud |
-| **dbt Catalog File Path** | `/dbt/target/catalog.json` | Contains column-level metadata |
-| **dbt Manifest File Path** | `/dbt/target/manifest.json` | Contains lineage and dependencies |
-| **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results |
+| Field                         | Value                          | Notes                                  |
+| ----------------------------- | ------------------------------ | -------------------------------------- |
+| **dbt Configuration Source**  | `Local`                        | We're using local files, not dbt Cloud |
+| **dbt Catalog File Path**     | `/dbt/target/catalog.json`     | Contains column-level metadata         |
+| **dbt Manifest File Path**    | `/dbt/target/manifest.json`    | Contains lineage and dependencies      |
+| **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results                 |
 
 2. **Database Service Name:** `trino`
    - This links dbt models to your Trino tables
@@ -402,10 +416,12 @@ Click **Next**.
 **Step 3: Schedule dbt Ingestion**
 
 **For Development:**
+
 - Select **Manual**
 - Run after `dbt run` or `dbt build` completes
 
 **For Production:**
+
 - Select **Scheduled**
 - Cron: `0 4 * * *` (4 AM, after Dagster + Trino ingestion)
 
@@ -414,6 +430,7 @@ Click **Next** → **Deploy**.
 **Step 4: Run dbt Ingestion**
 
 1. Ensure dbt artifacts are fresh:
+
    ```bash
    cd transforms/dbt
    dbt compile --profiles-dir ./profiles
@@ -425,6 +442,7 @@ Click **Next** → **Deploy**.
 5. Click **Run** (play button)
 
 Expected output:
+
 ```
 INFO - Starting dbt metadata ingestion
 INFO - Reading manifest from /dbt/target/manifest.json
@@ -546,6 +564,7 @@ docker logs openmetadata-elasticsearch
 ### Search Not Working
 
 **Symptom:**
+
 - Explore page shows: "Search failed due to Elasticsearch exception"
 - Global search returns no results
 
@@ -600,7 +619,7 @@ With contracts, breaking changes are caught before deployment.
 Contracts live in your `contracts/` directory as YAML files. Here's a real example from the glucose platform:
 
 ```yaml
-# examples/glucose-platform/contracts/glucose_readings.yaml
+# phlo-examples/nightscout/contracts/glucose_readings.yaml
 name: glucose_readings
 version: 1.0.0
 owner: data-team
@@ -630,8 +649,8 @@ schema:
         nullable: false
 
 sla:
-  freshness_hours: 2        # Data must be < 2 hours old
-  quality_threshold: 0.99   # 99% of rows must pass validation
+  freshness_hours: 2 # Data must be < 2 hours old
+  quality_threshold: 0.99 # 99% of rows must pass validation
   availability_percentage: 99.9
 
 consumers:
@@ -657,7 +676,7 @@ notifications:
 
 When you run `phlo contract validate glucose_readings`, Phlo:
 
-1. **Loads the contract** from `contracts/glucose_readings.yaml` (or `examples/glucose-platform/contracts/glucose_readings.yaml` for examples)
+1. **Loads the contract** from `contracts/glucose_readings.yaml` (or `phlo-examples/nightscout/contracts/glucose_readings.yaml` for examples)
 2. **Validates** the contract schema and structure
 3. **Reports** expected schema and SLA requirements
 
@@ -679,6 +698,7 @@ Required Columns:
 ```
 
 To check for contract violations against actual tables, you would use:
+
 ```bash
 $ phlo contract show glucose_readings  # View full contract details
 $ phlo catalog describe raw.glucose_entries  # View actual table schema
@@ -688,15 +708,15 @@ $ phlo catalog describe raw.glucose_entries  # View actual table schema
 
 The real power of contracts is **preventing breaking changes**. When you modify a schema, Phlo classifies changes:
 
-| Change Type | Classification | Action |
-|-------------|----------------|--------|
-| Add nullable column | SAFE | Auto-approve |
-| Add column with default | SAFE | Auto-approve |
-| Change column description | WARNING | Review required |
-| Add new constraint | WARNING | Review required |
-| Remove column | BREAKING | Block merge |
-| Change column type | BREAKING | Block merge |
-| Remove nullable | BREAKING | Block merge |
+| Change Type               | Classification | Action          |
+| ------------------------- | -------------- | --------------- |
+| Add nullable column       | SAFE           | Auto-approve    |
+| Add column with default   | SAFE           | Auto-approve    |
+| Change column description | WARNING        | Review required |
+| Add new constraint        | WARNING        | Review required |
+| Remove column             | BREAKING       | Block merge     |
+| Change column type        | BREAKING       | Block merge     |
+| Remove nullable           | BREAKING       | Block merge     |
 
 In CI/CD, run `phlo contract check --pr` to validate changes before merge:
 
@@ -707,11 +727,11 @@ Checking contracts against PR changes...
 
 glucose_readings:
   BREAKING: Column 'device_type' removed
-  
+
   Impact:
     - analytics-team: BI dashboards (contact: analytics@example.com)
     - ml-team: Model training (contact: ml@example.com)
-  
+
   Action Required:
     1. Notify consumers before removing column
     2. Add deprecation period (recommended: 30 days)
@@ -758,7 +778,7 @@ Pandera schemas define the expected structure of your data at each layer:
 # workflows/schemas/nightscout.py
 class RawGlucoseEntries(pa.DataFrameModel):
     """Schema for raw glucose entries from Nightscout API."""
-    
+
     _id: str = pa.Field(description="Nightscout entry ID")
     sgv: int = pa.Field(ge=20, le=600, description="Glucose in mg/dL")
     dateString: str = pa.Field(description="ISO timestamp string")
@@ -856,6 +876,7 @@ Total: 4 tables
 ```
 
 Filter by namespace:
+
 ```bash
 $ phlo catalog tables --namespace silver
 ```
@@ -923,6 +944,7 @@ Traditional approach:
 Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
 
 > **Implementation Details:** For comprehensive API setup guides, see:
+>
 > - [docs/setup/postgrest.md](/home/user/phlo/docs/setup/postgrest.md) - PostgREST configuration
 > - [docs/setup/hasura.md](/home/user/phlo/docs/setup/hasura.md) - Hasura GraphQL setup
 
@@ -931,6 +953,7 @@ Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
 PostgREST turns PostgreSQL tables into REST endpoints automatically. The challenge is keeping API views in sync with your dbt models.
 
 **The manual way:**
+
 ```sql
 -- Write this by hand for every model
 CREATE VIEW api.glucose_readings AS
@@ -943,7 +966,7 @@ GRANT SELECT ON api.glucose_readings TO analyst;
 **The automated way:**
 
 ```bash
-$ phlo api postgrest generate-views
+$ phlo postgrest generate-views
 
 Generating API views from dbt models...
 
@@ -961,7 +984,7 @@ Permissions:
 
 Generated SQL saved to: api_views.sql
 
-Apply with: phlo api postgrest generate-views --apply
+Apply with: phlo postgrest generate-views --apply
 ```
 
 ### How View Generation Works
@@ -980,7 +1003,7 @@ models:
   - name: mrt_glucose_readings
     description: "Curated glucose readings for API access"
     config:
-      tags: ['api', 'analyst']  # Exposed to API, readable by analyst role
+      tags: ["api", "analyst"] # Exposed to API, readable by analyst role
     columns:
       - name: reading_id
         description: "Unique reading identifier"
@@ -991,7 +1014,7 @@ models:
 Generated SQL:
 
 ```sql
--- Auto-generated by: phlo api generate-views
+-- Auto-generated by: phlo postgrest generate-views
 -- Source: mrt_glucose_readings
 -- Tags: api, analyst
 
@@ -1017,7 +1040,7 @@ For richer query capabilities, Phlo integrates with Hasura:
 
 ```bash
 # Auto-track new tables in Hasura
-$ phlo api hasura track
+$ phlo hasura track
 
 ✓ Tracked 3/3 tables
 ```
@@ -1026,12 +1049,12 @@ You can also set up relationships and permissions:
 
 ```bash
 # Auto-create relationships from foreign keys
-$ phlo api hasura relationships
+$ phlo hasura relationships
 
 ✓ Created 1/1 relationships
 
 # Set up default permissions
-$ phlo api hasura permissions
+$ phlo hasura permissions
 
 ✓ Created 6/6 permissions
 ```
@@ -1039,7 +1062,7 @@ $ phlo api hasura permissions
 Or do all three at once:
 
 ```bash
-$ phlo api hasura auto-setup
+$ phlo hasura auto-setup
 
 Auto-tracking tables, setting up relationships and permissions...
 ✓ Complete
@@ -1071,17 +1094,17 @@ Define permissions in YAML, sync to Hasura:
 tables:
   api.glucose_readings:
     select:
-      anon: false  # No public access
+      anon: false # No public access
       analyst:
         columns: [reading_id, timestamp, sgv, direction]
-        filter: {}  # All rows
+        filter: {} # All rows
       admin:
-        columns: "*"  # All columns
+        columns: "*" # All columns
         filter: {}
 
   api.user_summary:
     select:
-      analyst: false  # Restricted
+      analyst: false # Restricted
       admin:
         columns: "*"
         filter: {}
@@ -1090,20 +1113,20 @@ tables:
 Apply permissions from a config file:
 
 ```bash
-$ phlo api hasura sync-permissions --config hasura-permissions.yaml
+$ phlo hasura sync-permissions --config hasura-permissions.yaml
 
 ✓ Permissions synced
 ```
 
 ### When to Use REST vs GraphQL
 
-| Use Case | Recommendation |
-|----------|----------------|
-| Simple CRUD operations | REST (PostgREST) |
-| Mobile apps with varied queries | GraphQL (Hasura) |
-| External partner integrations | REST (simpler) |
-| Internal dashboards | GraphQL (flexible) |
-| High-volume batch reads | Direct SQL |
+| Use Case                        | Recommendation     |
+| ------------------------------- | ------------------ |
+| Simple CRUD operations          | REST (PostgREST)   |
+| Mobile apps with varied queries | GraphQL (Hasura)   |
+| External partner integrations   | REST (simpler)     |
+| Internal dashboards             | GraphQL (flexible) |
+| High-volume batch reads         | Direct SQL         |
 
 ### API Layer in the Architecture
 
