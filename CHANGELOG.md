@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.1.0-alpha.1](https://github.com/iamgp/phlo/compare/v0.1.0-alpha.1...v0.1.0-alpha.1) (2025-12-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* CascadeError, CascadeConfigError, etc. renamed to PhloError, PhloConfigError
+
+### Features
+
+* CLI hardening: services refactor + scaffold without TODOs ([#70](https://github.com/iamgp/phlo/issues/70)) ([a8a2544](https://github.com/iamgp/phlo/commit/a8a2544f5a45d565def97785c7c03ed95c18ef90))
+* **cli:** add restart command and fix --profile flag behavior ([#96](https://github.com/iamgp/phlo/issues/96)) ([43deeab](https://github.com/iamgp/phlo/commit/43deeabfea471c36ea7b2400958500e290c32666))
+* **cli:** generate pandera schemas from dlt inference (phlo-nwk.3.5) ([#78](https://github.com/iamgp/phlo/issues/78)) ([3207aa0](https://github.com/iamgp/phlo/commit/3207aa0bad4603c919323f5fe2cbe001387a1507))
+* **cli:** scaffold publishing.yaml ([#72](https://github.com/iamgp/phlo/issues/72)) ([7e6712a](https://github.com/iamgp/phlo/commit/7e6712aecab87a13941577036dda80ff60bfd10c))
+* correct grouping + move compiled SQL to metadata ([#66](https://github.com/iamgp/phlo/issues/66)) ([5380e08](https://github.com/iamgp/phlo/commit/5380e08c80160450edc0e56d02dde8031dad8993))
+* **ingestion:** add strict_validation config and remove deprecated code ([#87](https://github.com/iamgp/phlo/issues/87)) ([d8f8688](https://github.com/iamgp/phlo/commit/d8f86886b8848e883f6fb1c0c1ec73380fca608c))
+* limit datetime coercion ([#60](https://github.com/iamgp/phlo/issues/60)) ([829c89c](https://github.com/iamgp/phlo/commit/829c89c09741ce3f746382802874f5e573a66e17))
+* Observatory as core with plugin DX improvements ([#99](https://github.com/iamgp/phlo/issues/99)) ([2e16b79](https://github.com/iamgp/phlo/commit/2e16b795c859ac50de6387d174038eab609c7e71))
+* observatory UI redesign (shadcn Lyra preset) ([#79](https://github.com/iamgp/phlo/issues/79)) ([8b08640](https://github.com/iamgp/phlo/commit/8b08640c47a52b0de56aa0e68ca65bee224e3c30))
+* **observatory:** add authentication and real-time polling ([#91](https://github.com/iamgp/phlo/issues/91)) ([881f1f4](https://github.com/iamgp/phlo/commit/881f1f43a07fad62eced97c66fcd39c31e38b458))
+* **observatory:** add Loki log querying server functions ([#94](https://github.com/iamgp/phlo/issues/94)) ([b22feac](https://github.com/iamgp/phlo/commit/b22feac5a74f39586b0d1525db78298b49d3d2f0))
+* **observatory:** add responsive layout for mobile and tablet ([#90](https://github.com/iamgp/phlo/issues/90)) ([c8e0260](https://github.com/iamgp/phlo/commit/c8e0260822adda35d0d49d3195e6d45d8eeffabf))
+* **observatory:** add saved queries and bookmarks ([#88](https://github.com/iamgp/phlo/issues/88)) ([923ded3](https://github.com/iamgp/phlo/commit/923ded39094596385119c44bcba73ee2b9447af0))
+* **observatory:** add server-side metadata caching ([#84](https://github.com/iamgp/phlo/issues/84)) ([38bb34a](https://github.com/iamgp/phlo/commit/38bb34a0b41dbb3634bbe0b0e54dd5b7c5945af0))
+* **observatory:** add structured logging with Pino ([#93](https://github.com/iamgp/phlo/issues/93)) ([732ffb6](https://github.com/iamgp/phlo/commit/732ffb602f27942cd50516bcf84b387399bdb58d))
+* **observatory:** add visual diff view between pipeline stages ([#86](https://github.com/iamgp/phlo/issues/86)) ([b247100](https://github.com/iamgp/phlo/commit/b2471006d2c7e29084f8053c20a207910e236dcd))
+* **observatory:** enhance command palette with table/column search ([#83](https://github.com/iamgp/phlo/issues/83)) ([7ef7427](https://github.com/iamgp/phlo/commit/7ef7427598f40baf31270378ebcf5b0d9688e74e))
+* **observatory:** implement quality endpoints ([#74](https://github.com/iamgp/phlo/issues/74)) ([1ea089b](https://github.com/iamgp/phlo/commit/1ea089bec199335503eb98adeeb4a41fc2d2314f))
+* **observatory:** Initial Implementation ([#52](https://github.com/iamgp/phlo/issues/52)) ([68938f9](https://github.com/iamgp/phlo/commit/68938f94ce1ef13c3df12e918b80707fe2a767da))
+* **observatory:** inline contributing rows with pagination ([#82](https://github.com/iamgp/phlo/issues/82)) ([1ee3b4b](https://github.com/iamgp/phlo/commit/1ee3b4bdc174f6bc12dec7c13ab9cf87d8c401f6))
+* **observatory:** make Data Explorer branch-aware (phlo-nwk.1.2) ([#77](https://github.com/iamgp/phlo/issues/77)) ([547cf1b](https://github.com/iamgp/phlo/commit/547cf1bb075e2517c70ad921ecf822337232c64d))
+* **observatory:** quality center drilldown ([#75](https://github.com/iamgp/phlo/issues/75)) ([455cf35](https://github.com/iamgp/phlo/commit/455cf352d522ed4c677fc2884161c0564d055d63))
+* **observatory:** settings and query guardrails ([#81](https://github.com/iamgp/phlo/issues/81)) ([1d02f5e](https://github.com/iamgp/phlo/commit/1d02f5e2d36ed33d5e44ea6f896ab7c1183f941e))
+* **observatory:** virtualized table browser with search and keyboard nav ([#85](https://github.com/iamgp/phlo/issues/85)) ([bb7b70d](https://github.com/iamgp/phlo/commit/bb7b70d1e64c382b949b268944e159f7204794ae))
+* partition-scoped checks + failure sampling ([#63](https://github.com/iamgp/phlo/issues/63)) ([de99226](https://github.com/iamgp/phlo/commit/de99226f56630d971a0bf9d463ad751babd32c82))
+* **phlo-930:** Unified Plugin System with Registry ([#98](https://github.com/iamgp/phlo/issues/98)) ([6210bd0](https://github.com/iamgp/phlo/commit/6210bd050facfb647d4a5c450c17a40ae06935e0))
+* **quality:** add reconciliation checks for cross-table validation ([#89](https://github.com/iamgp/phlo/issues/89)) ([ff748e7](https://github.com/iamgp/phlo/commit/ff748e774ccbceb6596bc554fdd679be9232ef55))
+* **quality:** check naming + metadata contract ([#57](https://github.com/iamgp/phlo/issues/57)) ([622dbb5](https://github.com/iamgp/phlo/commit/622dbb532eb44809c76dbad52fe6fa6dd5ad7854))
+* **quality:** emit pandera and dbt asset checks ([#73](https://github.com/iamgp/phlo/issues/73)) ([65cf271](https://github.com/iamgp/phlo/commit/65cf271ceed9884662ae50fa8d5f6976faacc443))
+* TanStack Table migration ([#80](https://github.com/iamgp/phlo/issues/80)) ([478f927](https://github.com/iamgp/phlo/commit/478f9279ff608122ffa3aa814f8e73ff6f920da9))
+* warn vs blocking severity policy ([#62](https://github.com/iamgp/phlo/issues/62)) ([6287e18](https://github.com/iamgp/phlo/commit/6287e18f81e53e682069e984a06b8a654b3f02b1))
+
+
+### Bug Fixes
+
+* add contents:read permission for checkout ([380298c](https://github.com/iamgp/phlo/commit/380298c27fbef4cf0d7d5312cb486035a7810907))
+* **dbt:** ensure translator description is always string ([#56](https://github.com/iamgp/phlo/issues/56)) ([3af8e8f](https://github.com/iamgp/phlo/commit/3af8e8f0e4d2b990a1b5147d04e0258134a7bd5e))
+* **deps:** update dependency bcrypt to v5 ([#50](https://github.com/iamgp/phlo/issues/50)) ([59bb919](https://github.com/iamgp/phlo/commit/59bb91963c2a185b413d5cb94f5a74129020b56e))
+* fix exports and remove print() ([#67](https://github.com/iamgp/phlo/issues/67)) ([dd8712a](https://github.com/iamgp/phlo/commit/dd8712a32e5578b5993267437b9d97722b555d6c))
+* **observatory:** add QueryClientProvider for SSR ([#92](https://github.com/iamgp/phlo/issues/92)) ([a55cbd9](https://github.com/iamgp/phlo/commit/a55cbd96883da1008366c2dc78de8838350c3452))
+
+
+### Documentation
+
+* **adr:** add retrospective decisions ([#76](https://github.com/iamgp/phlo/issues/76)) ([1290a32](https://github.com/iamgp/phlo/commit/1290a3223843b388502cb8ae9e4ae9eab2d7d8a4))
+
 ## [0.1.0-alpha.1](https://github.com/iamgp/phlo/compare/v0.1.0-alpha.0...v0.1.0-alpha.1) (2025-12-07)
 
 ### ⚠ BREAKING CHANGES
