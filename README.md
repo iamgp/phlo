@@ -14,7 +14,7 @@
 
 ## Features
 
-- **Decorator-driven development** - Reduce boilerplate by 74% with `@phlo_ingestion` and `@phlo_quality`
+- **Decorator-driven development** - Reduce boilerplate by 74% with `@phlo.ingestion` and `@phlo.quality`
 - **Write-Audit-Publish pattern** - Git-like branching with automatic quality gates and promotion
 - **Type-safe data quality** - Pandera schemas enforce validation and generate Iceberg tables
 - **Plugin architecture** - Extensible via service, source, quality, and transformation plugins
