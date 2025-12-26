@@ -7,6 +7,7 @@ from typing import Any
 import dagster as dg
 from dagster_dbt import DbtCliResource, dbt_assets
 from phlo.config import get_settings
+from phlo.hooks import TransformEvent, get_hook_bus
 from phlo_dagster.partitions import daily_partition
 
 from phlo_dbt.translator import CustomDbtTranslator
@@ -71,6 +72,18 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
     return result.returncode == 0 and manifest_path.exists()
 
 
+def _selected_model_names(context: Any) -> list[str]:
+    names: list[str] = []
+    if hasattr(context, "selected_output_names"):
+        names = [str(name) for name in context.selected_output_names]
+    elif hasattr(context, "selected_asset_keys"):
+        names = [
+            "/".join(key.path) if hasattr(key, "path") else str(key)
+            for key in context.selected_asset_keys
+        ]
+    return names
+
+
 def build_dbt_definitions() -> dg.Definitions:
     settings = get_settings()
 
@@ -116,9 +129,46 @@ def build_dbt_definitions() -> dg.Definitions:
         os.environ.setdefault("TRINO_HOST", settings.trino_host)
         os.environ.setdefault("TRINO_PORT", str(settings.trino_port))
 
-        build_invocation = dbt.cli(build_args, context=context)
-        yield from build_invocation.stream().fetch_column_metadata()
-        build_invocation.wait()
+        hook_bus = get_hook_bus()
+        event_payload = {
+            "tool": "dbt",
+            "project_dir": str(dbt_project_path),
+            "target": target,
+            "partition_key": context.partition_key if context.has_partition_key else None,
+            "model_names": _selected_model_names(context),
+            "tags": {"tool": "dbt"},
+        }
+        hook_bus.emit(
+            TransformEvent(
+                event_type="transform.start",
+                status="started",
+                **event_payload,
+            )
+        )
+
+        try:
+            build_invocation = dbt.cli(build_args, context=context)
+            yield from build_invocation.stream().fetch_column_metadata()
+            build_invocation.wait()
+        except Exception as exc:
+            hook_bus.emit(
+                TransformEvent(
+                    event_type="transform.end",
+                    status="failure",
+                    error=str(exc),
+                    **event_payload,
+                )
+            )
+            raise
+        else:
+            hook_bus.emit(
+                TransformEvent(
+                    event_type="transform.end",
+                    status="success",
+                    metrics={"dbt_args": build_args},
+                    **event_payload,
+                )
+            )
 
         docs_args = [
             "docs",

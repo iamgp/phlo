@@ -9,6 +9,7 @@ import dagster as dg
 from pandera.pandas import DataFrameModel
 from phlo_dagster.partitions import daily_partition
 from phlo.exceptions import PhloConfigError
+from phlo.hooks import IngestionEvent, get_hook_bus
 from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     evaluate_pandera_contract_parquet,
@@ -175,94 +176,145 @@ def phlo_ingestion(
             partition_date = context.partition_key
             pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
             branch_name = get_branch_from_context(context)
+            run_id = context.run.run_id if hasattr(context, "run") else None
+            hook_bus = get_hook_bus()
+            event_payload = {
+                "asset_key": f"dlt_{table_config.table_name}",
+                "table_name": table_config.full_table_name,
+                "group_name": table_config.group_name,
+                "partition_key": partition_date,
+                "run_id": run_id,
+                "branch_name": branch_name,
+                "tags": {"group": table_config.group_name, "source": "dlt"},
+            }
 
             context.log.info(f"Starting ingestion for partition {partition_date}")
             context.log.info(f"Ingesting to branch: {branch_name}")
             context.log.info(f"Target table: {table_config.full_table_name}")
 
             start_time = time.time()
+            hook_bus.emit(
+                IngestionEvent(
+                    event_type="ingestion.start",
+                    status="started",
+                    **event_payload,
+                )
+            )
 
             context.log.info("Calling user function to get DLT source...")
-            dlt_source = func(partition_date)
+            try:
+                dlt_source = func(partition_date)
 
-            if dlt_source is None:
-                context.log.info(f"No data for partition {partition_date}, skipping")
+                if dlt_source is None:
+                    context.log.info(f"No data for partition {partition_date}, skipping")
+                    hook_bus.emit(
+                        IngestionEvent(
+                            event_type="ingestion.end",
+                            status="no_data",
+                            metrics={"rows_loaded": 0},
+                            **event_payload,
+                        )
+                    )
+                    yield dg.MaterializeResult(
+                        metadata={
+                            "branch": branch_name,
+                            "partition_date": dg.MetadataValue.text(partition_date),
+                            "rows_loaded": dg.MetadataValue.int(0),
+                            "status": dg.MetadataValue.text("no_data"),
+                        }
+                    )
+                    return
+
+                pipeline, local_staging_root = setup_dlt_pipeline(
+                    pipeline_name=pipeline_name,
+                    dataset_name=group,
+                )
+
+                parquet_path, dlt_elapsed = stage_to_parquet(
+                    context=context,
+                    pipeline=pipeline,
+                    dlt_source=dlt_source,
+                    local_staging_root=local_staging_root,
+                )
+
+                if add_metadata_columns:
+                    inject_metadata_columns(
+                        parquet_path=parquet_path,
+                        partition_date=partition_date,
+                        run_id=run_id or "unknown",
+                        context=context,
+                    )
+
+                if validate and table_config.validation_schema is not None:
+                    evaluation = evaluate_pandera_contract_parquet(
+                        parquet_path,
+                        schema_class=table_config.validation_schema,
+                    )
+                    check_result = pandera_contract_asset_check_result(
+                        evaluation,
+                        partition_key=partition_date,
+                        schema_class=table_config.validation_schema,
+                        query_or_sql=f"parquet:{parquet_path}",
+                    )
+                    yield check_result
+                    if not evaluation.passed and strict_validation:
+                        raise dg.Failure(
+                            description=(
+                                f"Pandera contract failed for {table_config.table_name} "
+                                f"partition {partition_date}"
+                            )
+                        )
+
+                merge_metrics = merge_to_iceberg(
+                    context=context,
+                    iceberg=iceberg,
+                    table_config=table_config,
+                    parquet_path=parquet_path,
+                    branch_name=branch_name,
+                    merge_strategy=merge_strategy,
+                    merge_config=merge_cfg,
+                )
+
+                total_elapsed = time.time() - start_time
+                context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
+                hook_bus.emit(
+                    IngestionEvent(
+                        event_type="ingestion.end",
+                        status="success",
+                        metrics={
+                            "rows_inserted": merge_metrics["rows_inserted"],
+                            "rows_deleted": merge_metrics["rows_deleted"],
+                            "dlt_elapsed_seconds": dlt_elapsed,
+                            "total_elapsed_seconds": total_elapsed,
+                        },
+                        **event_payload,
+                    )
+                )
+
                 yield dg.MaterializeResult(
                     metadata={
                         "branch": branch_name,
                         "partition_date": dg.MetadataValue.text(partition_date),
-                        "rows_loaded": dg.MetadataValue.int(0),
-                        "status": dg.MetadataValue.text("no_data"),
+                        "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
+                        "rows_deleted": dg.MetadataValue.int(merge_metrics["rows_deleted"]),
+                        "unique_key": dg.MetadataValue.text(table_config.unique_key),
+                        "table_name": dg.MetadataValue.text(table_config.full_table_name),
+                        "dlt_elapsed_seconds": dg.MetadataValue.float(dlt_elapsed),
+                        "total_elapsed_seconds": dg.MetadataValue.float(total_elapsed),
                     }
                 )
-                return
-
-            pipeline, local_staging_root = setup_dlt_pipeline(
-                pipeline_name=pipeline_name,
-                dataset_name=group,
-            )
-
-            parquet_path, dlt_elapsed = stage_to_parquet(
-                context=context,
-                pipeline=pipeline,
-                dlt_source=dlt_source,
-                local_staging_root=local_staging_root,
-            )
-
-            if add_metadata_columns:
-                run_id = context.run.run_id if hasattr(context, "run") else "unknown"
-                inject_metadata_columns(
-                    parquet_path=parquet_path,
-                    partition_date=partition_date,
-                    run_id=run_id,
-                    context=context,
-                )
-
-            if validate and table_config.validation_schema is not None:
-                evaluation = evaluate_pandera_contract_parquet(
-                    parquet_path,
-                    schema_class=table_config.validation_schema,
-                )
-                check_result = pandera_contract_asset_check_result(
-                    evaluation,
-                    partition_key=partition_date,
-                    schema_class=table_config.validation_schema,
-                    query_or_sql=f"parquet:{parquet_path}",
-                )
-                yield check_result
-                if not evaluation.passed and strict_validation:
-                    raise dg.Failure(
-                        description=(
-                            f"Pandera contract failed for {table_config.table_name} "
-                            f"partition {partition_date}"
-                        )
+            except Exception as exc:
+                total_elapsed = time.time() - start_time
+                hook_bus.emit(
+                    IngestionEvent(
+                        event_type="ingestion.end",
+                        status="failure",
+                        metrics={"total_elapsed_seconds": total_elapsed},
+                        error=str(exc),
+                        **event_payload,
                     )
-
-            merge_metrics = merge_to_iceberg(
-                context=context,
-                iceberg=iceberg,
-                table_config=table_config,
-                parquet_path=parquet_path,
-                branch_name=branch_name,
-                merge_strategy=merge_strategy,
-                merge_config=merge_cfg,
-            )
-
-            total_elapsed = time.time() - start_time
-            context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
-
-            yield dg.MaterializeResult(
-                metadata={
-                    "branch": branch_name,
-                    "partition_date": dg.MetadataValue.text(partition_date),
-                    "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
-                    "rows_deleted": dg.MetadataValue.int(merge_metrics["rows_deleted"]),
-                    "unique_key": dg.MetadataValue.text(table_config.unique_key),
-                    "table_name": dg.MetadataValue.text(table_config.full_table_name),
-                    "dlt_elapsed_seconds": dg.MetadataValue.float(dlt_elapsed),
-                    "total_elapsed_seconds": dg.MetadataValue.float(total_elapsed),
-                }
-            )
+                )
+                raise
 
         _INGESTION_ASSETS.append(wrapper)
         return wrapper

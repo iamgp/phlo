@@ -225,6 +225,37 @@ def _run_service_hooks(
                 )
 
 
+def _emit_service_lifecycle_events(
+    phase: str,
+    service_names: list[str],
+    project_name: str,
+    project_root: Path,
+    *,
+    status: str | None = None,
+    metadata: dict[str, object] | None = None,
+) -> None:
+    if not service_names:
+        return
+    from phlo.hooks import ServiceLifecycleEvent, get_hook_bus
+
+    hook_bus = get_hook_bus()
+    event_type = f"service.{phase}"
+    for name in service_names:
+        hook_bus.emit(
+            ServiceLifecycleEvent(
+                event_type=event_type,
+                service_name=name,
+                project_name=project_name,
+                project_root=str(project_root),
+                container_name=_resolve_container_name(name, project_name),
+                phase=phase,
+                status=status,
+                metadata=metadata or {},
+                tags={"service": name, "phase": phase},
+            )
+        )
+
+
 def get_phlo_dir() -> Path:
     """Get the .phlo directory path in current project."""
     return Path.cwd() / ".phlo"
@@ -820,6 +851,24 @@ def start(
     # avoid running `docker compose up` with no service args (which would start the entire stack).
     skip_docker_compose = bool(native and services_list and not docker_services_list)
 
+    docker_service_names: list[str] = []
+    if not skip_docker_compose:
+        if docker_services_list:
+            docker_service_names = docker_services_list
+        else:
+            try:
+                compose_config = yaml.safe_load(compose_file.read_text()) or {}
+            except (OSError, yaml.YAMLError):
+                compose_config = {}
+            docker_service_names = list((compose_config.get("services") or {}).keys())
+        _emit_service_lifecycle_events(
+            "pre_start",
+            docker_service_names,
+            project_name=project_name,
+            project_root=Path.cwd(),
+            metadata={"native": False},
+        )
+
     if not skip_docker_compose:
         require_docker()
     elif build:
@@ -911,6 +960,13 @@ def start(
                         "ENV_FILE_PATH": str(project_root / ".phlo" / ".env"),
                     }
                     for svc in native_to_start:
+                        _emit_service_lifecycle_events(
+                            "pre_start",
+                            [svc.name],
+                            project_name=project_name,
+                            project_root=project_root,
+                            metadata={"native": True},
+                        )
                         click.echo(f"  Starting {svc.name}...")
                         process = await dev_manager.start_service(svc, env_overrides=env_overrides)
                         if process:
@@ -922,8 +978,24 @@ def start(
                                     project_root / ".phlo" / "native-logs" / f"{svc.name}.log"
                                 ),
                             }
+                            _emit_service_lifecycle_events(
+                                "post_start",
+                                [svc.name],
+                                project_name=project_name,
+                                project_root=project_root,
+                                status="success",
+                                metadata={"native": True, "pid": process.pid},
+                            )
                         else:
                             click.echo(f"    ✗ {svc.name} failed to start", err=True)
+                            _emit_service_lifecycle_events(
+                                "post_start",
+                                [svc.name],
+                                project_name=project_name,
+                                project_root=project_root,
+                                status="failure",
+                                metadata={"native": True},
+                            )
                     return started
 
                 started = asyncio.run(start_native_services())
@@ -974,6 +1046,14 @@ def start(
                 else:
                     started_services = compose_service_names
 
+            _emit_service_lifecycle_events(
+                "post_start",
+                started_services,
+                project_name=project_name,
+                project_root=Path.cwd(),
+                status="success",
+                metadata={"native": False},
+            )
             _run_service_hooks(
                 "post_start",
                 started_services,
@@ -986,6 +1066,14 @@ def start(
             if started_services:
                 click.echo(f"Services running: {', '.join(sorted(started_services))}")
         else:
+            _emit_service_lifecycle_events(
+                "post_start",
+                docker_service_names,
+                project_name=project_name,
+                project_root=Path.cwd(),
+                status="failure",
+                metadata={"native": False, "returncode": result.returncode},
+            )
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
             click.echo(f"Command: {' '.join(cmd)}", err=True)
             sys.exit(result.returncode)
@@ -1034,7 +1122,29 @@ def stop(volumes: bool, stop_native: bool, profile: tuple[str, ...], service: tu
         for s in service:
             native_services_list.extend(s.split(","))
         native_services_list = [s.strip() for s in native_services_list if s.strip()]
+        native_targets = (
+            native_services_list
+            if native_services_list
+            else list(_load_native_state(project_root).keys())
+        )
+        if native_targets:
+            _emit_service_lifecycle_events(
+                "pre_stop",
+                native_targets,
+                project_name=get_project_name(),
+                project_root=project_root,
+                metadata={"native": True},
+            )
         _stop_native_processes(project_root, native_services_list or None)
+        if native_targets:
+            _emit_service_lifecycle_events(
+                "post_stop",
+                native_targets,
+                project_name=get_project_name(),
+                project_root=project_root,
+                status="success",
+                metadata={"native": True},
+            )
 
     # If we only needed to stop native services, skip Docker.
     if stop_native and service and not volumes and not profile:
@@ -1061,6 +1171,22 @@ def stop(volumes: bool, stop_native: bool, profile: tuple[str, ...], service: tu
     else:
         click.echo(f"Stopping {project_name} infrastructure...")
 
+    docker_targets = services_list
+    if not docker_targets:
+        try:
+            compose_config = yaml.safe_load((phlo_dir / "docker-compose.yml").read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            compose_config = {}
+        docker_targets = list((compose_config.get("services") or {}).keys())
+    if docker_targets:
+        _emit_service_lifecycle_events(
+            "pre_stop",
+            docker_targets,
+            project_name=project_name,
+            project_root=project_root,
+            metadata={"native": False},
+        )
+
     cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name, profiles=profile)
 
     if services_list:
@@ -1076,11 +1202,29 @@ def stop(volumes: bool, stop_native: bool, profile: tuple[str, ...], service: tu
     try:
         result = run_command(cmd, check=False, capture_output=False)
         if result.returncode == 0:
+            if docker_targets:
+                _emit_service_lifecycle_events(
+                    "post_stop",
+                    docker_targets,
+                    project_name=project_name,
+                    project_root=project_root,
+                    status="success",
+                    metadata={"native": False},
+                )
             if services_list:
                 click.echo(f"Stopped services: {', '.join(services_list)}")
             else:
                 click.echo(f"{project_name} infrastructure stopped.")
         else:
+            if docker_targets:
+                _emit_service_lifecycle_events(
+                    "post_stop",
+                    docker_targets,
+                    project_name=project_name,
+                    project_root=project_root,
+                    status="failure",
+                    metadata={"native": False, "returncode": result.returncode},
+                )
             click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
             click.echo(f"Command: {' '.join(cmd)}", err=True)
             sys.exit(result.returncode)
