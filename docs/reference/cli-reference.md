@@ -30,6 +30,7 @@ phlo --version           # Show version
 ```bash
 phlo init                # Initialize new project
 phlo services            # Manage infrastructure services
+phlo plugin              # Manage plugins
 phlo dev                 # Start development server
 phlo create-workflow     # Create new workflow
 phlo materialize         # Materialize assets
@@ -210,6 +211,258 @@ phlo services logs -f dagster-webserver
 
 # Last 100 lines
 phlo services logs --tail 100 trino
+```
+
+## Plugin Commands
+
+Manage Phlo plugins for extending functionality.
+
+### phlo plugin list
+
+List all installed plugins.
+
+```bash
+phlo plugin list [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--type TYPE          # Filter by plugin type (sources, quality, transforms, services, dagster, cli)
+--json               # Output as JSON
+```
+
+**Examples**:
+
+```bash
+# List all plugins
+phlo plugin list
+
+# List only source connectors
+phlo plugin list --type sources
+
+# JSON output
+phlo plugin list --json
+```
+
+**Output**:
+
+```
+Services:
+  NAME              VERSION    DESCRIPTION
+  dagster           0.1.0      Dagster orchestration engine
+  postgres          0.1.0      PostgreSQL database
+  trino             0.1.0      Distributed SQL query engine
+
+Sources:
+  NAME              VERSION    DESCRIPTION
+  rest_api          1.0.0      REST API connector
+  jsonplaceholder   1.0.0      JSONPlaceholder example source
+
+Quality Checks:
+  NAME              VERSION    DESCRIPTION
+  null_check        1.0.0      Null value validation
+  threshold_check   1.0.0      Threshold validation
+```
+
+### phlo plugin search
+
+Search available plugins in the registry.
+
+```bash
+phlo plugin search [QUERY] [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--type TYPE          # Filter by plugin type
+--json               # Output as JSON
+--tag TAG            # Filter by tag
+```
+
+**Examples**:
+
+```bash
+# Search for PostgreSQL-related plugins
+phlo plugin search postgres
+
+# Search for quality check plugins
+phlo plugin search --type quality
+
+# Search by tag
+phlo plugin search --tag observability
+```
+
+### phlo plugin install
+
+Install a plugin from the registry.
+
+```bash
+phlo plugin install PLUGIN_NAME [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--version VERSION    # Specific version to install
+--upgrade            # Upgrade if already installed
+```
+
+**Examples**:
+
+```bash
+# Install a plugin
+phlo plugin install phlo-superset
+
+# Install specific version
+phlo plugin install phlo-superset --version 0.2.0
+
+# Upgrade existing
+phlo plugin install phlo-superset --upgrade
+```
+
+### phlo plugin info
+
+Show detailed information about a plugin.
+
+```bash
+phlo plugin info PLUGIN_NAME [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--type TYPE          # Plugin type (auto-detected if omitted)
+--json               # Output as JSON
+```
+
+**Examples**:
+
+```bash
+# Get plugin info (auto-detect type)
+phlo plugin info dagster
+
+# Specify type
+phlo plugin info rest_api --type sources
+
+# JSON output
+phlo plugin info dagster --json
+```
+
+**Output**:
+
+```
+dagster
+Type: services
+Version: 0.1.0
+Author: Phlo Team
+Description: Dagster orchestration engine for workflow management
+License: MIT
+Homepage: https://github.com/iamgp/phlo
+Tags: orchestration, core, service
+
+Service Details:
+  Container: dagster-webserver
+  Ports: 10006
+  Dependencies: postgres
+```
+
+### phlo plugin update
+
+Update plugins to latest versions.
+
+```bash
+phlo plugin update [PLUGIN_NAME] [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--all                # Update all plugins
+--check              # Check for updates without installing
+```
+
+**Examples**:
+
+```bash
+# Update specific plugin
+phlo plugin update phlo-superset
+
+# Update all plugins
+phlo plugin update --all
+
+# Check for updates
+phlo plugin update --check
+```
+
+### phlo plugin create
+
+Create a new plugin scaffold (for plugin development).
+
+```bash
+phlo plugin create PLUGIN_NAME --type TYPE [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--type TYPE          # Plugin type: source, quality, transform, service
+--path PATH          # Custom output path
+--author AUTHOR      # Author name
+--description DESC   # Plugin description
+```
+
+**Examples**:
+
+```bash
+# Create source connector plugin
+phlo plugin create my-api-source --type source
+
+# Create quality check plugin
+phlo plugin create my-validation --type quality
+
+# Create with custom path
+phlo plugin create my-plugin --type source --path ./plugins/my-plugin
+```
+
+**Creates**:
+
+```
+phlo-plugin-my-api-source/
+├── pyproject.toml           # Package config with entry points
+├── README.md                # Documentation
+├── src/
+│   └── phlo_my_api_source/
+│       ├── __init__.py
+│       └── plugin.py        # Plugin implementation
+└── tests/
+    └── test_plugin.py       # Test suite
+```
+
+### phlo plugin validate
+
+Validate installed plugins.
+
+```bash
+phlo plugin validate [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--json               # Output as JSON
+--fix                # Attempt to fix issues
+```
+
+**Examples**:
+
+```bash
+# Validate all plugins
+phlo plugin validate
+
+# JSON output
+phlo plugin validate --json
 ```
 
 ## Project Commands
