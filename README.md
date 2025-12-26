@@ -28,9 +28,6 @@
 
 ```bash
 # Install with default services
-pip install phlo[defaults]
-
-# Or with uv (recommended)
 uv pip install phlo[defaults]
 
 # Initialize a new project

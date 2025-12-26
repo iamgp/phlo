@@ -20,9 +20,6 @@ Complete guide to installing and setting up Phlo on your system.
 
 ```bash
 # Install Phlo with default services
-pip install phlo[defaults]
-
-# Or using uv (recommended)
 uv pip install phlo[defaults]
 
 # Initialize a new project
@@ -43,10 +40,6 @@ phlo services start
 Install Phlo and its default services:
 
 ```bash
-# Using pip
-pip install phlo[defaults]
-
-# Using uv (recommended for faster installs)
 uv pip install phlo[defaults]
 ```
 
@@ -195,13 +188,13 @@ You can also use the Dagster UI at http://localhost:10006 to materialize assets.
 Install only the core Phlo framework without service packages:
 
 ```bash
-pip install phlo
+uv pip install phlo
 ```
 
 Then install services individually as needed:
 
 ```bash
-pip install phlo-dagster phlo-postgres phlo-trino
+uv pip install phlo-dagster phlo-postgres phlo-trino
 ```
 
 ### With Optional Services
@@ -210,16 +203,16 @@ Install additional service packages:
 
 ```bash
 # Business intelligence
-pip install phlo-superset
+uv pip install phlo-superset
 
 # Observability stack
-pip install phlo-prometheus phlo-grafana phlo-loki phlo-alloy
+uv pip install phlo-prometheus phlo-grafana phlo-loki phlo-alloy
 
 # API layers
-pip install phlo-postgrest phlo-hasura
+uv pip install phlo-postgrest phlo-hasura
 
 # Data catalog
-pip install phlo-openmetadata
+uv pip install phlo-openmetadata
 ```
 
 Start with service profiles:
