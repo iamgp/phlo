@@ -47,6 +47,7 @@ In-depth tutorials and how-tos:
 
 - [Developer Guide](guides/developer-guide.md) - Master decorators and workflow development
 - [Service Packages](guides/service-packages.md) - Installable infrastructure services
+- [Plugin Development](guides/plugin-development.md) - Build custom plugins to extend Phlo
 - [Workflow Development](guides/workflow-development.md) - Build complete data pipelines
 - [Data Modeling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
 - [dbt Development](guides/dbt-development.md) - SQL transformations

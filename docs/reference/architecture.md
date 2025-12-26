@@ -41,6 +41,18 @@ graph TB
     subgraph "Data Sources"
         NS[Nightscout API]
         FILES[CSV/Excel Files]
+        EXTERNAL[External APIs]
+    end
+
+    subgraph "User Interface"
+        OBS[Observatory UI]
+        DAGUI[Dagster Web UI]
+    end
+
+    subgraph "API Layer"
+        PAPI[phlo-api]
+        POSTGREST[PostgREST]
+        HASURA[Hasura GraphQL]
     end
 
     subgraph "Ingestion Layer"
@@ -73,6 +85,7 @@ graph TB
 
     NS --> DLT
     FILES --> DLT
+    EXTERNAL --> DLT
     DLT --> STAGE
     STAGE --> PYI
     PYI --> MINIO
@@ -96,9 +109,29 @@ graph TB
     PG --> NESSIE
     PG --> DAGSTER
     PG --> SUPERSET
+    PG --> POSTGREST
+    PG --> HASURA
+
+    OBS --> PAPI
+    PAPI --> TRINO
+    PAPI --> NESSIE
+    PAPI --> DAGSTER
+    PAPI --> MINIO
+    DAGUI --> DAGSTER
 ```
 
 ## Key Components
+
+### User Interface Layer
+
+- **Observatory**: Web-based UI for exploring data, viewing lineage, managing branches, and monitoring data quality. Provides a unified interface for all Phlo operations.
+- **Dagster Web UI**: Native Dagster interface for asset materialization, run monitoring, and workflow debugging.
+
+### API Layer
+
+- **phlo-api**: Python FastAPI service exposing Phlo internals (plugins, services, configs) and providing data access endpoints for Observatory.
+- **PostgREST** (optional): Auto-generated REST API from PostgreSQL schemas.
+- **Hasura** (optional): GraphQL API with real-time subscriptions.
 
 ### Storage Layer
 
@@ -120,7 +153,7 @@ graph TB
 ### Analytics Layer
 
 - **PostgreSQL Marts**: Curated datasets for BI tools
-- **Superset**: Business intelligence and visualization
+- **Superset** (optional): Business intelligence and visualization
 
 ## Data Flow
 
@@ -128,6 +161,64 @@ graph TB
 2. **Transformation**: Iceberg tables → dbt → PostgreSQL marts
 3. **Querying**: Multiple engines can query Iceberg tables directly
 4. **Visualization**: BI tools connect to PostgreSQL marts or query engines
+
+## Plugin System Architecture
+
+Phlo uses a unified plugin system for extending functionality:
+
+### Plugin Types
+
+1. **Service Plugins**: Infrastructure services (Dagster, Postgres, Trino, etc.)
+   - Distributed as Python packages (e.g., `phlo-dagster`, `phlo-trino`)
+   - Contain Docker service definitions via `service.yaml`
+   - Auto-discovered via `phlo.plugins.services` entry points
+
+2. **Data Plugins**: Data processing extensions
+   - **Source Connectors**: Fetch data from external systems
+   - **Quality Checks**: Custom validation rules
+   - **Transformations**: Reusable transformation logic
+
+3. **Dagster Extension Plugins**: Extend Dagster functionality
+   - Custom resources, sensors, schedules
+   - Integration with external systems
+
+4. **CLI Plugins**: Add custom CLI commands
+
+### Plugin Discovery
+
+Plugins are automatically discovered using Python entry points:
+
+```
+┌──────────────────────────────────────┐
+│     Python Environment               │
+│  - phlo (core framework)             │
+│  - phlo-dagster (service plugin)     │
+│  - phlo-custom-source (data plugin)  │
+└──────────────────────────────────────┘
+              │
+              ▼
+┌──────────────────────────────────────┐
+│   Entry Point Discovery              │
+│   (importlib.metadata)               │
+└──────────────────────────────────────┘
+              │
+              ▼
+┌──────────────────────────────────────┐
+│   Plugin Registry                    │
+│   - Installed plugins                │
+│   - Available plugins (remote)       │
+└──────────────────────────────────────┘
+```
+
+### Plugin Registry
+
+- **registry/plugins.json**: Authoritative catalog of available plugins
+- **Remote + Bundled**: Fetches from remote, falls back to bundled version offline
+- **CLI Management**: `phlo plugin search/install/list` commands
+
+For more details, see:
+- [Plugin System Blog Post](../blog/13-plugin-system.md)
+- [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
 
 ## Branching Strategy
 
