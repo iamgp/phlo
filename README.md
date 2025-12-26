@@ -19,17 +19,19 @@
 - **Configurable merge strategies** - Append-only or upsert with deduplication (first/last/hash)
 - **@phlo_quality decorator** - Declarative quality checks
 - **Auto-publishing** - Marts automatically published to Postgres for BI
-- **CLI tools** - `phlo services`, `phlo materialize`, `phlo create-workflow`
+- **Plugin system** - Extensible architecture with service, source, and quality plugins
+- **CLI tools** - `phlo services`, `phlo plugin`, `phlo materialize`, `phlo create-workflow`
+- **Observatory UI** - Web-based interface for data exploration and lineage
 - **Infrastructure config** - Multi-project support with phlo.yaml
 
 ## Quick Start
 
 ```bash
-# Install with uv
-uv add phlo
+# Install with default services
+pip install phlo[defaults]
 
-# Or with pip
-pip install phlo
+# Or with uv (recommended)
+uv pip install phlo[defaults]
 
 # Initialize a new project
 phlo init my-project
@@ -48,6 +50,7 @@ Full documentation at [docs/index.md](docs/index.md):
 - [Quickstart Guide](docs/getting-started/quickstart.md)
 - [Core Concepts](docs/getting-started/core-concepts.md)
 - [Developer Guide](docs/guides/developer-guide.md)
+- [Plugin Development](docs/guides/plugin-development.md)
 - [CLI Reference](docs/reference/cli-reference.md)
 - [Configuration Reference](docs/reference/configuration-reference.md)
 - [Operations Guide](docs/operations/operations-guide.md)
