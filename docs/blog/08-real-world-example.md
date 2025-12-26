@@ -7,6 +7,7 @@ We've covered all the pieces. Now let's build a complete, working pipeline from 
 **Nightscout** is an open-source glucose monitoring system used by people with diabetes. It sends glucose readings every 5 minutes to a cloud API.
 
 **Goal**: Build analytics to understand:
+
 - Daily glucose averages and ranges
 - Time spent in range (70-180 mg/dL)
 - Hour-by-hour patterns
@@ -63,18 +64,18 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
 
 ## Step 2: Data Ingestion
 
-### Using @phlo.ingestion Decorator
+### Using @phlo_ingestion Decorator
 
-Phlo simplifies ingestion with the `@phlo.ingestion` decorator that handles validation, staging, and Iceberg merging:
+Phlo simplifies ingestion with the `@phlo_ingestion` decorator that handles validation, staging, and Iceberg merging:
 
 ```python
-# File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# File: phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,
@@ -124,7 +125,8 @@ def glucose_entries(partition_date: str):
     return source
 ```
 
-**What the @phlo.ingestion decorator does automatically**:
+**What the @phlo_ingestion decorator does automatically**:
+
 1. Creates Dagster asset with daily partitioning
 2. Runs DLT pipeline to fetch and stage data to parquet
 3. Validates with RawGlucoseEntries Pandera schema
@@ -134,6 +136,7 @@ def glucose_entries(partition_date: str):
 7. Returns MaterializeResult with metadata
 
 **Run it**:
+
 ```bash
 docker exec dagster-webserver dagster asset materialize \
   --select dlt_glucose_entries \
@@ -167,7 +170,7 @@ SELECT
     device,
     type as reading_type,
     CAST(utc_offset AS INT) as utc_offset_minutes,
-    
+
     -- Metadata
     _cascade_ingested_at as ingested_at,
     _dlt_load_id,
@@ -183,9 +186,10 @@ WHERE sgv IS NOT NULL
   {% endif %}
 ```
 
-**Purpose**: 
+**Purpose**:
+
 - Clean types (string → timestamp)
-- Rename for clarity (_id → entry_id)
+- Rename for clarity (\_id → entry_id)
 - Filter out bad data (null, out-of-range)
 
 ## Step 4: Silver Layer Transformation
@@ -212,13 +216,13 @@ enriched AS (
         timestamp_iso,
         direction,
         device,
-        
+
         -- Time dimensions
         DATE(reading_timestamp) as reading_date,
         EXTRACT(HOUR FROM reading_timestamp) as hour_of_day,
         DAY_OF_WEEK(reading_timestamp) as day_of_week,
         FORMAT_DATETIME(reading_timestamp, 'EEEE') as day_name,
-        
+
         -- Glucose classification (ADA guidelines)
         CASE
             WHEN glucose_mg_dl < 70 THEN 'hypoglycemia'
@@ -226,18 +230,18 @@ enriched AS (
             WHEN glucose_mg_dl > 180 AND glucose_mg_dl <= 250 THEN 'hyperglycemia_mild'
             WHEN glucose_mg_dl > 250 THEN 'hyperglycemia_severe'
         END as glucose_category,
-        
+
         -- Time in range flag
         CASE
             WHEN glucose_mg_dl >= 70 AND glucose_mg_dl <= 180 THEN 1
             ELSE 0
         END as is_in_range,
-        
+
         -- Rate of change
         glucose_mg_dl - LAG(glucose_mg_dl) OVER (
             PARTITION BY device ORDER BY reading_timestamp
         ) as glucose_change_mg_dl,
-        
+
         -- Minutes since last reading
         DATE_DIFF('minute',
             LAG(reading_timestamp) OVER (
@@ -245,7 +249,7 @@ enriched AS (
             ),
             reading_timestamp
         ) as minutes_since_last_reading
-        
+
     FROM glucose_data
 )
 
@@ -254,6 +258,7 @@ ORDER BY reading_timestamp DESC
 ```
 
 **Features added**:
+
 - Time dimensions (hour, day, etc.)
 - Glucose categories (hypoglycemia/in-range/hyperglycemia)
 - Time in range indicator
@@ -275,22 +280,22 @@ ORDER BY reading_timestamp DESC
 SELECT
     reading_date,
     hour_of_day,
-    
+
     -- Glucose statistics
     COUNT(*) as reading_count,
     ROUND(AVG(glucose_mg_dl), 1) as avg_glucose,
     MIN(glucose_mg_dl) as min_glucose,
     MAX(glucose_mg_dl) as max_glucose,
-    
+
     -- Time in range
     ROUND(100.0 * SUM(is_in_range) / COUNT(*), 1) as percent_in_range,
-    
+
     -- Glucose categories
     COUNT(CASE WHEN glucose_category = 'hypoglycemia' THEN 1 END) as hypoglycemia_count,
     COUNT(CASE WHEN glucose_category = 'in_range' THEN 1 END) as in_range_count,
     COUNT(CASE WHEN glucose_category = 'hyperglycemia_mild' THEN 1 END) as hyperglycemia_mild_count,
     COUNT(CASE WHEN glucose_category = 'hyperglycemia_severe' THEN 1 END) as hyperglycemia_severe_count
-    
+
 FROM {{ ref('fct_glucose_readings') }}
 
 GROUP BY reading_date, hour_of_day
@@ -298,6 +303,7 @@ ORDER BY reading_date DESC, hour_of_day DESC
 ```
 
 **Metrics**:
+
 - Average glucose per hour
 - Time in range percentage
 - Hypoglycemia warnings
@@ -317,24 +323,24 @@ ORDER BY reading_date DESC, hour_of_day DESC
 
 SELECT
     reading_date,
-    
+
     -- Daily stats
     COUNT(*) as total_readings,
     ROUND(AVG(glucose_mg_dl), 1) as avg_glucose_mg_dl,
     MIN(glucose_mg_dl) as min_glucose_mg_dl,
     MAX(glucose_mg_dl) as max_glucose_mg_dl,
     ROUND(STDDEV(glucose_mg_dl), 1) as stddev_glucose,
-    
+
     -- Time in range
     ROUND(100.0 * SUM(is_in_range) / COUNT(*), 1) as percent_in_range,
-    
+
     -- Alerts
     CASE
         WHEN COUNT(CASE WHEN glucose_category = 'hypoglycemia' THEN 1 END) > 3 THEN 'CRITICAL'
         WHEN COUNT(CASE WHEN glucose_category = 'hyperglycemia_severe' THEN 1 END) > 5 THEN 'ALERT'
         ELSE 'OK'
     END as day_status
-    
+
 FROM {{ ref('fct_glucose_readings') }}
 
 WHERE reading_date >= CURRENT_DATE - INTERVAL '30' DAY
@@ -373,15 +379,16 @@ def publish_marts_to_postgres(context):
     for table_name in ["mrt_glucose_overview", "mrt_glucose_hourly_patterns"]:
         source = f"iceberg.marts.{table_name}"
         target = f"postgres.marts.{table_name}"
-        
+
         # Drop and recreate (simple refresh)
         cursor.execute(f"DROP TABLE IF EXISTS {target}")
         cursor.execute(f"CREATE TABLE {target} AS SELECT * FROM {source}")
-        
+
         context.log.info(f"Published {table_name} to Postgres")
 ```
 
 **How it works:**
+
 1. Phlo scans the dbt `manifest.json` for models in the `marts` schema
 2. Auto-generates a publishing asset with dependencies on those marts
 3. Uses Trino to copy data from Iceberg (`iceberg.marts.*`) to Postgres (`postgres.marts.*`)
@@ -427,6 +434,7 @@ docker exec dagster-webserver dagster asset materialize \
 ### View Results
 
 **In Dagster**:
+
 ```
 http://localhost:3000
 → Assets tab
@@ -435,6 +443,7 @@ http://localhost:3000
 ```
 
 **In Postgres**:
+
 ```bash
 docker exec -it pg psql -U phlo lakehouse
 
@@ -446,6 +455,7 @@ reading_date | avg_glucose_mg_dl | min_glucose_mg_dl | max_glucose_mg_dl | perce
 ```
 
 **In Superset**:
+
 ```
 http://localhost:8088
 → Dashboards
@@ -457,17 +467,17 @@ http://localhost:8088
 
 ## Step 8: Monitoring and Alerts
 
-### Quality Checks with @phlo.quality
+### Quality Checks with @phlo_quality
 
-Phlo provides two approaches for quality checks. The declarative `@phlo.quality` decorator:
+Phlo provides two approaches for quality checks. The declarative `@phlo_quality` decorator:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
-from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -479,14 +489,14 @@ from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
     blocking=True,
 )
 def glucose_readings_quality():
-    """Declarative quality checks for glucose readings using @phlo.quality."""
+    """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
 ```
 
 And the traditional `@asset_check` for custom logic:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 from dagster import AssetCheckResult, AssetKey, asset_check
 from workflows.schemas.nightscout import FactGlucoseReadings
@@ -535,6 +545,7 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
 ```
 
 **Alerts**: If checks fail:
+
 - Dagster UI shows red
 - 📧 Optional: send to Slack/email
 - 🔔 Dashboard shows warnings
@@ -608,6 +619,7 @@ Total pipeline time: 8.92s
 **Observable** with logs, metrics, dashboards
 
 This is real-world data engineering:
+
 - Start with raw data (APIs, files, databases)
 - Validate early (Pandera schemas)
 - Transform incrementally (bronze → silver → gold)
@@ -630,6 +642,7 @@ The pattern remains:
 ## Summary
 
 You now understand:
+
 - Modern data lakehouse architecture (Iceberg, Nessie)
 - Complete ingestion pattern (DLT, PyIceberg)
 - SQL transformation best practices (dbt layers)

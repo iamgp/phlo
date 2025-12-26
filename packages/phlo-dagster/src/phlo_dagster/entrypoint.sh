@@ -10,7 +10,10 @@ if [ "$PHLO_DEV_MODE" = "true" ] && [ -f /opt/phlo-dev/pyproject.toml ]; then
     # Extract and install dependencies from the mounted pyproject.toml
     # Using uv pip install with --system to install into the container's Python
     cd /opt/phlo-dev
-    uv pip install --system -e . 2>/dev/null || uv pip install --system . || echo "Warning: Could not sync dependencies"
+    uv pip install --system -e ".[defaults]" 2>/dev/null || \
+      uv pip install --system -e . 2>/dev/null || \
+      uv pip install --system . || \
+      echo "Warning: Could not sync dependencies"
     cd /opt/dagster
     echo "Dev mode: dependencies synced"
 fi

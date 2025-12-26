@@ -7,19 +7,18 @@ Quick reference for resolving common Phlo errors.
 ### 1. Asset Not Found in Dagster UI
 
 **Error Message**:
+
 ```
 DagsterInvalidDefinitionError: Asset 'my_asset' not found
 ```
 
-**Cause**: Domain not registered for auto-discovery
+**Cause**: Asset not in the workflows path or workflow import failed
 
 **Solution**:
-```python
-# Add import to src/phlo/defs/ingestion/__init__.py
-from phlo.defs.ingestion import my_domain  # noqa: F401
-```
+Ensure the asset lives under `workflows/` and imports cleanly.
 
 **Then restart Dagster**:
+
 ```bash
 docker restart dagster-webserver
 ```
@@ -31,6 +30,7 @@ docker restart dagster-webserver
 ### 2. unique_key Field Not in Schema
 
 **Error Message**:
+
 ```
 KeyError: 'observation_id'
 ```
@@ -38,9 +38,10 @@ KeyError: 'observation_id'
 **Cause**: `unique_key` in decorator doesn't match schema field name
 
 **Solution**:
+
 ```python
 # Check your decorator
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="id",  # Must match a field in validation_schema
     validation_schema=MySchema,
     ...
@@ -59,6 +60,7 @@ class MySchema(pa.DataFrameModel):
 ### 3. Invalid Cron Expression
 
 **Error Message**:
+
 ```
 ValueError: Invalid cron expression: 'every hour'
 ```
@@ -66,9 +68,10 @@ ValueError: Invalid cron expression: 'every hour'
 **Cause**: Cron string is not in standard format
 
 **Solution**:
+
 ```python
 # Use standard cron format: minute hour day month weekday
-@phlo.ingestion(
+@phlo_ingestion(
     cron="0 */1 * * *",  # Every hour at minute 0
     # NOT: cron="every hour"
     ...
@@ -76,6 +79,7 @@ ValueError: Invalid cron expression: 'every hour'
 ```
 
 **Common cron patterns**:
+
 - `"0 */1 * * *"` - Every hour
 - `"*/15 * * * *"` - Every 15 minutes
 - `"0 0 * * *"` - Daily at midnight
@@ -90,6 +94,7 @@ ValueError: Invalid cron expression: 'every hour'
 ### 4. Schema Validation Failed
 
 **Error Message**:
+
 ```
 pandera.errors.SchemaError: Column 'temperature' failed validation
 failure cases:
@@ -100,6 +105,7 @@ failure cases:
 **Cause**: Data violates Pandera schema constraints
 
 **Solution**:
+
 ```python
 # Check constraint in schema
 class MySchema(pa.DataFrameModel):
@@ -110,6 +116,7 @@ class MySchema(pa.DataFrameModel):
 ```
 
 **Fix options**:
+
 1. Clean data before validation
 2. Adjust schema constraint if value is valid
 3. Add data filtering in asset function
@@ -121,6 +128,7 @@ class MySchema(pa.DataFrameModel):
 ### 5. Missing Required Schema Parameter
 
 **Error Message**:
+
 ```
 ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
 ```
@@ -128,9 +136,10 @@ ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
 **Cause**: Decorator missing schema parameter
 
 **Solution**:
+
 ```python
 # Add validation_schema (recommended)
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="my_table",
     unique_key="id",
     validation_schema=MySchema,  # Add this
@@ -147,6 +156,7 @@ ValueError: Either 'validation_schema' or 'iceberg_schema' must be provided
 ### 6. DLT Pipeline Failed
 
 **Error Message**:
+
 ```
 dlt.pipeline.exceptions.PipelineStepFailed: Pipeline step 'extract' failed
 Caused by: requests.exceptions.ConnectionError: Connection refused
@@ -155,12 +165,14 @@ Caused by: requests.exceptions.ConnectionError: Connection refused
 **Cause**: Usually API connection issue, credentials, or network problem
 
 **Common causes**:
+
 1. API endpoint is down
 2. Invalid API credentials
 3. Network connectivity issue
 4. Rate limit exceeded
 
 **Solution**:
+
 ```bash
 # 1. Check API status page
 # 2. Verify credentials in .env
@@ -182,6 +194,7 @@ docker exec dagster-webserver dagster asset materialize \
 ### 7. Iceberg Table Doesn't Exist
 
 **Error Message**:
+
 ```
 pyiceberg.exceptions.NoSuchTableError: Table does not exist: raw.my_table
 ```
@@ -189,6 +202,7 @@ pyiceberg.exceptions.NoSuchTableError: Table does not exist: raw.my_table
 **Cause**: Asset not yet materialized
 
 **Solution**:
+
 ```bash
 # Materialize the asset first
 docker exec dagster-webserver dagster asset materialize \
@@ -207,6 +221,7 @@ docker exec dagster-webserver dagster asset materialize \
 ### 8. Docker Service Not Running
 
 **Error Message**:
+
 ```
 requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionRefusedError(111, 'Connection refused'))
 ```
@@ -214,6 +229,7 @@ requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionRefusedEr
 **Cause**: Nessie, MinIO, Trino, or Dagster not running
 
 **Solution**:
+
 ```bash
 # Check service status
 docker compose ps
@@ -239,6 +255,7 @@ curl http://localhost:9001  # MinIO console
 ### 9. Import Error in Python Code
 
 **Error Message**:
+
 ```
 ModuleNotFoundError: No module named 'phlo'
 ```
@@ -246,6 +263,7 @@ ModuleNotFoundError: No module named 'phlo'
 **Cause**: Phlo not installed or PYTHONPATH not set
 
 **Solution**:
+
 ```bash
 # Inside Docker container (preferred)
 docker exec -it dagster-webserver bash
@@ -264,6 +282,7 @@ export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
 **Cause**: Various - check logs for details
 
 **Solution**:
+
 ```bash
 # 1. Check Dagster logs
 docker logs dagster-webserver | tail -100
@@ -288,29 +307,29 @@ docker restart nessie
 
 ### Configuration Errors
 
-| Error | Cause | Quick Fix |
-|-------|-------|-----------|
-| Asset not found | Missing domain import | Add import to `__init__.py` |
-| unique_key not in schema | Field name mismatch | Match field names exactly |
-| Invalid cron | Wrong format | Use standard cron format |
-| Missing schema | No validation_schema | Add Pandera schema |
+| Error                    | Cause                   | Quick Fix                                                 |
+| ------------------------ | ----------------------- | --------------------------------------------------------- |
+| Asset not found          | Workflow not discovered | Ensure asset lives under `workflows/` and imports cleanly |
+| unique_key not in schema | Field name mismatch     | Match field names exactly                                 |
+| Invalid cron             | Wrong format            | Use standard cron format                                  |
+| Missing schema           | No validation_schema    | Add Pandera schema                                        |
 
 ### Runtime Errors
 
-| Error | Cause | Quick Fix |
-|-------|-------|-----------|
+| Error                    | Cause                     | Quick Fix                        |
+| ------------------------ | ------------------------- | -------------------------------- |
 | Schema validation failed | Data violates constraints | Check Pandera schema constraints |
-| DLT pipeline failed | API/network issue | Check credentials, connection |
-| Table doesn't exist | Asset not materialized | Materialize asset first |
-| Connection refused | Service not running | Start Docker services |
+| DLT pipeline failed      | API/network issue         | Check credentials, connection    |
+| Table doesn't exist      | Asset not materialized    | Materialize asset first          |
+| Connection refused       | Service not running       | Start Docker services            |
 
 ### Development Errors
 
-| Error | Cause | Quick Fix |
-|-------|-------|-----------|
-| ModuleNotFoundError | Import issues | Install phlo in editable mode |
-| Permission denied | File permissions | Check Docker volume mounts |
-| Port already in use | Port conflict | Stop conflicting service or change port |
+| Error               | Cause            | Quick Fix                               |
+| ------------------- | ---------------- | --------------------------------------- |
+| ModuleNotFoundError | Import issues    | Install phlo in editable mode           |
+| Permission denied   | File permissions | Check Docker volume mounts              |
+| Port already in use | Port conflict    | Stop conflicting service or change port |
 
 ---
 
@@ -326,6 +345,7 @@ When you encounter an error:
    - Try suggested solution
 
 3. **Check logs**
+
    ```bash
    # Dagster logs
    docker logs dagster-webserver | tail -100
@@ -336,7 +356,7 @@ When you encounter an error:
 
 4. **Verify configuration**
    - Schema field names match unique_key
-   - Domain is registered in `__init__.py`
+   - Asset file is under `workflows/` and imports without errors
    - Cron expression is valid
    - Docker services are running
 
@@ -371,7 +391,7 @@ MySchema.validate(test_data)  # Fails fast if schema is wrong
 
 ```python
 # unique_key must match schema field exactly
-@phlo.ingestion(
+@phlo_ingestion(
     unique_key="id",  # Must match field name below
     validation_schema=MySchema,
 )

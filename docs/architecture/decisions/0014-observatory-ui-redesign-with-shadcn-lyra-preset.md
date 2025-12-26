@@ -22,7 +22,7 @@ This decision is tracked by bead `phlo-bms` (closed).
 - Use shadcn/ui as the Observatory UI component system and adopt the Lyra preset baseline.
 - Generate the baseline in a throwaway workspace via:
   - `npx shadcn@latest create --preset "https://ui.shadcn.com/init?base=base&style=lyra&baseColor=neutral&theme=amber&iconLibrary=lucide&font=jetbrains-mono&menuAccent=subtle&menuColor=default&radius=default&template=start" --template start`
-- Copy the relevant artifacts into `services/observatory/` (CSS variables, `components.json`,
+- Copy the relevant artifacts into `packages/phlo-observatory/src/phlo_observatory/` (CSS variables, `components.json`,
   utility helpers, and shadcn component primitives) and use them as the source of truth going
   forward.
 - Ship a fixed design system:

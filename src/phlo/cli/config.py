@@ -14,7 +14,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
-from phlo.config_schema import InfrastructureConfig, get_default_infrastructure_config
+from phlo.config_schema import InfrastructureConfig
 from phlo.infrastructure import clear_config_cache, load_infrastructure_config
 
 console = Console()
@@ -157,7 +157,7 @@ def upgrade(force: bool):
         console.print("Use --force to overwrite", err=True)
         sys.exit(1)
 
-    default_infra = get_default_infrastructure_config()
+    default_infra = InfrastructureConfig()
     project_config["infrastructure"] = default_infra.model_dump(exclude_none=False, mode="python")
 
     with open(config_path, "w") as f:
@@ -170,7 +170,7 @@ def upgrade(force: bool):
         )
 
     console.print(f"[green]✓ Updated {config_path}[/green]")
-    console.print(f"Added infrastructure section with {len(default_infra.services)} services\n")
+    console.print("Added infrastructure section\n")
 
     clear_config_cache()
 

@@ -55,7 +55,7 @@ export const Route = createFileRoute('/assets/$assetId')({
 
     // Load the selected asset details
     const asset = await getAssetDetails({
-      data: { assetKeyPath: params.assetId, dagsterUrl },
+      data: { assetKey: params.assetId.split('/'), dagsterUrl },
     })
 
     // Fetch checks but don't fail the whole page if it errors
@@ -630,7 +630,7 @@ function QualityTab({ checks }: { checks: Array<QualityCheck> }) {
               <p className="text-sm mt-1">
                 Add{' '}
                 <code className="bg-muted px-1 rounded-none">
-                  @phlo.quality
+                  @phlo_quality
                 </code>{' '}
                 decorators to enable checks
               </p>

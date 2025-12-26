@@ -11,7 +11,7 @@ Tuesday 3am:
   • DLT fails to fetch from Nightscout API
   • Data stops flowing
   • Nobody notices
-  
+
 Wednesday 9am:
   • Users report: "Dashboard shows stale data"
   • Investigation: "Last update was 30 hours ago"
@@ -181,7 +181,7 @@ $ phlo metrics export --format csv --period 30d --output metrics.csv
 Use structured logs for easy searching:
 
 ```python
-# phlo/defs/ingestion/dlt_assets.py
+# workflows/ingestion/dlt_assets.py
 import structlog
 
 logger = structlog.get_logger()
@@ -190,13 +190,13 @@ logger = structlog.get_logger()
 @asset
 def dlt_glucose_entries(context) -> None:
     """Ingest glucose entries with structured logging."""
-    
+
     logger.info(
         "asset_started",
         asset_name="dlt_glucose_entries",
         timestamp=datetime.utcnow().isoformat(),
     )
-    
+
     try:
         # Fetch API
         logger.info(
@@ -204,25 +204,25 @@ def dlt_glucose_entries(context) -> None:
             endpoint="https://api.nightscout.info/api/v1/entries",
             timeout_seconds=30,
         )
-        
+
         response = fetch_from_api()
-        
+
         logger.info(
             "api_fetch_success",
             rows_returned=len(response),
             response_time_ms=response.elapsed.total_seconds() * 1000,
         )
-        
+
         # Validate
         logger.info(
             "validation_started",
             validator="pandera",
             schema="glucose_entries_v1",
         )
-        
+
         validated = validate(response)
         invalid_count = len(response) - len(validated)
-        
+
         logger.info(
             "validation_complete",
             total_rows=len(response),
@@ -230,7 +230,7 @@ def dlt_glucose_entries(context) -> None:
             invalid_rows=invalid_count,
             pass_rate=100.0 * len(validated) / len(response),
         )
-        
+
         # Merge
         logger.info(
             "merge_started",
@@ -238,9 +238,9 @@ def dlt_glucose_entries(context) -> None:
             rows_to_merge=len(validated),
             unique_key="_id",
         )
-        
+
         result = merge_to_iceberg(validated)
-        
+
         logger.info(
             "merge_complete",
             table="raw.glucose_entries",
@@ -248,14 +248,14 @@ def dlt_glucose_entries(context) -> None:
             updates=result["updates"],
             merge_time_ms=result["duration_ms"],
         )
-        
+
         # Success
         logger.info(
             "asset_succeeded",
             asset_name="dlt_glucose_entries",
             total_time_ms=get_total_elapsed(),
         )
-        
+
     except Exception as e:
         logger.exception(
             "asset_failed",
@@ -354,11 +354,11 @@ Phlo automatically sends alerts for:
 
 ### Alert Severity Levels
 
-| Severity | Description | Default Routing |
-|----------|-------------|-----------------|
-| **INFO** | FYI notifications | Slack only |
-| **WARNING** | Needs attention | Slack + Email |
-| **ERROR** | Something failed | Slack + Email + PagerDuty (low urgency) |
+| Severity     | Description       | Default Routing                         |
+| ------------ | ----------------- | --------------------------------------- |
+| **INFO**     | FYI notifications | Slack only                              |
+| **WARNING**  | Needs attention   | Slack + Email                           |
+| **ERROR**    | Something failed  | Slack + Email + PagerDuty (low urgency) |
 | **CRITICAL** | Production impact | All channels + PagerDuty (high urgency) |
 
 ## Dashboards: Visualizing Health
@@ -469,20 +469,20 @@ def trace_operation(operation_name: str, attributes: dict = None):
 @asset
 def dlt_glucose_entries(context):
     """Ingest with tracing."""
-    
+
     with trace_operation("dlt_glucose_entries") as span:
         # Fetch
         with trace_operation("fetch_from_api") as fetch_span:
             fetch_span.set_attribute("endpoint", "nightscout_api")
             data = fetch_api()
             fetch_span.set_attribute("rows_fetched", len(data))
-        
+
         # Validate
         with trace_operation("pandera_validation") as val_span:
             val_span.set_attribute("schema", "glucose_entries_v1")
             valid = validate(data)
             val_span.set_attribute("rows_valid", len(valid))
-        
+
         # Merge
         with trace_operation("iceberg_merge") as merge_span:
             merge_span.set_attribute("table", "raw.glucose_entries")
@@ -510,6 +510,7 @@ Duration: 152ms
 ```
 
 Click on any span to see:
+
 - Start time and duration
 - Attributes (table name, row count, etc.)
 - Logs within that span
@@ -533,7 +534,7 @@ def freshness_dashboard(context):
             (time() - asset_last_update_timestamp{'asset'='fct_glucose_readings'}) / 3600
         """,
     }
-    
+
     dashboard = create_grafana_dashboard(
         name="Data Freshness",
         panels=[
@@ -545,7 +546,7 @@ def freshness_dashboard(context):
             for asset, query in queries.items()
         ],
     )
-    
+
     context.log.info(f"✓ Created freshness dashboard: {dashboard.url}")
 
 
@@ -562,7 +563,7 @@ def sla_tracker(context):
             "availability": "99.95%",
         },
     }
-    
+
     for asset_name, sla in slas.items():
         record_sla_metric(asset_name, sla)
         context.log.info(f"✓ Updated SLA for {asset_name}")
@@ -701,6 +702,7 @@ Timestamp: 2024-01-15 10:35:42 UTC
 ```
 
 The AlertManager automatically handles:
+
 - **Deduplication** - Same asset + same error = 1 alert per hour (configurable)
 - **Severity Routing** - Routes to appropriate channels based on severity
 - **Context** - Includes run ID, asset name, error details
@@ -726,7 +728,7 @@ Without CLI logs:
 
 With phlo logs:
   $ phlo logs --asset glucose_entries --level ERROR --since 1h
-  
+
   [10:35:42] ERROR glucose_entries: Connection refused to nightscout.api
   [10:35:42] ERROR glucose_entries: Retry 3/3 failed, aborting
   [10:35:43] ERROR glucose_entries: Run failed after 45s
@@ -810,16 +812,16 @@ Runs:
   Total:     288
   Success:   285 (98.96%)
   Failed:    3 (1.04%)
-  
+
 Data Volume:
   Rows Processed:  1.2M
   Bytes Written:   450 MB
-  
+
 Latency:
   P50:   320ms
   P95:   850ms
   P99:   1.2s
-  
+
 Quality:
   Pass Rate:     99.74%
   Checks Run:    1,440
@@ -853,7 +855,7 @@ Statistics:
   Avg Duration:   5.1s
   P95 Duration:   8.2s
   Avg Rows:       498
-  
+
 Trend:
   Duration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (stable)
   Failures: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (1 in window)
@@ -884,6 +886,7 @@ Phlo's observability stack provides:
 **Alerts**: Get notified via `phlo alerts` (Slack, PagerDuty, email with deduplication)
 
 Combined, you have:
+
 - **Visibility**: Know your pipeline state at any time via CLI
 - **Reliability**: Automated alerts detect failures before users do
 - **Speed**: Find root causes in minutes with structured logs and lineage

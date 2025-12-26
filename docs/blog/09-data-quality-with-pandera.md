@@ -49,7 +49,7 @@ Pandera provides type-safe validation with detailed error reporting.
 Phlo uses Pandera's DataFrameModel approach for cleaner, class-based schemas:
 
 ```python
-# File: examples/glucose-platform/workflows/schemas/nightscout.py
+# File: phlo-examples/nightscout/workflows/schemas/nightscout.py
 from pandera.pandas import DataFrameModel, Field
 
 # Validation constants
@@ -166,18 +166,18 @@ class FactGlucoseReadings(DataFrameModel):
         coerce = True
 ```
 
-### Using Pandera in @phlo.ingestion
+### Using Pandera in @phlo_ingestion
 
-The `@phlo.ingestion` decorator automatically validates data with Pandera schemas:
+The `@phlo_ingestion` decorator automatically validates data with Pandera schemas:
 
 ```python
-# File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# File: phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",
     validation_schema=RawGlucoseEntries,  # Automatic validation
@@ -237,6 +237,7 @@ Failure counts:
 ```
 
 This helps you:
+
 - Identify exact problematic rows
 - Understand which rule failed
 - Decide: drop, fix, or investigate
@@ -254,14 +255,14 @@ version: 2
 models:
   - name: stg_glucose_entries
     description: Staged glucose entries with basic cleaning
-    
+
     columns:
       - name: entry_id
         description: Unique identifier
         tests:
           - unique
           - not_null
-      
+
       - name: glucose_mg_dl
         description: Glucose in mg/dL
         tests:
@@ -272,20 +273,20 @@ models:
               strictly: false
           - dbt_expectations.expect_column_values_to_match_regex:
               regex: "^\\d+$"
-      
+
       - name: timestamp_iso
         description: ISO 8601 timestamp
         tests:
           - not_null
           - dbt_utils.expression_is_true:
               expression: "timestamp_iso ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'"
-      
+
       - name: device_type
         description: Device type (enum)
         tests:
           - not_null
           - accepted_values:
-              values: ['dexcom', 'freestyle', 'medtronic']
+              values: ["dexcom", "freestyle", "medtronic"]
 ```
 
 ### Custom Tests (SQL)
@@ -323,19 +324,19 @@ dbt test --select stg_glucose_entries --debug
 
 ## Layer 3: Dagster Asset Checks (Runtime)
 
-After orchestration, Dagster asset checks monitor data quality in production. Phlo provides **two approaches**: the declarative `@phlo.quality` decorator and traditional `@asset_check` for custom logic.
+After orchestration, Dagster asset checks monitor data quality in production. Phlo provides **two approaches**: the declarative `@phlo_quality` decorator and traditional `@asset_check` for custom logic.
 
-### Approach 1: @phlo.quality Decorator (Declarative)
+### Approach 1: @phlo_quality Decorator (Declarative)
 
-For common checks (null, range, freshness), use the `@phlo.quality` decorator to reduce boilerplate by 70-80%:
+For common checks (null, range, freshness), use the `@phlo_quality` decorator to reduce boilerplate by 70-80%:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
-from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -347,11 +348,11 @@ from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
     blocking=True,
 )
 def glucose_readings_quality():
-    """Declarative quality checks for glucose readings using @phlo.quality."""
+    """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
 
 
-@phlo.quality(
+@phlo_quality(
     table="gold.fct_daily_glucose_metrics",
     checks=[
         NullCheck(columns=["reading_date", "reading_count", "avg_glucose_mg_dl"]),
@@ -371,10 +372,10 @@ def daily_metrics_quality():
 For complex validation with Pandera schemas or custom business logic:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 from dagster import AssetCheckResult, AssetKey, asset_check
-from phlo.defs.resources.trino import TrinoResource
+from phlo_trino.resource import TrinoResource
 from workflows.schemas.nightscout import FactGlucoseReadings
 import pandera.errors
 
@@ -496,17 +497,17 @@ Asset: fct_glucose_readings
 
 Both approaches are used in the actual Phlo implementation and serve different purposes:
 
-### @phlo.quality: Declarative (10 lines)
+### @phlo_quality: Declarative (10 lines)
 
 Best for standard checks - reduces boilerplate by 70-80%:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
-from phlo.quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
@@ -527,7 +528,7 @@ def glucose_readings_quality():
 Best for complex validation with Pandera schemas or custom business logic:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 @asset_check(
     name="nightscout_glucose_quality",
@@ -553,23 +554,24 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
         return AssetCheckResult(passed=False, metadata={...})
 ```
 
-**Both approaches are valid** - use `@phlo.quality` for common checks, `@asset_check` for complex logic.
+**Both approaches are valid** - use `@phlo_quality` for common checks, `@asset_check` for complex logic.
 
 ### Available Check Types
 
-| Check Type | Purpose | Parameters |
-|------------|---------|------------|
-| `NullCheck` | Verify no nulls | `columns`, `tolerance` (% allowed) |
-| `RangeCheck` | Verify numeric bounds | `column`, `min_value`, `max_value` |
-| `FreshnessCheck` | Verify data recency | `column`, `max_age_hours` |
-| `UniqueCheck` | Verify uniqueness | `columns` (can be composite) |
-| `CountCheck` | Verify row count | `min_count`, `max_count` |
-| `SchemaCheck` | Validate against Pandera | `schema` (DataFrameModel class) |
-| `CustomSQLCheck` | Run arbitrary SQL | `sql`, `expected_result` |
+| Check Type       | Purpose                  | Parameters                         |
+| ---------------- | ------------------------ | ---------------------------------- |
+| `NullCheck`      | Verify no nulls          | `columns`, `tolerance` (% allowed) |
+| `RangeCheck`     | Verify numeric bounds    | `column`, `min_value`, `max_value` |
+| `FreshnessCheck` | Verify data recency      | `column`, `max_age_hours`          |
+| `UniqueCheck`    | Verify uniqueness        | `columns` (can be composite)       |
+| `CountCheck`     | Verify row count         | `min_count`, `max_count`           |
+| `SchemaCheck`    | Validate against Pandera | `schema` (DataFrameModel class)    |
+| `CustomSQLCheck` | Run arbitrary SQL        | `sql`, `expected_result`           |
 
 ### Check Parameters in Detail
 
 **NullCheck with tolerance:**
+
 ```python
 # Strict: no nulls allowed
 NullCheck(columns=["sgv", "timestamp"])
@@ -579,6 +581,7 @@ NullCheck(columns=["device"], tolerance=0.01)
 ```
 
 **RangeCheck:**
+
 ```python
 # Both bounds
 RangeCheck(column="sgv", min_value=20, max_value=600)
@@ -591,6 +594,7 @@ RangeCheck(column="percentage", max_value=100)
 ```
 
 **FreshnessCheck:**
+
 ```python
 # Data must be less than 2 hours old
 FreshnessCheck(column="timestamp", max_age_hours=2)
@@ -600,6 +604,7 @@ FreshnessCheck(column="created_at", max_age_hours=24)
 ```
 
 **UniqueCheck:**
+
 ```python
 # Single column unique
 UniqueCheck(columns=["id"])
@@ -609,6 +614,7 @@ UniqueCheck(columns=["user_id", "timestamp"])
 ```
 
 **CustomSQLCheck for complex rules:**
+
 ```python
 CustomSQLCheck(
     name="business_hours_only",
@@ -624,7 +630,7 @@ CustomSQLCheck(
 ### Decorator Parameters
 
 ```python
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",  # Fully qualified table name
     checks=[...],                          # List of check instances
     group="glucose",                       # Asset group (optional)
@@ -635,10 +641,12 @@ CustomSQLCheck(
 ```
 
 **blocking parameter:**
+
 - `blocking=True` (default): Failed checks prevent downstream assets from running
 - `blocking=False`: Failed checks log warnings but don't block execution
 
 **warn_threshold:**
+
 - Set to `0.0` for strict mode (any failure = warning)
 - Set to `0.1` to allow 10% of checks to fail before warning
 
@@ -647,15 +655,15 @@ CustomSQLCheck(
 For complex validation, combine the decorator with Pandera:
 
 ```python
-from phlo.quality import SchemaCheck
+from phlo_quality import SchemaCheck
 from workflows.schemas.glucose import FactGlucoseReadings
 
-@phlo.quality(
+@phlo_quality(
     table="silver.fct_glucose_readings",
     checks=[
         # Use Pandera for full schema validation
         SchemaCheck(schema=FactGlucoseReadings),
-        
+
         # Plus additional runtime checks
         FreshnessCheck(column="timestamp", max_age_hours=2),
     ],
@@ -666,17 +674,18 @@ def glucose_comprehensive_quality():
 
 ### When to Use Each Approach
 
-| Scenario | Recommended Approach | Example |
-|----------|---------------------|---------|
-| Standard null/range/freshness checks | `@phlo.quality` decorator | `NullCheck`, `RangeCheck`, `FreshnessCheck` |
-| Full Pandera schema validation | Traditional `@asset_check` | `FactGlucoseReadings.validate()` |
-| Complex business logic | Traditional `@asset_check` | Custom distribution checks |
-| Statistical analysis | Traditional `@asset_check` | Outlier detection |
-| Multiple simple checks | `@phlo.quality` decorator | Combine `NullCheck` + `RangeCheck` |
-| Custom error handling | Traditional `@asset_check` | Detailed failure reporting |
+| Scenario                             | Recommended Approach       | Example                                     |
+| ------------------------------------ | -------------------------- | ------------------------------------------- |
+| Standard null/range/freshness checks | `@phlo_quality` decorator  | `NullCheck`, `RangeCheck`, `FreshnessCheck` |
+| Full Pandera schema validation       | Traditional `@asset_check` | `FactGlucoseReadings.validate()`            |
+| Complex business logic               | Traditional `@asset_check` | Custom distribution checks                  |
+| Statistical analysis                 | Traditional `@asset_check` | Outlier detection                           |
+| Multiple simple checks               | `@phlo_quality` decorator  | Combine `NullCheck` + `RangeCheck`          |
+| Custom error handling                | Traditional `@asset_check` | Detailed failure reporting                  |
 
-**Real-world usage in examples/glucose-platform**:
-- `@phlo.quality`: `glucose_readings_quality()`, `daily_metrics_quality()` - standard checks
+**Real-world usage in phlo-examples/nightscout**:
+
+- `@phlo_quality`: `glucose_readings_quality()`, `daily_metrics_quality()` - standard checks
 - `@asset_check`: `nightscout_glucose_quality_check()` - full Pandera validation with custom error handling
 
 Both approaches are valid and complement each other. The decorator handles common cases efficiently, while traditional checks provide full control for complex scenarios.
@@ -729,7 +738,7 @@ Without Layer 1:
         ✗ not_null check fails
         → Build fails
         → Data already written to staging
-    
+
     Without Layer 2:
         [3] Asset Check catches it:
             ✗ All values are NULL
@@ -747,15 +756,15 @@ class DataQualityConfig(BaseSettings):
     # Validation behavior
     pandera_strict: bool = True  # Fail on any schema error
     allow_null_in_required: bool = False
-    
+
     # Thresholds for warnings
     max_invalid_percentage: float = 1.0  # Warn if >1% invalid
     freshness_threshold_hours: float = 2.0
-    
+
     # Anomaly detection
     enable_statistical_checks: bool = True
     outlier_std_devs: float = 3.0
-    
+
     class Config:
         env_file = ".env"
 
@@ -798,7 +807,7 @@ SELECT
   asset_name,
   MAX(data_date) as latest_data,
   NOW() - MAX(data_date) as hours_stale,
-  CASE 
+  CASE
     WHEN NOW() - MAX(data_date) < '2 hours'::interval THEN '✓ Fresh'
     WHEN NOW() - MAX(data_date) < '24 hours'::interval THEN '⚠ Stale'
     ELSE '✗ Very Stale'
@@ -817,6 +826,7 @@ Phlo uses **three-layer validation**:
 3. **Dagster** (runtime): Production monitoring and anomaly detection
 
 This ensures:
+
 - Bad data never enters the system
 - Transforms execute correctly
 - Production issues are caught quickly

@@ -13,6 +13,7 @@ uv pip install -e .
 ```
 
 Verify:
+
 ```bash
 phlo --version
 ```
@@ -65,16 +66,19 @@ phlo services init
 ```
 
 **What it does**:
+
 - Creates `.phlo/` directory
 - Generates Docker Compose configurations
 - Sets up network and volume definitions
 
 **Options**:
+
 ```bash
 --force              # Overwrite existing configuration
 ```
 
 **Example**:
+
 ```bash
 phlo services init --force
 ```
@@ -88,20 +92,22 @@ phlo services start [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
---dev                    # Development mode (mount local source)
---phlo-source PATH       # Path to Phlo source code (for dev mode)
+--native                 # Run native dev services (phlo-api, Observatory) as subprocesses
 --profile PROFILE        # Additional service profiles
 --detach, -d             # Run in background
 --build                  # Rebuild containers before starting
 ```
 
 **Profiles**:
+
 - `observability`: Prometheus, Grafana, Loki
 - `api`: PostgREST, Hasura
 - `catalog`: OpenMetadata
 
 **Examples**:
+
 ```bash
 # Start core services
 phlo services start
@@ -109,8 +115,12 @@ phlo services start
 # Start with observability
 phlo services start --profile observability
 
-# Development mode with local source
-phlo services start --dev --phlo-source /path/to/phlo
+# Run Observatory/phlo-api without Docker (useful on ARM Macs)
+phlo services start --native
+
+# Develop the phlo framework from a local monorepo (Dagster container installs editable from source)
+phlo services init --force --dev --phlo-source /path/to/phlo
+phlo services start
 
 # Multiple profiles
 phlo services start --profile observability --profile api
@@ -120,6 +130,7 @@ phlo services start --build
 ```
 
 **Services started**:
+
 - PostgreSQL (port 10000)
 - MinIO (ports 10001-10002)
 - Nessie (port 10003)
@@ -136,12 +147,14 @@ phlo services stop [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --volumes, -v        # Remove volumes (deletes all data)
 --remove-orphans     # Remove containers for services not in compose file
 ```
 
 **Examples**:
+
 ```bash
 # Stop services (preserve data)
 phlo services stop
@@ -159,6 +172,7 @@ phlo services status
 ```
 
 **Output**:
+
 ```
 SERVICE              STATUS    PORTS
 postgres             running   10000
@@ -178,6 +192,7 @@ phlo services logs [OPTIONS] [SERVICE]
 ```
 
 **Options**:
+
 ```bash
 --follow, -f         # Follow log output
 --tail N             # Show last N lines
@@ -185,6 +200,7 @@ phlo services logs [OPTIONS] [SERVICE]
 ```
 
 **Examples**:
+
 ```bash
 # All logs
 phlo services logs
@@ -207,6 +223,7 @@ phlo init [PROJECT_NAME] [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --template TEMPLATE      # Project template (default: basic)
 --directory PATH         # Target directory
@@ -214,16 +231,19 @@ phlo init [PROJECT_NAME] [OPTIONS]
 ```
 
 **Templates**:
+
 - `basic`: Minimal project structure
 - `complete`: Full example with ingestion and transformations
 
 **Example**:
+
 ```bash
 phlo init my-lakehouse --template complete
 cd my-lakehouse
 ```
 
 **Creates**:
+
 ```
 my-lakehouse/
 ├── .env.example
@@ -245,6 +265,7 @@ phlo dev [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --port PORT          # Port for webserver (default: 10006)
 --host HOST          # Host to bind (default: 0.0.0.0)
@@ -252,6 +273,7 @@ phlo dev [OPTIONS]
 ```
 
 **Example**:
+
 ```bash
 phlo dev --port 3000
 ```
@@ -269,6 +291,7 @@ phlo create-workflow [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --type TYPE          # Workflow type: ingestion, quality, transform
 --domain DOMAIN      # Domain/namespace (e.g., api, files)
@@ -278,6 +301,7 @@ phlo create-workflow [OPTIONS]
 ```
 
 **Interactive prompts**:
+
 1. Workflow type (ingestion/quality/transform)
 2. Domain name
 3. Table name
@@ -286,11 +310,13 @@ phlo create-workflow [OPTIONS]
 6. Schedule (cron expression)
 
 **Example (interactive)**:
+
 ```bash
 phlo create-workflow
 ```
 
 **Example (non-interactive)**:
+
 ```bash
 phlo create-workflow \
   --type ingestion \
@@ -300,6 +326,7 @@ phlo create-workflow \
 ```
 
 **Creates**:
+
 ```
 workflows/
 ├── ingestion/
@@ -320,6 +347,7 @@ phlo materialize [ASSET_KEYS...] [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --select SELECTOR        # Asset selection query
 --partition PARTITION    # Specific partition to materialize
@@ -328,6 +356,7 @@ phlo materialize [ASSET_KEYS...] [OPTIONS]
 ```
 
 **Selection Syntax**:
+
 ```bash
 asset_name               # Single asset
 asset_name+              # Asset and downstream
@@ -338,6 +367,7 @@ tag:group_name           # All assets with tag
 ```
 
 **Examples**:
+
 ```bash
 # Single asset
 phlo materialize dlt_glucose_entries
@@ -369,6 +399,7 @@ phlo test [TEST_PATH] [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --local              # Skip Docker integration tests
 --verbose, -v        # Verbose output
@@ -378,11 +409,13 @@ phlo test [TEST_PATH] [OPTIONS]
 ```
 
 **Markers**:
+
 - `integration`: Integration tests requiring Docker
 - `unit`: Fast unit tests
 - `slow`: Slow-running tests
 
 **Examples**:
+
 ```bash
 # All tests
 phlo test
@@ -416,12 +449,14 @@ phlo branch create BRANCH_NAME [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --from REF           # Create from reference (default: main)
 --description DESC   # Branch description
 ```
 
 **Examples**:
+
 ```bash
 # Create from main
 phlo branch create dev
@@ -442,12 +477,14 @@ phlo branch list [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --pattern PATTERN    # Filter by pattern
 --show-hashes        # Show commit hashes
 ```
 
 **Example**:
+
 ```bash
 phlo branch list
 phlo branch list --pattern "pipeline/*"
@@ -462,12 +499,14 @@ phlo branch merge SOURCE TARGET [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --strategy STRATEGY  # Merge strategy (default: normal)
 --no-ff              # Create merge commit even if fast-forward
 ```
 
 **Examples**:
+
 ```bash
 # Merge dev to main
 phlo branch merge dev main
@@ -485,11 +524,13 @@ phlo branch delete BRANCH_NAME [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --force, -f          # Force delete even if not merged
 ```
 
 **Examples**:
+
 ```bash
 phlo branch delete old-feature
 phlo branch delete old-feature --force
@@ -506,6 +547,7 @@ phlo catalog sync [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --database DB        # Sync specific database
 --table TABLE        # Sync specific table
@@ -513,6 +555,7 @@ phlo catalog sync [OPTIONS]
 ```
 
 **Examples**:
+
 ```bash
 # Sync all
 phlo catalog sync
@@ -533,6 +576,7 @@ phlo lineage show [ASSET] [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --format FORMAT      # Output format: text, dot, json
 --depth N            # Maximum depth to traverse
@@ -541,6 +585,7 @@ phlo lineage show [ASSET] [OPTIONS]
 ```
 
 **Examples**:
+
 ```bash
 phlo lineage show dlt_glucose_entries
 phlo lineage show --format dot > lineage.dot
@@ -558,12 +603,14 @@ phlo config show [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --format FORMAT      # Output format: yaml, json, env
 --secrets            # Show secrets (masked by default)
 ```
 
 **Examples**:
+
 ```bash
 phlo config show
 phlo config show --format json
@@ -579,6 +626,7 @@ phlo config validate [FILE]
 ```
 
 **Examples**:
+
 ```bash
 # Validate .env
 phlo config validate .env
@@ -598,6 +646,7 @@ phlo status [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --stale              # Show only stale assets
 --failed             # Show only failed assets
@@ -605,6 +654,7 @@ phlo status [OPTIONS]
 ```
 
 **Example**:
+
 ```bash
 phlo status
 phlo status --stale
@@ -620,14 +670,16 @@ phlo validate-schema SCHEMA_PATH [OPTIONS]
 ```
 
 **Options**:
+
 ```bash
 --data DATA_PATH     # Validate against sample data
 ```
 
 **Example**:
+
 ```bash
-phlo validate-schema src/phlo/schemas/events.py
-phlo validate-schema src/phlo/schemas/events.py --data sample.parquet
+phlo validate-schema workflows/schemas/events.py
+phlo validate-schema workflows/schemas/events.py --data sample.parquet
 ```
 
 ### phlo validate-workflow
@@ -639,6 +691,7 @@ phlo validate-workflow WORKFLOW_PATH
 ```
 
 **Example**:
+
 ```bash
 phlo validate-workflow workflows/ingestion/api/events.py
 ```
@@ -700,8 +753,8 @@ phlo materialize --all
 ### Development Workflow
 
 ```bash
-# Start services in dev mode
-phlo services start --dev
+# Start Observatory/phlo-api natively (no Docker)
+phlo services start --native
 
 # Create feature branch
 phlo branch create feature-new-workflow

@@ -11,6 +11,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+import click
+import dagster as dg
 import pandas as pd
 
 
@@ -88,6 +90,54 @@ class Plugin(ABC):
         - Saving state
         """
         pass
+
+
+class DagsterExtensionPlugin(Plugin, ABC):
+    """
+    Base class for Dagster extension plugins.
+
+    These plugins contribute Dagster definitions (assets/resources/schedules/sensors/etc.)
+    to the running Phlo instance.
+
+    This is the primary mechanism for first-party "capability" packages (e.g. ingestion engines,
+    catalogs, transform integrations) to auto-wire themselves into the lakehouse without living in
+    `phlo` core.
+    """
+
+    def get_definitions(self) -> dg.Definitions:
+        """Return Dagster definitions to merge into the global Definitions."""
+        return dg.Definitions()
+
+    def get_exports(self) -> dict[str, Any]:
+        """
+        Return exported symbols to attach to the `phlo` public API.
+
+        Example: {"ingestion": phlo_ingestion}
+        """
+        return {}
+
+    def clear_registries(self) -> None:
+        """
+        Clear any global registries used by this plugin (primarily for module reload and tests).
+        """
+        return None
+
+
+class CliCommandPlugin(Plugin, ABC):
+    """
+    Base class for CLI command plugins.
+
+    These plugins contribute Click commands/groups to the `phlo` CLI at runtime.
+
+    Intended use:
+    - Capability packages (e.g., `phlo-nessie`, `phlo-openmetadata`) provide their own CLI surface.
+    - `phlo` core stays lightweight and only provides the CLI glue + shared utilities.
+    """
+
+    @abstractmethod
+    def get_cli_commands(self) -> list[click.Command]:
+        """Return Click commands/groups to register on the root CLI."""
+        raise NotImplementedError
 
 
 class SourceConnectorPlugin(Plugin, ABC):
@@ -266,7 +316,7 @@ class QualityCheckPlugin(Plugin, ABC):
 
     Example:
         ```python
-        from phlo.quality.checks import QualityCheck, QualityCheckResult
+        from phlo_quality.checks import QualityCheck, QualityCheckResult
 
         class BusinessRuleCheck(QualityCheckPlugin):
             @property

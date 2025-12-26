@@ -87,11 +87,11 @@ docker exec phlo-dagster-webserver-1 dbt compile
 
 ### Core Components
 
-- **Orchestration**: Dagster with assets in `src/phlo/defs/`
-  - `ingestion/` - DLT-based data ingestion with `@phlo.ingestion` decorator
+- **Orchestration**: Dagster with assets in `workflows/`
+  - `ingestion/` - DLT-based data ingestion with `@phlo_ingestion` decorator
   - `transform/` - dbt integration for SQL transformations
   - `publishing/` - Publishing marts to PostgreSQL for BI
-  - `quality/` - Data quality checks with `@phlo.quality` decorator
+  - `quality/` - Data quality checks with `@phlo_quality` decorator
   - `sensors/` - Branch lifecycle automation (creation, promotion, cleanup)
 
 - **Storage**: MinIO (S3-compatible) + Nessie (Git-like catalog) + Iceberg (table format)
@@ -121,7 +121,7 @@ docker exec phlo-dagster-webserver-1 dbt compile
 ### Code Organization
 
 - **One asset per file** in appropriate subdirectory
-- **Pandera schemas** in `src/phlo/schemas/{domain}.py`
+- **Pandera schemas** in `workflows/schemas/{domain}.py`
 - **Configuration** via environment variables, accessed through `phlo.config.settings`
 - **Error handling**: Use Pydantic validation, structured logging
 - **No backwards compatibility shims** - clean implementation only

@@ -54,7 +54,7 @@
           {
             "columns": [],
             "metrics": ["time_in_range_pct"],
-            "filters": [{"col": "reading_date", "op": "==", "val": "today"}]
+            "filters": [{ "col": "reading_date", "op": "==", "val": "today" }]
           }
         ]
       }
@@ -77,7 +77,11 @@
         "queries": [
           {
             "columns": ["reading_date"],
-            "metrics": ["avg_glucose_mg_dl", "min_glucose_mg_dl", "max_glucose_mg_dl"],
+            "metrics": [
+              "avg_glucose_mg_dl",
+              "min_glucose_mg_dl",
+              "max_glucose_mg_dl"
+            ],
             "orderby": [["reading_date", true]],
             "time_range": "7 days ago : now"
           }
@@ -125,7 +129,11 @@
         "queries": [
           {
             "columns": [],
-            "metrics": ["time_in_range_pct", "time_below_range_pct", "time_above_range_pct"],
+            "metrics": [
+              "time_in_range_pct",
+              "time_below_range_pct",
+              "time_above_range_pct"
+            ],
             "time_range": "7 days ago : now"
           }
         ]

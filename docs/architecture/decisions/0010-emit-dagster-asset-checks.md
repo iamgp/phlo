@@ -27,4 +27,3 @@ We want Pandera and dbt results to be visible as asset checks so that:
 - Quality becomes first-class in Dagster across ingestion and transform layers.
 - Check emission adds overhead (artifact parsing, metadata shaping) but remains bounded and testable.
 - Check producers must maintain correct asset key mapping; the dbt translator becomes critical.
-

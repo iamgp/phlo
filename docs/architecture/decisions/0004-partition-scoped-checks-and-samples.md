@@ -32,4 +32,3 @@ Standardize two behaviors across check sources:
 - Checks become safe-by-default for partitioned assets (no accidental full-table scans).
 - Observatory can show consistent failure drilldowns across check sources.
 - Some sources (e.g., dbt) may not always provide row-level samples; the contract allows best-effort.
-

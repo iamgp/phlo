@@ -5,19 +5,22 @@
  * Reads service.yaml files and interacts with Docker Compose.
  */
 
-import { createServerFn } from '@tanstack/react-start'
-import { exec } from 'node:child_process'
+import { exec, execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-import { authMiddleware } from '@/server/auth.server'
+import { createServerFn } from '@tanstack/react-start'
 import { parse as parseYaml } from 'yaml'
 
+import { authMiddleware } from '@/server/auth.server'
+
 const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 const phloCommand = process.env.PHLO_CLI_COMMAND ?? 'uv run phlo'
 const phloProjectPath = process.env.PHLO_PROJECT_PATH
+const envFilePath = process.env.ENV_FILE_PATH
 
 const serviceMetadata: Record<
   string,
@@ -162,41 +165,68 @@ export interface ServiceWithStatus extends ServiceDefinition {
   containerStatus: DockerContainerStatus | null
 }
 
-// Get the services directory path
-// In Docker: /app/services
-// Locally: process.cwd() is services/observatory/, parent is services/
-const getServicesPath = (): string => {
-  if (process.env.SERVICES_PATH) {
-    return process.env.SERVICES_PATH
+interface NativeProcessEntry {
+  pid: number
+  started_at?: number
+  log?: string
+}
+
+function isPidRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
   }
-  // Check if running in Docker
-  const dockerPath = '/app/services'
+}
+
+async function loadNativeProcesses(): Promise<
+  Record<string, NativeProcessEntry>
+> {
+  const root = phloProjectPath ?? process.cwd()
+  const statePath = join(root, '.phlo', 'native-processes.json')
+  try {
+    const raw = await readFile(statePath, 'utf-8')
+    return JSON.parse(raw) as Record<string, NativeProcessEntry>
+  } catch {
+    return {}
+  }
+}
+
+// Get the packages directory path for local fallback discovery.
+// In Docker dev: /app/packages
+// Locally: process.cwd() is packages/phlo-observatory/src/phlo_observatory
+const getPackagesPath = (): string => {
+  if (process.env.PHLO_PACKAGES_PATH) {
+    return process.env.PHLO_PACKAGES_PATH
+  }
+  const dockerPath = '/app/packages'
   if (existsSync(dockerPath)) {
     return dockerPath
   }
-  // Local development: cwd is services/observatory/, go up one level to services/
-  const localPath = join(process.cwd(), '..')
-  if (existsSync(join(localPath, 'core'))) {
-    return localPath
+  const localRoot = join(process.cwd(), '..', '..', '..')
+  const localPackagesPath = join(localRoot, 'packages')
+  if (existsSync(localPackagesPath)) {
+    return localPackagesPath
   }
-  // Fallback: maybe cwd is project root
-  const projectServicesPath = join(process.cwd(), 'services')
-  if (existsSync(projectServicesPath)) {
-    return projectServicesPath
+  const projectRoot = phloProjectPath ?? process.cwd()
+  const projectPackages = join(projectRoot, 'packages')
+  if (existsSync(projectPackages)) {
+    return projectPackages
   }
-  return localPath
+  return localRoot
 }
 
 // Path to .env file
 const getEnvPath = (): string => {
-  if (process.env.ENV_FILE_PATH) {
-    return process.env.ENV_FILE_PATH
+  if (envFilePath) {
+    return envFilePath
   }
   const dockerPath = '/app/.env'
   if (existsSync(dockerPath)) {
     return dockerPath
   }
-  // Local: .env is at project root (parent of services/)
+  // Local: .env is at project root (parent of packages/)
   const localPath = join(process.cwd(), '..', '..', '.env')
   if (existsSync(localPath)) {
     return localPath
@@ -291,45 +321,15 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     return cliServices
   }
 
-  const servicesPath = getServicesPath()
+  const packagesPath = getPackagesPath()
   const services: Array<ServiceDefinition> = []
 
-  // Known category directories that contain service subdirectories
-  const categoryDirs = ['admin', 'api', 'bi', 'core', 'observability']
-
   try {
-    const entries = await readdir(servicesPath)
-
-    for (const entry of entries) {
-      // Skip hidden entries and non-relevant directories
-      if (entry.startsWith('.') || entry === 'node_modules') {
-        continue
-      }
-
-      const entryPath = join(servicesPath, entry)
-
-      // Check if this is a category directory (contains service subdirs)
-      if (categoryDirs.includes(entry)) {
-        try {
-          const serviceNames = await readdir(entryPath)
-          for (const serviceName of serviceNames) {
-            if (serviceName.startsWith('.')) continue
-            const yamlPath = join(entryPath, serviceName, 'service.yaml')
-            const service = await parseServiceYaml(yamlPath)
-            if (service) {
-              services.push(service)
-            }
-          }
-        } catch {
-          // Directory read failed, skip it
-        }
-      } else {
-        // Check if this directory has a direct service.yaml (like observatory)
-        const directYaml = join(entryPath, 'service.yaml')
-        const service = await parseServiceYaml(directYaml)
-        if (service) {
-          services.push(service)
-        }
+    const yamlFiles = await findServiceYamlFiles(packagesPath)
+    for (const yamlPath of yamlFiles) {
+      const service = await parseServiceYaml(yamlPath)
+      if (service) {
+        services.push(service)
       }
     }
   } catch (error) {
@@ -345,7 +345,37 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
   })
 }
 
-async function discoverServicesFromContainers(): Promise<Array<ServiceDefinition>> {
+async function findServiceYamlFiles(root: string): Promise<Array<string>> {
+  const results: Array<string> = []
+  const entries = await readdir(root, { withFileTypes: true })
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) {
+      continue
+    }
+    if (
+      entry.name === 'node_modules' ||
+      entry.name === 'dist' ||
+      entry.name === 'build'
+    ) {
+      continue
+    }
+    const entryPath = join(root, entry.name)
+    if (entry.isDirectory()) {
+      results.push(...(await findServiceYamlFiles(entryPath)))
+      continue
+    }
+    if (entry.isFile() && entry.name === 'service.yaml') {
+      results.push(entryPath)
+    }
+  }
+
+  return results
+}
+
+async function discoverServicesFromContainers(): Promise<
+  Array<ServiceDefinition>
+> {
   try {
     const { stdout } = await execAsync('docker ps -a --format json')
     const services: Array<ServiceDefinition> = []
@@ -359,9 +389,7 @@ async function discoverServicesFromContainers(): Promise<Array<ServiceDefinition
       }
 
       const labels = container.Labels || ''
-      const serviceMatch = labels.match(
-        /com\.docker\.compose\.service=([^,]+)/,
-      )
+      const serviceMatch = labels.match(/com\.docker\.compose\.service=([^,]+)/)
       const serviceName = serviceMatch ? serviceMatch[1] : ''
       if (!serviceName || seen.has(serviceName)) {
         continue
@@ -397,7 +425,11 @@ function parsePorts(
     return []
   }
 
-  const ports: Array<{ host: number; container: number; description?: string }> = []
+  const ports: Array<{
+    host: number
+    container: number
+    description?: string
+  }> = []
   for (const entry of portsRaw.split(',')) {
     const match = entry.match(/:(\d+)->(\d+)/)
     if (!match) {
@@ -414,14 +446,26 @@ function parsePorts(
 async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
   try {
     const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
-    const { stdout } = await execAsync(`${phloCommand} services list --json`, execOptions)
-    const parsed = JSON.parse(stdout) as Array<CliServiceDefinition>
+    const { stdout } = await execAsync(
+      `${phloCommand} services list --json`,
+      execOptions,
+    )
+    const parsed = JSON.parse(stdout.toString()) as Array<CliServiceDefinition>
     return parsed
       .map((service) => buildServiceDefinition(service))
       .filter((service): service is ServiceDefinition => Boolean(service))
   } catch {
     return discoverServicesFromContainers()
   }
+}
+
+async function runPhloCommand(args: Array<string>): Promise<void> {
+  const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
+  const [executable, ...baseArgs] = phloCommand.split(' ')
+  await execFileAsync(executable, [...baseArgs, ...args], {
+    ...execOptions,
+    timeout: 120000,
+  })
 }
 
 /**
@@ -524,11 +568,13 @@ export const getDockerStatus = createServerFn().handler(
 export const getServices = createServerFn().handler(
   async (): Promise<Array<ServiceWithStatus>> => {
     // Load data in parallel
-    const [services, containers, envValues] = await Promise.all([
-      discoverServices(),
-      getDockerStatus(),
-      loadEnvValues(),
-    ])
+    const [services, containers, envValues, nativeProcesses] =
+      await Promise.all([
+        discoverServices(),
+        getDockerStatus(),
+        loadEnvValues(),
+        loadNativeProcesses(),
+      ])
 
     // Create a map of service name to container status
     const containerMap = new Map<string, DockerContainerStatus>()
@@ -537,35 +583,55 @@ export const getServices = createServerFn().handler(
     }
 
     // Merge services with status and env values
-    return services.map((service) => {
-      // Update env vars with actual values from .env
-      const enrichedEnvVars = service.envVars.map((ev) => ({
-        ...ev,
-        value: envValues[ev.name] ?? ev.value,
-      }))
+    return (
+      services
+        // Hide one-shot init containers from the Hub (they run once and exit successfully).
+        .filter((service) => service.name !== 'minio-setup')
+        .map((service) => {
+          // Update env vars with actual values from .env
+          const enrichedEnvVars = service.envVars.map((ev) => ({
+            ...ev,
+            value: envValues[ev.name] ?? ev.value,
+          }))
 
-      // Also update port descriptions with actual values
-      const enrichedPorts = service.ports.map((port) => {
-        if (port.description && envValues[port.description]) {
+          // Also update port descriptions with actual values
+          const enrichedPorts = service.ports.map((port) => {
+            if (port.description && envValues[port.description]) {
+              return {
+                ...port,
+                host: parseInt(envValues[port.description], 10) || port.host,
+              }
+            }
+            return port
+          })
+
+          const firstPort = enrichedPorts[0]
+          const url = firstPort
+            ? `http://localhost:${firstPort.host}`
+            : undefined
+
+          const dockerStatus = containerMap.get(service.name) || null
+          const native = nativeProcesses[service.name]
+          const nativeStatus: DockerContainerStatus | null =
+            native && isPidRunning(native.pid)
+              ? {
+                  name: `native:${service.name}`,
+                  service: service.name,
+                  status: 'running',
+                  health: 'native',
+                  ports: undefined,
+                }
+              : null
+
           return {
-            ...port,
-            host: parseInt(envValues[port.description], 10) || port.host,
+            ...service,
+            ports: enrichedPorts,
+            envVars: enrichedEnvVars,
+            url,
+            containerStatus: nativeStatus ?? dockerStatus,
           }
-        }
-        return port
-      })
-
-      const firstPort = enrichedPorts[0]
-      const url = firstPort ? `http://localhost:${firstPort.host}` : undefined
-
-      return {
-        ...service,
-        ports: enrichedPorts,
-        envVars: enrichedEnvVars,
-        url,
-        containerStatus: containerMap.get(service.name) || null,
-      }
-    })
+        })
+    )
   },
 )
 
@@ -586,6 +652,10 @@ async function findContainerByService(
   }
 }
 
+function canControlNatively(serviceName: string): boolean {
+  return serviceName === 'observatory' || serviceName === 'phlo-api'
+}
+
 /**
  * Start a service
  */
@@ -598,16 +668,23 @@ export const startService = createServerFn()
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
-        if (!containerId) {
+        if (containerId) {
+          await execAsync(`docker start ${containerId}`, { timeout: 60000 })
+        } else if (canControlNatively(serviceName)) {
+          await runPhloCommand([
+            'services',
+            'start',
+            '--native',
+            '-d',
+            '--service',
+            serviceName,
+          ])
+        } else {
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
           }
         }
-
-        await execAsync(`docker start ${containerId}`, {
-          timeout: 60000,
-        })
 
         return { success: true }
       } catch (error) {
@@ -632,16 +709,22 @@ export const stopService = createServerFn()
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
-        if (!containerId) {
+        if (containerId) {
+          await execAsync(`docker stop ${containerId}`, { timeout: 30000 })
+        } else if (canControlNatively(serviceName)) {
+          await runPhloCommand([
+            'services',
+            'stop',
+            '--native',
+            '--service',
+            serviceName,
+          ])
+        } else {
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
           }
         }
-
-        await execAsync(`docker stop ${containerId}`, {
-          timeout: 30000,
-        })
 
         return { success: true }
       } catch (error) {
@@ -666,16 +749,30 @@ export const restartService = createServerFn()
     }): Promise<{ success: boolean; error?: string }> => {
       try {
         const containerId = await findContainerByService(serviceName)
-        if (!containerId) {
+        if (containerId) {
+          await execAsync(`docker restart ${containerId}`, { timeout: 60000 })
+        } else if (canControlNatively(serviceName)) {
+          await runPhloCommand([
+            'services',
+            'stop',
+            '--native',
+            '--service',
+            serviceName,
+          ])
+          await runPhloCommand([
+            'services',
+            'start',
+            '--native',
+            '-d',
+            '--service',
+            serviceName,
+          ])
+        } else {
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
           }
         }
-
-        await execAsync(`docker restart ${containerId}`, {
-          timeout: 60000,
-        })
 
         return { success: true }
       } catch (error) {

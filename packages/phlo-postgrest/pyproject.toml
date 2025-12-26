@@ -26,6 +26,9 @@ dev = [
 [project.entry-points."phlo.plugins.services"]
 postgrest = "phlo_postgrest.plugin:PostgrestServicePlugin"
 
+[project.entry-points."phlo.plugins.cli"]
+postgrest = "phlo_postgrest.cli_plugin:PostgrestCliPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -34,7 +37,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_postgrest = ['service.yaml']
+phlo_postgrest = ["service.yaml", "sql/*.sql"]
 
 [tool.ruff]
 line-length = 100

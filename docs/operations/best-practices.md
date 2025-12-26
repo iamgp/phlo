@@ -42,6 +42,7 @@ def upsert_data():
 ```
 
 **Benefits:**
+
 - Safe to retry on failure
 - Can backfill without duplicates
 - Predictable behavior
@@ -61,6 +62,7 @@ FROM orders WHERE order_id = 123
 ```
 
 **Benefits:**
+
 - Time travel (see historical state)
 - Audit trail (who changed what when)
 - Easier to debug issues
@@ -135,40 +137,20 @@ def downstream(upstream):  # Clear dependency
 ### File Structure
 
 ```
-src/phlo/
-├── config.py                    # Central configuration
-├── definitions.py               # Main entry point
-│
-├── defs/                        # Modular definitions
-│   ├── ingestion/
-│   │   ├── __init__.py          # Exports build_ingestion_defs()
-│   │   ├── api_assets.py        # API ingestion
-│   │   └── file_assets.py       # File ingestion
-│   │
-│   ├── transform/
-│   │   └── dbt.py               # dbt integration
-│   │
-│   ├── quality/
-│   │   ├── __init__.py
-│   │   └── checks.py            # Data quality checks
-│   │
-│   └── resources/
-│       ├── __init__.py
-│       ├── trino.py             # Trino resource
-│       └── iceberg.py           # Iceberg resource
-│
-├── schemas/                     # Pandera schemas
-│   ├── orders.py
-│   └── customers.py
-│
-└── utils/                       # Shared utilities
-    ├── dates.py
-    └── transformations.py
+project/
+├── phlo.yaml                    # Project + infra config
+├── workflows/                   # Dagster assets discovered by phlo.framework.definitions
+│   ├── ingestion/               # Ingestion assets
+│   ├── quality/                 # Quality checks and assets
+│   └── schemas/                 # Pandera schemas
+├── transforms/dbt/              # dbt models
+└── tests/                       # Project tests
 ```
 
 ### Naming Conventions
 
 **Assets:**
+
 ```
 <action>_<subject>_<detail>
 
@@ -180,6 +162,7 @@ Examples:
 ```
 
 **dbt Models:**
+
 ```
 stg_<source>_<entity>           # Bronze
 fct_<subject>_<grain>           # Silver facts
@@ -189,6 +172,7 @@ mrt_<audience>_<subject>        # Marts
 ```
 
 **Python Functions:**
+
 ```python
 # Use verbs for functions
 def fetch_data()
@@ -227,6 +211,7 @@ class Config(BaseSettings):
 ```
 
 **Benefits:**
+
 - One place to change configuration
 - Easy to switch between environments
 - Secrets not in code
@@ -267,7 +252,7 @@ def validated_orders() -> pandera_schema_to_dagster_type(OrderSchema):
 models:
   - name: fct_orders
     tests:
-      - dbt_utils.at_least_one  # Table not empty
+      - dbt_utils.at_least_one # Table not empty
 
     columns:
       - name: order_id
@@ -437,6 +422,7 @@ def process_city(context):
 ### Never Commit Secrets
 
 **.gitignore:**
+
 ```
 .env
 *.key
@@ -446,6 +432,7 @@ credentials.json
 ```
 
 **Use environment variables:**
+
 ```python
 # GOOD
 API_KEY = os.getenv('API_KEY')
@@ -591,6 +578,7 @@ models:
 ### Use Grafana Dashboards
 
 Monitor key metrics:
+
 - Asset materialization rates
 - Test pass/fail rates
 - Query performance
@@ -623,7 +611,7 @@ def test_calculate_tax_negative():
 ```python
 # tests/test_pipeline.py
 from dagster import materialize
-from phlo.definitions import defs
+from phlo.framework.definitions import defs
 
 def test_orders_pipeline():
     """Test complete orders pipeline."""
@@ -663,7 +651,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -762,18 +750,23 @@ dbt docs serve
 # Phlo Data Platform
 
 ## Quick Start
+
 ...
 
 ## Architecture
+
 ...
 
 ## Common Workflows
+
 ...
 
 ## Troubleshooting
+
 ...
 
 ## Contact
+
 For help: data-team@company.com
 ```
 
@@ -810,35 +803,43 @@ git commit -m "wip"
 ### Pull Request Process
 
 1. **Create feature branch**
+
    ```bash
    git checkout -b feature/my-feature
    ```
 
 2. **Make changes and commit**
+
    ```bash
    git add .
    git commit -m "feat: add new feature"
    ```
 
 3. **Push and create PR**
+
    ```bash
    git push -u origin feature/my-feature
    ```
 
 4. **PR template:**
+
    ```markdown
    ## What
+
    Brief description of changes
 
    ## Why
+
    Why are these changes needed?
 
    ## Testing
+
    - [ ] Unit tests pass
    - [ ] dbt tests pass
    - [ ] Manually tested in dev
 
    ## Screenshots
+
    (if applicable)
    ```
 
@@ -862,6 +863,7 @@ git commit -m "wip"
 ### Deployment Strategy
 
 **1. Test in dev environment**
+
 ```bash
 # Deploy to dev
 git checkout dev
@@ -872,6 +874,7 @@ git push origin dev
 ```
 
 **2. Smoke test**
+
 ```bash
 # Materialize critical assets
 dagster asset materialize -a critical_asset_1
@@ -882,6 +885,7 @@ dbt test --select tag:critical
 ```
 
 **3. Deploy to production**
+
 ```bash
 # Merge to main
 git checkout main
@@ -892,6 +896,7 @@ git push origin main
 ```
 
 **4. Monitor**
+
 - Check Grafana dashboards
 - Watch Dagster runs
 - Check alert channels
@@ -918,6 +923,7 @@ FOR SYSTEM_TIME AS OF TIMESTAMP '2024-11-05 10:00:00';
 ## Summary
 
 **Key Principles:**
+
 - ✅ Idempotency
 - ✅ Immutability
 - ✅ Fail fast
@@ -925,18 +931,21 @@ FOR SYSTEM_TIME AS OF TIMESTAMP '2024-11-05 10:00:00';
 - ✅ Explicit dependencies
 
 **Code Quality:**
+
 - ✅ Clear naming
 - ✅ Modular structure
 - ✅ Configuration management
 - ✅ Error handling
 
 **Data Quality:**
+
 - ✅ Schema validation
 - ✅ dbt tests
 - ✅ Asset checks
 - ✅ Data contracts
 
 **Operations:**
+
 - ✅ Monitoring
 - ✅ Logging
 - ✅ Alerting
@@ -944,12 +953,14 @@ FOR SYSTEM_TIME AS OF TIMESTAMP '2024-11-05 10:00:00';
 - ✅ Documentation
 
 **Security:**
+
 - ✅ No secrets in code
 - ✅ Strong authentication
 - ✅ Least privilege access
 - ✅ Encrypt sensitive data
 
 **Deployment:**
+
 - ✅ Version control
 - ✅ Code review
 - ✅ Testing in dev

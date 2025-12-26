@@ -104,13 +104,18 @@ jobs:
         run: uv sync --dev --group dev
 
       - name: Lint SQL with sqlfluff
-        run: uv run sqlfluff lint examples/glucose-platform/transforms/dbt/models --ignore parsing
+        run: |
+          if [ -d "examples/glucose-platform/transforms/dbt/models" ]; then
+            uv run sqlfluff lint examples/glucose-platform/transforms/dbt/models --ignore parsing
+          else
+            echo "Skipping sqlfluff: examples moved to phlo-examples."
+          fi
 
   lint-ts:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/observatory
+        working-directory: packages/phlo-observatory/src/phlo_observatory
     steps:
       - uses: actions/checkout@v4
 
@@ -119,7 +124,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: services/observatory/package-lock.json
+          cache-dependency-path: packages/phlo-observatory/src/phlo_observatory/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -131,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/observatory
+        working-directory: packages/phlo-observatory/src/phlo_observatory
     steps:
       - uses: actions/checkout@v4
 
@@ -140,7 +145,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: services/observatory/package-lock.json
+          cache-dependency-path: packages/phlo-observatory/src/phlo_observatory/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -152,7 +157,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/observatory
+        working-directory: packages/phlo-observatory/src/phlo_observatory
     steps:
       - uses: actions/checkout@v4
 
@@ -161,7 +166,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: services/observatory/package-lock.json
+          cache-dependency-path: packages/phlo-observatory/src/phlo_observatory/package-lock.json
 
       - name: Install dependencies
         run: npm ci

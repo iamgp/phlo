@@ -14,6 +14,8 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
+    "pynessie",
+    "requests",
     "pyyaml>=6.0.1",
 ]
 
@@ -25,6 +27,9 @@ dev = [
 
 [project.entry-points."phlo.plugins.services"]
 nessie = "phlo_nessie.plugin:NessieServicePlugin"
+
+[project.entry-points."phlo.plugins.cli"]
+nessie = "phlo_nessie.cli_plugin:NessieCliPlugin"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

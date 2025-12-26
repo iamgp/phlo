@@ -26,6 +26,7 @@ This guide helps you debug and fix common problems in Phlo.
 **Symptom:** `docker-compose up` fails or services crash
 
 **Check 1: Port conflicts**
+
 ```bash
 # See what's using ports
 lsof -i :3000  # Dagster
@@ -37,6 +38,7 @@ kill -9 <PID>
 ```
 
 **Check 2: Insufficient resources**
+
 ```bash
 # Check Docker resources
 docker stats
@@ -46,6 +48,7 @@ docker stats
 ```
 
 **Check 3: Check logs**
+
 ```bash
 # View logs for specific service
 docker-compose logs postgres
@@ -57,6 +60,7 @@ docker-compose logs -f dagster-webserver
 ```
 
 **Check 4: Clean start**
+
 ```bash
 # Stop everything
 docker-compose down
@@ -73,6 +77,7 @@ docker-compose up --build
 **Symptom:** `connection refused` or postgres container crashes
 
 **Solution 1: Check data directory permissions**
+
 ```bash
 # Ensure postgres data directory writable
 sudo chown -R 999:999 ./postgres-data
@@ -84,6 +89,7 @@ docker-compose up postgres
 ```
 
 **Solution 2: Check for corruption**
+
 ```bash
 # View postgres logs
 docker-compose logs postgres
@@ -99,6 +105,7 @@ docker-compose up postgres
 **Symptom:** `cannot write to data directory`
 
 **Solution:**
+
 ```bash
 # Fix permissions
 sudo chown -R 1000:1000 ./minio-data
@@ -114,6 +121,7 @@ docker-compose up minio
 **Symptom:** Trino crashes on startup
 
 **Check 1: Memory**
+
 ```bash
 # Trino needs at least 2GB
 docker stats cascade_trino
@@ -127,6 +135,7 @@ trino:
 ```
 
 **Check 2: Nessie connection**
+
 ```bash
 # Ensure Nessie is running
 docker-compose ps nessie
@@ -136,12 +145,13 @@ curl http://localhost:19120/api/v1/trees
 ```
 
 **Check 3: Configuration**
+
 ```bash
 # View Trino logs
 docker-compose logs trino | grep ERROR
 
 # Check catalog configuration
-cat docker/trino/catalog/iceberg.properties
+cat .phlo/trino/catalog/iceberg.properties
 ```
 
 ---
@@ -151,25 +161,24 @@ cat docker/trino/catalog/iceberg.properties
 ### Assets Not Showing in UI
 
 **Solution 1: Restart services**
+
 ```bash
 docker-compose restart dagster-webserver dagster-daemon
 ```
 
 **Solution 2: Check asset registration**
-```python
-# In src/phlo/definitions.py
-from phlo.defs.ingestion import build_ingestion_defs
 
-defs = dg.Definitions.merge(
-    build_ingestion_defs(),  # Your assets must be here
-    # ...
-)
+```python
+# Your assets should be discoverable via phlo.framework.definitions
+# (assets registered in workflows/ via decorators and plugins)
+from phlo.framework.definitions import defs
 ```
 
 **Solution 3: Check for syntax errors**
+
 ```bash
 # Test definitions load
-docker-compose exec dagster-webserver python -c "from phlo.definitions import defs; print(defs)"
+docker-compose exec dagster-webserver python -c "from phlo.framework.definitions import defs; print(defs)"
 ```
 
 ### Asset Materialization Fails
@@ -177,19 +186,22 @@ docker-compose exec dagster-webserver python -c "from phlo.definitions import de
 **Debug steps:**
 
 **1. Check logs in UI**
+
 - Go to Runs → Find failed run → Click run → View logs
 - Look for error message at bottom
 
 **2. Check dependencies**
+
 ```bash
 # Ensure upstream assets materialized
-dagster asset materialize -m phlo.definitions -a upstream_asset
+dagster asset materialize -m phlo.framework.definitions -a upstream_asset
 ```
 
 **3. Test locally**
+
 ```python
 # In Python shell
-from phlo.definitions import defs
+from phlo.framework.definitions import defs
 from dagster import materialize
 
 asset_def = defs.get_asset_def("my_asset")
@@ -198,6 +210,7 @@ print(result)
 ```
 
 **4. Check resources**
+
 ```python
 # Are resources configured?
 from phlo.config import get_config
@@ -210,6 +223,7 @@ print(config.TRINO_HOST)  # Should print value, not error
 **Symptom:** Schedules/sensors not triggering
 
 **Solution:**
+
 ```bash
 # Check daemon status
 docker-compose ps dagster-daemon
@@ -224,19 +238,21 @@ docker-compose logs dagster-daemon
 ### Slow UI
 
 **Solution 1: Clear instance cache**
+
 ```bash
 docker-compose exec dagster-webserver rm -rf /tmp/dagster-*
 docker-compose restart dagster-webserver
 ```
 
 **Solution 2: Increase resources**
+
 ```yaml
 # docker-compose.yml
 dagster-webserver:
   deploy:
     resources:
       limits:
-        cpus: '2'
+        cpus: "2"
         memory: 2G
 ```
 
@@ -249,6 +265,7 @@ dagster-webserver:
 **Symptom:** `dbt run` fails
 
 **Check 1: Connection**
+
 ```bash
 # Test Trino connection
 docker-compose exec dagster-webserver \
@@ -258,6 +275,7 @@ docker-compose exec dagster-webserver \
 ```
 
 **Check 2: Syntax errors**
+
 ```bash
 # Compile first (catches syntax errors)
 docker-compose exec dagster-webserver \
@@ -265,6 +283,7 @@ docker-compose exec dagster-webserver \
 ```
 
 **Check 3: Dependencies**
+
 ```bash
 # Check source exists
 docker-compose exec trino trino --execute \
@@ -278,6 +297,7 @@ docker-compose exec trino trino --execute \
 **Symptom:** `Compilation Error in model my_model`
 
 **Debug:**
+
 ```bash
 # View compiled SQL
 docker-compose exec dagster-webserver \
@@ -290,18 +310,21 @@ docker-compose exec dagster-webserver \
 **Common issues:**
 
 **1. Undefined variable**
+
 ```sql
 -- Error: {{ ref('typo_table_name') }}
 -- Fix: {{ ref('correct_table_name') }}
 ```
 
 **2. Missing source**
+
 ```sql
 -- Error: {{ source('raw', 'nonexistent') }}
 -- Fix: Define source in sources.yml first
 ```
 
 **3. SQL syntax error**
+
 ```sql
 -- Error: Missing comma
 SELECT
@@ -319,6 +342,7 @@ FROM table
 ### dbt Tests Fail
 
 **Debug failing test:**
+
 ```bash
 # Run single test
 docker-compose exec dagster-webserver \
@@ -333,6 +357,7 @@ docker-compose exec trino trino --execute \
 **Common test failures:**
 
 **1. not_null fails**
+
 ```sql
 -- Find NULL values
 SELECT * FROM table WHERE column_name IS NULL
@@ -344,6 +369,7 @@ FROM source
 ```
 
 **2. unique fails**
+
 ```sql
 -- Find duplicates
 SELECT
@@ -359,6 +385,7 @@ FROM source
 ```
 
 **3. relationships fails**
+
 ```sql
 -- Find orphaned records
 SELECT o.*
@@ -375,6 +402,7 @@ WHERE customer_id IN (SELECT customer_id FROM customers)
 **Symptom:** Incremental model not updating
 
 **Check 1: is_incremental() logic**
+
 ```sql
 SELECT * FROM source
 
@@ -385,12 +413,14 @@ SELECT * FROM source
 ```
 
 **Check 2: Force full refresh**
+
 ```bash
 # Rebuild from scratch
 dbt run --select my_incremental_model --full-refresh
 ```
 
 **Check 3: Check unique_key**
+
 ```sql
 {{ config(
     materialized='incremental',
@@ -409,6 +439,7 @@ dbt run --select my_incremental_model --full-refresh
 **Common errors:**
 
 **1. Table not found**
+
 ```
 Error: Table 'iceberg.raw.my_table' does not exist
 
@@ -419,6 +450,7 @@ Solutions:
 ```
 
 **2. Column not found**
+
 ```
 Error: Column 'colum_name' cannot be resolved
 
@@ -429,6 +461,7 @@ Solutions:
 ```
 
 **3. Type mismatch**
+
 ```
 Error: Cannot cast VARCHAR to INTEGER
 
@@ -439,6 +472,7 @@ Solutions:
 ```
 
 **4. Out of memory**
+
 ```
 Error: Query exceeded per-node user memory limit
 
@@ -451,6 +485,7 @@ Solutions:
 ### Slow Queries
 
 **Debug:**
+
 ```sql
 -- Check query plan
 EXPLAIN SELECT * FROM large_table
@@ -462,6 +497,7 @@ SHOW STATS FOR iceberg.silver.fct_orders
 **Optimizations:**
 
 **1. Add filters**
+
 ```sql
 -- Bad: Full scan
 SELECT * FROM fct_orders
@@ -472,15 +508,18 @@ WHERE order_date >= CURRENT_DATE - INTERVAL '30' DAY
 ```
 
 **2. Limit results**
+
 ```sql
 -- Add LIMIT for exploration
 SELECT * FROM fct_orders LIMIT 1000
 ```
 
 **3. Use columnar format (Parquet)**
+
 - Iceberg already uses Parquet ✅
 
 **4. Partition data**
+
 ```python
 # Partition Iceberg table by date
 schema = Schema(
@@ -496,6 +535,7 @@ schema = Schema(
 **Symptom:** `Connection refused` or `Timeout`
 
 **Solution:**
+
 ```bash
 # Check Trino is running
 docker-compose ps trino
@@ -519,6 +559,7 @@ docker-compose restart trino
 **Symptom:** `Table 'iceberg.raw.my_table' does not exist`
 
 **Check 1: List tables**
+
 ```bash
 # Connect to Trino
 docker-compose exec trino trino
@@ -531,10 +572,11 @@ SHOW TABLES IN iceberg.raw;
 ```
 
 **Check 2: Check branch**
+
 ```bash
 # Are you on the right branch?
 # Check Trino catalog configuration
-cat docker/trino/catalog/iceberg.properties | grep ref
+cat .phlo/trino/catalog/iceberg.properties | grep ref
 # iceberg.catalog.ref=main
 
 # To query dev branch, use iceberg_dev catalog
@@ -542,9 +584,10 @@ SELECT * FROM iceberg_dev.raw.my_table
 ```
 
 **Check 3: Ensure asset materialized**
+
 ```bash
 # Materialize the ingestion asset first
-dagster asset materialize -m phlo.definitions -a my_ingestion_asset
+dagster asset materialize -m phlo.framework.definitions -a my_ingestion_asset
 ```
 
 ### Nessie API Errors
@@ -552,6 +595,7 @@ dagster asset materialize -m phlo.definitions -a my_ingestion_asset
 **Symptom:** `Failed to connect to Nessie`
 
 **Solution:**
+
 ```bash
 # Check Nessie is running
 docker-compose ps nessie
@@ -568,11 +612,13 @@ docker-compose restart nessie
 ### Branch Issues
 
 **List branches:**
+
 ```bash
 curl http://localhost:19120/api/v1/trees
 ```
 
 **Create branch:**
+
 ```bash
 curl -X POST http://localhost:19120/api/v1/trees/branch/dev \
   -H "Content-Type: application/json" \
@@ -580,6 +626,7 @@ curl -X POST http://localhost:19120/api/v1/trees/branch/dev \
 ```
 
 **Switch branch in Trino:**
+
 ```sql
 -- Use iceberg catalog (main branch)
 SELECT * FROM iceberg.raw.my_table;
@@ -597,6 +644,7 @@ SELECT * FROM iceberg_dev.raw.my_table;
 **Debug steps:**
 
 **1. Check source**
+
 ```sql
 -- Does raw data exist?
 SELECT COUNT(*), MIN(date), MAX(date)
@@ -604,6 +652,7 @@ FROM iceberg.raw.my_source_table
 ```
 
 **2. Check transformations**
+
 ```sql
 -- Are rows being filtered out?
 -- Check each layer
@@ -613,6 +662,7 @@ SELECT COUNT(*) FROM iceberg.silver.fct_my_table;   -- 900 rows (where did 50 go
 ```
 
 **3. Check for filters**
+
 ```sql
 -- Review model SQL
 -- Look for WHERE clauses that might be too aggressive
@@ -623,6 +673,7 @@ WHERE date >= '2024-01-01'  -- Are you excluding earlier data?
 ### Duplicate Data
 
 **Debug:**
+
 ```sql
 -- Find duplicates
 SELECT
@@ -636,11 +687,13 @@ HAVING COUNT(*) > 1
 **Solutions:**
 
 **1. Add DISTINCT**
+
 ```sql
 SELECT DISTINCT * FROM source
 ```
 
 **2. Use GROUP BY**
+
 ```sql
 SELECT
     id,
@@ -651,6 +704,7 @@ GROUP BY id
 ```
 
 **3. Use ROW_NUMBER()**
+
 ```sql
 WITH ranked AS (
     SELECT
@@ -667,6 +721,7 @@ SELECT * FROM ranked WHERE rn = 1
 ### Incorrect Values
 
 **Debug:**
+
 ```sql
 -- Check value distributions
 SELECT
@@ -680,6 +735,7 @@ GROUP BY column_name
 ```
 
 **Check transformations:**
+
 ```sql
 -- Review calculated fields
 -- Is the formula correct?
@@ -695,12 +751,14 @@ amount * 1.1 AS total  -- Should this be amount * 1.1 or amount + (amount * 0.1)
 **Debug:**
 
 **1. Check logs for bottlenecks**
+
 ```bash
 # Find slow steps
 docker-compose logs dagster-webserver | grep "Execution time"
 ```
 
 **2. Profile query**
+
 ```sql
 -- In Trino, check query runtime
 EXPLAIN ANALYZE SELECT * FROM expensive_query
@@ -709,6 +767,7 @@ EXPLAIN ANALYZE SELECT * FROM expensive_query
 **Solutions:**
 
 **1. Add partitions**
+
 ```python
 @dg.asset(partitions_def=daily_partition)
 def partitioned_asset(context):
@@ -717,11 +776,13 @@ def partitioned_asset(context):
 ```
 
 **2. Use incremental dbt models**
+
 ```sql
 {{ config(materialized='incremental') }}
 ```
 
 **3. Optimize queries**
+
 ```sql
 -- Bad: Full table scan
 SELECT * FROM large_table
@@ -734,13 +795,14 @@ LIMIT 10000
 ```
 
 **4. Increase resources**
+
 ```yaml
 # docker-compose.yml
 dagster-webserver:
   deploy:
     resources:
       limits:
-        cpus: '4'
+        cpus: "4"
         memory: 8G
 ```
 
@@ -749,6 +811,7 @@ dagster-webserver:
 **Solutions:**
 
 **1. Pre-aggregate data**
+
 ```sql
 -- Instead of aggregating in dashboard,
 -- pre-aggregate in gold layer
@@ -761,9 +824,11 @@ GROUP BY date
 ```
 
 **2. Publish to PostgreSQL**
+
 - Marts published to PostgreSQL are much faster than querying Iceberg
 
 **3. Add indexes** (in PostgreSQL marts)
+
 ```sql
 CREATE INDEX idx_mrt_orders_date ON marts.mrt_orders(order_date);
 ```
@@ -775,6 +840,7 @@ CREATE INDEX idx_mrt_orders_date ON marts.mrt_orders(order_date);
 ### Enable Verbose Logging
 
 **Dagster:**
+
 ```python
 @dg.asset
 def my_asset(context: dg.AssetExecutionContext):
@@ -783,11 +849,13 @@ def my_asset(context: dg.AssetExecutionContext):
 ```
 
 **dbt:**
+
 ```bash
 dbt run --debug
 ```
 
 **Trino:**
+
 ```bash
 # Enable query logging
 docker-compose exec trino trino --debug
@@ -840,6 +908,7 @@ docker-compose exec trino trino < compiled.sql
 ### Check Metadata Tables
 
 **Iceberg metadata:**
+
 ```sql
 -- View snapshots
 SELECT * FROM iceberg.raw."my_table$snapshots";
@@ -852,6 +921,7 @@ SELECT * FROM iceberg.raw."my_table$files";
 ```
 
 **Nessie metadata:**
+
 ```bash
 # View commit log
 curl http://localhost:19120/api/v1/trees/branch/main/log
@@ -863,11 +933,13 @@ curl http://localhost:19120/api/v1/trees/branch/main/contents/raw.my_table
 ### Isolate the Problem
 
 **Binary search:**
+
 1. Does the source data exist? → Yes
 2. Does bronze model work? → Yes
 3. Does silver model work? → No ← Problem is here
 
 **Test in isolation:**
+
 ```sql
 -- Run transformation logic manually
 SELECT
@@ -927,6 +999,7 @@ When asking for help, include:
 ## Summary
 
 **Debugging Process:**
+
 1. **Read the error message** carefully
 2. **Check logs** for details
 3. **Isolate the problem** (which component?)
@@ -937,6 +1010,7 @@ When asking for help, include:
 8. **Ask for help** (provide details!)
 
 **Common Solutions:**
+
 - Restart services
 - Check logs
 - Verify configuration
@@ -946,6 +1020,7 @@ When asking for help, include:
 - Clear caches
 
 **Prevention:**
+
 - ✅ Add tests
 - ✅ Add logging
 - ✅ Add error handling

@@ -1,12 +1,13 @@
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { DataPreviewResult, DataRow } from '@/server/trino.server'
+
+import type { DataPreviewResult, DataRow } from '@/lib/api'
+import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ObservatoryTable } from '@/components/data/ObservatoryTable'
-import { previewData } from '@/server/trino.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
+import { trinoApi } from '@/lib/api'
 
 interface DataPreviewProps {
   table: string
@@ -51,18 +52,12 @@ export function DataPreview({
     setLoading(true)
     setError(null)
     try {
-      const result = await previewData({
-        data: {
-          table,
-          branch: effectiveBranch,
-          catalog: settings.defaults.catalog,
-          schema: settings.defaults.schema,
-          limit: pageSize,
-          offset,
-          trinoUrl: settings.connections.trinoUrl,
-          timeoutMs: settings.query.timeoutMs,
-          maxLimit: settings.query.maxLimit,
-        },
+      const result = await trinoApi.previewData(table, {
+        branch: effectiveBranch,
+        catalog: settings.defaults.catalog,
+        schema: settings.defaults.schema,
+        limit: pageSize,
+        offset,
       })
       if ('error' in result) {
         setError(result.error)
@@ -84,14 +79,14 @@ export function DataPreview({
   }
 
   const handleNextPage = () => {
-    if (data?.hasMore) {
+    if (data?.has_more) {
       loadData((page + 1) * pageSize)
     }
   }
 
   const handleRowClick = (row: DataRow) => {
     if (onShowJourney && data) {
-      onShowJourney(row, data.columnTypes)
+      onShowJourney(row, data.column_types)
     }
   }
 
@@ -162,7 +157,7 @@ export function DataPreview({
       <div className="px-4 pb-4">
         <ObservatoryTable
           columns={data.columns}
-          columnTypes={data.columnTypes}
+          columnTypes={data.column_types}
           rows={data.rows}
           getRowId={(_, index) => `${page * pageSize}-${index}`}
           onRowClick={
@@ -201,7 +196,7 @@ export function DataPreview({
             variant="ghost"
             size="icon-sm"
             onClick={handleNextPage}
-            disabled={!data.hasMore}
+            disabled={!data.has_more}
           >
             <ChevronRight className="w-4 h-4" />
           </Button>

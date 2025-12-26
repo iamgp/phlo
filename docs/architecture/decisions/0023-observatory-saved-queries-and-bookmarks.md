@@ -151,7 +151,6 @@ navigate({ search: { cols: newCols, sort, q } });
 ### Automated Tests
 
 1. **Unit tests for `savedQueries.ts`**:
-
    - Test CRUD operations (create, read, update, delete)
    - Test schema validation
    - Test localStorage serialization/deserialization
@@ -163,14 +162,12 @@ navigate({ search: { cols: newCols, sort, q } });
 ### Manual Verification
 
 1. **Saved Queries Flow**:
-
    - Open Query Editor, write a query, click "Save Query"
    - Enter name and tags, confirm save
    - Refresh page, verify query appears in Saved Queries panel
    - Click saved query to load it, run to verify it executes
 
 2. **Bookmarks Flow**:
-
    - Navigate to a table, click bookmark star
    - Verify bookmark appears in sidebar/bookmarks list
    - Click bookmark to navigate back to table
