@@ -3,36 +3,6 @@
   "version": "1.0.0",
   "updated_at": "2025-12-22T00:00:00Z",
   "plugins": {
-    "example_cache": {
-      "type": "service",
-      "package": "phlo-plugin-example",
-      "version": "1.0.0",
-      "description": "Redis cache service for Phlo stacks",
-      "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo-examples/tree/main/plugins/phlo-plugin-example",
-      "tags": ["cache", "redis", "service"],
-      "verified": true
-    },
-    "jsonplaceholder": {
-      "type": "source",
-      "package": "phlo-plugin-example",
-      "version": "1.0.0",
-      "description": "JSONPlaceholder source connector",
-      "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo-examples/tree/main/plugins/phlo-plugin-example",
-      "tags": ["api", "example"],
-      "verified": true
-    },
-    "threshold_check": {
-      "type": "quality",
-      "package": "phlo-plugin-example",
-      "version": "1.0.0",
-      "description": "Threshold validation for numeric columns",
-      "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo-examples/tree/main/plugins/phlo-plugin-example",
-      "tags": ["validation", "numeric", "example"],
-      "verified": true
-    },
     "dagster": {
       "type": "service",
       "package": "phlo-dagster",
