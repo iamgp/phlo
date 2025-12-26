@@ -6,24 +6,28 @@ Complete guide to installing and setting up Phlo on your system.
 
 ### Required
 
-- **Docker**: Version 20.10 or later
+- **Python**: 3.11 or later
+- **Docker**: Version 20.10 or later (for running infrastructure services)
 - **Docker Compose**: Version 2.0 or later
-- **Python**: 3.11 or later (for CLI usage)
-- **Git**: For cloning the repository
 
 ### Recommended
 
-- **uv**: Fast Python package installer (optional, but recommended)
-- **Make**: For using convenience commands
+- **uv**: Fast Python package installer (recommended for better performance)
 - **8GB RAM**: Minimum for running all services
 - **20GB disk space**: For Docker volumes and data
 
 ## Quick Install
 
 ```bash
-# Clone repository
-git clone https://github.com/iamgp/phlo.git
-cd phlo
+# Install Phlo with default services
+pip install phlo[defaults]
+
+# Or using uv (recommended)
+uv pip install phlo[defaults]
+
+# Initialize a new project
+phlo init my-project
+cd my-project
 
 # Copy environment template
 cp .env.example .env
@@ -34,14 +38,54 @@ phlo services start
 
 ## Detailed Installation Steps
 
-### Step 1: Clone Repository
+### Step 1: Install Phlo
+
+Install Phlo and its default services:
 
 ```bash
-git clone https://github.com/iamgp/phlo.git
-cd phlo
+# Using pip
+pip install phlo[defaults]
+
+# Using uv (recommended for faster installs)
+uv pip install phlo[defaults]
 ```
 
-### Step 2: Configure Environment
+The `[defaults]` extra installs these core service packages:
+- `phlo-dagster` - Data orchestration platform
+- `phlo-postgres` - PostgreSQL database
+- `phlo-trino` - Distributed SQL query engine
+- `phlo-nessie` - Git-like catalog for Iceberg
+- `phlo-minio` - S3-compatible object storage
+
+Verify installation:
+
+```bash
+phlo --version
+```
+
+### Step 2: Initialize a Project
+
+Create a new Phlo project:
+
+```bash
+phlo init my-project
+cd my-project
+```
+
+This creates:
+```
+my-project/
+├── .env.example         # Environment variables template
+├── workflows/           # Data ingestion workflows
+│   ├── ingestion/
+│   └── schemas/
+├── transforms/          # dbt transformations
+│   └── dbt/
+├── tests/               # Test files
+└── phlo.yaml           # Project configuration
+```
+
+### Step 3: Configure Environment
 
 Copy the example environment file and customize:
 
@@ -81,60 +125,27 @@ AUTO_PROMOTE_ENABLED=true
 BRANCH_CLEANUP_ENABLED=false
 ```
 
-### Step 3: Install Phlo CLI (Optional)
+### Step 4: Start Services
 
-The CLI provides convenient commands for managing services and workflows:
-
-```bash
-# Using pip
-pip install -e .
-
-# Using uv (recommended)
-uv pip install -e .
-```
-
-Verify installation:
-
-```bash
-phlo --version
-```
-
-Install the core service packages (recommended):
-
-```bash
-uv pip install -e ".[core-services]"
-```
-
-These packages provide the Docker service definitions used by `phlo services`.
-
-### Step 4: Initialize Infrastructure
-
-Create the infrastructure directory structure:
-
-```bash
-phlo services init
-```
-
-This creates `.phlo/` directory with Docker configurations.
-
-### Step 5: Start Services
-
-Start the core services:
+Start the infrastructure services:
 
 ```bash
 phlo services start
 ```
 
-This starts:
+This automatically:
+1. Initializes the `.phlo/` directory with Docker configurations
+2. Starts all service containers:
+   - PostgreSQL (port 10000)
+   - MinIO (ports 10001-10002)
+   - Nessie (port 10003)
+   - Trino (port 10005)
+   - Dagster webserver (port 10006)
+   - Dagster daemon
 
-- PostgreSQL (port 10000)
-- MinIO (ports 10001-10002)
-- Nessie (port 10003)
-- Trino (port 10005)
-- Dagster webserver (port 10006)
-- Dagster daemon
+**First-time setup**: The first `phlo services start` automatically runs initialization, so you don't need a separate `phlo services init` command.
 
-### Step 6: Verify Installation
+### Step 5: Verify Installation
 
 Check service status:
 
@@ -161,32 +172,57 @@ Access Dagster UI:
 open http://localhost:10006
 ```
 
-### Step 7: Run Example Pipeline
+### Step 6: Create and Run Your First Pipeline
 
-Materialize the example glucose data:
+Create a workflow using the interactive wizard:
 
 ```bash
-phlo materialize dlt_glucose_entries
+phlo create-workflow
 ```
 
-Or use the Dagster UI to materialize assets.
+Or materialize the example assets (if using a template with examples):
+
+```bash
+phlo materialize --all
+```
+
+You can also use the Dagster UI at http://localhost:10006 to materialize assets.
 
 ## Installation Options
 
-### Development Mode
+### Minimal Installation
 
-Mount local source code for development:
+Install only the core Phlo framework without service packages:
 
 ```bash
-phlo services init --dev --phlo-source /path/to/phlo
-phlo services start
+pip install phlo
 ```
 
-This mounts the phlo monorepo into the Dagster container and installs `phlo[defaults]` as an editable install.
+Then install services individually as needed:
+
+```bash
+pip install phlo-dagster phlo-postgres phlo-trino
+```
 
 ### With Optional Services
 
-Start with additional profiles:
+Install additional service packages:
+
+```bash
+# Business intelligence
+pip install phlo-superset
+
+# Observability stack
+pip install phlo-prometheus phlo-grafana phlo-loki phlo-alloy
+
+# API layers
+pip install phlo-postgrest phlo-hasura
+
+# Data catalog
+pip install phlo-openmetadata
+```
+
+Start with service profiles:
 
 ```bash
 # With observability (Prometheus, Grafana, Loki)
@@ -195,9 +231,36 @@ phlo services start --profile observability
 # With API layer (PostgREST, Hasura)
 phlo services start --profile api
 
-# With both
+# With data catalog
+phlo services start --profile catalog
+
+# Multiple profiles
 phlo services start --profile observability --profile api
 ```
+
+### Native Services Mode
+
+Run Observatory and phlo-api as native Python processes instead of Docker containers (useful on ARM Macs or for development):
+
+```bash
+phlo services start --native
+```
+
+This runs:
+- All infrastructure services (Postgres, Trino, etc.) in Docker
+- Observatory UI and phlo-api as Python subprocesses
+- Better performance on non-Linux systems
+
+### Development Mode
+
+For developing Phlo itself, mount local source code:
+
+```bash
+phlo services init --dev --phlo-source /path/to/phlo
+phlo services start
+```
+
+This mounts the phlo monorepo into the Dagster container and installs `phlo[defaults]` as an editable install, allowing you to modify Phlo's source code and see changes immediately.
 
 ### Production Deployment
 
