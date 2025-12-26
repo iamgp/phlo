@@ -81,11 +81,11 @@ Contains:
 - `ReconciliationCheck`: Compare row counts or other metrics across tables
 - `AggregateConsistencyCheck`: Verify aggregates match source computations
 
-#### [MODIFY] `examples/github-stats/workflows/quality/github.py`
+#### [MODIFY] `phlo-examples/github/workflows/quality/github.py`
 
 Add reconciliation check examples using the new check classes.
 
-#### [MODIFY] `examples/github-stats/workflows/quality/__init__.py`
+#### [MODIFY] `phlo-examples/github/workflows/quality/__init__.py`
 
 Optional: keep module exports for organization; no registration step is required.
 

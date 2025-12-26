@@ -69,7 +69,7 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
 Phlo simplifies ingestion with the `@phlo_ingestion` decorator that handles validation, staging, and Iceberg merging:
 
 ```python
-# File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# File: phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 from dlt.sources.rest_api import rest_api
@@ -472,7 +472,7 @@ http://localhost:8088
 Phlo provides two approaches for quality checks. The declarative `@phlo_quality` decorator:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
 from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
@@ -496,7 +496,7 @@ def glucose_readings_quality():
 And the traditional `@asset_check` for custom logic:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 from dagster import AssetCheckResult, AssetKey, asset_check
 from workflows.schemas.nightscout import FactGlucoseReadings

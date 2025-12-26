@@ -279,7 +279,7 @@ Custom Services (phlo.yaml):
 
 1. Update `docs/guides/service-packages.md`
 2. Update README examples
-3. Add examples to `examples/github-stats/phlo.yaml`
+3. Add examples to `phlo-examples/github/phlo.yaml`
 4. Remove `packages/phlo-fastapi/`
 5. Build/release strategy for Observatory (Docker image in CI)
 

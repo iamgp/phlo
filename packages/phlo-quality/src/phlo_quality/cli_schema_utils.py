@@ -1,5 +1,6 @@
 """Shared CLI utilities for schema commands."""
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -36,6 +37,7 @@ def discover_pandera_schemas(
 
     Args:
         search_paths: List of paths to search (default: examples/ and workflows/)
+            or comma-separated PHLO_SCHEMA_SEARCH_PATHS environment variable.
 
     Returns:
         Dictionary mapping schema name to schema class
@@ -46,10 +48,14 @@ def discover_pandera_schemas(
     from pandera.pandas import DataFrameModel
 
     if search_paths is None:
-        search_paths = [
-            "examples",
-            "workflows",
-        ]
+        env_paths = os.getenv("PHLO_SCHEMA_SEARCH_PATHS")
+        if env_paths:
+            search_paths = [path.strip() for path in env_paths.split(",") if path.strip()]
+        else:
+            search_paths = [
+                "examples",
+                "workflows",
+            ]
 
     schemas = {}
 

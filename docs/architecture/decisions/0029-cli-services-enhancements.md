@@ -91,7 +91,7 @@ pytest tests/ -v --ignore=tests/integration
 1. **Restart command**:
 
    ```bash
-   cd examples/github-stats
+   cd phlo-examples/github
    phlo services start
    phlo services restart --service postgres  # Should restart only postgres
    phlo services status                       # Verify postgres restarted

@@ -619,7 +619,7 @@ With contracts, breaking changes are caught before deployment.
 Contracts live in your `contracts/` directory as YAML files. Here's a real example from the glucose platform:
 
 ```yaml
-# examples/glucose-platform/contracts/glucose_readings.yaml
+# phlo-examples/nightscout/contracts/glucose_readings.yaml
 name: glucose_readings
 version: 1.0.0
 owner: data-team
@@ -676,7 +676,7 @@ notifications:
 
 When you run `phlo contract validate glucose_readings`, Phlo:
 
-1. **Loads the contract** from `contracts/glucose_readings.yaml` (or `examples/glucose-platform/contracts/glucose_readings.yaml` for examples)
+1. **Loads the contract** from `contracts/glucose_readings.yaml` (or `phlo-examples/nightscout/contracts/glucose_readings.yaml` for examples)
 2. **Validates** the contract schema and structure
 3. **Reports** expected schema and SLA requirements
 

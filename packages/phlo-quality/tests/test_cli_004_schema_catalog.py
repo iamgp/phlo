@@ -15,6 +15,10 @@ from click.testing import CliRunner
 from phlo.cli.main import cli
 from phlo_quality.cli_schema_utils import classify_schema_change, discover_pandera_schemas
 
+SCHEMA_ENV = {
+    "PHLO_SCHEMA_SEARCH_PATHS": "packages/phlo-quality/tests/fixtures",
+}
+
 
 class TestSchemaCommands:
     """Test phlo schema commands."""
@@ -22,7 +26,7 @@ class TestSchemaCommands:
     def test_schema_list(self):
         """Test phlo schema list command."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "list"])
+        result = runner.invoke(cli, ["schema", "list"], env=SCHEMA_ENV)
 
         assert result.exit_code == 0
         assert "RawGlucoseEntries" in result.output
@@ -32,7 +36,7 @@ class TestSchemaCommands:
     def test_schema_list_domain_filter(self):
         """Test phlo schema list with domain filter."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "list", "--domain", "glucose"])
+        result = runner.invoke(cli, ["schema", "list", "--domain", "glucose"], env=SCHEMA_ENV)
 
         assert result.exit_code == 0
         # Should show glucose schemas
@@ -41,7 +45,7 @@ class TestSchemaCommands:
     def test_schema_list_json_format(self):
         """Test phlo schema list with JSON output."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "list", "--format", "json"])
+        result = runner.invoke(cli, ["schema", "list", "--format", "json"], env=SCHEMA_ENV)
 
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -51,7 +55,7 @@ class TestSchemaCommands:
     def test_schema_show(self):
         """Test phlo schema show command."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "show", "RawGlucoseEntries"])
+        result = runner.invoke(cli, ["schema", "show", "RawGlucoseEntries"], env=SCHEMA_ENV)
 
         assert result.exit_code == 0
         assert "RawGlucoseEntries" in result.output
@@ -62,7 +66,7 @@ class TestSchemaCommands:
     def test_schema_show_not_found(self):
         """Test phlo schema show with invalid schema."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "show", "NonExistentSchema"])
+        result = runner.invoke(cli, ["schema", "show", "NonExistentSchema"], env=SCHEMA_ENV)
 
         assert result.exit_code == 1
         assert "not found" in result.output.lower()
@@ -70,7 +74,11 @@ class TestSchemaCommands:
     def test_schema_show_iceberg(self):
         """Test phlo schema show with Iceberg output."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "show", "RawGlucoseEntries", "--iceberg"])
+        result = runner.invoke(
+            cli,
+            ["schema", "show", "RawGlucoseEntries", "--iceberg"],
+            env=SCHEMA_ENV,
+        )
 
         assert result.exit_code == 0
         assert "Iceberg Schema" in result.output
@@ -78,7 +86,7 @@ class TestSchemaCommands:
     def test_schema_diff(self):
         """Test phlo schema diff command."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "diff", "RawGlucoseEntries"])
+        result = runner.invoke(cli, ["schema", "diff", "RawGlucoseEntries"], env=SCHEMA_ENV)
 
         assert result.exit_code == 0
         assert "Diff" in result.output
@@ -86,7 +94,11 @@ class TestSchemaCommands:
     def test_schema_diff_json(self):
         """Test phlo schema diff with JSON output."""
         runner = CliRunner()
-        result = runner.invoke(cli, ["schema", "diff", "RawGlucoseEntries", "--format", "json"])
+        result = runner.invoke(
+            cli,
+            ["schema", "diff", "RawGlucoseEntries", "--format", "json"],
+            env=SCHEMA_ENV,
+        )
 
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -98,8 +110,8 @@ class TestSchemaCommands:
         runner = CliRunner()
 
         # Use actual schema file that exists
-        schema_file = "examples/glucose-platform/workflows/schemas/nightscout.py"
-        result = runner.invoke(cli, ["schema", "validate", schema_file])
+        schema_file = "packages/phlo-quality/tests/fixtures/schemas/glucose.py"
+        result = runner.invoke(cli, ["schema", "validate", schema_file], env=SCHEMA_ENV)
 
         assert result.exit_code == 0
         assert "Schema Validation" in result.output
@@ -119,7 +131,7 @@ class TestDiscoverPanderaSchemas:
 
     def test_discover_schemas(self):
         """Test discovering Pandera schemas."""
-        schemas = discover_pandera_schemas()
+        schemas = discover_pandera_schemas(search_paths=[SCHEMA_ENV["PHLO_SCHEMA_SEARCH_PATHS"]])
 
         assert isinstance(schemas, dict)
         assert len(schemas) > 0
@@ -127,7 +139,7 @@ class TestDiscoverPanderaSchemas:
 
     def test_discovered_schema_is_class(self):
         """Test that discovered schemas are classes."""
-        schemas = discover_pandera_schemas()
+        schemas = discover_pandera_schemas(search_paths=[SCHEMA_ENV["PHLO_SCHEMA_SEARCH_PATHS"]])
 
         for name, schema_cls in schemas.items():
             assert isinstance(name, str)
@@ -135,7 +147,7 @@ class TestDiscoverPanderaSchemas:
 
     def test_schema_has_annotations(self):
         """Test that schemas have field annotations."""
-        schemas = discover_pandera_schemas()
+        schemas = discover_pandera_schemas(search_paths=[SCHEMA_ENV["PHLO_SCHEMA_SEARCH_PATHS"]])
 
         raw_glucose = schemas.get("RawGlucoseEntries")
         assert raw_glucose is not None

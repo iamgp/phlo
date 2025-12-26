@@ -49,7 +49,7 @@ Pandera provides type-safe validation with detailed error reporting.
 Phlo uses Pandera's DataFrameModel approach for cleaner, class-based schemas:
 
 ```python
-# File: examples/glucose-platform/workflows/schemas/nightscout.py
+# File: phlo-examples/nightscout/workflows/schemas/nightscout.py
 from pandera.pandas import DataFrameModel, Field
 
 # Validation constants
@@ -171,7 +171,7 @@ class FactGlucoseReadings(DataFrameModel):
 The `@phlo_ingestion` decorator automatically validates data with Pandera schemas:
 
 ```python
-# File: examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# File: phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 from dlt.sources.rest_api import rest_api
@@ -331,7 +331,7 @@ After orchestration, Dagster asset checks monitor data quality in production. Ph
 For common checks (null, range, freshness), use the `@phlo_quality` decorator to reduce boilerplate by 70-80%:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
 from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
@@ -372,7 +372,7 @@ def daily_metrics_quality():
 For complex validation with Pandera schemas or custom business logic:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 from dagster import AssetCheckResult, AssetKey, asset_check
 from phlo_trino.resource import TrinoResource
@@ -502,7 +502,7 @@ Both approaches are used in the actual Phlo implementation and serve different p
 Best for standard checks - reduces boilerplate by 70-80%:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
 from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
@@ -528,7 +528,7 @@ def glucose_readings_quality():
 Best for complex validation with Pandera schemas or custom business logic:
 
 ```python
-# File: examples/glucose-platform/workflows/quality/nightscout.py
+# File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
 @asset_check(
     name="nightscout_glucose_quality",
@@ -683,7 +683,7 @@ def glucose_comprehensive_quality():
 | Multiple simple checks               | `@phlo_quality` decorator  | Combine `NullCheck` + `RangeCheck`          |
 | Custom error handling                | Traditional `@asset_check` | Detailed failure reporting                  |
 
-**Real-world usage in examples/glucose-platform**:
+**Real-world usage in phlo-examples/nightscout**:
 
 - `@phlo_quality`: `glucose_readings_quality()`, `daily_metrics_quality()` - standard checks
 - `@asset_check`: `nightscout_glucose_quality_check()` - full Pandera validation with custom error handling

@@ -9,7 +9,7 @@
       "version": "1.0.0",
       "description": "Redis cache service for Phlo stacks",
       "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "homepage": "https://github.com/iamgp/phlo-examples/tree/main/plugins/phlo-plugin-example",
       "tags": ["cache", "redis", "service"],
       "verified": true
     },
@@ -19,7 +19,7 @@
       "version": "1.0.0",
       "description": "JSONPlaceholder source connector",
       "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "homepage": "https://github.com/iamgp/phlo-examples/tree/main/plugins/phlo-plugin-example",
       "tags": ["api", "example"],
       "verified": true
     },
@@ -29,7 +29,7 @@
       "version": "1.0.0",
       "description": "Threshold validation for numeric columns",
       "author": "Phlo Team",
-      "homepage": "https://github.com/iamgp/phlo/tree/main/examples/phlo-plugin-example",
+      "homepage": "https://github.com/iamgp/phlo-examples/tree/main/plugins/phlo-plugin-example",
       "tags": ["validation", "numeric", "example"],
       "verified": true
     },

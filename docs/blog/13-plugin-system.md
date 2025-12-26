@@ -71,14 +71,14 @@ This means:
 
 ## Creating a Source Connector Plugin
 
-Let's examine the actual example from `examples/phlo-plugin-example/`.
+Let's examine the actual example from `phlo-examples/plugins/phlo-plugin-example/`.
 
 ### Step 1: Project Structure
 
-The actual structure in `/home/user/phlo/examples/phlo-plugin-example/`:
+The actual structure in `/home/user/phlo/phlo-examples/plugins/phlo-plugin-example/`:
 
 ```
-examples/phlo-plugin-example/
+phlo-examples/plugins/phlo-plugin-example/
 ├── pyproject.toml
 ├── README.md
 ├── MANIFEST.in
@@ -96,7 +96,7 @@ examples/phlo-plugin-example/
 
 ### Step 2: Source Plugin Implementation
 
-Here's the actual implementation from `examples/phlo-plugin-example/src/phlo_example/source.py`:
+Here's the actual implementation from `phlo-examples/plugins/phlo-plugin-example/src/phlo_example/source.py`:
 
 ```python
 """Example source connector plugin using JSONPlaceholder API."""
@@ -236,7 +236,7 @@ class JSONPlaceholderSource(SourceConnectorPlugin):
 
 ### Step 3: Entry Points Registration
 
-From `examples/phlo-plugin-example/pyproject.toml`:
+From `phlo-examples/plugins/phlo-plugin-example/pyproject.toml`:
 
 ```toml
 [project]
@@ -263,7 +263,7 @@ uppercase = "phlo_example.transform:UppercaseTransformPlugin"
 
 ```bash
 # Install the example plugin
-cd examples/phlo-plugin-example
+cd phlo-examples/plugins/phlo-plugin-example
 pip install -e .
 
 # Verify it's discovered
@@ -290,11 +290,11 @@ for post in source.fetch_data(config):
 
 ## Creating a Quality Check Plugin
 
-Let's look at the actual threshold check plugin from `examples/phlo-plugin-example/`.
+Let's look at the actual threshold check plugin from `phlo-examples/plugins/phlo-plugin-example/`.
 
 ### Example: Threshold Check Plugin
 
-From `examples/phlo-plugin-example/src/phlo_example/quality.py`:
+From `phlo-examples/plugins/phlo-plugin-example/src/phlo_example/quality.py`:
 
 ```python
 """Example quality check plugin."""
@@ -452,11 +452,11 @@ print(f"Violations: {result['violations']} / {result['total']}")
 
 ## Creating a Transform Plugin
 
-Let's examine the uppercase transform plugin from `examples/phlo-plugin-example/`.
+Let's examine the uppercase transform plugin from `phlo-examples/plugins/phlo-plugin-example/`.
 
 ### Example: Uppercase Transform
 
-From `examples/phlo-plugin-example/src/phlo_example/transform.py`:
+From `phlo-examples/plugins/phlo-plugin-example/src/phlo_example/transform.py`:
 
 ```python
 """Example transformation plugin."""
@@ -824,11 +824,11 @@ Plugins are discovered automatically via Python entry points, managed via CLI, a
 
 ## Try the Example Plugin
 
-The complete working example is at `/home/user/phlo/examples/phlo-plugin-example/`:
+The complete working example is at `/home/user/phlo/phlo-examples/plugins/phlo-plugin-example/`:
 
 ```bash
 # Install the example plugin
-cd examples/phlo-plugin-example
+cd phlo-examples/plugins/phlo-plugin-example
 pip install -e .
 
 # List discovered plugins
@@ -850,11 +850,11 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 
 **Actual Files to Study:**
 
-- Source plugin: `examples/phlo-plugin-example/src/phlo_example/source.py`
-- Quality check plugin: `examples/phlo-plugin-example/src/phlo_example/quality.py`
-- Transform plugin: `examples/phlo-plugin-example/src/phlo_example/transform.py`
-- Entry points: `examples/phlo-plugin-example/pyproject.toml`
-- Tests: `examples/phlo-plugin-example/tests/`
+- Source plugin: `phlo-examples/plugins/phlo-plugin-example/src/phlo_example/source.py`
+- Quality check plugin: `phlo-examples/plugins/phlo-plugin-example/src/phlo_example/quality.py`
+- Transform plugin: `phlo-examples/plugins/phlo-plugin-example/src/phlo_example/transform.py`
+- Entry points: `phlo-examples/plugins/phlo-plugin-example/pyproject.toml`
+- Tests: `phlo-examples/plugins/phlo-plugin-example/tests/`
 
 **Base Classes:**
 

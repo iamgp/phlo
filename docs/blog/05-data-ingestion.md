@@ -47,7 +47,7 @@ DLT is a Python library that:
 Phlo provides the `@phlo_ingestion` decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:
 
 ```python
-# From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 from dlt.sources.rest_api import rest_api
@@ -282,7 +282,7 @@ DLT automatically:
 
 ### Pandera Schema Validation
 
-The validation schema is defined in `examples/glucose-platform/workflows/schemas/nightscout.py`:
+The validation schema is defined in `phlo-examples/nightscout/workflows/schemas/nightscout.py`:
 
 ```python
 # From workflows/schemas/nightscout.py
@@ -495,7 +495,7 @@ s3://lake/warehouse/raw/glucose_entries/
 After ingestion and transformation, Phlo validates data with quality checks. The `@phlo_quality` decorator provides a declarative way to define quality checks:
 
 ```python
-# From examples/glucose-platform/workflows/quality/nightscout.py
+# From phlo-examples/nightscout/workflows/quality/nightscout.py
 
 import phlo
 from phlo_quality import FreshnessCheck, NullCheck, RangeCheck

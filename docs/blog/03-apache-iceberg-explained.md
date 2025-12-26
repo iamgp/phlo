@@ -251,7 +251,7 @@ Let's see how Phlo uses Iceberg in practice.
 ### Reading Data (in dbt)
 
 ```sql
--- File: examples/glucose-platform/transforms/dbt/models/bronze/stg_glucose_entries.sql
+-- File: phlo-examples/nightscout/transforms/dbt/models/bronze/stg_glucose_entries.sql
 {{ config(
     materialized='view',
 ) }}
@@ -281,7 +281,7 @@ This dbt model:
 The `@phlo_ingestion` decorator handles Iceberg writes automatically:
 
 ```python
-# From examples/glucose-platform/workflows/ingestion/nightscout/readings.py
+# From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
 import phlo
 
