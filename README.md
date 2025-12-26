@@ -9,27 +9,24 @@
 <p align="center">
   <a href="https://github.com/iamgp/phlo/actions/workflows/ci.yml"><img src="https://github.com/iamgp/phlo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/phlo/"><img src="https://img.shields.io/pypi/v/phlo" alt="PyPI"></a>
-  <a href="https://pypi.org/project/phlo/"><img src="https://img.shields.io/pypi/pyversions/phlo" alt="Python"></a>
+  <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+">
 </p>
 
 ## Features
 
-- **Write-Audit-Publish pattern** - Branch isolation with automatic promotion
-- **@phlo_ingestion decorator** - 74% less boilerplate for data ingestion
-- **Configurable merge strategies** - Append-only or upsert with deduplication (first/last/hash)
-- **@phlo_quality decorator** - Declarative quality checks
-- **Auto-publishing** - Marts automatically published to Postgres for BI
-- **CLI tools** - `phlo services`, `phlo materialize`, `phlo create-workflow`
-- **Infrastructure config** - Multi-project support with phlo.yaml
+- **Decorator-driven development** - Reduce boilerplate by 74% with `@phlo.ingestion` and `@phlo.quality`
+- **Write-Audit-Publish pattern** - Git-like branching with automatic quality gates and promotion
+- **Type-safe data quality** - Pandera schemas enforce validation and generate Iceberg tables
+- **Plugin architecture** - Extensible via service, source, quality, and transformation plugins
+- **Observatory UI** - Web-based interface for data exploration, lineage, and monitoring
+- **Production-ready patterns** - Auto-publishing to Postgres, configurable merge strategies, freshness policies
+- **Modern tooling** - Built on Dagster, DLT, Iceberg, Nessie, dbt, and Trino
 
 ## Quick Start
 
 ```bash
-# Install with uv
-uv add phlo
-
-# Or with pip
-pip install phlo
+# Install with default services
+uv pip install phlo[defaults]
 
 # Initialize a new project
 phlo init my-project
@@ -48,6 +45,7 @@ Full documentation at [docs/index.md](docs/index.md):
 - [Quickstart Guide](docs/getting-started/quickstart.md)
 - [Core Concepts](docs/getting-started/core-concepts.md)
 - [Developer Guide](docs/guides/developer-guide.md)
+- [Plugin Development](docs/guides/plugin-development.md)
 - [CLI Reference](docs/reference/cli-reference.md)
 - [Configuration Reference](docs/reference/configuration-reference.md)
 - [Operations Guide](docs/operations/operations-guide.md)

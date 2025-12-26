@@ -2,5 +2,22 @@
 
 from __future__ import annotations
 
-__version__ = "0.1.0-alpha.1"
+from importlib.metadata import version
+
+__version__ = version("phlo")
 __all__ = ["__version__"]
+
+# Optional decorator imports - only available if packages are installed
+try:
+    from phlo_dlt.decorator import phlo_ingestion as ingestion  # noqa: F401
+
+    __all__.append("ingestion")
+except ImportError:
+    pass
+
+try:
+    from phlo_quality.decorator import phlo_quality as quality  # noqa: F401
+
+    __all__.append("quality")
+except ImportError:
+    pass
