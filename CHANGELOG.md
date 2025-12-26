@@ -3,6 +3,13 @@
 ## [0.1.0-alpha.2](https://github.com/iamgp/phlo/compare/v0.1.0-alpha.2...v0.1.0-alpha.2) (2025-12-26)
 
 
+### Documentation
+
+* update documentation for pip installation and plugin system ([#108](https://github.com/iamgp/phlo/issues/108)) ([6728346](https://github.com/iamgp/phlo/commit/6728346fd74da8b32ac2d071ed4fc53030bfabfd))
+
+## [0.1.0-alpha.2](https://github.com/iamgp/phlo/compare/v0.1.0-alpha.2...v0.1.0-alpha.2) (2025-12-26)
+
+
 ### ⚠ BREAKING CHANGES
 
 * CascadeError, CascadeConfigError, etc. renamed to PhloError, PhloConfigError
