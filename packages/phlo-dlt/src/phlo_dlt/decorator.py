@@ -9,7 +9,7 @@ import dagster as dg
 from pandera.pandas import DataFrameModel
 from phlo_dagster.partitions import daily_partition
 from phlo.exceptions import PhloConfigError
-from phlo.hooks import IngestionEvent, get_hook_bus
+from phlo.hooks import IngestionEventContext, IngestionEventEmitter
 from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     evaluate_pandera_contract_parquet,
@@ -177,29 +177,24 @@ def phlo_ingestion(
             pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
             branch_name = get_branch_from_context(context)
             run_id = context.run.run_id if hasattr(context, "run") else None
-            hook_bus = get_hook_bus()
-            event_payload = {
-                "asset_key": f"dlt_{table_config.table_name}",
-                "table_name": table_config.full_table_name,
-                "group_name": table_config.group_name,
-                "partition_key": partition_date,
-                "run_id": run_id,
-                "branch_name": branch_name,
-                "tags": {"group": table_config.group_name, "source": "dlt"},
-            }
+            emitter = IngestionEventEmitter(
+                IngestionEventContext(
+                    asset_key=f"dlt_{table_config.table_name}",
+                    table_name=table_config.full_table_name,
+                    group_name=table_config.group_name,
+                    partition_key=partition_date,
+                    run_id=run_id,
+                    branch_name=branch_name,
+                    tags={"group": table_config.group_name, "source": "dlt"},
+                )
+            )
 
             context.log.info(f"Starting ingestion for partition {partition_date}")
             context.log.info(f"Ingesting to branch: {branch_name}")
             context.log.info(f"Target table: {table_config.full_table_name}")
 
             start_time = time.time()
-            hook_bus.emit(
-                IngestionEvent(
-                    event_type="ingestion.start",
-                    status="started",
-                    **event_payload,
-                )
-            )
+            emitter.emit_start()
 
             context.log.info("Calling user function to get DLT source...")
             try:
@@ -207,14 +202,7 @@ def phlo_ingestion(
 
                 if dlt_source is None:
                     context.log.info(f"No data for partition {partition_date}, skipping")
-                    hook_bus.emit(
-                        IngestionEvent(
-                            event_type="ingestion.end",
-                            status="no_data",
-                            metrics={"rows_loaded": 0},
-                            **event_payload,
-                        )
-                    )
+                    emitter.emit_end(status="no_data", metrics={"rows_loaded": 0})
                     yield dg.MaterializeResult(
                         metadata={
                             "branch": branch_name,
@@ -277,18 +265,14 @@ def phlo_ingestion(
 
                 total_elapsed = time.time() - start_time
                 context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
-                hook_bus.emit(
-                    IngestionEvent(
-                        event_type="ingestion.end",
-                        status="success",
-                        metrics={
-                            "rows_inserted": merge_metrics["rows_inserted"],
-                            "rows_deleted": merge_metrics["rows_deleted"],
-                            "dlt_elapsed_seconds": dlt_elapsed,
-                            "total_elapsed_seconds": total_elapsed,
-                        },
-                        **event_payload,
-                    )
+                emitter.emit_end(
+                    status="success",
+                    metrics={
+                        "rows_inserted": merge_metrics["rows_inserted"],
+                        "rows_deleted": merge_metrics["rows_deleted"],
+                        "dlt_elapsed_seconds": dlt_elapsed,
+                        "total_elapsed_seconds": total_elapsed,
+                    },
                 )
 
                 yield dg.MaterializeResult(
@@ -305,14 +289,10 @@ def phlo_ingestion(
                 )
             except Exception as exc:
                 total_elapsed = time.time() - start_time
-                hook_bus.emit(
-                    IngestionEvent(
-                        event_type="ingestion.end",
-                        status="failure",
-                        metrics={"total_elapsed_seconds": total_elapsed},
-                        error=str(exc),
-                        **event_payload,
-                    )
+                emitter.emit_end(
+                    status="failure",
+                    metrics={"total_elapsed_seconds": total_elapsed},
+                    error=str(exc),
                 )
                 raise
 

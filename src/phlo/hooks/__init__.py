@@ -1,6 +1,7 @@
 """Hook bus for capability plugins."""
 
 from phlo.hooks.bus import HookBus, get_hook_bus
+from phlo.hooks.emitters import IngestionEventContext, IngestionEventEmitter
 from phlo.hooks.events import (
     EVENT_VERSION,
     HookEvent,
@@ -17,6 +18,8 @@ __all__ = [
     "EVENT_VERSION",
     "HookBus",
     "HookEvent",
+    "IngestionEventContext",
+    "IngestionEventEmitter",
     "IngestionEvent",
     "LineageEvent",
     "PublishEvent",
