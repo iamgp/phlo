@@ -22,6 +22,7 @@ import pandas as pd
 import pytest
 
 from phlo_testing.execution import MockAssetContext
+from phlo_testing.hooks import MockHookBus
 from phlo_testing.conftest_template import get_conftest_template
 from phlo_testing.mock_dlt import MockDLTResource, mock_dlt_source
 from phlo_testing.mock_iceberg import MockIcebergCatalog
@@ -80,6 +81,12 @@ def mock_asset_context() -> Iterator[MockAssetContext]:
     """
     context = MockAssetContext()
     yield context
+
+
+@pytest.fixture
+def mock_hook_bus() -> MockHookBus:
+    """Provide a mock hook bus without plugin discovery."""
+    return MockHookBus()
 
 
 @pytest.fixture

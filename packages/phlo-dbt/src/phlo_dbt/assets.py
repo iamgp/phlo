@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import subprocess
+import time
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import dagster as dg
+from dagster import AssetKey
 from dagster_dbt import DbtCliResource, dbt_assets
 from phlo.config import get_settings
+from phlo.hooks import (
+    LineageEventContext,
+    LineageEventEmitter,
+    TelemetryEventContext,
+    TelemetryEventEmitter,
+    TransformEventContext,
+    TransformEventEmitter,
+)
 from phlo_dagster.partitions import daily_partition
 
 from phlo_dbt.translator import CustomDbtTranslator
@@ -71,6 +82,89 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
     return result.returncode == 0 and manifest_path.exists()
 
 
+def _selected_model_names(context: Any) -> list[str]:
+    names: list[str] = []
+    if hasattr(context, "selected_output_names"):
+        names = [str(name) for name in context.selected_output_names]
+    elif hasattr(context, "selected_asset_keys"):
+        names = [
+            "/".join(key.path) if hasattr(key, "path") else str(key)
+            for key in context.selected_asset_keys
+        ]
+    return names
+
+
+def _asset_key_to_str(asset_key: AssetKey) -> str:
+    if hasattr(asset_key, "path") and asset_key.path:
+        return "/".join(str(part) for part in asset_key.path)
+    return str(asset_key)
+
+
+def _emit_dbt_lineage(
+    manifest_path: Path,
+    translator: CustomDbtTranslator,
+    *,
+    lineage_emitter: LineageEventEmitter,
+    logger: Any,
+    reader: Callable[[str], Any],
+) -> None:
+    if not manifest_path.exists():
+        logger.warning("dbt manifest not found at %s; skipping lineage emit", manifest_path)
+        return
+    try:
+        manifest = reader(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        logger.warning("Failed to read dbt manifest for lineage: %s", exc)
+        return
+    if not isinstance(manifest, Mapping):
+        logger.warning("dbt manifest payload is not a mapping; skipping lineage emit")
+        return
+
+    nodes = manifest.get("nodes") or {}
+    sources = manifest.get("sources") or {}
+    if not isinstance(nodes, Mapping) or not isinstance(sources, Mapping):
+        logger.warning("dbt manifest nodes or sources missing; skipping lineage emit")
+        return
+
+    asset_keys: dict[str, str] = {}
+    for unique_id, props in {**nodes, **sources}.items():
+        if not isinstance(props, Mapping):
+            continue
+        try:
+            asset_key = translator.get_asset_key(props)
+        except Exception:
+            continue
+        asset_keys[str(unique_id)] = _asset_key_to_str(asset_key)
+
+    edges: list[tuple[str, str]] = []
+    target_keys: list[str] = []
+    for unique_id, props in nodes.items():
+        if not isinstance(props, Mapping):
+            continue
+        resource_type = str(props.get("resource_type") or "")
+        if resource_type not in {"model", "seed", "snapshot"}:
+            continue
+        target_key = asset_keys.get(str(unique_id))
+        if not target_key:
+            continue
+        depends_on = props.get("depends_on") or {}
+        depends_nodes = depends_on.get("nodes") or []
+        if not isinstance(depends_nodes, list):
+            continue
+        for upstream_id in depends_nodes:
+            source_key = asset_keys.get(str(upstream_id))
+            if source_key:
+                edges.append((source_key, target_key))
+        target_keys.append(target_key)
+
+    if edges:
+        lineage_emitter.emit_edges(
+            edges=edges,
+            asset_keys=sorted(set(target_keys)),
+            metadata={"source": "dbt", "manifest_path": str(manifest_path)},
+        )
+
+
 def build_dbt_definitions() -> dg.Definitions:
     settings = get_settings()
 
@@ -92,6 +186,7 @@ def build_dbt_definitions() -> dg.Definitions:
         partitions_def=daily_partition,
     )
     def all_dbt_assets(context, dbt: DbtCliResource):  # type: ignore[valid-type]
+        import json
         import os
         import shutil
 
@@ -116,9 +211,62 @@ def build_dbt_definitions() -> dg.Definitions:
         os.environ.setdefault("TRINO_HOST", settings.trino_host)
         os.environ.setdefault("TRINO_PORT", str(settings.trino_port))
 
-        build_invocation = dbt.cli(build_args, context=context)
-        yield from build_invocation.stream().fetch_column_metadata()
-        build_invocation.wait()
+        emitter = TransformEventEmitter(
+            TransformEventContext(
+                tool="dbt",
+                project_dir=str(dbt_project_path),
+                target=target,
+                partition_key=context.partition_key if context.has_partition_key else None,
+                model_names=_selected_model_names(context),
+                tags={"tool": "dbt"},
+            )
+        )
+        telemetry = TelemetryEventEmitter(
+            TelemetryEventContext(tags={"tool": "dbt", "target": target})
+        )
+        lineage = LineageEventEmitter(LineageEventContext(tags={"tool": "dbt", "target": target}))
+        start_time = time.time()
+        emitter.emit_start()
+
+        try:
+            build_invocation = dbt.cli(build_args, context=context)
+            yield from build_invocation.stream().fetch_column_metadata()
+            build_invocation.wait()
+        except Exception as exc:
+            elapsed = time.time() - start_time
+            emitter.emit_end(status="failure", error=str(exc))
+            telemetry.emit_log(
+                name="transform.failure",
+                level="error",
+                payload={
+                    "error": str(exc),
+                    "elapsed_seconds": elapsed,
+                    "models": _selected_model_names(context),
+                },
+            )
+            raise
+        else:
+            elapsed = time.time() - start_time
+            model_names = _selected_model_names(context)
+            emitter.emit_end(status="success", metrics={"dbt_args": build_args})
+            telemetry.emit_metric(
+                name="transform.duration_seconds",
+                value=elapsed,
+                unit="seconds",
+                payload={"models": model_names},
+            )
+            telemetry.emit_metric(
+                name="transform.models_count",
+                value=len(model_names),
+                unit="models",
+            )
+            _emit_dbt_lineage(
+                manifest_path,
+                translator,
+                lineage_emitter=lineage,
+                logger=context.log,
+                reader=json.loads,
+            )
 
         docs_args = [
             "docs",
