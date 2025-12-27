@@ -132,7 +132,10 @@ Plugins are loaded from installed Python packages only. Ensure you:
 - Use virtual environments to isolate plugins
 """
 
+from typing import TYPE_CHECKING
+
 from phlo.plugins.base import (
+    IngestionEnginePlugin,
     Plugin,
     PluginMetadata,
     QualityCheckPlugin,
@@ -140,6 +143,22 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
+from phlo.plugins.semantic import SemanticLayerProvider, SemanticModel
+
+if TYPE_CHECKING:
+    from phlo.discovery import (
+        PluginRegistry,
+        discover_plugins,
+        get_plugin,
+        get_plugin_info,
+        get_quality_check,
+        get_service,
+        get_source_connector,
+        get_transformation,
+        list_plugins,
+        validate_plugins,
+    )
 
 
 # Import discovery functions lazily to avoid circular imports
@@ -151,6 +170,7 @@ def __getattr__(name):
         "get_plugin_info",
         "get_quality_check",
         "get_service",
+        "get_hook_plugin",
         "get_source_connector",
         "get_transformation",
         "list_plugins",
@@ -171,6 +191,14 @@ __all__ = [
     "QualityCheckPlugin",
     "ServicePlugin",
     "TransformationPlugin",
+    "IngestionEnginePlugin",
+    "HookPlugin",
+    "HookProvider",
+    "HookHandler",
+    "HookFilter",
+    "FailurePolicy",
+    "SemanticLayerProvider",
+    "SemanticModel",
     # Discovery
     "discover_plugins",
     "list_plugins",

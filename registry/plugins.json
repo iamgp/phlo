@@ -224,6 +224,46 @@
       "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-observatory",
       "tags": ["orchestration", "ui", "observability"],
       "verified": true
+    },
+    "openmetadata": {
+      "type": "hooks",
+      "package": "phlo-openmetadata",
+      "version": "0.1.0",
+      "description": "OpenMetadata hook handlers for lineage and quality sync",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-openmetadata",
+      "tags": ["metadata", "lineage", "quality", "hooks"],
+      "verified": true
+    },
+    "metrics": {
+      "type": "hooks",
+      "package": "phlo-metrics",
+      "version": "0.1.0",
+      "description": "Telemetry hooks for metrics capture",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-metrics",
+      "tags": ["metrics", "telemetry", "hooks"],
+      "verified": true
+    },
+    "alerting": {
+      "type": "hooks",
+      "package": "phlo-alerting",
+      "version": "0.1.0",
+      "description": "Alerting hooks for quality and telemetry events",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-alerting",
+      "tags": ["alerting", "quality", "hooks"],
+      "verified": true
+    },
+    "lineage": {
+      "type": "hooks",
+      "package": "phlo-lineage",
+      "version": "0.1.0",
+      "description": "Lineage hooks for asset dependency tracking",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-lineage",
+      "tags": ["lineage", "observability", "hooks"],
+      "verified": true
     }
   }
 }

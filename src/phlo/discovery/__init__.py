@@ -12,6 +12,7 @@ This module provides a unified interface for discovering:
 from phlo.discovery.plugins import (
     ENTRY_POINT_GROUPS,
     discover_plugins,
+    get_hook_plugin,
     get_plugin,
     get_plugin_info,
     get_quality_check,
@@ -38,6 +39,7 @@ __all__ = [
     "get_plugin_info",
     "get_quality_check",
     "get_service",
+    "get_hook_plugin",
     "get_source_connector",
     "get_transformation",
     "list_plugins",

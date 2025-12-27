@@ -42,6 +42,7 @@ PLUGIN_TYPE_MAP = {
     "quality": "quality_checks",
     "transforms": "transformations",
     "services": "services",
+    "hooks": "hooks",
 }
 
 PLUGIN_TYPE_LABELS = {
@@ -49,6 +50,7 @@ PLUGIN_TYPE_LABELS = {
     "quality_checks": "Quality Checks",
     "transformations": "Transforms",
     "services": "Services",
+    "hooks": "Hooks",
 }
 
 PLUGIN_INTERNAL_TO_REGISTRY = {
@@ -56,6 +58,7 @@ PLUGIN_INTERNAL_TO_REGISTRY = {
     "quality_checks": "quality",
     "transformations": "transform",
     "services": "service",
+    "hooks": "hooks",
 }
 
 REGISTRY_TYPE_MAP = {
@@ -63,6 +66,7 @@ REGISTRY_TYPE_MAP = {
     "quality": "quality",
     "transforms": "transform",
     "services": "service",
+    "hooks": "hooks",
 }
 
 
@@ -76,7 +80,7 @@ def plugin_group():
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms", "services", "all"]),
+    type=click.Choice(["sources", "quality", "transforms", "services", "hooks", "all"]),
     default="all",
     help="Filter by plugin type",
 )
@@ -128,7 +132,7 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms", "services"]),
+    type=click.Choice(["sources", "quality", "transforms", "services", "hooks"]),
     help="Plugin type (auto-detected if not specified)",
 )
 @click.option(
@@ -278,7 +282,7 @@ def check_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service"]),
+    type=click.Choice(["source", "quality", "transform", "service", "hooks"]),
     help="Filter by plugin type",
 )
 @click.option(
@@ -396,7 +400,7 @@ def update_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service"]),
+    type=click.Choice(["source", "quality", "transform", "service", "hook"]),
     default="source",
     help="Type of plugin to create",
 )
@@ -630,6 +634,7 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "quality": "QualityCheckPlugin",
         "transform": "TransformationPlugin",
         "service": "ServicePlugin",
+        "hook": "HookPlugin",
     }
     base_class = type_mapping[plugin_type]
 
@@ -638,6 +643,7 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "quality": "phlo.plugins.quality",
         "transform": "phlo.plugins.transforms",
         "service": "phlo.plugins.services",
+        "hook": "phlo.plugins.hooks",
     }[plugin_type]
 
     # Create __init__.py
@@ -662,6 +668,48 @@ __version__ = "0.1.0"
 """
 
 from phlo.plugins import {base_class}, PluginMetadata
+'''
+
+    if plugin_type == "hook":
+        plugin_content += f'''
+from phlo.hooks import HookEvent
+from phlo.plugins import HookFilter, HookRegistration
+
+
+class {class_name}({base_class}):
+    """
+    {plugin_name} hook plugin.
+
+    Add your hook handlers here.
+    """
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        """Return plugin metadata."""
+        return PluginMetadata(
+            name="{plugin_name}",
+            version="0.1.0",
+            description="Add description here",
+            author="Your Name",
+        )
+
+    def get_hooks(self):
+        """Return hook registrations."""
+        return [
+            HookRegistration(
+                hook_name="handle_events",
+                handler=self.handle_event,
+                filters=HookFilter(event_types={"quality.result"}),
+            )
+        ]
+
+    def handle_event(self, event: HookEvent) -> None:
+        """Handle hook events."""
+        # Add your hook logic here
+        raise NotImplementedError()
+'''
+    else:
+        plugin_content += f'''
 
 
 class {class_name}({base_class}):
@@ -831,6 +879,12 @@ typeCheckingMode = "standard"
     (plugin_path / "pyproject.toml").write_text(pyproject_content)
 
     # Create README.md
+    accessor = (
+        "get_hook_plugin"
+        if plugin_type == "hook"
+        else f"get_{plugin_type.replace('transform', 'transformation')}"
+    )
+
     readme_content = f"""# {plugin_name}
 
 A Phlo {plugin_type} plugin.
@@ -844,7 +898,7 @@ pip install -e .
 ## Usage
 
 ```python
-from phlo.plugins import get_{plugin_type.replace("transform", "transformation")}
+from phlo.plugins import {accessor}
 from phlo_{module_name} import {class_name}
 
 plugin = {class_name}()

@@ -29,6 +29,9 @@ dev = [
 [project.entry-points."phlo.plugins.cli"]
 lineage = "phlo_lineage.cli_plugin:LineageCliPlugin"
 
+[project.entry-points."phlo.plugins.hooks"]
+lineage = "phlo_lineage.hooks_plugin:LineageHookPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
