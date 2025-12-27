@@ -28,9 +28,13 @@ class MockHookBus(HookBus):
 
 @dataclass
 class CapturedEvents:
+    """Capture hook events in memory for assertions."""
+
     events: list[HookEvent]
 
     def handler(self, event: HookEvent) -> None:
+        """Append a hook event to the captured list."""
+
         self.events.append(event)
 
 
@@ -39,6 +43,8 @@ def capture_events(
     bus: HookBus,
     event_types: Iterable[str] | None = None,
 ) -> CapturedEvents:
+    """Register a hook handler that collects emitted events."""
+
     captured = CapturedEvents(events=[])
     filters = HookFilter(event_types=set(event_types)) if event_types else None
     bus.register(
@@ -53,6 +59,8 @@ def capture_events(
 
 
 def sample_ingestion_event() -> IngestionEvent:
+    """Return a sample ingestion event for tests."""
+
     return IngestionEvent(
         event_type="ingestion.end",
         asset_key="dlt_sample",
@@ -64,6 +72,8 @@ def sample_ingestion_event() -> IngestionEvent:
 
 
 def sample_quality_event() -> QualityResultEvent:
+    """Return a sample quality event for tests."""
+
     return QualityResultEvent(
         event_type="quality.result",
         asset_key="sample_asset",
@@ -74,6 +84,8 @@ def sample_quality_event() -> QualityResultEvent:
 
 
 def sample_transform_event() -> TransformEvent:
+    """Return a sample transform event for tests."""
+
     return TransformEvent(
         event_type="transform.end",
         tool="dbt",
@@ -82,6 +94,8 @@ def sample_transform_event() -> TransformEvent:
 
 
 def sample_publish_event() -> PublishEvent:
+    """Return a sample publish event for tests."""
+
     return PublishEvent(
         event_type="publish.end",
         asset_key="publish_sample_marts",
@@ -92,6 +106,8 @@ def sample_publish_event() -> PublishEvent:
 
 
 def sample_lineage_event() -> LineageEvent:
+    """Return a sample lineage event for tests."""
+
     return LineageEvent(
         event_type="lineage.edges",
         edges=[("raw.sample", "marts.sample")],
@@ -99,6 +115,8 @@ def sample_lineage_event() -> LineageEvent:
 
 
 def sample_telemetry_event() -> TelemetryEvent:
+    """Return a sample telemetry event for tests."""
+
     return TelemetryEvent(
         event_type="telemetry.metric",
         name="sample_metric",
@@ -107,6 +125,8 @@ def sample_telemetry_event() -> TelemetryEvent:
 
 
 def sample_service_event() -> ServiceLifecycleEvent:
+    """Return a sample service lifecycle event for tests."""
+
     return ServiceLifecycleEvent(
         event_type="service.post_start",
         service_name="postgres",

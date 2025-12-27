@@ -12,8 +12,12 @@ from phlo_alerting.manager import Alert, AlertSeverity, get_alert_manager
 
 
 class AlertingHookPlugin(HookPlugin):
+    """Emit alerts based on quality and telemetry events."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Metadata for the alerting hook plugin."""
+
         return PluginMetadata(
             name="alerting",
             version="0.1.0",
@@ -21,6 +25,8 @@ class AlertingHookPlugin(HookPlugin):
         )
 
     def get_hooks(self) -> list[HookRegistration]:
+        """Register quality and telemetry hook handlers."""
+
         return [
             HookRegistration(
                 hook_name="alerting_quality",
@@ -35,6 +41,8 @@ class AlertingHookPlugin(HookPlugin):
         ]
 
     def _handle_quality(self, event: Any) -> None:
+        """Send an alert for failed quality checks."""
+
         if not isinstance(event, QualityResultEvent):
             return
         if event.passed:
@@ -50,6 +58,8 @@ class AlertingHookPlugin(HookPlugin):
         get_alert_manager().send(alert)
 
     def _handle_telemetry(self, event: Any) -> None:
+        """Send an alert for error-level telemetry events."""
+
         if not isinstance(event, TelemetryEvent):
             return
         if not event.level or event.level.lower() not in {"error", "critical"}:
@@ -64,6 +74,8 @@ class AlertingHookPlugin(HookPlugin):
 
 
 def _map_quality_severity(severity: str | None) -> AlertSeverity:
+    """Map quality severity strings to alert severities."""
+
     if not severity:
         return AlertSeverity.ERROR
     value = severity.upper()
@@ -75,6 +87,8 @@ def _map_quality_severity(severity: str | None) -> AlertSeverity:
 
 
 def _map_telemetry_severity(level: str) -> AlertSeverity:
+    """Map telemetry levels to alert severities."""
+
     value = level.lower()
     if value == "critical":
         return AlertSeverity.CRITICAL
@@ -82,6 +96,8 @@ def _map_telemetry_severity(level: str) -> AlertSeverity:
 
 
 def _format_quality_message(event: QualityResultEvent) -> str:
+    """Format a human-readable quality failure message."""
+
     parts = [
         f"Asset: {event.asset_key}",
         f"Check: {event.check_name}",

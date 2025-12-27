@@ -1,10 +1,10 @@
 """Tests for hook bus behavior."""
 
 import pytest
+from phlo_testing.hooks import MockHookBus
 
 from phlo.hooks import QualityResultEvent
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookRegistration
-from phlo_testing.hooks import MockHookBus
 
 
 def test_hook_bus_filters_and_ordering() -> None:

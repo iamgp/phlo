@@ -19,10 +19,14 @@ logger = logging.getLogger(__name__)
 
 class OpenMetadataHookPlugin(HookPlugin):
     def __init__(self) -> None:
+        """Initialize the plugin with lazy client setup."""
+
         self._client: OpenMetadataClient | None = None
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Metadata for the OpenMetadata hook plugin."""
+
         return PluginMetadata(
             name="openmetadata",
             version="0.1.0",
@@ -30,6 +34,8 @@ class OpenMetadataHookPlugin(HookPlugin):
         )
 
     def get_hooks(self) -> list[HookRegistration]:
+        """Register lineage, quality, and publish hook handlers."""
+
         return [
             HookRegistration(
                 hook_name="openmetadata_lineage",
@@ -49,11 +55,15 @@ class OpenMetadataHookPlugin(HookPlugin):
         ]
 
     def cleanup(self) -> None:
+        """Close the OpenMetadata client if initialized."""
+
         if self._client:
             self._client.close()
             self._client = None
 
     def _handle_lineage(self, event: Any) -> None:
+        """Sync lineage edges into OpenMetadata."""
+
         if not isinstance(event, LineageEvent):
             return
         client = self._get_client()
@@ -66,6 +76,8 @@ class OpenMetadataHookPlugin(HookPlugin):
                 logger.warning("OpenMetadata lineage sync failed: %s", exc)
 
     def _handle_quality_result(self, event: Any) -> None:
+        """Sync quality results into OpenMetadata test metadata."""
+
         if not isinstance(event, QualityResultEvent):
             return
         client = self._get_client()
@@ -93,9 +105,7 @@ class OpenMetadataHookPlugin(HookPlugin):
                 test_definition_name=test_name,
             )
             test_case_fqn = (
-                test_case.get("fullyQualifiedName")
-                or test_case.get("name")
-                or test_case_name
+                test_case.get("fullyQualifiedName") or test_case.get("name") or test_case_name
             )
         except Exception as exc:
             logger.warning("OpenMetadata test case sync failed: %s", exc)
@@ -112,6 +122,8 @@ class OpenMetadataHookPlugin(HookPlugin):
             logger.warning("OpenMetadata test result publish failed: %s", exc)
 
     def _handle_publish(self, event: Any) -> None:
+        """Sync published tables into OpenMetadata."""
+
         if not isinstance(event, PublishEvent):
             return
         if event.status != "success":
@@ -137,6 +149,8 @@ class OpenMetadataHookPlugin(HookPlugin):
                 )
 
     def _get_client(self) -> OpenMetadataClient | None:
+        """Return the OpenMetadata client if sync is enabled."""
+
         settings = get_settings()
         if not settings.openmetadata_sync_enabled:
             return None
@@ -151,6 +165,8 @@ class OpenMetadataHookPlugin(HookPlugin):
 
 
 def _resolve_table_fqn(event: QualityResultEvent) -> str | None:
+    """Resolve the table FQN from quality event metadata."""
+
     for key in ("table_fqn", "table_name", "table"):
         value = event.metadata.get(key)
         if isinstance(value, str) and value:
@@ -161,6 +177,8 @@ def _resolve_table_fqn(event: QualityResultEvent) -> str | None:
 
 
 def _resolve_test_type(event: QualityResultEvent) -> str:
+    """Map quality check types to OpenMetadata test types."""
+
     check_type = event.check_type or ""
     if check_type.lower() == "pandera":
         return "schemaCheck"
@@ -168,6 +186,8 @@ def _resolve_test_type(event: QualityResultEvent) -> str:
 
 
 def _split_table_fqn(table_fqn: str, default_schema: str) -> tuple[str, str]:
+    """Split a table FQN into schema and table name components."""
+
     if "." not in table_fqn:
         return default_schema, table_fqn
     schema_name, table_name = table_fqn.split(".", 1)

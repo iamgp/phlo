@@ -12,8 +12,12 @@ from phlo_lineage.graph import get_lineage_graph
 
 
 class LineageHookPlugin(HookPlugin):
+    """Update the lineage graph from lineage hook events."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Metadata for the lineage hook plugin."""
+
         return PluginMetadata(
             name="lineage",
             version="0.1.0",
@@ -21,6 +25,8 @@ class LineageHookPlugin(HookPlugin):
         )
 
     def get_hooks(self) -> list[HookRegistration]:
+        """Register the lineage update hook handler."""
+
         return [
             HookRegistration(
                 hook_name="lineage_updates",
@@ -30,6 +36,8 @@ class LineageHookPlugin(HookPlugin):
         ]
 
     def _handle_lineage(self, event: Any) -> None:
+        """Apply lineage edges to the graph store."""
+
         if not isinstance(event, LineageEvent):
             return
         graph = get_lineage_graph()

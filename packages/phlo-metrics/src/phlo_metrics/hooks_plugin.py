@@ -12,11 +12,17 @@ from phlo_metrics.telemetry import TelemetryRecorder
 
 
 class MetricsHookPlugin(HookPlugin):
+    """Capture telemetry events into the metrics recorder."""
+
     def __init__(self) -> None:
+        """Initialize the telemetry recorder."""
+
         self._recorder = TelemetryRecorder()
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Metadata for the metrics hook plugin."""
+
         return PluginMetadata(
             name="metrics",
             version="0.1.0",
@@ -24,6 +30,8 @@ class MetricsHookPlugin(HookPlugin):
         )
 
     def get_hooks(self) -> list[HookRegistration]:
+        """Register telemetry hook handlers."""
+
         return [
             HookRegistration(
                 hook_name="metrics_telemetry",
@@ -33,6 +41,8 @@ class MetricsHookPlugin(HookPlugin):
         ]
 
     def _handle_telemetry(self, event: Any) -> None:
+        """Record telemetry events from the hook bus."""
+
         if not isinstance(event, TelemetryEvent):
             return
         self._recorder.record(event)
