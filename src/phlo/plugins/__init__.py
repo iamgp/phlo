@@ -141,6 +141,7 @@ from phlo.plugins.base import (
     TransformationPlugin,
 )
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
+from phlo.plugins.semantic import SemanticLayerProvider, SemanticModel
 
 
 # Import discovery functions lazily to avoid circular imports
@@ -178,6 +179,8 @@ __all__ = [
     "HookHandler",
     "HookFilter",
     "FailurePolicy",
+    "SemanticLayerProvider",
+    "SemanticModel",
     # Discovery
     "discover_plugins",
     "list_plugins",

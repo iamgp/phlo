@@ -29,6 +29,9 @@ dev = [
 [project.entry-points."phlo.plugins.cli"]
 alerts = "phlo_alerting.cli_plugin:AlertingCliPlugin"
 
+[project.entry-points."phlo.plugins.hooks"]
+alerting = "phlo_alerting.hooks_plugin:AlertingHookPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true

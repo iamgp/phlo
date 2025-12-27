@@ -154,7 +154,7 @@ def phlo_quality(
                         sample=[{"error": str(exc)}],
                     )
                     event_metadata = _contract_metadata(contract)
-                    event_metadata.update({"reason": "query_failed", "error": str(exc)})
+                    event_metadata.update({"reason": "query_failed", "error": str(exc), "table": table})
                     _emit_quality_event(
                         QualityResultEvent(
                             event_type="quality.result",
@@ -190,6 +190,7 @@ def phlo_quality(
                     )
                     event_metadata = _contract_metadata(contract)
                     event_metadata["note"] = "no_data"
+                    event_metadata["table"] = table
                     _emit_quality_event(
                         QualityResultEvent(
                             event_type="quality.result",
@@ -248,6 +249,7 @@ def phlo_quality(
                     result_kwargs["severity"] = severity
                 event_metadata = _contract_metadata(contract)
                 event_metadata["schemas"] = schema_names
+                event_metadata["table"] = table
                 _emit_quality_event(
                     QualityResultEvent(
                         event_type="quality.result",
@@ -314,6 +316,7 @@ def phlo_quality(
                                 "reason": "query_failed",
                                 "error": str(exc),
                                 "query_or_sql": final_query,
+                                "table": table,
                             },
                             tags={"source": "phlo", "backend": backend},
                         )
@@ -338,7 +341,11 @@ def phlo_quality(
                             passed=True,
                             check_type="phlo",
                             partition_key=partition_key_value,
-                            metadata={"note": "no_data", "query_or_sql": final_query},
+                            metadata={
+                                "note": "no_data",
+                                "query_or_sql": final_query,
+                                "table": table,
+                            },
                             tags={"source": "phlo", "backend": backend},
                         )
                     )
@@ -436,6 +443,7 @@ def phlo_quality(
                         sample=_collect_failure_sample([result]),
                     )
                     event_metadata = _contract_metadata(contract)
+                    event_metadata["table"] = table
                     if result.metric_value is not None:
                         event_metadata["metric_value"] = result.metric_value
                     if result.failure_message:

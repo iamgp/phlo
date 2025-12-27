@@ -27,6 +27,9 @@ dev = [
 [project.entry-points."phlo.plugins.cli"]
 metrics = "phlo_metrics.cli_plugin:MetricsCliPlugin"
 
+[project.entry-points."phlo.plugins.hooks"]
+metrics = "phlo_metrics.hooks_plugin:MetricsHookPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
