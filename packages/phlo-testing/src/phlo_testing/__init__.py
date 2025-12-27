@@ -216,6 +216,17 @@ from phlo_testing.mock_trino import (
     MockCursor,
     MockTrinoResource,
 )
+from phlo_testing.hooks import (
+    MockHookBus,
+    capture_events,
+    sample_ingestion_event,
+    sample_lineage_event,
+    sample_publish_event,
+    sample_quality_event,
+    sample_service_event,
+    sample_telemetry_event,
+    sample_transform_event,
+)
 
 __all__ = [
     # Phase 1: Core Mocks
@@ -254,6 +265,7 @@ __all__ = [
     "mock_trino",
     "mock_asset_context",
     "mock_resources",
+    "mock_hook_bus",
     "sample_partition_date",
     "sample_partition_range",
     "sample_dlt_data",
@@ -270,6 +282,16 @@ __all__ = [
     "conftest_template",
     "CONFTEST_TEMPLATE",
     "get_conftest_template",
+    # Hooks
+    "MockHookBus",
+    "capture_events",
+    "sample_ingestion_event",
+    "sample_quality_event",
+    "sample_transform_event",
+    "sample_publish_event",
+    "sample_lineage_event",
+    "sample_telemetry_event",
+    "sample_service_event",
 ]
 
 __version__ = "1.0.0"
