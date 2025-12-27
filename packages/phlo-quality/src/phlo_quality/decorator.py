@@ -154,7 +154,9 @@ def phlo_quality(
                         sample=[{"error": str(exc)}],
                     )
                     event_metadata = _contract_metadata(contract)
-                    event_metadata.update({"reason": "query_failed", "error": str(exc), "table": table})
+                    event_metadata.update(
+                        {"reason": "query_failed", "error": str(exc), "table": table}
+                    )
                     _emit_quality_event(
                         QualityResultEvent(
                             event_type="quality.result",
