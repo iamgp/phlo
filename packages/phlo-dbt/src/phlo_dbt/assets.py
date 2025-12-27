@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
 import dagster as dg
 from dagster_dbt import DbtCliResource, dbt_assets
 from phlo.config import get_settings
-from phlo.hooks import TransformEventContext, TransformEventEmitter
+from phlo.hooks import (
+    TelemetryEventContext,
+    TelemetryEventEmitter,
+    TransformEventContext,
+    TransformEventEmitter,
+)
 from phlo_dagster.partitions import daily_partition
 
 from phlo_dbt.translator import CustomDbtTranslator
@@ -139,6 +145,10 @@ def build_dbt_definitions() -> dg.Definitions:
                 tags={"tool": "dbt"},
             )
         )
+        telemetry = TelemetryEventEmitter(
+            TelemetryEventContext(tags={"tool": "dbt", "target": target})
+        )
+        start_time = time.time()
         emitter.emit_start()
 
         try:
@@ -146,10 +156,33 @@ def build_dbt_definitions() -> dg.Definitions:
             yield from build_invocation.stream().fetch_column_metadata()
             build_invocation.wait()
         except Exception as exc:
+            elapsed = time.time() - start_time
             emitter.emit_end(status="failure", error=str(exc))
+            telemetry.emit_log(
+                name="transform.failure",
+                level="error",
+                payload={
+                    "error": str(exc),
+                    "elapsed_seconds": elapsed,
+                    "models": _selected_model_names(context),
+                },
+            )
             raise
         else:
+            elapsed = time.time() - start_time
+            model_names = _selected_model_names(context)
             emitter.emit_end(status="success", metrics={"dbt_args": build_args})
+            telemetry.emit_metric(
+                name="transform.duration_seconds",
+                value=elapsed,
+                unit="seconds",
+                payload={"models": model_names},
+            )
+            telemetry.emit_metric(
+                name="transform.models_count",
+                value=len(model_names),
+                unit="models",
+            )
 
         docs_args = [
             "docs",

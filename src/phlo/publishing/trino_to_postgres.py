@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,7 +10,14 @@ from psycopg2 import sql
 from psycopg2.extras import execute_values
 
 from phlo.config import get_settings
-from phlo.hooks import PublishEventContext, PublishEventEmitter
+from phlo.hooks import (
+    LineageEventContext,
+    LineageEventEmitter,
+    PublishEventContext,
+    PublishEventEmitter,
+    TelemetryEventContext,
+    TelemetryEventEmitter,
+)
 
 
 @dataclass(frozen=True)
@@ -43,6 +51,13 @@ def publish_marts_to_postgres(
             tags={"source": data_source, "target": "postgres"},
         )
     )
+    telemetry = TelemetryEventEmitter(
+        TelemetryEventContext(tags={"source": data_source, "target": "postgres"})
+    )
+    lineage = LineageEventEmitter(
+        LineageEventContext(tags={"source": data_source, "target": "postgres"})
+    )
+    start_time = time.time()
 
     emitter.emit_start()
 
@@ -71,9 +86,48 @@ def publish_marts_to_postgres(
                 }
             },
         )
+        elapsed = time.time() - start_time
+        total_rows = sum(item.row_count for item in stats.values())
+        total_columns = sum(item.column_count for item in stats.values())
+        telemetry.emit_metric(
+            name="publish.tables",
+            value=len(stats),
+            unit="tables",
+        )
+        telemetry.emit_metric(
+            name="publish.rows_total",
+            value=total_rows,
+            unit="rows",
+        )
+        telemetry.emit_metric(
+            name="publish.columns_total",
+            value=total_columns,
+            unit="columns",
+        )
+        telemetry.emit_metric(
+            name="publish.duration_seconds",
+            value=elapsed,
+            unit="seconds",
+        )
+        edges = [
+            (source_table, f"{schema}.{target_table}")
+            for target_table, source_table in tables_to_publish.items()
+        ]
+        if edges:
+            lineage.emit_edges(
+                edges=edges,
+                asset_keys=[edge[1] for edge in edges],
+                metadata={"source_system": "trino", "target_system": "postgres"},
+            )
         return stats
     except Exception as exc:
+        elapsed = time.time() - start_time
         emitter.emit_end(status="failure", error=str(exc))
+        telemetry.emit_log(
+            name="publish.failure",
+            level="error",
+            payload={"error": str(exc), "elapsed_seconds": elapsed},
+        )
         raise
 
 

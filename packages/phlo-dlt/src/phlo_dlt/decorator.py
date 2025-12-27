@@ -9,7 +9,12 @@ import dagster as dg
 from pandera.pandas import DataFrameModel
 from phlo_dagster.partitions import daily_partition
 from phlo.exceptions import PhloConfigError
-from phlo.hooks import IngestionEventContext, IngestionEventEmitter
+from phlo.hooks import (
+    IngestionEventContext,
+    IngestionEventEmitter,
+    TelemetryEventContext,
+    TelemetryEventEmitter,
+)
 from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     evaluate_pandera_contract_parquet,
@@ -188,6 +193,15 @@ def phlo_ingestion(
                     tags={"group": table_config.group_name, "source": "dlt"},
                 )
             )
+            telemetry = TelemetryEventEmitter(
+                TelemetryEventContext(
+                    tags={
+                        "asset": f"dlt_{table_config.table_name}",
+                        "group": table_config.group_name,
+                        "source": "dlt",
+                    }
+                )
+            )
 
             context.log.info(f"Starting ingestion for partition {partition_date}")
             context.log.info(f"Ingesting to branch: {branch_name}")
@@ -203,6 +217,12 @@ def phlo_ingestion(
                 if dlt_source is None:
                     context.log.info(f"No data for partition {partition_date}, skipping")
                     emitter.emit_end(status="no_data", metrics={"rows_loaded": 0})
+                    telemetry.emit_metric(
+                        name="ingestion.rows_loaded",
+                        value=0,
+                        unit="rows",
+                        payload={"status": "no_data"},
+                    )
                     yield dg.MaterializeResult(
                         metadata={
                             "branch": branch_name,
@@ -274,6 +294,24 @@ def phlo_ingestion(
                         "total_elapsed_seconds": total_elapsed,
                     },
                 )
+                telemetry.emit_metric(
+                    name="ingestion.rows_inserted",
+                    value=merge_metrics["rows_inserted"],
+                    unit="rows",
+                    payload={"table": table_config.full_table_name},
+                )
+                telemetry.emit_metric(
+                    name="ingestion.rows_deleted",
+                    value=merge_metrics["rows_deleted"],
+                    unit="rows",
+                    payload={"table": table_config.full_table_name},
+                )
+                telemetry.emit_metric(
+                    name="ingestion.duration_seconds",
+                    value=total_elapsed,
+                    unit="seconds",
+                    payload={"dlt_elapsed_seconds": dlt_elapsed},
+                )
 
                 yield dg.MaterializeResult(
                     metadata={
@@ -293,6 +331,11 @@ def phlo_ingestion(
                     status="failure",
                     metrics={"total_elapsed_seconds": total_elapsed},
                     error=str(exc),
+                )
+                telemetry.emit_log(
+                    name="ingestion.failure",
+                    level="error",
+                    payload={"error": str(exc), "elapsed_seconds": total_elapsed},
                 )
                 raise
 
