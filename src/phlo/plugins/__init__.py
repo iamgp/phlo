@@ -135,6 +135,7 @@ Plugins are loaded from installed Python packages only. Ensure you:
 from typing import TYPE_CHECKING
 
 from phlo.plugins.base import (
+    IngestionEnginePlugin,
     Plugin,
     PluginMetadata,
     QualityCheckPlugin,
@@ -190,6 +191,7 @@ __all__ = [
     "QualityCheckPlugin",
     "ServicePlugin",
     "TransformationPlugin",
+    "IngestionEnginePlugin",
     "HookPlugin",
     "HookProvider",
     "HookHandler",

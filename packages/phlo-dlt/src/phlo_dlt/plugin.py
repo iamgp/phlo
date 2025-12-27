@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import dagster as dg
-from phlo.plugins.base import DagsterExtensionPlugin, PluginMetadata
+from typing import Any, Callable
+
+from phlo.plugins.base import IngestionEnginePlugin, PluginMetadata
 
 from phlo_dlt.decorator import (
     clear_ingestion_assets,
@@ -10,7 +11,7 @@ from phlo_dlt.decorator import (
 )
 
 
-class DltDagsterPlugin(DagsterExtensionPlugin):
+class DltDagsterPlugin(IngestionEnginePlugin):
     @property
     def metadata(self) -> PluginMetadata:
         return PluginMetadata(
@@ -19,11 +20,11 @@ class DltDagsterPlugin(DagsterExtensionPlugin):
             description="DLT-based ingestion engine for Phlo",
         )
 
-    def get_definitions(self) -> dg.Definitions:
-        return dg.Definitions(assets=get_ingestion_assets())
+    def get_ingestion_assets(self) -> list[Any]:
+        return get_ingestion_assets()
 
-    def get_exports(self) -> dict[str, object]:
-        return {"ingestion": phlo_ingestion}
+    def get_ingestion_decorator(self) -> Callable[..., Any]:
+        return phlo_ingestion
 
     def clear_registries(self) -> None:
         clear_ingestion_assets()
