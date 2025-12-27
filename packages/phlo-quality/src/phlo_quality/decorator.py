@@ -12,7 +12,12 @@ from typing import Any, Callable, List, Optional
 
 from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue, asset_check
 
-from phlo.hooks import QualityResultEventContext, QualityResultEventEmitter
+from phlo.hooks import (
+    QualityResultEventContext,
+    QualityResultEventEmitter,
+    TelemetryEventContext,
+    TelemetryEventEmitter,
+)
 from phlo_quality.checks import QualityCheck, QualityCheckResult, SchemaCheck
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
 from phlo_quality.partitioning import PartitionScope, apply_partition_scope, get_partition_key
@@ -132,6 +137,15 @@ def phlo_quality(
                         tags={"source": "pandera", "backend": backend},
                     )
                 )
+                telemetry = TelemetryEventEmitter(
+                    TelemetryEventContext(
+                        tags={
+                            "asset": asset_name,
+                            "source": "pandera",
+                            "backend": backend,
+                        }
+                    )
+                )
                 scope = PartitionScope(
                     partition_key=partition_key,
                     partition_column=partition_column,
@@ -151,6 +165,11 @@ def phlo_quality(
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
                     context.log.error(f"Failed to load data: {exc}")
+                    telemetry.emit_log(
+                        name="quality.query_failed",
+                        level="error",
+                        payload={"error": str(exc), "table": table},
+                    )
                     contract = QualityCheckContract(
                         source="pandera",
                         partition_key=partition_key_value,
@@ -199,6 +218,12 @@ def phlo_quality(
                         passed=True,
                         check_type="pandera",
                         metadata=event_metadata,
+                    )
+                    telemetry.emit_metric(
+                        name="quality.rows_validated",
+                        value=0,
+                        unit="rows",
+                        payload={"status": "no_data", "table": table},
                     )
                     return AssetCheckResult(
                         passed=True,
@@ -254,6 +279,24 @@ def phlo_quality(
                     check_type="pandera",
                     metadata=event_metadata,
                 )
+                telemetry.emit_metric(
+                    name="quality.rows_validated",
+                    value=len(df),
+                    unit="rows",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.failed_count",
+                    value=failed_count,
+                    unit="checks",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.schemas_checked",
+                    value=len(schema_names),
+                    unit="schemas",
+                    payload={"table": table},
+                )
                 return AssetCheckResult(**result_kwargs)
 
         if non_schema_checks:
@@ -282,6 +325,15 @@ def phlo_quality(
                         tags={"source": "phlo", "backend": backend},
                     )
                 )
+                telemetry = TelemetryEventEmitter(
+                    TelemetryEventContext(
+                        tags={
+                            "asset": asset_name,
+                            "source": "phlo",
+                            "backend": backend,
+                        }
+                    )
+                )
                 scope = PartitionScope(
                     partition_key=partition_key,
                     partition_column=partition_column,
@@ -301,6 +353,11 @@ def phlo_quality(
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
                     context.log.error(f"Failed to load data: {exc}")
+                    telemetry.emit_log(
+                        name="quality.query_failed",
+                        level="error",
+                        payload={"error": str(exc), "table": table},
+                    )
                     emitter.emit_result(
                         check_name=func.__name__,
                         passed=False,
@@ -334,6 +391,12 @@ def phlo_quality(
                             "query_or_sql": final_query,
                             "table": table,
                         },
+                    )
+                    telemetry.emit_metric(
+                        name="quality.rows_validated",
+                        value=0,
+                        unit="rows",
+                        payload={"status": "no_data", "table": table},
                     )
                     return AssetCheckResult(
                         passed=True,
@@ -447,6 +510,30 @@ def phlo_quality(
                 result_kwargs = {"passed": all_passed, "metadata": metadata}
                 if severity is not None:
                     result_kwargs["severity"] = severity
+                telemetry.emit_metric(
+                    name="quality.rows_validated",
+                    value=len(df),
+                    unit="rows",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.checks_total",
+                    value=len(check_results),
+                    unit="checks",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.checks_failed",
+                    value=failed_count,
+                    unit="checks",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.failure_fraction",
+                    value=failure_fraction,
+                    unit="ratio",
+                    payload={"table": table},
+                )
                 return AssetCheckResult(**result_kwargs)
 
             _QUALITY_CHECKS.append(quality_check_wrapper)
