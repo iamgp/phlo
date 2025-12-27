@@ -1,7 +1,22 @@
 """Hook bus for capability plugins."""
 
 from phlo.hooks.bus import HookBus, get_hook_bus
-from phlo.hooks.emitters import IngestionEventContext, IngestionEventEmitter
+from phlo.hooks.emitters import (
+    IngestionEventContext,
+    IngestionEventEmitter,
+    LineageEventContext,
+    LineageEventEmitter,
+    PublishEventContext,
+    PublishEventEmitter,
+    QualityResultEventContext,
+    QualityResultEventEmitter,
+    ServiceLifecycleEventContext,
+    ServiceLifecycleEventEmitter,
+    TelemetryEventContext,
+    TelemetryEventEmitter,
+    TransformEventContext,
+    TransformEventEmitter,
+)
 from phlo.hooks.events import (
     EVENT_VERSION,
     HookEvent,
@@ -20,6 +35,18 @@ __all__ = [
     "HookEvent",
     "IngestionEventContext",
     "IngestionEventEmitter",
+    "LineageEventContext",
+    "LineageEventEmitter",
+    "PublishEventContext",
+    "PublishEventEmitter",
+    "QualityResultEventContext",
+    "QualityResultEventEmitter",
+    "ServiceLifecycleEventContext",
+    "ServiceLifecycleEventEmitter",
+    "TelemetryEventContext",
+    "TelemetryEventEmitter",
+    "TransformEventContext",
+    "TransformEventEmitter",
     "IngestionEvent",
     "LineageEvent",
     "PublishEvent",

@@ -9,7 +9,7 @@ from psycopg2 import sql
 from psycopg2.extras import execute_values
 
 from phlo.config import get_settings
-from phlo.hooks import PublishEvent, get_hook_bus
+from phlo.hooks import PublishEventContext, PublishEventEmitter
 
 
 @dataclass(frozen=True)
@@ -34,19 +34,17 @@ def publish_marts_to_postgres(
 
     settings = get_settings()
     schema = target_schema or settings.postgres_mart_schema
-    hook_bus = get_hook_bus()
     asset_key = _resolve_asset_key(context, data_source)
-
-    hook_bus.emit(
-        PublishEvent(
-            event_type="publish.start",
+    emitter = PublishEventEmitter(
+        PublishEventContext(
             asset_key=asset_key,
             target_system="postgres",
             tables=tables_to_publish,
-            status="started",
             tags={"source": data_source, "target": "postgres"},
         )
     )
+
+    emitter.emit_start()
 
     stats: dict[str, TablePublishStats] = {}
     try:
@@ -64,35 +62,18 @@ def publish_marts_to_postgres(
                 row_count=row_count,
                 column_count=column_count,
             )
-        hook_bus.emit(
-            PublishEvent(
-                event_type="publish.end",
-                asset_key=asset_key,
-                target_system="postgres",
-                tables=tables_to_publish,
-                status="success",
-                metrics={
-                    "tables": {
-                        name: {"row_count": s.row_count, "column_count": s.column_count}
-                        for name, s in stats.items()
-                    }
-                },
-                tags={"source": data_source, "target": "postgres"},
-            )
+        emitter.emit_end(
+            status="success",
+            metrics={
+                "tables": {
+                    name: {"row_count": s.row_count, "column_count": s.column_count}
+                    for name, s in stats.items()
+                }
+            },
         )
         return stats
     except Exception as exc:
-        hook_bus.emit(
-            PublishEvent(
-                event_type="publish.end",
-                asset_key=asset_key,
-                target_system="postgres",
-                tables=tables_to_publish,
-                status="failure",
-                error=str(exc),
-                tags={"source": data_source, "target": "postgres"},
-            )
-        )
+        emitter.emit_end(status="failure", error=str(exc))
         raise
 
 

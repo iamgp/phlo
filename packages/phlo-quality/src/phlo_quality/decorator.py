@@ -12,7 +12,7 @@ from typing import Any, Callable, List, Optional
 
 from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue, asset_check
 
-from phlo.hooks import QualityResultEvent, get_hook_bus
+from phlo.hooks import QualityResultEventContext, QualityResultEventEmitter
 from phlo_quality.checks import QualityCheck, QualityCheckResult, SchemaCheck
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
 from phlo_quality.partitioning import PartitionScope, apply_partition_scope, get_partition_key
@@ -125,6 +125,13 @@ def phlo_quality(
                 partition_key = get_partition_key(context)
                 partition_key_value = str(partition_key) if partition_key else None
                 asset_name = _asset_key_to_str(asset_key)
+                emitter = QualityResultEventEmitter(
+                    QualityResultEventContext(
+                        asset_key=asset_name,
+                        partition_key=partition_key_value,
+                        tags={"source": "pandera", "backend": backend},
+                    )
+                )
                 scope = PartitionScope(
                     partition_key=partition_key,
                     partition_column=partition_column,
@@ -157,18 +164,12 @@ def phlo_quality(
                     event_metadata.update(
                         {"reason": "query_failed", "error": str(exc), "table": table}
                     )
-                    _emit_quality_event(
-                        QualityResultEvent(
-                            event_type="quality.result",
-                            asset_key=asset_name,
-                            check_name=PANDERA_CONTRACT_CHECK_NAME,
-                            passed=False,
-                            severity=AssetCheckSeverity.ERROR.value,
-                            check_type="pandera",
-                            partition_key=partition_key_value,
-                            metadata=event_metadata,
-                            tags={"source": "pandera", "backend": backend},
-                        )
+                    emitter.emit_result(
+                        check_name=PANDERA_CONTRACT_CHECK_NAME,
+                        passed=False,
+                        severity=AssetCheckSeverity.ERROR.value,
+                        check_type="pandera",
+                        metadata=event_metadata,
                     )
                     return AssetCheckResult(
                         passed=False,
@@ -193,17 +194,11 @@ def phlo_quality(
                     event_metadata = _contract_metadata(contract)
                     event_metadata["note"] = "no_data"
                     event_metadata["table"] = table
-                    _emit_quality_event(
-                        QualityResultEvent(
-                            event_type="quality.result",
-                            asset_key=asset_name,
-                            check_name=PANDERA_CONTRACT_CHECK_NAME,
-                            passed=True,
-                            check_type="pandera",
-                            partition_key=partition_key_value,
-                            metadata=event_metadata,
-                            tags={"source": "pandera", "backend": backend},
-                        )
+                    emitter.emit_result(
+                        check_name=PANDERA_CONTRACT_CHECK_NAME,
+                        passed=True,
+                        check_type="pandera",
+                        metadata=event_metadata,
                     )
                     return AssetCheckResult(
                         passed=True,
@@ -252,18 +247,12 @@ def phlo_quality(
                 event_metadata = _contract_metadata(contract)
                 event_metadata["schemas"] = schema_names
                 event_metadata["table"] = table
-                _emit_quality_event(
-                    QualityResultEvent(
-                        event_type="quality.result",
-                        asset_key=asset_name,
-                        check_name=PANDERA_CONTRACT_CHECK_NAME,
-                        passed=all_passed,
-                        severity=severity.value if severity else None,
-                        check_type="pandera",
-                        partition_key=partition_key_value,
-                        metadata=event_metadata,
-                        tags={"source": "pandera", "backend": backend},
-                    )
+                emitter.emit_result(
+                    check_name=PANDERA_CONTRACT_CHECK_NAME,
+                    passed=all_passed,
+                    severity=severity.value if severity else None,
+                    check_type="pandera",
+                    metadata=event_metadata,
                 )
                 return AssetCheckResult(**result_kwargs)
 
@@ -286,6 +275,13 @@ def phlo_quality(
                 partition_key = get_partition_key(context)
                 partition_key_value = str(partition_key) if partition_key else None
                 asset_name = _asset_key_to_str(asset_key)
+                emitter = QualityResultEventEmitter(
+                    QualityResultEventContext(
+                        asset_key=asset_name,
+                        partition_key=partition_key_value,
+                        tags={"source": "phlo", "backend": backend},
+                    )
+                )
                 scope = PartitionScope(
                     partition_key=partition_key,
                     partition_column=partition_column,
@@ -305,23 +301,17 @@ def phlo_quality(
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
                     context.log.error(f"Failed to load data: {exc}")
-                    _emit_quality_event(
-                        QualityResultEvent(
-                            event_type="quality.result",
-                            asset_key=asset_name,
-                            check_name=func.__name__,
-                            passed=False,
-                            severity=AssetCheckSeverity.ERROR.value,
-                            check_type="phlo",
-                            partition_key=partition_key_value,
-                            metadata={
-                                "reason": "query_failed",
-                                "error": str(exc),
-                                "query_or_sql": final_query,
-                                "table": table,
-                            },
-                            tags={"source": "phlo", "backend": backend},
-                        )
+                    emitter.emit_result(
+                        check_name=func.__name__,
+                        passed=False,
+                        severity=AssetCheckSeverity.ERROR.value,
+                        check_type="phlo",
+                        metadata={
+                            "reason": "query_failed",
+                            "error": str(exc),
+                            "query_or_sql": final_query,
+                            "table": table,
+                        },
                     )
                     return AssetCheckResult(
                         passed=False,
@@ -335,21 +325,15 @@ def phlo_quality(
 
                 if df.empty:
                     context.log.warning("No rows returned; marking check as skipped.")
-                    _emit_quality_event(
-                        QualityResultEvent(
-                            event_type="quality.result",
-                            asset_key=asset_name,
-                            check_name=func.__name__,
-                            passed=True,
-                            check_type="phlo",
-                            partition_key=partition_key_value,
-                            metadata={
-                                "note": "no_data",
-                                "query_or_sql": final_query,
-                                "table": table,
-                            },
-                            tags={"source": "phlo", "backend": backend},
-                        )
+                    emitter.emit_result(
+                        check_name=func.__name__,
+                        passed=True,
+                        check_type="phlo",
+                        metadata={
+                            "note": "no_data",
+                            "query_or_sql": final_query,
+                            "table": table,
+                        },
                     )
                     return AssetCheckResult(
                         passed=True,
@@ -452,18 +436,12 @@ def phlo_quality(
                         event_metadata["failure_message"] = result.failure_message
                     if result.metadata:
                         event_metadata.update(result.metadata)
-                    _emit_quality_event(
-                        QualityResultEvent(
-                            event_type="quality.result",
-                            asset_key=asset_name,
-                            check_name=result.metric_name,
-                            passed=result.passed,
-                            severity=severity_label if not result.passed else None,
-                            check_type=type(check).__name__,
-                            partition_key=partition_key_value,
-                            metadata=event_metadata,
-                            tags={"source": "phlo", "backend": backend},
-                        )
+                    emitter.emit_result(
+                        check_name=result.metric_name,
+                        passed=result.passed,
+                        severity=severity_label if not result.passed else None,
+                        check_type=type(check).__name__,
+                        metadata=event_metadata,
                     )
 
                 result_kwargs = {"passed": all_passed, "metadata": metadata}
@@ -647,10 +625,6 @@ def _contract_metadata(contract: QualityCheckContract) -> dict[str, Any]:
     if contract.sample is not None:
         metadata["sample"] = contract.sample[:20]
     return metadata
-
-
-def _emit_quality_event(event: QualityResultEvent) -> None:
-    get_hook_bus().emit(event)
 
 
 def _repro_sql(query: str) -> str:

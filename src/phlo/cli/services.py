@@ -236,24 +236,18 @@ def _emit_service_lifecycle_events(
 ) -> None:
     if not service_names:
         return
-    from phlo.hooks import ServiceLifecycleEvent, get_hook_bus
+    from phlo.hooks import ServiceLifecycleEventContext, ServiceLifecycleEventEmitter
 
-    hook_bus = get_hook_bus()
-    event_type = f"service.{phase}"
     for name in service_names:
-        hook_bus.emit(
-            ServiceLifecycleEvent(
-                event_type=event_type,
+        emitter = ServiceLifecycleEventEmitter(
+            ServiceLifecycleEventContext(
                 service_name=name,
                 project_name=project_name,
                 project_root=str(project_root),
                 container_name=_resolve_container_name(name, project_name),
-                phase=phase,
-                status=status,
-                metadata=metadata or {},
-                tags={"service": name, "phase": phase},
             )
         )
+        emitter.emit(phase=phase, status=status, metadata=metadata)
 
 
 def get_phlo_dir() -> Path:
