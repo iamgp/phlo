@@ -12,6 +12,7 @@ Phlo's plugin system allows you to extend the platform with custom functionality
 - **Transformations**: Create reusable data transformation logic
 - **Dagster Extensions**: Add custom resources, sensors, or schedules
 - **CLI Extensions**: Add custom CLI commands
+- **Hook Plugins**: Subscribe to pipeline events without direct dependencies
 
 This guide walks through creating each type of plugin.
 
@@ -41,6 +42,7 @@ Phlo uses Python entry points to automatically discover plugins:
 │     • phlo.plugins.transforms        │
 │     • phlo.plugins.dagster           │
 │     • phlo.plugins.cli               │
+│     • phlo.plugins.hooks             │
 └──────────────────────────────────────┘
               │
               ▼
@@ -71,9 +73,88 @@ phlo plugin create my-transform --type transform
 
 # Create service plugin
 phlo plugin create my-database --type service
+
+# Create hook plugin
+phlo plugin create my-hooks --type hook
 ```
 
 This creates a complete package structure ready for development.
+
+## Developing a Hook Plugin
+
+Hook plugins subscribe to the Hook Bus and react to pipeline events without importing other
+capability packages directly.
+
+### Hook Bus Events
+
+- `service.pre_start` / `service.post_start` / `service.pre_stop` / `service.post_stop`
+- `ingestion.start` / `ingestion.end`
+- `transform.start` / `transform.end`
+- `publish.start` / `publish.end`
+- `quality.result`
+- `lineage.edges`
+- `telemetry.metric` / `telemetry.log`
+
+### Example Hook Plugin
+
+```python
+from phlo.hooks import QualityResultEvent
+from phlo.plugins import HookFilter, HookPlugin, HookRegistration, PluginMetadata
+
+
+class MyHookPlugin(HookPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="my-hooks",
+            version="0.1.0",
+            description="Custom hook handlers",
+        )
+
+    def get_hooks(self):
+        return [
+            HookRegistration(
+                hook_name="quality_alerts",
+                handler=self.handle_quality,
+                filters=HookFilter(event_types={"quality.result"}),
+            )
+        ]
+
+    def handle_quality(self, event: QualityResultEvent) -> None:
+        if not event.passed:
+            # Handle failures here
+            pass
+```
+
+### Notes
+
+- Hooks execute synchronously in-process; keep handlers fast and offload heavy work.
+- Use `HookFilter` to scope by event types, asset keys, and tags.
+- Use `failure_policy` on `HookRegistration` to control error behavior.
+
+## Semantic Layer Providers
+
+Semantic layer providers expose standardized models for downstream tooling.
+
+```python
+from phlo.plugins import SemanticLayerProvider, SemanticModel
+
+
+class MySemanticLayer(SemanticLayerProvider):
+    def list_models(self):
+        return [
+            SemanticModel(
+                name="revenue_daily",
+                description="Daily revenue rollup",
+                sql="SELECT ...",
+            )
+        ]
+
+    def get_model(self, name: str) -> SemanticModel | None:
+        return next((m for m in self.list_models() if m.name == name), None)
+```
+
+Recommended: subscribe to `publish.end` events to refresh semantic models when marts update.
 
 ## Developing a Source Connector Plugin
 

@@ -27,6 +27,9 @@ dev = [
 [project.entry-points."phlo.plugins.cli"]
 openmetadata = "phlo_openmetadata.cli_plugin:OpenMetadataCliPlugin"
 
+[project.entry-points."phlo.plugins.hooks"]
+openmetadata = "phlo_openmetadata.hooks_plugin:OpenMetadataHookPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

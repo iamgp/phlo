@@ -228,7 +228,7 @@ phlo plugin list [OPTIONS]
 **Options**:
 
 ```bash
---type TYPE          # Filter by plugin type (sources, quality, transforms, services, dagster, cli)
+--type TYPE          # Filter by plugin type (sources, quality, transforms, services, hooks, dagster, cli)
 --json               # Output as JSON
 ```
 
@@ -240,6 +240,9 @@ phlo plugin list
 
 # List only source connectors
 phlo plugin list --type sources
+
+# List hook plugins
+phlo plugin list --type hooks
 
 # JSON output
 phlo plugin list --json
@@ -289,6 +292,9 @@ phlo plugin search postgres
 
 # Search for quality check plugins
 phlo plugin search --type quality
+
+# Search for hook plugins
+phlo plugin search --type hooks
 
 # Search by tag
 phlo plugin search --tag observability
@@ -421,6 +427,9 @@ phlo plugin create my-api-source --type source
 
 # Create quality check plugin
 phlo plugin create my-validation --type quality
+
+# Create hook plugin
+phlo plugin create my-hooks --type hook
 
 # Create with custom path
 phlo plugin create my-plugin --type source --path ./plugins/my-plugin

@@ -787,7 +787,7 @@ Automatically publish Iceberg marts to PostgreSQL for BI tools.
 ```python
 # workflows/publishing/events.py
 from dagster import asset
-from workflows.publishing.trino_to_postgres import _publish_marts_to_postgres
+from phlo.publishing import publish_marts_to_postgres
 
 @asset(
     deps=["marts__daily_aggregates"],  # Depends on dbt mart
@@ -795,8 +795,10 @@ from workflows.publishing.trino_to_postgres import _publish_marts_to_postgres
 )
 def publish_daily_aggregates(context, trino, postgres):
     """Publish daily aggregates to PostgreSQL."""
-    return _publish_marts_to_postgres(
-        context, trino,
+    return publish_marts_to_postgres(
+        context=context,
+        trino=trino,
+        postgres=postgres,
         tables_to_publish={
             "daily_aggregates": "marts.daily_aggregates"
         },
@@ -806,7 +808,7 @@ def publish_daily_aggregates(context, trino, postgres):
 
 ### Generic Publisher
 
-The `_publish_marts_to_postgres` function:
+The `publish_marts_to_postgres` function:
 
 1. Queries Iceberg table via Trino
 2. Drops existing PostgreSQL table
@@ -816,8 +818,10 @@ The `_publish_marts_to_postgres` function:
 
 ```python
 # Usage example:
-_publish_marts_to_postgres(
-    context, trino,
+publish_marts_to_postgres(
+    context=context,
+    trino=trino,
+    postgres=postgres,
     tables_to_publish={
         "table1": "marts.fct_table1",
         "table2": "marts.dim_table2",

@@ -12,6 +12,12 @@ from typing import Any, Callable, List, Optional
 
 from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue, asset_check
 
+from phlo.hooks import (
+    QualityResultEventContext,
+    QualityResultEventEmitter,
+    TelemetryEventContext,
+    TelemetryEventEmitter,
+)
 from phlo_quality.checks import QualityCheck, QualityCheckResult, SchemaCheck
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
 from phlo_quality.partitioning import PartitionScope, apply_partition_scope, get_partition_key
@@ -122,6 +128,24 @@ def phlo_quality(
             @wraps(func)
             def pandera_contract_check(context, **resources) -> AssetCheckResult:
                 partition_key = get_partition_key(context)
+                partition_key_value = str(partition_key) if partition_key else None
+                asset_name = _asset_key_to_str(asset_key)
+                emitter = QualityResultEventEmitter(
+                    QualityResultEventContext(
+                        asset_key=asset_name,
+                        partition_key=partition_key_value,
+                        tags={"source": "pandera", "backend": backend},
+                    )
+                )
+                telemetry = TelemetryEventEmitter(
+                    TelemetryEventContext(
+                        tags={
+                            "asset": asset_name,
+                            "source": "pandera",
+                            "backend": backend,
+                        }
+                    )
+                )
                 scope = PartitionScope(
                     partition_key=partition_key,
                     partition_column=partition_column,
@@ -141,14 +165,30 @@ def phlo_quality(
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
                     context.log.error(f"Failed to load data: {exc}")
+                    telemetry.emit_log(
+                        name="quality.query_failed",
+                        level="error",
+                        payload={"error": str(exc), "table": table},
+                    )
                     contract = QualityCheckContract(
                         source="pandera",
-                        partition_key=str(partition_key) if partition_key else None,
+                        partition_key=partition_key_value,
                         failed_count=1,
                         total_count=None,
                         query_or_sql=final_query,
                         repro_sql=_repro_sql(final_query),
                         sample=[{"error": str(exc)}],
+                    )
+                    event_metadata = _contract_metadata(contract)
+                    event_metadata.update(
+                        {"reason": "query_failed", "error": str(exc), "table": table}
+                    )
+                    emitter.emit_result(
+                        check_name=PANDERA_CONTRACT_CHECK_NAME,
+                        passed=False,
+                        severity=AssetCheckSeverity.ERROR.value,
+                        check_type="pandera",
+                        metadata=event_metadata,
                     )
                     return AssetCheckResult(
                         passed=False,
@@ -163,12 +203,27 @@ def phlo_quality(
                 if df.empty:
                     contract = QualityCheckContract(
                         source="pandera",
-                        partition_key=str(partition_key) if partition_key else None,
+                        partition_key=partition_key_value,
                         failed_count=0,
                         total_count=0,
                         query_or_sql=final_query,
                         repro_sql=_repro_sql(final_query),
                         sample=[],
+                    )
+                    event_metadata = _contract_metadata(contract)
+                    event_metadata["note"] = "no_data"
+                    event_metadata["table"] = table
+                    emitter.emit_result(
+                        check_name=PANDERA_CONTRACT_CHECK_NAME,
+                        passed=True,
+                        check_type="pandera",
+                        metadata=event_metadata,
+                    )
+                    telemetry.emit_metric(
+                        name="quality.rows_validated",
+                        value=0,
+                        unit="rows",
+                        payload={"status": "no_data", "table": table},
                     )
                     return AssetCheckResult(
                         passed=True,
@@ -197,7 +252,7 @@ def phlo_quality(
 
                 contract = QualityCheckContract(
                     source="pandera",
-                    partition_key=str(partition_key) if partition_key else None,
+                    partition_key=partition_key_value,
                     failed_count=failed_count,
                     total_count=len(df),
                     query_or_sql=final_query,
@@ -214,6 +269,34 @@ def phlo_quality(
                 }
                 if severity is not None:
                     result_kwargs["severity"] = severity
+                event_metadata = _contract_metadata(contract)
+                event_metadata["schemas"] = schema_names
+                event_metadata["table"] = table
+                emitter.emit_result(
+                    check_name=PANDERA_CONTRACT_CHECK_NAME,
+                    passed=all_passed,
+                    severity=severity.value if severity else None,
+                    check_type="pandera",
+                    metadata=event_metadata,
+                )
+                telemetry.emit_metric(
+                    name="quality.rows_validated",
+                    value=len(df),
+                    unit="rows",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.failed_count",
+                    value=failed_count,
+                    unit="checks",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.schemas_checked",
+                    value=len(schema_names),
+                    unit="schemas",
+                    payload={"table": table},
+                )
                 return AssetCheckResult(**result_kwargs)
 
         if non_schema_checks:
@@ -233,6 +316,24 @@ def phlo_quality(
                 ``SchemaCheck`` is included in the decorator's check list.
                 """
                 partition_key = get_partition_key(context)
+                partition_key_value = str(partition_key) if partition_key else None
+                asset_name = _asset_key_to_str(asset_key)
+                emitter = QualityResultEventEmitter(
+                    QualityResultEventContext(
+                        asset_key=asset_name,
+                        partition_key=partition_key_value,
+                        tags={"source": "phlo", "backend": backend},
+                    )
+                )
+                telemetry = TelemetryEventEmitter(
+                    TelemetryEventContext(
+                        tags={
+                            "asset": asset_name,
+                            "source": "phlo",
+                            "backend": backend,
+                        }
+                    )
+                )
                 scope = PartitionScope(
                     partition_key=partition_key,
                     partition_column=partition_column,
@@ -252,6 +353,23 @@ def phlo_quality(
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
                     context.log.error(f"Failed to load data: {exc}")
+                    telemetry.emit_log(
+                        name="quality.query_failed",
+                        level="error",
+                        payload={"error": str(exc), "table": table},
+                    )
+                    emitter.emit_result(
+                        check_name=func.__name__,
+                        passed=False,
+                        severity=AssetCheckSeverity.ERROR.value,
+                        check_type="phlo",
+                        metadata={
+                            "reason": "query_failed",
+                            "error": str(exc),
+                            "query_or_sql": final_query,
+                            "table": table,
+                        },
+                    )
                     return AssetCheckResult(
                         passed=False,
                         severity=AssetCheckSeverity.ERROR,
@@ -264,6 +382,22 @@ def phlo_quality(
 
                 if df.empty:
                     context.log.warning("No rows returned; marking check as skipped.")
+                    emitter.emit_result(
+                        check_name=func.__name__,
+                        passed=True,
+                        check_type="phlo",
+                        metadata={
+                            "note": "no_data",
+                            "query_or_sql": final_query,
+                            "table": table,
+                        },
+                    )
+                    telemetry.emit_metric(
+                        name="quality.rows_validated",
+                        value=0,
+                        unit="rows",
+                        payload={"status": "no_data", "table": table},
+                    )
                     return AssetCheckResult(
                         passed=True,
                         metadata={
@@ -345,9 +479,61 @@ def phlo_quality(
                         f"(within warn threshold of {warn_threshold:.1%})"
                     )
 
+                severity_label = severity.value if severity else None
+                for check, result in zip(non_schema_checks, check_results):
+                    failed_count = _estimate_failed_count([result])
+                    contract = QualityCheckContract(
+                        source="phlo",
+                        partition_key=partition_key_value,
+                        failed_count=failed_count,
+                        total_count=len(df),
+                        query_or_sql=final_query,
+                        repro_sql=_repro_sql(final_query),
+                        sample=_collect_failure_sample([result]),
+                    )
+                    event_metadata = _contract_metadata(contract)
+                    event_metadata["table"] = table
+                    if result.metric_value is not None:
+                        event_metadata["metric_value"] = result.metric_value
+                    if result.failure_message:
+                        event_metadata["failure_message"] = result.failure_message
+                    if result.metadata:
+                        event_metadata.update(result.metadata)
+                    emitter.emit_result(
+                        check_name=result.metric_name,
+                        passed=result.passed,
+                        severity=severity_label if not result.passed else None,
+                        check_type=type(check).__name__,
+                        metadata=event_metadata,
+                    )
+
                 result_kwargs = {"passed": all_passed, "metadata": metadata}
                 if severity is not None:
                     result_kwargs["severity"] = severity
+                telemetry.emit_metric(
+                    name="quality.rows_validated",
+                    value=len(df),
+                    unit="rows",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.checks_total",
+                    value=len(check_results),
+                    unit="checks",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.checks_failed",
+                    value=failed_count,
+                    unit="checks",
+                    payload={"table": table},
+                )
+                telemetry.emit_metric(
+                    name="quality.failure_fraction",
+                    value=failure_fraction,
+                    unit="ratio",
+                    payload={"table": table},
+                )
                 return AssetCheckResult(**result_kwargs)
 
             _QUALITY_CHECKS.append(quality_check_wrapper)
@@ -505,6 +691,27 @@ def _collect_failure_sample(check_results: List[QualityCheckResult]) -> list[dic
             if len(sample) >= 20:
                 return sample
     return sample
+
+
+def _asset_key_to_str(asset_key: AssetKey) -> str:
+    if hasattr(asset_key, "path") and asset_key.path:
+        return "/".join(str(part) for part in asset_key.path)
+    return str(asset_key)
+
+
+def _contract_metadata(contract: QualityCheckContract) -> dict[str, Any]:
+    metadata: dict[str, Any] = {"source": contract.source, "failed_count": contract.failed_count}
+    if contract.partition_key is not None:
+        metadata["partition_key"] = contract.partition_key
+    if contract.total_count is not None:
+        metadata["total_count"] = contract.total_count
+    if contract.query_or_sql is not None:
+        metadata["query_or_sql"] = contract.query_or_sql
+    if contract.repro_sql is not None:
+        metadata["repro_sql"] = contract.repro_sql
+    if contract.sample is not None:
+        metadata["sample"] = contract.sample[:20]
+    return metadata
 
 
 def _repro_sql(query: str) -> str:

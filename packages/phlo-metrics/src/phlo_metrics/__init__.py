@@ -7,6 +7,7 @@ from phlo_metrics.collector import (
     SummaryMetrics,
     get_metrics_collector,
 )
+from phlo_metrics.telemetry import TelemetryRecorder
 
 __all__ = [
     "MetricsCollector",
@@ -14,4 +15,5 @@ __all__ = [
     "SummaryMetrics",
     "AssetMetrics",
     "RunMetrics",
+    "TelemetryRecorder",
 ]
