@@ -309,6 +309,87 @@ SMTP_FROM=alerts@yourdomain.com
 SMTP_TO=team@yourdomain.com
 ```
 
+### Security Configuration
+
+See [Security Setup Guide](../setup/security.md) for detailed setup instructions.
+
+#### Trino Authentication
+
+```bash
+# Authentication type (PASSWORD, OAUTH2, JWT, CERTIFICATE, KERBEROS, or empty)
+TRINO_AUTH_TYPE=
+
+# LDAP Authentication (when TRINO_AUTH_TYPE=PASSWORD)
+TRINO_LDAP_URL=ldaps://ldap.example.com:636
+TRINO_LDAP_USER_BIND_PATTERN=${USER}@example.com
+
+# OAuth2/OIDC Authentication (when TRINO_AUTH_TYPE=OAUTH2)
+TRINO_OAUTH2_ISSUER=https://auth.example.com
+TRINO_OAUTH2_CLIENT_ID=trino
+TRINO_OAUTH2_CLIENT_SECRET=your-client-secret
+
+# HTTPS/TLS
+TRINO_HTTPS_ENABLED=false
+TRINO_HTTPS_KEYSTORE_PATH=/etc/trino/keystore.jks
+TRINO_HTTPS_KEYSTORE_PASSWORD=keystore-password
+
+# Access Control
+TRINO_ACCESS_CONTROL_TYPE=file
+TRINO_ACCESS_CONTROL_CONFIG_FILE=/etc/trino/access-control.json
+```
+
+#### Nessie Authentication
+
+```bash
+# OIDC/OAuth2 Authentication
+NESSIE_OIDC_ENABLED=false
+NESSIE_OIDC_SERVER_URL=https://auth.example.com/realms/phlo
+NESSIE_OIDC_CLIENT_ID=nessie
+NESSIE_OIDC_CLIENT_SECRET=your-client-secret
+NESSIE_OIDC_ISSUER=https://auth.example.com
+
+# Authorization
+NESSIE_AUTHZ_ENABLED=false
+```
+
+#### MinIO Security
+
+```bash
+# TLS (set server URL to enable HTTPS)
+MINIO_SERVER_URL=https://minio.example.com
+
+# OIDC Authentication
+MINIO_OIDC_CONFIG_URL=https://auth.example.com/.well-known/openid-configuration
+MINIO_OIDC_CLIENT_ID=minio
+MINIO_OIDC_CLIENT_SECRET=your-client-secret
+MINIO_OIDC_CLAIM_NAME=policy
+MINIO_OIDC_SCOPES=openid
+
+# LDAP Authentication
+MINIO_LDAP_SERVER=ldap.example.com:636
+MINIO_LDAP_BIND_DN=cn=admin,dc=example,dc=com
+MINIO_LDAP_BIND_PASSWORD=ldap-password
+MINIO_LDAP_USER_BASE_DN=ou=users,dc=example,dc=com
+MINIO_LDAP_USER_FILTER=(uid=%s)
+
+# Encryption at Rest
+MINIO_AUTO_ENCRYPTION=off
+
+# Audit Logging
+MINIO_AUDIT_ENABLED=off
+MINIO_AUDIT_ENDPOINT=http://audit-service:8080/logs
+```
+
+#### PostgreSQL SSL
+
+```bash
+# SSL Mode (disable, allow, prefer, require, verify-ca, verify-full)
+POSTGRES_SSL_MODE=prefer
+POSTGRES_SSL_CERT_FILE=/path/to/cert.pem
+POSTGRES_SSL_KEY_FILE=/path/to/key.pem
+POSTGRES_SSL_CA_FILE=/path/to/ca.pem
+```
+
 ### dbt Configuration
 
 ```bash

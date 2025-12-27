@@ -21,6 +21,7 @@ compose:
     - "${TRINO_PORT:-8080}:8080"
   volumes:
     - ./trino/catalog:/etc/trino/catalog:ro
+    - ./trino/etc:/etc/trino/etc:ro
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
     interval: 10s
@@ -35,6 +36,44 @@ env_vars:
   TRINO_PORT:
     default: 8080
     description: Trino HTTP port
+  # Authentication
+  TRINO_AUTH_TYPE:
+    default: ""
+    description: "Authentication type: PASSWORD, OAUTH2, JWT, CERTIFICATE, KERBEROS, or empty for none"
+  TRINO_LDAP_URL:
+    default: ""
+    description: "LDAP server URL for PASSWORD auth (e.g., ldaps://ldap.example.com:636)"
+  TRINO_LDAP_USER_BIND_PATTERN:
+    default: ""
+    description: "LDAP user bind pattern (e.g., ${USER}@example.com)"
+  TRINO_OAUTH2_ISSUER:
+    default: ""
+    description: "OAuth2/OIDC issuer URL"
+  TRINO_OAUTH2_CLIENT_ID:
+    default: ""
+    description: "OAuth2 client ID"
+  TRINO_OAUTH2_CLIENT_SECRET:
+    default: ""
+    description: "OAuth2 client secret"
+    secret: true
+  # TLS/HTTPS
+  TRINO_HTTPS_ENABLED:
+    default: "false"
+    description: "Enable HTTPS for Trino coordinator"
+  TRINO_HTTPS_KEYSTORE_PATH:
+    default: ""
+    description: "Path to Java keystore for HTTPS"
+  TRINO_HTTPS_KEYSTORE_PASSWORD:
+    default: ""
+    description: "Keystore password"
+    secret: true
+  # Access Control
+  TRINO_ACCESS_CONTROL_TYPE:
+    default: ""
+    description: "Access control type: file, read-only, allow-all, or empty for default"
+  TRINO_ACCESS_CONTROL_CONFIG_FILE:
+    default: ""
+    description: "Path to access control rules JSON file"
 
 files:
   - source: catalog/iceberg.properties
