@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Protocol, runtime_checkable
+from typing import Any, Iterable
 
 
 @dataclass(frozen=True)
@@ -16,10 +17,15 @@ class SemanticModel:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-@runtime_checkable
-class SemanticLayerProvider(Protocol):
-    """Protocol for providers exposing semantic models."""
+class SemanticLayerProvider(ABC):
+    """Base class for providers exposing semantic models."""
 
-    def list_models(self) -> Iterable[SemanticModel]: ...
+    @abstractmethod
+    def list_models(self) -> Iterable[SemanticModel]:
+        """Return all semantic models exposed by this provider."""
+        raise NotImplementedError
 
-    def get_model(self, name: str) -> SemanticModel | None: ...
+    @abstractmethod
+    def get_model(self, name: str) -> SemanticModel | None:
+        """Return a semantic model by name when present."""
+        raise NotImplementedError
