@@ -124,7 +124,7 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
 
     except Exception as e:
         console.print(f"[red]Error listing plugins: {e}[/red]")
-        raise click.Exit(1)
+        sys.exit(1)
 
 
 @plugin_group.command(name="info")
@@ -169,7 +169,7 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
 
         if not plugin_type:
             console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
-            raise click.Exit(1)
+            sys.exit(1)
 
         # Map display names to internal names
         type_mapping = {
@@ -184,7 +184,10 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
 
         if not info:
             console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
-            raise click.Exit(1)
+            sys.exit(1)
+
+        # Type narrowing for ty: info is guaranteed non-None here
+        assert info is not None
 
         if output_json:
             console.print(json.dumps(info, indent=2))
@@ -215,11 +218,11 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
             for dep in info["dependencies"]:
                 console.print(f"  - {dep}")
 
-    except click.Exit:
+    except SystemExit:
         raise
     except Exception as e:
         console.print(f"[red]Error getting plugin info: {e}[/red]")
-        raise click.Exit(1)
+        sys.exit(1)
 
 
 @plugin_group.command(name="check")
@@ -266,15 +269,15 @@ def check_cmd(output_json: bool):
             console.print(f"\n[red]✗ Invalid Plugins: {len(invalid)}[/red]")
             for plugin_id in invalid:
                 console.print(f"  [red]✗[/red] {plugin_id}")
-            raise click.Exit(1)
+            sys.exit(1)
         else:
             console.print("\n[green]All plugins are valid![/green]")
 
-    except click.Exit:
+    except SystemExit:
         raise
     except Exception as e:
         console.print(f"[red]Error validating plugins: {e}[/red]")
-        raise click.Exit(1)
+        sys.exit(1)
 
 
 @plugin_group.command(name="search")
@@ -339,7 +342,7 @@ def search_cmd(
 
     except Exception as e:
         console.print(f"[red]Error searching registry: {e}[/red]")
-        raise click.Exit(1)
+        sys.exit(1)
 
 
 @plugin_group.command(name="install")
@@ -353,7 +356,7 @@ def install_cmd(plugin_name: str):
         console.print(f"[green]✓ Installed {display_name}[/green]")
     except Exception as e:
         console.print(f"[red]Error installing plugin: {e}[/red]")
-        raise click.Exit(1)
+        sys.exit(1)
 
 
 @plugin_group.command(name="update")
@@ -392,7 +395,7 @@ def update_cmd(output_json: bool):
         console.print("[green]✓ Plugins updated[/green]")
     except Exception as e:
         console.print(f"[red]Error updating plugins: {e}[/red]")
-        raise click.Exit(1)
+        sys.exit(1)
 
 
 @plugin_group.command(name="create")
@@ -421,7 +424,7 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
         # Validate plugin name
         if not plugin_name or not all(c.isalnum() or c in "-_" for c in plugin_name):
             console.print("[red]Invalid plugin name. Use alphanumeric characters, - and _[/red]")
-            raise click.Exit(1)
+            sys.exit(1)
 
         # Determine output path
         if not path:
@@ -430,7 +433,7 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
         plugin_path = Path(path)
         if plugin_path.exists():
             console.print(f"[red]Path already exists: {path}[/red]")
-            raise click.Exit(1)
+            sys.exit(1)
 
         # Create plugin package structure
         _create_plugin_package(
@@ -446,11 +449,11 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
         console.print("  3. Run tests: pytest tests/")
         console.print("  4. Install: pip install -e .")
 
-    except click.Exit:
+    except SystemExit:
         raise
     except Exception as e:
         console.print(f"[red]Error creating plugin: {e}[/red]")
-        raise click.Exit(1)
+        sys.exit(1)
 
 
 def _run_pip(args: list[str]) -> None:

@@ -50,8 +50,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
-      - name: Type check with basedpyright
-        run: uv run basedpyright src/phlo
+      - name: Type check with ty
+        run: uv run ty check src/phlo
 
   test:
     runs-on: ubuntu-latest

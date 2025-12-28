@@ -116,7 +116,6 @@ dev = [
     "phlo-metrics>=0.1.0",
     "phlo-testing>=0.1.0",
     "ruff",
-    "basedpyright",
     "ty",
 ]
 
@@ -142,41 +141,9 @@ target-version = "py311"
 select = ["E", "F", "I"]
 ignore = ["E501"]  # Line too long - let the formatter handle this
 
-[tool.ruff.lint.per-file-ignores]
-# CLI main.py imports commands after group definition (intentional pattern)
-"src/phlo/cli/main.py" = ["E402"]
-# Fixtures imports at bottom for conftest template
-"src/phlo/testing/fixtures.py" = ["E402"]
-# Test files have pytestmark before imports (required for pytest collection)
-"tests/test_definitions.py" = ["E402"]
-"tests/test_system_e2e.py" = ["E402"]
-"packages/phlo-dbt/tests/test_transform.py" = ["E402"]
-"packages/phlo-iceberg/tests/test_resources.py" = ["E402"]
-"tests/test_quality.py" = ["E402"]
-"tests/test_rest_api.py" = ["E402"]
-"tests/test_graphql_api.py" = ["E402"]
-"packages/phlo-iceberg/tests/scripts/test_duckdb_iceberg.py" = ["E402"]
+[tool.ty.src]
+exclude = ["**/testing/**"]  # Mock/placeholder code with dynamic imports
 
-[tool.basedpyright]
-include = ["src/phlo"]
-exclude = ["src/phlo/testing"]  # Mock/placeholder code with dynamic imports
-stubPath = "typings"
-pythonVersion = "3.11"
-typeCheckingMode = "standard"  # Less strict than "strict" mode
-# Disable warnings that are too noisy with pandas/dagster/dynamic imports
-reportUnknownMemberType = false
-reportUnknownArgumentType = false
-reportUnknownVariableType = false
-reportUnknownParameterType = false
-reportMissingTypeStubs = false
-reportPrivateUsage = false
-reportPossiblyUnboundVariable = false
-reportRedeclaration = false
-# Common issues in codebases using dynamic typing (pandas, dagster, etc.)
-reportOptionalMemberAccess = false
-reportOptionalSubscript = false
-reportArgumentType = false  # Many false positives with pandas/dict operations - TODO: Re-enable incrementally
-reportCallIssue = false  # TODO: Re-enable incrementally
-reportAttributeAccessIssue = false  # TODO: Re-enable incrementally
-reportGeneralTypeIssues = false  # TODO: Re-enable incrementally
-reportIncompatibleVariableOverride = false  # TODO: Re-enable incrementally
+[tool.ty.environment]
+root = ["./src"]
+python-version = "3.11"

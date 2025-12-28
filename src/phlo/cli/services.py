@@ -70,7 +70,7 @@ def resolve_phlo_package_dir(path: Path) -> Path | None:
 def relpath_from_phlo_dir(path: Path) -> str:
     """Return a `.phlo/`-relative path string for docker-compose volume mounts."""
     try:
-        return os.path.relpath(path, Path.cwd() / ".phlo")
+        return str(os.path.relpath(path, Path.cwd() / ".phlo"))
     except ValueError:
         # On Windows, relpath can fail across drives
         return str(path)
@@ -146,14 +146,15 @@ def _normalize_hook_entries(hooks: object) -> list[dict[str, object]]:
         entries: list[dict[str, object]] = []
         for item in hooks:
             if isinstance(item, dict):
-                entries.append(item)
+                # Cast to proper type for type checker
+                entries.append({str(k): v for k, v in item.items()})
             elif isinstance(item, list):
                 entries.append({"command": item})
             elif isinstance(item, str):
                 entries.append({"command": [item]})
         return entries
     if isinstance(hooks, dict):
-        return [hooks]
+        return [{str(k): v for k, v in hooks.items()}]
     return []
 
 
@@ -460,7 +461,7 @@ def init(
                     err=True,
                 )
                 sys.exit(1)
-            phlo_src_path = os.path.relpath(resolved_phlo_source, phlo_dir)
+            phlo_src_path = str(os.path.relpath(resolved_phlo_source, phlo_dir))
             click.echo(f"Dev mode: using phlo source at {resolved_phlo_source}")
         else:
             # Use flexible path detection
