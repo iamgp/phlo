@@ -11,6 +11,8 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false"
   environment:
     PGRST_DB_URI: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
     PGRST_DB_SCHEMAS: api,public
