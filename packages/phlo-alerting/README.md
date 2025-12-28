@@ -16,16 +16,16 @@ phlo plugin install alerting
 
 ## Configuration
 
-| Variable                         | Default | Description                 |
-| -------------------------------- | ------- | --------------------------- |
-| `PHLO_ALERT_SLACK_WEBHOOK`       | -       | Slack incoming webhook URL  |
-| `PHLO_ALERT_SLACK_CHANNEL`       | -       | Default Slack channel       |
-| `PHLO_ALERT_PAGERDUTY_KEY`       | -       | PagerDuty Events API v2 key |
-| `PHLO_ALERT_EMAIL_SMTP_HOST`     | -       | SMTP server hostname        |
-| `PHLO_ALERT_EMAIL_SMTP_PORT`     | `587`   | SMTP server port            |
-| `PHLO_ALERT_EMAIL_SMTP_USER`     | -       | SMTP username               |
-| `PHLO_ALERT_EMAIL_SMTP_PASSWORD` | -       | SMTP password               |
-| `PHLO_ALERT_EMAIL_RECIPIENTS`    | `[]`    | Email recipients list       |
+| Variable                         | Default | Description                             |
+| -------------------------------- | ------- | --------------------------------------- |
+| `PHLO_ALERT_SLACK_WEBHOOK`       | -       | Slack incoming webhook URL              |
+| `PHLO_ALERT_SLACK_CHANNEL`       | -       | Default Slack channel                   |
+| `PHLO_ALERT_PAGERDUTY_KEY`       | -       | PagerDuty Events API v2 key             |
+| `PHLO_ALERT_EMAIL_SMTP_HOST`     | -       | SMTP server hostname                    |
+| `PHLO_ALERT_EMAIL_SMTP_PORT`     | `587`   | SMTP server port                        |
+| `PHLO_ALERT_EMAIL_SMTP_USER`     | -       | SMTP username                           |
+| `PHLO_ALERT_EMAIL_SMTP_PASSWORD` | -       | SMTP password                           |
+| `PHLO_ALERT_EMAIL_RECIPIENTS`    | `[]`    | Comma-separated list: `a@x.com,b@y.com` |
 
 ## Auto-Configuration
 

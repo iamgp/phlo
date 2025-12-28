@@ -22,13 +22,15 @@ phlo plugin install lineage
 
 ## Auto-Configuration
 
-This package is **fully auto-configured**:
+Auto-wired when `LINEAGE_DB_URL` is set:
 
 | Feature               | How It Works                                                  |
 | --------------------- | ------------------------------------------------------------- |
 | **Hook Registration** | Receives `lineage.edges` events via HookBus                   |
 | **Event Capture**     | Automatically captures lineage from `@phlo_ingestion` and dbt |
 | **Row ID Injection**  | `_phlo_row_id` column auto-injected during ingestion          |
+
+> **Note:** If `LINEAGE_DB_URL` is not configured, lineage events are logged but not persisted.
 
 ### Event Flow
 

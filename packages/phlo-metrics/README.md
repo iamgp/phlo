@@ -22,13 +22,18 @@ phlo plugin install metrics
 
 ## Auto-Configuration
 
-This package is **fully auto-configured**:
+Auto-wires with HookBus for event collection:
 
 | Feature               | How It Works                                    |
 | --------------------- | ----------------------------------------------- |
 | **Hook Registration** | Receives all events via HookBus                 |
 | **Metric Collection** | Auto-increments counters and gauges from events |
-| **Prometheus Format** | Exposes metrics in Prometheus format            |
+| **Prometheus Format** | Exports in Prometheus text format               |
+
+### Exposure
+
+- **Default**: Metrics available via CLI (`phlo metrics show`) or export
+- **With Pushgateway**: Set `PROMETHEUS_PUSHGATEWAY_URL` to push metrics to a gateway
 
 ### Collected Metrics
 

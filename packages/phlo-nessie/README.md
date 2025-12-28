@@ -25,13 +25,13 @@ phlo plugin install nessie
 
 ## Auto-Configuration
 
-This package is **fully auto-configured**:
+Works out-of-the-box with sensible defaults:
 
 | Feature              | How It Works                                               |
 | -------------------- | ---------------------------------------------------------- |
 | **Branch Init**      | Auto-creates `main` and `dev` branches via post_start hook |
 | **Metrics Labels**   | Exposes Quarkus metrics at `/q/metrics`                    |
-| **Postgres Storage** | Uses PostgreSQL for version store                          |
+| **Postgres Storage** | Uses PostgreSQL for version store (default backend)        |
 
 ### Post-Start Hook
 

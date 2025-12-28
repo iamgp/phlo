@@ -13,8 +13,12 @@ def track_tables(schema: str = "api") -> None:
     from phlo_hasura.track import auto_track
 
     logger.info("Auto-tracking tables in schema: %s", schema)
-    result = auto_track(schema=schema, verbose=True)
-    logger.info("Tracking complete: %s", result)
+    try:
+        result = auto_track(schema=schema, verbose=True)
+        logger.info("Tracking complete: %s", result)
+    except Exception as e:
+        logger.error("Failed to auto-track tables in schema %s: %s", schema, e)
+        raise
 
 
 if __name__ == "__main__":
