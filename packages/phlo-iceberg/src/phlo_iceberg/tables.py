@@ -246,3 +246,158 @@ def delete_table(table_name: str, ref: str = "main") -> None:
     """Delete a table (use with caution)."""
     catalog = get_catalog(ref=ref)
     catalog.drop_table(table_name)
+
+
+def expire_snapshots(
+    table_name: str,
+    older_than_days: int = 7,
+    retain_last: int = 5,
+    ref: str = "main",
+) -> dict[str, int]:
+    """
+    Expire old snapshots from an Iceberg table.
+
+    Args:
+        table_name: Fully qualified table name (namespace.table)
+        older_than_days: Expire snapshots older than this many days
+        retain_last: Always retain at least this many snapshots
+        ref: Nessie branch reference
+
+    Returns:
+        Dict with deleted_snapshots count
+    """
+    import logging
+    from datetime import datetime, timedelta, timezone
+
+    logger = logging.getLogger(__name__)
+    catalog = get_catalog(ref=ref)
+    table = catalog.load_table(table_name)
+
+    older_than_ms = int(
+        (datetime.now(timezone.utc) - timedelta(days=older_than_days)).timestamp() * 1000
+    )
+
+    snapshots_before = len(list(table.snapshots()))
+
+    table.manage_snapshots().expire_snapshots_older_than(
+        older_than_ms=older_than_ms,
+        retain_last=retain_last,
+    ).commit()
+
+    table.refresh()
+    snapshots_after = len(list(table.snapshots()))
+    deleted = snapshots_before - snapshots_after
+
+    logger.info(f"Expired {deleted} snapshots from {table_name}")
+    return {"deleted_snapshots": deleted}
+
+
+def remove_orphan_files(
+    table_name: str,
+    older_than_days: int = 3,
+    dry_run: bool = True,
+    ref: str = "main",
+) -> dict[str, int | list[str]]:
+    """
+    Remove orphan files not referenced by any snapshot.
+
+    Args:
+        table_name: Fully qualified table name (namespace.table)
+        older_than_days: Only remove files older than this many days
+        dry_run: If True, only list files without deleting
+        ref: Nessie branch reference
+
+    Returns:
+        Dict with orphan_files list and count
+    """
+    import logging
+    from datetime import datetime, timedelta, timezone
+
+    logger = logging.getLogger(__name__)
+    catalog = get_catalog(ref=ref)
+    table = catalog.load_table(table_name)
+
+    older_than_ts = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).timestamp()
+
+    # Collect all referenced files from all snapshots
+    referenced_files: set[str] = set()
+
+    for snapshot in table.snapshots():
+        for manifest in snapshot.manifests(table.io):
+            referenced_files.add(manifest.manifest_path)
+            for entry in manifest.fetch_manifest_entry(table.io):
+                referenced_files.add(entry.data_file.file_path)
+
+    # Get table location and list all files
+    table_location = table.location()
+    io = table.io
+
+    orphan_files: list[str] = []
+
+    try:
+        # List files in data directory
+        data_location = f"{table_location}/data"
+        for file_info in io.list(data_location):
+            if file_info.path not in referenced_files:
+                # Check if file is old enough
+                if hasattr(file_info, "mtime") and file_info.mtime:
+                    if file_info.mtime < older_than_ts:
+                        orphan_files.append(file_info.path)
+                else:
+                    orphan_files.append(file_info.path)
+    except Exception as e:
+        logger.warning(f"Could not list files in {table_location}: {e}")
+
+    if dry_run:
+        logger.info(f"Found {len(orphan_files)} orphan files in {table_name} (dry run)")
+    else:
+        deleted_count = 0
+        for orphan in orphan_files:
+            try:
+                io.delete(orphan)
+                deleted_count += 1
+            except Exception as e:
+                logger.warning(f"Could not delete orphan file {orphan}: {e}")
+        logger.info(f"Removed {deleted_count} orphan files from {table_name}")
+
+    return {
+        "orphan_count": len(orphan_files),
+        "orphan_files": orphan_files[:100],  # Limit list size
+        "dry_run": dry_run,
+    }
+
+
+def get_table_stats(table_name: str, ref: str = "main") -> dict:
+    """
+    Get statistics about an Iceberg table.
+
+    Returns:
+        Dict with snapshot_count, file_count, total_size_bytes, etc.
+    """
+    catalog = get_catalog(ref=ref)
+    table = catalog.load_table(table_name)
+
+    snapshots = list(table.snapshots())
+    snapshot_count = len(snapshots)
+
+    file_count = 0
+    total_size_bytes = 0
+    total_records = 0
+
+    current_snapshot = table.current_snapshot()
+    if current_snapshot:
+        for manifest in current_snapshot.manifests(table.io):
+            for entry in manifest.fetch_manifest_entry(table.io):
+                file_count += 1
+                total_size_bytes += entry.data_file.file_size_in_bytes
+                total_records += entry.data_file.record_count
+
+    return {
+        "table_name": table_name,
+        "snapshot_count": snapshot_count,
+        "file_count": file_count,
+        "total_size_bytes": total_size_bytes,
+        "total_size_mb": round(total_size_bytes / (1024 * 1024), 2),
+        "total_records": total_records,
+        "location": table.location(),
+    }
