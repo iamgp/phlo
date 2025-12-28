@@ -12,6 +12,10 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "grafana:3000"
+    phlo.metrics.path: "/metrics"
   environment:
     GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}

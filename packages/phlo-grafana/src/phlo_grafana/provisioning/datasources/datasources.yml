@@ -11,3 +11,21 @@ datasources:
     type: loki
     access: proxy
     url: http://loki:3100
+
+  - name: Trino
+    type: trino
+    access: proxy
+    url: http://trino:8080
+    jsonData:
+      catalog: iceberg
+
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: ${POSTGRES_DB:-phlo}
+    user: ${POSTGRES_USER:-phlo}
+    secureJsonData:
+      password: ${POSTGRES_PASSWORD:-phlo}
+    jsonData:
+      sslmode: disable

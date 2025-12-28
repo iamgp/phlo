@@ -8,6 +8,8 @@ image: ghcr.io/iamgp/phlo-api:latest
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false" # No native Prometheus endpoint
   environment:
     HOST: 0.0.0.0
     PORT: 4000

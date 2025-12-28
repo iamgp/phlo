@@ -11,6 +11,10 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "hasura:8080"
+    phlo.metrics.path: "/v1/metrics"
   environment:
     HASURA_GRAPHQL_DATABASE_URL: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
     HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
@@ -37,3 +41,14 @@ env_vars:
     default: phlo-hasura-admin-secret
     description: Hasura admin secret for console access
     secret: true
+
+hooks:
+  post_start:
+    - name: track-tables
+      command:
+        - python
+        - -m
+        - phlo_hasura.hooks
+        - track-tables
+        - api
+      timeout_seconds: 60

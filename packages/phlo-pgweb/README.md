@@ -1,10 +1,10 @@
 # phlo-pgweb
 
-Pgweb database browser service plugin for Phlo.
+pgweb database browser service plugin for Phlo.
 
 ## Description
 
-Web-based PostgreSQL database browser.
+Web-based PostgreSQL database browser for exploring metadata, lineage store, and operational data.
 
 ## Installation
 
@@ -16,9 +16,21 @@ phlo plugin install pgweb
 
 ## Configuration
 
-| Variable     | Default | Description |
-| ------------ | ------- | ----------- |
-| `PGWEB_PORT` | `8082`  | Web UI port |
+| Variable            | Default | Description       |
+| ------------------- | ------- | ----------------- |
+| `PGWEB_PORT`        | `8081`  | Web UI port       |
+| `POSTGRES_USER`     | `phlo`  | Database user     |
+| `POSTGRES_PASSWORD` | `phlo`  | Database password |
+| `POSTGRES_DB`       | `phlo`  | Database name     |
+
+## Auto-Configuration
+
+This package is **fully auto-configured**:
+
+| Feature                  | How It Works                                            |
+| ------------------------ | ------------------------------------------------------- |
+| **Database Connection**  | Auto-connects to Phlo's PostgreSQL using `DATABASE_URL` |
+| **Service Dependencies** | Depends on `postgres` service                           |
 
 ## Usage
 
@@ -32,4 +44,4 @@ phlo services start --service pgweb
 
 ## Endpoints
 
-- **Web UI**: `http://localhost:8082`
+- **Web UI**: `http://localhost:8081`

@@ -21,6 +21,7 @@ from phlo.plugins.base import (
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
+    TrinoCatalogPlugin,
 )
 from phlo.plugins.hooks import HookPlugin
 
@@ -35,6 +36,7 @@ ENTRY_POINT_GROUPS = {
     "dagster_extensions": "phlo.plugins.dagster",
     "cli_commands": "phlo.plugins.cli",
     "hooks": "phlo.plugins.hooks",
+    "trino_catalogs": "phlo.plugins.trino_catalogs",
 }
 
 
@@ -105,6 +107,7 @@ def discover_plugins(
             "dagster_extensions": [],
             "cli_commands": [],
             "hooks": [],
+            "trino_catalogs": [],
         }
 
     discovered: dict[str, list[Plugin]] = {
@@ -115,6 +118,7 @@ def discover_plugins(
         "dagster_extensions": [],
         "cli_commands": [],
         "hooks": [],
+        "trino_catalogs": [],
     }
 
     # Determine which plugin types to discover
@@ -173,6 +177,7 @@ def discover_plugins(
                     "dagster_extensions": DagsterExtensionPlugin,
                     "cli_commands": CliCommandPlugin,
                     "hooks": HookPlugin,
+                    "trino_catalogs": TrinoCatalogPlugin,
                 }[ptype]
 
                 if not isinstance(plugin, expected_type):
@@ -206,6 +211,8 @@ def discover_plugins(
                         registry.register_cli_command_plugin(plugin, replace=True)
                     elif ptype == "hooks":
                         registry.register_hook_plugin(plugin, replace=True)
+                    elif ptype == "trino_catalogs":
+                        pass  # Trino catalogs are used directly, not registry-based
 
             except Exception as exc:
                 logger.error(f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True)
