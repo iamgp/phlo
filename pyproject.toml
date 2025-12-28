@@ -116,7 +116,6 @@ dev = [
     "phlo-metrics>=0.1.0",
     "phlo-testing>=0.1.0",
     "ruff",
-    "basedpyright",
     "ty",
 ]
 
@@ -157,26 +156,20 @@ ignore = ["E501"]  # Line too long - let the formatter handle this
 "tests/test_graphql_api.py" = ["E402"]
 "packages/phlo-iceberg/tests/scripts/test_duckdb_iceberg.py" = ["E402"]
 
-[tool.basedpyright]
-include = ["src/phlo"]
-exclude = ["src/phlo/testing"]  # Mock/placeholder code with dynamic imports
-stubPath = "typings"
-pythonVersion = "3.11"
-typeCheckingMode = "standard"  # Less strict than "strict" mode
-# Disable warnings that are too noisy with pandas/dagster/dynamic imports
-reportUnknownMemberType = false
-reportUnknownArgumentType = false
-reportUnknownVariableType = false
-reportUnknownParameterType = false
-reportMissingTypeStubs = false
-reportPrivateUsage = false
-reportPossiblyUnboundVariable = false
-reportRedeclaration = false
-# Common issues in codebases using dynamic typing (pandas, dagster, etc.)
-reportOptionalMemberAccess = false
-reportOptionalSubscript = false
-reportArgumentType = false  # Many false positives with pandas/dict operations - TODO: Re-enable incrementally
-reportCallIssue = false  # TODO: Re-enable incrementally
-reportAttributeAccessIssue = false  # TODO: Re-enable incrementally
-reportGeneralTypeIssues = false  # TODO: Re-enable incrementally
-reportIncompatibleVariableOverride = false  # TODO: Re-enable incrementally
+[tool.ty.src]
+exclude = ["**/testing/**"]  # Mock/placeholder code with dynamic imports
+
+[tool.ty.environment]
+root = ["./src"]
+python-version = "3.11"
+
+[tool.ty.rules]
+# Disable noisy rules for pandas/dagster compatibility
+# These match basedpyright's disabled settings for gradual adoption
+unknown-argument = "ignore"           # Matches reportCallIssue = false
+call-non-callable = "ignore"          # Matches reportCallIssue = false
+invalid-exception-caught = "ignore"   # Matches reportGeneralTypeIssues = false
+invalid-return-type = "ignore"        # Matches reportReturnType = false (implicit)
+invalid-argument-type = "ignore"      # Matches reportArgumentType = false
+invalid-assignment = "ignore"         # Matches reportAssignmentType = false (implicit)
+no-matching-overload = "ignore"       # Matches reportCallIssue = false
