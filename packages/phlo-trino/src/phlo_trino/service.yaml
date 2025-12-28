@@ -21,7 +21,6 @@ compose:
     - "${TRINO_PORT:-8080}:8080"
   volumes:
     - ./trino/catalog:/etc/trino/catalog:ro
-    - ./trino/etc:/etc/trino/etc:ro
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
     interval: 10s
@@ -74,6 +73,16 @@ env_vars:
   TRINO_ACCESS_CONTROL_CONFIG_FILE:
     default: ""
     description: "Path to access control rules JSON file"
+  # Query result caching (requires Trino Enterprise or equivalent setup)
+  TRINO_QUERY_CACHE_ENABLED:
+    default: "false"
+    description: Enable query result caching
+  TRINO_QUERY_CACHE_MAX_SIZE:
+    default: "100MB"
+    description: Maximum size of query result cache
+  TRINO_QUERY_CACHE_TTL:
+    default: "1h"
+    description: Time-to-live for cached query results
 
 files:
   - source: catalog/iceberg.properties
