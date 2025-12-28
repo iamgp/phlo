@@ -11,6 +11,12 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false" # Trino doesn't expose /metrics natively; use JMX exporter for metrics
+    phlo.grafana.datasource: "true"
+    phlo.grafana.datasource.type: "trino"
+    phlo.grafana.datasource.name: "Trino"
+    phlo.grafana.datasource.url: "trino:8080"
   environment:
     AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minio}
     AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minio123}

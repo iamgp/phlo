@@ -26,6 +26,10 @@ dev = [
 [project.entry-points."phlo.plugins.dagster"]
 iceberg = "phlo_iceberg.plugin:IcebergDagsterPlugin"
 
+[project.entry-points."phlo.plugins.trino_catalogs"]
+iceberg = "phlo_iceberg.catalog_plugin:IcebergCatalogPlugin"
+iceberg_dev = "phlo_iceberg.catalog_plugin:IcebergDevCatalogPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

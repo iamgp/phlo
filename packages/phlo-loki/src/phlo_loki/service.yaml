@@ -8,6 +8,10 @@ image: grafana/loki:${LOKI_VERSION:-3.2.1}
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "loki:3100"
+    phlo.metrics.path: "/metrics"
   command: -config.file=/etc/loki/loki-config.yml
   ports:
     - "${LOKI_PORT:-3100}:3100"

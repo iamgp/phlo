@@ -11,6 +11,8 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false" # Superset doesn't expose native Prometheus metrics
   environment:
     SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
     POSTGRES_HOST: postgres
@@ -54,3 +56,19 @@ env_vars:
   SUPERSET_ADMIN_EMAIL:
     default: admin@example.com
     description: Superset admin email
+
+hooks:
+  post_start:
+    - name: add-trino-database
+      requires: phlo_trino
+      command:
+        - python
+        - -m
+        - phlo_superset.hooks
+        - add-database
+      timeout_seconds: 120
+      environment:
+        SUPERSET_URL: http://superset:8088
+        TRINO_HOST: trino
+        TRINO_PORT: "8080"
+        TRINO_CATALOG: iceberg

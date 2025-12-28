@@ -493,3 +493,62 @@ class TransformationPlugin(Plugin, ABC):
             True if configuration is valid, False otherwise
         """
         return True
+
+
+class TrinoCatalogPlugin(Plugin, ABC):
+    """
+    Base class for Trino catalog plugins.
+
+    Catalog plugins define Trino connector configurations that are
+    auto-discovered and generated into .properties files at startup.
+
+    Example:
+        ```python
+        class IcebergCatalogPlugin(TrinoCatalogPlugin):
+            @property
+            def metadata(self) -> PluginMetadata:
+                return PluginMetadata(
+                    name="iceberg",
+                    version="1.0.0",
+                    description="Iceberg catalog with Nessie backend",
+                )
+
+            @property
+            def catalog_name(self) -> str:
+                return "iceberg"
+
+            def get_properties(self) -> dict[str, str]:
+                return {
+                    "connector.name": "iceberg",
+                    "iceberg.catalog.type": "rest",
+                    "iceberg.rest-catalog.uri": "http://nessie:19120/iceberg",
+                }
+        ```
+    """
+
+    @property
+    @abstractmethod
+    def catalog_name(self) -> str:
+        """
+        Return the catalog name.
+
+        This becomes the .properties filename and catalog name in Trino.
+        """
+        pass
+
+    @abstractmethod
+    def get_properties(self) -> dict[str, str]:
+        """
+        Return catalog properties as key-value pairs.
+
+        Returns:
+            Dictionary of property name -> value
+        """
+        pass
+
+    def to_properties_file(self) -> str:
+        """Convert properties to .properties file format."""
+        lines = []
+        for key, value in self.get_properties().items():
+            lines.append(f"{key}={value}")
+        return "\n".join(lines) + "\n"

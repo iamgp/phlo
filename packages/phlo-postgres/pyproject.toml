@@ -25,6 +25,7 @@ dev = [
 
 [project.entry-points."phlo.plugins.services"]
 postgres = "phlo_postgres.plugin:PostgresServicePlugin"
+postgres-exporter = "phlo_postgres.plugin:PostgresExporterServicePlugin"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -34,7 +35,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_postgres = ["service.yaml"]
+phlo_postgres = ["service.yaml", "exporter_service.yaml"]
 
 [tool.ruff]
 line-length = 100
