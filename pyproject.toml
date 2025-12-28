@@ -141,27 +141,9 @@ target-version = "py311"
 select = ["E", "F", "I"]
 ignore = ["E501"]  # Line too long - let the formatter handle this
 
-[tool.ruff.lint.per-file-ignores]
-# CLI main.py imports commands after group definition (intentional pattern)
-"src/phlo/cli/main.py" = ["E402"]
-# Fixtures imports at bottom for conftest template
-"src/phlo/testing/fixtures.py" = ["E402"]
-# Test files have pytestmark before imports (required for pytest collection)
-"tests/test_definitions.py" = ["E402"]
-"tests/test_system_e2e.py" = ["E402"]
-"packages/phlo-dbt/tests/test_transform.py" = ["E402"]
-"packages/phlo-iceberg/tests/test_resources.py" = ["E402"]
-"tests/test_quality.py" = ["E402"]
-"tests/test_rest_api.py" = ["E402"]
-"tests/test_graphql_api.py" = ["E402"]
-"packages/phlo-iceberg/tests/scripts/test_duckdb_iceberg.py" = ["E402"]
-
 [tool.ty.src]
 exclude = ["**/testing/**"]  # Mock/placeholder code with dynamic imports
 
 [tool.ty.environment]
 root = ["./src"]
 python-version = "3.11"
-
-[tool.ty.rules]
-# No rules disabled - all type errors are fixed!
