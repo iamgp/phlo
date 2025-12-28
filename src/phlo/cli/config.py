@@ -18,6 +18,7 @@ from phlo.config_schema import InfrastructureConfig
 from phlo.infrastructure import clear_config_cache, load_infrastructure_config
 
 console = Console()
+error_console = Console(stderr=True)
 
 
 @click.group()
@@ -79,7 +80,7 @@ def validate():
         project_config = yaml.safe_load(f)
 
     if not project_config:
-        console.print("[red]Error: phlo.yaml is empty[/red]", err=True)
+        error_console.print("[red]Error: phlo.yaml is empty[/red]")
         sys.exit(1)
 
     if "infrastructure" not in project_config:
@@ -93,13 +94,12 @@ def validate():
         infra_data = project_config["infrastructure"]
         infra_config = InfrastructureConfig(**infra_data)
     except ValidationError as e:
-        console.print("[red]Validation Error:[/red]\n", err=True)
+        error_console.print("[red]Validation Error:[/red]\n")
         for error in e.errors():
             loc = " -> ".join(str(x) for x in error["loc"])
-            console.print(f"  [red]•[/red] {loc}: {error['msg']}", err=True)
-        console.print(
-            "\n[yellow]Fix these errors in phlo.yaml and run validate again.[/yellow]",
-            err=True,
+            error_console.print(f"  [red]•[/red] {loc}: {error['msg']}")
+        error_console.print(
+            "\n[yellow]Fix these errors in phlo.yaml and run validate again.[/yellow]"
         )
         sys.exit(1)
 
@@ -142,11 +142,8 @@ def upgrade(force: bool):
     config_path = Path.cwd() / "phlo.yaml"
 
     if not config_path.exists():
-        console.print("[red]Error: No phlo.yaml found in current directory[/red]", err=True)
-        console.print(
-            "Run [cyan]phlo services init[/cyan] to create a new project",
-            err=True,
-        )
+        error_console.print("[red]Error: No phlo.yaml found in current directory[/red]")
+        error_console.print("Run [cyan]phlo services init[/cyan] to create a new project")
         sys.exit(1)
 
     with open(config_path) as f:
@@ -154,7 +151,7 @@ def upgrade(force: bool):
 
     if "infrastructure" in project_config and not force:
         console.print("[yellow]Infrastructure section already exists in phlo.yaml[/yellow]")
-        console.print("Use --force to overwrite", err=True)
+        error_console.print("Use --force to overwrite")
         sys.exit(1)
 
     default_infra = InfrastructureConfig()

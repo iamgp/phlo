@@ -164,12 +164,4 @@ root = ["./src"]
 python-version = "3.11"
 
 [tool.ty.rules]
-# Disable noisy rules for pandas/dagster compatibility
-# These match basedpyright's disabled settings for gradual adoption
-unknown-argument = "ignore"           # Matches reportCallIssue = false
-call-non-callable = "ignore"          # Matches reportCallIssue = false
-invalid-exception-caught = "ignore"   # Matches reportGeneralTypeIssues = false
-invalid-return-type = "ignore"        # Matches reportReturnType = false (implicit)
-invalid-argument-type = "ignore"      # Matches reportArgumentType = false
-invalid-assignment = "ignore"         # Matches reportAssignmentType = false (implicit)
-no-matching-overload = "ignore"       # Matches reportCallIssue = false
+# No rules disabled - all type errors are fixed!
