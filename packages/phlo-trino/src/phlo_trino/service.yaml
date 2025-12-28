@@ -21,7 +21,6 @@ compose:
     - "${TRINO_PORT:-8080}:8080"
   volumes:
     - ./trino/catalog:/etc/trino/catalog:ro
-    - ./trino/etc:/etc/trino/etc:ro
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
     interval: 10s
@@ -90,5 +89,3 @@ files:
     dest: trino/catalog/iceberg.properties
   - source: catalog/iceberg_dev.properties
     dest: trino/catalog/iceberg_dev.properties
-  - source: etc/cache.properties
-    dest: trino/etc/cache.properties

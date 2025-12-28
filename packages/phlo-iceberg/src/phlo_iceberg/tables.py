@@ -259,15 +259,25 @@ def expire_snapshots(
 
     Args:
         table_name: Fully qualified table name (namespace.table)
-        older_than_days: Expire snapshots older than this many days
-        retain_last: Always retain at least this many snapshots
+        older_than_days: Expire snapshots older than this many days (must be positive)
+        retain_last: Always retain at least this many snapshots (must be non-negative)
         ref: Nessie branch reference
 
     Returns:
         Dict with deleted_snapshots count
+
+    Raises:
+        ValueError: If older_than_days <= 0, retain_last < 0, or table_name format invalid
     """
     import logging
     from datetime import datetime, timedelta, timezone
+
+    if older_than_days <= 0:
+        raise ValueError(f"older_than_days must be positive, got {older_than_days}")
+    if retain_last < 0:
+        raise ValueError(f"retain_last must be non-negative, got {retain_last}")
+    if "." not in table_name:
+        raise ValueError(f"table_name must be namespace.table format, got {table_name}")
 
     logger = logging.getLogger(__name__)
     catalog = get_catalog(ref=ref)
@@ -297,21 +307,33 @@ def remove_orphan_files(
     older_than_days: int = 3,
     dry_run: bool = True,
     ref: str = "main",
-) -> dict[str, int | list[str]]:
+) -> dict[str, int | list[str] | bool]:
     """
     Remove orphan files not referenced by any snapshot.
 
+    WARNING: When dry_run=False, this operation permanently deletes files from storage.
+    There is a race condition risk if new snapshots are being written concurrently.
+    Always test with dry_run=True first and ensure no concurrent writes during cleanup.
+
     Args:
         table_name: Fully qualified table name (namespace.table)
-        older_than_days: Only remove files older than this many days
+        older_than_days: Only remove files older than this many days (must be positive)
         dry_run: If True, only list files without deleting
         ref: Nessie branch reference
 
     Returns:
-        Dict with orphan_files list and count
+        Dict with orphan_count, orphan_files list, and dry_run flag
+
+    Raises:
+        ValueError: If older_than_days <= 0 or table_name format invalid
     """
     import logging
     from datetime import datetime, timedelta, timezone
+
+    if older_than_days <= 0:
+        raise ValueError(f"older_than_days must be positive, got {older_than_days}")
+    if "." not in table_name:
+        raise ValueError(f"table_name must be namespace.table format, got {table_name}")
 
     logger = logging.getLogger(__name__)
     catalog = get_catalog(ref=ref)

@@ -8,9 +8,10 @@ orphan file cleanup, and table statistics collection for Iceberg tables.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 import dagster as dg
+from pydantic import Field
 
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.tables import expire_snapshots, get_table_stats, remove_orphan_files
@@ -23,12 +24,12 @@ class MaintenanceConfig(dg.Config):
 
     # Namespace to run maintenance on (or 'all' for all namespaces)
     namespace: str = "raw"
-    # Expire snapshots older than this many days
-    snapshot_retention_days: int = 7
-    # Always retain at least this many snapshots
-    snapshot_retain_last: int = 5
-    # Only remove orphan files older than this many days
-    orphan_retention_days: int = 3
+    # Expire snapshots older than this many days (must be positive)
+    snapshot_retention_days: Annotated[int, Field(gt=0)] = 7
+    # Always retain at least this many snapshots (must be non-negative)
+    snapshot_retain_last: Annotated[int, Field(ge=0)] = 5
+    # Only remove orphan files older than this many days (must be positive)
+    orphan_retention_days: Annotated[int, Field(gt=0)] = 3
     # If True, only list orphan files without deleting
     orphan_dry_run: bool = True
     # Nessie branch reference
@@ -37,12 +38,17 @@ class MaintenanceConfig(dg.Config):
 
 def _list_tables(namespace: str, ref: str) -> list[str]:
     """List all tables in a namespace."""
+    from pyiceberg.exceptions import NoSuchNamespaceError
+
     catalog = get_catalog(ref=ref)
     try:
         tables = catalog.list_tables(namespace)
         return [f"{namespace}.{table[1]}" for table in tables]
-    except Exception as e:
-        logger.warning(f"Could not list tables in namespace {namespace}: {e}")
+    except NoSuchNamespaceError:
+        logger.info(f"Namespace {namespace} does not exist, skipping")
+        return []
+    except Exception:
+        logger.exception(f"Failed to list tables in namespace {namespace}")
         return []
 
 
@@ -52,8 +58,8 @@ def _list_namespaces(ref: str) -> list[str]:
     try:
         namespaces = catalog.list_namespaces()
         return [ns[0] for ns in namespaces]
-    except Exception as e:
-        logger.warning(f"Could not list namespaces: {e}")
+    except Exception:
+        logger.exception("Failed to list namespaces")
         return []
 
 
@@ -98,13 +104,25 @@ def cleanup_orphan_files(
     context: dg.OpExecutionContext,
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
-    """Remove orphan files from all tables in the specified namespace."""
+    """
+    Remove orphan files from all tables in the specified namespace.
+
+    WARNING: When orphan_dry_run=False, this operation permanently deletes files
+    from storage. Always test with dry_run=True first and ensure no concurrent
+    writes are happening during cleanup to avoid data loss.
+    """
     results = {
         "tables_processed": 0,
         "total_orphan_files": 0,
         "dry_run": config.orphan_dry_run,
         "errors": [],
     }
+
+    if not config.orphan_dry_run:
+        context.log.warning(
+            "DESTRUCTIVE OPERATION: orphan_dry_run=False will DELETE files from storage. "
+            "Ensure no concurrent writes are happening."
+        )
 
     if config.namespace == "all":
         namespaces = _list_namespaces(config.ref)
