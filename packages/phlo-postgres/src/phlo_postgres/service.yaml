@@ -9,6 +9,11 @@ compose:
   restart: unless-stopped
   labels:
     phlo.metrics.enabled: "false"
+    phlo.grafana.datasource: "true"
+    phlo.grafana.datasource.type: "postgres"
+    phlo.grafana.datasource.name: "PostgreSQL"
+    phlo.grafana.datasource.url: "postgres:5432"
+    phlo.grafana.datasource.database: "${POSTGRES_DB:-phlo}"
   environment:
     POSTGRES_USER: ${POSTGRES_USER:-phlo}
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
