@@ -11,6 +11,10 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "superset:8088"
+    phlo.metrics.path: "/health"
   environment:
     SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-phlo-superset-secret-change-me}
     POSTGRES_HOST: postgres

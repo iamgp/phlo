@@ -18,6 +18,10 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "dagster:3000"
+    phlo.metrics.path: "/metrics"
   environment:
     DAGSTER_HOME: /opt/dagster
     PYTHONPATH: /opt/dagster:/app

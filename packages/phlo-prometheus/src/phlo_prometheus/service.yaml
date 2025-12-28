@@ -8,6 +8,10 @@ image: prom/prometheus:${PROMETHEUS_VERSION:-v3.1.0}
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "prometheus:9090"
+    phlo.metrics.path: "/metrics"
   command:
     - "--config.file=/etc/prometheus/prometheus.yml"
     - "--storage.tsdb.path=/prometheus"

@@ -8,6 +8,10 @@ image: grafana/alloy:v1.4.2
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "true"
+    phlo.metrics.port: "alloy:12345"
+    phlo.metrics.path: "/metrics"
   command:
     - run
     - --server.http.listen-addr=0.0.0.0:12345

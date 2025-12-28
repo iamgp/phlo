@@ -12,6 +12,8 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: 'false'
   environment:
     NODE_ENV: production
     HOST: 0.0.0.0
