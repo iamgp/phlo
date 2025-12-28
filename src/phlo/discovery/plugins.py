@@ -35,6 +35,7 @@ ENTRY_POINT_GROUPS = {
     "dagster_extensions": "phlo.plugins.dagster",
     "cli_commands": "phlo.plugins.cli",
     "hooks": "phlo.plugins.hooks",
+    "trino_catalogs": "phlo.plugins.trino_catalogs",
 }
 
 
