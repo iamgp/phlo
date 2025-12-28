@@ -12,6 +12,8 @@ from typing import Optional
 
 import click
 
+from phlo.cli.config import config
+from phlo.cli.plugin import plugin_group
 from phlo.cli.services import services
 
 
@@ -28,12 +30,7 @@ def cli():
     pass
 
 
-# Add services subcommand
 cli.add_command(services)
-
-from phlo.cli.config import config
-from phlo.cli.plugin import plugin_group
-
 cli.add_command(plugin_group)
 cli.add_command(config)
 
