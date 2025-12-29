@@ -131,7 +131,10 @@ addopts = "--ignore=src --continue-on-collection-errors -m 'not integration'"
 markers = [
     "integration: marks tests as requiring external services or dbt manifest (run with '-m integration')",
 ]
-asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # pyiceberg still emits Pydantic v2.12 deprecations; filter until upstream cleanup.
+    "ignore:.*PydanticDeprecatedSince212.*:DeprecationWarning:pyiceberg.*",
+]
 
 [tool.ruff]
 line-length = 100
