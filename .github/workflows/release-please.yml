@@ -19,6 +19,5 @@ jobs:
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          release-type: python
-          prerelease: true
-          prerelease-type: alpha
+          config-file: .github/release-please-config.json
+          manifest-file: .github/release-please-manifest.json
