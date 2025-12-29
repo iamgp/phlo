@@ -4,9 +4,9 @@ import json
 import os
 import re
 import subprocess
+import tomllib
 from collections import deque
 from pathlib import Path
-import tomllib
 
 
 def run(args: list[str]) -> str:
