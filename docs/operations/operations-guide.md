@@ -657,6 +657,34 @@ phlo materialize --select "tag:critical" --partition $(date -d "yesterday" +%Y-%
 ./validate-data.sh
 ```
 
+## Release Management
+
+Phlo uses Release Please to manage prerelease versions and changelogs on `main`.
+
+### Release Please Configuration
+
+- Workflow: `.github/workflows/release-please.yml`
+- Config: `release-please-config.json`
+- Manifest: `.release-please-manifest.json`
+
+The manifest tracks the current prerelease version, and the config pins prerelease
+behavior to alpha tags (for example `v0.1.0-alpha.2`).
+
+### Local Validation (Dry Run)
+
+Use the Release Please CLI with a GitHub token to preview the next release.
+
+```bash
+export RELEASE_PLEASE_TOKEN="ghp_your_token"
+npx release-please manifest-pr \
+  --config-file release-please-config.json \
+  --manifest-file .release-please-manifest.json \
+  --dry-run
+```
+
+If the output shows the next version incrementing the `alpha.N` suffix and the
+compare link targets the previous tag, the configuration is working as expected.
+
 ## Maintenance Windows
 
 ### Planned Downtime
