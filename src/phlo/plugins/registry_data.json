@@ -195,6 +195,16 @@
       "tags": ["api", "graphql"],
       "verified": true
     },
+    "phlo-api": {
+      "type": "service",
+      "package": "phlo-api",
+      "version": "0.1.0",
+      "description": "Backend API exposing Phlo internals to Observatory",
+      "author": "Phlo Team",
+      "homepage": "https://github.com/iamgp/phlo/tree/main/packages/phlo-api",
+      "tags": ["api", "observability"],
+      "verified": true
+    },
     "postgrest": {
       "type": "service",
       "package": "phlo-postgrest",
