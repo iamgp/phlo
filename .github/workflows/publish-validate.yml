@@ -1,0 +1,74 @@
+name: Validate Publish Plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "src/phlo/**"
+      - "registry/**"
+      - "pyproject.toml"
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".github/workflows/publish.yml"
+      - ".github/workflows/publish-validate.yml"
+      - ".github/scripts/publish_plan.py"
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+      has_packages: ${{ steps.plan.outputs.has_packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine packages to publish
+        id: plan
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+          DRY_RUN: "true"
+        run: python .github/scripts/publish_plan.py
+
+      - name: Log publish plan
+        run: |
+          echo "Packages: ${{ steps.plan.outputs.packages }}"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.has_packages == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Build packages
+        run: |
+          rm -rf dist
+          mkdir -p dist
+          echo '${{ needs.plan.outputs.packages }}' > /tmp/packages.json
+          python - <<'PY'
+          import json
+          import pathlib
+          import subprocess
+
+          packages = json.loads(pathlib.Path("/tmp/packages.json").read_text(encoding="utf-8"))
+          if not packages:
+              raise SystemExit("No packages selected for build.")
+          for package in packages:
+              subprocess.check_call(["uv", "build", "--package", package, "--out-dir", "dist"])
+          PY
