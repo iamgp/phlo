@@ -117,6 +117,9 @@ dev = [
     "phlo-testing>=0.1.0",
     "ruff",
     "ty",
+    "testcontainers>=4.13.3",
+    "pyiceberg>=0.10.0",
+    "s3fs>=2025.9.0",
 ]
 
 [tool.pytest.ini_options]
