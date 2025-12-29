@@ -55,7 +55,9 @@ def load_packages(root: Path) -> tuple[dict[str, Path], dict[str, dict]]:
     return package_paths, package_meta
 
 
-def collect_internal_deps(package_meta: dict[str, dict], internal: set[str]) -> dict[str, list[str]]:
+def collect_internal_deps(
+    package_meta: dict[str, dict], internal: set[str]
+) -> dict[str, list[str]]:
     def deps_for(name: str) -> list[str]:
         data = package_meta[name]
         deps = list(data.get("project", {}).get("dependencies", []) or [])
