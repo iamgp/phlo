@@ -23,6 +23,7 @@ from phlo.hooks import (
 from phlo.config import get_settings
 from phlo_dbt.translator import CustomDbtTranslator
 
+
 def _latest_project_mtime(dbt_project_path: Path) -> float:
     candidates: list[Path] = [
         dbt_project_path / "dbt_project.yml",
@@ -174,7 +175,9 @@ class DbtTransformer(BaseTransformer):
         self.target = target
         self.dbt_executable = dbt_executable
 
-    def _run_command(self, args: List[str], env: Optional[Dict[str, str]] = None) -> subprocess.CompletedProcess:
+    def _run_command(
+        self, args: List[str], env: Optional[Dict[str, str]] = None
+    ) -> subprocess.CompletedProcess:
         full_env = os.environ.copy()
         if env:
             full_env.update(env)
@@ -190,10 +193,12 @@ class DbtTransformer(BaseTransformer):
             env=full_env,
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
 
-    def run_transform(self, partition_key: Optional[str] = None, parameters: Dict[str, Any] = None) -> TransformationResult:
+    def run_transform(
+        self, partition_key: Optional[str] = None, parameters: Dict[str, Any] = None
+    ) -> TransformationResult:
         parameters = parameters or {}
         select_args = parameters.get("select", [])
         exclude_args = parameters.get("exclude", [])
@@ -217,8 +222,8 @@ class DbtTransformer(BaseTransformer):
             build_args.extend(exclude_args)
 
         if partition_key:
-             build_args.extend(["--vars", f'{{"partition_date_str": "{partition_key}"}}'])
-             self.logger.info(f"Running dbt for partition: {partition_key}")
+            build_args.extend(["--vars", f'{{"partition_date_str": "{partition_key}"}}'])
+            self.logger.info(f"Running dbt for partition: {partition_key}")
 
         # Setup Emitters
         # We need model names for context. If select args are passed, we use those as proxy
@@ -238,7 +243,9 @@ class DbtTransformer(BaseTransformer):
         telemetry = TelemetryEventEmitter(
             TelemetryEventContext(tags={"tool": "dbt", "target": self.target})
         )
-        lineage = LineageEventEmitter(LineageEventContext(tags={"tool": "dbt", "target": self.target}))
+        lineage = LineageEventEmitter(
+            LineageEventContext(tags={"tool": "dbt", "target": self.target})
+        )
 
         start_time = time.time()
 
@@ -252,7 +259,9 @@ class DbtTransformer(BaseTransformer):
                 result = self._run_command(build_args)
 
                 if result.returncode != 0:
-                    raise RuntimeError(f"dbt build failed: {result.stderr}\nSTDOUT: {result.stdout}")
+                    raise RuntimeError(
+                        f"dbt build failed: {result.stderr}\nSTDOUT: {result.stdout}"
+                    )
 
                 elapsed = time.time() - start_time
 
@@ -268,7 +277,7 @@ class DbtTransformer(BaseTransformer):
             # 3. Emit Lineage
             # We assume manifest is at target/manifest.json
             manifest_path = self.project_dir / "target" / "manifest.json"
-            translator = CustomDbtTranslator() # Uses default config logic internally
+            translator = CustomDbtTranslator()  # Uses default config logic internally
 
             _emit_dbt_lineage(
                 manifest_path,
@@ -294,14 +303,11 @@ class DbtTransformer(BaseTransformer):
 
             return TransformationResult(
                 status="success",
-                models_built=-1, # TODO: Parse from stdout if needed
+                models_built=-1,  # TODO: Parse from stdout if needed
                 models_failed=0,
                 tests_passed=-1,
                 tests_failed=0,
-                metadata={
-                    "total_elapsed_seconds": elapsed,
-                    "dbt_output": result.stdout
-                }
+                metadata={"total_elapsed_seconds": elapsed, "dbt_output": result.stdout},
             )
 
         except Exception as exc:
@@ -323,5 +329,5 @@ class DbtTransformer(BaseTransformer):
                 tests_passed=0,
                 tests_failed=0,
                 metadata={"error": str(exc)},
-                error=str(exc)
+                error=str(exc),
             )

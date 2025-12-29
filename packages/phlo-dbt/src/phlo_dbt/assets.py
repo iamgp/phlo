@@ -244,7 +244,7 @@ def build_dbt_definitions() -> dg.Definitions:
         # We call a subset of transformer logic for post-processing
         result = transformer.run_transform(
             partition_key=partition_date,
-            parameters={"generate_docs": True, "skip_build": True}  # We already built
+            parameters={"generate_docs": True, "skip_build": True},  # We already built
         )
 
         # Dagster-specific: copy artifacts to default target

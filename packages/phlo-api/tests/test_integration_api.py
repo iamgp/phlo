@@ -16,6 +16,7 @@ pytestmark = pytest.mark.integration
 # FastAPI App Tests
 # =============================================================================
 
+
 class TestFastAPIApp:
     """Test FastAPI app creation and configuration."""
 
@@ -39,7 +40,7 @@ class TestFastAPIApp:
         """Test that expected routes are registered."""
         from phlo_api.main import app
 
-        route_paths = [r.path for r in app.routes]
+        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
 
         # Core endpoints
         assert "/health" in route_paths
@@ -51,6 +52,7 @@ class TestFastAPIApp:
 # =============================================================================
 # Health Endpoint Tests
 # =============================================================================
+
 
 class TestHealthEndpoint:
     """Test health check endpoint."""
@@ -70,6 +72,7 @@ class TestHealthEndpoint:
 # =============================================================================
 # Config Endpoint Tests
 # =============================================================================
+
 
 class TestConfigEndpoint:
     """Test config endpoint."""
@@ -104,6 +107,7 @@ class TestConfigEndpoint:
 # =============================================================================
 # Plugins Endpoints Tests
 # =============================================================================
+
 
 class TestPluginsEndpoints:
     """Test plugin discovery endpoints."""
@@ -147,6 +151,7 @@ class TestPluginsEndpoints:
 # =============================================================================
 # Services Endpoints Tests
 # =============================================================================
+
 
 class TestServicesEndpoints:
     """Test service discovery endpoints."""
@@ -206,6 +211,7 @@ class TestServicesEndpoints:
 # Registry Endpoint Tests
 # =============================================================================
 
+
 class TestRegistryEndpoint:
     """Test plugin registry endpoint."""
 
@@ -226,6 +232,7 @@ class TestRegistryEndpoint:
 # Observatory API Router Tests (if available)
 # =============================================================================
 
+
 class TestObservatoryRouters:
     """Test Observatory API routers."""
 
@@ -233,7 +240,7 @@ class TestObservatoryRouters:
         """Test Trino router is registered."""
         from phlo_api.main import app
 
-        route_paths = [r.path for r in app.routes]
+        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
         # Check if /api/trino routes exist
         trino_routes = [p for p in route_paths if p.startswith("/api/trino")]
         # May be empty if routers not installed
@@ -243,7 +250,7 @@ class TestObservatoryRouters:
         """Test Iceberg router is registered."""
         from phlo_api.main import app
 
-        route_paths = [r.path for r in app.routes]
+        route_paths = [r.path for r in app.routes]  # type: ignore[attr-defined]
         iceberg_routes = [p for p in route_paths if p.startswith("/api/iceberg")]
         assert isinstance(iceberg_routes, list)
 
@@ -251,6 +258,7 @@ class TestObservatoryRouters:
 # =============================================================================
 # Service Plugin Tests
 # =============================================================================
+
 
 class TestAPIServicePlugin:
     """Test API service plugin."""
@@ -279,10 +287,10 @@ class TestAPIServicePlugin:
         assert isinstance(service_def, dict)
 
 
-
 # =============================================================================
 # Error Handling Tests
 # =============================================================================
+
 
 class TestErrorHandling:
     """Test API error handling."""

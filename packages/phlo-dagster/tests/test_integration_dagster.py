@@ -14,15 +14,13 @@ pytestmark = pytest.mark.integration
 def test_dagster_definitions_load():
     """Test that Dagster Definitions can be instantiated."""
     # Basic Definitions object creation
-    defs = Definitions(
-        assets=[],
-        resources={}
-    )
+    defs = Definitions(assets=[], resources={})
     assert isinstance(defs, Definitions)
 
 
 def test_dagster_asset_materialization():
     """Test that a simple asset can be materialized without external services."""
+
     @asset
     def test_asset():
         return {"value": 42}
@@ -91,5 +89,6 @@ def test_dagster_with_phlo_iceberg_resource():
 def test_phlo_dagster_version():
     """Test that phlo-dagster has proper version."""
     import phlo_dagster
+
     assert hasattr(phlo_dagster, "__version__")
     assert phlo_dagster.__version__ == "0.1.0"

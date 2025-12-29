@@ -16,6 +16,7 @@ def dbt_project_dir(tmp_path):
     """Create a temporary dbt project structure."""
     # Find dbt executable in the same directory as the python executable
     import sys
+
     bin_dir = Path(sys.executable).parent
     dbt_path = bin_dir / "dbt"
 
@@ -40,13 +41,7 @@ def dbt_project_dir(tmp_path):
         "config-version": 2,
         "profile": "test_profile",
         "model-paths": ["models"],
-        "models": {
-            project_name: {
-                "example": {
-                    "materialized": "view"
-                }
-            }
-        }
+        "models": {project_name: {"example": {"materialized": "view"}}},
     }
     (project_dir / "dbt_project.yml").write_text(yaml.dump(dbt_project))
 
@@ -60,7 +55,7 @@ def dbt_project_dir(tmp_path):
                     "path": str(project_dir / "test.duckdb"),
                     "threads": 1,
                 }
-            }
+            },
         }
     }
 
@@ -80,11 +75,7 @@ def test_dbt_cli_execution(dbt_project_dir):
 
     # 'dbt clean' is usually safe and doesn't require db connection
     result = subprocess.run(
-        [dbt_exe, "clean"],
-        cwd=project_dir,
-        capture_output=True,
-        text=True,
-        check=False
+        [dbt_exe, "clean"], cwd=project_dir, capture_output=True, text=True, check=False
     )
 
     assert result.returncode == 0, f"dbt clean failed: {result.stderr}"
@@ -106,10 +97,14 @@ def test_dbt_transformer_execution(dbt_project_dir):
         env=env,
         capture_output=True,
         text=True,
-        check=False
+        check=False,
     )
 
-    if "Could not find adapter type duckdb" in result.stderr or "duckdb" in result.stderr.lower() and "not found" in result.stderr.lower():
+    if (
+        "Could not find adapter type duckdb" in result.stderr
+        or "duckdb" in result.stderr.lower()
+        and "not found" in result.stderr.lower()
+    ):
         pytest.skip("dbt-duckdb adapter not installed")
 
     # Import and use DbtTransformer
@@ -130,7 +125,7 @@ def test_dbt_transformer_execution(dbt_project_dir):
     # Run transformation
     result = transformer.run_transform(
         partition_key=None,
-        parameters={"generate_docs": False}  # Skip docs for speed
+        parameters={"generate_docs": False},  # Skip docs for speed
     )
 
     # Verify result
@@ -146,20 +141,21 @@ def test_dbt_parse_project(dbt_project_dir):
     env["DBT_PROFILES_DIR"] = str(project_dir)
 
     result = subprocess.run(
-        [dbt_exe, "parse"],
-        cwd=project_dir,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False
+        [dbt_exe, "parse"], cwd=project_dir, env=env, capture_output=True, text=True, check=False
     )
 
     if result.returncode != 0 and "Adapter not found" in result.stderr:
-         pytest.skip("dbt adapter not found, skipping parse test")
+        pytest.skip("dbt adapter not found, skipping parse test")
     if result.returncode != 0 and "Could not find adapter" in result.stderr:
-         pytest.skip("dbt adapter not found, skipping parse test")
+        pytest.skip("dbt adapter not found, skipping parse test")
 
     if result.returncode == 0:
-        assert "dbt" in result.stdout or "Running with dbt" in result.stdout or "Done." in result.stdout
+        assert (
+            "dbt" in result.stdout
+            or "Running with dbt" in result.stdout
+            or "Done." in result.stdout
+        )
     else:
-        pytest.fail(f"dbt parse failed with code {result.returncode}.\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}")
+        pytest.fail(
+            f"dbt parse failed with code {result.returncode}.\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+        )

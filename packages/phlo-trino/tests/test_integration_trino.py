@@ -22,6 +22,7 @@ pytestmark = pytest.mark.integration
 # Unit Tests: Type Mapping (No external dependencies)
 # =============================================================================
 
+
 class TestTrinoTypeMappingUnit:
     """Unit tests for Trino type mapping utilities."""
 
@@ -92,11 +93,9 @@ class TestApplySchemaTypes:
             name: str
             value: float
 
-        df = pd.DataFrame({
-            "id": ["1", "2", "3"],
-            "name": [1, 2, 3],
-            "value": ["1.5", "2.5", "3.5"]
-        })
+        df = pd.DataFrame(
+            {"id": ["1", "2", "3"], "name": [1, 2, 3], "value": ["1.5", "2.5", "3.5"]}
+        )
 
         result = apply_schema_types(df, TestSchema)
 
@@ -115,10 +114,7 @@ class TestApplySchemaTypes:
             name: str
             missing_col: float  # Not in DataFrame
 
-        df = pd.DataFrame({
-            "id": ["1", "2"],
-            "name": [1, 2]
-        })
+        df = pd.DataFrame({"id": ["1", "2"], "name": [1, 2]})
 
         # Should not raise, should skip missing columns
         result = apply_schema_types(df, TestSchema)
@@ -128,6 +124,7 @@ class TestApplySchemaTypes:
 # =============================================================================
 # Unit Tests: TrinoResource (Mocked connections)
 # =============================================================================
+
 
 class TestTrinoResourceUnit:
     """Unit tests for TrinoResource without real connections."""
@@ -146,10 +143,7 @@ class TestTrinoResourceUnit:
         from phlo_trino import TrinoResource
 
         resource = TrinoResource(
-            host="custom-host",
-            port=9999,
-            user="test_user",
-            catalog="test_catalog"
+            host="custom-host", port=9999, user="test_user", catalog="test_catalog"
         )
 
         assert resource.host == "custom-host"
@@ -222,6 +216,7 @@ class TestTrinoResourceUnit:
 # Unit Tests: Catalog Generator
 # =============================================================================
 
+
 class TestCatalogGenerator:
     """Tests for Trino catalog file generation."""
 
@@ -258,8 +253,9 @@ class TestCatalogGenerator:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir)
 
-            with patch("phlo_trino.catalog_generator.discover_trino_catalogs",
-                       return_value=[MockCatalog()]):
+            with patch(
+                "phlo_trino.catalog_generator.discover_trino_catalogs", return_value=[MockCatalog()]
+            ):
                 result = generate_catalog_files(output_dir)
 
             assert "mock_catalog" in result
@@ -273,6 +269,7 @@ class TestCatalogGenerator:
 # =============================================================================
 # Service Plugin Tests
 # =============================================================================
+
 
 class TestTrinoServicePlugin:
     """Test Trino service plugin registration."""
@@ -311,6 +308,7 @@ class TestTrinoServicePlugin:
 # Functional Integration Tests (Real Trino if available)
 # =============================================================================
 
+
 @pytest.fixture
 def trino_service():
     """Fixture that provides a Trino connection if available."""
@@ -346,9 +344,7 @@ class TestTrinoIntegrationReal:
 
     def test_system_catalog_query(self, trino_service):
         """Test querying system catalog."""
-        result = trino_service.execute(
-            "SELECT catalog_name FROM system.metadata.catalogs LIMIT 5"
-        )
+        result = trino_service.execute("SELECT catalog_name FROM system.metadata.catalogs LIMIT 5")
 
         assert len(result) >= 1
         # Should have at least system catalog
@@ -357,9 +353,7 @@ class TestTrinoIntegrationReal:
 
     def test_multiple_rows_query(self, trino_service):
         """Test query returning multiple rows."""
-        result = trino_service.execute(
-            "SELECT x FROM (VALUES 1, 2, 3, 4, 5) AS t(x)"
-        )
+        result = trino_service.execute("SELECT x FROM (VALUES 1, 2, 3, 4, 5) AS t(x)")
 
         assert len(result) == 5
         values = [row[0] for row in result]
@@ -368,10 +362,7 @@ class TestTrinoIntegrationReal:
     def test_parameterized_query(self, trino_service):
         """Test query with parameters."""
         # Note: Trino uses ? for parameters
-        result = trino_service.execute(
-            "SELECT ? + ? AS sum",
-            params=[10, 20]
-        )
+        result = trino_service.execute("SELECT ? + ? AS sum", params=[10, 20])
 
         assert len(result) == 1
         assert result[0][0] == 30
@@ -396,12 +387,14 @@ class TestTrinoIntegrationReal:
 # Version and Export Tests
 # =============================================================================
 
+
 class TestTrinoExports:
     """Test module exports and version."""
 
     def test_version_defined(self):
         """Test that version is defined."""
         import phlo_trino
+
         assert hasattr(phlo_trino, "__version__")
         assert phlo_trino.__version__ == "0.1.0"
 

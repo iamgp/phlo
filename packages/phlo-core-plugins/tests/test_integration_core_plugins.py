@@ -14,6 +14,7 @@ pytestmark = pytest.mark.integration
 # Plugin Base Classes Tests
 # =============================================================================
 
+
 class TestPluginMetadata:
     """Test PluginMetadata functionality."""
 
@@ -21,11 +22,7 @@ class TestPluginMetadata:
         """Test creating PluginMetadata."""
         from phlo.plugins.base import PluginMetadata
 
-        metadata = PluginMetadata(
-            name="test-plugin",
-            version="1.0.0",
-            description="A test plugin"
-        )
+        metadata = PluginMetadata(name="test-plugin", version="1.0.0", description="A test plugin")
 
         assert metadata.name == "test-plugin"
         assert metadata.version == "1.0.0"
@@ -40,7 +37,7 @@ class TestPluginMetadata:
             version="2.0.0",
             description="Full featured plugin",
             author="Phlo Team",
-            tags=["data", "pipeline"]
+            tags=["data", "pipeline"],
         )
 
         assert metadata.author == "Phlo Team"
@@ -50,6 +47,7 @@ class TestPluginMetadata:
 # =============================================================================
 # ServicePlugin Tests
 # =============================================================================
+
 
 class TestServicePlugin:
     """Test ServicePlugin base class."""
@@ -82,6 +80,7 @@ class TestServicePlugin:
 # HookPlugin Tests
 # =============================================================================
 
+
 class TestHookPlugin:
     """Test HookPlugin base class."""
 
@@ -98,7 +97,7 @@ class TestHookPlugin:
         registration = HookRegistration(
             hook_name="test_hook",
             handler=lambda x: x,
-            filters=HookFilter(event_types={"test.event"})
+            filters=HookFilter(event_types={"test.event"}),
         )
 
         assert registration.hook_name == "test_hook"
@@ -110,12 +109,14 @@ class TestHookPlugin:
 
         filter = HookFilter(event_types={"ingestion.start", "ingestion.end"})
 
+        assert filter.event_types is not None
         assert "ingestion.start" in filter.event_types
 
 
 # =============================================================================
 # Plugin Discovery Tests
 # =============================================================================
+
 
 class TestPluginDiscovery:
     """Test plugin discovery mechanism."""
@@ -139,6 +140,7 @@ class TestPluginDiscovery:
 # =============================================================================
 # TrinoCatalogPlugin Tests
 # =============================================================================
+
 
 class TestTrinoCatalogPlugin:
     """Test TrinoCatalogPlugin base class."""
@@ -174,22 +176,21 @@ class TestTrinoCatalogPlugin:
 # CLI Plugin Tests
 # =============================================================================
 
+
 class TestCliPlugin:
     """Test CLI plugin functionality."""
 
     def test_cli_plugin_base_importable(self):
-        """Test CLI plugin base is importable."""
-        try:
-            from phlo.plugins.cli import CliPlugin
-            assert CliPlugin is not None
-        except ImportError:
-            # May have different location
-            pass
+        """Test CliCommandPlugin base is importable."""
+        from phlo.plugins.base import CliCommandPlugin
+
+        assert CliCommandPlugin is not None
 
 
 # =============================================================================
 # Plugin Integration Tests
 # =============================================================================
+
 
 class TestPluginIntegration:
     """Test plugin integration scenarios."""
@@ -207,20 +208,17 @@ class TestPluginIntegration:
         """Test plugin metadata can be converted to dict."""
         from phlo.plugins.base import PluginMetadata
 
-        metadata = PluginMetadata(
-            name="test",
-            version="1.0.0",
-            description="Test"
-        )
+        metadata = PluginMetadata(name="test", version="1.0.0", description="Test")
 
         # Should have __dict__ or similar
-        assert hasattr(metadata, 'name')
-        assert hasattr(metadata, 'version')
+        assert hasattr(metadata, "name")
+        assert hasattr(metadata, "version")
 
 
 # =============================================================================
 # Export Tests
 # =============================================================================
+
 
 class TestCorePluginsExports:
     """Test core plugins exports."""

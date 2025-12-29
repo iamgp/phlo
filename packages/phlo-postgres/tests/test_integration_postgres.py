@@ -17,6 +17,7 @@ pytestmark = pytest.mark.integration
 # Connection Configuration Tests
 # =============================================================================
 
+
 class TestPostgresConfiguration:
     """Test Postgres configuration and connection building."""
 
@@ -60,6 +61,7 @@ class TestPostgresConfiguration:
 # =============================================================================
 # Service Plugin Tests
 # =============================================================================
+
 
 class TestPostgresServicePlugin:
     """Test Postgres service plugin."""
@@ -112,6 +114,7 @@ class TestPostgresServicePlugin:
 # Psycopg2 Connection Tests (with mocks)
 # =============================================================================
 
+
 class TestPostgresConnectionMocked:
     """Test Postgres connections with mocks."""
 
@@ -163,6 +166,7 @@ class TestPostgresConnectionMocked:
 # =============================================================================
 # Functional Integration Tests (Real Postgres if available)
 # =============================================================================
+
 
 @pytest.fixture
 def postgres_connection():
@@ -274,15 +278,18 @@ class TestPostgresIntegrationReal:
 # Version and Export Tests
 # =============================================================================
 
+
 class TestPostgresExports:
     """Test module exports and version."""
 
     def test_plugin_importable(self):
         """Test PostgresServicePlugin is importable."""
         from phlo_postgres.plugin import PostgresServicePlugin
+
         assert PostgresServicePlugin is not None
 
     def test_module_importable(self):
         """Test phlo_postgres module is importable."""
         import phlo_postgres
+
         assert phlo_postgres is not None

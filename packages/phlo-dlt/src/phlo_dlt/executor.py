@@ -23,6 +23,7 @@ from phlo_dlt.dlt_helpers import (
 from phlo_dlt.registry import TableConfig
 from phlo_dlt.converter import pandera_to_iceberg
 
+
 class DltIngester(BaseIngester):
     """
     DLT-specific implementation of the ingestion engine.
@@ -31,14 +32,14 @@ class DltIngester(BaseIngester):
 
     def __init__(
         self,
-        context: Any, # Can be generic context or specific object with .log/.run_id
+        context: Any,  # Can be generic context or specific object with .log/.run_id
         logger: Any,
         table_config: TableConfig,
         iceberg_resource: IcebergResource,
         dlt_source_func: Callable[..., Any],
         add_metadata_columns: bool = True,
         merge_strategy: str = "merge",
-        merge_config: Dict[str, Any] | None = None
+        merge_config: Dict[str, Any] | None = None,
     ):
         super().__init__(context, logger)
         self.table_config = table_config
@@ -48,7 +49,9 @@ class DltIngester(BaseIngester):
         self.merge_strategy = merge_strategy
         self.merge_config = merge_config or {}
 
-    def run_ingestion(self, partition_key: str, parameters: Dict[str, Any] = None) -> IngestionResult:
+    def run_ingestion(
+        self, partition_key: str, parameters: Dict[str, Any] = None
+    ) -> IngestionResult:
         """
         Run the full DLT -> Parquet -> Iceberg flow.
         """
@@ -95,7 +98,7 @@ class DltIngester(BaseIngester):
                     status="no_data",
                     rows_inserted=0,
                     rows_deleted=0,
-                    metadata={"status": "no_data"}
+                    metadata={"status": "no_data"},
                 )
 
             pipeline, local_staging_root = setup_dlt_pipeline(
@@ -109,7 +112,8 @@ class DltIngester(BaseIngester):
             # but helpers use context.log). Let's wrap a context shim.
 
             class ContextShim:
-                def __init__(self, logger): self.log = logger
+                def __init__(self, logger):
+                    self.log = logger
 
             shim = ContextShim(self.logger)
 
@@ -166,7 +170,7 @@ class DltIngester(BaseIngester):
                 metadata={
                     "dlt_elapsed_seconds": dlt_elapsed,
                     "total_elapsed_seconds": total_elapsed,
-                }
+                },
             )
 
         except Exception as exc:

@@ -17,6 +17,7 @@ pytestmark = pytest.mark.integration
 # Service Plugin Tests
 # =============================================================================
 
+
 class TestNessieServicePlugin:
     """Test Nessie service plugin."""
 
@@ -51,6 +52,7 @@ class TestNessieServicePlugin:
 # Configuration Tests
 # =============================================================================
 
+
 class TestNessieConfiguration:
     """Test Nessie configuration."""
 
@@ -76,6 +78,7 @@ class TestNessieConfiguration:
 # =============================================================================
 # NessieResource Tests (Unit)
 # =============================================================================
+
 
 class TestNessieResourceUnit:
     """Unit tests for NessieResource."""
@@ -185,6 +188,7 @@ class TestNessieResourceMocked:
 # BranchManagerResource Tests
 # =============================================================================
 
+
 class TestBranchManagerResource:
     """Test BranchManagerResource."""
 
@@ -228,6 +232,7 @@ class TestBranchManagerResource:
 # BranchInfo Tests
 # =============================================================================
 
+
 class TestBranchInfo:
     """Test BranchInfo dataclass."""
 
@@ -235,11 +240,7 @@ class TestBranchInfo:
         """Test BranchInfo can be created."""
         from phlo_nessie.resource import BranchInfo
 
-        branch = BranchInfo(
-            name="feature-branch",
-            hash="abc123",
-            created_at=datetime.now()
-        )
+        branch = BranchInfo(name="feature-branch", hash="abc123", created_at=datetime.now())
 
         assert branch.name == "feature-branch"
         assert branch.hash == "abc123"
@@ -259,6 +260,7 @@ class TestBranchInfo:
 # =============================================================================
 # Functional Integration Tests (Real Nessie if available)
 # =============================================================================
+
 
 @pytest.fixture
 def nessie_client():
@@ -334,12 +336,14 @@ class TestNessieIntegrationReal:
 # Catalog Scanner Tests
 # =============================================================================
 
+
 class TestCatalogScanner:
     """Test catalog scanner functionality."""
 
     def test_catalog_scanner_importable(self):
         """Test catalog scanner module is importable."""
         from phlo_nessie import catalog_scanner
+
         assert catalog_scanner is not None
 
 
@@ -347,12 +351,14 @@ class TestCatalogScanner:
 # Export Tests
 # =============================================================================
 
+
 class TestNessieExports:
     """Test module exports."""
 
     def test_module_importable(self):
         """Test phlo_nessie module is importable."""
         import phlo_nessie
+
         assert phlo_nessie is not None
 
     def test_expected_exports(self):

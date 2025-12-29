@@ -199,14 +199,11 @@ def phlo_ingestion(
                 # DltIngester handles source execution, pipeline setup, parquet staging, and iceberg merge
                 result = ingester.run_ingestion(
                     partition_key=partition_date,
-                    parameters={
-                        "branch_name": branch_name,
-                        "run_id": run_id
-                    }
+                    parameters={"branch_name": branch_name, "run_id": run_id},
                 )
 
                 if result.status == "no_data":
-                     yield dg.MaterializeResult(
+                    yield dg.MaterializeResult(
                         metadata={
                             "branch": branch_name,
                             "partition_date": dg.MetadataValue.text(partition_date),
@@ -214,7 +211,7 @@ def phlo_ingestion(
                             "status": dg.MetadataValue.text("no_data"),
                         }
                     )
-                     return
+                    return
 
                 # 3. Yield Results
                 # Ingester handles emission of Phlo events internally.
@@ -228,8 +225,12 @@ def phlo_ingestion(
                         "rows_deleted": dg.MetadataValue.int(result.rows_deleted),
                         "unique_key": dg.MetadataValue.text(table_config.unique_key),
                         "table_name": dg.MetadataValue.text(table_config.full_table_name),
-                        "dlt_elapsed_seconds": dg.MetadataValue.float(result.metadata.get("dlt_elapsed_seconds", 0.0)),
-                        "total_elapsed_seconds": dg.MetadataValue.float(result.metadata.get("total_elapsed_seconds", 0.0)),
+                        "dlt_elapsed_seconds": dg.MetadataValue.float(
+                            result.metadata.get("dlt_elapsed_seconds", 0.0)
+                        ),
+                        "total_elapsed_seconds": dg.MetadataValue.float(
+                            result.metadata.get("total_elapsed_seconds", 0.0)
+                        ),
                     }
                 )
 

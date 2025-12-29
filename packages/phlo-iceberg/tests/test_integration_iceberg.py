@@ -23,6 +23,7 @@ pytestmark = pytest.mark.integration
 # Schema Conversion Tests (phlo-dlt converter but used with iceberg)
 # =============================================================================
 
+
 class TestPanderaToIcebergConversion:
     """Test Pandera to Iceberg schema conversion."""
 
@@ -73,6 +74,7 @@ class TestPanderaToIcebergConversion:
 # =============================================================================
 # IcebergResource Unit Tests
 # =============================================================================
+
 
 class TestIcebergResourceUnit:
     """Unit tests for IcebergResource (mocked catalog)."""
@@ -126,9 +128,7 @@ class TestIcebergResourceUnit:
         with patch("phlo_iceberg.resource.ensure_table", return_value=mock_table) as mock_fn:
             resource = IcebergResource(ref="main")
             result = resource.ensure_table(
-                table_name="ns.table",
-                schema=mock_schema,
-                partition_spec=[("id", "identity")]
+                table_name="ns.table", schema=mock_schema, partition_spec=[("id", "identity")]
             )
 
             mock_fn.assert_called_once()
@@ -138,6 +138,7 @@ class TestIcebergResourceUnit:
 # =============================================================================
 # Table Operations Unit Tests
 # =============================================================================
+
 
 class TestEnsureTableUnit:
     """Unit tests for ensure_table function."""
@@ -208,9 +209,7 @@ class TestPartitionSpecGeneration:
         with patch("phlo_iceberg.tables.get_catalog", return_value=mock_catalog):
             with patch("phlo_iceberg.tables.create_namespace"):
                 ensure_table(
-                    "ns.partitioned_table",
-                    mock_schema,
-                    partition_spec=[("region", "identity")]
+                    "ns.partitioned_table", mock_schema, partition_spec=[("region", "identity")]
                 )
 
                 # Check create_table was called with partition spec
@@ -233,11 +232,7 @@ class TestPartitionSpecGeneration:
 
         with patch("phlo_iceberg.tables.get_catalog", return_value=mock_catalog):
             with patch("phlo_iceberg.tables.create_namespace"):
-                ensure_table(
-                    "ns.daily_table",
-                    mock_schema,
-                    partition_spec=[("event_time", "day")]
-                )
+                ensure_table("ns.daily_table", mock_schema, partition_spec=[("event_time", "day")])
 
                 mock_catalog.create_table.assert_called_once()
 
@@ -256,15 +251,14 @@ class TestPartitionSpecGeneration:
             with patch("phlo_iceberg.tables.create_namespace"):
                 with pytest.raises(ValueError, match="Unknown transform"):
                     ensure_table(
-                        "ns.table",
-                        mock_schema,
-                        partition_spec=[("id", "unknown_transform")]
+                        "ns.table", mock_schema, partition_spec=[("id", "unknown_transform")]
                     )
 
 
 # =============================================================================
 # Append/Merge Operations Tests
 # =============================================================================
+
 
 class TestAppendToTable:
     """Test append_to_table functionality."""
@@ -311,10 +305,12 @@ class TestAppendToTable:
             parquet_path = Path(tmpdir) / "test.parquet"
 
             # Parquet has extra column
-            df = pd.DataFrame({
-                "id": [1, 2],
-                "extra_col": ["x", "y"]  # Not in Iceberg schema
-            })
+            df = pd.DataFrame(
+                {
+                    "id": [1, 2],
+                    "extra_col": ["x", "y"],  # Not in Iceberg schema
+                }
+            )
             df.to_parquet(parquet_path)
 
             with patch("phlo_iceberg.tables.get_catalog", return_value=mock_catalog):
@@ -327,6 +323,7 @@ class TestAppendToTable:
 # Functional Integration Tests (Real Catalog if available)
 # =============================================================================
 
+
 @pytest.fixture
 def iceberg_catalog(minio_service):
     """Fixture providing a real Iceberg catalog for testing."""
@@ -334,6 +331,7 @@ def iceberg_catalog(minio_service):
     # Skip if not available
     try:
         from phlo_iceberg.catalog import get_catalog
+
         catalog = get_catalog()
         yield catalog
     except Exception as e:
@@ -388,10 +386,7 @@ class TestIcebergIntegrationReal:
             # Write test data
             with tempfile.TemporaryDirectory() as tmpdir:
                 parquet_path = Path(tmpdir) / "data.parquet"
-                df = pd.DataFrame({
-                    "id": [1, 2, 3],
-                    "value": ["a", "b", "c"]
-                })
+                df = pd.DataFrame({"id": [1, 2, 3], "value": ["a", "b", "c"]})
                 df.to_parquet(parquet_path)
 
                 result = append_to_table(table_name, parquet_path)
@@ -414,6 +409,7 @@ class TestIcebergIntegrationReal:
 # =============================================================================
 # Maintenance Operations Tests
 # =============================================================================
+
 
 class TestMaintenanceOperations:
     """Test Iceberg table maintenance operations."""
@@ -438,17 +434,20 @@ class TestMaintenanceOperations:
     def test_expire_snapshots_function_exists(self):
         """Test expire_snapshots is importable."""
         from phlo_iceberg import expire_snapshots
+
         assert callable(expire_snapshots)
 
     def test_remove_orphan_files_function_exists(self):
         """Test remove_orphan_files is importable."""
         from phlo_iceberg import remove_orphan_files
+
         assert callable(remove_orphan_files)
 
 
 # =============================================================================
 # Export and Version Tests
 # =============================================================================
+
 
 class TestIcebergExports:
     """Test module exports."""
@@ -473,4 +472,5 @@ class TestIcebergExports:
     def test_resource_importable(self):
         """Test IcebergResource is importable from resource module."""
         from phlo_iceberg.resource import IcebergResource
+
         assert IcebergResource is not None

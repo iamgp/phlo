@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 
+
 @dataclass
 class TransformationResult:
     status: str
@@ -11,6 +12,7 @@ class TransformationResult:
     tests_failed: int
     metadata: Dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
+
 
 class BaseTransformer(ABC):
     """
@@ -25,7 +27,9 @@ class BaseTransformer(ABC):
         self.logger = logger
 
     @abstractmethod
-    def run_transform(self, partition_key: Optional[str] = None, parameters: Dict[str, Any] = None) -> TransformationResult:
+    def run_transform(
+        self, partition_key: Optional[str] = None, parameters: Dict[str, Any] = None
+    ) -> TransformationResult:
         """
         Execute the transformation logic.
         """

@@ -19,6 +19,7 @@ pytestmark = pytest.mark.integration
 # Service Plugin Tests
 # =============================================================================
 
+
 class TestMinioServicePlugin:
     """Test MinIO service plugin."""
 
@@ -69,6 +70,7 @@ class TestMinioServicePlugin:
 # Configuration Tests
 # =============================================================================
 
+
 class TestMinioConfiguration:
     """Test MinIO configuration."""
 
@@ -80,9 +82,9 @@ class TestMinioConfiguration:
 
         # Should have S3/MinIO related settings - check various possible names
         has_s3_config = (
-            hasattr(settings, "minio_endpoint") or
-            hasattr(settings, "s3_endpoint") or
-            hasattr(settings, "aws_s3_endpoint")
+            hasattr(settings, "minio_endpoint")
+            or hasattr(settings, "s3_endpoint")
+            or hasattr(settings, "aws_s3_endpoint")
         )
         assert has_s3_config or True  # Always pass - config may vary
 
@@ -101,6 +103,7 @@ class TestMinioConfiguration:
 # Bucket Policy Tests (Unit)
 # =============================================================================
 
+
 class TestBucketPolicies:
     """Test bucket policy generation."""
 
@@ -115,14 +118,14 @@ class TestBucketPolicies:
                     "Effect": "Allow",
                     "Principal": "*",
                     "Action": ["s3:GetObject"],
-                    "Resource": ["arn:aws:s3:::test-bucket/*"]
+                    "Resource": ["arn:aws:s3:::test-bucket/*"],
                 }
-            ]
+            ],
         }
 
         assert policy["Version"] == "2012-10-17"
         assert len(policy["Statement"]) == 1
-        assert policy["Statement"][0]["Effect"] == "Allow"
+        assert policy["Statement"][0]["Effect"] == "Allow"  # type: ignore[index]
 
     def test_read_write_policy_structure(self):
         """Test read-write bucket policy structure."""
@@ -134,18 +137,19 @@ class TestBucketPolicies:
                     "Effect": "Allow",
                     "Principal": {"AWS": ["arn:aws:iam::123456789:user/dagster"]},
                     "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-                    "Resource": ["arn:aws:s3:::warehouse/*"]
+                    "Resource": ["arn:aws:s3:::warehouse/*"],
                 }
-            ]
+            ],
         }
 
-        assert "s3:PutObject" in policy["Statement"][0]["Action"]
-        assert "s3:GetObject" in policy["Statement"][0]["Action"]
+        assert "s3:PutObject" in policy["Statement"][0]["Action"]  # type: ignore[index]
+        assert "s3:GetObject" in policy["Statement"][0]["Action"]  # type: ignore[index]
 
 
 # =============================================================================
 # MinIO Client Tests (Mocked)
 # =============================================================================
+
 
 class TestMinioClientMocked:
     """Test MinIO client operations with mocks."""
@@ -216,6 +220,7 @@ class TestMinioClientMocked:
 # =============================================================================
 # Functional Integration Tests (Real MinIO if available)
 # =============================================================================
+
 
 @pytest.fixture
 def minio_client():
@@ -346,15 +351,18 @@ class TestMinioIntegrationReal:
 # Export Tests
 # =============================================================================
 
+
 class TestMinioExports:
     """Test module exports."""
 
     def test_module_importable(self):
         """Test phlo_minio module is importable."""
         import phlo_minio
+
         assert phlo_minio is not None
 
     def test_plugin_importable(self):
         """Test MinioServicePlugin is importable."""
         from phlo_minio.plugin import MinioServicePlugin
+
         assert MinioServicePlugin is not None

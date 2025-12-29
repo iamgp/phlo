@@ -154,3 +154,30 @@ exclude = ["**/testing/**"]  # Mock/placeholder code with dynamic imports
 [tool.ty.environment]
 root = ["./src"]
 python-version = "3.11"
+extra-paths = [
+  "packages/phlo-alerting/src",
+  "packages/phlo-alloy/src",
+  "packages/phlo-api/src",
+  "packages/phlo-core-plugins/src",
+  "packages/phlo-dagster/src",
+  "packages/phlo-dbt/src",
+  "packages/phlo-dlt/src",
+  "packages/phlo-grafana/src",
+  "packages/phlo-hasura/src",
+  "packages/phlo-iceberg/src",
+  "packages/phlo-lineage/src",
+  "packages/phlo-loki/src",
+  "packages/phlo-metrics/src",
+  "packages/phlo-minio/src",
+  "packages/phlo-nessie/src",
+  "packages/phlo-observatory/src",
+  "packages/phlo-openmetadata/src",
+  "packages/phlo-pgweb/src",
+  "packages/phlo-postgres/src",
+  "packages/phlo-postgrest/src",
+  "packages/phlo-prometheus/src",
+  "packages/phlo-quality/src",
+  "packages/phlo-superset/src",
+  "packages/phlo-testing/src",
+  "packages/phlo-trino/src",
+]

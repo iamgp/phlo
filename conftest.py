@@ -61,7 +61,7 @@ def reset_test_env(monkeypatch):
 
     # Disable Dagster telemetry
     monkeypatch.setenv("DAGSTER_TELEMETRY_ENABLED", "False")
-    monkeypatch.setenv("DAGSTER_DISABLE_TELEMETRY", "True") # Older variants
+    monkeypatch.setenv("DAGSTER_DISABLE_TELEMETRY", "True")  # Older variants
 
 
 @pytest.fixture(autouse=True)
@@ -71,6 +71,7 @@ def mock_dns(monkeypatch):
     This prevents 'NameResolutionError' in restricted environments.
     """
     import socket
+
     real_getaddrinfo = socket.getaddrinfo
 
     def side_effect(host, port, family=0, type=0, proto=0, flags=0):
@@ -79,7 +80,9 @@ def mock_dns(monkeypatch):
             return real_getaddrinfo(host, port, family, type, proto, flags)
 
         # Block telemetry domains by routing to localhost (fails fast)
-        if hasattr(host, "lower") and any(x in host.lower() for x in ["scalevector", "dlthub", "dagster", "segment"]):
+        if hasattr(host, "lower") and any(
+            x in host.lower() for x in ["scalevector", "dlthub", "dagster", "segment"]
+        ):
             return real_getaddrinfo("127.0.0.1", port, family, type, proto, flags)
 
         # Allow other calls (like MinIO if it worked, but here it won't resolve if DNS is broken)
@@ -100,8 +103,10 @@ def minio_service():
     """Spin up a MinIO container for integration tests."""
     try:
         from testcontainers.minio import MinioContainer
+
         # Try to verify docker access early
         import docker
+
         client = docker.from_env()
         client.ping()
     except (ImportError, Exception):
@@ -132,31 +137,36 @@ def iceberg_catalog(minio_service, tmp_path):
 
     if minio_service:
         warehouse_path = "s3://warehouse"
-        catalog_config.update({
-            "warehouse": warehouse_path,
-            "s3.endpoint": minio_service.get_url(),
-            "s3.access-key-id": minio_service.access_key,
-            "s3.secret-access-key": minio_service.secret_key,
-            "s3.region": "us-east-1",
-            "py-io-impl": "pyiceberg.io.fsspec.FsspecFileIO",
-        })
+        catalog_config.update(
+            {
+                "warehouse": warehouse_path,
+                "s3.endpoint": minio_service.get_url(),
+                "s3.access-key-id": minio_service.access_key,
+                "s3.secret-access-key": minio_service.secret_key,
+                "s3.region": "us-east-1",
+                "py-io-impl": "pyiceberg.io.fsspec.FsspecFileIO",
+            }
+        )
     else:
         # Local fallback
         warehouse_path = f"file://{tmp_path}/warehouse"
-        catalog_config.update({
-            "warehouse": warehouse_path,
-        })
+        catalog_config.update(
+            {
+                "warehouse": warehouse_path,
+            }
+        )
 
     catalog = load_catalog("default", **catalog_config)
 
     # Init warehouse
     if minio_service:
         import s3fs
+
         fs = s3fs.S3FileSystem(
             endpoint_url=minio_service.get_url(),
             key=minio_service.access_key,
             secret=minio_service.secret_key,
-            client_kwargs={'region_name': 'us-east-1'}
+            client_kwargs={"region_name": "us-east-1"},
         )
         try:
             fs.mkdir("warehouse")

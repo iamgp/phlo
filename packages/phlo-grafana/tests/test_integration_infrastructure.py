@@ -17,6 +17,7 @@ pytestmark = pytest.mark.integration
 # Helper Functions
 # =============================================================================
 
+
 def verify_service_plugin(plugin_class, expected_name):
     """Helper to verify a service plugin."""
     plugin = plugin_class()
@@ -35,12 +36,14 @@ def verify_service_plugin(plugin_class, expected_name):
 # Grafana Tests
 # =============================================================================
 
+
 class TestGrafanaServicePlugin:
     """Test Grafana service plugin."""
 
     def test_plugin_initializes(self):
         """Test GrafanaServicePlugin can be instantiated."""
         from phlo_grafana.plugin import GrafanaServicePlugin
+
         verify_service_plugin(GrafanaServicePlugin, "grafana")
 
     def test_service_has_dashboards(self):
@@ -56,6 +59,7 @@ class TestGrafanaServicePlugin:
     def test_module_importable(self):
         """Test phlo_grafana is importable."""
         import phlo_grafana
+
         assert phlo_grafana is not None
 
 
@@ -63,17 +67,20 @@ class TestGrafanaServicePlugin:
 # Loki Tests
 # =============================================================================
 
+
 class TestLokiServicePlugin:
     """Test Loki service plugin."""
 
     def test_plugin_initializes(self):
         """Test LokiServicePlugin can be instantiated."""
         from phlo_loki.plugin import LokiServicePlugin
+
         verify_service_plugin(LokiServicePlugin, "loki")
 
     def test_module_importable(self):
         """Test phlo_loki is importable."""
         import phlo_loki
+
         assert phlo_loki is not None
 
 
@@ -81,17 +88,20 @@ class TestLokiServicePlugin:
 # Prometheus Tests
 # =============================================================================
 
+
 class TestPrometheusServicePlugin:
     """Test Prometheus service plugin."""
 
     def test_plugin_initializes(self):
         """Test PrometheusServicePlugin can be instantiated."""
         from phlo_prometheus.plugin import PrometheusServicePlugin
+
         verify_service_plugin(PrometheusServicePlugin, "prometheus")
 
     def test_module_importable(self):
         """Test phlo_prometheus is importable."""
         import phlo_prometheus
+
         assert phlo_prometheus is not None
 
 
@@ -99,17 +109,20 @@ class TestPrometheusServicePlugin:
 # Hasura Tests
 # =============================================================================
 
+
 class TestHasuraServicePlugin:
     """Test Hasura service plugin."""
 
     def test_plugin_initializes(self):
         """Test HasuraServicePlugin can be instantiated."""
         from phlo_hasura.plugin import HasuraServicePlugin
+
         verify_service_plugin(HasuraServicePlugin, "hasura")
 
     def test_module_importable(self):
         """Test phlo_hasura is importable."""
         import phlo_hasura
+
         assert phlo_hasura is not None
 
 
@@ -117,12 +130,14 @@ class TestHasuraServicePlugin:
 # PostgREST Tests
 # =============================================================================
 
+
 class TestPostgrestServicePlugin:
     """Test PostgREST service plugin."""
 
     def test_plugin_initializes(self):
         """Test PostgrestServicePlugin can be instantiated."""
         from phlo_postgrest.plugin import PostgrestServicePlugin
+
         verify_service_plugin(PostgrestServicePlugin, "postgrest")
 
     def test_service_definition_valid(self):
@@ -138,6 +153,7 @@ class TestPostgrestServicePlugin:
     def test_module_importable(self):
         """Test phlo_postgrest is importable."""
         import phlo_postgrest
+
         assert phlo_postgrest is not None
 
 
@@ -145,17 +161,20 @@ class TestPostgrestServicePlugin:
 # PgWeb Tests
 # =============================================================================
 
+
 class TestPgwebServicePlugin:
     """Test PgWeb service plugin."""
 
     def test_plugin_initializes(self):
         """Test PgwebServicePlugin can be instantiated."""
         from phlo_pgweb.plugin import PgwebServicePlugin
+
         verify_service_plugin(PgwebServicePlugin, "pgweb")
 
     def test_module_importable(self):
         """Test phlo_pgweb is importable."""
         import phlo_pgweb
+
         assert phlo_pgweb is not None
 
 
@@ -163,17 +182,20 @@ class TestPgwebServicePlugin:
 # Alloy Tests
 # =============================================================================
 
+
 class TestAlloyServicePlugin:
     """Test Alloy service plugin."""
 
     def test_plugin_initializes(self):
         """Test AlloyServicePlugin can be instantiated."""
         from phlo_alloy.plugin import AlloyServicePlugin
+
         verify_service_plugin(AlloyServicePlugin, "alloy")
 
     def test_module_importable(self):
         """Test phlo_alloy is importable."""
         import phlo_alloy
+
         assert phlo_alloy is not None
 
 
@@ -181,17 +203,20 @@ class TestAlloyServicePlugin:
 # Superset Tests
 # =============================================================================
 
+
 class TestSupersetServicePlugin:
     """Test Superset service plugin."""
 
     def test_plugin_initializes(self):
         """Test SupersetServicePlugin can be instantiated."""
         from phlo_superset.plugin import SupersetServicePlugin
+
         verify_service_plugin(SupersetServicePlugin, "superset")
 
     def test_module_importable(self):
         """Test phlo_superset is importable."""
         import phlo_superset
+
         assert phlo_superset is not None
 
 
@@ -199,12 +224,14 @@ class TestSupersetServicePlugin:
 # OpenMetadata Tests
 # =============================================================================
 
+
 class TestOpenMetadataExports:
     """Test OpenMetadata module exports."""
 
     def test_client_importable(self):
         """Test OpenMetadataClient is importable."""
         from phlo_openmetadata import OpenMetadataClient
+
         assert OpenMetadataClient is not None
 
     def test_models_importable(self):
@@ -222,6 +249,7 @@ class TestOpenMetadataExports:
     def test_dbt_manifest_parser_importable(self):
         """Test DbtManifestParser is importable."""
         from phlo_openmetadata import DbtManifestParser
+
         assert DbtManifestParser is not None
 
 
@@ -229,12 +257,14 @@ class TestOpenMetadataExports:
 # Observatory Tests
 # =============================================================================
 
+
 class TestObservatoryExports:
     """Test Observatory module exports."""
 
     def test_module_importable(self):
         """Test phlo_observatory is importable."""
         import phlo_observatory
+
         assert phlo_observatory is not None
 
 
@@ -242,18 +272,21 @@ class TestObservatoryExports:
 # Testing Package Tests
 # =============================================================================
 
+
 class TestTestingPackage:
     """Test phlo-testing package."""
 
     def test_module_importable(self):
         """Test phlo_testing is importable."""
         import phlo_testing
+
         assert phlo_testing is not None
 
 
 # =============================================================================
 # Shared Infrastructure Plugin Pattern Tests
 # =============================================================================
+
 
 class TestInfrastructurePluginPattern:
     """Test that all infrastructure plugins follow the same pattern."""

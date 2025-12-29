@@ -160,6 +160,7 @@ def test_alerting_hooks_plugin_exists():
 def test_alerting_exports():
     """Test that phlo-alerting exports required classes."""
     import phlo_alerting
+
     assert hasattr(phlo_alerting, "Alert")
     assert hasattr(phlo_alerting, "AlertManager")
     assert hasattr(phlo_alerting, "AlertSeverity")

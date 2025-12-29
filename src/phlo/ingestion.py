@@ -3,12 +3,14 @@ from typing import Any, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime
 
+
 @dataclass
 class IngestionResult:
     status: str
     rows_inserted: int
     rows_deleted: int
     metadata: Dict[str, Any]
+
 
 class BaseIngester(ABC):
     """

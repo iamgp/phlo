@@ -102,11 +102,7 @@ def test_core_service_hooks_configured_for_auto_setup() -> None:
     assert isinstance(nessie_hooks, dict)
     post_start = nessie_hooks.get("post_start", [])
     assert isinstance(post_start, list)
-    assert any(
-        hook.get("name") == "init-branches"
-        for hook in post_start
-        if isinstance(hook, dict)
-    )
+    assert any(hook.get("name") == "init-branches" for hook in post_start if isinstance(hook, dict))
 
 
 def test_core_service_placeholders_defined_in_env_vars() -> None:

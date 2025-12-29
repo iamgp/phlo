@@ -22,7 +22,7 @@ from unittest.mock import patch, MagicMock
 from phlo_iceberg.resource import IcebergResource
 from phlo_dlt.registry import TableConfig
 from phlo_dlt.converter import pandera_to_iceberg
-from phlo_dlt.decorator import phlo_ingestion # Keep for now if used, but Executor is main usage
+from phlo_dlt.decorator import phlo_ingestion  # Keep for now if used, but Executor is main usage
 
 
 class MySchema(DataFrameModel):
@@ -53,10 +53,11 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
     # 3. Use the new Executor directly (Orchestrator Agnostic)
     # We patch both resource and tables get_catalog as before
     # We patch both resource and tables get_catalog as before
-    with patch("phlo_iceberg.resource.get_catalog", return_value=iceberg_catalog), \
-         patch("phlo_iceberg.tables.get_catalog", return_value=iceberg_catalog), \
-         patch("phlo_iceberg.catalog.get_catalog", return_value=iceberg_catalog):
-
+    with (
+        patch("phlo_iceberg.resource.get_catalog", return_value=iceberg_catalog),
+        patch("phlo_iceberg.tables.get_catalog", return_value=iceberg_catalog),
+        patch("phlo_iceberg.catalog.get_catalog", return_value=iceberg_catalog),
+    ):
         # Core logic setup
         table_name = "real_integration_test"
         table_config = TableConfig(
@@ -70,18 +71,19 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
         # Initialize the Executor
         # We pass a dummy logger or use standard logging
         import logging
+
         logger = logging.getLogger("test_logger")
 
         from phlo_dlt.executor import DltIngester
 
         ingester = DltIngester(
-            context=None, # Ingester handles context=None gracefully or we mock it if needed
+            context=None,  # Ingester handles context=None gracefully or we mock it if needed
             logger=logger,
             table_config=table_config,
             iceberg_resource=iceberg_resource,
             dlt_source_func=my_source,
             add_metadata_columns=True,
-            merge_strategy="merge"
+            merge_strategy="merge",
         )
 
         # 4. Execute Logic

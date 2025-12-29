@@ -15,6 +15,7 @@ pytestmark = pytest.mark.integration
 # Pandera Contract Evaluation Tests
 # =============================================================================
 
+
 class TestPanderaContractEvaluation:
     """Test Pandera contract evaluation functionality."""
 
@@ -27,10 +28,7 @@ class TestPanderaContractEvaluation:
             id: int
             name: str
 
-        df = pd.DataFrame({
-            "id": [1, 2, 3],
-            "name": ["Alice", "Bob", "Charlie"]
-        })
+        df = pd.DataFrame({"id": [1, 2, 3], "name": ["Alice", "Bob", "Charlie"]})
 
         result = evaluate_pandera_contract(df, schema_class=TestSchema)
 
@@ -49,10 +47,7 @@ class TestPanderaContractEvaluation:
             name: str
 
         # id column has strings instead of ints
-        df = pd.DataFrame({
-            "id": ["not", "an", "int"],
-            "name": ["Alice", "Bob", "Charlie"]
-        })
+        df = pd.DataFrame({"id": ["not", "an", "int"], "name": ["Alice", "Bob", "Charlie"]})
 
         result = evaluate_pandera_contract(df, schema_class=TestSchema)
 
@@ -70,10 +65,7 @@ class TestPanderaContractEvaluation:
             required_col: float
 
         # Missing required_col
-        df = pd.DataFrame({
-            "id": [1, 2],
-            "name": ["a", "b"]
-        })
+        df = pd.DataFrame({"id": [1, 2], "name": ["a", "b"]})
 
         result = evaluate_pandera_contract(df, schema_class=TestSchema)
 
@@ -84,11 +76,7 @@ class TestPanderaContractEvaluation:
         from phlo_quality.pandera_asset_checks import PanderaContractEvaluation
 
         evaluation = PanderaContractEvaluation(
-            passed=True,
-            failed_count=0,
-            total_count=100,
-            sample=[],
-            error=None
+            passed=True, failed_count=0, total_count=100, sample=[], error=None
         )
 
         assert evaluation.passed is True
@@ -99,6 +87,7 @@ class TestPanderaContractEvaluation:
 # =============================================================================
 # Quality Check Contract Tests
 # =============================================================================
+
 
 class TestQualityCheckContract:
     """Test QualityCheckContract functionality."""
@@ -114,7 +103,7 @@ class TestQualityCheckContract:
             total_count=100,
             query_or_sql="SELECT * FROM table",
             repro_sql=None,
-            sample=[]
+            sample=[],
         )
 
         assert contract.source == "pandera"
@@ -132,7 +121,7 @@ class TestQualityCheckContract:
             total_count=50,
             query_or_sql="SELECT 1",
             repro_sql=None,
-            sample=[{"error": "test"}]
+            sample=[{"error": "test"}],
         )
 
         metadata = contract.to_dagster_metadata()
@@ -150,6 +139,7 @@ class TestQualityCheckContract:
 # =============================================================================
 # Quality Decorator Tests
 # =============================================================================
+
 
 class TestQualityDecorator:
     """Test quality decorator functionality."""
@@ -171,6 +161,7 @@ class TestQualityDecorator:
 # Severity Tests
 # =============================================================================
 
+
 class TestQualitySeverity:
     """Test quality severity functionality."""
 
@@ -191,6 +182,7 @@ class TestQualitySeverity:
 # Parquet File Validation Tests
 # =============================================================================
 
+
 class TestParquetValidation:
     """Test Parquet file validation."""
 
@@ -206,19 +198,13 @@ class TestParquetValidation:
             name: str
 
         # Create test parquet file
-        df = pd.DataFrame({
-            "id": [1, 2, 3],
-            "name": ["a", "b", "c"]
-        })
+        df = pd.DataFrame({"id": [1, 2, 3], "name": ["a", "b", "c"]})
 
         with tempfile.TemporaryDirectory() as tmpdir:
             parquet_path = Path(tmpdir) / "test.parquet"
             df.to_parquet(parquet_path)
 
-            result = evaluate_pandera_contract_parquet(
-                parquet_path,
-                schema_class=TestSchema
-            )
+            result = evaluate_pandera_contract_parquet(parquet_path, schema_class=TestSchema)
 
             assert result.passed is True
 
@@ -226,6 +212,7 @@ class TestParquetValidation:
 # =============================================================================
 # Complex Schema Tests
 # =============================================================================
+
 
 class TestComplexSchemas:
     """Test quality checks with complex schemas."""
@@ -240,10 +227,9 @@ class TestComplexSchemas:
             id: int
             created_at: datetime
 
-        df = pd.DataFrame({
-            "id": [1, 2],
-            "created_at": pd.to_datetime(["2024-01-01", "2024-01-02"])
-        })
+        df = pd.DataFrame(
+            {"id": [1, 2], "created_at": pd.to_datetime(["2024-01-01", "2024-01-02"])}
+        )
 
         result = evaluate_pandera_contract(df, schema_class=DateTimeSchema)
 
@@ -260,10 +246,7 @@ class TestComplexSchemas:
             id: int
             optional_value: Optional[str] = Field(nullable=True)
 
-        df = pd.DataFrame({
-            "id": [1, 2, 3],
-            "optional_value": ["a", None, "c"]
-        })
+        df = pd.DataFrame({"id": [1, 2, 3], "optional_value": ["a", None, "c"]})
 
         result = evaluate_pandera_contract(df, schema_class=NullableSchema)
 
@@ -275,12 +258,14 @@ class TestComplexSchemas:
 # Reconciliation Tests
 # =============================================================================
 
+
 class TestReconciliation:
     """Test data reconciliation functionality."""
 
     def test_reconciliation_module_importable(self):
         """Test reconciliation module is importable."""
         from phlo_quality import reconciliation
+
         assert reconciliation is not None
 
 
@@ -288,12 +273,14 @@ class TestReconciliation:
 # Checks Module Tests
 # =============================================================================
 
+
 class TestChecksModule:
     """Test checks module functionality."""
 
     def test_checks_module_importable(self):
         """Test checks module is importable."""
         from phlo_quality import checks
+
         assert checks is not None
 
 
@@ -301,12 +288,14 @@ class TestChecksModule:
 # CLI Plugin Tests
 # =============================================================================
 
+
 class TestQualityCLIPlugin:
     """Test quality CLI plugin."""
 
     def test_cli_plugin_importable(self):
         """Test CLI plugin is importable."""
         from phlo_quality.cli_plugin import QualityCliPlugin
+
         assert QualityCliPlugin is not None
 
 
@@ -314,20 +303,24 @@ class TestQualityCLIPlugin:
 # Export Tests
 # =============================================================================
 
+
 class TestQualityExports:
     """Test module exports."""
 
     def test_module_importable(self):
         """Test phlo_quality module is importable."""
         import phlo_quality
+
         assert phlo_quality is not None
 
     def test_pandera_asset_checks_importable(self):
         """Test pandera_asset_checks module is importable."""
         from phlo_quality import pandera_asset_checks
+
         assert pandera_asset_checks is not None
 
     def test_contract_importable(self):
         """Test contract module is importable."""
         from phlo_quality import contract
+
         assert contract is not None
