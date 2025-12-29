@@ -664,8 +664,8 @@ Phlo uses Release Please to manage prerelease versions and changelogs on `main`.
 ### Release Please Configuration
 
 - Workflow: `.github/workflows/release-please.yml`
-- Config: `release-please-config.json`
-- Manifest: `.release-please-manifest.json`
+- Config: `.github/release-please-config.json`
+- Manifest: `.github/release-please-manifest.json`
 
 The manifest tracks the current prerelease version, and the config pins prerelease
 behavior to alpha tags (for example `v0.1.0-alpha.2`).
@@ -677,8 +677,8 @@ Use the Release Please CLI with a GitHub token to preview the next release.
 ```bash
 export RELEASE_PLEASE_TOKEN="ghp_your_token"
 npx release-please manifest-pr \
-  --config-file release-please-config.json \
-  --manifest-file .release-please-manifest.json \
+  --config-file .github/release-please-config.json \
+  --manifest-file .github/release-please-manifest.json \
   --dry-run
 ```
 
