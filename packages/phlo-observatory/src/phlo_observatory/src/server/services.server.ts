@@ -86,10 +86,10 @@ const serviceMetadata: Record<
     description: 'GraphQL API for PostgreSQL',
     default: false,
   },
-  fastapi: {
+  'phlo-api': {
     category: 'api',
-    description: 'Custom FastAPI service layer',
-    default: false,
+    description: 'Backend API for Observatory and Phlo internals',
+    default: true,
   },
   prometheus: {
     category: 'observability',
