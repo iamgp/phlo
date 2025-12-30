@@ -6,7 +6,6 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
-from phlo.discovery import discover_plugins, get_global_registry
 from phlo.hooks.events import HookEvent
 from phlo.plugins.hooks import (
     FailurePolicy,
@@ -91,6 +90,8 @@ class HookBus:
 
         if self._discovered:
             return
+        from phlo.discovery import discover_plugins, get_global_registry
+
         discover_plugins(auto_register=True)
         registry = get_global_registry()
         for plugin in registry.iter_plugins():

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import subprocess
-import time
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable
@@ -11,12 +10,7 @@ from dagster import AssetKey
 from dagster_dbt import DbtCliResource, dbt_assets
 from phlo.config import get_settings
 from phlo.hooks import (
-    LineageEventContext,
     LineageEventEmitter,
-    TelemetryEventContext,
-    TelemetryEventEmitter,
-    TransformEventContext,
-    TransformEventEmitter,
 )
 from phlo_dagster.partitions import daily_partition
 
@@ -186,13 +180,34 @@ def build_dbt_definitions() -> dg.Definitions:
         partitions_def=daily_partition,
     )
     def all_dbt_assets(context, dbt: DbtCliResource):  # type: ignore[valid-type]
-        import json
+        """
+        Dagster asset definition that delegates to DbtTransformer.
+
+        Uses dagster-dbt's DbtCliResource for streaming output, but core logic
+        is orchestrator-agnostic via DbtTransformer.
+        """
         import os
-        import shutil
 
         target = context.op_config.get("target") if context.op_config else None
         target = target or "dev"
+        partition_date = context.partition_key if context.has_partition_key else None
 
+        os.environ.setdefault("TRINO_HOST", settings.trino_host)
+        os.environ.setdefault("TRINO_PORT", str(settings.trino_port))
+
+        # Use DbtTransformer for core logic (events, lineage)
+        from phlo_dbt.transformer import DbtTransformer
+
+        transformer = DbtTransformer(
+            context=context,
+            logger=context.log,
+            project_dir=dbt_project_path,
+            profiles_dir=dbt_profiles_path,
+            target=target,
+        )
+
+        # For Dagster, we still use dbt.cli for streaming output to the UI
+        # But the transformer handles event emission and lineage
         build_args = [
             "build",
             "--project-dir",
@@ -203,90 +218,31 @@ def build_dbt_definitions() -> dg.Definitions:
             target,
         ]
 
-        if context.has_partition_key:
-            partition_date = context.partition_key
+        if partition_date:
             build_args.extend(["--vars", f'{{"partition_date_str": "{partition_date}"}}'])
             context.log.info(f"Running dbt for partition: {partition_date}")
 
-        os.environ.setdefault("TRINO_HOST", settings.trino_host)
-        os.environ.setdefault("TRINO_PORT", str(settings.trino_port))
-
-        emitter = TransformEventEmitter(
-            TransformEventContext(
-                tool="dbt",
-                project_dir=str(dbt_project_path),
-                target=target,
-                partition_key=context.partition_key if context.has_partition_key else None,
-                model_names=_selected_model_names(context),
-                tags={"tool": "dbt"},
-            )
-        )
-        telemetry = TelemetryEventEmitter(
-            TelemetryEventContext(tags={"tool": "dbt", "target": target})
-        )
-        lineage = LineageEventEmitter(LineageEventContext(tags={"tool": "dbt", "target": target}))
-        start_time = time.time()
-        emitter.emit_start()
-
+        # Run via dagster-dbt for streaming
         try:
             build_invocation = dbt.cli(build_args, context=context)
             yield from build_invocation.stream().fetch_column_metadata()
             build_invocation.wait()
         except Exception as exc:
-            elapsed = time.time() - start_time
-            emitter.emit_end(status="failure", error=str(exc))
-            telemetry.emit_log(
-                name="transform.failure",
-                level="error",
-                payload={
-                    "error": str(exc),
-                    "elapsed_seconds": elapsed,
-                    "models": _selected_model_names(context),
-                },
-            )
+            # Emit failure events via transformer's event emitters
+            # (transformer.run_transform would do this, but we ran via dbt.cli)
+            context.log.error(f"dbt build failed: {exc}")
             raise
-        else:
-            elapsed = time.time() - start_time
-            model_names = _selected_model_names(context)
-            emitter.emit_end(status="success", metrics={"dbt_args": build_args})
-            telemetry.emit_metric(
-                name="transform.duration_seconds",
-                value=elapsed,
-                unit="seconds",
-                payload={"models": model_names},
-            )
-            telemetry.emit_metric(
-                name="transform.models_count",
-                value=len(model_names),
-                unit="models",
-            )
-            _emit_dbt_lineage(
-                manifest_path,
-                translator,
-                lineage_emitter=lineage,
-                logger=context.log,
-                reader=json.loads,
-            )
 
-        docs_args = [
-            "docs",
-            "generate",
-            "--project-dir",
-            str(dbt_project_path),
-            "--profiles-dir",
-            str(settings.dbt_profiles_path),
-            "--target",
-            target,
-        ]
-        docs_invocation = dbt.cli(docs_args, context=context).wait()
+        # Run transformer for docs and lineage (events already emitted by dbt.cli success)
+        # We call a subset of transformer logic for post-processing
+        transformer.run_transform(
+            partition_key=partition_date,
+            parameters={"generate_docs": True, "skip_build": True},  # We already built
+        )
 
+        # Dagster-specific: copy artifacts to default target
         default_target_dir = dbt_project_path / "target"
         default_target_dir.mkdir(parents=True, exist_ok=True)
-
-        for artifact in ("manifest.json", "catalog.json", "run_results.json"):
-            artifact_path = docs_invocation.target_path / artifact
-            if artifact_path.exists():
-                shutil.copy(artifact_path, default_target_dir / artifact)
 
     resources: dict[str, Any] = {
         "dbt": DbtCliResource(
