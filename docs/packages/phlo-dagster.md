@@ -16,12 +16,10 @@ phlo plugin install dagster
 
 ## Configuration
 
-| Variable                           | Default     | Description                 |
-| ---------------------------------- | ----------- | --------------------------- |
-| `DAGSTER_PORT`                     | `3000`      | Dagster webserver port      |
-| `PHLO_FORCE_IN_PROCESS_EXECUTOR`   | `false`     | Force in-process executor   |
-| `PHLO_FORCE_MULTIPROCESS_EXECUTOR` | `false`     | Force multiprocess executor |
-| `WORKFLOWS_PATH`                   | `workflows` | Path to workflow files      |
+| Variable         | Default     | Description            |
+| ---------------- | ----------- | ---------------------- |
+| `DAGSTER_PORT`   | `3000`      | Dagster webserver port |
+| `WORKFLOWS_PATH` | `workflows` | Path to workflow files |
 
 ## Features
 

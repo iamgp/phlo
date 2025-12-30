@@ -27,18 +27,51 @@ phlo --version           # Show version
 
 ## Command Overview
 
+**Core Commands:**
 ```bash
 phlo init                # Initialize new project
 phlo services            # Manage infrastructure services
 phlo plugin              # Manage plugins
 phlo dev                 # Start development server
-phlo create-workflow     # Create new workflow
-phlo materialize         # Materialize assets
 phlo test                # Run tests
-phlo status              # Show asset status
-phlo branch              # Manage Nessie branches
-phlo catalog             # Catalog operations
 phlo config              # Configuration management
+```
+
+**Workflow Commands:**
+```bash
+phlo create-workflow     # Create new workflow
+phlo validate-workflow   # Validate workflow configuration
+```
+
+**Asset Commands:**
+```bash
+phlo materialize         # Materialize assets
+phlo backfill            # Backfill partitioned assets
+phlo status              # Show asset status
+phlo logs                # Query structured logs
+```
+
+**Data Catalog Commands:**
+```bash
+phlo branch              # Manage Nessie branches
+phlo catalog             # Catalog operations (tables, describe, history)
+phlo lineage             # Asset lineage (show, export)
+```
+
+**Quality Commands:**
+```bash
+phlo schema              # Manage Pandera schemas
+phlo validate-schema     # Validate Pandera schemas
+```
+
+**Optional Plugin Commands** (requires installation):
+```bash
+phlo postgrest           # PostgREST management
+phlo hasura              # Hasura GraphQL management
+phlo publishing          # dbt publishing layer
+phlo metrics             # Prometheus metrics
+phlo alerts              # Alerting rules
+phlo openmetadata        # OpenMetadata catalog
 ```
 
 ## Services Commands
@@ -585,29 +618,28 @@ phlo-plugin-my-api-source/
     └── test_plugin.py       # Test suite
 ```
 
-### phlo plugin validate
+### phlo plugin check
 
 Validate installed plugins.
 
 ```bash
-phlo plugin validate [OPTIONS]
+phlo plugin check [OPTIONS]
 ```
 
 **Options**:
 
 ```bash
 --json               # Output as JSON
---fix                # Attempt to fix issues
 ```
 
 **Examples**:
 
 ```bash
 # Validate all plugins
-phlo plugin validate
+phlo plugin check
 
 # JSON output
-phlo plugin validate --json
+phlo plugin check --json
 ```
 
 ## Project Commands
@@ -834,6 +866,101 @@ phlo test -k test_glucose_ingestion
 phlo test --coverage
 ```
 
+## Logging & Monitoring Commands
+
+### phlo logs
+
+Query and filter structured logs from Dagster runs.
+
+```bash
+phlo logs [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--asset NAME         # Filter by asset name
+--job NAME           # Filter by job name
+--level LEVEL        # Filter by log level: DEBUG, INFO, WARNING, ERROR
+--since TIME         # Filter by time (e.g., 1h, 30m, 2d)
+--run-id ID          # Get logs for specific run
+--follow, -f         # Tail mode - follow new logs in real-time
+--full               # Don't truncate long messages
+--limit N            # Number of logs to retrieve (default: 100)
+--json               # JSON output for scripting
+```
+
+**Examples**:
+
+```bash
+# View recent logs
+phlo logs
+
+# Filter by asset
+phlo logs --asset dlt_glucose_entries
+
+# Filter by log level
+phlo logs --level ERROR
+
+# Logs from last hour
+phlo logs --since 1h
+
+# Follow logs in real-time
+phlo logs --follow
+
+# Logs for specific run
+phlo logs --run-id abc-123-def
+
+# JSON output for processing
+phlo logs --json --limit 500
+```
+
+### phlo backfill
+
+Backfill partitioned assets over a date range.
+
+```bash
+phlo backfill [ASSET_NAME] [OPTIONS]
+```
+
+**Arguments**:
+
+- `ASSET_NAME` (optional): Asset to backfill
+
+**Options**:
+
+```bash
+--start-date DATE    # Start date (YYYY-MM-DD)
+--end-date DATE      # End date (YYYY-MM-DD)
+--partitions DATES   # Comma-separated partition dates (YYYY-MM-DD,...)
+--parallel N         # Number of concurrent partitions (default: 1)
+--resume             # Resume last backfill, skipping completed partitions
+--dry-run            # Show what would be executed without running
+--delay SECS         # Delay between parallel executions in seconds (default: 0.0)
+```
+
+**Examples**:
+
+```bash
+# Backfill for date range
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31
+
+# Specific partitions
+phlo backfill dlt_glucose_entries --partitions 2025-01-15,2025-01-16,2025-01-17
+
+# Parallel backfill (5 concurrent)
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31 --parallel 5
+
+# Resume interrupted backfill
+phlo backfill dlt_glucose_entries --resume
+
+# Dry run to see what would execute
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-07 --dry-run
+
+# With delay between executions
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31 --parallel 3 --delay 2.5
+```
+
 ## Branch Commands
 
 Manage Nessie catalog branches.
@@ -934,60 +1061,203 @@ phlo branch delete old-feature
 phlo branch delete old-feature --force
 ```
 
-## Catalog Commands
+### phlo branch diff
 
-### phlo catalog sync
-
-Sync metadata to OpenMetadata catalog.
+Show differences between two branches.
 
 ```bash
-phlo catalog sync [OPTIONS]
+phlo branch diff SOURCE_BRANCH [TARGET_BRANCH] [OPTIONS]
 ```
+
+**Arguments**:
+
+- `SOURCE_BRANCH`: Source branch to compare
+- `TARGET_BRANCH`: Target branch (default: main)
 
 **Options**:
 
 ```bash
---database DB        # Sync specific database
---table TABLE        # Sync specific table
---force              # Force re-sync
+--format FORMAT      # Output format: table, json (default: table)
 ```
 
 **Examples**:
 
 ```bash
-# Sync all
-phlo catalog sync
+# Compare dev to main
+phlo branch diff dev
 
-# Sync specific database
-phlo catalog sync --database bronze
+# Compare two branches
+phlo branch diff feature-a feature-b
 
-# Sync specific table
-phlo catalog sync --database bronze --table events
+# JSON output
+phlo branch diff dev main --format json
+```
+
+## Catalog Commands
+
+Manage the Iceberg catalog (Nessie-backed).
+
+### phlo catalog tables
+
+List all Iceberg tables in the catalog.
+
+```bash
+phlo catalog tables [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--namespace NS       # Filter by namespace (e.g., bronze, silver)
+--ref REF            # Nessie branch/tag reference (default: main)
+--format FORMAT      # Output format: table, json (default: table)
+```
+
+**Examples**:
+
+```bash
+# List all tables
+phlo catalog tables
+
+# List tables in specific namespace
+phlo catalog tables --namespace bronze
+
+# List tables on specific branch
+phlo catalog tables --ref feature-branch
+
+# JSON output
+phlo catalog tables --format json
+```
+
+### phlo catalog describe
+
+Show detailed table metadata.
+
+```bash
+phlo catalog describe TABLE_NAME [OPTIONS]
+```
+
+**Arguments**:
+
+- `TABLE_NAME`: Table to describe (e.g., `bronze.events`)
+
+**Options**:
+
+```bash
+--ref REF            # Nessie branch/tag reference (default: main)
+```
+
+**Examples**:
+
+```bash
+# Describe table
+phlo catalog describe bronze.events
+
+# Describe on specific branch
+phlo catalog describe bronze.events --ref dev
+```
+
+**Output**:
+
+Shows table metadata including:
+- Location
+- Current snapshot ID
+- Format version
+- Schema (columns, types, constraints)
+- Partitioning
+- Properties
+
+### phlo catalog history
+
+Show table snapshot history.
+
+```bash
+phlo catalog history TABLE_NAME [OPTIONS]
+```
+
+**Arguments**:
+
+- `TABLE_NAME`: Table name
+
+**Options**:
+
+```bash
+--limit N            # Number of snapshots to show (default: 10)
+--ref REF            # Nessie branch/tag reference (default: main)
+```
+
+**Examples**:
+
+```bash
+# Show recent snapshots
+phlo catalog history bronze.events
+
+# Show last 20 snapshots
+phlo catalog history bronze.events --limit 20
 ```
 
 ### phlo lineage show
 
-Display asset lineage.
+Display asset lineage in ASCII tree format.
 
 ```bash
-phlo lineage show [ASSET] [OPTIONS]
+phlo lineage show ASSET_NAME [OPTIONS]
 ```
+
+**Arguments**:
+
+- `ASSET_NAME`: Asset name to show lineage for
 
 **Options**:
 
 ```bash
---format FORMAT      # Output format: text, dot, json
+--direction DIR      # Direction: upstream, downstream, both (default: both)
 --depth N            # Maximum depth to traverse
---upstream           # Show upstream only
---downstream         # Show downstream only
 ```
 
 **Examples**:
 
 ```bash
+# Show full lineage
 phlo lineage show dlt_glucose_entries
-phlo lineage show --format dot > lineage.dot
-phlo lineage show --downstream dlt_glucose_entries
+
+# Show only upstream dependencies
+phlo lineage show dlt_glucose_entries --direction upstream
+
+# Limit depth
+phlo lineage show dlt_glucose_entries --depth 2
+```
+
+### phlo lineage export
+
+Export lineage to external formats.
+
+```bash
+phlo lineage export ASSET_NAME [OPTIONS]
+```
+
+**Arguments**:
+
+- `ASSET_NAME`: Asset name to export lineage for
+
+**Options**:
+
+```bash
+--format FORMAT      # Export format: dot, mermaid, json (default: dot)
+--output PATH        # Output file path (required)
+```
+
+**Examples**:
+
+```bash
+# Export to Graphviz DOT
+phlo lineage export dlt_glucose_entries --format dot --output lineage.dot
+
+# Export to Mermaid diagram
+phlo lineage export dlt_glucose_entries --format mermaid --output lineage.md
+
+# Export to JSON
+phlo lineage export dlt_glucose_entries --format json --output lineage.json
 ```
 
 ## Configuration Commands
@@ -1085,14 +1355,111 @@ phlo validate-schema workflows/schemas/events.py --data sample.parquet
 Validate workflow configuration.
 
 ```bash
-phlo validate-workflow WORKFLOW_PATH
+phlo validate-workflow WORKFLOW_PATH [OPTIONS]
 ```
 
-**Example**:
+**Arguments**:
+
+- `WORKFLOW_PATH`: Path to workflow file or directory
+
+**Options**:
 
 ```bash
-phlo validate-workflow workflows/ingestion/api/events.py
+--fix                # Auto-fix issues where possible
 ```
+
+**Examples**:
+
+```bash
+# Validate single workflow
+phlo validate-workflow workflows/ingestion/api/events.py
+
+# Validate directory
+phlo validate-workflow workflows/ingestion/
+
+# Auto-fix where possible
+phlo validate-workflow workflows/ingestion/weather.py --fix
+```
+
+### phlo schema
+
+Manage Pandera schemas.
+
+```bash
+phlo schema COMMAND [OPTIONS]
+```
+
+**Subcommands**:
+
+#### list
+
+List all available Pandera schemas.
+
+```bash
+phlo schema list [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--domain DOMAIN      # Filter by domain
+--format FORMAT      # Output format: table, json (default: table)
+```
+
+**Examples**:
+
+```bash
+# List all schemas
+phlo schema list
+
+# Filter by domain
+phlo schema list --domain api
+
+# JSON output
+phlo schema list --format json
+```
+
+## Optional Plugin Commands
+
+The following commands are provided by optional packages. Install the corresponding package to use these commands.
+
+### phlo postgrest
+
+PostgREST configuration and management.
+
+**Installation**: `phlo plugin install phlo-postgrest`
+
+### phlo hasura
+
+Hasura GraphQL engine management.
+
+**Installation**: `phlo plugin install phlo-hasura`
+
+### phlo publishing
+
+dbt publishing layer management.
+
+**Installation**: `phlo plugin install phlo-dbt`
+
+### phlo metrics
+
+Prometheus metrics configuration.
+
+**Installation**: `phlo plugin install phlo-metrics`
+
+### phlo alerts
+
+Alerting rules and notifications.
+
+**Installation**: `phlo plugin install phlo-alerting`
+
+### phlo openmetadata
+
+OpenMetadata catalog integration.
+
+**Installation**: `phlo plugin install phlo-openmetadata`
+
+Run `phlo <command> --help` after installation for command-specific documentation.
 
 ## Environment Variables
 

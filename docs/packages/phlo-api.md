@@ -45,16 +45,16 @@ phlo services start --native
 
 ## API Routes
 
-| Route           | Method | Description               |
-| --------------- | ------ | ------------------------- |
-| `/health`       | GET    | Health check              |
-| `/api/lineage`  | GET    | Data lineage queries      |
-| `/api/quality`  | GET    | Quality check results     |
-| `/api/assets`   | GET    | Dagster asset information |
-| `/api/branches` | GET    | Nessie branch management  |
-| `/api/branches` | POST   | Create/merge branches     |
-| `/api/tables`   | GET    | List Iceberg tables       |
-| `/api/query`    | POST   | Execute SQL queries       |
+| Route                    | Method | Description               |
+| ------------------------ | ------ | ------------------------- |
+| `/health`                | GET    | Health check              |
+| `/api/lineage`           | GET    | Data lineage queries      |
+| `/api/quality`           | GET    | Quality check results     |
+| `/api/dagster/assets`    | GET    | Dagster asset information |
+| `/api/nessie/branches`   | GET    | Nessie branch management  |
+| `/api/nessie/branches`   | POST   | Create/merge branches     |
+| `/api/iceberg/tables`    | GET    | List Iceberg tables       |
+| `/api/trino/query`       | POST   | Execute SQL queries       |
 
 ### Example Requests
 
@@ -69,10 +69,10 @@ curl "http://localhost:4000/api/lineage?table=bronze.users"
 curl "http://localhost:4000/api/quality?asset=bronze.users"
 
 # List Nessie branches
-curl http://localhost:4000/api/branches
+curl http://localhost:4000/api/nessie/branches
 
 # Execute a query
-curl -X POST http://localhost:4000/api/query \
+curl -X POST http://localhost:4000/api/trino/query \
   -H "Content-Type: application/json" \
   -d '{"sql": "SELECT * FROM bronze.users LIMIT 10"}'
 ```

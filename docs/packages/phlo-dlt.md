@@ -78,7 +78,6 @@ def api_events(partition_date: str):
 | `freshness_hours`   | `tuple[int, int]` | (warn, fail) freshness thresholds |
 | `merge_strategy`    | `str`             | `merge` (default) or `append`     |
 | `merge_config`      | `dict`            | Advanced merge configuration      |
-| `tags`              | `dict`            | Asset tags                        |
 
 ### Merge Strategies
 

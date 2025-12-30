@@ -51,16 +51,16 @@ hooks:
 phlo services start --service nessie
 
 # List branches
-phlo nessie branches
+phlo branch list
 
 # Create a new branch
-phlo nessie branch create feature/my-feature
+phlo branch create feature/my-feature
 
 # Delete a branch
-phlo nessie branch delete feature/my-feature
+phlo branch delete feature/my-feature
 
 # Merge branches
-phlo nessie merge dev main
+phlo branch merge dev main
 ```
 
 ### Write-Audit-Publish Pattern

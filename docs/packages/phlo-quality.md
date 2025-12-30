@@ -43,14 +43,14 @@ phlo plugin install quality
 
 ```python
 from phlo import phlo_quality
-from phlo_quality.checks import null_check, uniqueness_check, range_check
+from phlo_quality import NullCheck, UniqueCheck, RangeCheck
 
 @phlo_quality(
     asset="bronze.users",
     checks=[
-        null_check(column="id"),
-        uniqueness_check(column="email"),
-        range_check(column="age", min_value=0, max_value=150),
+        NullCheck(columns=["id"]),
+        UniqueCheck(columns=["email"]),
+        RangeCheck(column="age", min_value=0, max_value=150),
     ]
 )
 def validate_users():
@@ -97,15 +97,15 @@ phlo quality run --all
 
 ## Built-in Checks
 
-| Check              | Description                         | Example                                                      |
-| ------------------ | ----------------------------------- | ------------------------------------------------------------ |
-| `null_check`       | Validates column has no NULL values | `null_check(column="id")`                                    |
-| `uniqueness_check` | Validates column values are unique  | `uniqueness_check(column="email")`                           |
-| `range_check`      | Validates values are within range   | `range_check(column="age", min_value=0, max_value=150)`      |
-| `regex_check`      | Validates values match pattern      | `regex_check(column="email", pattern=r".*@.*\..*")`          |
-| `freshness_check`  | Validates data is recent            | `freshness_check(column="updated_at", max_age_hours=24)`     |
-| `count_check`      | Validates row count                 | `count_check(min_rows=100, max_rows=10000)`                  |
-| `custom_sql_check` | Arbitrary SQL validation            | `custom_sql_check(sql="SELECT COUNT(*) FROM ... WHERE ...")` |
+| Check             | Description                         | Example                                                              |
+| ----------------- | ----------------------------------- | -------------------------------------------------------------------- |
+| `NullCheck`       | Validates column has no NULL values | `NullCheck(columns=["id"])`                                          |
+| `UniqueCheck`     | Validates column values are unique  | `UniqueCheck(columns=["email"])`                                     |
+| `RangeCheck`      | Validates values are within range   | `RangeCheck(column="age", min_value=0, max_value=150)`               |
+| `PatternCheck`    | Validates values match pattern      | `PatternCheck(column="email", pattern=r".*@.*\..*")`                 |
+| `FreshnessCheck`  | Validates data is recent            | `FreshnessCheck(column="updated_at", max_age_hours=24)`              |
+| `CountCheck`      | Validates row count                 | `CountCheck(min_rows=100, max_rows=10000)`                           |
+| `CustomSQLCheck`  | Arbitrary SQL validation            | `CustomSQLCheck(sql="SELECT COUNT(*) FROM ... WHERE ...")`           |
 
 ## Quality Check Contract
 
