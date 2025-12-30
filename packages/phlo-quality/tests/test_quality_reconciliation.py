@@ -7,7 +7,14 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 
-from phlo_quality.reconciliation import AggregateConsistencyCheck, ReconciliationCheck
+from phlo_quality.reconciliation import (
+    AggregateConsistencyCheck,
+    AggregateSpec,
+    ChecksumReconciliationCheck,
+    KeyParityCheck,
+    MultiAggregateConsistencyCheck,
+    ReconciliationCheck,
+)
 
 
 class TestReconciliationCheck:
@@ -101,6 +108,27 @@ class TestReconciliationCheck:
         assert result.passed is False
         assert result.metric_value["difference_pct"] == 0.10
 
+    def test_check_passes_with_absolute_tolerance(self):
+        """Test that check passes when difference is within absolute tolerance."""
+        df = pd.DataFrame({"id": range(95), "value": range(95)})
+
+        context = MagicMock()
+        context.partition_key = "2024-01-01"
+        context.resources.trino.execute_query.return_value = [(100,)]
+
+        check = ReconciliationCheck(
+            source_table="silver.stg_github_events",
+            partition_column="_phlo_partition_date",
+            check_type="rowcount_parity",
+            tolerance=0.0,
+            absolute_tolerance=5,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+        assert result.metric_value["difference_abs"] == 5
+
     def test_rowcount_gte_passes_when_target_has_more(self):
         """Test rowcount_gte check passes when target >= source."""
         df = pd.DataFrame({"id": range(110), "value": range(110)})
@@ -114,6 +142,26 @@ class TestReconciliationCheck:
             partition_column="_phlo_partition_date",
             check_type="rowcount_gte",
             tolerance=0.0,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+
+    def test_rowcount_gte_passes_with_absolute_tolerance(self):
+        """Test rowcount_gte check respects absolute tolerance."""
+        df = pd.DataFrame({"id": range(96), "value": range(96)})
+
+        context = MagicMock()
+        context.partition_key = "2024-01-01"
+        context.resources.trino.execute_query.return_value = [(100,)]
+
+        check = ReconciliationCheck(
+            source_table="silver.stg_github_events",
+            partition_column="_phlo_partition_date",
+            check_type="rowcount_gte",
+            tolerance=0.0,
+            absolute_tolerance=5,
         )
 
         result = check.execute(df, context)
@@ -284,6 +332,34 @@ class TestAggregateConsistencyCheck:
 
         assert result.passed is True
 
+    def test_check_passes_with_absolute_tolerance(self):
+        """Test that check passes when difference is within absolute tolerance."""
+        df = pd.DataFrame(
+            {
+                "activity_date": ["2024-01-01"],
+                "total_events": [98],
+            }
+        )
+
+        context = MagicMock()
+        context.partition_key = "2024-01-01"
+        context.resources.trino.execute_query.return_value = [
+            ("2024-01-01", 100),
+        ]
+
+        check = AggregateConsistencyCheck(
+            source_table="silver.stg_github_events",
+            aggregate_column="total_events",
+            source_expression="COUNT(*)",
+            group_by=["activity_date"],
+            tolerance=0.0,
+            absolute_tolerance=2,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+
     def test_handles_missing_column(self):
         """Test that check handles missing aggregate column."""
         df = pd.DataFrame(
@@ -354,3 +430,251 @@ class TestAggregateConsistencyCheck:
 
         assert "COUNT(*)" in query
         assert "GROUP BY activity_date, event_type" in query
+
+
+class TestKeyParityCheck:
+    """Tests for KeyParityCheck class."""
+
+    def test_key_parity_passes_when_keys_match(self):
+        """Test key parity passes when keys align."""
+        df = pd.DataFrame({"event_id": [1, 2, 3]})
+
+        context = MagicMock()
+        context.partition_key = "2024-01-01"
+        context.resources.trino.execute_query.return_value = [(1,), (2,), (3,)]
+
+        check = KeyParityCheck(
+            source_table="silver.stg_github_events",
+            key_columns=["event_id"],
+            partition_column="_phlo_partition_date",
+            tolerance=0.0,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+        assert result.metric_value["missing_in_target"] == 0
+        assert result.metric_value["missing_in_source"] == 0
+
+    def test_key_parity_fails_with_missing_keys(self):
+        """Test key parity fails when keys are missing."""
+        df = pd.DataFrame({"event_id": [1, 2]})
+
+        context = MagicMock()
+        context.partition_key = "2024-01-01"
+        context.resources.trino.execute_query.return_value = [(1,), (2,), (3,)]
+
+        check = KeyParityCheck(
+            source_table="silver.stg_github_events",
+            key_columns=["event_id"],
+            tolerance=0.0,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is False
+        assert result.metric_value["missing_in_target"] == 1
+
+    def test_key_parity_respects_tolerance(self):
+        """Test key parity tolerance allows small mismatches."""
+        df = pd.DataFrame({"event_id": [1, 2, 3, 4]})
+
+        context = MagicMock()
+        context.resources.trino.execute_query.return_value = [(1,), (2,), (3,), (4,), (5,)]
+
+        check = KeyParityCheck(
+            source_table="silver.stg_github_events",
+            key_columns=["event_id"],
+            tolerance=0.25,  # Allow 1 missing out of 5
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+
+
+class TestMultiAggregateConsistencyCheck:
+    """Tests for MultiAggregateConsistencyCheck class."""
+
+    def test_multi_aggregate_passes_when_values_match(self):
+        """Test multi-aggregate check passes when values match."""
+        df = pd.DataFrame(
+            {
+                "activity_date": ["2024-01-01", "2024-01-02"],
+                "total_events": [50, 75],
+                "amount_total": [100.0, 200.0],
+            }
+        )
+
+        context = MagicMock()
+        context.partition_key = "2024-01-01"
+        context.resources.trino.execute_query.return_value = [
+            ("2024-01-01", 50, 100.0),
+            ("2024-01-02", 75, 200.0),
+        ]
+
+        check = MultiAggregateConsistencyCheck(
+            source_table="silver.stg_github_events",
+            aggregates=[
+                AggregateSpec(
+                    name="row_count",
+                    expression="COUNT(*)",
+                    target_column="total_events",
+                ),
+                AggregateSpec(
+                    name="amount_total",
+                    expression="SUM(amount)",
+                    target_column="amount_total",
+                ),
+            ],
+            group_by=["activity_date"],
+            tolerance=0.0,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+
+    def test_multi_aggregate_fails_on_mismatch(self):
+        """Test multi-aggregate check fails when a value mismatches."""
+        df = pd.DataFrame(
+            {
+                "activity_date": ["2024-01-01"],
+                "total_events": [50],
+                "amount_total": [100.0],
+            }
+        )
+
+        context = MagicMock()
+        context.partition_key = "2024-01-01"
+        context.resources.trino.execute_query.return_value = [
+            ("2024-01-01", 60, 100.0),
+        ]
+
+        check = MultiAggregateConsistencyCheck(
+            source_table="silver.stg_github_events",
+            aggregates=[
+                AggregateSpec(
+                    name="row_count",
+                    expression="COUNT(*)",
+                    target_column="total_events",
+                ),
+                AggregateSpec(
+                    name="amount_total",
+                    expression="SUM(amount)",
+                    target_column="amount_total",
+                ),
+            ],
+            group_by=["activity_date"],
+            tolerance=0.0,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is False
+        assert result.metric_value["mismatches"] > 0
+
+
+class TestChecksumReconciliationCheck:
+    """Tests for ChecksumReconciliationCheck class."""
+
+    def test_checksum_passes_when_hashes_match(self):
+        """Test checksum check passes when hashes match."""
+        df = pd.DataFrame(
+            {"event_id": [1, 2], "event_type": ["a", "b"], "repo_id": [10, 20]}
+        )
+
+        context = MagicMock()
+
+        def execute_query(query: str):
+            if "FROM silver.stg_github_events" in query:
+                return [(1, "hash1"), (2, "hash2")]
+            return [(1, "hash1"), (2, "hash2")]
+
+        context.resources.trino.execute_query.side_effect = execute_query
+
+        check = ChecksumReconciliationCheck(
+            source_table="silver.stg_github_events",
+            target_table="gold.fct_github_events",
+            key_columns=["event_id"],
+            columns=["event_type", "repo_id"],
+            tolerance=0.0,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+        assert result.metric_value["hash_mismatches"] == 0
+
+    def test_checksum_fails_on_hash_mismatch(self):
+        """Test checksum check fails when hashes mismatch."""
+        df = pd.DataFrame(
+            {"event_id": [1, 2], "event_type": ["a", "b"], "repo_id": [10, 20]}
+        )
+
+        context = MagicMock()
+
+        def execute_query(query: str):
+            if "FROM silver.stg_github_events" in query:
+                return [(1, "hash1"), (2, "hash2")]
+            return [(1, "hash1"), (2, "hashX")]
+
+        context.resources.trino.execute_query.side_effect = execute_query
+
+        check = ChecksumReconciliationCheck(
+            source_table="silver.stg_github_events",
+            target_table="gold.fct_github_events",
+            key_columns=["event_id"],
+            columns=["event_type", "repo_id"],
+            tolerance=0.0,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is False
+        assert result.metric_value["hash_mismatches"] == 1
+
+    def test_checksum_respects_tolerance(self):
+        """Test checksum check respects mismatch tolerance."""
+        df = pd.DataFrame(
+            {"event_id": [1, 2, 3], "event_type": ["a", "b", "c"], "repo_id": [10, 20, 30]}
+        )
+
+        context = MagicMock()
+
+        def execute_query(query: str):
+            if "FROM silver.stg_github_events" in query:
+                return [(1, "hash1"), (2, "hash2"), (3, "hash3")]
+            return [(1, "hash1"), (2, "hashX"), (3, "hash3")]
+
+        context.resources.trino.execute_query.side_effect = execute_query
+
+        check = ChecksumReconciliationCheck(
+            source_table="silver.stg_github_events",
+            target_table="gold.fct_github_events",
+            key_columns=["event_id"],
+            columns=["event_type", "repo_id"],
+            tolerance=0.5,
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is True
+
+    def test_checksum_fails_when_trino_missing(self):
+        """Test checksum check fails without Trino."""
+        df = pd.DataFrame({"event_id": [1], "event_type": ["a"], "repo_id": [10]})
+
+        context = MagicMock()
+        context.resources = MagicMock(spec=[])
+
+        check = ChecksumReconciliationCheck(
+            source_table="silver.stg_github_events",
+            target_table="gold.fct_github_events",
+            key_columns=["event_id"],
+            columns=["event_type", "repo_id"],
+        )
+
+        result = check.execute(df, context)
+
+        assert result.passed is False

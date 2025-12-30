@@ -571,6 +571,7 @@ ReconciliationCheck(
     partition_column="_phlo_partition_date",
     check_type="rowcount_parity",
     tolerance=0.02,  # 2% allowed difference
+    absolute_tolerance=50,  # Optional absolute row difference
 )
 ```
 
@@ -586,17 +587,63 @@ AggregateConsistencyCheck(
     group_by=["activity_date"],
     partition_column="_phlo_partition_date",
     tolerance=0.0,
+    absolute_tolerance=5,
+)
+```
+
+**KeyParityCheck**: Ensure keys match between source and target
+
+```python
+from phlo_quality.reconciliation import KeyParityCheck
+
+KeyParityCheck(
+    source_table="silver.stg_github_events",
+    key_columns=["event_id"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+)
+```
+
+**MultiAggregateConsistencyCheck**: Compare multiple aggregates in one check
+
+```python
+from phlo_quality.reconciliation import AggregateSpec, MultiAggregateConsistencyCheck
+
+MultiAggregateConsistencyCheck(
+    source_table="silver.stg_github_events",
+    aggregates=[
+        AggregateSpec(name="row_count", expression="COUNT(*)", target_column="total_events"),
+        AggregateSpec(name="total_amount", expression="SUM(amount)", target_column="amount_total"),
+    ],
+    group_by=["activity_date"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+    absolute_tolerance=5,
+)
+```
+
+**ChecksumReconciliationCheck**: Compare row-level hashes across tables
+
+```python
+from phlo_quality.reconciliation import ChecksumReconciliationCheck
+
+ChecksumReconciliationCheck(
+    source_table="silver.stg_github_events",
+    target_table="gold.fct_github_events",
+    key_columns=["event_id"],
+    columns=["event_type", "actor_id", "repo_id"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+    absolute_tolerance=10,
+    hash_algorithm="xxhash64",
 )
 ```
 
 **Common reconciliation gaps (use CustomSQLCheck or @asset_check):**
 
-- Key-level anti-join checks (missing/extraneous primary keys)
-- Row-level checksum or hash comparison across tables
-- Multi-aggregate parity in one check (sum + count + min/max)
-- Absolute-difference tolerances (only percentage tolerance is built in)
 - Multi-source or multi-target reconciliation in one check
 - Distribution drift checks (percentiles/histograms vs source)
+- Row-level checksum with engine-specific normalization rules
 
 ### Advanced Quality Checks
 
