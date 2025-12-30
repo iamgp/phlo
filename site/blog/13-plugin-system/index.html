@@ -1,0 +1,1869 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Part 13: Extending Phlo with Plugins - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#part-13-extending-phlo-with-plugins" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Part 13: Extending Phlo with Plugins
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Plugins?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-three-plugin-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Three Plugin Types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-plugin-discovery-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Plugin Discovery Works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-a-source-connector-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a Source Connector Plugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating a Source Connector Plugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-project-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Project Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-source-plugin-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Source Plugin Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-entry-points-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Entry Points Registration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-install-and-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Install and Use
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-a-quality-check-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a Quality Check Plugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating a Quality Check Plugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-threshold-check-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Threshold Check Plugin
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-a-transform-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a Transform Plugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating a Transform Plugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-uppercase-transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: Uppercase Transform
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#managing-plugins-via-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Managing Plugins via CLI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Managing Plugins via CLI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list-installed-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        List Installed Plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-plugin-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Plugin Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validate-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-new-plugin-scaffold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create New Plugin Scaffold
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-keep-plugins-focused" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Keep Plugins Focused
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-handle-errors-gracefully" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Handle Errors Gracefully
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-include-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Include Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-write-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Write Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-version-your-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Version Your Plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin Security
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#try-the-example-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Try the Example Plugin
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="part-13-extending-phlo-with-plugins">Part 13: Extending Phlo with Plugins</h1>
+<p>You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialized validation rule, or a domain-specific transformation?</p>
+<p>That's where the plugin system comes in.</p>
+<h2 id="why-plugins">Why Plugins?</h2>
+<p>Every data platform eventually hits limitations:</p>
+<pre><code>Week 1:  &quot;Phlo is great! It has everything we need.&quot;
+Week 4:  &quot;Can we add a Salesforce source?&quot;
+Week 8:  &quot;We need a custom quality check for our business rules.&quot;
+Week 12: &quot;The finance team wants a specific transformation pattern.&quot;
+</code></pre>
+<p>Without plugins, you'd fork the codebase or hack around limitations. With plugins, you extend Phlo cleanly.</p>
+<h2 id="the-three-plugin-types">The Three Plugin Types</h2>
+<p>Phlo supports three types of plugins:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Purpose</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Source Connectors</strong></td>
+<td>Fetch data from external systems</td>
+<td>Salesforce, HubSpot, custom APIs</td>
+</tr>
+<tr>
+<td><strong>Quality Checks</strong></td>
+<td>Custom validation rules</td>
+<td>Business logic, compliance rules</td>
+</tr>
+<tr>
+<td><strong>Transforms</strong></td>
+<td>Data transformation helpers</td>
+<td>Domain-specific calculations</td>
+</tr>
+</tbody>
+</table>
+<p>Each type has a base class you inherit from, and Phlo discovers your plugins automatically via Python entry points.</p>
+<h2 id="how-plugin-discovery-works">How Plugin Discovery Works</h2>
+<p>When Phlo starts, it scans for installed packages that declare entry points:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                     Python Environment                       │
+├─────────────────────────────────────────────────────────────┤
+│  phlo (core)                                                │
+│  phlo-plugin-salesforce (installed via pip)                 │
+│  phlo-plugin-custom-checks (your internal package)          │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Entry Point Discovery                           │
+│  importlib.metadata.entry_points()                          │
+│                                                             │
+│  Groups scanned:                                            │
+│    • phlo.plugins.sources                                   │
+│    • phlo.plugins.quality                                   │
+│    • phlo.plugins.transforms                                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Plugin Registry                                 │
+│                                                             │
+│  Sources:     [rest_api, salesforce, hubspot]               │
+│  Quality:     [null_check, range_check, threshold_check]    │
+│  Transforms:  [uppercase, currency_convert]                 │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>This means:</p>
+<ul>
+<li>No manual registration required</li>
+<li>Install a package, restart Phlo, plugin is available</li>
+<li>Bad plugins don't crash the system (logged and skipped)</li>
+</ul>
+<h2 id="creating-a-source-connector-plugin">Creating a Source Connector Plugin</h2>
+<p>Let's walk through a concrete example.</p>
+<h3 id="step-1-project-structure">Step 1: Project Structure</h3>
+<p>Example structure:</p>
+<pre><code>my-plugin/
+├── pyproject.toml
+├── README.md
+├── MANIFEST.in
+├── src/
+│   └── phlo_example/
+│       ├── __init__.py
+│       ├── source.py       # JSONPlaceholderSource
+│       ├── quality.py      # ThresholdCheckPlugin
+│       └── transform.py    # UppercaseTransformPlugin
+└── tests/
+    ├── test_source.py
+    ├── test_quality.py
+    └── test_transform.py
+</code></pre>
+<h3 id="step-2-source-plugin-implementation">Step 2: Source Plugin Implementation</h3>
+<p>Example implementation:</p>
+<pre><code class="language-python">&quot;&quot;&quot;Example source connector plugin using JSONPlaceholder API.&quot;&quot;&quot;
+
+from typing import Any, Iterator
+import requests
+from phlo.plugins import PluginMetadata, SourceConnectorPlugin
+
+
+class JSONPlaceholderSource(SourceConnectorPlugin):
+    &quot;&quot;&quot;
+    Source connector for JSONPlaceholder API.
+
+    Fetches posts, comments, or other data from the free JSONPlaceholder API.
+    &quot;&quot;&quot;
+
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        &quot;&quot;&quot;Return plugin metadata.&quot;&quot;&quot;
+        return PluginMetadata(
+            name=&quot;jsonplaceholder&quot;,
+            version=&quot;1.0.0&quot;,
+            description=&quot;Fetch data from JSONPlaceholder API&quot;,
+            author=&quot;Phlo Team&quot;,
+            homepage=&quot;https://github.com/iamgp/phlo&quot;,
+            tags=[&quot;api&quot;, &quot;example&quot;, &quot;public&quot;],
+            license=&quot;MIT&quot;,
+        )
+
+    def fetch_data(self, config: dict[str, Any]) -&gt; Iterator[dict[str, Any]]:
+        &quot;&quot;&quot;
+        Fetch data from JSONPlaceholder API.
+
+        Args:
+            config: Configuration dictionary with:
+                - base_url: API base URL (default: https://jsonplaceholder.typicode.com)
+                - resource: Resource to fetch (default: posts)
+                - limit: Max items to fetch (default: 0 = all)
+
+        Yields:
+            Dictionary representing each item from the API
+        &quot;&quot;&quot;
+        # Validate configuration
+        if not self.validate_config(config):
+            raise ValueError(&quot;Invalid configuration&quot;)
+
+        base_url = config.get(&quot;base_url&quot;, &quot;https://jsonplaceholder.typicode.com&quot;)
+        resource = config.get(&quot;resource&quot;, &quot;posts&quot;)
+        limit = config.get(&quot;limit&quot;, 0)
+
+        url = f&quot;{base_url}/{resource}&quot;
+
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+
+            items = response.json()
+            if not isinstance(items, list):
+                items = [items]
+
+            # Apply limit if specified
+            if limit &gt; 0:
+                items = items[:limit]
+
+            for item in items:
+                yield item
+
+        except requests.RequestException as e:
+            raise RuntimeError(f&quot;Failed to fetch from {url}: {e}&quot;)
+
+    def get_schema(self, config: dict[str, Any]) -&gt; dict[str, str] | None:
+        &quot;&quot;&quot;Get expected schema for the resource.&quot;&quot;&quot;
+        resource = config.get(&quot;resource&quot;, &quot;posts&quot;)
+
+        schemas = {
+            &quot;posts&quot;: {
+                &quot;userId&quot;: &quot;int&quot;,
+                &quot;id&quot;: &quot;int&quot;,
+                &quot;title&quot;: &quot;string&quot;,
+                &quot;body&quot;: &quot;string&quot;,
+            },
+            &quot;comments&quot;: {
+                &quot;postId&quot;: &quot;int&quot;,
+                &quot;id&quot;: &quot;int&quot;,
+                &quot;name&quot;: &quot;string&quot;,
+                &quot;email&quot;: &quot;string&quot;,
+                &quot;body&quot;: &quot;string&quot;,
+            },
+            &quot;users&quot;: {
+                &quot;id&quot;: &quot;int&quot;,
+                &quot;name&quot;: &quot;string&quot;,
+                &quot;username&quot;: &quot;string&quot;,
+                &quot;email&quot;: &quot;string&quot;,
+                &quot;address&quot;: &quot;object&quot;,
+                &quot;phone&quot;: &quot;string&quot;,
+                &quot;website&quot;: &quot;string&quot;,
+            },
+        }
+
+        return schemas.get(resource, None)
+
+    def test_connection(self, config: dict[str, Any]) -&gt; bool:
+        &quot;&quot;&quot;Test if the API is accessible.&quot;&quot;&quot;
+        try:
+            base_url = config.get(&quot;base_url&quot;, &quot;https://jsonplaceholder.typicode.com&quot;)
+            resource = config.get(&quot;resource&quot;, &quot;posts&quot;)
+            url = f&quot;{base_url}/{resource}&quot;
+
+            response = requests.get(url, timeout=5)
+            return response.status_code == 200
+
+        except Exception:
+            return False
+
+    def validate_config(self, config: dict[str, Any]) -&gt; bool:
+        &quot;&quot;&quot;Validate configuration.&quot;&quot;&quot;
+        if not isinstance(config, dict):
+            return False
+
+        # Validate base_url if provided
+        base_url = config.get(&quot;base_url&quot;)
+        if base_url and not isinstance(base_url, str):
+            return False
+
+        # Validate resource if provided
+        resource = config.get(&quot;resource&quot;)
+        if resource and not isinstance(resource, str):
+            return False
+
+        # Validate limit if provided
+        limit = config.get(&quot;limit&quot;, 0)
+        if not isinstance(limit, int) or limit &lt; 0:
+            return False
+
+        return True
+</code></pre>
+<h3 id="step-3-entry-points-registration">Step 3: Entry Points Registration</h3>
+<p>Example entry points from <code>pyproject.toml</code>:</p>
+<pre><code class="language-toml">[project]
+name = &quot;phlo-plugin-example&quot;
+version = &quot;1.0.0&quot;
+description = &quot;Example Phlo plugin package demonstrating all plugin types&quot;
+requires-python = &quot;&gt;=3.11&quot;
+dependencies = [
+    &quot;pandas&gt;=1.5.0&quot;,
+    &quot;requests&gt;=2.28.0&quot;,
+]
+
+[project.entry-points.&quot;phlo.plugins.sources&quot;]
+jsonplaceholder = &quot;phlo_example.source:JSONPlaceholderSource&quot;
+
+[project.entry-points.&quot;phlo.plugins.quality&quot;]
+threshold_check = &quot;phlo_example.quality:ThresholdCheckPlugin&quot;
+
+[project.entry-points.&quot;phlo.plugins.transforms&quot;]
+uppercase = &quot;phlo_example.transform:UppercaseTransformPlugin&quot;
+</code></pre>
+<h3 id="step-4-install-and-use">Step 4: Install and Use</h3>
+<pre><code class="language-bash"># Install the example plugin
+cd my-plugin
+pip install -e .
+
+# Verify it's discovered
+phlo plugin list
+</code></pre>
+<p>Now use it in your pipeline:</p>
+<pre><code class="language-python">from phlo.plugins import get_source_connector
+
+# Get the plugin
+source = get_source_connector(&quot;jsonplaceholder&quot;)
+
+# Fetch data
+config = {
+    &quot;resource&quot;: &quot;posts&quot;,
+    &quot;limit&quot;: 10,
+}
+
+for post in source.fetch_data(config):
+    print(post)
+</code></pre>
+<h2 id="creating-a-quality-check-plugin">Creating a Quality Check Plugin</h2>
+<p>Example threshold check plugin:</p>
+<h3 id="example-threshold-check-plugin">Example: Threshold Check Plugin</h3>
+<p>Example quality plugin implementation:</p>
+<pre><code class="language-python">&quot;&quot;&quot;Example quality check plugin.&quot;&quot;&quot;
+
+from typing import Any
+import pandas as pd
+from phlo.plugins import PluginMetadata, QualityCheckPlugin
+
+
+class ThresholdCheckPlugin(QualityCheckPlugin):
+    &quot;&quot;&quot;
+    Quality check plugin for threshold validation.
+
+    Creates checks that verify numeric values fall within specified thresholds.
+    &quot;&quot;&quot;
+
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        &quot;&quot;&quot;Return plugin metadata.&quot;&quot;&quot;
+        return PluginMetadata(
+            name=&quot;threshold_check&quot;,
+            version=&quot;1.0.0&quot;,
+            description=&quot;Validate numeric values within thresholds&quot;,
+            author=&quot;Phlo Team&quot;,
+            homepage=&quot;https://github.com/iamgp/phlo&quot;,
+            tags=[&quot;validation&quot;, &quot;numeric&quot;, &quot;example&quot;],
+            license=&quot;MIT&quot;,
+        )
+
+    def create_check(self, **kwargs) -&gt; &quot;ThresholdCheck&quot;:
+        &quot;&quot;&quot;
+        Create a threshold check instance.
+
+        Args:
+            column: Column name to validate
+            min: Minimum value (inclusive)
+            max: Maximum value (inclusive)
+            tolerance: Fraction of rows allowed to fail (0.0 = strict, 1.0 = allow all)
+        &quot;&quot;&quot;
+        return ThresholdCheck(
+            column=kwargs.get(&quot;column&quot;),
+            min_value=kwargs.get(&quot;min&quot;),
+            max_value=kwargs.get(&quot;max&quot;),
+            tolerance=kwargs.get(&quot;tolerance&quot;, 0.0),
+        )
+
+
+class ThresholdCheck:
+    &quot;&quot;&quot;Threshold-based quality check.&quot;&quot;&quot;
+
+    def __init__(
+        self,
+        column: str,
+        min_value: float | None = None,
+        max_value: float | None = None,
+        tolerance: float = 0.0,
+    ):
+        &quot;&quot;&quot;
+        Initialize threshold check.
+
+        Args:
+            column: Column to validate
+            min_value: Minimum allowed value
+            max_value: Maximum allowed value
+            tolerance: Fraction of rows allowed to fail (0.0-1.0)
+        &quot;&quot;&quot;
+        self.column = column
+        self.min_value = min_value
+        self.max_value = max_value
+        self.tolerance = max(0.0, min(1.0, tolerance))  # Clamp to 0.0-1.0
+
+    def execute(self, df: pd.DataFrame, context: Any = None) -&gt; dict:
+        &quot;&quot;&quot;
+        Execute the quality check.
+
+        Returns:
+            Dictionary with check results:
+            {
+                &quot;passed&quot;: bool,
+                &quot;violations&quot;: int,
+                &quot;total&quot;: int,
+                &quot;violation_rate&quot;: float,
+            }
+        &quot;&quot;&quot;
+        if self.column not in df.columns:
+            return {
+                &quot;passed&quot;: False,
+                &quot;violations&quot;: len(df),
+                &quot;total&quot;: len(df),
+                &quot;violation_rate&quot;: 1.0,
+                &quot;error&quot;: f&quot;Column '{self.column}' not found&quot;,
+            }
+
+        # Count violations
+        violations = 0
+        for value in df[self.column]:
+            if pd.isna(value):
+                violations += 1
+                continue
+
+            if self.min_value is not None and value &lt; self.min_value:
+                violations += 1
+                continue
+
+            if self.max_value is not None and value &gt; self.max_value:
+                violations += 1
+
+        total = len(df)
+        violation_rate = violations / total if total &gt; 0 else 0.0
+
+        # Check if within tolerance
+        passed = violation_rate &lt;= self.tolerance
+
+        return {
+            &quot;passed&quot;: passed,
+            &quot;violations&quot;: violations,
+            &quot;total&quot;: total,
+            &quot;violation_rate&quot;: violation_rate,
+        }
+
+    @property
+    def name(self) -&gt; str:
+        &quot;&quot;&quot;Return check name.&quot;&quot;&quot;
+        bounds = []
+        if self.min_value is not None:
+            bounds.append(f&quot;min={self.min_value}&quot;)
+        if self.max_value is not None:
+            bounds.append(f&quot;max={self.max_value}&quot;)
+
+        bound_str = &quot;,&quot;.join(bounds) if bounds else &quot;unbounded&quot;
+        return f&quot;threshold_check({self.column},{bound_str})&quot;
+</code></pre>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-python">from phlo.plugins import get_quality_check
+
+# Get the plugin
+plugin = get_quality_check(&quot;threshold_check&quot;)
+
+# Create a check instance
+check = plugin.create_check(
+    column=&quot;temperature&quot;,
+    min=0,
+    max=100,
+    tolerance=0.05,  # Allow 5% of rows to fail
+)
+
+# Execute the check
+result = check.execute(df)
+print(f&quot;Passed: {result['passed']}&quot;)
+print(f&quot;Violations: {result['violations']} / {result['total']}&quot;)
+</code></pre>
+<h2 id="creating-a-transform-plugin">Creating a Transform Plugin</h2>
+<p>Example transform plugin:</p>
+<h3 id="example-uppercase-transform">Example: Uppercase Transform</h3>
+<p>Example transform plugin implementation:</p>
+<pre><code class="language-python">&quot;&quot;&quot;Example transformation plugin.&quot;&quot;&quot;
+
+from typing import Any
+import pandas as pd
+from phlo.plugins import PluginMetadata, TransformationPlugin
+
+
+class UppercaseTransformPlugin(TransformationPlugin):
+    &quot;&quot;&quot;
+    Transformation plugin for uppercase conversion.
+
+    Converts specified string columns to uppercase.
+    &quot;&quot;&quot;
+
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        &quot;&quot;&quot;Return plugin metadata.&quot;&quot;&quot;
+        return PluginMetadata(
+            name=&quot;uppercase&quot;,
+            version=&quot;1.0.0&quot;,
+            description=&quot;Convert string columns to uppercase&quot;,
+            author=&quot;Phlo Team&quot;,
+            homepage=&quot;https://github.com/iamgp/phlo&quot;,
+            tags=[&quot;string&quot;, &quot;transform&quot;, &quot;example&quot;],
+            license=&quot;MIT&quot;,
+        )
+
+    def transform(self, df: pd.DataFrame, config: dict[str, Any]) -&gt; pd.DataFrame:
+        &quot;&quot;&quot;
+        Transform DataFrame by converting columns to uppercase.
+
+        Args:
+            df: Input DataFrame
+            config: Configuration with:
+                - columns: List of column names to transform
+                - skip_na: Skip null values (default: True)
+
+        Returns:
+            Transformed DataFrame with uppercase values
+        &quot;&quot;&quot;
+        if not self.validate_config(config):
+            raise ValueError(&quot;Invalid configuration&quot;)
+
+        # Copy to avoid modifying original
+        result = df.copy()
+
+        columns = config.get(&quot;columns&quot;, [])
+        skip_na = config.get(&quot;skip_na&quot;, True)
+
+        # Transform each column
+        for column in columns:
+            if column not in result.columns:
+                raise ValueError(f&quot;Column '{column}' not found in DataFrame&quot;)
+
+            # Apply uppercase transformation
+            if skip_na:
+                result[column] = result[column].apply(
+                    lambda x: x.upper() if pd.notna(x) else x
+                )
+            else:
+                result[column] = result[column].str.upper()
+
+        return result
+
+    def get_output_schema(
+        self, input_schema: dict[str, str], config: dict[str, Any]
+    ) -&gt; dict[str, str] | None:
+        &quot;&quot;&quot;
+        Get the schema of transformed data.
+
+        Uppercase transformation doesn't change types.
+        &quot;&quot;&quot;
+        return input_schema
+
+    def validate_config(self, config: dict[str, Any]) -&gt; bool:
+        &quot;&quot;&quot;Validate transformation configuration.&quot;&quot;&quot;
+        if not isinstance(config, dict):
+            return False
+
+        # Columns must be a list
+        columns = config.get(&quot;columns&quot;, [])
+        if not isinstance(columns, (list, tuple)):
+            return False
+
+        # Each column must be a string
+        for column in columns:
+            if not isinstance(column, str):
+                return False
+
+        # skip_na must be a boolean if provided
+        skip_na = config.get(&quot;skip_na&quot;, True)
+        if not isinstance(skip_na, bool):
+            return False
+
+        return True
+</code></pre>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-python">from phlo.plugins import get_transformation
+import pandas as pd
+
+# Get the plugin
+plugin = get_transformation(&quot;uppercase&quot;)
+
+# Create sample data
+df = pd.DataFrame({
+    &quot;title&quot;: [&quot;hello world&quot;, &quot;foo bar&quot;],
+    &quot;body&quot;: [&quot;test data&quot;, &quot;more test&quot;],
+})
+
+# Transform
+result = plugin.transform(df, config={
+    &quot;columns&quot;: [&quot;title&quot;, &quot;body&quot;],
+    &quot;skip_na&quot;: True,
+})
+
+print(result)
+# Output:
+#         title       body
+# 0  HELLO WORLD  TEST DATA
+# 1     FOO BAR  MORE TEST
+</code></pre>
+<h2 id="managing-plugins-via-cli">Managing Plugins via CLI</h2>
+<p>The actual CLI implementation provides these commands:</p>
+<h3 id="list-installed-plugins">List Installed Plugins</h3>
+<pre><code class="language-bash">$ phlo plugin list
+
+Sources:
+  NAME              VERSION  AUTHOR
+  jsonplaceholder   1.0.0    Phlo Team
+
+Quality Checks:
+  NAME              VERSION  AUTHOR
+  threshold_check   1.0.0    Phlo Team
+
+Transforms:
+  NAME              VERSION  AUTHOR
+  uppercase         1.0.0    Phlo Team
+
+# Filter by type
+$ phlo plugin list --type sources
+
+# Output as JSON
+$ phlo plugin list --json
+</code></pre>
+<h3 id="get-plugin-details">Get Plugin Details</h3>
+<pre><code class="language-bash">$ phlo plugin info jsonplaceholder
+
+jsonplaceholder
+Type: sources
+Version: 1.0.0
+Author: Phlo Team
+Description: Fetch data from JSONPlaceholder API
+License: MIT
+Homepage: https://github.com/iamgp/phlo
+Tags: api, example, public
+
+# Auto-detect plugin type
+$ phlo plugin info threshold_check
+
+# Specify type explicitly
+$ phlo plugin info uppercase --type transforms
+
+# JSON output
+$ phlo plugin info jsonplaceholder --json
+</code></pre>
+<h3 id="validate-plugins">Validate Plugins</h3>
+<pre><code class="language-bash">$ phlo plugin check
+
+Validating plugins...
+
+✓ Valid Plugins: 3
+  ✓ source_connectors:jsonplaceholder
+  ✓ quality_checks:threshold_check
+  ✓ transformations:uppercase
+
+All plugins are valid!
+
+# JSON output
+$ phlo plugin check --json
+</code></pre>
+<h3 id="create-new-plugin-scaffold">Create New Plugin Scaffold</h3>
+<p>The actual CLI implementation scaffolds complete plugin packages:</p>
+<pre><code class="language-bash">$ phlo plugin create my-api-source --type source
+
+✓ Plugin created successfully!
+
+Next steps:
+  1. cd phlo-plugin-my-api-source
+  2. Edit the plugin in src/phlo_my_api_source/
+  3. Run tests: pytest tests/
+  4. Install: pip install -e .
+
+# Create quality check plugin
+$ phlo plugin create my-validation --type quality
+
+# Create transform plugin
+$ phlo plugin create my-transform --type transform
+
+# Specify custom path
+$ phlo plugin create my-plugin --type source --path ./plugins/my-plugin
+</code></pre>
+<p>The scaffold creates a complete package structure:</p>
+<pre><code>phlo-plugin-my-api-source/
+├── pyproject.toml           # Package config with entry points
+├── README.md                # Documentation
+├── MANIFEST.in              # Package manifest
+├── src/
+│   └── phlo_my_api_source/
+│       ├── __init__.py
+│       └── plugin.py        # Plugin implementation
+└── tests/
+    ├── __init__.py
+    └── test_plugin.py       # Test suite
+</code></pre>
+<h2 id="best-practices">Best Practices</h2>
+<h3 id="1-keep-plugins-focused">1. Keep Plugins Focused</h3>
+<p>One plugin = one responsibility. Don't create a "kitchen sink" plugin.</p>
+<pre><code class="language-python"># Good: focused plugins
+class SalesforceSource(SourceConnectorPlugin): ...
+class HubSpotSource(SourceConnectorPlugin): ...
+
+# Bad: monolithic plugin
+class CRMSource(SourceConnectorPlugin):
+    def fetch_salesforce(self): ...
+    def fetch_hubspot(self): ...
+    def fetch_dynamics(self): ...
+</code></pre>
+<h3 id="2-handle-errors-gracefully">2. Handle Errors Gracefully</h3>
+<p>Plugins should never crash Phlo. Catch exceptions and return meaningful errors.</p>
+<pre><code class="language-python">def fetch_data(self, config: dict) -&gt; Iterator[dict]:
+    try:
+        response = self.client.get(url)
+        response.raise_for_status()
+        yield from response.json()
+    except httpx.HTTPStatusError as e:
+        raise PluginError(f&quot;API returned {e.response.status_code}: {e.response.text}&quot;)
+    except httpx.RequestError as e:
+        raise PluginError(f&quot;Network error: {e}&quot;)
+</code></pre>
+<h3 id="3-include-metadata">3. Include Metadata</h3>
+<p>Good metadata makes plugins discoverable:</p>
+<pre><code class="language-python">@property
+def metadata(self) -&gt; PluginMetadata:
+    return PluginMetadata(
+        name=&quot;salesforce&quot;,
+        version=&quot;2.1.0&quot;,
+        description=&quot;Ingest Salesforce objects (Accounts, Contacts, Opportunities)&quot;,
+        author=&quot;Data Platform Team&quot;,
+        documentation_url=&quot;https://docs.yourcompany.com/plugins/salesforce&quot;,
+    )
+</code></pre>
+<h3 id="4-write-tests">4. Write Tests</h3>
+<pre><code class="language-python"># tests/test_source.py
+def test_fetch_data_returns_records():
+    source = JSONPlaceholderSource()
+    records = list(source.fetch_data({&quot;resource&quot;: &quot;posts&quot;, &quot;limit&quot;: 5}))
+
+    assert len(records) == 5
+    assert all(&quot;id&quot; in r for r in records)
+    assert all(&quot;title&quot; in r for r in records)
+
+def test_connection_check():
+    source = JSONPlaceholderSource()
+    assert source.test_connection({}) is True
+
+def test_invalid_resource_handled():
+    source = JSONPlaceholderSource()
+    with pytest.raises(PluginError):
+        list(source.fetch_data({&quot;resource&quot;: &quot;invalid&quot;}))
+</code></pre>
+<h3 id="5-version-your-plugins">5. Version Your Plugins</h3>
+<p>Use semantic versioning. Breaking changes = major version bump.</p>
+<pre><code class="language-toml">[project]
+version = &quot;2.0.0&quot;  # Breaking: changed config schema
+version = &quot;1.1.0&quot;  # Feature: added new resource type
+version = &quot;1.0.1&quot;  # Fix: handled edge case
+</code></pre>
+<h2 id="plugin-security">Plugin Security</h2>
+<p>Plugins run with full access to your environment. Only install trusted plugins.</p>
+<p><strong>For organizations:</strong></p>
+<ul>
+<li>Maintain an internal plugin registry</li>
+<li>Review plugin code before deployment</li>
+<li>Use <code>plugins_whitelist</code> in config to restrict allowed plugins:</li>
+</ul>
+<pre><code class="language-python"># config.py
+class PhloConfig:
+    plugins_whitelist: list[str] = [
+        &quot;rest_api&quot;,
+        &quot;salesforce&quot;,
+        &quot;internal_*&quot;,  # Allow all internal plugins
+    ]
+</code></pre>
+<h2 id="summary">Summary</h2>
+<p>The plugin system lets you extend Phlo without modifying core code:</p>
+<ul>
+<li><strong>Source Connectors</strong>: Fetch data from any system</li>
+<li><strong>Quality Checks</strong>: Encode custom business rules</li>
+<li><strong>Transforms</strong>: Reusable transformation logic</li>
+</ul>
+<p>Plugins are discovered automatically via Python entry points, managed via CLI, and integrate seamlessly with Phlo's decorators and assets.</p>
+<p><strong>When to use plugins:</strong></p>
+<ul>
+<li>You need a data source Phlo doesn't support</li>
+<li>You have organization-specific quality rules</li>
+<li>You want to share reusable logic across teams</li>
+</ul>
+<p><strong>When NOT to use plugins:</strong></p>
+<ul>
+<li>One-off transformations (just write Python)</li>
+<li>Simple quality checks (use built-in checks)</li>
+<li>Anything that could be a dbt model</li>
+</ul>
+<hr />
+<h2 id="try-the-example-plugin">Try the Example Plugin</h2>
+<p>A complete working example layout:</p>
+<pre><code class="language-bash"># Install the example plugin
+cd my-plugin
+pip install -e .
+
+# List discovered plugins
+phlo plugin list
+
+# Get plugin info
+phlo plugin info jsonplaceholder
+phlo plugin info threshold_check
+phlo plugin info uppercase
+
+# Test the source connector
+python -c &quot;
+from phlo.plugins import get_source_connector
+source = get_source_connector('jsonplaceholder')
+for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
+    print(post['title'])
+&quot;
+</code></pre>
+<p><strong>Actual Files to Study:</strong></p>
+<ul>
+<li>Source plugin: <code>src/phlo_example/source.py</code></li>
+<li>Quality check plugin: <code>src/phlo_example/quality.py</code></li>
+<li>Transform plugin: <code>src/phlo_example/transform.py</code></li>
+<li>Entry points: <code>pyproject.toml</code></li>
+<li>Tests: <code>tests/</code></li>
+</ul>
+<p><strong>Base Classes:</strong></p>
+<ul>
+<li><code>phlo.plugins.SourceConnectorPlugin</code> - Inherit for source connectors</li>
+<li><code>phlo.plugins.QualityCheckPlugin</code> - Inherit for quality checks</li>
+<li><code>phlo.plugins.TransformationPlugin</code> - Inherit for transforms</li>
+</ul>
+<p><strong>Discovery Functions:</strong></p>
+<ul>
+<li><code>phlo.plugins.discover_plugins()</code> - Discover all plugins</li>
+<li><code>phlo.plugins.get_source_connector(name)</code> - Get source plugin</li>
+<li><code>phlo.plugins.get_quality_check(name)</code> - Get quality plugin</li>
+<li><code>phlo.plugins.get_transformation(name)</code> - Get transform plugin</li>
+</ul>
+<hr />
+<p><strong>Previous</strong>: <a href="../12-production-deployment/">Part 12 - Production Deployment</a></p>
+<p><strong>Series</strong>:</p>
+<ol>
+<li>Data Lakehouse concepts</li>
+<li>Getting started</li>
+<li>Apache Iceberg</li>
+<li>Project Nessie</li>
+<li>Data ingestion</li>
+<li>dbt transformations</li>
+<li>Dagster orchestration</li>
+<li>Real-world example</li>
+<li>Data quality with Pandera</li>
+<li>Metadata and governance</li>
+<li>Observability and monitoring</li>
+<li>Production deployment</li>
+<li><strong>Plugin system</strong> ← You are here</li>
+</ol>
+<p>Happy plugin development!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

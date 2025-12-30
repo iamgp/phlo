@@ -1,0 +1,1790 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Part 4: Project Nessie—Git-Like Versioning for Data - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#part-4-project-nessiegit-like-versioning-for-data" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Part 4: Project Nessie—Git-Like Versioning for Data
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-nessie-the-git-analogy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Nessie? The Git Analogy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem-nessie-solves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem Nessie Solves
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-nessie-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Nessie Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Nessie Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Branches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-commits-and-merges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Commits and Merges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-tags-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Tags (Releases)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nessie-in-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie in Phlo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Nessie in Phlo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup-nessie-runs-in-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup: Nessie Runs in Docker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-main-branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default: main Branch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-a-development-branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a Development Branch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlos-write-audit-publish-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phlo's Write-Audit-Publish Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automatic-branch-management-with-sensors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic Branch Management with Sensors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-catalog-configuration-not-session-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Catalog Configuration (Not Session Properties)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-branch-in-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Branch in Code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hands-on-explore-nessie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hands-On: Explore Nessie
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hands-On: Explore Nessie">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list-all-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        List All Branches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-branch-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Branch History
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-on-a-specific-branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query on a Specific Branch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-manual-branch-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced: Manual Branch Operations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#branch-management-via-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branch Management via CLI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Branch Management via CLI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        List Branches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-feature-branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a Feature Branch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare Branches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merge Branches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delete Branches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-workflow-safe-schema-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical Workflow: Safe Schema Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#branch-naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branch Naming Conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Use Branches
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nessie-vs-iceberg-understanding-the-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie vs Iceberg: Understanding the Layers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#real-world-scenario-handling-a-bug" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-World Scenario: Handling a Bug
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Real-World Scenario: Handling a Bug">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#without-nessie-disaster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Without Nessie (Disaster)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-nessie-safe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        With Nessie (Safe)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phlos-nessie-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phlo's Nessie Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-data-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next: Data Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="part-4-project-nessiegit-like-versioning-for-data">Part 4: Project Nessie—Git-Like Versioning for Data</h1>
+<p>Iceberg gave us time travel. Now let's add <strong>branching</strong>, <strong>merging</strong>, and <strong>tags</strong> to our data with Project Nessie.</p>
+<h2 id="why-nessie-the-git-analogy">Why Nessie? The Git Analogy</h2>
+<p>You already know Git:</p>
+<pre><code class="language-bash"># Code versioning
+git branch feature/new-glucose-model
+git commit -m &quot;Add glucose categories&quot;
+git push origin feature/new-glucose-model
+git pull request  # Review changes
+git merge  # Promote to main
+</code></pre>
+<p>Nessie brings this same workflow to <strong>data</strong>:</p>
+<pre><code>main branch (production)     dev branch (development)
+      │                            │
+      │  ← stable, validated       │  ← experimental, testing
+      │                            │
+      └──── merge when ready ──────┘
+</code></pre>
+<h2 id="the-problem-nessie-solves">The Problem Nessie Solves</h2>
+<p>Without versioning, data work looks like:</p>
+<pre><code>Production Data
+    ↓
+  (Dev transforms it)
+    ↓
+  (Oops! Broke something)
+    ↓
+Production Data is CORRUPTED
+    ↓
+(Back up from last night? Lost today's data!)
+</code></pre>
+<p>With Nessie:</p>
+<pre><code>main (production)
+  ↓
+  ├─ dev (development)
+  │   └─ (Test transformations)
+  │   └─ (Validate quality)
+  │   └─ (If bad, delete branch, main unchanged)
+  │
+  └─ (If good, merge dev → main atomically)
+</code></pre>
+<h2 id="core-nessie-concepts">Core Nessie Concepts</h2>
+<h3 id="1-branches">1. Branches</h3>
+<p>A branch is an <strong>independent copy of all table metadata</strong>.</p>
+<pre><code>Database State:
+├── main (production)
+│   ├── raw.glucose_entries (snapshot v1)
+│   ├── bronze.stg_entries (snapshot v3)
+│   └── silver.fct_readings (snapshot v5)
+│
+└── dev (development, created from main)
+    ├── raw.glucose_entries (snapshot v1) ← same as main
+    ├── bronze.stg_entries (snapshot v3) ← same as main
+    └── silver.fct_readings (snapshot v5) ← same as main
+</code></pre>
+<p>Now you work on dev:</p>
+<pre><code>After transformations on dev:
+├── main (unchanged)
+│   ├── raw.glucose_entries (snapshot v1)
+│   ├── bronze.stg_entries (snapshot v3)
+│   └── silver.fct_readings (snapshot v5)
+│
+└── dev (has new snapshots)
+    ├── raw.glucose_entries (snapshot v1) ← unchanged
+    ├── bronze.stg_entries (snapshot v4) ← NEW
+    └── silver.fct_readings (snapshot v6) ← NEW
+</code></pre>
+<h3 id="2-commits-and-merges">2. Commits and Merges</h3>
+<p>Each change on a branch creates a <strong>commit</strong> (pointer to metadata).</p>
+<pre><code>Branch History:
+main:
+  ├── Commit A: Initial data load
+  ├── Commit B: Quality fixes
+  └── Commit C: Schema evolution (HEAD)
+
+dev (branched from Commit B):
+  ├── Commit B': Quality fixes (inherited)
+  ├── Commit D: New transformations
+  └── Commit E: Schema optimizations (HEAD)
+
+Merge dev → main:
+  ├── Commit A: Initial data load
+  ├── Commit B: Quality fixes
+  ├── Commit C: Schema evolution
+  ├── Commit F: Merge commit (combines D + E)
+  └── (now HEAD points to F)
+</code></pre>
+<h3 id="3-tags-releases">3. Tags (Releases)</h3>
+<p>Tag specific commits for releases:</p>
+<pre><code>main:
+  ├── Commit A
+  ├── Commit B (tag: v1.0-released)
+  ├── Commit C
+  └── Commit D (tag: v1.1-released, HEAD)
+
+-- Query data as it was at v1.0:
+SELECT * FROM iceberg.silver.fct_readings
+FOR TAG v1.0-released;
+</code></pre>
+<h2 id="nessie-in-phlo">Nessie in Phlo</h2>
+<h3 id="setup-nessie-runs-in-docker">Setup: Nessie Runs in Docker</h3>
+<pre><code class="language-bash"># Nessie REST API is available at port 19120
+curl http://localhost:19120/api/v2/config
+
+# Response:
+# {
+#   &quot;defaultBranch&quot;: &quot;main&quot;,
+#   &quot;maxSupportedApiVersion&quot;: &quot;2&quot;,
+#   &quot;repositories&quot;: []
+# }
+</code></pre>
+<h3 id="default-main-branch">Default: main Branch</h3>
+<p>When you start Phlo, the <code>main</code> branch exists:</p>
+<pre><code class="language-bash"># List branches
+curl http://localhost:19120/api/v2/trees
+
+# Response:
+# {
+#   &quot;trees&quot;: [
+#     {
+#       &quot;name&quot;: &quot;main&quot;,
+#       &quot;hash&quot;: &quot;abc123def456&quot;
+#     }
+#   ]
+# }
+</code></pre>
+<h3 id="creating-a-development-branch">Creating a Development Branch</h3>
+<p>In Phlo, Dagster automatically creates <code>dev</code> branch:</p>
+<pre><code class="language-python"># From workflows/nessie/operations.py
+
+@asset(name=&quot;nessie_dev_branch&quot;)
+def create_dev_branch(nessie_client: NessieResource) -&gt; None:
+    &quot;&quot;&quot;Ensure dev branch exists for safe transformations.&quot;&quot;&quot;
+
+    # List existing branches
+    branches = nessie_client.list_branches()
+    branch_names = [b.name for b in branches]
+
+    # Create dev if it doesn't exist
+    if 'dev' not in branch_names:
+        nessie_client.create_branch(
+            name='dev',
+            from_branch='main'
+        )
+        print(&quot;Created dev branch from main&quot;)
+    else:
+        print(&quot;Dev branch already exists&quot;)
+</code></pre>
+<h3 id="phlos-write-audit-publish-pattern">Phlo's Write-Audit-Publish Pattern</h3>
+<p>Phlo implements the <strong>Write-Audit-Publish (WAP)</strong> pattern automatically:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     FEATURE BRANCH (dev)                         │
+│  Catalog: iceberg_dev                                           │
+│                                                                  │
+│  1. Ingestion ──► 2. Transforms (dbt) ──► 3. Quality Checks     │
+│     (PyIceberg)      (bronze→silver→gold)    (validation)       │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ 4. All Checks Pass?
+                              ▼
+                    ┌─────────────────┐
+                    │  AUTO-MERGE     │ (Nessie merge via sensor)
+                    └─────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       MAIN BRANCH                                │
+│  Catalog: iceberg                                               │
+│                                                                  │
+│  5. Publishing ──► Postgres (marts for BI dashboards)           │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>Key insight</strong>: All writes happen on the feature branch. Only validated data reaches main.</p>
+<h3 id="automatic-branch-management-with-sensors">Automatic Branch Management with Sensors</h3>
+<p>Phlo handles branching automatically via Dagster sensors:</p>
+<pre><code class="language-python"># 1. branch_creation_sensor - Creates branch when pipeline starts
+@run_status_sensor(run_status=DagsterRunStatus.STARTING)
+def branch_creation_sensor(context, branch_manager):
+    &quot;&quot;&quot;Auto-create pipeline/run-{id} branch for isolation.&quot;&quot;&quot;
+    branch_manager.create_pipeline_branch(context.dagster_run.run_id)
+
+# 2. auto_promotion_sensor - Merges when quality checks pass
+@sensor(minimum_interval_seconds=30)
+def auto_promotion_sensor(context, nessie, branch_manager):
+    &quot;&quot;&quot;Auto-merge to main when all ERROR-severity checks pass.&quot;&quot;&quot;
+    # Check recent runs for passing quality checks
+    # If all pass → merge branch to main
+    # Create timestamped tag (v20251126_143000)
+
+# 3. branch_cleanup_sensor - Deletes old branches
+@sensor(minimum_interval_seconds=3600)
+def branch_cleanup_sensor(context, branch_manager):
+    &quot;&quot;&quot;Clean up branches after retention period (default: 7 days).&quot;&quot;&quot;
+</code></pre>
+<p><strong>You don't need to manually merge</strong> - the sensor handles it when quality checks pass.</p>
+<h3 id="trino-catalog-configuration-not-session-properties">Trino Catalog Configuration (Not Session Properties)</h3>
+<p>Nessie branching in Trino is configured at the <strong>catalog level</strong>, not via session properties:</p>
+<pre><code class="language-properties"># .phlo/trino/catalog/iceberg.properties (main branch)
+connector.name=iceberg
+iceberg.catalog.type=rest
+iceberg.rest-catalog.uri=http://nessie:19120/iceberg/main
+iceberg.rest-catalog.prefix=main
+</code></pre>
+<pre><code class="language-properties"># .phlo/trino/catalog/iceberg_dev.properties (dev branch)
+connector.name=iceberg
+iceberg.catalog.type=rest
+iceberg.rest-catalog.uri=http://nessie:19120/iceberg/dev
+iceberg.rest-catalog.prefix=dev
+</code></pre>
+<p>Query different branches by using different catalogs:</p>
+<pre><code class="language-sql">-- Query main (production)
+SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
+
+-- Query dev (development)
+SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
+</code></pre>
+<h3 id="using-branch-in-code">Using Branch in Code</h3>
+<pre><code class="language-python">from phlo_trino.resource import TrinoResource
+
+trino = TrinoResource()
+
+# Query main branch (default)
+rows = trino.execute(&quot;SELECT * FROM iceberg.marts.readings&quot;, branch=&quot;main&quot;)
+
+# Query dev branch
+rows = trino.execute(&quot;SELECT * FROM iceberg_dev.marts.readings&quot;, branch=&quot;dev&quot;)
+</code></pre>
+<h2 id="hands-on-explore-nessie">Hands-On: Explore Nessie</h2>
+<h3 id="list-all-branches">List All Branches</h3>
+<pre><code class="language-bash">curl http://localhost:19120/api/v2/trees
+
+# Response (pretty-printed):
+# {
+#   &quot;trees&quot;: [
+#     {
+#       &quot;name&quot;: &quot;main&quot;,
+#       &quot;hash&quot;: &quot;def456xyz&quot;
+#     },
+#     {
+#       &quot;name&quot;: &quot;dev&quot;,
+#       &quot;hash&quot;: &quot;abc123def&quot;
+#     }
+#   ]
+# }
+</code></pre>
+<h3 id="view-branch-history">View Branch History</h3>
+<pre><code class="language-bash"># Get commit history for a branch
+curl &quot;http://localhost:19120/api/v2/trees/main/history&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{
+    &quot;maxResults&quot;: 10,
+    &quot;pageToken&quot;: null
+  }'
+
+# Response:
+# {
+#   &quot;logEntries&quot;: [
+#     {
+#       &quot;commitMeta&quot;: {
+#         &quot;hash&quot;: &quot;abc123def456&quot;,
+#         &quot;message&quot;: &quot;Promote validated transforms to production&quot;,
+#         &quot;authorTime&quot;: 1729027800000,
+#         &quot;commitTime&quot;: 1729027800000
+#       },
+#       &quot;operations&quot;: [
+#         {
+#           &quot;type&quot;: &quot;Put&quot;,
+#           &quot;key&quot;: {
+#             &quot;elements&quot;: [&quot;silver&quot;, &quot;fct_glucose_readings&quot;]
+#           }
+#         }
+#       ]
+#     }
+#   ]
+# }
+</code></pre>
+<h3 id="query-on-a-specific-branch">Query on a Specific Branch</h3>
+<p>Use different Trino catalogs to query different branches:</p>
+<pre><code class="language-sql">-- Query main (production) - uses 'iceberg' catalog
+SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
+-- Result: 5000
+
+-- Query dev (development) - uses 'iceberg_dev' catalog
+SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
+-- Result: 5500 (includes new test data)
+
+-- Compare between branches
+SELECT
+    'main' as branch, COUNT(*) as rows FROM iceberg.raw.glucose_entries
+UNION ALL
+SELECT
+    'dev' as branch, COUNT(*) as rows FROM iceberg_dev.raw.glucose_entries;
+</code></pre>
+<p>In dbt, select the target to use the appropriate catalog:</p>
+<pre><code class="language-yaml"># transforms/dbt/profiles.yml
+
+phlo:
+  outputs:
+    dev:
+      type: trino
+      host: trino
+      catalog: iceberg_dev # ← Dev branch catalog
+      schema: bronze
+
+    prod:
+      type: trino
+      host: trino
+      catalog: iceberg # ← Main branch catalog
+      schema: bronze
+</code></pre>
+<pre><code class="language-bash"># Run dbt on dev branch
+dbt run --target dev
+
+# Run dbt on main branch (production)
+dbt run --target prod
+</code></pre>
+<h2 id="advanced-manual-branch-operations">Advanced: Manual Branch Operations</h2>
+<p>Using the Nessie REST API (v1):</p>
+<pre><code class="language-bash"># Get main branch hash
+MAIN_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/main | jq -r '.hash')
+
+# Create a feature branch from main
+curl -X POST http://localhost:19120/api/v1/trees/tree \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &quot;{\&quot;type\&quot;: \&quot;BRANCH\&quot;, \&quot;name\&quot;: \&quot;feature/new-metrics\&quot;, \&quot;hash\&quot;: \&quot;$MAIN_HASH\&quot;}&quot;
+
+# List all branches
+curl -s http://localhost:19120/api/v1/trees | jq '.references[].name'
+
+# Merge feature branch to main
+TARGET_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/main | jq -r '.hash')
+SOURCE_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/feature/new-metrics | jq -r '.hash')
+
+curl -X POST &quot;http://localhost:19120/api/v1/trees/tree/main/merge?expectedHash=$TARGET_HASH&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &quot;{\&quot;fromRefName\&quot;: \&quot;feature/new-metrics\&quot;, \&quot;fromHash\&quot;: \&quot;$SOURCE_HASH\&quot;}&quot;
+
+# Delete feature branch after merge
+BRANCH_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/feature/new-metrics | jq -r '.hash')
+curl -X DELETE &quot;http://localhost:19120/api/v1/trees/branch/feature/new-metrics?expectedHash=$BRANCH_HASH&quot;
+</code></pre>
+<p>Or use the <code>NessieResource</code> in Python:</p>
+<pre><code class="language-python">from phlo_nessie.resource import NessieResource
+
+nessie = NessieResource()
+
+# Create branch
+nessie.create_branch(&quot;feature/new-metrics&quot;, source_ref=&quot;main&quot;)
+
+# Merge branch
+nessie.merge_branch(&quot;feature/new-metrics&quot;, &quot;main&quot;)
+
+# Delete branch
+nessie.delete_branch(&quot;feature/new-metrics&quot;)
+</code></pre>
+<h2 id="branch-management-via-cli">Branch Management via CLI</h2>
+<p>The REST API and Python SDK work, but for day-to-day operations, <code>phlo branch</code> is simpler.</p>
+<h3 id="list-branches">List Branches</h3>
+<pre><code class="language-bash">$ phlo branch list
+
+Branches:
+  NAME                  HASH         TABLES  LAST COMMIT
+  main (default)        a1b2c3d4     15      2h ago
+  dev                   e5f6g7h8     15      4h ago
+  feature/new-metrics   i9j0k1l2     16      1d ago
+
+Tags:
+  release-2024-01       m3n4o5p6     15      7d ago
+</code></pre>
+<h3 id="create-a-feature-branch">Create a Feature Branch</h3>
+<pre><code class="language-bash"># Create from main (default)
+$ phlo branch create feature/new-transform
+
+Creating branch: feature/new-transform
+Source: main (a1b2c3d4)
+
+✓ Branch created
+
+# Create from specific branch
+$ phlo branch create experiment/risky-change --from dev
+</code></pre>
+<h3 id="compare-branches">Compare Branches</h3>
+<p>See what's different between branches before merging:</p>
+<pre><code class="language-bash">$ phlo branch diff main feature/new-transform
+
+Branch Diff: main ← feature/new-transform
+══════════════════════════════════════════
+
+Tables Modified:
+  silver.fct_glucose_readings
+    + Column: estimated_a1c (float)
+    ~ Column: glucose_category (type unchanged, constraint added)
+
+Tables Added:
+  gold.dim_glucose_ranges (new table)
+
+Commits on feature/new-transform not in main:
+  i9j0k1l2  Add estimated A1C calculation
+  k2l3m4n5  Add glucose range dimension
+
+Safe to merge: Yes (no conflicts detected)
+</code></pre>
+<h3 id="merge-branches">Merge Branches</h3>
+<pre><code class="language-bash"># Preview merge (dry run)
+$ phlo branch merge feature/new-transform main --dry-run
+
+Merge Preview: feature/new-transform → main
+════════════════════════════════════════════
+
+Changes to apply:
+  + gold.dim_glucose_ranges (new table)
+  ~ silver.fct_glucose_readings (schema change)
+
+No conflicts detected.
+Run without --dry-run to merge.
+
+# Perform merge
+$ phlo branch merge feature/new-transform main
+
+Merging: feature/new-transform → main
+
+✓ Merge successful
+  Commit: q8r9s0t1
+  Tables affected: 2
+</code></pre>
+<h3 id="delete-branches">Delete Branches</h3>
+<pre><code class="language-bash"># Delete merged branch
+$ phlo branch delete feature/new-transform
+
+Deleting branch: feature/new-transform
+
+⚠ This branch has been merged to main.
+Proceed? [y/N] y
+
+✓ Branch deleted
+
+# Force delete unmerged branch
+$ phlo branch delete experiment/abandoned --force
+</code></pre>
+<h3 id="practical-workflow-safe-schema-changes">Practical Workflow: Safe Schema Changes</h3>
+<p>Here's how to use branches for safe data development:</p>
+<pre><code class="language-bash"># 1. Create a feature branch
+$ phlo branch create feature/add-a1c-calculation
+
+# 2. Switch Trino to use the branch (in your SQL client)
+#    USE iceberg_feature_add_a1c_calculation.silver;
+
+# 3. Make changes (run dbt, materialize assets)
+$ dbt run --select fct_glucose_readings
+$ phlo materialize fct_glucose_readings --partition 2024-01-15
+
+# 4. Validate changes
+$ phlo contract validate glucose_readings
+$ phlo quality run silver.fct_glucose_readings
+
+# 5. Compare to main
+$ phlo branch diff main feature/add-a1c-calculation
+
+# 6. If everything looks good, merge
+$ phlo branch merge feature/add-a1c-calculation main
+
+# 7. Clean up
+$ phlo branch delete feature/add-a1c-calculation
+</code></pre>
+<h3 id="branch-naming-conventions">Branch Naming Conventions</h3>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>feature/xyz</code></td>
+<td>New features, schema changes</td>
+</tr>
+<tr>
+<td><code>fix/xyz</code></td>
+<td>Bug fixes to transformations</td>
+</tr>
+<tr>
+<td><code>experiment/xyz</code></td>
+<td>Exploratory work (may be abandoned)</td>
+</tr>
+<tr>
+<td><code>release/v1.2</code></td>
+<td>Tagged releases for rollback points</td>
+</tr>
+<tr>
+<td><code>dev</code></td>
+<td>Shared development branch</td>
+</tr>
+</tbody>
+</table>
+<h3 id="when-to-use-branches">When to Use Branches</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Use Branch?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Adding new column to existing table</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Changing data type</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Testing new transformation logic</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Daily data ingestion</td>
+<td>No (use main)</td>
+</tr>
+<tr>
+<td>Bug fix to production</td>
+<td>Yes (then merge quickly)</td>
+</tr>
+<tr>
+<td>Exploratory analysis</td>
+<td>Optional (nice for isolation)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="nessie-vs-iceberg-understanding-the-layers">Nessie vs Iceberg: Understanding the Layers</h2>
+<pre><code>┌────────────────────────────────────────────────┐
+│ Nessie (Catalog Layer)                         │
+│ - Branch: main, dev, feature/metrics           │
+│ - Commit: &quot;Promote validated data&quot;             │
+│ - References: Which branch has which tables    │
+└────────────────────┬─────────────────────────┘
+                     │ (Points to)
+┌────────────────────▼──────────────────────────┐
+│ Iceberg (Table Format Layer)                   │
+│ - Snapshot: v1.metadata.json                  │
+│ - Manifest: Files in this snapshot             │
+│ - Data: S3 parquet files                       │
+└────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>Nessie</strong> = "which version of which table per branch"
+<strong>Iceberg</strong> = "what files make up this table version"</p>
+<p>Together: Complete versioning from storage to queries.</p>
+<h2 id="real-world-scenario-handling-a-bug">Real-World Scenario: Handling a Bug</h2>
+<p>Let's say your transformation has a bug:</p>
+<pre><code class="language-sql">-- Bug: All glucose values are multiplied by 2!
+SELECT glucose_mg_dl * 2 as glucose_mg_dl  -- WRONG
+FROM stg_glucose_entries;
+</code></pre>
+<h3 id="without-nessie-disaster">Without Nessie (Disaster)</h3>
+<pre><code>1. Bug deployed to main
+   ↓ Production dashboards show 2x glucose values
+   ↓ People think blood sugar is spiking
+   ↓ Alerts fire for high glucose
+   ↓ (This happened to real patients, very bad)
+   ↓
+2. Discover bug 2 hours later
+   ↓
+3. Fix and re-run
+   ↓
+4. Need to clean up corrupted 2 hours of data (hard!)
+   ↓
+5. Audit trail: ? (who made the change?)
+</code></pre>
+<h3 id="with-nessie-safe">With Nessie (Safe)</h3>
+<pre><code>1. Bug caught during dev branch testing
+   ↓ Run quality checks on dev branch
+   ↓ Tests fail: &quot;glucose_mg_dl should be &lt; 500&quot;
+   ↓
+2. Fix bug, re-run on dev
+   ↓ Tests pass
+   ↓
+3. Merge dev → main only when validated
+   ↓ main branch still shows correct data
+   ↓
+4. Audit trail: commit &quot;Fix glucose calculation bug&quot;
+   ↓ Can query dev branch to see what was wrong
+</code></pre>
+<h2 id="phlos-nessie-configuration">Phlo's Nessie Configuration</h2>
+<p>In <code>docker-compose.yml</code>:</p>
+<pre><code class="language-yaml">nessie:
+  image: ghcr.io/projectnessie/nessie:${NESSIE_VERSION}
+  environment:
+    NESSIE_VERSION_STORE_TYPE: JDBC
+    # Nessie metadata stored in Postgres
+    QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/lakehouse
+    # Iceberg warehouse location
+    nessie.catalog.warehouses.warehouse.location: s3://lake/warehouse
+    # MinIO S3 access
+    nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/
+    nessie.catalog.service.s3.default-options.access-key: minioadmin
+    nessie.catalog.service.s3.default-options.secret: minioadmin
+</code></pre>
+<p>Breaking this down:</p>
+<ul>
+<li><strong>JDBC</strong>: Nessie metadata (commits, branches) in Postgres</li>
+<li><strong>Warehouse</strong>: Iceberg data files in MinIO S3</li>
+<li><strong>S3 access</strong>: Credentials for MinIO</li>
+</ul>
+<h2 id="next-data-ingestion">Next: Data Ingestion</h2>
+<p>Now we understand:</p>
+<ul>
+<li>Iceberg: Table format with snapshots and time travel</li>
+<li>Nessie: Git-like branching on top of Iceberg</li>
+</ul>
+<p>Next: How does data actually get into this system?</p>
+<p><strong>Part 5: Data Ingestion with DLT and PyIceberg</strong></p>
+<p>See you then!</p>
+<h2 id="summary">Summary</h2>
+<p><strong>Project Nessie</strong>:</p>
+<ul>
+<li>Branch isolation (dev/staging/prod)</li>
+<li>Atomic merges (all-or-nothing)</li>
+<li>Commit history (audit trail)</li>
+<li>Tags for releases</li>
+<li>REST API for automation</li>
+</ul>
+<p><strong>In Phlo (Write-Audit-Publish)</strong>:</p>
+<ul>
+<li><code>branch_creation_sensor</code> - Auto-creates pipeline branch on job start</li>
+<li><code>auto_promotion_sensor</code> - Auto-merges to main when quality checks pass</li>
+<li><code>branch_cleanup_sensor</code> - Cleans up old branches after retention period</li>
+<li>Catalog-based branching: <code>iceberg</code> (main) vs <code>iceberg_dev</code> (dev)</li>
+<li>All writes happen on feature branch - only validated data reaches main</li>
+</ul>
+<p><strong>Next</strong>: <a href="../05-data-ingestion/">Part 5: Data Ingestion—Getting Data Into the Lakehouse</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

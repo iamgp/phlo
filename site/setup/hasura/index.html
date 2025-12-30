@@ -1,0 +1,2300 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../../guides/testing-strategy/">
+      
+      
+        <link rel="next" href="../postgrest/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Hasura - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#hasura-graphql-setup-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Hasura
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hasura
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hasura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initial-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initial Setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Initial Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-track-postgres-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Track Postgres Tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Configure Permissions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Configure Permissions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-admin-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure admin Role
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-analyst-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure analyst Role
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repeat-for-all-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repeat for All Tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-test-graphql-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Test GraphQL Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-set-request-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Set Request Headers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Views
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationships
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#computed-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Computed Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#row-level-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Row-Level Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actions-custom-business-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actions (Custom Business Logic)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Triggers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subscriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subscriptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metadata-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Metadata Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#export-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apply Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Hardening
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Hardening">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#production-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jwt-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWT Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tables-not-showing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables Not Showing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#permission-denied-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Permission Denied Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slow-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slow Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jwt-validation-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWT Validation Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graphql-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GraphQL Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GraphQL Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pagination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pagination
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aggregations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-naming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Naming
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../postgrest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PostgREST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openmetadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenMetadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initial-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initial Setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Initial Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-track-postgres-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Track Postgres Tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-configure-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Configure Permissions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Configure Permissions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-admin-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure admin Role
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-analyst-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure analyst Role
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#repeat-for-all-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repeat for All Tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-test-graphql-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Test GraphQL Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-set-request-headers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Set Request Headers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Views
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relationships
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#computed-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Computed Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#row-level-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Row-Level Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actions-custom-business-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Actions (Custom Business Logic)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Triggers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subscriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subscriptions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metadata-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Metadata Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#export-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#apply-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apply Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security Hardening
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security Hardening">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#production-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jwt-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWT Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tables-not-showing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables Not Showing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#permission-denied-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Permission Denied Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slow-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slow Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jwt-validation-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JWT Validation Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graphql-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GraphQL Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="GraphQL Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pagination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pagination
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aggregations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#query-naming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Query Naming
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="hasura-graphql-setup-guide">Hasura GraphQL Setup Guide</h1>
+<p>Step-by-step guide to configuring Hasura for the Phlo lakehouse.</p>
+<h2 id="overview">Overview</h2>
+<p>Hasura auto-generates a GraphQL API from your Postgres <code>marts</code> schema, providing:</p>
+<ul>
+<li>Instant GraphQL queries and mutations</li>
+<li>Real-time subscriptions</li>
+<li>Role-based permissions</li>
+<li>GraphQL playground/explorer</li>
+</ul>
+<h2 id="quick-start">Quick Start</h2>
+<pre><code class="language-bash"># Start Hasura (requires Postgres running)
+make up-api
+
+# Open Hasura console
+make hasura
+# Or: http://localhost:8081/console
+</code></pre>
+<p><strong>Admin Secret:</strong> <code>phlo-admin-secret-change-me</code> (set in <code>.env</code>)</p>
+<hr />
+<h2 id="initial-setup">Initial Setup</h2>
+<h3 id="1-track-postgres-tables">1. Track Postgres Tables</h3>
+<p>Hasura needs to "track" tables to generate GraphQL schema.</p>
+<ol>
+<li>Open Hasura console: http://localhost:8081/console</li>
+<li>Navigate to <strong>Data</strong> tab</li>
+<li>Click <strong>public</strong> schema (or marts if you have it)</li>
+<li>You'll see available tables:</li>
+<li><code>mrt_glucose_overview</code></li>
+<li><code>mrt_glucose_hourly_patterns</code></li>
+<li>Click <strong>Track</strong> for each table you want to expose</li>
+<li>Click <strong>Track All</strong> to track all foreign keys/relationships</li>
+</ol>
+<p><strong>Result:</strong> GraphQL types are now generated for each table.</p>
+<hr />
+<h3 id="2-configure-permissions">2. Configure Permissions</h3>
+<p>By default, tracked tables have NO permissions. You must configure access.</p>
+<h4 id="configure-admin-role">Configure <code>admin</code> Role</h4>
+<ol>
+<li>Click on <code>mrt_glucose_overview</code> table</li>
+<li>Go to <strong>Permissions</strong> tab</li>
+<li>Click <strong>Enter new role</strong> → type <code>admin</code></li>
+<li>Click <strong>select</strong> column</li>
+<li>Configure permissions:</li>
+<li><strong>Row select permissions:</strong> <code>Without any checks</code> (full access)</li>
+<li><strong>Column select permissions:</strong> Check all columns</li>
+<li><strong>Aggregation queries permissions:</strong> Enable</li>
+<li>Click <strong>Save Permissions</strong></li>
+<li>Repeat for <strong>insert</strong>, <strong>update</strong>, <strong>delete</strong> if needed (usually not for marts)</li>
+</ol>
+<h4 id="configure-analyst-role">Configure <code>analyst</code> Role</h4>
+<ol>
+<li>Click <strong>Enter new role</strong> → type <code>analyst</code></li>
+<li>Click <strong>select</strong> column</li>
+<li>Configure permissions:</li>
+<li><strong>Row select permissions:</strong> <code>Without any checks</code> (read-only, full access)</li>
+<li><strong>Column select permissions:</strong> Check all columns</li>
+<li><strong>Aggregation queries permissions:</strong> Enable</li>
+<li>Click <strong>Save Permissions</strong></li>
+<li><strong>DO NOT</strong> enable insert/update/delete (analyst is read-only)</li>
+</ol>
+<h4 id="repeat-for-all-tables">Repeat for All Tables</h4>
+<p>Repeat the above for:</p>
+<ul>
+<li><code>mrt_glucose_hourly_patterns</code></li>
+<li>Any other marts tables</li>
+</ul>
+<hr />
+<h3 id="3-test-graphql-queries">3. Test GraphQL Queries</h3>
+<ol>
+<li>Navigate to <strong>API</strong> tab (GraphiQL explorer)</li>
+<li>You'll see GraphQL schema in the right sidebar</li>
+<li>Try a query:</li>
+</ol>
+<pre><code class="language-graphql">query GetGlucoseReadings {
+  mrt_glucose_overview(limit: 10, order_by: { date: desc }) {
+    date
+    avg_glucose
+    min_glucose
+    max_glucose
+    readings_count
+  }
+}
+</code></pre>
+<ol>
+<li>Click <strong>Play</strong> button</li>
+<li>You should see results from your Postgres <code>marts</code> schema</li>
+</ol>
+<hr />
+<h3 id="4-set-request-headers">4. Set Request Headers</h3>
+<p>For authenticated requests:</p>
+<ol>
+<li>In GraphiQL, click <strong>Request Headers</strong> at bottom</li>
+<li>Add JWT token:</li>
+</ol>
+<pre><code class="language-json">{
+  &quot;Authorization&quot;: &quot;Bearer YOUR_JWT_TOKEN_HERE&quot;
+}
+</code></pre>
+<ol>
+<li>Get token from FastAPI login:</li>
+</ol>
+<pre><code class="language-bash">curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;username&quot;:&quot;admin&quot;,&quot;password&quot;:&quot;admin123&quot;}'
+</code></pre>
+<ol>
+<li>Copy <code>access_token</code> from response</li>
+<li>Paste into GraphiQL header</li>
+<li>Run authenticated queries</li>
+</ol>
+<hr />
+<h2 id="advanced-configuration">Advanced Configuration</h2>
+<h3 id="custom-views">Custom Views</h3>
+<p>Create views in Postgres for common queries, then track them in Hasura.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-sql">CREATE VIEW marts.v_recent_readings AS
+SELECT *
+FROM marts.mrt_glucose_overview
+WHERE date &gt;= CURRENT_DATE - INTERVAL '30 days';
+</code></pre>
+<p>Then track <code>v_recent_readings</code> in Hasura console.</p>
+<hr />
+<h3 id="relationships">Relationships</h3>
+<p>If you have foreign keys between tables, Hasura can auto-track relationships.</p>
+<p><strong>Example:</strong> If you add a <code>user_id</code> column to marts tables:</p>
+<ol>
+<li>Create foreign key in Postgres:</li>
+</ol>
+<pre><code class="language-sql">ALTER TABLE marts.mrt_glucose_overview
+ADD COLUMN user_id TEXT REFERENCES users(id);
+</code></pre>
+<ol>
+<li>In Hasura console → <strong>Data</strong> → Track relationship</li>
+<li>Hasura generates nested queries:</li>
+</ol>
+<pre><code class="language-graphql">query GetUserWithReadings {
+  users {
+    id
+    name
+    glucose_readings {
+      # Auto-generated relationship
+      date
+      avg_glucose
+    }
+  }
+}
+</code></pre>
+<hr />
+<h3 id="computed-fields">Computed Fields</h3>
+<p>Add server-side computed values to GraphQL responses.</p>
+<p><strong>Example:</strong> Create Postgres function:</p>
+<pre><code class="language-sql">CREATE FUNCTION marts.glucose_status(mrt_glucose_overview_row marts.mrt_glucose_overview)
+RETURNS TEXT AS $$
+  SELECT CASE
+    WHEN mrt_glucose_overview_row.avg_glucose &lt; 70 THEN 'low'
+    WHEN mrt_glucose_overview_row.avg_glucose &gt; 180 THEN 'high'
+    ELSE 'normal'
+  END;
+$$ LANGUAGE SQL STABLE;
+</code></pre>
+<p>Add computed field in Hasura:</p>
+<ol>
+<li><strong>Data</strong> → <code>mrt_glucose_overview</code> → <strong>Modify</strong> tab</li>
+<li><strong>Add a computed field</strong></li>
+<li>Function: <code>glucose_status</code></li>
+<li>Save</li>
+</ol>
+<p>Query with computed field:</p>
+<pre><code class="language-graphql">query {
+  mrt_glucose_overview {
+    date
+    avg_glucose
+    status # Computed field
+  }
+}
+</code></pre>
+<hr />
+<h3 id="row-level-security">Row-Level Security</h3>
+<p>Restrict data access based on JWT claims.</p>
+<p><strong>Example:</strong> Only show data for authenticated user:</p>
+<ol>
+<li>Add <code>user_id</code> column to tables</li>
+<li>In permissions for <code>analyst</code> role:</li>
+<li><strong>Row select permissions:</strong> Custom check</li>
+<li>Enter condition:
+   <code>json
+   {
+     "user_id": {
+       "_eq": "X-Hasura-User-Id"
+     }
+   }</code></li>
+<li>Save</li>
+</ol>
+<p>Now analysts only see rows where <code>user_id</code> matches their JWT token's <code>user_id</code> claim.</p>
+<hr />
+<h3 id="actions-custom-business-logic">Actions (Custom Business Logic)</h3>
+<p>Call external REST endpoints from GraphQL.</p>
+<p><strong>Example:</strong> Trigger data refresh:</p>
+<ol>
+<li><strong>Actions</strong> tab → <strong>Create</strong></li>
+<li>Define action:</li>
+</ol>
+<pre><code class="language-graphql">type Mutation {
+  refreshGlucoseData: RefreshResponse
+}
+
+type RefreshResponse {
+  success: Boolean!
+  message: String!
+}
+</code></pre>
+<ol>
+<li>Handler: <code>http://api:8000/api/v1/admin/refresh</code></li>
+<li>Add custom headers (JWT token forwarding)</li>
+<li>Save</li>
+</ol>
+<p>Query:</p>
+<pre><code class="language-graphql">mutation {
+  refreshGlucoseData {
+    success
+    message
+  }
+}
+</code></pre>
+<hr />
+<h3 id="event-triggers">Event Triggers</h3>
+<p>Run webhooks when data changes.</p>
+<p><strong>Example:</strong> Send alert when glucose reading is high:</p>
+<ol>
+<li><strong>Events</strong> tab → <strong>Create Event Trigger</strong></li>
+<li>Table: <code>mrt_glucose_overview</code></li>
+<li>Operations: Insert, Update</li>
+<li>Webhook: <code>http://api:8000/api/v1/webhooks/glucose-alert</code></li>
+<li>Add condition:</li>
+</ol>
+<pre><code class="language-json">{
+  &quot;avg_glucose&quot;: {
+    &quot;_gt&quot;: 180
+  }
+}
+</code></pre>
+<ol>
+<li>Save</li>
+</ol>
+<p>Hasura will POST to webhook when condition matches.</p>
+<hr />
+<h3 id="subscriptions">Subscriptions</h3>
+<p>Real-time data via WebSockets.</p>
+<p><strong>Example subscription:</strong></p>
+<pre><code class="language-graphql">subscription WatchGlucose {
+  mrt_glucose_overview(limit: 1, order_by: { date: desc }) {
+    date
+    avg_glucose
+  }
+}
+</code></pre>
+<p>Client will receive updates when data changes.</p>
+<p><strong>JavaScript client:</strong></p>
+<pre><code class="language-javascript">import { createClient } from &quot;graphql-ws&quot;;
+
+const client = createClient({
+  url: &quot;ws://localhost:8081/v1/graphql&quot;,
+  connectionParams: {
+    headers: {
+      Authorization: &quot;Bearer YOUR_TOKEN&quot;,
+    },
+  },
+});
+
+client.subscribe(
+  {
+    query: `subscription { mrt_glucose_overview(limit: 1, order_by: {date: desc}) { date avg_glucose } }`,
+  },
+  {
+    next: (data) =&gt; console.log(&quot;Update:&quot;, data),
+    error: (error) =&gt; console.error(&quot;Error:&quot;, error),
+    complete: () =&gt; console.log(&quot;Done&quot;),
+  }
+);
+</code></pre>
+<hr />
+<h2 id="metadata-management">Metadata Management</h2>
+<h3 id="export-metadata">Export Metadata</h3>
+<p>Save Hasura configuration to version control:</p>
+<pre><code class="language-bash"># Install Hasura CLI
+npm install --global hasura-cli
+
+# Export metadata
+cd /path/to/phlo
+hasura metadata export \
+  --endpoint http://localhost:8081 \
+  --admin-secret phlo-admin-secret-change-me
+</code></pre>
+<p>Creates <code>metadata/</code> directory with:</p>
+<ul>
+<li>Tables tracking</li>
+<li>Permissions</li>
+<li>Relationships</li>
+<li>Actions</li>
+<li>Event triggers</li>
+</ul>
+<p><strong>Commit to git</strong> for reproducible setup.</p>
+<hr />
+<h3 id="apply-metadata">Apply Metadata</h3>
+<p>Restore configuration to new Hasura instance:</p>
+<pre><code class="language-bash">hasura metadata apply \
+  --endpoint http://localhost:8081 \
+  --admin-secret phlo-admin-secret-change-me
+</code></pre>
+<p>Useful for:</p>
+<ul>
+<li>Development → Production deployment</li>
+<li>Team collaboration</li>
+<li>Disaster recovery</li>
+</ul>
+<hr />
+<h3 id="migrations">Migrations</h3>
+<p>Track database schema changes:</p>
+<pre><code class="language-bash"># Initialize
+hasura init hasura-project --endpoint http://localhost:8081
+
+# Create migration
+hasura migrate create add_user_column \
+  --sql-from-server \
+  --database-name default
+
+# Apply migration
+hasura migrate apply
+</code></pre>
+<p>Keeps database schema and Hasura metadata in sync.</p>
+<hr />
+<h2 id="security-hardening">Security Hardening</h2>
+<h3 id="production-checklist">Production Checklist</h3>
+<ul>
+<li>[ ] <strong>Change admin secret</strong> - Update <code>HASURA_ADMIN_SECRET</code> in <code>.env</code></li>
+<li>[ ] <strong>Disable dev mode</strong> - Set <code>HASURA_GRAPHQL_DEV_MODE=false</code></li>
+<li>[ ] <strong>Disable console</strong> - Set <code>HASURA_GRAPHQL_ENABLE_CONSOLE=false</code> (use CLI)</li>
+<li>[ ] <strong>Restrict CORS</strong> - Set specific origins in <code>HASURA_GRAPHQL_CORS_DOMAIN</code></li>
+<li>[ ] <strong>Enable HTTPS</strong> - Use reverse proxy (nginx/Caddy)</li>
+<li>[ ] <strong>Add rate limiting</strong> - Configure at reverse proxy level</li>
+<li>[ ] <strong>Audit permissions</strong> - Review all role permissions regularly</li>
+<li>[ ] <strong>Monitor logs</strong> - Enable all log types for audit trail</li>
+</ul>
+<hr />
+<h3 id="jwt-configuration">JWT Configuration</h3>
+<p>Hasura validates JWT tokens using shared secret with FastAPI.</p>
+<p><strong>Current config</strong> (in docker-compose.yml):</p>
+<pre><code class="language-yaml">HASURA_GRAPHQL_JWT_SECRET: '{&quot;type&quot;:&quot;HS256&quot;,&quot;key&quot;:&quot;${JWT_SECRET}&quot;}'
+</code></pre>
+<p><strong>JWT payload structure:</strong></p>
+<pre><code class="language-json">{
+  &quot;sub&quot;: &quot;admin&quot;,
+  &quot;user_id&quot;: &quot;admin_001&quot;,
+  &quot;email&quot;: &quot;admin@phlo.local&quot;,
+  &quot;role&quot;: &quot;admin&quot;,
+  &quot;exp&quot;: 1234567890,
+  &quot;https://hasura.io/jwt/claims&quot;: {
+    &quot;x-hasura-allowed-roles&quot;: [&quot;admin&quot;],
+    &quot;x-hasura-default-role&quot;: &quot;admin&quot;,
+    &quot;x-hasura-user-id&quot;: &quot;admin_001&quot;
+  }
+}
+</code></pre>
+<p>Hasura reads <code>x-hasura-*</code> claims for permission checks.</p>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="tables-not-showing">Tables Not Showing</h3>
+<p><strong>Issue:</strong> Tables not appearing in Hasura console</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Verify Postgres connection: Check <code>HASURA_GRAPHQL_DATABASE_URL</code> in docker-compose.yml</li>
+<li>Check schema: Ensure tables are in correct schema (<code>marts</code> or <code>public</code>)</li>
+<li>Reload metadata: <strong>Data</strong> tab → gear icon → <strong>Reload</strong></li>
+<li>Check Postgres logs: <code>docker compose logs postgres</code></li>
+</ol>
+<hr />
+<h3 id="permission-denied-errors">Permission Denied Errors</h3>
+<p><strong>Issue:</strong> GraphQL query returns permission denied</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Check role in JWT token matches configured role (<code>admin</code> or <code>analyst</code>)</li>
+<li>Verify permissions set for that role in Hasura console</li>
+<li>Check row-level security conditions</li>
+<li>Test with admin secret header instead of JWT to verify table access</li>
+</ol>
+<hr />
+<h3 id="slow-queries">Slow Queries</h3>
+<p><strong>Issue:</strong> GraphQL queries taking too long</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Add indexes to Postgres tables:</li>
+</ol>
+<pre><code class="language-sql">CREATE INDEX idx_glucose_date ON marts.mrt_glucose_overview(date);
+</code></pre>
+<ol>
+<li>Limit query depth in Hasura settings</li>
+<li>Use pagination with <code>limit</code> and <code>offset</code></li>
+<li>Enable query caching (requires Hasura Pro)</li>
+<li>Use FastAPI for heavy analytics queries instead</li>
+</ol>
+<hr />
+<h3 id="jwt-validation-failures">JWT Validation Failures</h3>
+<p><strong>Issue:</strong> <code>JWTInvalid</code> or <code>JWTExpired</code> errors</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Verify JWT secret matches between FastAPI and Hasura:</li>
+</ol>
+<pre><code class="language-bash">docker compose exec api env | grep JWT_SECRET
+docker compose exec hasura env | grep JWT_SECRET
+</code></pre>
+<ol>
+<li>Check token expiration (default 60 minutes)</li>
+<li>Verify token format in request header: <code>Bearer YOUR_TOKEN</code></li>
+<li>Test token at https://jwt.io (paste token, verify signature with secret)</li>
+</ol>
+<hr />
+<h2 id="graphql-best-practices">GraphQL Best Practices</h2>
+<h3 id="pagination">Pagination</h3>
+<p>Always paginate large result sets:</p>
+<pre><code class="language-graphql">query GetReadingsPaginated($limit: Int!, $offset: Int!) {
+  mrt_glucose_overview(
+    limit: $limit
+    offset: $offset
+    order_by: { date: desc }
+  ) {
+    date
+    avg_glucose
+  }
+}
+</code></pre>
+<h3 id="aggregations">Aggregations</h3>
+<p>Use aggregation queries for summaries:</p>
+<pre><code class="language-graphql">query GetStats {
+  mrt_glucose_overview_aggregate {
+    aggregate {
+      count
+      avg {
+        avg_glucose
+      }
+      max {
+        max_glucose
+      }
+      min {
+        min_glucose
+      }
+    }
+  }
+}
+</code></pre>
+<h3 id="query-naming">Query Naming</h3>
+<p>Always name your queries:</p>
+<pre><code class="language-graphql"># Good
+query GetGlucoseReadings { ... }
+
+# Bad (anonymous)
+query { ... }
+</code></pre>
+<p>Helps with debugging and monitoring.</p>
+<hr />
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a href="https://hasura.io/docs/latest/index/">Hasura Docs</a></li>
+<li><a href="https://spec.graphql.org/">GraphQL Spec</a></li>
+<li><a href="https://hasura.io/docs/latest/hasura-cli/overview/">Hasura CLI</a></li>
+<li><a href="https://graphql.org/learn/best-practices/">GraphQL Best Practices</a></li>
+</ul>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li><strong>Track all marts tables</strong> in Hasura console</li>
+<li><strong>Configure permissions</strong> for admin and analyst roles</li>
+<li><strong>Test queries</strong> in GraphiQL playground</li>
+<li><strong>Export metadata</strong> for version control</li>
+<li><strong>Integrate with frontend</strong> using Apollo Client or similar</li>
+<li><strong>Set up monitoring</strong> via Hasura logs</li>
+</ol>
+<p>For API usage examples, see <a href="../../reference/phlo-api/">API Reference</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

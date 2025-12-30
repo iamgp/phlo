@@ -1,0 +1,2625 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Part 10: Metadata and Governance with OpenMetadata - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#part-10-metadata-and-governance-with-openmetadata" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Part 10: Metadata and Governance with OpenMetadata
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-metadata-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Metadata Problem
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openmetadata-the-open-source-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenMetadata: The Open-Source Data Catalog
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-openmetadata-for-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why OpenMetadata for Phlo?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start-with-openmetadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start with OpenMetadata
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start with OpenMetadata">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-openmetadata-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Start OpenMetadata Services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-access-openmetadata-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Access OpenMetadata UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-up-trino-data-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting Up Trino Data Source
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setting Up Trino Data Source">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-add-trino-database-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Add Trino Database Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-configure-trino-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Configure Trino Connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-configure-metadata-ingestion-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Configure Metadata Ingestion Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-configure-scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Configure Scheduling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-run-initial-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Run Initial Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-enable-search-critical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Enable Search (CRITICAL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the Data Catalog
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using the Data Catalog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#search-for-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search for Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-table-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Table Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Tags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-lineage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Lineage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Lineage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enable-lineage-tracking-with-dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable Lineage Tracking with dbt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#governance-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Governance Workflows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Governance Workflows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-impact-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Impact Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-search-and-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Search and Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-data-access-governance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Data Access Governance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-phlo-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Phlo Workflows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration with Phlo Workflows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#update-ingestion-schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Ingestion Schedule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#document-in-dbt-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document in dbt Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#openmetadata-ui-not-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenMetadata UI Not Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search Not Working
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-connection-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Connection Failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-contracts-formalizing-data-agreements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Contracts: Formalizing Data Agreements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Contracts: Formalizing Data Agreements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem-contracts-solve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem Contracts Solve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anatomy-of-a-data-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Anatomy of a Data Contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-contract-validation-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Contract Validation Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-evolution-and-breaking-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Evolution and Breaking Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#consumer-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer Notifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schema-management-via-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Management via CLI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schema Management via CLI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-schema-management-matters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Schema Management Matters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#discovering-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovering Schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspecting-schema-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspecting Schema Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparing-schema-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparing Schema Versions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#browsing-your-catalog-via-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browsing Your Catalog via CLI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Browsing Your Catalog via CLI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#listing-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Listing Tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#describing-table-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Describing Table Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#viewing-table-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewing Table History
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exposing-data-via-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exposing Data via APIs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exposing Data via APIs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-api-layer-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The API Layer Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-generating-rest-apis-with-postgrest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-Generating REST APIs with PostgREST
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-view-generation-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How View Generation Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#graphql-with-hasura" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GraphQL with Hasura
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#permission-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Permission Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-rest-vs-graphql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Use REST vs GraphQL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-layer-in-the-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Layer in the Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benefits-of-metadata-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benefits of Metadata Management
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="part-10-metadata-and-governance-with-openmetadata">Part 10: Metadata and Governance with OpenMetadata</h1>
+<p>Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.</p>
+<h2 id="the-metadata-problem">The Metadata Problem</h2>
+<p>Without metadata tracking:</p>
+<pre><code>Tuesday 3pm: Someone asks &quot;Where did this dataset come from?&quot;
+
+Answers from your team:
+- Engineer 1: &quot;I think Nightscout API?&quot;
+- Engineer 2: &quot;Maybe it's in the glucose_readings table&quot;
+- Data analyst: &quot;I don't know, it's in the dashboard&quot;
+- Manager: &quot;How many people depend on this?&quot;
+</code></pre>
+<p>Nobody knows because metadata is scattered:</p>
+<ul>
+<li>Table definitions in dbt YAML</li>
+<li>Column notes in dbt docs</li>
+<li>Data source info in Dagster assets</li>
+<li>Lineage unclear</li>
+<li>Ownership unknown</li>
+<li>Change history nowhere</li>
+</ul>
+<blockquote>
+<p><strong>Note:</strong> For detailed OpenMetadata setup instructions, see <a href="/home/user/phlo/docs/setup/openmetadata.md">docs/setup/openmetadata.md</a></p>
+</blockquote>
+<h2 id="openmetadata-the-open-source-data-catalog">OpenMetadata: The Open-Source Data Catalog</h2>
+<p>OpenMetadata is an open-source data catalog that answers:</p>
+<ul>
+<li>What data exists?</li>
+<li>Where is it stored?</li>
+<li>How is it related?</li>
+<li>Who owns it?</li>
+<li>What does it mean?</li>
+<li>How often is it updated?</li>
+<li>What quality checks does it have?</li>
+</ul>
+<h2 id="why-openmetadata-for-phlo">Why OpenMetadata for Phlo?</h2>
+<p>OpenMetadata integrates seamlessly with Phlo's tech stack:</p>
+<ul>
+<li><strong>Trino connector</strong> - Auto-discovers Iceberg tables</li>
+<li><strong>Modern UI</strong> - Intuitive search and browsing experience</li>
+<li><strong>Active development</strong> - Regular updates and improvements</li>
+<li><strong>Simple architecture</strong> - MySQL + Elasticsearch (6GB RAM required)</li>
+<li><strong>Open source</strong> - No licensing costs</li>
+</ul>
+<h2 id="architecture">Architecture</h2>
+<pre><code>┌─────────────────────────────────────────────┐
+│         OpenMetadata Server (UI)           │
+│         http://localhost:10020              │
+└─────────────┬───────────────────────────────┘
+              │
+       ┌──────┴──────┐
+       │             │
+┌──────▼──────┐ ┌───▼────────────┐
+│    MySQL    │ │ Elasticsearch  │
+│  (metadata) │ │   (search)     │
+└─────────────┘ └────────────────┘
+       │
+       │ Ingests metadata from:
+       │
+┌──────▼──────────────────────────┐
+│  Trino → Iceberg Tables (Nessie)│
+│  - raw.glucose_entries           │
+│  - bronze.stg_glucose_entries    │
+│  - silver.fct_glucose_readings   │
+│  - gold.dim_date                 │
+└──────────────────────────────────┘
+</code></pre>
+<h2 id="quick-start-with-openmetadata">Quick Start with OpenMetadata</h2>
+<h3 id="1-start-openmetadata-services">1. Start OpenMetadata Services</h3>
+<pre><code class="language-bash"># Start the data catalog stack
+make up-catalog
+
+# Check health status
+make health-catalog
+</code></pre>
+<p>Expected output:</p>
+<pre><code>=== Data Catalog Health Check ===
+OpenMetadata:
+  Ready
+  UI: http://localhost:10020
+  Default credentials: admin / admin
+MySQL:
+  Ready
+Elasticsearch:
+  Ready
+</code></pre>
+<h3 id="2-access-openmetadata-ui">2. Access OpenMetadata UI</h3>
+<pre><code class="language-bash"># Open in browser
+make catalog
+# Or manually visit: http://localhost:10020
+</code></pre>
+<p>Default credentials:</p>
+<ul>
+<li>Username: <code>admin</code></li>
+<li>Password: <code>admin</code></li>
+</ul>
+<blockquote>
+<p>Security Note: Change the default password in production by updating <code>OPENMETADATA_ADMIN_PASSWORD</code> in <code>.env</code></p>
+</blockquote>
+<h2 id="setting-up-trino-data-source">Setting Up Trino Data Source</h2>
+<h3 id="step-1-add-trino-database-service">Step 1: Add Trino Database Service</h3>
+<ol>
+<li>Click <strong>Settings</strong> (gear icon) in the top-right corner</li>
+<li>Navigate to <strong>Integrations</strong> → <strong>Databases</strong></li>
+<li>Click <strong>Add New Service</strong></li>
+<li>Select <strong>Trino</strong> from the list of database types</li>
+<li>Click <strong>Next</strong></li>
+</ol>
+<h3 id="step-2-configure-trino-connection">Step 2: Configure Trino Connection</h3>
+<p><strong>Service Name:</strong></p>
+<pre><code>trino
+</code></pre>
+<p><strong>Description:</strong></p>
+<pre><code>Phlo lakehouse Trino query engine with Iceberg catalog
+</code></pre>
+<p><strong>Connection Configuration:</strong></p>
+<p>Click on <strong>Basic</strong> authentication type, then configure:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Host</strong></td>
+<td><code>trino</code></td>
+<td>Docker service name (internal network)</td>
+</tr>
+<tr>
+<td><strong>Port</strong></td>
+<td><code>8080</code></td>
+<td>Internal container port</td>
+</tr>
+<tr>
+<td><strong>Username</strong></td>
+<td><code>phlo</code></td>
+<td>Any username (no auth in dev)</td>
+</tr>
+<tr>
+<td><strong>Catalog</strong></td>
+<td>Leave empty</td>
+<td>We'll filter by catalog in ingestion</td>
+</tr>
+<tr>
+<td><strong>Database Schema</strong></td>
+<td>Leave empty</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Port Note: Trino runs on port <code>8080</code> inside the Docker network. The external host port <code>10005</code> is only for accessing Trino from your laptop. OpenMetadata uses the internal port <code>8080</code>.</p>
+</blockquote>
+<p>Click <strong>Test Connection</strong> - you should see:</p>
+<pre><code>Connection test was successful
+</code></pre>
+<p>Click <strong>Submit</strong> to save the service.</p>
+<h3 id="step-3-configure-metadata-ingestion-pipeline">Step 3: Configure Metadata Ingestion Pipeline</h3>
+<p>After creating the service, you'll be prompted to set up metadata ingestion.</p>
+<ol>
+<li><strong>Pipeline Name:</strong> <code>trino-metadata</code></li>
+<li><strong>Pipeline Type:</strong> Select <strong>Metadata Ingestion</strong></li>
+<li>Click <strong>Next</strong></li>
+</ol>
+<p><strong>Filter Patterns (CRITICAL - prevents crashes):</strong></p>
+<pre><code class="language-yaml">Database Filter Pattern:
+  Include: iceberg
+  Exclude: system
+
+Schema Filter Pattern:
+  Include: raw, bronze, silver, gold
+  Exclude: information_schema
+
+Table Filter Pattern:
+  Include: .*
+  Exclude: (leave empty)
+</code></pre>
+<p><strong>Advanced Configuration:</strong></p>
+<p>Enable/disable these options:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Enable?</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Include Tables</td>
+<td>Yes</td>
+<td>Core metadata</td>
+</tr>
+<tr>
+<td>Include Views</td>
+<td>Yes</td>
+<td>Include views</td>
+</tr>
+<tr>
+<td>Include Tags</td>
+<td>Yes</td>
+<td>Catalog tags</td>
+</tr>
+<tr>
+<td>Include Owners</td>
+<td>No</td>
+<td>Not used in dev</td>
+</tr>
+<tr>
+<td>Include Stored Procedures</td>
+<td><strong>NO</strong></td>
+<td><strong>Causes crashes</strong></td>
+</tr>
+<tr>
+<td>Mark Deleted Stored Procedures</td>
+<td><strong>NO</strong></td>
+<td><strong>Causes crashes</strong></td>
+</tr>
+<tr>
+<td>Include DDL</td>
+<td>No</td>
+<td>Not needed</td>
+</tr>
+<tr>
+<td>Override Metadata</td>
+<td>No</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ingestion Settings:</strong></p>
+<ul>
+<li>Thread Count: <code>1</code> (default)</li>
+<li>Timeout: <code>300</code> seconds (default)</li>
+</ul>
+<p>Click <strong>Next</strong>.</p>
+<h3 id="step-4-configure-scheduling">Step 4: Configure Scheduling</h3>
+<p><strong>Schedule Type:</strong> Choose one:</p>
+<p><strong>Option A: Manual (Recommended for Development)</strong></p>
+<ul>
+<li>Select <strong>Manual</strong></li>
+<li>Run ingestion on-demand when you need to refresh metadata</li>
+<li>Good for: Development, testing</li>
+</ul>
+<p><strong>Option B: Scheduled (Recommended for Production)</strong></p>
+<ul>
+<li>Select <strong>Scheduled</strong></li>
+<li>Choose <strong>Cron Expression</strong></li>
+<li>Enter: <code>0 3 * * *</code> (runs daily at 3 AM, after Dagster pipelines complete)</li>
+<li>Timezone: <code>UTC</code></li>
+</ul>
+<p>Click <strong>Next</strong> → <strong>Deploy</strong>.</p>
+<h3 id="step-5-run-initial-ingestion">Step 5: Run Initial Ingestion</h3>
+<p><strong>Via OpenMetadata UI:</strong></p>
+<ol>
+<li>Go to <strong>Settings → Integrations → Databases</strong></li>
+<li>Click on <strong>trino</strong> service</li>
+<li>Click <strong>Ingestions</strong> tab</li>
+<li>Find <code>trino-metadata</code> pipeline</li>
+<li>Click <strong>Run</strong> (play button)</li>
+<li>Monitor progress in real-time</li>
+</ol>
+<p>Expected output:</p>
+<pre><code>INFO - Starting metadata ingestion
+INFO - Connecting to Trino at trino:8080
+INFO - Processing catalog: iceberg
+INFO - Processing schema: raw
+INFO - Discovered 1 tables in schema raw
+INFO - Processing table: glucose_entries
+INFO - Successfully ingested table: trino.iceberg.raw.glucose_entries
+INFO - Processing schema: bronze
+INFO - Processing schema: silver
+INFO - Processing schema: gold
+INFO - Metadata ingestion completed
+INFO - Total tables ingested: 15
+INFO - Total schemas ingested: 4
+INFO - Total errors: 0
+</code></pre>
+<h3 id="step-6-enable-search-critical">Step 6: Enable Search (CRITICAL)</h3>
+<p>After initial ingestion, search will NOT work until you populate the search index. This is a required step.</p>
+<p><strong>Navigate to Search Settings:</strong></p>
+<ol>
+<li>Go to <strong>Settings</strong> (gear icon) → <strong>OpenMetadata</strong> → <strong>Search</strong></li>
+<li>Click on <strong>SearchIndexingApplication</strong></li>
+<li>Click <strong>Run Now</strong> button</li>
+</ol>
+<p><strong>Configure the Reindex Job:</strong></p>
+<ol>
+<li>Enable <strong>"Recreate Indexes"</strong> toggle (IMPORTANT)</li>
+<li>Select <strong>"All"</strong> entities (or leave default)</li>
+<li>Click <strong>Submit</strong></li>
+</ol>
+<p><strong>Monitor Progress:</strong></p>
+<ul>
+<li>The job will run for 1-2 minutes</li>
+<li>You'll see "Success" when complete</li>
+</ul>
+<p><strong>What This Does:</strong></p>
+<ul>
+<li>Creates the <code>all</code> search alias</li>
+<li>Populates search indices from metadata</li>
+<li>Enables Explore page and search functionality</li>
+</ul>
+<p><strong>Without this step:</strong></p>
+<ul>
+<li>Explore page will show error: "Search failed due to Elasticsearch exception"</li>
+<li>Global search will not work</li>
+<li>You can only navigate by direct URLs</li>
+</ul>
+<h2 id="using-the-data-catalog">Using the Data Catalog</h2>
+<h3 id="search-for-data">Search for Data</h3>
+<ol>
+<li>Use the search bar at the top</li>
+<li>Search by:</li>
+<li>Table name: <code>glucose_daily_stats</code></li>
+<li>Column name: <code>mean_glucose</code></li>
+<li>Description keywords: <code>"blood sugar"</code></li>
+<li>Tags: <code>#glucose</code> (after adding tags)</li>
+</ol>
+<h3 id="view-table-details">View Table Details</h3>
+<p>Click on any table to see:</p>
+<ul>
+<li><strong>Schema</strong>: Column names, types, descriptions</li>
+<li><strong>Sample Data</strong>: Preview of actual data</li>
+<li><strong>Lineage</strong>: Visual graph showing upstream/downstream tables</li>
+<li><strong>Queries</strong>: Recent SQL queries (if query log enabled)</li>
+<li><strong>Usage</strong>: Access patterns and popularity</li>
+</ul>
+<h3 id="add-documentation">Add Documentation</h3>
+<ol>
+<li>Click on a table (e.g., <code>silver.fct_glucose_readings</code>)</li>
+<li>Click <strong>Edit</strong> (pencil icon)</li>
+<li>Add description:</li>
+</ol>
+<pre><code class="language-markdown">## Description
+
+Fact table of glucose readings with calculated categories and metrics.
+
+## Update Schedule
+
+Updated every 5 minutes via Dagster pipeline.
+
+## Business Logic
+
+- `glucose_category`: Categorized as hypoglycemia (&lt;70), in_range (70-180), or hyperglycemia (&gt;180)
+- `reading_timestamp`: UTC timestamp of the reading
+</code></pre>
+<ol>
+<li>Add column descriptions:</li>
+<li><code>reading_id</code>: Unique identifier for each glucose reading</li>
+<li><code>glucose_mg_dl</code>: Glucose value in mg/dL (validated range: 20-600)</li>
+<li><code>glucose_category</code>: Categorized glucose level</li>
+<li>
+<p><code>reading_timestamp</code>: When the reading was taken (UTC)</p>
+</li>
+<li>
+<p>Click <strong>Save</strong></p>
+</li>
+</ol>
+<h3 id="add-tags">Add Tags</h3>
+<ol>
+<li>Click on a table</li>
+<li>Click <strong>Add Tag</strong></li>
+<li>Use built-in tags or create custom:</li>
+<li><code>PII.None</code> - No personal information</li>
+<li><code>Tier.Bronze</code> / <code>Tier.Silver</code> / <code>Tier.Gold</code></li>
+<li>Create custom: <code>Healthcare</code>, <code>CGM</code>, <code>Analytics</code></li>
+</ol>
+<h3 id="set-ownership">Set Ownership</h3>
+<ol>
+<li>Click on a table</li>
+<li>Click <strong>Add Owner</strong></li>
+<li>Select user or team (create teams in Settings)</li>
+</ol>
+<h2 id="data-lineage">Data Lineage</h2>
+<p>OpenMetadata can show visual lineage graphs:</p>
+<pre><code>raw.glucose_entries
+    ↓
+bronze.stg_glucose_entries (dbt model)
+    ↓
+silver.fct_glucose_readings (dbt model)
+    ↓
+gold.dim_date (dbt model)
+    ↓
+marts.mrt_glucose_overview (Trino publish)
+</code></pre>
+<h3 id="enable-lineage-tracking-with-dbt">Enable Lineage Tracking with dbt</h3>
+<p>Lineage is automatically extracted from:</p>
+<ul>
+<li><strong>dbt models</strong> - Shows dependencies between models and tables</li>
+<li><strong>SQL queries</strong> - Enable query log ingestion (advanced)</li>
+</ul>
+<p><strong>Step 1: Add dbt Service</strong></p>
+<ol>
+<li>Go to <strong>Settings → Services → Pipeline Services</strong></li>
+<li>Click <strong>Add Service</strong></li>
+<li>Select <strong>dbt</strong></li>
+<li>Configure:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Name</strong></td>
+<td><code>phlo-dbt</code></td>
+</tr>
+<tr>
+<td><strong>dbt Cloud API URL</strong></td>
+<td>Leave empty (we use local files)</td>
+</tr>
+<tr>
+<td><strong>dbt Cloud Account ID</strong></td>
+<td>Leave empty</td>
+</tr>
+</tbody>
+</table>
+<p>Click <strong>Next</strong>.</p>
+<p><strong>Step 2: Configure dbt Metadata Ingestion</strong></p>
+<ol>
+<li><strong>Source Configuration:</strong></li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>dbt Configuration Source</strong></td>
+<td><code>Local</code></td>
+<td>We're using local files, not dbt Cloud</td>
+</tr>
+<tr>
+<td><strong>dbt Catalog File Path</strong></td>
+<td><code>/dbt/target/catalog.json</code></td>
+<td>Contains column-level metadata</td>
+</tr>
+<tr>
+<td><strong>dbt Manifest File Path</strong></td>
+<td><code>/dbt/target/manifest.json</code></td>
+<td>Contains lineage and dependencies</td>
+</tr>
+<tr>
+<td><strong>dbt Run Results File Path</strong></td>
+<td><code>/dbt/target/run_results.json</code></td>
+<td>Optional: test results</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><strong>Database Service Name:</strong> <code>trino</code></li>
+<li>This links dbt models to your Trino tables</li>
+<li>
+<p>Must match the name of your Trino service</p>
+</li>
+<li>
+<p><strong>Include Tags:</strong> <code>Yes</code> (Enable)</p>
+</li>
+<li>Imports dbt model tags as OpenMetadata tags</li>
+</ol>
+<p>Click <strong>Next</strong>.</p>
+<p><strong>Step 3: Schedule dbt Ingestion</strong></p>
+<p><strong>For Development:</strong></p>
+<ul>
+<li>Select <strong>Manual</strong></li>
+<li>Run after <code>dbt run</code> or <code>dbt build</code> completes</li>
+</ul>
+<p><strong>For Production:</strong></p>
+<ul>
+<li>Select <strong>Scheduled</strong></li>
+<li>Cron: <code>0 4 * * *</code> (4 AM, after Dagster + Trino ingestion)</li>
+</ul>
+<p>Click <strong>Next</strong> → <strong>Deploy</strong>.</p>
+<p><strong>Step 4: Run dbt Ingestion</strong></p>
+<ol>
+<li>Ensure dbt artifacts are fresh:</li>
+</ol>
+<p><code>bash
+   cd transforms/dbt
+   dbt compile --profiles-dir ./profiles</code></p>
+<ol>
+<li>Go to <strong>Settings → Integrations → Pipeline → phlo-dbt</strong></li>
+<li>Click <strong>Ingestions</strong> tab</li>
+<li>Find <code>phlo-dbt-metadata</code> pipeline</li>
+<li>Click <strong>Run</strong> (play button)</li>
+</ol>
+<p>Expected output:</p>
+<pre><code>INFO - Starting dbt metadata ingestion
+INFO - Reading manifest from /dbt/target/manifest.json
+INFO - Found 12 dbt models
+INFO - Processing model: fct_glucose_readings
+INFO - Linking model to table: trino.iceberg.silver.fct_glucose_readings
+INFO - Extracted lineage: bronze.stg_glucose_entries → silver.fct_glucose_readings
+INFO - Successfully ingested dbt metadata
+</code></pre>
+<h2 id="governance-workflows">Governance Workflows</h2>
+<h3 id="1-impact-analysis">1. Impact Analysis</h3>
+<p>Question: "Can I delete the <code>raw.glucose_entries</code> table?"</p>
+<p>You can use the <code>phlo lineage impact</code> command (see Part 11) or check OpenMetadata:</p>
+<pre><code>raw.glucose_entries
+├─ Downstream: bronze.stg_glucose_entries
+│  ├─ Downstream: silver.fct_glucose_readings
+│  │  ├─ Downstream: gold.mrt_glucose_overview
+│  │  │  └─ Used by: Dashboard &quot;Glucose Monitoring&quot;
+│  │  └─ Used by: 3 dbt models
+│  └─ Used by: 2 dbt models
+│
+└─ Owner: data-platform-team
+
+Answer: NO!
+  It impacts:
+  - 3 downstream datasets
+  - 1 dashboard
+  - Multiple dbt models
+</code></pre>
+<h3 id="2-search-and-discovery">2. Search and Discovery</h3>
+<pre><code>OpenMetadata Search: &quot;glucose&quot;
+
+Results:
+────────
+1. fct_glucose_readings (Dataset)
+   Silver layer • Iceberg • 487K rows
+   &quot;Glucose readings fact table&quot;
+   Owner: data-platform-team
+
+2. stg_glucose_entries (Dataset)
+   Bronze layer • Iceberg • 500K rows
+   &quot;Staged glucose entries&quot;
+
+3. mrt_glucose_overview (Dataset)
+   Gold layer • Postgres marts • 5K rows
+   &quot;Marketing-ready glucose metrics&quot;
+</code></pre>
+<h3 id="3-data-access-governance">3. Data Access Governance</h3>
+<p>Track who has access to what:</p>
+<ol>
+<li>Navigate to table</li>
+<li>View <strong>Activity Feeds</strong></li>
+<li>See who accessed, queried, or modified</li>
+</ol>
+<h2 id="integration-with-phlo-workflows">Integration with Phlo Workflows</h2>
+<h3 id="update-ingestion-schedule">Update Ingestion Schedule</h3>
+<p>Match OpenMetadata ingestion with your Dagster pipelines:</p>
+<pre><code class="language-yaml">Dagster Pipeline: Daily at 2:00 AM
+OpenMetadata Ingestion: Daily at 3:00 AM (1 hour after data refresh)
+</code></pre>
+<h3 id="document-in-dbt-models">Document in dbt Models</h3>
+<p>Add descriptions to dbt models that will appear in OpenMetadata:</p>
+<pre><code class="language-yaml"># transforms/dbt/models/silver/fct_glucose_readings.yml
+version: 2
+
+models:
+  - name: fct_glucose_readings
+    description: |
+      Fact table of glucose readings with calculated categories.
+      Source: bronze.stg_glucose_entries
+      Refresh: Every 5 minutes
+    columns:
+      - name: reading_id
+        description: Unique identifier
+      - name: glucose_mg_dl
+        description: Glucose value in mg/dL (validated 20-600)
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 20
+              max_value: 600
+      - name: glucose_category
+        description: Categorized as hypoglycemia, in_range, or hyperglycemia
+</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="openmetadata-ui-not-loading">OpenMetadata UI Not Loading</h3>
+<pre><code class="language-bash"># Check service health
+make health-catalog
+
+# Check logs
+docker logs openmetadata-server
+docker logs openmetadata-mysql
+docker logs openmetadata-elasticsearch
+</code></pre>
+<h3 id="search-not-working">Search Not Working</h3>
+<p><strong>Symptom:</strong></p>
+<ul>
+<li>Explore page shows: "Search failed due to Elasticsearch exception"</li>
+<li>Global search returns no results</li>
+</ul>
+<p><strong>Solution:</strong></p>
+<ol>
+<li>Go to <strong>Settings → OpenMetadata → Search</strong></li>
+<li>Click on <strong>SearchIndexingApplication</strong></li>
+<li>Click <strong>Run Now</strong></li>
+<li><strong>IMPORTANT:</strong> Enable "Recreate Indexes" toggle</li>
+<li>Click <strong>Submit</strong></li>
+<li>Wait 1-2 minutes for completion</li>
+</ol>
+<h3 id="trino-connection-failed">Trino Connection Failed</h3>
+<p>Ensure Trino is running:</p>
+<pre><code class="language-bash">make health
+
+# Start Trino if not running
+make up-query
+</code></pre>
+<p>Check connection from OpenMetadata container:</p>
+<pre><code class="language-bash">docker exec -it openmetadata-server curl http://trino:8080/v1/info
+</code></pre>
+<h2 id="data-contracts-formalizing-data-agreements">Data Contracts: Formalizing Data Agreements</h2>
+<p>As data platforms grow, informal agreements break down. The ML team assumes glucose readings update hourly. The analytics team expects certain columns to never be null. The reporting system depends on specific value ranges. When someone changes the schema or update frequency, things break.</p>
+<p><strong>Data contracts</strong> formalize these agreements between data producers (your pipelines) and data consumers (dashboards, ML models, downstream teams).</p>
+<h3 id="the-problem-contracts-solve">The Problem Contracts Solve</h3>
+<pre><code>Without contracts:
+
+Monday:    Engineer adds new column, removes old one
+Tuesday:   ML model training fails silently
+Wednesday: Dashboard shows &quot;No Data&quot;
+Thursday:  Analyst reports: &quot;Numbers look wrong&quot;
+Friday:    Fire drill to understand what changed and why
+</code></pre>
+<p>With contracts, breaking changes are caught before deployment.</p>
+<h3 id="anatomy-of-a-data-contract">Anatomy of a Data Contract</h3>
+<p>Contracts live in your <code>contracts/</code> directory as YAML files. Here's a real example from the glucose platform:</p>
+<pre><code class="language-yaml"># phlo-examples/nightscout/contracts/glucose_readings.yaml
+name: glucose_readings
+version: 1.0.0
+owner: data-team
+description: &quot;Contract for glucose readings from Nightscout API&quot;
+
+schema:
+  required_columns:
+    - name: reading_id
+      type: string
+      description: &quot;Unique identifier for each glucose reading&quot;
+      constraints:
+        unique: true
+        nullable: false
+
+    - name: sgv
+      type: integer
+      description: &quot;Sensor glucose value in mg/dL&quot;
+      constraints:
+        min: 20
+        max: 600
+        nullable: false
+
+    - name: reading_timestamp
+      type: timestamp
+      description: &quot;When the reading was taken (UTC)&quot;
+      constraints:
+        nullable: false
+
+sla:
+  freshness_hours: 2 # Data must be &lt; 2 hours old
+  quality_threshold: 0.99 # 99% of rows must pass validation
+  availability_percentage: 99.9
+
+consumers:
+  - name: analytics-team
+    usage: &quot;BI dashboards and ad-hoc analysis&quot;
+    contact: &quot;analytics@example.com&quot;
+
+  - name: ml-team
+    usage: &quot;Model training and feature engineering&quot;
+    contact: &quot;ml@example.com&quot;
+
+notifications:
+  channels:
+    - type: slack
+      channel: &quot;#data-alerts&quot;
+  on_events:
+    - schema_change_proposed
+    - sla_breach
+    - quality_violation
+</code></pre>
+<h3 id="how-contract-validation-works">How Contract Validation Works</h3>
+<p>When you run <code>phlo contract validate glucose_readings</code>, Phlo:</p>
+<ol>
+<li><strong>Loads the contract</strong> from <code>contracts/glucose_readings.yaml</code> (or <code>phlo-examples/nightscout/contracts/glucose_readings.yaml</code> for examples)</li>
+<li><strong>Validates</strong> the contract schema and structure</li>
+<li><strong>Reports</strong> expected schema and SLA requirements</li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> Full table schema comparison against live Iceberg tables is planned for a future release. Currently, the command validates contract syntax and displays expected requirements.</p>
+</blockquote>
+<pre><code class="language-bash">$ phlo contract validate glucose_readings
+
+Contract Validation: glucose_readings
+
+Note: Requires live catalog access to validate actual schema
+
+Required Columns:
+  reading_id   string
+  sgv          integer
+  reading_timestamp timestamp
+  direction    string
+  device       string
+</code></pre>
+<p>To check for contract violations against actual tables, you would use:</p>
+<pre><code class="language-bash">$ phlo contract show glucose_readings  # View full contract details
+$ phlo catalog describe raw.glucose_entries  # View actual table schema
+</code></pre>
+<h3 id="schema-evolution-and-breaking-changes">Schema Evolution and Breaking Changes</h3>
+<p>The real power of contracts is <strong>preventing breaking changes</strong>. When you modify a schema, Phlo classifies changes:</p>
+<table>
+<thead>
+<tr>
+<th>Change Type</th>
+<th>Classification</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Add nullable column</td>
+<td>SAFE</td>
+<td>Auto-approve</td>
+</tr>
+<tr>
+<td>Add column with default</td>
+<td>SAFE</td>
+<td>Auto-approve</td>
+</tr>
+<tr>
+<td>Change column description</td>
+<td>WARNING</td>
+<td>Review required</td>
+</tr>
+<tr>
+<td>Add new constraint</td>
+<td>WARNING</td>
+<td>Review required</td>
+</tr>
+<tr>
+<td>Remove column</td>
+<td>BREAKING</td>
+<td>Block merge</td>
+</tr>
+<tr>
+<td>Change column type</td>
+<td>BREAKING</td>
+<td>Block merge</td>
+</tr>
+<tr>
+<td>Remove nullable</td>
+<td>BREAKING</td>
+<td>Block merge</td>
+</tr>
+</tbody>
+</table>
+<p>In CI/CD, run <code>phlo contract check --pr</code> to validate changes before merge:</p>
+<pre><code class="language-bash">$ phlo contract check --pr
+
+Checking contracts against PR changes...
+
+glucose_readings:
+  BREAKING: Column 'device_type' removed
+
+  Impact:
+    - analytics-team: BI dashboards (contact: analytics@example.com)
+    - ml-team: Model training (contact: ml@example.com)
+
+  Action Required:
+    1. Notify consumers before removing column
+    2. Add deprecation period (recommended: 30 days)
+    3. Get explicit approval from consumers
+    4. Use --force to override (not recommended)
+
+Contract check FAILED - 1 breaking change detected
+</code></pre>
+<h3 id="consumer-notifications">Consumer Notifications</h3>
+<p>When contracts change, affected teams get notified automatically:</p>
+<pre><code>#data-alerts Slack Channel:
+
+🔔 Schema Change Proposed: glucose_readings
+
+Changes:
+  • Column 'legacy_id' marked for removal
+  • New column 'device_model' added (nullable)
+
+Affected Consumers:
+  • analytics-team (BI dashboards)
+  • ml-team (Model training)
+
+PR: https://github.com/org/repo/pull/123
+Review by: Friday 5pm
+
+React with ✅ to approve or 🚫 to block
+</code></pre>
+<hr />
+<h2 id="schema-management-via-cli">Schema Management via CLI</h2>
+<p>Beyond contracts, Phlo provides tools for managing Pandera schemas themselves.</p>
+<h3 id="why-schema-management-matters">Why Schema Management Matters</h3>
+<p>Pandera schemas define the expected structure of your data at each layer:</p>
+<pre><code class="language-python"># workflows/schemas/nightscout.py
+class RawGlucoseEntries(pa.DataFrameModel):
+    &quot;&quot;&quot;Schema for raw glucose entries from Nightscout API.&quot;&quot;&quot;
+
+    _id: str = pa.Field(description=&quot;Nightscout entry ID&quot;)
+    sgv: int = pa.Field(ge=20, le=600, description=&quot;Glucose in mg/dL&quot;)
+    dateString: str = pa.Field(description=&quot;ISO timestamp string&quot;)
+    direction: str = pa.Field(nullable=True)
+</code></pre>
+<p>As your platform grows, you'll have dozens of schemas. The CLI helps you manage them.</p>
+<h3 id="discovering-schemas">Discovering Schemas</h3>
+<pre><code class="language-bash">$ phlo schema list
+
+Available Schemas
+Name                     Fields  Module
+────────────────────────────────────────────────
+FactDailyMetrics           15   workflows.schemas.nightscout
+FactGlucoseReadings        12   workflows.schemas.nightscout
+MartGlucoseOverview         6   workflows.schemas.nightscout
+RawGlucoseEntries           8   workflows.schemas.nightscout
+RawWeatherObservations     10   workflows.schemas.weather
+</code></pre>
+<h3 id="inspecting-schema-details">Inspecting Schema Details</h3>
+<pre><code class="language-bash">$ phlo schema show RawGlucoseEntries
+
+RawGlucoseEntries
+Module: workflows.schemas.nightscout
+Fields: 8
+
+Fields
+Name         Type     Required  Description
+────────────────────────────────────────────
+_id          str      ✓
+sgv          int      ✓
+dateString   str      ✓
+direction    str
+device       str
+type         str
+</code></pre>
+<p>You can also view the Iceberg schema equivalent:</p>
+<pre><code class="language-bash">$ phlo schema show RawGlucoseEntries --iceberg
+</code></pre>
+<h3 id="comparing-schema-versions">Comparing Schema Versions</h3>
+<p>When schemas change, use <code>diff</code> to understand what's different:</p>
+<pre><code class="language-bash">$ phlo schema diff RawGlucoseEntries --old HEAD~5
+
+Schema Diff: RawGlucoseEntries
+
+Added:
+  + transmitter_id: str (optional) - &quot;CGM transmitter serial&quot;
+
+Modified:
+  ~ sgv: constraint changed
+    - was: ge=0, le=500
+    + now: ge=20, le=600
+
+Removed:
+  - legacy_timestamp: str
+
+Classification: WARNING (1 safe, 1 warning, 0 breaking)
+</code></pre>
+<hr />
+<h2 id="browsing-your-catalog-via-cli">Browsing Your Catalog via CLI</h2>
+<p>While OpenMetadata provides a powerful UI, you can also explore your catalog from the command line.</p>
+<h3 id="listing-tables">Listing Tables</h3>
+<p>View all Iceberg tables in your catalog:</p>
+<pre><code class="language-bash">$ phlo catalog tables
+
+Iceberg Tables (ref: main)
+Namespace  Table Name              Full Name
+──────────────────────────────────────────────────
+raw        glucose_entries         raw.glucose_entries
+bronze     stg_glucose_entries     bronze.stg_glucose_entries
+silver     fct_glucose_readings    silver.fct_glucose_readings
+gold       fct_daily_glucose_metrics  gold.fct_daily_glucose_metrics
+
+Total: 4 tables
+</code></pre>
+<p>Filter by namespace:</p>
+<pre><code class="language-bash">$ phlo catalog tables --namespace silver
+</code></pre>
+<h3 id="describing-table-metadata">Describing Table Metadata</h3>
+<p>View detailed schema information:</p>
+<pre><code class="language-bash">$ phlo catalog describe raw.glucose_entries
+
+Table: raw.glucose_entries
+Location: s3://lake/warehouse/raw/glucose_entries
+Current Snapshot ID: 1234567890
+Format Version: 2
+
+Schema:
+Column Name        Type      Required
+───────────────────────────────────────
+_id                string    ✓
+sgv                int       ✓
+dateString         string    ✓
+direction          string
+device             string
+</code></pre>
+<h3 id="viewing-table-history">Viewing Table History</h3>
+<p>Check snapshot history to understand table evolution:</p>
+<pre><code class="language-bash">$ phlo catalog history raw.glucose_entries
+
+Snapshot History: raw.glucose_entries
+Snapshot ID   Timestamp            Operation  Current
+─────────────────────────────────────────────────────────
+abc12345...   2025-11-27 10:35:00  append     ●
+def67890...   2025-11-27 09:30:00  append
+ghi12345...   2025-11-27 08:25:00  append
+
+Showing 3 most recent snapshots
+</code></pre>
+<blockquote>
+<p><strong>Future Feature:</strong> Automated metadata sync to OpenMetadata (<code>phlo catalog sync</code>) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the <a href="../../setup/openmetadata/">setup guide</a>.</p>
+</blockquote>
+<hr />
+<h2 id="exposing-data-via-apis">Exposing Data via APIs</h2>
+<p>Your data platform isn't just for analysts running SQL. Applications, mobile apps, and external partners often need API access to your curated datasets.</p>
+<h3 id="the-api-layer-problem">The API Layer Problem</h3>
+<pre><code>Traditional approach:
+
+1. Data team builds mart table
+2. Backend team builds REST endpoint
+3. They disagree on schema
+4. Manual sync between dbt model and API
+5. Schema changes break integrations
+6. Nobody knows what APIs exist
+</code></pre>
+<p>Phlo automates this with PostgREST (REST) and Hasura (GraphQL).</p>
+<blockquote>
+<p><strong>Implementation Details:</strong> For comprehensive API setup guides, see:</p>
+<ul>
+<li><a href="/home/user/phlo/docs/setup/postgrest.md">docs/setup/postgrest.md</a> - PostgREST configuration</li>
+<li><a href="/home/user/phlo/docs/setup/hasura.md">docs/setup/hasura.md</a> - Hasura GraphQL setup</li>
+</ul>
+</blockquote>
+<h3 id="auto-generating-rest-apis-with-postgrest">Auto-Generating REST APIs with PostgREST</h3>
+<p>PostgREST turns PostgreSQL tables into REST endpoints automatically. The challenge is keeping API views in sync with your dbt models.</p>
+<p><strong>The manual way:</strong></p>
+<pre><code class="language-sql">-- Write this by hand for every model
+CREATE VIEW api.glucose_readings AS
+SELECT reading_id, timestamp, sgv, direction
+FROM marts_postgres.mrt_glucose_readings;
+
+GRANT SELECT ON api.glucose_readings TO analyst;
+</code></pre>
+<p><strong>The automated way:</strong></p>
+<pre><code class="language-bash">$ phlo postgrest generate-views
+
+Generating API views from dbt models...
+
+Source: dbt manifest (12 models in marts_postgres)
+
+Views to generate:
+  api.glucose_readings     &lt;- mrt_glucose_readings (tag: api)
+  api.daily_metrics       &lt;- mrt_daily_glucose_metrics (tag: api)
+  api.user_summary        &lt;- mrt_user_summary (tag: api, analyst)
+
+Permissions:
+  api.glucose_readings: analyst, admin
+  api.daily_metrics: analyst, admin
+  api.user_summary: admin (restricted)
+
+Generated SQL saved to: api_views.sql
+
+Apply with: phlo postgrest generate-views --apply
+</code></pre>
+<h3 id="how-view-generation-works">How View Generation Works</h3>
+<ol>
+<li>Phlo reads your dbt <code>manifest.json</code></li>
+<li>Filters models tagged with <code>api</code> (configurable)</li>
+<li>Generates <code>CREATE VIEW</code> statements</li>
+<li>Maps dbt tags to PostgreSQL roles</li>
+<li>Optionally applies Row-Level Security</li>
+</ol>
+<p>In your dbt model:</p>
+<pre><code class="language-yaml"># models/marts_postgres/mrt_glucose_readings.yml
+models:
+  - name: mrt_glucose_readings
+    description: &quot;Curated glucose readings for API access&quot;
+    config:
+      tags: [&quot;api&quot;, &quot;analyst&quot;] # Exposed to API, readable by analyst role
+    columns:
+      - name: reading_id
+        description: &quot;Unique reading identifier&quot;
+      - name: sgv
+        description: &quot;Glucose value in mg/dL&quot;
+</code></pre>
+<p>Generated SQL:</p>
+<pre><code class="language-sql">-- Auto-generated by: phlo postgrest generate-views
+-- Source: mrt_glucose_readings
+-- Tags: api, analyst
+
+CREATE OR REPLACE VIEW api.glucose_readings AS
+SELECT
+    reading_id,
+    timestamp,
+    sgv,
+    direction,
+    device
+FROM marts_postgres.mrt_glucose_readings;
+
+COMMENT ON VIEW api.glucose_readings IS 'Curated glucose readings for API access';
+
+-- Permissions from tags
+GRANT SELECT ON api.glucose_readings TO analyst;
+GRANT SELECT ON api.glucose_readings TO admin;
+</code></pre>
+<h3 id="graphql-with-hasura">GraphQL with Hasura</h3>
+<p>For richer query capabilities, Phlo integrates with Hasura:</p>
+<pre><code class="language-bash"># Auto-track new tables in Hasura
+$ phlo hasura track
+
+✓ Tracked 3/3 tables
+</code></pre>
+<p>You can also set up relationships and permissions:</p>
+<pre><code class="language-bash"># Auto-create relationships from foreign keys
+$ phlo hasura relationships
+
+✓ Created 1/1 relationships
+
+# Set up default permissions
+$ phlo hasura permissions
+
+✓ Created 6/6 permissions
+</code></pre>
+<p>Or do all three at once:</p>
+<pre><code class="language-bash">$ phlo hasura auto-setup
+
+Auto-tracking tables, setting up relationships and permissions...
+✓ Complete
+</code></pre>
+<p>Now you get GraphQL automatically:</p>
+<pre><code class="language-graphql">query {
+  glucose_readings(
+    where: { sgv: { _gt: 180 } }
+    order_by: { timestamp: desc }
+    limit: 10
+  ) {
+    reading_id
+    timestamp
+    sgv
+    direction
+  }
+}
+</code></pre>
+<h3 id="permission-management">Permission Management</h3>
+<p>Define permissions in YAML, sync to Hasura:</p>
+<pre><code class="language-yaml"># hasura-permissions.yaml
+tables:
+  api.glucose_readings:
+    select:
+      anon: false # No public access
+      analyst:
+        columns: [reading_id, timestamp, sgv, direction]
+        filter: {} # All rows
+      admin:
+        columns: &quot;*&quot; # All columns
+        filter: {}
+
+  api.user_summary:
+    select:
+      analyst: false # Restricted
+      admin:
+        columns: &quot;*&quot;
+        filter: {}
+</code></pre>
+<p>Apply permissions from a config file:</p>
+<pre><code class="language-bash">$ phlo hasura sync-permissions --config hasura-permissions.yaml
+
+✓ Permissions synced
+</code></pre>
+<h3 id="when-to-use-rest-vs-graphql">When to Use REST vs GraphQL</h3>
+<table>
+<thead>
+<tr>
+<th>Use Case</th>
+<th>Recommendation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple CRUD operations</td>
+<td>REST (PostgREST)</td>
+</tr>
+<tr>
+<td>Mobile apps with varied queries</td>
+<td>GraphQL (Hasura)</td>
+</tr>
+<tr>
+<td>External partner integrations</td>
+<td>REST (simpler)</td>
+</tr>
+<tr>
+<td>Internal dashboards</td>
+<td>GraphQL (flexible)</td>
+</tr>
+<tr>
+<td>High-volume batch reads</td>
+<td>Direct SQL</td>
+</tr>
+</tbody>
+</table>
+<h3 id="api-layer-in-the-architecture">API Layer in the Architecture</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                      Consumers                               │
+│  Mobile App    Web App    Partner API    Internal Tools     │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+         ┌─────────────────┴─────────────────┐
+         │                                   │
+         ▼                                   ▼
+┌─────────────────┐               ┌─────────────────┐
+│   PostgREST     │               │     Hasura      │
+│   (REST API)    │               │   (GraphQL)     │
+└────────┬────────┘               └────────┬────────┘
+         │                                   │
+         └─────────────────┬─────────────────┘
+                           │
+                           ▼
+                ┌─────────────────┐
+                │   PostgreSQL    │
+                │   api schema    │
+                │   (views)       │
+                └────────┬────────┘
+                         │
+                         ▼
+                ┌─────────────────┐
+                │  marts_postgres │
+                │  (dbt models)   │
+                └─────────────────┘
+</code></pre>
+<hr />
+<h2 id="best-practices">Best Practices</h2>
+<ol>
+<li><strong>Document Everything</strong>: Add descriptions to all tables and columns</li>
+<li><strong>Use Tags</strong>: Create a consistent tagging strategy (layers, domains, sensitivity)</li>
+<li><strong>Set Ownership</strong>: Assign owners to all datasets</li>
+<li><strong>Regular Updates</strong>: Run <code>phlo catalog sync</code> daily to keep metadata fresh</li>
+<li><strong>Quality Checks</strong>: Link data quality tests to tables</li>
+<li><strong>Glossary</strong>: Maintain business terms for domain-specific language</li>
+<li><strong>Data Contracts</strong>: Define contracts for critical datasets with clear SLAs</li>
+</ol>
+<h2 id="benefits-of-metadata-management">Benefits of Metadata Management</h2>
+<p><strong>Self-Service</strong>: New analysts discover datasets without asking
+<strong>Compliance</strong>: Track who accessed what, when, and why
+<strong>Impact Analysis</strong>: Understand dependencies before changes
+<strong>Accountability</strong>: Clear ownership and change history
+<strong>Quality</strong>: Quality checks visible and tracked
+<strong>Documentation</strong>: Single source of truth for data definitions</p>
+<h2 id="summary">Summary</h2>
+<p>OpenMetadata provides:</p>
+<ol>
+<li><strong>Catalog</strong>: Discover all datasets with descriptions</li>
+<li><strong>Lineage</strong>: Understand data flow end-to-end</li>
+<li><strong>Governance</strong>: Track ownership and access</li>
+<li><strong>Quality</strong>: Link validation checks to datasets</li>
+<li><strong>History</strong>: Change tracking and audit trail</li>
+<li><strong>Impact</strong>: See what breaks when data changes</li>
+</ol>
+<p>Integrated with dbt, Dagster, and Iceberg, OpenMetadata becomes your data OS.</p>
+<p><strong>Next</strong>: <a href="../11-observability-monitoring/">Part 11: Observability and Monitoring</a></p>
+<p>See you there!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

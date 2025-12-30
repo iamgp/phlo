@@ -1,0 +1,1629 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../core-concepts/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Quick Start - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#10-minute-quickstart" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Quick Start
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-youll-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Build
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-clone-and-setup-2-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Clone and Setup (2 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-view-dagster-ui-30-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: View Dagster UI (30 seconds)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-understand-the-asset-2-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Understand the Asset (2 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-materialize-the-asset-1-minute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Materialize the Asset (1 minute)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-query-your-data-2-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Query Your Data (2 minutes)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 5: Query Your Data (2 minutes)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-trino-sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: Trino (SQL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-duckdb-local-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: DuckDB (local analysis)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-just-did" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You Just Did
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Next Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-your-own-ingestion-asset-15-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create Your Own Ingestion Asset (15 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-complete-pipeline-60-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Complete Pipeline (60 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#explore-advanced-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explore Advanced Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#learning-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Learning Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Phlo?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-youll-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Build
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-clone-and-setup-2-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Clone and Setup (2 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-view-dagster-ui-30-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: View Dagster UI (30 seconds)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-understand-the-asset-2-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Understand the Asset (2 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-materialize-the-asset-1-minute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Materialize the Asset (1 minute)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-query-your-data-2-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Query Your Data (2 minutes)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 5: Query Your Data (2 minutes)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-trino-sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: Trino (SQL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-duckdb-local-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: DuckDB (local analysis)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-just-did" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You Just Did
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Next Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#create-your-own-ingestion-asset-15-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create Your Own Ingestion Asset (15 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-complete-pipeline-60-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Complete Pipeline (60 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#explore-advanced-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explore Advanced Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#learning-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Learning Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Phlo?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Get Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="10-minute-quickstart">10-Minute Quickstart</h1>
+<p>Get Phlo running and see your first data pipeline in action in under 10 minutes.</p>
+<h2 id="what-youll-build">What You'll Build</h2>
+<p>A simple glucose data ingestion pipeline that:</p>
+<ol>
+<li>Fetches data from Nightscout API</li>
+<li>Validates with Pandera schemas</li>
+<li>Stores in Apache Iceberg table</li>
+<li>Views in Dagster UI</li>
+</ol>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Docker and Docker Compose</li>
+<li>10 minutes</li>
+<li>Text editor</li>
+</ul>
+<h2 id="step-1-clone-and-setup-2-minutes">Step 1: Clone and Setup (2 minutes)</h2>
+<pre><code class="language-bash">git clone https://github.com/iamgp/phlo.git
+cd phlo
+
+# Copy environment template
+cp .env.example .env
+# Edit .env if needed (defaults work for local development)
+
+# Start core services
+make up-core up-query
+</code></pre>
+<p>Wait for services to start (~60 seconds).</p>
+<h2 id="step-2-view-dagster-ui-30-seconds">Step 2: View Dagster UI (30 seconds)</h2>
+<pre><code class="language-bash">make dagster
+# Opens http://localhost:10006
+</code></pre>
+<p>You'll see the existing glucose ingestion asset already defined!</p>
+<h2 id="step-3-understand-the-asset-2-minutes">Step 3: Understand the Asset (2 minutes)</h2>
+<p>Open <code>workflows/ingestion/nightscout/glucose.py</code>:</p>
+<pre><code class="language-python">from dlt.sources.rest_api import rest_api
+import phlo
+from workflows.schemas.glucose import RawGlucoseEntries
+
+@phlo_ingestion(
+    table_name=&quot;glucose_entries&quot;,
+    unique_key=&quot;_id&quot;,
+    validation_schema=RawGlucoseEntries,
+    group=&quot;nightscout&quot;,
+    cron=&quot;0 */1 * * *&quot;,
+    freshness_hours=(1, 24),
+)
+def glucose_entries(partition_date: str):
+    &quot;&quot;&quot;Ingest Nightscout glucose entries.&quot;&quot;&quot;
+    start_time_iso = f&quot;{partition_date}T00:00:00.000Z&quot;
+    end_time_iso = f&quot;{partition_date}T23:59:59.999Z&quot;
+
+    source = rest_api({
+        &quot;client&quot;: {
+            &quot;base_url&quot;: &quot;https://gwp-diabetes.fly.dev/api/v1&quot;,
+        },
+        &quot;resources&quot;: [{
+            &quot;name&quot;: &quot;entries&quot;,
+            &quot;endpoint&quot;: {
+                &quot;path&quot;: &quot;entries.json&quot;,
+                &quot;params&quot;: {
+                    &quot;count&quot;: 10000,
+                    &quot;find[dateString][$gte]&quot;: start_time_iso,
+                    &quot;find[dateString][$lt]&quot;: end_time_iso,
+                },
+            },
+        }],
+    })
+
+    return source
+</code></pre>
+<p><strong>Notice</strong>: Only 60 lines! The <code>@phlo_ingestion</code> decorator handles:</p>
+<ul>
+<li>DLT pipeline setup</li>
+<li>Pandera validation</li>
+<li>Iceberg table creation</li>
+<li>Merge with deduplication</li>
+<li>Timing instrumentation</li>
+</ul>
+<h2 id="step-4-materialize-the-asset-1-minute">Step 4: Materialize the Asset (1 minute)</h2>
+<pre><code class="language-bash"># Materialize for today's date
+docker exec dagster-webserver dagster asset materialize --select glucose_entries
+
+# Or in Dagster UI:
+# Navigate to Assets → glucose_entries → Materialize
+</code></pre>
+<p>Watch the execution in the Dagster UI. You'll see:</p>
+<ol>
+<li>DLT fetching data from API</li>
+<li>Pandera validation</li>
+<li>Staging to parquet</li>
+<li>Merge to Iceberg</li>
+</ol>
+<h2 id="step-5-query-your-data-2-minutes">Step 5: Query Your Data (2 minutes)</h2>
+<h3 id="option-a-trino-sql">Option A: Trino (SQL)</h3>
+<pre><code class="language-bash"># Connect to Trino
+docker exec -it trino trino --catalog iceberg_dev --schema raw
+
+# Query your data
+SELECT _id, sgv, dateString
+FROM glucose_entries
+ORDER BY dateString DESC
+LIMIT 10;
+</code></pre>
+<h3 id="option-b-duckdb-local-analysis">Option B: DuckDB (local analysis)</h3>
+<pre><code class="language-python">import duckdb
+
+conn = duckdb.connect()
+
+# Install Iceberg extension
+conn.execute(&quot;INSTALL iceberg;&quot;)
+conn.execute(&quot;LOAD iceberg;&quot;)
+
+# Query Iceberg table (adapt path to your MinIO endpoint)
+result = conn.execute(&quot;&quot;&quot;
+    SELECT _id, sgv, dateString
+    FROM iceberg_scan('s3://warehouse/raw/glucose_entries', ...)
+    LIMIT 10
+&quot;&quot;&quot;).df()
+
+print(result)
+</code></pre>
+<h2 id="what-you-just-did">What You Just Did</h2>
+<p>In 10 minutes, you:</p>
+<ol>
+<li>Started Phlo's lakehouse platform</li>
+<li>Explored an ingestion asset</li>
+<li>Materialized data to Iceberg</li>
+<li>Queried with SQL engines</li>
+</ol>
+<p><strong>Key Concepts</strong>:</p>
+<ul>
+<li><strong>Decorator-driven</strong>: Minimal boilerplate with <code>@phlo_ingestion</code></li>
+<li><strong>Schema-first</strong>: Pandera validates data quality</li>
+<li><strong>Iceberg tables</strong>: ACID transactions, time travel, schema evolution</li>
+<li><strong>Multi-engine</strong>: Query with Trino, DuckDB, Spark</li>
+</ul>
+<h2 id="next-steps">Next Steps</h2>
+<h3 id="create-your-own-ingestion-asset-15-minutes">Create Your Own Ingestion Asset (15 minutes)</h3>
+<ol>
+<li>Define schema in <code>workflows/schemas/mydata.py</code>:</li>
+</ol>
+<pre><code class="language-python">import pandera as pa
+from pandera.typing import Series
+
+class RawWeatherData(pa.DataFrameModel):
+    city_name: Series[str] = pa.Field(description=&quot;City name&quot;)
+    temperature: Series[float] = pa.Field(ge=-50, le=50)
+    timestamp: Series[str] = pa.Field(description=&quot;ISO 8601 timestamp&quot;)
+
+    class Config:
+        strict = True
+        coerce = True
+</code></pre>
+<ol>
+<li>Create asset in <code>workflows/ingestion/weather/observations.py</code>:</li>
+</ol>
+<pre><code class="language-python">from dlt.sources.rest_api import rest_api
+import phlo
+from workflows.schemas.mydata import RawWeatherData
+
+@phlo_ingestion(
+    table_name=&quot;weather_observations&quot;,
+    unique_key=&quot;timestamp&quot;,
+    validation_schema=RawWeatherData,
+    group=&quot;weather&quot;,
+    cron=&quot;0 */1 * * *&quot;,
+    freshness_hours=(1, 24),
+)
+def weather_observations(partition_date: str):
+    &quot;&quot;&quot;Ingest weather observations.&quot;&quot;&quot;
+    # TODO: Replace with your API
+    source = rest_api({
+        &quot;client&quot;: {
+            &quot;base_url&quot;: &quot;https://api.openweathermap.org/data/3.0&quot;,
+            &quot;auth&quot;: {&quot;token&quot;: &quot;YOUR_API_KEY&quot;}
+        },
+        &quot;resources&quot;: [{
+            &quot;name&quot;: &quot;observations&quot;,
+            &quot;endpoint&quot;: {
+                &quot;path&quot;: &quot;onecall/timemachine&quot;,
+                &quot;params&quot;: {&quot;dt&quot;: partition_date}
+            }
+        }]
+    })
+    return source
+</code></pre>
+<ol>
+<li>
+<p>No manual registration is needed. Phlo discovers assets under <code>workflows/</code>.</p>
+</li>
+<li>
+<p>Restart Dagster:</p>
+</li>
+</ol>
+<pre><code class="language-bash">docker restart dagster-webserver
+</code></pre>
+<ol>
+<li>Materialize in UI!</li>
+</ol>
+<h3 id="build-complete-pipeline-60-minutes">Build Complete Pipeline (60 minutes)</h3>
+<p>Follow the comprehensive tutorial:</p>
+<ul>
+<li><strong><a href="../../guides/workflow-development/">Workflow Development Guide</a></strong> (42KB, 10-step tutorial)</li>
+</ul>
+<p>This covers:</p>
+<ul>
+<li>Bronze/Silver/Gold layers with dbt</li>
+<li>Data quality checks</li>
+<li>Publishing to Postgres</li>
+<li>Scheduling and automation</li>
+</ul>
+<h3 id="explore-advanced-features">Explore Advanced Features</h3>
+<ul>
+<li><strong>Time Travel</strong>: Query historical snapshots</li>
+<li><strong>Git-like Branching</strong>: Nessie for data versioning</li>
+<li><strong>Data Catalog</strong>: OpenMetadata integration</li>
+<li><strong>Observability</strong>: Grafana dashboards</li>
+</ul>
+<h2 id="learning-resources">Learning Resources</h2>
+<ul>
+<li><strong>Concepts</strong>: <a href="../core-concepts/">Core Concepts</a> - Understand lakehouse fundamentals</li>
+<li><strong>Complete Tutorial</strong>: <a href="../../guides/workflow-development/">Workflow Development Guide</a> - Build full pipeline</li>
+<li><strong>Best Practices</strong>: <a href="../../operations/best-practices/">Best Practices Guide</a> - Production patterns</li>
+<li><strong>Architecture</strong>: <a href="../../reference/architecture/">Architecture</a> - System design</li>
+<li><strong>Troubleshooting</strong>: <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> - Common issues</li>
+</ul>
+<h2 id="common-issues">Common Issues</h2>
+<p><strong>"Services won't start"</strong></p>
+<pre><code class="language-bash"># Check Docker is running
+docker ps
+
+# Check logs
+make logs
+
+# Restart services
+make down
+make up-core up-query
+</code></pre>
+<p><strong>"Asset not showing in UI"</strong></p>
+<pre><code class="language-bash"># Restart Dagster webserver
+docker restart dagster-webserver
+
+# Ensure asset file lives under workflows/ and imports cleanly
+</code></pre>
+<p><strong>"Validation failed"</strong></p>
+<pre><code class="language-bash"># Check schema matches your data types
+# Common issue: timestamp as datetime instead of string
+# Review Pandera schema in workflows/schemas/
+</code></pre>
+<p><strong>"Permission denied in MinIO"</strong></p>
+<pre><code class="language-bash"># Check .env has correct MinIO credentials
+# Default: MINIO_ROOT_USER=minioadmin, MINIO_ROOT_PASSWORD=minioadmin
+</code></pre>
+<h2 id="why-phlo">Why Phlo?</h2>
+<p><strong>74% less boilerplate</strong> vs manual Dagster/Iceberg/DLT integration:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Manual Code</th>
+<th>With Phlo</th>
+<th>Reduction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DLT setup</td>
+<td>~50 lines</td>
+<td>0 lines</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Iceberg schema</td>
+<td>~40 lines</td>
+<td>0 lines (auto-generated)</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Merge logic</td>
+<td>~60 lines</td>
+<td>0 lines</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Error handling</td>
+<td>~40 lines</td>
+<td>0 lines</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>Timing/logging</td>
+<td>~30 lines</td>
+<td>0 lines</td>
+<td>100%</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>~270 lines</strong></td>
+<td><strong>~60 lines</strong></td>
+<td><strong>74%</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Unique Features</strong>:</p>
+<ul>
+<li>Git-like branching for data (Nessie)</li>
+<li>Time travel queries (Iceberg)</li>
+<li>Schema auto-generation (Pandera → PyIceberg)</li>
+<li>Idempotent ingestion (deduplication built-in)</li>
+<li>Multi-engine analytics (Trino, DuckDB, Spark)</li>
+</ul>
+<h2 id="get-help">Get Help</h2>
+<ul>
+<li><strong>Documentation</strong>: <a href="./index.md">docs/index.md</a></li>
+<li><strong>GitHub Issues</strong>: Report bugs and request features</li>
+<li><strong>GitHub Discussions</strong>: Ask questions and share ideas</li>
+</ul>
+<p><strong>Next</strong>: <a href="../../guides/workflow-development/">Complete Tutorial</a> | <a href="../../operations/best-practices/">Best Practices</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

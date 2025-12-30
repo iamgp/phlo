@@ -1,0 +1,2983 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../operations-guide/">
+      
+      
+        <link rel="next" href="../testing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Best Practices - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#best-practices-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Best Practices
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#building-production-ready-data-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building Production-Ready Data Pipelines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#general-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General Principles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="General Principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-idempotency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Idempotency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-immutability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Immutability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-fail-fast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Fail Fast
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-single-responsibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Single Responsibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-explicit-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Explicit Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Organization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Code Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming Conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Quality
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Quality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-schema-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Schema Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-dbt-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add dbt Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-asset-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Asset Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implement-data-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implement Data Contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#partition-large-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partition Large Datasets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-incremental-dbt-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Incremental dbt Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimize-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimize Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache-expensive-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache Expensive Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallelize-when-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallelize When Possible
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#never-commit-secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Never Commit Secrets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-strong-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Strong Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limit-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limit Access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encrypt-sensitive-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encrypt Sensitive Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-and-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitoring and Observability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Monitoring and Observability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#return-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-up-alerts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set Up Alerts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-grafana-dashboards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Grafana Dashboards
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dbt-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-in-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test in CI/CD
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Documentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#document-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document Assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#document-dbt-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document dbt Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maintain-readme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maintain README
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Git Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#branching-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branching Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commit-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commit Messages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pull-request-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull Request Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Deployment
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Production Deployment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-deployment-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-Deployment Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deployment-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollback-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback Plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#building-production-ready-data-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building Production-Ready Data Pipelines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#general-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General Principles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="General Principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-idempotency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Idempotency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-immutability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Immutability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-fail-fast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Fail Fast
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-single-responsibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Single Responsibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-explicit-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Explicit Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Organization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Code Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming Conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Quality
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Quality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-schema-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Schema Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-dbt-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add dbt Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-asset-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Asset Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implement-data-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implement Data Contracts
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#partition-large-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partition Large Datasets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-incremental-dbt-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Incremental dbt Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimize-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimize Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cache-expensive-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cache Expensive Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallelize-when-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallelize When Possible
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Security">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#never-commit-secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Never Commit Secrets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-strong-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Strong Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limit-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limit Access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encrypt-sensitive-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encrypt Sensitive Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-and-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitoring and Observability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Monitoring and Observability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#return-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-up-alerts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set Up Alerts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-grafana-dashboards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Grafana Dashboards
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dbt-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-in-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test in CI/CD
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Documentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#document-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document Assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#document-dbt-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document dbt Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maintain-readme" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maintain README
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#git-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Git Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Git Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#branching-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Branching Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commit-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commit Messages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pull-request-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull Request Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Deployment
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Production Deployment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-deployment-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-Deployment Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deployment-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rollback-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback Plan
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="best-practices-guide">Best Practices Guide</h1>
+<h2 id="building-production-ready-data-pipelines">Building Production-Ready Data Pipelines</h2>
+<p>This guide contains battle-tested best practices for building reliable, maintainable, and scalable data pipelines in Phlo.</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#general-principles">General Principles</a></li>
+<li><a href="#code-organization">Code Organization</a></li>
+<li><a href="#data-quality">Data Quality</a></li>
+<li><a href="#performance">Performance</a></li>
+<li><a href="#security">Security</a></li>
+<li><a href="#monitoring-and-observability">Monitoring and Observability</a></li>
+<li><a href="#testing">Testing</a></li>
+<li><a href="#documentation">Documentation</a></li>
+<li><a href="#git-workflow">Git Workflow</a></li>
+<li><a href="#production-deployment">Production Deployment</a></li>
+</ol>
+<hr />
+<h2 id="general-principles">General Principles</h2>
+<h3 id="1-idempotency">1. Idempotency</h3>
+<p><strong>Make operations repeatable without side effects.</strong></p>
+<pre><code class="language-python"># BAD: Not idempotent
+@dg.asset
+def append_data():
+    data = fetch_data()
+    append_to_table(data)  # Running twice appends twice!
+
+# GOOD: Idempotent
+@dg.asset
+def upsert_data():
+    data = fetch_data()
+    upsert_to_table(data, unique_key='id')  # Running twice has same result
+</code></pre>
+<p><strong>Benefits:</strong></p>
+<ul>
+<li>Safe to retry on failure</li>
+<li>Can backfill without duplicates</li>
+<li>Predictable behavior</li>
+</ul>
+<h3 id="2-immutability">2. Immutability</h3>
+<p><strong>Don't modify existing data, create new versions.</strong></p>
+<pre><code class="language-sql">-- BAD: Updates in place
+UPDATE orders SET status = 'shipped' WHERE order_id = 123
+
+-- GOOD: Append new record with updated status
+INSERT INTO orders_history
+SELECT *, CURRENT_TIMESTAMP as updated_at
+FROM orders WHERE order_id = 123
+</code></pre>
+<p><strong>Benefits:</strong></p>
+<ul>
+<li>Time travel (see historical state)</li>
+<li>Audit trail (who changed what when)</li>
+<li>Easier to debug issues</li>
+</ul>
+<h3 id="3-fail-fast">3. Fail Fast</h3>
+<p><strong>Detect problems early, fail clearly.</strong></p>
+<pre><code class="language-python"># GOOD: Validate inputs immediately
+@dg.asset
+def process_data():
+    data = fetch_data()
+
+    # Fail fast if data is bad
+    assert len(data) &gt; 0, &quot;No data fetched&quot;
+    assert 'id' in data.columns, &quot;Missing required column: id&quot;
+    assert data['id'].is_unique, &quot;Duplicate IDs found&quot;
+
+    # Now process with confidence
+    return transform(data)
+</code></pre>
+<h3 id="4-single-responsibility">4. Single Responsibility</h3>
+<p><strong>Each asset/model should do one thing well.</strong></p>
+<pre><code class="language-python"># BAD: Does too much
+@dg.asset
+def fetch_transform_and_load_everything():
+    # Fetches from 5 APIs
+    # Transforms data
+    # Loads to 3 destinations
+    # Too complex!
+
+# GOOD: Separate responsibilities
+@dg.asset
+def fetch_orders():
+    return fetch_from_api('orders')
+
+@dg.asset
+def transform_orders(fetch_orders):
+    return transform(fetch_orders)
+
+@dg.asset
+def load_orders(transform_orders):
+    load_to_warehouse(transform_orders)
+</code></pre>
+<h3 id="5-explicit-dependencies">5. Explicit Dependencies</h3>
+<p><strong>Make dependencies clear and explicit.</strong></p>
+<pre><code class="language-python"># BAD: Hidden dependency
+@dg.asset
+def downstream():
+    # Implicitly depends on upstream table existing
+    return query(&quot;SELECT * FROM upstream_table&quot;)
+
+# GOOD: Explicit dependency
+@dg.asset
+def downstream(upstream):  # Clear dependency
+    return transform(upstream)
+</code></pre>
+<hr />
+<h2 id="code-organization">Code Organization</h2>
+<h3 id="file-structure">File Structure</h3>
+<pre><code>project/
+├── phlo.yaml                    # Project + infra config
+├── workflows/                   # Dagster assets discovered by phlo.framework.definitions
+│   ├── ingestion/               # Ingestion assets
+│   ├── quality/                 # Quality checks and assets
+│   └── schemas/                 # Pandera schemas
+├── transforms/dbt/              # dbt models
+└── tests/                       # Project tests
+</code></pre>
+<h3 id="naming-conventions">Naming Conventions</h3>
+<p><strong>Assets:</strong></p>
+<pre><code>&lt;action&gt;_&lt;subject&gt;_&lt;detail&gt;
+
+Examples:
+- fetch_orders_api
+- transform_orders_silver
+- aggregate_orders_daily
+- publish_orders_postgres
+</code></pre>
+<p><strong>dbt Models:</strong></p>
+<pre><code>stg_&lt;source&gt;_&lt;entity&gt;           # Bronze
+fct_&lt;subject&gt;_&lt;grain&gt;           # Silver facts
+dim_&lt;entity&gt;                    # Silver dimensions
+agg_&lt;grain&gt;_&lt;subject&gt;           # Gold aggregations
+mrt_&lt;audience&gt;_&lt;subject&gt;        # Marts
+</code></pre>
+<p><strong>Python Functions:</strong></p>
+<pre><code class="language-python"># Use verbs for functions
+def fetch_data()
+def transform_records()
+def calculate_metrics()
+
+# Use nouns for classes
+class TrinoResource
+class OrderSchema
+class DateUtils
+</code></pre>
+<h3 id="configuration-management">Configuration Management</h3>
+<p><strong>Use environment variables:</strong></p>
+<pre><code class="language-python"># config.py
+from pydantic_settings import BaseSettings
+
+class Config(BaseSettings):
+    # Database
+    POSTGRES_HOST: str = &quot;localhost&quot;
+    POSTGRES_PORT: int = 5432
+
+    # API
+    API_KEY: str
+    API_BASE_URL: str = &quot;https://api.example.com&quot;
+
+    # Feature flags
+    ENABLE_NOTIFICATIONS: bool = False
+    ENABLE_CACHING: bool = True
+
+    class Config:
+        env_file = &quot;.env&quot;
+</code></pre>
+<p><strong>Benefits:</strong></p>
+<ul>
+<li>One place to change configuration</li>
+<li>Easy to switch between environments</li>
+<li>Secrets not in code</li>
+</ul>
+<hr />
+<h2 id="data-quality">Data Quality</h2>
+<h3 id="add-schema-validation">Add Schema Validation</h3>
+<p><strong>Use Pandera:</strong></p>
+<pre><code class="language-python">import pandera as pa
+
+class OrderSchema(pa.DataFrameModel):
+    order_id: Series[str] = pa.Field(unique=True)
+    customer_id: Series[str] = pa.Field()
+    amount: Series[float] = pa.Field(ge=0)  # &gt;= 0
+    order_date: Series[datetime] = pa.Field()
+
+    @pa.check(&quot;amount&quot;)
+    def check_reasonable_amount(cls, amount: Series[float]) -&gt; Series[bool]:
+        &quot;&quot;&quot;Amounts should be reasonable (&lt; $10,000).&quot;&quot;&quot;
+        return amount &lt; 10000
+
+@dg.asset
+def validated_orders() -&gt; pandera_schema_to_dagster_type(OrderSchema):
+    data = fetch_orders()
+    return data  # Automatically validated!
+</code></pre>
+<h3 id="add-dbt-tests">Add dbt Tests</h3>
+<p><strong>Test everything important:</strong></p>
+<pre><code class="language-yaml">models:
+  - name: fct_orders
+    tests:
+      - dbt_utils.at_least_one # Table not empty
+
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - unique
+
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+
+      - name: amount
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1000000
+</code></pre>
+<h3 id="add-asset-checks">Add Asset Checks</h3>
+<pre><code class="language-python">from dagster import asset_check, AssetCheckResult
+
+@asset_check(asset=orders)
+def check_orders_recent(orders):
+    &quot;&quot;&quot;Ensure we have recent orders.&quot;&quot;&quot;
+    max_date = orders['order_date'].max()
+    age_hours = (datetime.now() - max_date).total_seconds() / 3600
+
+    if age_hours &gt; 24:
+        return AssetCheckResult(
+            passed=False,
+            description=f&quot;Most recent order is {age_hours:.1f} hours old&quot;
+        )
+
+    return AssetCheckResult(passed=True)
+</code></pre>
+<h3 id="implement-data-contracts">Implement Data Contracts</h3>
+<p><strong>Define expectations:</strong></p>
+<pre><code class="language-yaml"># data_contracts/orders.yml
+table: raw.orders
+owner: data-team@company.com
+description: Customer orders from e-commerce platform
+
+schema:
+  - name: order_id
+    type: string
+    required: true
+    unique: true
+
+  - name: amount
+    type: decimal(10,2)
+    required: true
+    constraints:
+      - min: 0
+      - max: 1000000
+
+freshness:
+  warn_threshold: 2h
+  error_threshold: 24h
+</code></pre>
+<hr />
+<h2 id="performance">Performance</h2>
+<h3 id="partition-large-datasets">Partition Large Datasets</h3>
+<pre><code class="language-python">from dagster import DailyPartitionsDefinition
+
+daily = DailyPartitionsDefinition(start_date=&quot;2024-01-01&quot;)
+
+@dg.asset(partitions_def=daily)
+def daily_orders(context):
+    date = context.partition_key
+    # Process only one day
+    return fetch_orders_for_date(date)
+</code></pre>
+<h3 id="use-incremental-dbt-models">Use Incremental dbt Models</h3>
+<pre><code class="language-sql">{{
+    config(
+        materialized='incremental',
+        unique_key='order_id',
+    )
+}}
+
+SELECT * FROM {{ ref('stg_orders') }}
+
+{% if is_incremental() %}
+    WHERE updated_at &gt; (SELECT MAX(updated_at) FROM {{ this }})
+{% endif %}
+</code></pre>
+<h3 id="optimize-queries">Optimize Queries</h3>
+<pre><code class="language-sql">-- BAD: Full table scan
+SELECT *
+FROM orders
+WHERE YEAR(order_date) = 2024
+
+-- GOOD: Partition pruning
+SELECT *
+FROM orders
+WHERE order_date &gt;= '2024-01-01'
+  AND order_date &lt; '2025-01-01'
+
+-- BETTER: Add LIMIT for exploration
+SELECT *
+FROM orders
+WHERE order_date &gt;= '2024-01-01'
+LIMIT 10000
+</code></pre>
+<h3 id="cache-expensive-operations">Cache Expensive Operations</h3>
+<pre><code class="language-python">from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_api_client():
+    &quot;&quot;&quot;Cached API client (created once).&quot;&quot;&quot;
+    return ExpensiveAPIClient()
+
+@dg.asset
+def fetch_data():
+    client = get_api_client()  # Reuses cached client
+    return client.fetch()
+</code></pre>
+<h3 id="parallelize-when-possible">Parallelize When Possible</h3>
+<pre><code class="language-python"># BAD: Sequential
+@dg.asset
+def process_all_cities():
+    results = []
+    for city in cities:
+        results.append(process_city(city))  # One at a time
+    return results
+
+# GOOD: Parallel (with static partitions)
+city_partition = StaticPartitionsDefinition(cities)
+
+@dg.asset(partitions_def=city_partition)
+def process_city(context):
+    city = context.partition_key
+    return process_city(city)  # Each city processes in parallel!
+</code></pre>
+<hr />
+<h2 id="security">Security</h2>
+<h3 id="never-commit-secrets">Never Commit Secrets</h3>
+<p><strong>.gitignore:</strong></p>
+<pre><code>.env
+*.key
+*.pem
+secrets/
+credentials.json
+</code></pre>
+<p><strong>Use environment variables:</strong></p>
+<pre><code class="language-python"># GOOD
+API_KEY = os.getenv('API_KEY')
+
+# BAD
+API_KEY = 'abc123'  # Don't hardcode!
+</code></pre>
+<h3 id="use-strong-authentication">Use Strong Authentication</h3>
+<pre><code class="language-python">from phlo.config import get_settings
+
+@dg.asset
+def fetch_from_api():
+    config = get_settings()
+
+    # Use API key from environment
+    headers = {
+        'Authorization': f'Bearer {config.API_KEY}'
+    }
+
+    response = requests.get(config.API_URL, headers=headers)
+    return response.json()
+</code></pre>
+<h3 id="limit-access">Limit Access</h3>
+<pre><code class="language-sql">-- Create read-only user for analysts
+CREATE USER analyst_user WITH PASSWORD 'secure_password';
+GRANT USAGE ON SCHEMA marts TO analyst_user;
+GRANT SELECT ON ALL TABLES IN SCHEMA marts TO analyst_user;
+
+-- Don't grant access to raw data
+REVOKE ALL ON SCHEMA raw FROM analyst_user;
+</code></pre>
+<h3 id="encrypt-sensitive-data">Encrypt Sensitive Data</h3>
+<pre><code class="language-python">from cryptography.fernet import Fernet
+
+def encrypt_sensitive_field(value: str, key: bytes) -&gt; str:
+    &quot;&quot;&quot;Encrypt sensitive data before storing.&quot;&quot;&quot;
+    f = Fernet(key)
+    return f.encrypt(value.encode()).decode()
+
+@dg.asset
+def process_customer_data():
+    data = fetch_customers()
+
+    # Encrypt email addresses
+    encryption_key = get_settings().ENCRYPTION_KEY
+    data['email_encrypted'] = data['email'].apply(
+        lambda x: encrypt_sensitive_field(x, encryption_key)
+    )
+
+    # Drop plaintext email
+    data = data.drop(columns=['email'])
+
+    return data
+</code></pre>
+<hr />
+<h2 id="monitoring-and-observability">Monitoring and Observability</h2>
+<h3 id="add-logging">Add Logging</h3>
+<pre><code class="language-python">@dg.asset
+def process_orders(context: dg.AssetExecutionContext):
+    context.log.info(&quot;Starting order processing&quot;)
+
+    orders = fetch_orders()
+    context.log.info(f&quot;Fetched {len(orders)} orders&quot;)
+
+    # Log important metrics
+    total_amount = orders['amount'].sum()
+    context.log.info(f&quot;Total order value: ${total_amount:,.2f}&quot;)
+
+    # Log warnings
+    late_orders = orders[orders['is_late']]
+    if len(late_orders) &gt; 10:
+        context.log.warning(f&quot;{len(late_orders)} orders are late!&quot;)
+
+    return orders
+</code></pre>
+<h3 id="return-metadata">Return Metadata</h3>
+<pre><code class="language-python">@dg.asset
+def process_orders(context) -&gt; dg.MaterializeResult:
+    orders = fetch_orders()
+
+    return dg.MaterializeResult(
+        metadata={
+            &quot;num_records&quot;: len(orders),
+            &quot;date_range&quot;: f&quot;{orders['date'].min()} to {orders['date'].max()}&quot;,
+            &quot;total_amount&quot;: dg.MetadataValue.float(orders['amount'].sum()),
+            &quot;preview&quot;: dg.MetadataValue.md(orders.head().to_markdown()),
+        }
+    )
+</code></pre>
+<h3 id="set-up-alerts">Set Up Alerts</h3>
+<p><strong>Dagster sensors:</strong></p>
+<pre><code class="language-python">@dg.sensor(
+    name=&quot;alert_on_failure&quot;,
+    minimum_interval_seconds=60,
+)
+def failure_alert_sensor(context):
+    &quot;&quot;&quot;Alert on asset failures.&quot;&quot;&quot;
+    runs = context.instance.get_runs(
+        filters=dg.RunsFilter(
+            statuses=[dg.DagsterRunStatus.FAILURE],
+            created_after=datetime.now() - timedelta(minutes=5),
+        )
+    )
+
+    for run in runs:
+        send_alert(f&quot;Run {run.run_id} failed: {run.pipeline_name}&quot;)
+</code></pre>
+<p><strong>dbt tests as monitors:</strong></p>
+<pre><code class="language-yaml">models:
+  - name: fct_orders
+    tests:
+      - dbt_utils.recency:
+          datepart: hour
+          field: created_at
+          interval: 2
+          # Alerts if no orders in last 2 hours
+</code></pre>
+<h3 id="use-grafana-dashboards">Use Grafana Dashboards</h3>
+<p>Monitor key metrics:</p>
+<ul>
+<li>Asset materialization rates</li>
+<li>Test pass/fail rates</li>
+<li>Query performance</li>
+<li>Resource usage</li>
+<li>Data volumes</li>
+</ul>
+<hr />
+<h2 id="testing">Testing</h2>
+<h3 id="unit-tests">Unit Tests</h3>
+<pre><code class="language-python"># tests/test_transformations.py
+import pytest
+from phlo.utils.transformations import calculate_tax
+
+def test_calculate_tax():
+    assert calculate_tax(100, 0.1) == 10
+    assert calculate_tax(0, 0.1) == 0
+    assert calculate_tax(100, 0) == 0
+
+def test_calculate_tax_negative():
+    with pytest.raises(ValueError):
+        calculate_tax(-100, 0.1)
+</code></pre>
+<h3 id="integration-tests">Integration Tests</h3>
+<pre><code class="language-python"># tests/test_pipeline.py
+from dagster import materialize
+from phlo.framework.definitions import defs
+
+def test_orders_pipeline():
+    &quot;&quot;&quot;Test complete orders pipeline.&quot;&quot;&quot;
+
+    # Materialize all orders assets
+    result = materialize(
+        defs.get_asset_graph().get_all_asset_keys(),
+        selection=dg.AssetSelection.groups(&quot;orders&quot;),
+    )
+
+    assert result.success
+</code></pre>
+<h3 id="dbt-tests">dbt Tests</h3>
+<pre><code class="language-sql">-- tests/assert_no_negative_amounts.sql
+SELECT *
+FROM {{ ref('fct_orders') }}
+WHERE amount &lt; 0
+</code></pre>
+<h3 id="test-in-cicd">Test in CI/CD</h3>
+<pre><code class="language-yaml"># .github/workflows/test.yml
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: &quot;3.11&quot;
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest tests/
+
+      - name: Run dbt tests
+        run: dbt test --project-dir transforms/dbt
+</code></pre>
+<hr />
+<h2 id="documentation">Documentation</h2>
+<h3 id="document-assets">Document Assets</h3>
+<pre><code class="language-python">@dg.asset(
+    name=&quot;customer_lifetime_value&quot;,
+    description=&quot;&quot;&quot;
+    Calculates customer lifetime value (LTV) based on historical orders.
+
+    **Calculation:**
+    - LTV = SUM(order_amount) for all completed orders
+
+    **Business Rules:**
+    - Only includes orders with status = 'completed'
+    - Excludes returns and refunds
+    - Updated daily
+
+    **Depends On:**
+    - fct_orders (silver layer)
+    - dim_customers (silver layer)
+
+    **Used By:**
+    - mrt_customer_segmentation
+    - Executive dashboard (Superset)
+
+    **Owner:** Data Team (data-team@company.com)
+    &quot;&quot;&quot;,
+    group_name=&quot;customer_analytics&quot;,
+    compute_kind=&quot;python&quot;,
+)
+def customer_lifetime_value(fct_orders, dim_customers):
+    ...
+</code></pre>
+<h3 id="document-dbt-models">Document dbt Models</h3>
+<pre><code class="language-yaml"># models/silver/schema.yml
+models:
+  - name: fct_orders
+    description: |
+      Orders with calculated metrics and business logic.
+
+      ## Business Rules
+      - Excludes cancelled orders
+      - Applies 10% tax rate
+      - Free shipping for orders &gt; $100
+
+      ## Data Quality
+      - Deduplicated on order_id
+      - Late-arriving data handled via incremental logic
+
+      ## Refresh Schedule
+      - Incremental: Hourly
+      - Full refresh: Weekly (Sunday 2 AM)
+
+      ## Owner
+      Data Engineering Team
+
+    columns:
+      - name: order_id
+        description: Unique order identifier (UUID)
+        tests:
+          - not_null
+          - unique
+</code></pre>
+<h3 id="generate-documentation">Generate Documentation</h3>
+<pre><code class="language-bash"># dbt documentation
+dbt docs generate
+dbt docs serve
+
+# Dagster documentation
+# Available in UI automatically!
+</code></pre>
+<h3 id="maintain-readme">Maintain README</h3>
+<pre><code class="language-markdown"># Phlo Data Platform
+
+## Quick Start
+
+...
+
+## Architecture
+
+...
+
+## Common Workflows
+
+...
+
+## Troubleshooting
+
+...
+
+## Contact
+
+For help: data-team@company.com
+</code></pre>
+<hr />
+<h2 id="git-workflow">Git Workflow</h2>
+<h3 id="branching-strategy">Branching Strategy</h3>
+<pre><code>main (production)
+  ├─ dev (staging)
+  │   ├─ feature/add-customer-segmentation
+  │   ├─ fix/orders-duplicate-bug
+  │   └─ refactor/optimize-queries
+</code></pre>
+<h3 id="commit-messages">Commit Messages</h3>
+<pre><code class="language-bash"># Good commit messages
+git commit -m &quot;feat: add customer lifetime value calculation&quot;
+git commit -m &quot;fix: resolve duplicate orders in fct_orders&quot;
+git commit -m &quot;docs: update data modeling guide&quot;
+git commit -m &quot;perf: optimize daily aggregation query&quot;
+git commit -m &quot;test: add validation for negative amounts&quot;
+
+# Bad commit messages
+git commit -m &quot;updates&quot;
+git commit -m &quot;fix bug&quot;
+git commit -m &quot;wip&quot;
+</code></pre>
+<h3 id="pull-request-process">Pull Request Process</h3>
+<ol>
+<li><strong>Create feature branch</strong></li>
+</ol>
+<p><code>bash
+   git checkout -b feature/my-feature</code></p>
+<ol>
+<li><strong>Make changes and commit</strong></li>
+</ol>
+<p><code>bash
+   git add .
+   git commit -m "feat: add new feature"</code></p>
+<ol>
+<li><strong>Push and create PR</strong></li>
+</ol>
+<p><code>bash
+   git push -u origin feature/my-feature</code></p>
+<ol>
+<li><strong>PR template:</strong></li>
+</ol>
+<p>```markdown
+   ## What</p>
+<p>Brief description of changes</p>
+<p>## Why</p>
+<p>Why are these changes needed?</p>
+<p>## Testing</p>
+<ul>
+<li>[ ] Unit tests pass</li>
+<li>[ ] dbt tests pass</li>
+<li>[ ] Manually tested in dev</li>
+</ul>
+<p>## Screenshots</p>
+<p>(if applicable)
+   ```</p>
+<ol>
+<li>
+<p><strong>Code review</strong></p>
+</li>
+<li>
+<p><strong>Merge to dev, test, then merge to main</strong></p>
+</li>
+</ol>
+<hr />
+<h2 id="production-deployment">Production Deployment</h2>
+<h3 id="pre-deployment-checklist">Pre-Deployment Checklist</h3>
+<ul>
+<li>[ ] All tests passing</li>
+<li>[ ] Code reviewed</li>
+<li>[ ] Documentation updated</li>
+<li>[ ] Secrets configured</li>
+<li>[ ] Monitoring set up</li>
+<li>[ ] Rollback plan documented</li>
+</ul>
+<h3 id="deployment-strategy">Deployment Strategy</h3>
+<p><strong>1. Test in dev environment</strong></p>
+<pre><code class="language-bash"># Deploy to dev
+git checkout dev
+git pull origin main
+git push origin dev
+
+# Monitor in Dagster dev environment
+</code></pre>
+<p><strong>2. Smoke test</strong></p>
+<pre><code class="language-bash"># Materialize critical assets
+dagster asset materialize -a critical_asset_1
+dagster asset materialize -a critical_asset_2
+
+# Run dbt tests
+dbt test --select tag:critical
+</code></pre>
+<p><strong>3. Deploy to production</strong></p>
+<pre><code class="language-bash"># Merge to main
+git checkout main
+git merge dev
+git push origin main
+
+# Deployment happens automatically (CI/CD)
+</code></pre>
+<p><strong>4. Monitor</strong></p>
+<ul>
+<li>Check Grafana dashboards</li>
+<li>Watch Dagster runs</li>
+<li>Check alert channels</li>
+</ul>
+<h3 id="rollback-plan">Rollback Plan</h3>
+<pre><code class="language-bash"># If something goes wrong, revert
+git revert &lt;commit-hash&gt;
+git push origin main
+
+# Or roll back to previous version
+git reset --hard &lt;previous-commit&gt;
+git push --force origin main
+
+# Restore data from Nessie/Iceberg
+# Time travel to before deployment
+SELECT * FROM iceberg.silver.fct_orders
+FOR SYSTEM_TIME AS OF TIMESTAMP '2024-11-05 10:00:00';
+</code></pre>
+<hr />
+<h2 id="summary">Summary</h2>
+<p><strong>Key Principles:</strong></p>
+<ul>
+<li>✅ Idempotency</li>
+<li>✅ Immutability</li>
+<li>✅ Fail fast</li>
+<li>✅ Single responsibility</li>
+<li>✅ Explicit dependencies</li>
+</ul>
+<p><strong>Code Quality:</strong></p>
+<ul>
+<li>✅ Clear naming</li>
+<li>✅ Modular structure</li>
+<li>✅ Configuration management</li>
+<li>✅ Error handling</li>
+</ul>
+<p><strong>Data Quality:</strong></p>
+<ul>
+<li>✅ Schema validation</li>
+<li>✅ dbt tests</li>
+<li>✅ Asset checks</li>
+<li>✅ Data contracts</li>
+</ul>
+<p><strong>Operations:</strong></p>
+<ul>
+<li>✅ Monitoring</li>
+<li>✅ Logging</li>
+<li>✅ Alerting</li>
+<li>✅ Testing</li>
+<li>✅ Documentation</li>
+</ul>
+<p><strong>Security:</strong></p>
+<ul>
+<li>✅ No secrets in code</li>
+<li>✅ Strong authentication</li>
+<li>✅ Least privilege access</li>
+<li>✅ Encrypt sensitive data</li>
+</ul>
+<p><strong>Deployment:</strong></p>
+<ul>
+<li>✅ Version control</li>
+<li>✅ Code review</li>
+<li>✅ Testing in dev</li>
+<li>✅ Gradual rollout</li>
+<li>✅ Monitoring</li>
+<li>✅ Rollback plan</li>
+</ul>
+<hr />
+<p><strong>Remember:</strong> Good practices prevent problems before they happen. Invest time upfront to save time later!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

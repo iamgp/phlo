@@ -1,0 +1,2872 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../best-practices/">
+      
+      
+        <link rel="next" href="../troubleshooting/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Testing - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#testing-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Testing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../best-practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-copy-the-test-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Copy the Test Template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-run-your-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Run Your Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unit Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#testing-pandera-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Pandera Schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-schema-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Schema Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-asset-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Asset Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-business-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Business Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-testing-utilities-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Testing Utilities ✨ NEW
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Testing Utilities ✨ NEW">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mockicebergcatalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MockIcebergCatalog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_asset_execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_asset_execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-mockicebergcatalog-test_asset_execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combining MockIcebergCatalog + test_asset_execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-service-auto-configure-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Service Auto-Configure Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-asset-materialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Asset Materialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-commands-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Commands ✨ NEW
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CLI Commands ✨ NEW">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phlo-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        phlo test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-materialize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        phlo materialize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-create-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        phlo create-workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Organization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-conftestpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example conftest.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-test-schema-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Test Schema First
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-use-descriptive-test-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Use Descriptive Test Names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-one-assertion-concept-per-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. One Assertion Concept Per Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-use-fixtures-for-test-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Use Fixtures for Test Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-mark-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Mark Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-test-error-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Test Error Cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-testing-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Testing Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Testing Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-schema-validation-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 1: Schema Validation Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-constraint-violation-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 2: Constraint Violation Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-3-field-existence-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 3: Field Existence Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-4-asset-configuration-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 4: Asset Configuration Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-discovery-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Discovery Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#import-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-validation-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Validation Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-test-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Test Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-tests-in-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Tests in CI/CD
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running Tests in CI/CD">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#github-actions-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub Actions Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Coverage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Coverage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measuring-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measuring Coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coverage-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage Goals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-copy-the-test-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Copy the Test Template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-run-your-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Run Your Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unit Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#testing-pandera-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Pandera Schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-schema-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Schema Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-asset-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Asset Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-business-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Business Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-testing-utilities-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Testing Utilities ✨ NEW
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Testing Utilities ✨ NEW">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mockicebergcatalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MockIcebergCatalog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test_asset_execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_asset_execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#combining-mockicebergcatalog-test_asset_execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combining MockIcebergCatalog + test_asset_execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-service-auto-configure-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Service Auto-Configure Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-asset-materialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Asset Materialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-commands-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Commands ✨ NEW
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CLI Commands ✨ NEW">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phlo-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        phlo test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-materialize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        phlo materialize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-create-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        phlo create-workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-organization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Organization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Organization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-conftestpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example conftest.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-test-schema-first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Test Schema First
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-use-descriptive-test-names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Use Descriptive Test Names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-one-assertion-concept-per-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. One Assertion Concept Per Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-use-fixtures-for-test-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Use Fixtures for Test Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-mark-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Mark Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-test-error-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Test Error Cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-testing-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Testing Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Testing Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-schema-validation-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 1: Schema Validation Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-constraint-violation-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 2: Constraint Violation Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-3-field-existence-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 3: Field Existence Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-4-asset-configuration-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 4: Asset Configuration Test
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-discovery-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Discovery Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#import-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-validation-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Validation Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-test-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Test Failures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-tests-in-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Tests in CI/CD
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running Tests in CI/CD">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#github-actions-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub Actions Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Coverage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Coverage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measuring-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measuring Coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coverage-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage Goals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="testing-guide">Testing Guide</h1>
+<p>A comprehensive guide to testing Phlo workflows.</p>
+<h2 id="overview">Overview</h2>
+<p>This guide covers:</p>
+<ul>
+<li><strong>Unit Testing</strong>: Test schemas and business logic (fast, no Docker)</li>
+<li><strong>Integration Testing</strong>: Test full pipelines (slower, requires Docker)</li>
+<li><strong>Best Practices</strong>: Patterns and recommendations</li>
+</ul>
+<p><strong>Time to write first test</strong>: 5-10 minutes</p>
+<hr />
+<h2 id="quick-start">Quick Start</h2>
+<h3 id="1-copy-the-test-template">1. Copy the Test Template</h3>
+<pre><code class="language-bash">cp templates/tests/test_ingestion.py tests/test_my_workflow.py
+</code></pre>
+<h3 id="2-run-your-tests">2. Run Your Tests</h3>
+<pre><code class="language-bash"># Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_my_workflow.py -v
+
+# Run specific test
+pytest tests/test_my_workflow.py::TestSchemaValidation::test_valid_data_passes_validation -v
+</code></pre>
+<hr />
+<h2 id="unit-testing">Unit Testing</h2>
+<p>Unit tests are <strong>fast</strong> (&lt; 1 second), require <strong>no Docker</strong>, and test individual components.</p>
+<h3 id="testing-pandera-schemas">Testing Pandera Schemas</h3>
+<p>Test that your schema validates data correctly:</p>
+<pre><code class="language-python">import pytest
+import pandas as pd
+from workflows.schemas.weather import RawWeatherData
+
+def test_valid_weather_data_passes_validation():
+    &quot;&quot;&quot;Test that valid weather data passes schema validation.&quot;&quot;&quot;
+
+    test_data = pd.DataFrame([
+        {
+            &quot;city_name&quot;: &quot;London&quot;,
+            &quot;temperature&quot;: 15.5,
+            &quot;humidity&quot;: 65,
+            &quot;timestamp&quot;: &quot;2024-01-15T12:00:00Z&quot;,
+        },
+    ])
+
+    # Should not raise
+    validated = RawWeatherData.validate(test_data)
+    assert len(validated) == 1
+
+
+def test_invalid_temperature_fails_validation():
+    &quot;&quot;&quot;Test that invalid temperature fails validation.&quot;&quot;&quot;
+
+    test_data = pd.DataFrame([
+        {
+            &quot;city_name&quot;: &quot;London&quot;,
+            &quot;temperature&quot;: -200.0,  # Invalid: should be &gt;= -100
+            &quot;humidity&quot;: 65,
+            &quot;timestamp&quot;: &quot;2024-01-15T12:00:00Z&quot;,
+        },
+    ])
+
+    # Should raise SchemaError
+    with pytest.raises(Exception):
+        RawWeatherData.validate(test_data)
+</code></pre>
+<h3 id="testing-schema-configuration">Testing Schema Configuration</h3>
+<p>Verify that your schema includes required fields:</p>
+<pre><code class="language-python">def test_schema_has_unique_key():
+    &quot;&quot;&quot;Test that unique_key field exists in schema.&quot;&quot;&quot;
+
+    schema_fields = RawWeatherData.to_schema().columns.keys()
+
+    # Ensure unique_key from decorator exists in schema
+    assert &quot;timestamp&quot; in schema_fields
+
+
+def test_schema_has_required_fields():
+    &quot;&quot;&quot;Test that schema includes all required fields.&quot;&quot;&quot;
+
+    schema_fields = RawWeatherData.to_schema().columns.keys()
+
+    required_fields = [&quot;city_name&quot;, &quot;temperature&quot;, &quot;humidity&quot;, &quot;timestamp&quot;]
+
+    for field in required_fields:
+        assert field in schema_fields, f&quot;Missing field: {field}&quot;
+</code></pre>
+<h3 id="testing-asset-configuration">Testing Asset Configuration</h3>
+<p>Verify decorator parameters:</p>
+<pre><code class="language-python">import inspect
+from workflows.ingestion.weather.observations import weather_observations
+
+def test_asset_has_correct_table_name():
+    &quot;&quot;&quot;Test that asset has correct table name.&quot;&quot;&quot;
+
+    # Asset op name should be prefixed with 'dlt_'
+    assert weather_observations.op.name == &quot;dlt_weather_observations&quot;
+
+
+def test_asset_accepts_partition_parameter():
+    &quot;&quot;&quot;Test that asset function accepts partition_date.&quot;&quot;&quot;
+
+    sig = inspect.signature(weather_observations.op.compute_fn)
+    params = sig.parameters
+
+    assert &quot;partition_date&quot; in params
+</code></pre>
+<h3 id="testing-business-logic">Testing Business Logic</h3>
+<p>Test any data transformations in your asset:</p>
+<pre><code class="language-python">def test_date_formatting():
+    &quot;&quot;&quot;Test that partition_date is formatted correctly.&quot;&quot;&quot;
+
+    partition_date = &quot;2024-01-15&quot;
+
+    # Your formatting logic
+    start_time = f&quot;{partition_date}T00:00:00.000Z&quot;
+    end_time = f&quot;{partition_date}T23:59:59.999Z&quot;
+
+    assert start_time == &quot;2024-01-15T00:00:00.000Z&quot;
+    assert end_time == &quot;2024-01-15T23:59:59.999Z&quot;
+
+
+def test_data_filtering():
+    &quot;&quot;&quot;Test custom data filtering logic.&quot;&quot;&quot;
+
+    sample_data = pd.DataFrame([
+        {&quot;value&quot;: 10, &quot;status&quot;: &quot;active&quot;},
+        {&quot;value&quot;: 20, &quot;status&quot;: &quot;inactive&quot;},
+        {&quot;value&quot;: 30, &quot;status&quot;: &quot;active&quot;},
+    ])
+
+    # Your filtering logic
+    filtered = sample_data[sample_data[&quot;status&quot;] == &quot;active&quot;]
+
+    assert len(filtered) == 2
+    assert filtered[&quot;value&quot;].tolist() == [10, 30]
+</code></pre>
+<hr />
+<h2 id="advanced-testing-utilities-new">Advanced Testing Utilities ✨ NEW</h2>
+<p>Phlo provides powerful testing utilities for fast, local testing without Docker.</p>
+<h3 id="mockicebergcatalog">MockIcebergCatalog</h3>
+<p>Test Iceberg table operations in-memory using DuckDB backend.</p>
+<p><strong>Features</strong>:</p>
+<ul>
+<li>⚡ <strong>&lt; 5 second execution</strong> (vs 30-60 sec with Docker)</li>
+<li>🧪 In-memory DuckDB backend (no persistence)</li>
+<li>✅ PyIceberg-compatible API</li>
+<li>🔄 Append, scan, filter operations</li>
+<li>📊 Convert to Pandas or Arrow</li>
+</ul>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-python">from phlo_testing import mock_iceberg_catalog
+from phlo_dlt.converter import pandera_to_iceberg
+from workflows.schemas.weather import RawWeatherData
+import pandas as pd
+
+def test_iceberg_operations():
+    &quot;&quot;&quot;Test Iceberg table operations locally.&quot;&quot;&quot;
+
+    # Convert Pandera schema to Iceberg
+    iceberg_schema = pandera_to_iceberg(RawWeatherData)
+
+    # Create mock catalog
+    with mock_iceberg_catalog() as catalog:
+        # Create table
+        table = catalog.create_table(&quot;raw.weather&quot;, schema=iceberg_schema)
+
+        # Prepare test data
+        test_data = pd.DataFrame([
+            {&quot;city&quot;: &quot;London&quot;, &quot;temp&quot;: 15.5, &quot;timestamp&quot;: &quot;2024-01-15&quot;},
+            {&quot;city&quot;: &quot;Paris&quot;, &quot;temp&quot;: 12.3, &quot;timestamp&quot;: &quot;2024-01-15&quot;},
+        ])
+
+        # Validate with Pandera
+        validated = RawWeatherData.validate(test_data)
+
+        # Append to table
+        table.append(validated)
+
+        # Query entire table
+        result = table.scan().to_pandas()
+        assert len(result) == 2
+
+        # Query with filter
+        london = table.scan().filter(&quot;city = 'London'&quot;).to_pandas()
+        assert len(london) == 1
+        assert london[&quot;temp&quot;].iloc[0] == 15.5
+
+        # Query with limit
+        first_row = table.scan().limit(1).to_pandas()
+        assert len(first_row) == 1
+</code></pre>
+<p><strong>API Reference</strong>:</p>
+<pre><code class="language-python"># Create catalog
+with mock_iceberg_catalog() as catalog:
+    # Create table
+    table = catalog.create_table(&quot;namespace.table_name&quot;, schema=iceberg_schema)
+
+    # Load existing table
+    table = catalog.load_table(&quot;namespace.table_name&quot;)
+
+    # List tables
+    tables = catalog.list_tables()
+
+    # Drop table
+    catalog.drop_table(&quot;namespace.table_name&quot;)
+
+# Table operations
+table.append(df)                          # Append DataFrame
+table.append(arrow_table)                 # Append Arrow Table
+result = table.scan().to_pandas()         # Scan to DataFrame
+result = table.scan().to_arrow()          # Scan to Arrow Table
+filtered = table.scan().filter(&quot;city = 'London'&quot;).to_pandas()
+limited = table.scan().limit(10).to_pandas()
+count = table.count()                     # Row count
+table.delete_all()                        # Delete all rows
+table.drop()                              # Drop table
+</code></pre>
+<hr />
+<h3 id="test_asset_execution">test_asset_execution</h3>
+<p>Test asset functions directly without Dagster or Docker.</p>
+<p><strong>Features</strong>:</p>
+<ul>
+<li>🚀 Execute asset logic directly</li>
+<li>🧪 Mock data support</li>
+<li>✅ Schema validation</li>
+<li>📊 Returns TestAssetResult with success/failure</li>
+</ul>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-python">from phlo_testing import test_asset_execution
+from workflows.schemas.weather import RawWeatherData
+
+def test_weather_asset():
+    &quot;&quot;&quot;Test asset with mock data.&quot;&quot;&quot;
+
+    # Mock API response data
+    test_data = [
+        {
+            &quot;city&quot;: &quot;London&quot;,
+            &quot;temp&quot;: 15.5,
+            &quot;humidity&quot;: 65,
+            &quot;timestamp&quot;: &quot;2024-01-15T12:00:00Z&quot;,
+        },
+    ]
+
+    # Test asset execution
+    result = test_asset_execution(
+        asset_fn=weather_observations_logic,  # Your asset function (not decorator)
+        partition=&quot;2024-01-15&quot;,
+        mock_data=test_data,
+        validation_schema=RawWeatherData,
+    )
+
+    # Assertions
+    assert result.success, f&quot;Execution failed: {result.error}&quot;
+    assert len(result.data) == 1
+    assert result.data[&quot;city&quot;].iloc[0] == &quot;London&quot;
+    assert result.data[&quot;temp&quot;].iloc[0] == 15.5
+    assert result.metadata[&quot;validation&quot;] == &quot;passed&quot;
+</code></pre>
+<p><strong>Without Mock Data</strong> (tests actual API):</p>
+<pre><code class="language-python">def test_weather_asset_real_api():
+    &quot;&quot;&quot;Test with real API call.&quot;&quot;&quot;
+
+    result = test_asset_execution(
+        asset_fn=weather_observations_logic,
+        partition=&quot;2024-01-15&quot;,
+        validation_schema=RawWeatherData,
+        # No mock_data = makes real API call
+    )
+
+    assert result.success
+    assert len(result.data) &gt; 0
+</code></pre>
+<p><strong>API Reference</strong>:</p>
+<pre><code class="language-python">result = test_asset_execution(
+    asset_fn=my_asset_function,           # Asset function (NOT decorated)
+    partition=&quot;2024-01-15&quot;,                # Partition date
+    mock_data=[...],                       # Optional: mock data (list/DataFrame)
+    validation_schema=MyPanderaSchema,     # Optional: validate with schema
+)
+
+# Result attributes
+result.success      # bool: True if successful
+result.data         # DataFrame: output data
+result.error        # Exception: error if failed
+result.metadata     # dict: metadata (validation status, etc.)
+</code></pre>
+<hr />
+<h3 id="combining-mockicebergcatalog-test_asset_execution">Combining MockIcebergCatalog + test_asset_execution</h3>
+<p>Full end-to-end test without Docker:</p>
+<pre><code class="language-python">from phlo_testing import test_asset_execution, mock_iceberg_catalog
+from phlo_dlt.converter import pandera_to_iceberg
+from workflows.schemas.weather import RawWeatherData
+
+def test_full_pipeline_local():
+    &quot;&quot;&quot;Test complete ingestion → Iceberg pipeline locally.&quot;&quot;&quot;
+
+    # Step 1: Execute asset with mock data
+    test_data = [
+        {&quot;city&quot;: &quot;London&quot;, &quot;temp&quot;: 15.5, &quot;timestamp&quot;: &quot;2024-01-15T12:00:00Z&quot;},
+    ]
+
+    result = test_asset_execution(
+        asset_fn=weather_observations_logic,
+        partition=&quot;2024-01-15&quot;,
+        mock_data=test_data,
+        validation_schema=RawWeatherData,
+    )
+
+    assert result.success
+
+    # Step 2: Write to mock Iceberg catalog
+    iceberg_schema = pandera_to_iceberg(RawWeatherData)
+
+    with mock_iceberg_catalog() as catalog:
+        table = catalog.create_table(&quot;raw.weather&quot;, schema=iceberg_schema)
+        table.append(result.data)
+
+        # Step 3: Query from Iceberg
+        queried = table.scan().to_pandas()
+        assert len(queried) == 1
+        assert queried[&quot;city&quot;].iloc[0] == &quot;London&quot;
+</code></pre>
+<p><strong>Performance Comparison</strong>:
+| Approach | Setup Time | Execution | Total |
+|----------|------------|-----------|-------|
+| <strong>Docker</strong> | 30-60s | 30-60s | ~60-120s |
+| <strong>MockIcebergCatalog</strong> | 0s | &lt; 5s | <strong>&lt; 5s</strong> |</p>
+<hr />
+<h2 id="integration-testing">Integration Testing</h2>
+<p>Integration tests require the full Docker stack and test end-to-end pipelines.</p>
+<h3 id="core-service-auto-configure-validation">Core Service Auto-Configure Validation</h3>
+<p>Use this checklist after a fresh install or when core service definitions change.</p>
+<pre><code class="language-bash">phlo services start
+docker compose ps
+docker compose logs postgres
+docker compose logs minio
+docker compose logs nessie
+docker compose logs trino
+docker compose logs dagster
+</code></pre>
+<p>Edge cases to watch:
+- <code>SUPERSET_ADMIN_PASSWORD</code> is injected into Dagster even if Superset is not installed; set it only when enabling Superset.
+- <code>PHLO_VERSION</code> is optional (blank uses latest) for the Dagster image build.
+- <code>PHLO_HOST_PLATFORM</code> should be set for macOS hosts that need explicit Linux/amd64 builds.</p>
+<h3 id="prerequisites">Prerequisites</h3>
+<pre><code class="language-bash"># Start Docker services
+make up-core up-query
+
+# Wait for services to be healthy
+docker compose ps
+</code></pre>
+<h3 id="testing-asset-materialization">Testing Asset Materialization</h3>
+<p>Test full asset execution:</p>
+<pre><code class="language-python">import pytest
+
+@pytest.mark.integration  # Mark as integration test
+def test_weather_asset_materialization():
+    &quot;&quot;&quot;
+    Test full weather asset materialization.
+
+    Requires: Docker services running
+    &quot;&quot;&quot;
+
+    # Materialize via Docker exec
+    import subprocess
+
+    result = subprocess.run([
+        &quot;docker&quot;, &quot;exec&quot;, &quot;dagster-webserver&quot;,
+        &quot;dagster&quot;, &quot;asset&quot;, &quot;materialize&quot;,
+        &quot;--select&quot;, &quot;weather_observations&quot;,
+        &quot;--partition&quot;, &quot;2024-01-15&quot;,
+    ], capture_output=True, text=True)
+
+    assert result.returncode == 0, f&quot;Materialization failed: {result.stderr}&quot;
+
+
+@pytest.mark.integration
+def test_data_written_to_iceberg():
+    &quot;&quot;&quot;Test that data was written to Iceberg table.&quot;&quot;&quot;
+
+    import trino
+
+    conn = trino.dbapi.connect(
+        host='localhost',
+        port=8080,
+        user='trino',
+        catalog='iceberg_dev',
+        schema='raw',
+    )
+
+    cursor = conn.cursor()
+    cursor.execute(&quot;SELECT COUNT(*) FROM weather_observations&quot;)
+    count = cursor.fetchone()[0]
+
+    assert count &gt; 0, &quot;No data found in Iceberg table&quot;
+</code></pre>
+<h3 id="running-integration-tests">Running Integration Tests</h3>
+<pre><code class="language-bash"># Run only integration tests
+pytest tests/ -m integration -v
+
+# Run only unit tests (exclude integration)
+pytest tests/ -m &quot;not integration&quot; -v
+
+# Run with verbose output
+pytest tests/ -v -s
+</code></pre>
+<hr />
+<h2 id="cli-commands-new">CLI Commands ✨ NEW</h2>
+<p>Phlo now provides CLI commands for testing and workflow management.</p>
+<h3 id="phlo-test">phlo test</h3>
+<p>Run tests with various options:</p>
+<pre><code class="language-bash"># Run all tests
+phlo test
+
+# Run tests for specific asset
+phlo test weather_observations
+
+# Run unit tests only (skip Docker integration tests)
+phlo test --local
+
+# Run with coverage
+phlo test --coverage
+
+# Run specific marker
+phlo test -m integration
+</code></pre>
+<h3 id="phlo-materialize">phlo materialize</h3>
+<p>Materialize assets via Docker:</p>
+<pre><code class="language-bash"># Materialize asset
+phlo materialize weather_observations
+
+# Materialize with partition
+phlo materialize weather_observations --partition 2024-01-15
+
+# Dry run (show command without executing)
+phlo materialize weather_observations --dry-run
+</code></pre>
+<h3 id="phlo-create-workflow">phlo create-workflow</h3>
+<p>Interactive workflow scaffolding:</p>
+<pre><code class="language-bash"># Interactive prompts
+phlo create-workflow
+
+# With options
+phlo create-workflow --type ingestion --domain weather --table observations
+</code></pre>
+<p>See <code>phlo --help</code> for full documentation.</p>
+<hr />
+<h2 id="test-organization">Test Organization</h2>
+<h3 id="recommended-structure">Recommended Structure</h3>
+<pre><code>tests/
+├── conftest.py                     # Pytest configuration and shared fixtures
+├── fixtures/                       # Test data fixtures
+│   ├── weather_data.json
+│   └── github_events.json
+├── unit/                          # Fast tests (no Docker)
+│   ├── test_schemas.py           # Schema validation tests
+│   ├── test_asset_config.py      # Decorator configuration tests
+│   └── test_business_logic.py    # Data transformation tests
+└── integration/                   # Slow tests (require Docker)
+    ├── test_weather_pipeline.py  # Full pipeline tests
+    └── test_github_pipeline.py
+</code></pre>
+<h3 id="example-conftestpy">Example conftest.py</h3>
+<pre><code class="language-python">&quot;&quot;&quot;Pytest configuration and shared fixtures.&quot;&quot;&quot;
+
+import pytest
+import pandas as pd
+
+
+def pytest_configure(config):
+    &quot;&quot;&quot;Configure pytest markers.&quot;&quot;&quot;
+    config.addinivalue_line(
+        &quot;markers&quot;,
+        &quot;integration: mark test as integration test (requires Docker)&quot;
+    )
+
+
+@pytest.fixture
+def sample_weather_data():
+    &quot;&quot;&quot;Fixture providing sample weather data.&quot;&quot;&quot;
+    return pd.DataFrame([
+        {
+            &quot;city_name&quot;: &quot;London&quot;,
+            &quot;temperature&quot;: 15.5,
+            &quot;humidity&quot;: 65,
+            &quot;timestamp&quot;: &quot;2024-01-15T12:00:00Z&quot;,
+        },
+        {
+            &quot;city_name&quot;: &quot;Paris&quot;,
+            &quot;temperature&quot;: 12.3,
+            &quot;humidity&quot;: 70,
+            &quot;timestamp&quot;: &quot;2024-01-15T12:00:00Z&quot;,
+        },
+    ])
+
+
+@pytest.fixture
+def sample_invalid_data():
+    &quot;&quot;&quot;Fixture providing invalid weather data.&quot;&quot;&quot;
+    return pd.DataFrame([
+        {
+            &quot;city_name&quot;: &quot;London&quot;,
+            &quot;temperature&quot;: -200.0,  # Invalid
+            &quot;humidity&quot;: 150,  # Invalid
+            &quot;timestamp&quot;: &quot;2024-01-15T12:00:00Z&quot;,
+        },
+    ])
+</code></pre>
+<hr />
+<h2 id="best-practices">Best Practices</h2>
+<h3 id="1-test-schema-first">1. Test Schema First</h3>
+<p>Always test your Pandera schema before testing the full pipeline:</p>
+<pre><code class="language-python">def test_schema_validates_good_data():
+    &quot;&quot;&quot;Schema should accept valid data.&quot;&quot;&quot;
+    # Test with known good data
+    pass
+
+
+def test_schema_rejects_bad_data():
+    &quot;&quot;&quot;Schema should reject invalid data.&quot;&quot;&quot;
+    # Test constraint violations
+    pass
+</code></pre>
+<p><strong>Why</strong>: Schema errors are the most common issue. Catching them early saves time.</p>
+<h3 id="2-use-descriptive-test-names">2. Use Descriptive Test Names</h3>
+<pre><code class="language-python"># Good
+def test_temperature_constraint_rejects_values_below_minus_100():
+    pass
+
+# Bad
+def test_temperature():
+    pass
+</code></pre>
+<p><strong>Why</strong>: Clear names make failures easier to diagnose.</p>
+<h3 id="3-one-assertion-concept-per-test">3. One Assertion Concept Per Test</h3>
+<pre><code class="language-python"># Good
+def test_temperature_field_exists():
+    assert &quot;temperature&quot; in schema_fields
+
+def test_temperature_has_range_constraint():
+    assert schema.fields[&quot;temperature&quot;].checks[&quot;ge&quot;] == -100
+
+# Bad
+def test_temperature_field():
+    assert &quot;temperature&quot; in schema_fields
+    assert schema.fields[&quot;temperature&quot;].checks[&quot;ge&quot;] == -100
+    assert schema.fields[&quot;temperature&quot;].type == float
+</code></pre>
+<p><strong>Why</strong>: Specific failures are easier to debug.</p>
+<h3 id="4-use-fixtures-for-test-data">4. Use Fixtures for Test Data</h3>
+<pre><code class="language-python">@pytest.fixture
+def valid_weather_data():
+    return pd.DataFrame([...])
+
+
+def test_schema_validation(valid_weather_data):
+    result = MySchema.validate(valid_weather_data)
+    assert len(result) == 2
+</code></pre>
+<p><strong>Why</strong>: Reduces duplication, makes tests more maintainable.</p>
+<h3 id="5-mark-integration-tests">5. Mark Integration Tests</h3>
+<pre><code class="language-python">@pytest.mark.integration
+def test_full_pipeline():
+    &quot;&quot;&quot;Requires Docker services.&quot;&quot;&quot;
+    pass
+</code></pre>
+<p><strong>Why</strong>: Enables running fast tests separately from slow tests.</p>
+<h3 id="6-test-error-cases">6. Test Error Cases</h3>
+<pre><code class="language-python">def test_handles_missing_required_field():
+    &quot;&quot;&quot;Test that missing required field raises error.&quot;&quot;&quot;
+    incomplete_data = pd.DataFrame([{&quot;city_name&quot;: &quot;London&quot;}])  # Missing temperature
+
+    with pytest.raises(Exception):
+        MySchema.validate(incomplete_data)
+</code></pre>
+<p><strong>Why</strong>: Error handling is as important as happy paths.</p>
+<hr />
+<h2 id="common-testing-patterns">Common Testing Patterns</h2>
+<h3 id="pattern-1-schema-validation-test">Pattern 1: Schema Validation Test</h3>
+<pre><code class="language-python">def test_my_schema_validation():
+    &quot;&quot;&quot;Test schema validates expected data.&quot;&quot;&quot;
+
+    # Arrange
+    test_data = pd.DataFrame([{...}])
+
+    # Act
+    result = MySchema.validate(test_data)
+
+    # Assert
+    assert len(result) == expected_count
+    assert result[&quot;field&quot;].dtype == expected_type
+</code></pre>
+<h3 id="pattern-2-constraint-violation-test">Pattern 2: Constraint Violation Test</h3>
+<pre><code class="language-python">def test_schema_rejects_negative_values():
+    &quot;&quot;&quot;Test that negative values are rejected.&quot;&quot;&quot;
+
+    invalid_data = pd.DataFrame([{&quot;value&quot;: -10}])
+
+    with pytest.raises(Exception) as exc_info:
+        MySchema.validate(invalid_data)
+
+    # Optionally check error message
+    assert &quot;value&quot; in str(exc_info.value).lower()
+</code></pre>
+<h3 id="pattern-3-field-existence-test">Pattern 3: Field Existence Test</h3>
+<pre><code class="language-python">def test_required_fields_exist():
+    &quot;&quot;&quot;Test that all required fields are present in schema.&quot;&quot;&quot;
+
+    schema_fields = MySchema.to_schema().columns.keys()
+    required = [&quot;id&quot;, &quot;timestamp&quot;, &quot;value&quot;]
+
+    for field in required:
+        assert field in schema_fields, f&quot;Missing: {field}&quot;
+</code></pre>
+<h3 id="pattern-4-asset-configuration-test">Pattern 4: Asset Configuration Test</h3>
+<pre><code class="language-python">def test_asset_decorator_configuration():
+    &quot;&quot;&quot;Test that asset decorator is configured correctly.&quot;&quot;&quot;
+
+    from my_asset import my_ingestion_asset
+
+    # Check op name
+    assert my_ingestion_asset.op.name == &quot;dlt_my_table&quot;
+
+    # Check function signature
+    import inspect
+    sig = inspect.signature(my_ingestion_asset.op.compute_fn)
+    assert &quot;partition_date&quot; in sig.parameters
+</code></pre>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="test-discovery-issues">Test Discovery Issues</h3>
+<p><strong>Problem</strong>: <code>pytest</code> doesn't find your tests</p>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Ensure test files start with <code>test_</code></li>
+<li>Ensure test functions start with <code>test_</code></li>
+<li>Ensure test classes start with <code>Test</code></li>
+<li>Check <code>pytest.ini</code> configuration</li>
+</ul>
+<h3 id="import-errors">Import Errors</h3>
+<p><strong>Problem</strong>: <code>ModuleNotFoundError</code> when running tests</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-bash"># Install phlo in editable mode
+pip install -e .
+
+# Or set PYTHONPATH
+export PYTHONPATH=/home/user/phlo/src:$PYTHONPATH
+</code></pre>
+<h3 id="schema-validation-failures">Schema Validation Failures</h3>
+<p><strong>Problem</strong>: Valid data fails schema validation</p>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Check field types match (str vs datetime)</li>
+<li>Check nullable settings</li>
+<li>Check constraint values (ge, le, etc.)</li>
+<li>Use <code>coerce=True</code> in schema Config</li>
+</ul>
+<h3 id="integration-test-failures">Integration Test Failures</h3>
+<p><strong>Problem</strong>: Integration tests fail with connection errors</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-bash"># Check Docker services are running
+docker compose ps
+
+# Check service health
+docker logs dagster-webserver
+docker logs nessie
+docker logs minio
+
+# Restart services if needed
+make down
+make up-core up-query
+</code></pre>
+<hr />
+<h2 id="running-tests-in-cicd">Running Tests in CI/CD</h2>
+<h3 id="github-actions-example">GitHub Actions Example</h3>
+<pre><code class="language-yaml">name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: &quot;3.11&quot;
+      - name: Install dependencies
+        run: |
+          pip install -e &quot;.[dev]&quot;
+      - name: Run unit tests
+        run: |
+          pytest tests/ -m &quot;not integration&quot; -v --cov=phlo
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Start Docker services
+        run: |
+          make up-core up-query
+          sleep 30  # Wait for services
+      - name: Run integration tests
+        run: |
+          pytest tests/ -m integration -v
+</code></pre>
+<hr />
+<h2 id="test-coverage">Test Coverage</h2>
+<h3 id="measuring-coverage">Measuring Coverage</h3>
+<pre><code class="language-bash"># Run tests with coverage
+pytest tests/ --cov=phlo --cov-report=html
+
+# Open coverage report
+open htmlcov/index.html
+</code></pre>
+<h3 id="coverage-goals">Coverage Goals</h3>
+<ul>
+<li><strong>Schema validation</strong>: 100% (easy to test)</li>
+<li><strong>Decorator configuration</strong>: 100% (easy to test)</li>
+<li><strong>Business logic</strong>: 90%+ (important to test)</li>
+<li><strong>Integration paths</strong>: 70%+ (harder to test)</li>
+</ul>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li><strong>Start with schema tests</strong>: Copy <code>templates/tests/test_ingestion.py</code></li>
+<li><strong>Add business logic tests</strong>: Test any custom transformations</li>
+<li><strong>Add integration tests</strong>: Test full pipelines when ready</li>
+<li><strong>Set up CI/CD</strong>: Run tests on every commit</li>
+<li><strong>Track coverage</strong>: Aim for 80%+ overall coverage</li>
+</ol>
+<hr />
+<h2 id="additional-resources">Additional Resources</h2>
+<ul>
+<li><strong>Template</strong>: <a href="../templates/tests/test_ingestion.py">templates/tests/test_ingestion.py</a></li>
+<li><strong>Pandera Docs</strong>: https://pandera.readthedocs.io/</li>
+<li><strong>Pytest Docs</strong>: https://docs.pytest.org/</li>
+<li><strong>Troubleshooting</strong>: <a href="../troubleshooting/">Troubleshooting Guide</a></li>
+</ul>
+<hr />
+<p><strong>Have questions?</strong> Open a <a href="https://github.com/iamgp/phlo/discussions">GitHub Discussion</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

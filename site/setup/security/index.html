@@ -1,0 +1,2253 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../openmetadata/">
+      
+      
+        <link rel="next" href="../../packages/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Security - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#security-setup-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Security
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hasura/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hasura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../postgrest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PostgREST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openmetadata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenMetadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-ldap-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: LDAP Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Option 1: LDAP Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trino-ldap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino LDAP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-ldap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO LDAP
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-oauth2oidc-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: OAuth2/OIDC Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Option 2: OAuth2/OIDC Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nessie-oidc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie OIDC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-oidc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO OIDC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-oauth2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino OAuth2
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keycloak-example-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keycloak Example Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authorization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trino-access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Access Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nessie-authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie Authorization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-iam-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO IAM Policies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-row-level-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL Row-Level Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Encryption">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tlshttps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS/HTTPS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TLS/HTTPS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-ssl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL SSL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO TLS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino HTTPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption-at-rest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption at Rest
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Encryption at Rest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minio-server-side-encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO Server-Side Encryption
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit Logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audit Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minio-audit-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO Audit Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL Audit Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-query-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Query Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#existing-security-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Existing Security Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Existing Security Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgrest-jwt-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgREST JWT Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hasura-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hasura Permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observatory-token-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observatory Token Auth
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oidc-token-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OIDC Token Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ldap-connection-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LDAP Connection Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#certificate-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certificate Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-ldap-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: LDAP Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Option 1: LDAP Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trino-ldap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino LDAP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-ldap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO LDAP
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-oauth2oidc-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: OAuth2/OIDC Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Option 2: OAuth2/OIDC Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nessie-oidc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie OIDC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-oidc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO OIDC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-oauth2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino OAuth2
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keycloak-example-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keycloak Example Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authorization
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authorization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trino-access-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Access Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nessie-authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie Authorization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-iam-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO IAM Policies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-row-level-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL Row-Level Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Encryption">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tlshttps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS/HTTPS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TLS/HTTPS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-ssl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL SSL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minio-tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO TLS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-https" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino HTTPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption-at-rest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encryption at Rest
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Encryption at Rest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minio-server-side-encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO Server-Side Encryption
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit Logging
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Audit Logging">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minio-audit-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO Audit Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql-audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL Audit Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-query-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Query Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#existing-security-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Existing Security Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Existing Security Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#postgrest-jwt-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgREST JWT Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hasura-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hasura Permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observatory-token-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observatory Token Auth
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oidc-token-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OIDC Token Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ldap-connection-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LDAP Connection Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#certificate-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certificate Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="security-setup-guide">Security Setup Guide</h1>
+<p>This guide covers enterprise security configuration for Phlo, including authentication, authorization, encryption, and audit logging.</p>
+<h2 id="overview">Overview</h2>
+<p>Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise security features. This guide explains how to enable and configure them.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Trino</th>
+<th>Nessie</th>
+<th>MinIO</th>
+<th>PostgreSQL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LDAP Auth</td>
+<td>Yes</td>
+<td>No</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>OAuth2/OIDC</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>TLS/HTTPS</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Access Control</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes (IAM)</td>
+<td>Yes (RLS)</td>
+</tr>
+<tr>
+<td>Audit Logging</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<h2 id="quick-start">Quick Start</h2>
+<p>For a minimal secure setup, configure these environment variables in your <code>.env</code>:</p>
+<pre><code class="language-bash"># Strong passwords (required)
+POSTGRES_PASSWORD=&lt;generate-strong-password&gt;
+MINIO_ROOT_PASSWORD=&lt;generate-strong-password&gt;
+JWT_SECRET=&lt;generate-strong-password&gt;
+
+# Enable TLS (recommended for production)
+POSTGRES_SSL_MODE=require
+MINIO_SERVER_URL=https://minio.example.com
+
+# Enable authentication (choose based on your IdP)
+NESSIE_OIDC_ENABLED=true
+NESSIE_OIDC_SERVER_URL=https://auth.example.com/realms/phlo
+</code></pre>
+<p>Generate strong passwords:</p>
+<pre><code class="language-bash">openssl rand -base64 32
+</code></pre>
+<h2 id="authentication">Authentication</h2>
+<h3 id="option-1-ldap-authentication">Option 1: LDAP Authentication</h3>
+<p>LDAP works with Trino and MinIO. Configure your LDAP server details:</p>
+<h4 id="trino-ldap">Trino LDAP</h4>
+<pre><code class="language-bash"># .env
+TRINO_AUTH_TYPE=PASSWORD
+TRINO_LDAP_URL=ldaps://ldap.example.com:636
+TRINO_LDAP_USER_BIND_PATTERN=${USER}@example.com
+</code></pre>
+<p>Users authenticate with their LDAP credentials when connecting to Trino.</p>
+<h4 id="minio-ldap">MinIO LDAP</h4>
+<pre><code class="language-bash"># .env
+MINIO_LDAP_SERVER=ldap.example.com:636
+MINIO_LDAP_BIND_DN=cn=admin,dc=example,dc=com
+MINIO_LDAP_BIND_PASSWORD=ldap-admin-password
+MINIO_LDAP_USER_BASE_DN=ou=users,dc=example,dc=com
+MINIO_LDAP_USER_FILTER=(uid=%s)
+</code></pre>
+<h3 id="option-2-oauth2oidc-authentication">Option 2: OAuth2/OIDC Authentication</h3>
+<p>OIDC works with all services and is recommended for unified SSO.</p>
+<h4 id="prerequisites">Prerequisites</h4>
+<ol>
+<li>An OIDC provider (Keycloak, Auth0, Okta, Azure AD, etc.)</li>
+<li>Create clients for each service:</li>
+<li><code>nessie</code> - for Nessie catalog</li>
+<li><code>minio</code> - for MinIO storage</li>
+<li><code>trino</code> - for Trino query engine</li>
+</ol>
+<h4 id="nessie-oidc">Nessie OIDC</h4>
+<pre><code class="language-bash"># .env
+NESSIE_OIDC_ENABLED=true
+NESSIE_OIDC_SERVER_URL=https://auth.example.com/realms/phlo
+NESSIE_OIDC_CLIENT_ID=nessie
+NESSIE_OIDC_CLIENT_SECRET=your-client-secret
+</code></pre>
+<h4 id="minio-oidc">MinIO OIDC</h4>
+<pre><code class="language-bash"># .env
+MINIO_OIDC_CONFIG_URL=https://auth.example.com/realms/phlo/.well-known/openid-configuration
+MINIO_OIDC_CLIENT_ID=minio
+MINIO_OIDC_CLIENT_SECRET=your-client-secret
+MINIO_OIDC_CLAIM_NAME=policy
+</code></pre>
+<p>The <code>policy</code> claim in the JWT should contain the MinIO policy name(s) to assign.</p>
+<h4 id="trino-oauth2">Trino OAuth2</h4>
+<pre><code class="language-bash"># .env
+TRINO_AUTH_TYPE=OAUTH2
+TRINO_OAUTH2_ISSUER=https://auth.example.com/realms/phlo
+TRINO_OAUTH2_CLIENT_ID=trino
+TRINO_OAUTH2_CLIENT_SECRET=your-client-secret
+</code></pre>
+<h3 id="keycloak-example-setup">Keycloak Example Setup</h3>
+<p>If using Keycloak as your identity provider:</p>
+<ol>
+<li>Create a realm called <code>phlo</code></li>
+<li>Create clients:</li>
+</ol>
+<pre><code class="language-json">{
+  &quot;clientId&quot;: &quot;nessie&quot;,
+  &quot;protocol&quot;: &quot;openid-connect&quot;,
+  &quot;publicClient&quot;: false,
+  &quot;standardFlowEnabled&quot;: true,
+  &quot;serviceAccountsEnabled&quot;: true
+}
+</code></pre>
+<ol>
+<li>Create users and assign roles</li>
+<li>Map roles to policies in MinIO</li>
+</ol>
+<h2 id="authorization">Authorization</h2>
+<h3 id="trino-access-control">Trino Access Control</h3>
+<p>Create an access control rules file:</p>
+<pre><code class="language-json">{
+  &quot;catalogs&quot;: [
+    {
+      &quot;catalog&quot;: &quot;iceberg&quot;,
+      &quot;allow&quot;: &quot;all&quot;
+    }
+  ],
+  &quot;schemas&quot;: [
+    {
+      &quot;catalog&quot;: &quot;iceberg&quot;,
+      &quot;schema&quot;: &quot;raw&quot;,
+      &quot;owner&quot;: false
+    }
+  ],
+  &quot;tables&quot;: [
+    {
+      &quot;catalog&quot;: &quot;iceberg&quot;,
+      &quot;schema&quot;: &quot;.*&quot;,
+      &quot;table&quot;: &quot;.*&quot;,
+      &quot;privileges&quot;: [&quot;SELECT&quot;],
+      &quot;filter&quot;: &quot;department = current_user_department()&quot;
+    }
+  ]
+}
+</code></pre>
+<p>Enable in <code>.env</code>:</p>
+<pre><code class="language-bash">TRINO_ACCESS_CONTROL_TYPE=file
+TRINO_ACCESS_CONTROL_CONFIG_FILE=/etc/trino/access-control.json
+</code></pre>
+<p>Mount the rules file in your service configuration.</p>
+<h3 id="nessie-authorization">Nessie Authorization</h3>
+<p>Enable authorization:</p>
+<pre><code class="language-bash">NESSIE_AUTHZ_ENABLED=true
+</code></pre>
+<p>Nessie authorization rules are configured through the Nessie server. See <a href="https://projectnessie.org/features/authz/">Nessie Authorization</a> for details.</p>
+<h3 id="minio-iam-policies">MinIO IAM Policies</h3>
+<p>Create IAM policies for fine-grained access:</p>
+<pre><code class="language-bash"># Create a read-only policy
+mc admin policy create local readonly-lake - &lt;&lt;EOF
+{
+  &quot;Version&quot;: &quot;2012-10-17&quot;,
+  &quot;Statement&quot;: [
+    {
+      &quot;Effect&quot;: &quot;Allow&quot;,
+      &quot;Action&quot;: [&quot;s3:GetObject&quot;, &quot;s3:ListBucket&quot;],
+      &quot;Resource&quot;: [&quot;arn:aws:s3:::lake/*&quot;, &quot;arn:aws:s3:::lake&quot;]
+    }
+  ]
+}
+EOF
+
+# Attach to user
+mc admin policy attach local readonly-lake --user analyst
+</code></pre>
+<h3 id="postgresql-row-level-security">PostgreSQL Row-Level Security</h3>
+<p>Phlo includes a pre-built RLS framework in PostgREST. Enable it:</p>
+<pre><code class="language-sql">-- Enable RLS on a table
+ALTER TABLE marts.customers ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for analysts (see only their region)
+CREATE POLICY analyst_region ON marts.customers
+  FOR SELECT
+  TO analyst
+  USING (region = current_setting('app.user_region'));
+
+-- Create policy for admins (see everything)
+CREATE POLICY admin_all ON marts.customers
+  FOR ALL
+  TO admin
+  USING (true);
+</code></pre>
+<p>The JWT token should include claims that set the user's role and context.</p>
+<h2 id="encryption">Encryption</h2>
+<h3 id="tlshttps">TLS/HTTPS</h3>
+<h4 id="postgresql-ssl">PostgreSQL SSL</h4>
+<pre><code class="language-bash"># .env
+POSTGRES_SSL_MODE=require
+</code></pre>
+<p>For certificate verification:</p>
+<pre><code class="language-bash">POSTGRES_SSL_MODE=verify-full
+POSTGRES_SSL_CA_FILE=/path/to/ca.pem
+</code></pre>
+<h4 id="minio-tls">MinIO TLS</h4>
+<ol>
+<li>Place certificates in <code>./volumes/minio-certs/</code>:</li>
+<li><code>public.crt</code> - Server certificate</li>
+<li><code>private.key</code> - Private key</li>
+<li>
+<p><code>CAs/</code> - CA certificates (optional)</p>
+</li>
+<li>
+<p>Enable TLS:</p>
+</li>
+</ol>
+<pre><code class="language-bash">MINIO_SERVER_URL=https://minio.example.com:9000
+</code></pre>
+<h4 id="trino-https">Trino HTTPS</h4>
+<ol>
+<li>Create a Java keystore:</li>
+</ol>
+<pre><code class="language-bash">keytool -genkeypair -alias trino -keyalg RSA -keysize 2048 \
+  -keystore keystore.jks -validity 365 \
+  -dname &quot;CN=trino.example.com&quot;
+</code></pre>
+<ol>
+<li>Enable HTTPS:</li>
+</ol>
+<pre><code class="language-bash">TRINO_HTTPS_ENABLED=true
+TRINO_HTTPS_KEYSTORE_PATH=/etc/trino/keystore.jks
+TRINO_HTTPS_KEYSTORE_PASSWORD=your-keystore-password
+</code></pre>
+<h3 id="encryption-at-rest">Encryption at Rest</h3>
+<h4 id="minio-server-side-encryption">MinIO Server-Side Encryption</h4>
+<pre><code class="language-bash">MINIO_AUTO_ENCRYPTION=on
+</code></pre>
+<p>This encrypts all objects automatically using MinIO's built-in encryption.</p>
+<p>For KMS-based encryption, configure a KMS provider:</p>
+<pre><code class="language-bash">MINIO_KMS_KES_ENDPOINT=https://kes.example.com:7373
+MINIO_KMS_KES_KEY_FILE=/path/to/kes-key.key
+MINIO_KMS_KES_CERT_FILE=/path/to/kes-cert.crt
+MINIO_KMS_KES_KEY_NAME=my-key
+</code></pre>
+<h2 id="audit-logging">Audit Logging</h2>
+<h3 id="minio-audit-logs">MinIO Audit Logs</h3>
+<p>Send audit logs to a webhook:</p>
+<pre><code class="language-bash">MINIO_AUDIT_ENABLED=on
+MINIO_AUDIT_ENDPOINT=http://loki:3100/loki/api/v1/push
+</code></pre>
+<p>Or configure for Kafka:</p>
+<pre><code class="language-bash">MINIO_AUDIT_KAFKA_ENABLE=on
+MINIO_AUDIT_KAFKA_BROKERS=kafka:9092
+MINIO_AUDIT_KAFKA_TOPIC=minio-audit
+</code></pre>
+<h3 id="postgresql-audit-logging">PostgreSQL Audit Logging</h3>
+<p>Enable pgaudit extension:</p>
+<pre><code class="language-sql">-- In PostgreSQL
+CREATE EXTENSION IF NOT EXISTS pgaudit;
+ALTER SYSTEM SET pgaudit.log = 'all';
+SELECT pg_reload_conf();
+</code></pre>
+<h3 id="trino-query-logging">Trino Query Logging</h3>
+<p>Trino logs all queries by default. Configure log retention:</p>
+<pre><code class="language-properties"># coordinator config
+query.max-history=10000
+</code></pre>
+<h2 id="existing-security-features">Existing Security Features</h2>
+<p>Phlo already includes these security features that you can use:</p>
+<h3 id="postgrest-jwt-authentication">PostgREST JWT Authentication</h3>
+<p>Located in <code>packages/phlo-postgrest/src/phlo_postgrest/sql/</code>:</p>
+<ul>
+<li><code>003_jwt_functions.sql</code> - JWT signing and verification</li>
+<li><code>004_roles.sql</code> - Role-based access control</li>
+</ul>
+<p>Usage:</p>
+<pre><code class="language-bash"># Get a JWT token
+curl -X POST http://localhost:10018/rpc/login \
+  -H &quot;Content-Type: application/json&quot; \
+  -d '{&quot;username&quot;: &quot;admin&quot;, &quot;password&quot;: &quot;admin123&quot;}'
+
+# Use token for authenticated requests
+curl http://localhost:10018/customers \
+  -H &quot;Authorization: Bearer &lt;token&gt;&quot;
+</code></pre>
+<h3 id="hasura-permissions">Hasura Permissions</h3>
+<p>Located in <code>packages/phlo-hasura/src/phlo_hasura/permissions.py</code>:</p>
+<ul>
+<li>Full RBAC with row and column-level permissions</li>
+<li>Configure via Hasura console or API</li>
+</ul>
+<h3 id="observatory-token-auth">Observatory Token Auth</h3>
+<p>Enable UI authentication:</p>
+<pre><code class="language-bash">OBSERVATORY_AUTH_ENABLED=true
+OBSERVATORY_AUTH_TOKEN=your-secure-token
+</code></pre>
+<h2 id="production-checklist">Production Checklist</h2>
+<p>Before going to production, ensure:</p>
+<ul>
+<li>[ ] All default passwords changed</li>
+<li>[ ] TLS enabled for all services</li>
+<li>[ ] Authentication configured (LDAP or OIDC)</li>
+<li>[ ] Access control rules defined</li>
+<li>[ ] Audit logging enabled</li>
+<li>[ ] Secrets stored securely (not in git)</li>
+<li>[ ] Network segmentation (services not exposed publicly)</li>
+<li>[ ] Regular credential rotation policy</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="oidc-token-issues">OIDC Token Issues</h3>
+<pre><code class="language-bash"># Decode JWT to inspect claims
+echo &quot;&lt;token&gt;&quot; | cut -d. -f2 | base64 -d | jq
+</code></pre>
+<h3 id="ldap-connection-issues">LDAP Connection Issues</h3>
+<pre><code class="language-bash"># Test LDAP connection
+ldapsearch -x -H ldaps://ldap.example.com:636 \
+  -D &quot;cn=admin,dc=example,dc=com&quot; \
+  -W -b &quot;dc=example,dc=com&quot; &quot;(uid=testuser)&quot;
+</code></pre>
+<h3 id="certificate-issues">Certificate Issues</h3>
+<pre><code class="language-bash"># Verify certificate
+openssl s_client -connect minio.example.com:9000 -showcerts
+
+# Check certificate dates
+openssl x509 -in cert.pem -noout -dates
+</code></pre>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><a href="../../reference/configuration-reference/">Configuration Reference</a> - All security variables</li>
+<li><a href="../../blog/12-production-deployment/">Production Deployment</a> - Deployment guide</li>
+<li><a href="../observability/">Observability Setup</a> - Monitoring and logging</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
