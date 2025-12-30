@@ -50,13 +50,67 @@ plugins:
 nav:
   - Home: index.md
   - Getting Started:
-      - Quick Start: quick-start.md
-      - Architecture: architecture.md
-      - Configuration: configuration.md
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+      - Core Concepts: getting-started/core-concepts.md
   - Guides:
-      - API: API.md
-      - DuckDB Iceberg Queries: duckdb-iceberg-queries.md
-      - Hasura Setup: HASURA_SETUP.md
-      - Observability: OBSERVABILITY.md
-  - API Reference: api/
-  - Code Reference: reference/
+      - Developer Guide: guides/developer-guide.md
+      - Workflow Development: guides/workflow-development.md
+      - dbt Development: guides/dbt-development.md
+      - Data Modeling: guides/data-modeling.md
+      - Dagster Assets: guides/dagster-assets.md
+      - Plugin Development: guides/plugin-development.md
+      - Service Packages: guides/service-packages.md
+      - Testing Strategy: guides/testing-strategy.md
+  - Setup:
+      - Hasura: setup/hasura.md
+      - PostgREST: setup/postgrest.md
+      - Observability: setup/observability.md
+      - OpenMetadata: setup/openmetadata.md
+      - Security: setup/security.md
+  - Packages:
+      - Overview: packages/index.md
+      - Data Processing:
+          - phlo-dagster: packages/phlo-dagster.md
+          - phlo-dlt: packages/phlo-dlt.md
+          - phlo-dbt: packages/phlo-dbt.md
+          - phlo-iceberg: packages/phlo-iceberg.md
+          - phlo-quality: packages/phlo-quality.md
+          - phlo-lineage: packages/phlo-lineage.md
+      - Infrastructure:
+          - phlo-postgres: packages/phlo-postgres.md
+          - phlo-nessie: packages/phlo-nessie.md
+          - phlo-trino: packages/phlo-trino.md
+          - phlo-minio: packages/phlo-minio.md
+      - Observability:
+          - phlo-grafana: packages/phlo-grafana.md
+          - phlo-prometheus: packages/phlo-prometheus.md
+          - phlo-loki: packages/phlo-loki.md
+          - phlo-alloy: packages/phlo-alloy.md
+          - phlo-alerting: packages/phlo-alerting.md
+          - phlo-metrics: packages/phlo-metrics.md
+      - API Layer:
+          - phlo-api: packages/phlo-api.md
+          - phlo-postgrest: packages/phlo-postgrest.md
+          - phlo-hasura: packages/phlo-hasura.md
+      - Data Catalog:
+          - phlo-openmetadata: packages/phlo-openmetadata.md
+      - User Interface:
+          - phlo-observatory: packages/phlo-observatory.md
+          - phlo-superset: packages/phlo-superset.md
+          - phlo-pgweb: packages/phlo-pgweb.md
+      - Development:
+          - phlo-testing: packages/phlo-testing.md
+          - phlo-core-plugins: packages/phlo-core-plugins.md
+  - Reference:
+      - Architecture: reference/architecture.md
+      - API Reference: reference/api.md
+      - CLI Reference: reference/cli-reference.md
+      - Configuration: reference/configuration-reference.md
+      - DuckDB Queries: reference/duckdb-queries.md
+      - Common Errors: reference/common-errors.md
+  - Operations:
+      - Operations Guide: operations/operations-guide.md
+      - Best Practices: operations/best-practices.md
+      - Testing: operations/testing.md
+      - Troubleshooting: operations/troubleshooting.md
