@@ -157,4 +157,4 @@ See the [Plugin Development Guide](../guides/plugin-development.md) for creating
 
 - [Plugin Development Guide](../guides/plugin-development.md) - Build custom plugins
 - [Installation Guide](../getting-started/installation.md) - Complete installation instructions
-- [CLI Reference](cli-reference.md) - CLI commands for managing packages
+- [CLI Reference](../reference/cli-reference.md) - CLI commands for managing packages
