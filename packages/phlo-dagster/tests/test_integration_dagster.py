@@ -1,6 +1,5 @@
 """Integration tests for phlo-dagster."""
 
-
 import pytest
 from dagster import Definitions, asset, materialize
 
