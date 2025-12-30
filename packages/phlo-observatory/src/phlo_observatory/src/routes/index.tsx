@@ -8,11 +8,13 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  Wrench,
 } from 'lucide-react'
 import type {
   DagsterConnectionStatus,
   HealthMetrics,
 } from '@/server/dagster.server'
+import type { MaintenanceStatusSnapshot } from '@/server/maintenance.server'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,6 +30,7 @@ import {
   checkDagsterConnection,
   getHealthMetrics,
 } from '@/server/dagster.server'
+import { getMaintenanceStatus } from '@/server/maintenance.server'
 import { formatDateTime } from '@/utils/dateFormat'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
@@ -36,18 +39,22 @@ export const Route = createFileRoute('/')({
     const settings = await getEffectiveObservatorySettings()
     const dagsterUrl = settings.connections.dagsterGraphqlUrl
     // Check connection and fetch metrics in parallel
-    const [connection, metrics] = await Promise.all([
+    const [connection, metrics, maintenance] = await Promise.all([
       checkDagsterConnection({ data: { dagsterUrl } }),
       getHealthMetrics({ data: { dagsterUrl } }),
+      getMaintenanceStatus({ data: {} }),
     ])
-    return { connection, metrics }
+    return { connection, metrics, maintenance }
   },
   component: Dashboard,
 })
 
 function Dashboard() {
-  const { connection: initialConnection, metrics: initialMetrics } =
-    Route.useLoaderData()
+  const {
+    connection: initialConnection,
+    metrics: initialMetrics,
+    maintenance: initialMaintenance,
+  } = Route.useLoaderData()
   const { settings } = useObservatorySettings()
 
   // Real-time polling for health metrics
@@ -77,6 +84,14 @@ function Dashboard() {
 
   const hasError = metrics && 'error' in metrics
   const healthData = hasError ? null : metrics
+  const maintenanceResult = useRealtimePolling({
+    queryKey: ['maintenance-status'],
+    queryFn: () => getMaintenanceStatus({ data: {} }),
+    initialData: initialMaintenance,
+  })
+  const maintenanceError =
+    maintenanceResult.data && 'error' in maintenanceResult.data
+  const maintenanceData = maintenanceError ? null : maintenanceResult.data
 
   return (
     <div className="h-full overflow-auto">
@@ -146,6 +161,13 @@ function Dashboard() {
             subtitle="Assets up to date"
             icon={<Clock className="w-6 h-6" />}
             status={getFreshnessStatus(healthData)}
+          />
+          <HealthCard
+            title="Maintenance"
+            value={getMaintenanceValue(maintenanceData)}
+            subtitle={getMaintenanceSubtitle(maintenanceData)}
+            icon={<Wrench className="w-6 h-6" />}
+            status={getMaintenanceStatus(maintenanceData)}
           />
         </div>
 
@@ -254,6 +276,36 @@ function getFreshnessStatus(
   if (staleRatio === 0) return 'success'
   if (staleRatio <= 0.1) return 'warning'
   return 'error'
+}
+
+function getMaintenanceStatus(
+  data: MaintenanceStatusSnapshot | null | undefined,
+): 'success' | 'warning' | 'error' | 'loading' {
+  if (!data) return 'loading'
+  if (!data.operations.length) return 'loading'
+  const hasFailures = data.operations.some((op) => op.status === 'failure')
+  return hasFailures ? 'error' : 'success'
+}
+
+function getMaintenanceValue(
+  data: MaintenanceStatusSnapshot | null | undefined,
+): string {
+  if (!data) return '--'
+  if (!data.operations.length) return '--'
+  const hasFailures = data.operations.some((op) => op.status === 'failure')
+  return hasFailures ? 'Issues' : 'Healthy'
+}
+
+function getMaintenanceSubtitle(
+  data: MaintenanceStatusSnapshot | null | undefined,
+): string {
+  if (!data) return 'No telemetry yet'
+  if (!data.operations.length) return 'No maintenance runs'
+  const latest = [...data.operations].sort(
+    (a, b) =>
+      new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
+  )[0]
+  return `Last run ${formatTimeSince(new Date(latest.completedAt).getTime())}`
 }
 
 interface HealthCardProps {

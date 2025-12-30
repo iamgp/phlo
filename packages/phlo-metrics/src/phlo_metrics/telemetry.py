@@ -7,7 +7,7 @@ import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from phlo.hooks import TelemetryEvent
 
@@ -47,6 +47,35 @@ def _default_path() -> Path:
     if env_path:
         return Path(env_path)
     return Path.cwd() / ".phlo" / "telemetry" / "events.jsonl"
+
+
+def get_telemetry_path(path: Path | None = None) -> Path:
+    """Resolve the telemetry JSONL path."""
+
+    return path or _default_path()
+
+
+def iter_telemetry_events(path: Path | None = None) -> Iterator[dict[str, Any]]:
+    """Yield telemetry events from the JSONL file."""
+
+    event_path = get_telemetry_path(path)
+    if not event_path.exists():
+        return iter(())
+
+    def _iter() -> Iterator[dict[str, Any]]:
+        with event_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    payload = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(payload, dict):
+                    yield payload
+
+    return _iter()
 
 
 def _serialize_event(event: TelemetryEvent) -> dict[str, Any]:
