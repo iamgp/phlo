@@ -207,7 +207,7 @@ class Config(BaseSettings):
     ENABLE_CACHING: bool = True
 
     class Config:
-        env_file = ".env"
+        env_file = (".phlo/.env", ".phlo/.env.local")
 ```
 
 **Benefits:**
@@ -424,7 +424,7 @@ def process_city(context):
 **.gitignore:**
 
 ```
-.env
+.phlo/.env.local
 *.key
 *.pem
 secrets/

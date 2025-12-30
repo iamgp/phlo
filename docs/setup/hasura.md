@@ -22,7 +22,7 @@ make hasura
 # Or: http://localhost:8081/console
 ```
 
-**Admin Secret:** `phlo-admin-secret-change-me` (set in `.env`)
+**Admin Secret:** `phlo-admin-secret-change-me` (set in `.phlo/.env.local`)
 
 ---
 
@@ -424,7 +424,7 @@ Keeps database schema and Hasura metadata in sync.
 
 ### Production Checklist
 
-- [ ] **Change admin secret** - Update `HASURA_ADMIN_SECRET` in `.env`
+- [ ] **Change admin secret** - Update `HASURA_ADMIN_SECRET` in `.phlo/.env.local`
 - [ ] **Disable dev mode** - Set `HASURA_GRAPHQL_DEV_MODE=false`
 - [ ] **Disable console** - Set `HASURA_GRAPHQL_ENABLE_CONSOLE=false` (use CLI)
 - [ ] **Restrict CORS** - Set specific origins in `HASURA_GRAPHQL_CORS_DOMAIN`

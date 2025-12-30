@@ -23,9 +23,9 @@ A simple glucose data ingestion pipeline that:
 git clone https://github.com/iamgp/phlo.git
 cd phlo
 
-# Copy environment template
-cp .env.example .env
-# Edit .env if needed (defaults work for local development)
+# Initialize infrastructure (generates .phlo/.env and .phlo/.env.local)
+phlo services init
+# Edit .phlo/.env.local if needed (defaults work for local development)
 
 # Start core services
 make up-core up-query
@@ -289,7 +289,7 @@ docker restart dagster-webserver
 **"Permission denied in MinIO"**
 
 ```bash
-# Check .env has correct MinIO credentials
+# Check .phlo/.env.local has correct MinIO credentials
 # Default: MINIO_ROOT_USER=minioadmin, MINIO_ROOT_PASSWORD=minioadmin
 ```
 

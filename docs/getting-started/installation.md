@@ -26,8 +26,8 @@ uv pip install phlo[defaults]
 phlo init my-project
 cd my-project
 
-# Copy environment template
-cp .env.example .env
+# Initialize infrastructure (generates .phlo/.env and .phlo/.env.local)
+phlo services init
 
 # Start services
 phlo services start
@@ -68,7 +68,7 @@ cd my-project
 This creates:
 ```
 my-project/
-├── .env.example         # Environment variables template
+├── .env.example         # Local secrets template (.phlo/.env.local)
 ├── workflows/           # Data ingestion workflows
 │   ├── ingestion/
 │   └── schemas/
@@ -80,42 +80,28 @@ my-project/
 
 ### Step 3: Configure Environment
 
-Copy the example environment file and customize:
+Configure non-secret defaults in `phlo.yaml` and secrets in `.phlo/.env.local`:
 
 ```bash
-cp .env.example .env
+phlo services init
 ```
 
-Edit `.env` with your settings. The defaults work for local development:
+Edit `phlo.yaml` (env:) and `.phlo/.env.local` with your settings. The defaults work for local development:
 
 ```bash
-# Database
-POSTGRES_PASSWORD=postgres
-POSTGRES_HOST=postgres
-POSTGRES_PORT=10000
+# phlo.yaml (committed)
+env:
+  POSTGRES_PORT: 10000
+  MINIO_API_PORT: 10001
+  MINIO_CONSOLE_PORT: 10002
+  NESSIE_PORT: 10003
+  TRINO_PORT: 10005
+  DAGSTER_PORT: 10006
 
-# Storage
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin
-MINIO_HOST=minio
-MINIO_PORT=10001
-
-# Catalog
-NESSIE_HOST=nessie
-NESSIE_PORT=10003
-
-# Query Engine
-TRINO_HOST=trino
-TRINO_PORT=10005
-
-# Iceberg
-ICEBERG_WAREHOUSE_PATH=s3://lake/warehouse
-ICEBERG_STAGING_PATH=s3://lake/stage
-
-# Branch Management
-BRANCH_RETENTION_DAYS=7
-AUTO_PROMOTE_ENABLED=true
-BRANCH_CLEANUP_ENABLED=false
+# .phlo/.env.local (not committed)
+POSTGRES_PASSWORD=phlo
+MINIO_ROOT_PASSWORD=minio123
+SUPERSET_ADMIN_PASSWORD=admin
 ```
 
 ### Step 4: Start Services
@@ -136,7 +122,7 @@ This automatically:
    - Dagster webserver (port 10006)
    - Dagster daemon
 
-**First-time setup**: The first `phlo services start` automatically runs initialization, so you don't need a separate `phlo services init` command.
+**First-time setup**: `phlo services start` will initialize `.phlo/` if it doesn't exist, but run `phlo services init` first if you want to edit `phlo.yaml` and `.phlo/.env.local` before startup.
 
 ### Step 5: Verify Installation
 
@@ -304,7 +290,7 @@ phlo services logs -f
 
 ### Port conflicts
 
-If ports are already in use, edit `.env` to change port numbers:
+If ports are already in use, edit `phlo.yaml` (env:) to change port numbers:
 
 ```bash
 POSTGRES_PORT=15432

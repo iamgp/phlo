@@ -175,7 +175,7 @@ Caused by: requests.exceptions.ConnectionError: Connection refused
 
 ```bash
 # 1. Check API status page
-# 2. Verify credentials in .env
+# 2. Verify credentials in .phlo/.env.local
 # 3. Test connection manually
 curl https://api.example.com/endpoint
 
@@ -407,7 +407,7 @@ Use https://crontab.guru/ to validate cron expressions before using them.
 ### 4. Use Environment Variables for Credentials
 
 ```bash
-# .env file
+# .phlo/.env.local file
 API_KEY=your_key_here
 
 # In code

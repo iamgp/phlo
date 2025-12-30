@@ -6,14 +6,17 @@ Complete reference for configuring Phlo.
 
 Phlo uses multiple configuration sources:
 
-1. **Environment variables** (.env file)
-2. **Infrastructure config** (phlo.yaml)
-3. **Python settings** (`phlo.config`)
-4. **Runtime configuration** (Dagster run config)
+1. **Infrastructure defaults** (`phlo.yaml`, `env:`)
+2. **Local secrets/overrides** (`.phlo/.env.local`)
+3. **Runtime environment** (process environment variables)
+4. **Python settings** (`phlo.config`)
+5. **Runtime configuration** (Dagster run config)
 
 ## Environment Variables
 
-All configuration is managed through environment variables, loaded from `.env` file.
+Environment variables are materialized into `.phlo/.env` (generated, non-secret defaults)
+and `.phlo/.env.local` (local secrets). Edit `phlo.yaml` for committed defaults and
+`.phlo/.env.local` for secrets.
 
 ### Database Configuration
 
@@ -592,49 +595,52 @@ Standard port assignments:
 
 ### Development
 
-```bash
-# .env.development
-POSTGRES_HOST=localhost
-MINIO_HOST=localhost
-DAGSTER_HOST_PLATFORM=local
-HUB_DEBUG=true
-AUTO_PROMOTE_ENABLED=true
-BRANCH_CLEANUP_ENABLED=false
+```yaml
+# phlo.yaml (development)
+env:
+  POSTGRES_HOST: localhost
+  MINIO_HOST: localhost
+  DAGSTER_HOST_PLATFORM: local
+  HUB_DEBUG: true
+  AUTO_PROMOTE_ENABLED: true
+  BRANCH_CLEANUP_ENABLED: false
 ```
 
 ### Staging
 
-```bash
-# .env.staging
-POSTGRES_HOST=postgres-staging
-MINIO_HOST=minio-staging
-DAGSTER_HOST_PLATFORM=docker
-HUB_DEBUG=false
-AUTO_PROMOTE_ENABLED=true
-BRANCH_CLEANUP_ENABLED=true
-BRANCH_RETENTION_DAYS=3
+```yaml
+# phlo.staging.yaml
+env:
+  POSTGRES_HOST: postgres-staging
+  MINIO_HOST: minio-staging
+  DAGSTER_HOST_PLATFORM: docker
+  HUB_DEBUG: false
+  AUTO_PROMOTE_ENABLED: true
+  BRANCH_CLEANUP_ENABLED: true
+  BRANCH_RETENTION_DAYS: 3
 ```
 
 ### Production
 
-```bash
-# .env.production
-POSTGRES_HOST=postgres-prod.internal
-POSTGRES_PORT=5432
-MINIO_HOST=minio-prod.internal
-NESSIE_HOST=nessie-prod.internal
-TRINO_HOST=trino-prod.internal
-DAGSTER_HOST_PLATFORM=k8s
-DAGSTER_EXECUTOR=multiprocess
-HUB_DEBUG=false
-AUTO_PROMOTE_ENABLED=true
-BRANCH_CLEANUP_ENABLED=true
-BRANCH_RETENTION_DAYS=7
-BRANCH_RETENTION_DAYS_FAILED=2
-FRESHNESS_BLOCKS_PROMOTION=true
-PANDERA_CRITICAL_LEVEL=error
-VALIDATION_RETRY_ENABLED=true
-OPENMETADATA_SYNC_ENABLED=true
+```yaml
+# phlo.production.yaml
+env:
+  POSTGRES_HOST: postgres-prod.internal
+  POSTGRES_PORT: 5432
+  MINIO_HOST: minio-prod.internal
+  NESSIE_HOST: nessie-prod.internal
+  TRINO_HOST: trino-prod.internal
+  DAGSTER_HOST_PLATFORM: k8s
+  DAGSTER_EXECUTOR: multiprocess
+  HUB_DEBUG: false
+  AUTO_PROMOTE_ENABLED: true
+  BRANCH_CLEANUP_ENABLED: true
+  BRANCH_RETENTION_DAYS: 7
+  BRANCH_RETENTION_DAYS_FAILED: 2
+  FRESHNESS_BLOCKS_PROMOTION: true
+  PANDERA_CRITICAL_LEVEL: error
+  VALIDATION_RETRY_ENABLED: true
+  OPENMETADATA_SYNC_ENABLED: true
 ```
 
 ## Security Best Practices
@@ -645,17 +651,14 @@ Do not commit secrets to version control:
 
 ```bash
 # .gitignore
-.env
-.env.local
-.env.*.local
+.phlo/.env.local
 ```
 
 Use environment-specific files:
 
 ```bash
-.env.example      # Template (committed)
-.env              # Local development (ignored)
-.env.production   # Production secrets (ignored)
+.env.example      # Secrets template (committed)
+.phlo/.env.local  # Local secrets (ignored)
 ```
 
 ### Strong Passwords
@@ -666,7 +669,7 @@ Generate secure passwords:
 # Generate random password
 openssl rand -base64 32
 
-# Use in .env
+# Use in .phlo/.env.local
 POSTGRES_PASSWORD=<generated-password>
 MINIO_ROOT_PASSWORD=<generated-password>
 JWT_SECRET_KEY=<generated-password>
@@ -690,9 +693,6 @@ GRANT SELECT ON SCHEMA marts TO bi_readonly;
 ### Validate with CLI
 
 ```bash
-# Validate .env
-phlo config validate .env
-
 # Validate phlo.yaml
 phlo config validate phlo.yaml
 
@@ -748,7 +748,7 @@ lsof -i :10006
 netstat -ano | findstr :10000
 ```
 
-Change ports in `.env`:
+Change ports in `phlo.yaml` (env:):
 
 ```bash
 POSTGRES_PORT=15432

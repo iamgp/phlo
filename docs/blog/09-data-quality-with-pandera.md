@@ -766,7 +766,7 @@ class DataQualityConfig(BaseSettings):
     outlier_std_devs: float = 3.0
 
     class Config:
-        env_file = ".env"
+        env_file = (".phlo/.env", ".phlo/.env.local")
 
 config = DataQualityConfig()
 ```

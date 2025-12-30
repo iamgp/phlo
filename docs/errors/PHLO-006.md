@@ -95,7 +95,7 @@ def validate_api_credentials():
             message="WEATHER_API_KEY environment variable not set",
             suggestions=[
                 "Set WEATHER_API_KEY environment variable",
-                "Check .env file exists and is loaded",
+                "Check .phlo/.env.local file exists and is loaded",
                 "Verify environment variable name spelling",
             ]
         )

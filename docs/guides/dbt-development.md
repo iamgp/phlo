@@ -979,7 +979,7 @@ dbt test --select tag:critical
 target/
 dbt_packages/
 logs/
-.env
+.phlo/.env.local
 ```
 
 **Commit:**

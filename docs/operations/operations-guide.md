@@ -185,7 +185,7 @@ phlo branch list
 # Delete specific branch
 phlo branch delete old-feature
 
-# Automated cleanup (configure in .env)
+# Automated cleanup (configure in .phlo/.env.local)
 BRANCH_CLEANUP_ENABLED=true
 BRANCH_RETENTION_DAYS=7
 BRANCH_RETENTION_DAYS_FAILED=2
@@ -282,7 +282,7 @@ def weekly_iceberg_maintenance():
 **Use multiprocess executor** for production:
 
 ```bash
-# .env
+# .phlo/.env.local
 DAGSTER_EXECUTOR=multiprocess
 ```
 
@@ -571,7 +571,7 @@ groups:
 **Slack integration**:
 
 ```bash
-# .env
+# .phlo/.env.local
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 SLACK_CHANNEL=#data-alerts
 ```

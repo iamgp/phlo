@@ -32,7 +32,7 @@ make grafana
 
 Default credentials:
 
-- **Grafana**: admin / admin123 (change in `.env`)
+- **Grafana**: admin / admin123 (change in `.phlo/.env.local`)
 - **Prometheus**: No authentication (localhost only)
 
 ## Architecture
@@ -400,7 +400,7 @@ To reduce:
 ### Security
 
 ```bash
-# Change default passwords in .env
+# Change default passwords in .phlo/.env.local
 GRAFANA_ADMIN_PASSWORD=<strong-password>
 
 # Enable authentication in prometheus.yml (add later)
