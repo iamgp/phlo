@@ -160,3 +160,8 @@ context/
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# phlo local config and caches
+.phlo/
+
+.claude
