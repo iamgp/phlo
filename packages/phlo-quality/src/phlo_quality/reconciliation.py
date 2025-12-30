@@ -937,10 +937,7 @@ class ChecksumReconciliationCheck(QualityCheck):
         total_keys = len(source_keys.union(target_keys))
         duplicate_count = source_duplicates + target_duplicates
         mismatch_count = (
-            len(missing_in_target)
-            + len(missing_in_source)
-            + len(hash_mismatches)
-            + duplicate_count
+            len(missing_in_target) + len(missing_in_source) + len(hash_mismatches) + duplicate_count
         )
         total_comparable = total_keys + duplicate_count
         mismatch_pct = mismatch_count / total_comparable if total_comparable else 0.0

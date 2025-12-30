@@ -580,9 +580,7 @@ class TestChecksumReconciliationCheck:
 
     def test_checksum_passes_when_hashes_match(self):
         """Test checksum check passes when hashes match."""
-        df = pd.DataFrame(
-            {"event_id": [1, 2], "event_type": ["a", "b"], "repo_id": [10, 20]}
-        )
+        df = pd.DataFrame({"event_id": [1, 2], "event_type": ["a", "b"], "repo_id": [10, 20]})
 
         context = MagicMock()
 
@@ -608,9 +606,7 @@ class TestChecksumReconciliationCheck:
 
     def test_checksum_fails_on_hash_mismatch(self):
         """Test checksum check fails when hashes mismatch."""
-        df = pd.DataFrame(
-            {"event_id": [1, 2], "event_type": ["a", "b"], "repo_id": [10, 20]}
-        )
+        df = pd.DataFrame({"event_id": [1, 2], "event_type": ["a", "b"], "repo_id": [10, 20]})
 
         context = MagicMock()
 
