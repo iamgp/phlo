@@ -553,6 +553,51 @@ CustomSQLCheck(
 )
 ```
 
+### Reconciliation Checks (Cross-table)
+
+Reconciliation checks live in `phlo_quality.reconciliation` and use the Trino resource
+from the Dagster context to query source tables.
+
+**ReconciliationCheck**: Row count parity / coverage between source and target
+
+- `check_type="rowcount_parity"`: target and source counts must match (within tolerance)
+- `check_type="rowcount_gte"`: target must be >= source (within tolerance)
+
+```python
+from phlo_quality.reconciliation import ReconciliationCheck
+
+ReconciliationCheck(
+    source_table="silver.stg_github_events",
+    partition_column="_phlo_partition_date",
+    check_type="rowcount_parity",
+    tolerance=0.02,  # 2% allowed difference
+)
+```
+
+**AggregateConsistencyCheck**: Compare target aggregates to source aggregates
+
+```python
+from phlo_quality.reconciliation import AggregateConsistencyCheck
+
+AggregateConsistencyCheck(
+    source_table="silver.stg_github_events",
+    aggregate_column="total_events",
+    source_expression="COUNT(*)",
+    group_by=["activity_date"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+)
+```
+
+**Common reconciliation gaps (use CustomSQLCheck or @asset_check):**
+
+- Key-level anti-join checks (missing/extraneous primary keys)
+- Row-level checksum or hash comparison across tables
+- Multi-aggregate parity in one check (sum + count + min/max)
+- Absolute-difference tolerances (only percentage tolerance is built in)
+- Multi-source or multi-target reconciliation in one check
+- Distribution drift checks (percentiles/histograms vs source)
+
 ### Advanced Quality Checks
 
 **Multiple tables**:
