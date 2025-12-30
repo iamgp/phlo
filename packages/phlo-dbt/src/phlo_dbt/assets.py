@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import subprocess
-import time
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable
@@ -11,12 +10,7 @@ from dagster import AssetKey
 from dagster_dbt import DbtCliResource, dbt_assets
 from phlo.config import get_settings
 from phlo.hooks import (
-    LineageEventContext,
     LineageEventEmitter,
-    TelemetryEventContext,
-    TelemetryEventEmitter,
-    TransformEventContext,
-    TransformEventEmitter,
 )
 from phlo_dagster.partitions import daily_partition
 
@@ -193,7 +187,6 @@ def build_dbt_definitions() -> dg.Definitions:
         is orchestrator-agnostic via DbtTransformer.
         """
         import os
-        import shutil
 
         target = context.op_config.get("target") if context.op_config else None
         target = target or "dev"
@@ -242,7 +235,7 @@ def build_dbt_definitions() -> dg.Definitions:
 
         # Run transformer for docs and lineage (events already emitted by dbt.cli success)
         # We call a subset of transformer logic for post-processing
-        result = transformer.run_transform(
+        transformer.run_transform(
             partition_key=partition_date,
             parameters={"generate_docs": True, "skip_build": True},  # We already built
         )

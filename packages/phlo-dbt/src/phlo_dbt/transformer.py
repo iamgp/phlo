@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import time
 from collections.abc import Mapping, Callable
@@ -20,7 +19,6 @@ from phlo.hooks import (
     TransformEventContext,
     TransformEventEmitter,
 )
-from phlo.config import get_settings
 from phlo_dbt.translator import CustomDbtTranslator
 
 

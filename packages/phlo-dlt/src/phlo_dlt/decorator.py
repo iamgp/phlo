@@ -10,8 +10,6 @@ from phlo_dagster.partitions import daily_partition
 from phlo.exceptions import PhloConfigError
 from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
-    evaluate_pandera_contract_parquet,
-    pandera_contract_asset_check_result,
 )
 from phlo_iceberg.resource import IcebergResource
 
@@ -168,7 +166,7 @@ def phlo_ingestion(
             context, iceberg: IcebergResource
         ) -> Iterator[dg.AssetCheckResult | dg.MaterializeResult]:
             partition_date = context.partition_key
-            pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
+            f"{table_config.table_name}_{partition_date.replace('-', '_')}"
             branch_name = get_branch_from_context(context)
             run_id = context.run.run_id if hasattr(context, "run") else None
             context.log.info(f"Starting ingestion for partition {partition_date}")
@@ -234,7 +232,7 @@ def phlo_ingestion(
                     }
                 )
 
-            except Exception as exc:
+            except Exception:
                 # Ingester emits failure events before raising
                 raise
 

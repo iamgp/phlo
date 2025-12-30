@@ -6,7 +6,6 @@ import re
 from typing import Iterable
 
 import pytest
-
 from phlo_dagster.plugin import DagsterServicePlugin
 from phlo_minio.plugin import MinioServicePlugin
 from phlo_nessie.plugin import NessieServicePlugin

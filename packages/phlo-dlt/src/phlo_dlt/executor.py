@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Dict
 
-import dlt
 from phlo.ingestion import BaseIngester, IngestionResult
 from phlo.hooks import (
     IngestionEventContext,
@@ -12,7 +11,6 @@ from phlo.hooks import (
     TelemetryEventEmitter,
 )
 from phlo_iceberg.resource import IcebergResource
-from phlo.exceptions import PhloConfigError
 
 from phlo_dlt.dlt_helpers import (
     inject_metadata_columns,
@@ -21,7 +19,6 @@ from phlo_dlt.dlt_helpers import (
     stage_to_parquet,
 )
 from phlo_dlt.registry import TableConfig
-from phlo_dlt.converter import pandera_to_iceberg
 
 
 class DltIngester(BaseIngester):

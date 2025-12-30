@@ -1,28 +1,16 @@
 """Integration tests for phlo-dlt using shared infrastructure."""
 
 import pytest
-from dagster import AssetsDefinition, materialize
 from pandera.pandas import DataFrameModel
 from unittest.mock import patch
 
 # Imports
-import pytest
-import dlt
-from unittest.mock import patch, MagicMock
 from phlo_iceberg.resource import IcebergResource
 from phlo_dlt.registry import TableConfig
 from phlo_dlt.converter import pandera_to_iceberg
 # from phlo_dlt.decorator import phlo_ingestion # Removed to avoid Dagster dependency in this test
 
 pytestmark = pytest.mark.integration
-
-import pytest
-import dlt
-from unittest.mock import patch, MagicMock
-from phlo_iceberg.resource import IcebergResource
-from phlo_dlt.registry import TableConfig
-from phlo_dlt.converter import pandera_to_iceberg
-from phlo_dlt.decorator import phlo_ingestion  # Keep for now if used, but Executor is main usage
 
 
 class MySchema(DataFrameModel):
