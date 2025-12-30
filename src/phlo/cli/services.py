@@ -81,10 +81,7 @@ def _warn_secret_env_overrides(
     if not env_overrides:
         return
     secret_keys = {
-        name
-        for service in services
-        for name, cfg in service.env_vars.items()
-        if cfg.get("secret")
+        name for service in services for name, cfg in service.env_vars.items() if cfg.get("secret")
     }
     overlapping = sorted(set(env_overrides).intersection(secret_keys))
     if overlapping:

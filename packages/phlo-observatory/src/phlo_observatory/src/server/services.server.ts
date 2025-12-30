@@ -232,7 +232,7 @@ const getEnvPath = (): string => {
       return candidate
     }
   }
-  return candidates[candidates.length - 1]!
+  return candidates[candidates.length - 1]
 }
 
 async function parseEnvFile(
