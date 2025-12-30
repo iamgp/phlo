@@ -30,7 +30,7 @@ import {
   checkDagsterConnection,
   getHealthMetrics,
 } from '@/server/dagster.server'
-import { getMaintenanceStatus } from '@/server/maintenance.server'
+import { getMaintenanceStatus as fetchMaintenanceStatus } from '@/server/maintenance.server'
 import { formatDateTime } from '@/utils/dateFormat'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
@@ -42,7 +42,7 @@ export const Route = createFileRoute('/')({
     const [connection, metrics, maintenance] = await Promise.all([
       checkDagsterConnection({ data: { dagsterUrl } }),
       getHealthMetrics({ data: { dagsterUrl } }),
-      getMaintenanceStatus({ data: {} }),
+      fetchMaintenanceStatus({ data: {} }),
     ])
     return { connection, metrics, maintenance }
   },
@@ -84,14 +84,15 @@ function Dashboard() {
 
   const hasError = metrics && 'error' in metrics
   const healthData = hasError ? null : metrics
-  const maintenanceResult = useRealtimePolling({
+  const { data: maintenanceResponse } = useRealtimePolling({
     queryKey: ['maintenance-status'],
-    queryFn: () => getMaintenanceStatus({ data: {} }),
+    queryFn: () => fetchMaintenanceStatus({ data: {} }),
     initialData: initialMaintenance,
   })
-  const maintenanceError =
-    maintenanceResult.data && 'error' in maintenanceResult.data
-  const maintenanceData = maintenanceError ? null : maintenanceResult.data
+  const maintenanceData =
+    maintenanceResponse && 'error' in maintenanceResponse
+      ? null
+      : maintenanceResponse
 
   return (
     <div className="h-full overflow-auto">
@@ -167,7 +168,7 @@ function Dashboard() {
             value={getMaintenanceValue(maintenanceData)}
             subtitle={getMaintenanceSubtitle(maintenanceData)}
             icon={<Wrench className="w-6 h-6" />}
-            status={getMaintenanceStatus(maintenanceData)}
+            status={getMaintenanceHealthStatus(maintenanceData)}
           />
         </div>
 
@@ -278,7 +279,7 @@ function getFreshnessStatus(
   return 'error'
 }
 
-function getMaintenanceStatus(
+function getMaintenanceHealthStatus(
   data: MaintenanceStatusSnapshot | null | undefined,
 ): 'success' | 'warning' | 'error' | 'loading' {
   if (!data) return 'loading'

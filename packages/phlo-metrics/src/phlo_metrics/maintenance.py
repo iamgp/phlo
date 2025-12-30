@@ -167,10 +167,13 @@ def render_maintenance_prometheus(path: Path | None = None) -> str:
         labels = _metric_labels(tags)
         label_key = tuple(sorted(labels.items()))
         if metric.mode == "counter":
-            counters[(metric.prom_name, label_key)] = counters.get(
-                (metric.prom_name, label_key),
-                0.0,
-            ) + value
+            counters[(metric.prom_name, label_key)] = (
+                counters.get(
+                    (metric.prom_name, label_key),
+                    0.0,
+                )
+                + value
+            )
         else:
             timestamp = _parse_timestamp(event.get("timestamp"))
             current = gauges.get((metric.prom_name, label_key))
@@ -178,9 +181,7 @@ def render_maintenance_prometheus(path: Path | None = None) -> str:
                 gauges[(metric.prom_name, label_key)] = (value, timestamp)
 
     lines: list[str] = []
-    by_prom: dict[str, _PrometheusMetric] = {
-        m.prom_name: m for m in _PROMETHEUS_MAP.values()
-    }
+    by_prom: dict[str, _PrometheusMetric] = {m.prom_name: m for m in _PROMETHEUS_MAP.values()}
     for prom_name in sorted(by_prom.keys()):
         metric = by_prom[prom_name]
         lines.append(f"# HELP {prom_name} {metric.help}")
@@ -261,9 +262,7 @@ def _coerce_optional_str(value: Any) -> str | None:
     return None
 
 
-def _format_prometheus_line(
-    name: str, value: float, labels: tuple[tuple[str, str], ...]
-) -> str:
+def _format_prometheus_line(name: str, value: float, labels: tuple[tuple[str, str], ...]) -> str:
     if not labels:
         return f"{name} {value}"
     label_str = ",".join(f'{key}="{val}"' for key, val in labels)

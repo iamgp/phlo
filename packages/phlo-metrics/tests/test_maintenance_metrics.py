@@ -81,4 +81,4 @@ def test_render_maintenance_prometheus(tmp_path: Path) -> None:
 
     output = render_maintenance_prometheus(path)
     assert "phlo_iceberg_maintenance_runs_total" in output
-    assert "operation=\"cleanup_orphan_files\"" in output
+    assert 'operation="cleanup_orphan_files"' in output

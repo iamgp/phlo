@@ -269,9 +269,7 @@ def expire_table_snapshots(
             payload=summary_payload,
         )
     metrics_emitter = TelemetryEventEmitter(
-        TelemetryEventContext(
-            tags=_maintenance_tags(config, operation=operation, status=status)
-        )
+        TelemetryEventContext(tags=_maintenance_tags(config, operation=operation, status=status))
     )
     _emit_maintenance_metrics(
         metrics_emitter,
@@ -550,9 +548,7 @@ def collect_table_stats(
             payload=summary_payload,
         )
     metrics_emitter = TelemetryEventEmitter(
-        TelemetryEventContext(
-            tags=_maintenance_tags(config, operation=operation, status=status)
-        )
+        TelemetryEventContext(tags=_maintenance_tags(config, operation=operation, status=status))
     )
     _emit_maintenance_metrics(
         metrics_emitter,
