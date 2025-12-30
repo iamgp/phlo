@@ -239,7 +239,7 @@ Click **Next**.
 
 1. Review your configuration
 2. Click **Deploy**
-3. The pipeline will be created and registered with Airflow
+3. The pipeline will be created
 
 You'll see a success message with the pipeline ID.
 
@@ -253,15 +253,6 @@ You'll see a success message with the pipeline ID.
 4. Find `trino-metadata` pipeline
 5. Click **Run** (play button)
 6. Monitor progress in real-time
-
-**Via Airflow UI (Alternative):**
-
-1. Open http://localhost:8080/
-2. Login with `admin` / `admin`
-3. Find DAG named `trino_metadata_<id>` or similar
-4. Toggle it **ON** (unpause the DAG)
-5. Click **Trigger DAG** (play button)
-6. Click on the DAG run to view logs
 
 **Expected Output:**
 
@@ -344,12 +335,6 @@ After initial ingestion, search will NOT work until you populate the search inde
 http://localhost:10020/table/trino.iceberg.raw.glucose_entries
 ```
 
-**Verify in Airflow:**
-
-```bash
-docker logs openmetadata-ingestion | grep "Successfully ingested"
-```
-
 **Check Elasticsearch Indices:**
 
 ```bash
@@ -364,7 +349,7 @@ docker exec openmetadata-elasticsearch curl -s \
 
 ### Complete Ingestion Configuration
 
-This is what your pipeline configuration looks like (stored in `volumes/openmetadata-ingestion-dags/<pipeline-id>.json`):
+This is what your pipeline configuration looks like:
 
 ```json
 {
@@ -436,19 +421,6 @@ This is what your pipeline configuration looks like (stored in `volumes/openmeta
 5. Click **Save**
 6. Re-run the pipeline
 
-**Via File (Advanced):**
-
-```bash
-# Find your pipeline configuration
-ls volumes/openmetadata-ingestion-dags/
-
-# Edit the JSON file directly
-vim volumes/openmetadata-ingestion-dags/<pipeline-id>.json
-
-# Restart Airflow to pick up changes
-docker restart openmetadata-ingestion
-```
-
 ## Discovered Data Assets
 
 After ingestion, you'll see:
@@ -515,6 +487,7 @@ Updated daily at 2:00 AM UTC via Dagster pipeline.
 ```
 
 4. Add column descriptions:
+
    - `date`: Measurement date (partition key)
    - `mean_glucose`: Daily average glucose in mg/dL
    - `std_glucose`: Standard deviation of glucose readings
@@ -587,6 +560,7 @@ Click **Next**.
 | **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results                 |
 
 2. **Database Service Name:** `trino`
+
    - This links dbt models to your Trino tables
    - Must match the name of your Trino service
 
@@ -802,22 +776,6 @@ docker exec openmetadata-elasticsearch curl -s \
   "http://localhost:9200/all/_search?q=glucose&size=1" | grep -o '"total":{"value":[0-9]*'
 ```
 
-### Airflow Authentication Failed
-
-**Error:** `Authentication failed for user [admin] trying to access the Airflow APIs`
-
-This occurs when connecting ingestion pipelines after a fresh install.
-
-**Solution:**
-
-```bash
-# Reset Airflow admin password
-docker exec openmetadata-ingestion airflow users reset-password -u admin -p admin
-
-# Restart Airflow
-docker restart openmetadata-ingestion
-```
-
 ### Missing Elasticsearch Indices
 
 **Error:** `Failed to find index table_search_index` or similar
@@ -861,6 +819,7 @@ Indices should be created automatically by OpenMetadata. If they're missing afte
 **Solution:**
 
 1. **Disable stored procedures** in ingestion configuration:
+
    - Edit your Trino service ingestion pipeline
    - Advanced Options → Uncheck "Include Stored Procedures"
    - Advanced Options → Uncheck "Mark Deleted Stored Procedures"
@@ -917,10 +876,6 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
    make trino-shell
    SHOW SCHEMAS FROM iceberg;
    ```
-3. Check Airflow DAG execution:
-   - Access Airflow at http://localhost:8080/
-   - Login: `admin` / `admin`
-   - View DAG logs for detailed error messages
 
 ### Tables Not Appearing After Ingestion
 
@@ -928,22 +883,18 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 
 **Solutions:**
 
-1. **Check if ingestion actually found tables:**
+1. **Verify schema filters aren't too restrictive:**
 
-   ```bash
-   docker logs openmetadata-ingestion | grep "Successfully ingested"
-   ```
-
-2. **Verify schema filters aren't too restrictive:**
    - Go to Settings → Database Services → trino → Ingestion
    - Check Include/Exclude Schemas configuration
    - Ensure your target schemas are included
 
-3. **Search by fully qualified name:**
+2. **Search by fully qualified name:**
+
    - In UI search bar: `trino.iceberg.raw.glucose_entries`
    - Navigate to Explore → Tables and browse database hierarchy
 
-4. **Check Elasticsearch index:**
+3. **Check Elasticsearch index:**
    ```bash
    # Verify table is in Elasticsearch
    docker exec openmetadata-elasticsearch curl -s \
@@ -1001,6 +952,6 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ## Related Phlo Documentation
 
 - [Quick Start Guide](quick-start.md) - Get Phlo running
-- [API Documentation](../reference/api.md) - FastAPI and Hasura setup
+- [API Documentation](../reference/phlo-api.md) - FastAPI and Hasura setup
 - [dbt Development Guide](../guides/dbt-development.md) - Creating dbt models
 - [Workflow Development Guide](../guides/workflow-development.md) - Dagster pipelines

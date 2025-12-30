@@ -29,7 +29,7 @@ class EventSchema(pa.DataFrameModel):
 
 # workflows/ingestion/api/events.py
 from dlt.sources.rest_api import rest_api
-import phlo
+from phlo_dlt import phlo_ingestion
 from workflows.schemas.api import EventSchema
 
 @phlo_ingestion(
@@ -50,8 +50,7 @@ def api_events(partition_date: str):
     })
 
 # workflows/quality/api.py
-from phlo_quality.checks import NullCheck, RangeCheck, UniqueCheck
-import phlo
+from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
 
 @phlo_quality(
     table="bronze.events",
@@ -81,6 +80,9 @@ That's it! You get:
 ### Basic Usage
 
 ```python
+from phlo_dlt import phlo_ingestion
+from dlt.sources.rest_api import rest_api
+
 @phlo_ingestion(
     table_name="my_table",
     unique_key="id",
@@ -150,25 +152,40 @@ merge_config={"deduplication_method": "first"}  # Keep first occurrence
 merge_config={"deduplication_method": "hash"}   # Keep based on content hash
 ```
 
-`retry_policy` (dict): Retry configuration
+`max_retries` (int): Number of retry attempts (default: 3)
 
 ```python
-retry_policy={
-    "max_retries": 3,
-    "delay": 1.0  # seconds between retries
-}
+max_retries=3
 ```
 
-`timeout` (int): Execution timeout in seconds
+`retry_delay_seconds` (int): Delay between retries in seconds (default: 30)
 
 ```python
-timeout=3600  # 1 hour
+retry_delay_seconds=30
 ```
 
-`tags` (dict): Custom tags for filtering
+`max_runtime_seconds` (int): Execution timeout in seconds (default: 300)
 
 ```python
-tags={"env": "prod", "team": "data"}
+max_runtime_seconds=3600  # 1 hour
+```
+
+`validate` (bool): Enable validation (default: True)
+
+```python
+validate=True
+```
+
+`strict_validation` (bool): Fail on validation errors (default: True)
+
+```python
+strict_validation=True
+```
+
+`add_metadata_columns` (bool): Add `_phlo_*` metadata columns (default: True)
+
+```python
+add_metadata_columns=True
 ```
 
 ### DLT Source Integration
@@ -482,8 +499,8 @@ Schema(
 ### Basic Usage
 
 ```python
+from phlo_quality import phlo_quality
 from phlo_quality.checks import NullCheck, RangeCheck
-import phlo
 
 @phlo_quality(
     table="bronze.events",
@@ -672,17 +689,27 @@ def referential_integrity():
 **Conditional checks**:
 
 ```python
-from phlo_quality.checks import Check
+import pandas as pd
+from datetime import datetime
+from phlo_quality.checks import QualityCheck, QualityCheckResult
 
-class ConditionalCheck(Check):
-    def execute(self, context):
+class ConditionalCheck(QualityCheck):
+    def execute(self, df: pd.DataFrame, context) -> QualityCheckResult:
         # Only run check on weekdays
         if datetime.now().weekday() >= 5:
-            return CheckResult(passed=True, skipped=True)
+            return QualityCheckResult(
+                passed=True,
+                failed=False,
+                message="Skipped on weekend"
+            )
 
         # Run validation
-        result = self.validate()
-        return CheckResult(passed=result)
+        passed = len(df) > 0  # Example validation
+        return QualityCheckResult(
+            passed=passed,
+            failed=not passed,
+            message=f"Validated {len(df)} rows"
+        )
 
 @phlo_quality(
     table="bronze.events",
@@ -1011,8 +1038,9 @@ Let Phlo handle retries, but add custom handling where needed:
 
 ```python
 @phlo_ingestion(
-    retry_policy={"max_retries": 3, "delay": 1.0},
-    timeout=3600
+    max_retries=3,
+    retry_delay_seconds=30,
+    max_runtime_seconds=3600
 )
 def robust_data(partition_date: str):
     try:

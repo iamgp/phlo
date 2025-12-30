@@ -99,7 +99,8 @@ capability packages directly.
 
 ```python
 from phlo.hooks import QualityResultEvent
-from phlo.plugins import HookFilter, HookPlugin, HookRegistration, PluginMetadata
+from phlo.plugins import HookFilter, HookPlugin, PluginMetadata
+from phlo.plugins.hooks import HookRegistration
 
 
 class MyHookPlugin(HookPlugin):

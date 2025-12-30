@@ -25,18 +25,22 @@ POSTGRES_HOST=postgres
 POSTGRES_PORT=10000
 
 # Credentials
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+POSTGRES_USER=lake
+POSTGRES_PASSWORD=phlo
 
 # Database
-POSTGRES_DB=cascade
+POSTGRES_DB=lakehouse
 POSTGRES_MART_SCHEMA=marts
+
+# Lineage tracking database (optional, defaults to Dagster Postgres connection)
+PHLO_LINEAGE_DB_URL=postgresql://lake:phlo@postgres:10000/lakehouse
+# Alternative: DAGSTER_PG_DB_CONNECTION_STRING (alias for lineage_db_url)
 ```
 
 **Connection string format**:
 
 ```
-postgresql://postgres:password@postgres:10000/cascade
+postgresql://lake:phlo@postgres:10000/lakehouse
 ```
 
 ### Storage Configuration
@@ -68,9 +72,10 @@ Nessie Git-like catalog:
 
 ```bash
 # Version and connectivity
-NESSIE_VERSION=0.95.0
-NESSIE_PORT=10003
+NESSIE_VERSION=0.106.0
+NESSIE_PORT=19120
 NESSIE_HOST=nessie
+NESSIE_API_VERSION=v1
 ```
 
 **API endpoints**:
@@ -85,12 +90,12 @@ Trino distributed SQL engine:
 
 ```bash
 # Version and connectivity
-TRINO_VERSION=461
+TRINO_VERSION=477
 TRINO_PORT=10005
 TRINO_HOST=trino
 
 # Catalog
-TRINO_CATALOG_NAME=iceberg_dev
+TRINO_CATALOG=iceberg
 ```
 
 **Connection string**:
@@ -112,7 +117,7 @@ ICEBERG_STAGING_PATH=s3://lake/stage
 ICEBERG_DEFAULT_NAMESPACE=raw
 
 # Default branch reference
-NESSIE_REF=main
+ICEBERG_NESSIE_REF=main
 ```
 
 **Warehouse paths by branch**:
@@ -152,15 +157,15 @@ Data quality validation settings:
 
 ```bash
 # Freshness blocking
-FRESHNESS_BLOCKING_ENABLED=false
+FRESHNESS_BLOCKS_PROMOTION=false
 
 # Pandera validation level
 PANDERA_CRITICAL_LEVEL=error  # error, warning, or skip
 
 # Validation retry
 VALIDATION_RETRY_ENABLED=true
-VALIDATION_MAX_RETRIES=3
-VALIDATION_RETRY_DELAY=1.0  # seconds
+VALIDATION_RETRY_MAX_ATTEMPTS=3
+VALIDATION_RETRY_DELAY_SECONDS=300  # seconds
 ```
 
 **Pandera levels**:
@@ -190,8 +195,13 @@ Orchestration platform:
 
 ```bash
 DAGSTER_PORT=10006
-DAGSTER_EXECUTOR=in_process  # or multiprocess
-DAGSTER_HOST_PLATFORM=local  # local, docker, k8s
+
+# Executor configuration (set only one)
+PHLO_FORCE_IN_PROCESS_EXECUTOR=false   # Force in-process executor
+PHLO_FORCE_MULTIPROCESS_EXECUTOR=false # Force multiprocess executor
+
+# Host platform (auto-detected, but can be set explicitly for daemon/webserver on macOS)
+PHLO_HOST_PLATFORM=  # Darwin, Linux, or Windows
 ```
 
 Access: http://localhost:10006
@@ -244,9 +254,11 @@ Data catalog and governance:
 ```bash
 OPENMETADATA_HOST=openmetadata-server
 OPENMETADATA_PORT=8585
-OPENMETADATA_ADMIN_USER=admin
-OPENMETADATA_ADMIN_PASSWORD=admin
-OPENMETADATA_SYNC_ENABLED=false
+OPENMETADATA_USERNAME=admin
+OPENMETADATA_PASSWORD=admin
+OPENMETADATA_VERIFY_SSL=false
+OPENMETADATA_SYNC_ENABLED=true
+OPENMETADATA_SYNC_INTERVAL_SECONDS=300  # Minimum interval between syncs
 ```
 
 Access: http://localhost:8585
@@ -288,25 +300,24 @@ Access: http://localhost:3000
 #### Slack
 
 ```bash
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-SLACK_CHANNEL=#data-alerts
+PHLO_ALERT_SLACK_WEBHOOK=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+PHLO_ALERT_SLACK_CHANNEL=#data-alerts
 ```
 
 #### PagerDuty
 
 ```bash
-PAGERDUTY_INTEGRATION_KEY=your-integration-key
+PHLO_ALERT_PAGERDUTY_KEY=your-integration-key
 ```
 
 #### Email (SMTP)
 
 ```bash
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM=alerts@yourdomain.com
-SMTP_TO=team@yourdomain.com
+PHLO_ALERT_EMAIL_SMTP_HOST=smtp.gmail.com
+PHLO_ALERT_EMAIL_SMTP_PORT=587
+PHLO_ALERT_EMAIL_SMTP_USER=your-email@gmail.com
+PHLO_ALERT_EMAIL_SMTP_PASSWORD=your-app-password
+PHLO_ALERT_EMAIL_RECIPIENTS=team@yourdomain.com,alerts@yourdomain.com  # Comma-separated list
 ```
 
 ### Security Configuration
@@ -393,21 +404,32 @@ POSTGRES_SSL_CA_FILE=/path/to/ca.pem
 ### dbt Configuration
 
 ```bash
+# dbt artifact paths
 DBT_MANIFEST_PATH=transforms/dbt/target/manifest.json
 DBT_CATALOG_PATH=transforms/dbt/target/catalog.json
+
+# dbt project directory
 DBT_PROJECT_DIR=transforms/dbt
+
+# Workflows path (for external projects)
+WORKFLOWS_PATH=workflows
 ```
 
 ### Plugin Configuration
 
 ```bash
 # Plugin system
-PLUGINS_ENABLED=false
-PLUGINS_AUTO_DISCOVERY=true
+PLUGINS_ENABLED=true
+PLUGINS_AUTO_DISCOVER=true
 
 # Whitelist/blacklist (comma-separated)
 PLUGINS_WHITELIST=plugin1,plugin2
 PLUGINS_BLACKLIST=deprecated_plugin
+
+# Plugin registry
+PLUGIN_REGISTRY_URL=https://registry.phlo.dev/plugins.json
+PLUGIN_REGISTRY_CACHE_TTL_SECONDS=3600
+PLUGIN_REGISTRY_TIMEOUT_SECONDS=10
 ```
 
 ## Infrastructure Configuration (phlo.yaml)
@@ -609,7 +631,7 @@ AUTO_PROMOTE_ENABLED=true
 BRANCH_CLEANUP_ENABLED=true
 BRANCH_RETENTION_DAYS=7
 BRANCH_RETENTION_DAYS_FAILED=2
-FRESHNESS_BLOCKING_ENABLED=true
+FRESHNESS_BLOCKS_PROMOTION=true
 PANDERA_CRITICAL_LEVEL=error
 VALIDATION_RETRY_ENABLED=true
 OPENMETADATA_SYNC_ENABLED=true

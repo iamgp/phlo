@@ -290,6 +290,7 @@ transforms/dbt/
 ### 4-Layer Architecture
 
 1. **Bronze** (Staging):
+
    - Raw data cleanup
    - Type conversions
    - Rename columns
@@ -306,6 +307,7 @@ transforms/dbt/
    ```
 
 2. **Silver** (Fact Tables):
+
    - Business logic
    - Calculations
    - Joins and enrichment
@@ -329,6 +331,7 @@ transforms/dbt/
    ```
 
 3. **Gold** (Dimensions):
+
    - Pre-computed dimensions
    - Slow-changing dimensions
    - Reference tables
@@ -347,6 +350,7 @@ transforms/dbt/
    ```
 
 4. **Marts** (Published):
+
    - Business-ready tables
    - Published to Postgres for BI tools
    - Aggregations and summaries
@@ -434,7 +438,7 @@ if context.has_partition_key:
 
 ### Option 1: Via Dagster UI
 
-1. Open http://localhost:3000
+1. Open http://localhost:10006
 2. Click asset: `stg_glucose_entries`
 3. Click **Materialize**
 4. Watch dbt run in logs

@@ -138,9 +138,7 @@ def glucose_entries(partition_date: str):
 **Run it**:
 
 ```bash
-docker exec dagster-webserver dagster asset materialize \
-  --select dlt_glucose_entries \
-  --partition "2024-10-15"
+phlo materialize --select dlt_glucose_entries --partition 2024-10-15
 ```
 
 ## Step 3: Bronze Layer Transformation
@@ -401,9 +399,9 @@ You don't need to write any publishing code - just create dbt models in the `mar
 
 ```bash
 # Run all glucose assets for a specific date
-docker exec dagster-webserver dagster asset materialize \
+phlo materialize \
   --select "dlt_glucose_entries,stg_glucose_entries,fct_glucose_readings,mrt_glucose_readings,publish_glucose_marts" \
-  --partition "2024-10-15"
+  --partition 2024-10-15
 
 # Output:
 # Materializing dlt_glucose_entries [2024-10-15]
@@ -431,15 +429,22 @@ docker exec dagster-webserver dagster asset materialize \
 # All assets materialized successfully in 8.92s
 ```
 
-### View Results
-
 **In Dagster**:
 
 ```
-http://localhost:3000
+http://localhost:10006
 → Assets tab
 → dlt_glucose_entries
 → Click to view lineage graph with status
+```
+
+**In Observatory**:
+
+```
+http://localhost:3001
+→ Data Explorer
+→ Browse marts.mrt_glucose_overview
+→ Preview data and run queries
 ```
 
 **In Postgres**:
@@ -452,17 +457,6 @@ lakehouse=# SELECT * FROM marts.mrt_glucose_overview ORDER BY reading_date DESC 
 reading_date | avg_glucose_mg_dl | min_glucose_mg_dl | max_glucose_mg_dl | percent_in_range
 ──────────────────────────────────────────────────────────────────────────────────────────
 2024-10-15   | 145.3             | 89                | 210               | 78.2
-```
-
-**In Superset**:
-
-```
-http://localhost:8088
-→ Dashboards
-→ Glucose Dashboard
-→ Daily avg: 145.3 mg/dL
-→ Time in range: 78.2%
-→ Hypoglycemia alerts: 0
 ```
 
 ## Step 8: Monitoring and Alerts

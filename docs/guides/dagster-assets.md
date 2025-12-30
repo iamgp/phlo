@@ -239,7 +239,8 @@ def optional_upstream():
 @dg.asset
 def conditional_asset():
     """Conditionally uses upstream asset."""
-    config = get_config()
+    from phlo.config import get_settings
+    config = get_settings()
 
     if config.USE_CACHE:
         # Use upstream asset
@@ -312,7 +313,7 @@ def build_resources():
     return dg.Definitions(
         resources={
             "weather_api": WeatherAPIResource(
-                api_key=get_config().WEATHER_API_KEY,
+                api_key=get_settings().WEATHER_API_KEY,
             ),
         },
     )
@@ -330,12 +331,12 @@ def weather_data(weather_api: WeatherAPIResource):
 ### Configuration from Environment
 
 ```python
-from phlo.config import get_config
+from phlo.config import get_settings
 
 @dg.asset
 def configured_asset(context: dg.AssetExecutionContext):
     """Asset that uses config."""
-    config = get_config()
+    config = get_settings()
 
     context.log.info(f"Using API: {config.API_BASE_URL}")
     context.log.info(f"Batch size: {config.BATCH_SIZE}")

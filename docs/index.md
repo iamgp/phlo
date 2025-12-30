@@ -70,7 +70,7 @@ Technical documentation:
 - [CLI Reference](reference/cli-reference.md) - Complete command-line interface guide
 - [Configuration Reference](reference/configuration-reference.md) - Environment variables and settings
 - [Architecture](reference/architecture.md) - System design and components
-- [API Reference](reference/api.md) - REST and GraphQL APIs
+- [API Reference](reference/phlo-api.md) - REST and GraphQL APIs
 - [DuckDB Queries](reference/duckdb-queries.md) - Ad-hoc analysis
 - [Common Errors](reference/common-errors.md) - Error messages explained
 
