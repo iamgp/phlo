@@ -43,7 +43,57 @@ description: "{description}"
 #     postgres:
 #       host: custom-host  # Override postgres host
 #   container_naming_pattern: "{{project}}_{{service}}"  # Custom naming
+#
+# Non-secret environment defaults (committed):
+#
+# env:
+#   POSTGRES_PORT: 10000
+#   DAGSTER_PORT: 10006
+#
+# Secrets belong in .phlo/.env.local (not committed).
 """
+
+
+def _parse_env_file(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    try:
+        for line in path.read_text().splitlines():
+            trimmed = line.strip()
+            if not trimmed or trimmed.startswith("#") or "=" not in trimmed:
+                continue
+            key, value = trimmed.split("=", 1)
+            values[key] = value
+    except OSError:
+        return {}
+    return values
+
+
+def _get_env_overrides(config: dict) -> dict[str, object]:
+    env_overrides = config.get("env", {})
+    return env_overrides if isinstance(env_overrides, dict) else {}
+
+
+def _warn_secret_env_overrides(
+    env_overrides: dict[str, object], services: list[ServiceDefinition]
+) -> None:
+    if not env_overrides:
+        return
+    secret_keys = {
+        name
+        for service in services
+        for name, cfg in service.env_vars.items()
+        if cfg.get("secret")
+    }
+    overlapping = sorted(set(env_overrides).intersection(secret_keys))
+    if overlapping:
+        click.echo(
+            "Warning: phlo.yaml env overrides include secret keys. "
+            "Move these to .phlo/.env.local instead:",
+            err=True,
+        )
+        click.echo(f"  {', '.join(overlapping)}", err=True)
 
 
 def resolve_phlo_package_dir(path: Path) -> Path | None:
@@ -509,6 +559,7 @@ def init(
         with open(config_file) as f:
             existing_config = yaml.safe_load(f) or {}
     user_overrides = existing_config.get("services", {})
+    env_overrides = _get_env_overrides(existing_config)
 
     # Collect disabled services (those with enabled: false)
     disabled_services = {
@@ -532,6 +583,7 @@ def init(
         s for s in all_services.values() if s.profile and s.name not in disabled_services
     ]
     services_to_install = default_services + profile_services + inline_services
+    _warn_secret_env_overrides(env_overrides, services_to_install)
 
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
@@ -547,11 +599,20 @@ def init(
     compose_file.write_text(compose_content)
     click.echo(f"Created: {compose_file.relative_to(Path.cwd())}")
 
-    # Generate .env
-    env_content = composer.generate_env(services_to_install)
+    # Generate .env + .env.local
     env_file = phlo_dir / ".env"
+    env_local_file = phlo_dir / ".env.local"
+    existing_env_local = _parse_env_file(env_local_file)
+    env_content = composer.generate_env(services_to_install, env_overrides=env_overrides)
+    env_local_content = composer.generate_env_local(
+        services_to_install,
+        env_overrides=env_overrides,
+        existing_values=existing_env_local,
+    )
     env_file.write_text(env_content)
     click.echo(f"Created: {env_file.relative_to(Path.cwd())}")
+    env_local_file.write_text(env_local_content)
+    click.echo(f"Created: {env_local_file.relative_to(Path.cwd())}")
 
     # Generate .gitignore
     gitignore_file = phlo_dir / ".gitignore"
@@ -581,9 +642,10 @@ def init(
 
     click.echo("")
     click.echo("Next steps:")
-    click.echo("  1. Review .phlo/.env and adjust settings if needed")
-    click.echo("  2. Run: phlo services start")
-    click.echo("  3. Inspect services with: phlo services list")
+    click.echo("  1. Commit non-secret defaults in phlo.yaml (env:)")
+    click.echo("  2. Set secrets in .phlo/.env.local")
+    click.echo("  3. Run: phlo services start")
+    click.echo("  4. Inspect services with: phlo services list")
 
 
 @services.command("list")
@@ -1682,6 +1744,7 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
 
     # Get user service overrides from config
     user_overrides = config.get("services", {})
+    env_overrides = _get_env_overrides(config)
 
     # Generate docker-compose.yml
     composer = ComposeGenerator(discovery)
@@ -1693,11 +1756,22 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
     compose_file.write_text(compose_content)
     click.echo("Updated: .phlo/docker-compose.yml")
 
-    # Regenerate .env
-    env_content = composer.generate_env(services_to_install)
+    _warn_secret_env_overrides(env_overrides, services_to_install)
+
+    # Regenerate .env + .env.local
     env_file = phlo_dir / ".env"
+    env_local_file = phlo_dir / ".env.local"
+    existing_env_local = _parse_env_file(env_local_file)
+    env_content = composer.generate_env(services_to_install, env_overrides=env_overrides)
+    env_local_content = composer.generate_env_local(
+        services_to_install,
+        env_overrides=env_overrides,
+        existing_values=existing_env_local,
+    )
     env_file.write_text(env_content)
     click.echo("Updated: .phlo/.env")
+    env_local_file.write_text(env_local_content)
+    click.echo("Updated: .phlo/.env.local")
 
     # Copy any new service files
     copied_files = composer.copy_service_files(services_to_install, phlo_dir)

@@ -196,7 +196,7 @@ phlo services start  # my-cache is now available
 | **Observatory as plugin**         | Awkward DX, can't control phlo                  | Move to core, add phlo-api backend                |
 | **No user overrides**             | Users can't customize installed service configs | Allow `services:` overrides in `phlo.yaml`        |
 | **No enable/disable**             | Can't easily disable installed services         | Add `enabled: true/false` per service             |
-| **Limited env var configuration** | Only `.env` file, no per-service env in yaml    | Support `environment:` in service overrides       |
+| **Limited env var configuration** | Only `.phlo/.env(.local)` files, no per-service env in yaml | Support `environment:` in service overrides       |
 | **No port overrides**             | Must edit bundled service.yaml or use env vars  | Support `ports:` in service overrides             |
 | **No custom inline services**     | Can't easily add non-packaged services          | Support inline service definitions in `phlo.yaml` |
 
@@ -289,7 +289,7 @@ Base Layer:        Package's service.yaml (bundled in pip package)
      ↓
 User Override:     phlo.yaml services section
      ↓
-Environment:       .env file and process environment
+Environment:       .phlo/.env + .phlo/.env.local + process environment
      ↓
 Runtime:           CLI flags (--dev, --profile, etc.)
 ```

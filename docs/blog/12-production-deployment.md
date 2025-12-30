@@ -103,69 +103,72 @@ Use: docker-compose up
 
 ### Step 1: Prepare the Environment
 
-Phlo uses environment variables for configuration. Start with the provided `.env.example`:
+Phlo uses environment variables for configuration. Generate local env files and set defaults:
 
 ```bash
-# Copy example environment file
-cp .env.example .env
+# Generate .phlo/.env and .phlo/.env.local
+phlo services init
 
-# Edit with your production values
-# Key variables to configure:
+# Copy secrets template
+cp .env.example .phlo/.env.local
 ```
 
 Based on the actual `.env.example`, here are the critical production settings:
 
+```yaml
+# phlo.yaml (committed defaults)
+env:
+  # Database (consider managed RDS for production)
+  POSTGRES_USER: lake
+  POSTGRES_DB: lakehouse
+  POSTGRES_PORT: 10000
+
+  # MinIO / S3 Storage
+  MINIO_API_PORT: 10001
+  MINIO_CONSOLE_PORT: 10002
+
+  # Nessie (Data Catalog)
+  NESSIE_VERSION: 0.105.5
+  NESSIE_PORT: 10003
+
+  # Trino (Query Engine)
+  TRINO_VERSION: 477
+  TRINO_PORT: 10005
+
+  # Iceberg Configuration
+  ICEBERG_WAREHOUSE_PATH: s3://lake/warehouse
+  ICEBERG_STAGING_PATH: s3://lake/stage
+  ICEBERG_NESSIE_REF: main
+
+  # Dagster (Orchestration)
+  DAGSTER_PORT: 10006
+
+  # Superset (BI)
+  SUPERSET_PORT: 10007
+
+  # API Layer
+  API_PORT: 10010
+
+  # Observability Stack
+  GRAFANA_PORT: 10016
+  PROMETHEUS_PORT: 10013
+
+  # Data Catalog (OpenMetadata)
+  OPENMETADATA_PORT: 10020
+```
+
 ```bash
-# Database (consider managed RDS for production)
-POSTGRES_USER=lake
+# .phlo/.env.local (secrets, not committed)
 POSTGRES_PASSWORD=<SECURE_PASSWORD>  # Change from default!
-POSTGRES_DB=lakehouse
-POSTGRES_PORT=10000
-
-# MinIO / S3 Storage
-MINIO_ROOT_USER=<SECURE_USER>  # Change from default!
-MINIO_ROOT_PASSWORD=<SECURE_PASSWORD>  # Change from default!
-MINIO_API_PORT=10001
-MINIO_CONSOLE_PORT=10002
-
-# Nessie (Data Catalog)
-NESSIE_VERSION=0.105.5
-NESSIE_PORT=10003
-
-# Trino (Query Engine)
-TRINO_VERSION=477
-TRINO_PORT=10005
-
-# Iceberg Configuration
-ICEBERG_WAREHOUSE_PATH=s3://lake/warehouse
-ICEBERG_STAGING_PATH=s3://lake/stage
-ICEBERG_NESSIE_REF=main
-
-# Dagster (Orchestration)
-DAGSTER_PORT=10006
-
-# Superset (BI)
-SUPERSET_PORT=10007
-SUPERSET_ADMIN_PASSWORD=<SECURE_PASSWORD>  # Change from default!
-
-# API Layer (JWT authentication)
-API_PORT=10010
-JWT_SECRET=<SECURE_JWT_SECRET>  # Change from default!
-HASURA_ADMIN_SECRET=<SECURE_ADMIN_SECRET>  # Change from default!
-POSTGREST_AUTHENTICATOR_PASSWORD=<SECURE_PASSWORD>  # Change from default!
-
-# Observability Stack
-GRAFANA_PORT=10016
-GRAFANA_ADMIN_PASSWORD=<SECURE_PASSWORD>  # Change from default!
-PROMETHEUS_PORT=10013
-
-# Data Catalog (OpenMetadata)
-OPENMETADATA_PORT=10020
-OPENMETADATA_ADMIN_PASSWORD=<SECURE_PASSWORD>  # Change from default!
-OPENMETADATA_MYSQL_PASSWORD=<SECURE_PASSWORD>  # Change from default!
-
-# Never commit .env files to git
-echo ".env" >> .gitignore
+MINIO_ROOT_USER=<SECURE_USER>        # Change from default!
+MINIO_ROOT_PASSWORD=<SECURE_PASSWORD>
+SUPERSET_ADMIN_PASSWORD=<SECURE_PASSWORD>
+JWT_SECRET=<SECURE_JWT_SECRET>
+HASURA_ADMIN_SECRET=<SECURE_ADMIN_SECRET>
+POSTGREST_AUTHENTICATOR_PASSWORD=<SECURE_PASSWORD>
+GRAFANA_ADMIN_PASSWORD=<SECURE_PASSWORD>
+OPENMETADATA_ADMIN_PASSWORD=<SECURE_PASSWORD>
+OPENMETADATA_MYSQL_PASSWORD=<SECURE_PASSWORD>
 ```
 
 ### Step 1b: Infrastructure Configuration (phlo.yaml)
@@ -174,7 +177,7 @@ For production deployments, especially when running multiple Phlo projects or cu
 
 #### Why Infrastructure Configuration?
 
-Environment variables (`.env`) handle secrets and connection strings, but they don't handle:
+Secrets in `.phlo/.env.local` and defaults in `phlo.yaml` (env:) handle configuration, but they don't handle:
 
 - **Multi-project deployments**: Running multiple Phlo instances on the same host
 - **Container naming patterns**: Custom naming for service discovery
@@ -212,7 +215,7 @@ infrastructure:
       port: 10000
       credentials:
         user: postgres
-        password: ${POSTGRES_PASSWORD} # References .env
+        password: ${POSTGRES_PASSWORD} # References .phlo/.env.local
         database: cascade
 
     minio:
@@ -300,10 +303,11 @@ docker ps
 
 Phlo automatically loads configuration in this order:
 
-1. **phlo.yaml** (project-level infrastructure)
-2. **.env** (secrets and connection strings)
-3. **Environment variables** (runtime overrides)
-4. **Defaults** (built-in fallbacks)
+1. **phlo.yaml** (project-level infrastructure + env defaults)
+2. **.phlo/.env** (generated non-secret defaults)
+3. **.phlo/.env.local** (secrets and local overrides)
+4. **Environment variables** (runtime overrides)
+5. **Defaults** (built-in fallbacks)
 
 Access configuration programmatically:
 
@@ -346,7 +350,7 @@ services:
     port: 10006
 ```
 
-**3. Reference secrets from .env:**
+**3. Reference secrets from .phlo/.env.local:**
 
 ```yaml
 postgres:
@@ -361,8 +365,8 @@ postgres:
 git add phlo.yaml
 git commit -m "Add infrastructure configuration"
 
-# But NOT .env (contains secrets)
-echo ".env" >> .gitignore
+# But NOT .phlo/.env.local (contains secrets)
+echo ".phlo/.env.local" >> .gitignore
 ```
 
 **5. Use different configs per environment:**
@@ -525,7 +529,7 @@ Enable Grafana, Prometheus, and Loki for monitoring:
 docker-compose --profile observability up -d
 
 # Access Grafana at http://localhost:10016
-# Default credentials from .env:
+# Default credentials from .phlo/.env.local:
 # Username: admin
 # Password: admin123 (change in production!)
 
@@ -662,9 +666,9 @@ spec:
 # Create namespace
 kubectl create namespace dagster
 
-# Create secrets from .env
+# Create secrets from .phlo/.env.local
 kubectl create secret generic phlo-secrets \
-  --from-env-file=.env \
+  --from-env-file=.phlo/.env.local \
   -n dagster
 
 # Deploy (when k8s/ manifests are available)
@@ -978,7 +982,7 @@ Production deployment with Phlo:
 ✅ **Implemented**:
 
 - Docker Compose orchestration with health checks
-- Environment-based configuration (.env files)
+- Environment-based configuration (`phlo.yaml` + `.phlo/.env.local`)
 - Observability stack (Grafana, Prometheus, Loki)
 - API layer with authentication (FastAPI, Hasura, PostgREST)
 - Data catalog integration (OpenMetadata)
@@ -991,7 +995,7 @@ Production deployment with Phlo:
 - Implement backup automation
 - Set up SSL/TLS certificates
 - Configure firewall rules and VPC
-- Change all default passwords in .env
+- Change all default passwords in `.phlo/.env.local`
 - Enable audit logging
 
 🔮 **Future (Kubernetes)**:
@@ -1005,11 +1009,12 @@ Production deployment with Phlo:
 
 ```bash
 # Development
+phlo services init
 docker-compose up -d
 
 # Production (all features)
-cp .env.example .env
-# Edit .env with production credentials
+cp .env.example .phlo/.env.local
+# Edit .phlo/.env.local with production credentials
 docker-compose --profile all up -d
 
 # Access services

@@ -34,22 +34,26 @@ PostgREST is a standalone web server that automatically generates a RESTful API 
 
 ### Step 1: Update Environment Variables
 
-Copy `.env.example` to `.env` if you haven't already:
+Initialize infra and copy the secrets template:
 
 ```bash
-cp .env.example .env
+phlo services init
+cp .env.example .phlo/.env.local
 ```
 
-Ensure these variables are set in `.env`:
+Ensure these variables are set in `phlo.yaml` and `.phlo/.env.local`:
+
+```yaml
+# phlo.yaml (env:)
+env:
+  POSTGREST_VERSION: v12.2.3
+  POSTGREST_PORT: 10018
+  POSTGREST_ADMIN_PORT: 10019
+```
 
 ```bash
-# PostgREST Configuration
-POSTGREST_VERSION=v12.2.3
-POSTGREST_PORT=10018
-POSTGREST_ADMIN_PORT=10019
+# .phlo/.env.local
 POSTGREST_AUTHENTICATOR_PASSWORD=your_secure_password_here
-
-# Shared JWT Secret (must match FastAPI and Hasura)
 JWT_SECRET=your_jwt_secret_min_32_chars
 ```
 
