@@ -50,9 +50,6 @@ phlo status
 # Only stale assets
 phlo status --stale
 
-# Only failed assets
-phlo status --failed
-
 # Specific group
 phlo status --group nightscout
 ```
@@ -151,7 +148,7 @@ Nessie state is stored in PostgreSQL, so backing up Postgres includes catalog me
 phlo branch list > branches_backup.txt
 
 # Export branch commits
-curl http://localhost:10003/api/v2/trees/main > main_branch.json
+curl http://localhost:10003/api/v1/trees/main > main_branch.json
 ```
 
 ## Branch Management
@@ -617,7 +614,7 @@ mc mirror /backups/minio/lake local/lake
 phlo branch list
 
 # Verify table metadata
-curl http://localhost:10003/api/v2/trees/main
+curl http://localhost:10003/api/v1/trees/main
 ```
 
 4. **Re-materialize recent partitions**:

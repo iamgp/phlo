@@ -444,11 +444,11 @@ API_KEY = 'abc123'  # Don't hardcode!
 ### Use Strong Authentication
 
 ```python
-from phlo.config import get_config
+from phlo.config import get_settings
 
 @dg.asset
 def fetch_from_api():
-    config = get_config()
+    config = get_settings()
 
     # Use API key from environment
     headers = {
@@ -486,7 +486,7 @@ def process_customer_data():
     data = fetch_customers()
 
     # Encrypt email addresses
-    encryption_key = get_config().ENCRYPTION_KEY
+    encryption_key = get_settings().ENCRYPTION_KEY
     data['email_encrypted'] = data['email'].apply(
         lambda x: encrypt_sensitive_field(x, encryption_key)
     )

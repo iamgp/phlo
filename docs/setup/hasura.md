@@ -346,7 +346,7 @@ client.subscribe(
     next: (data) => console.log("Update:", data),
     error: (error) => console.error("Error:", error),
     complete: () => console.log("Done"),
-  },
+  }
 );
 ```
 
@@ -608,4 +608,4 @@ Helps with debugging and monitoring.
 5. **Integrate with frontend** using Apollo Client or similar
 6. **Set up monitoring** via Hasura logs
 
-For API usage examples, see [API Reference](../reference/api.md).
+For API usage examples, see [API Reference](../reference/phlo-api.md).

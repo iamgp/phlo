@@ -312,7 +312,7 @@ def all_dbt_assets(dbt: DbtCliResource):
 
 ## Viewing the Lineage
 
-Open Dagster UI (http://localhost:3000):
+Open Dagster UI (http://localhost:10006):
 
 **Asset Graph**:
 
@@ -343,7 +343,7 @@ dlt_glucose_entries
 
 ### Via UI
 
-1. Open http://localhost:3000
+1. Open http://localhost:10006
 2. Click asset: `stg_glucose_entries`
 3. Click **Materialize this asset**
 4. Select partition date (or use defaults)
@@ -354,22 +354,16 @@ dlt_glucose_entries
 
 ```bash
 # Materialize single asset
-docker exec dagster-webserver dagster asset materialize \
-  --select dlt_glucose_entries
+phlo materialize --select dlt_glucose_entries
 
 # Materialize with partition
-docker exec dagster-webserver dagster asset materialize \
-  --select dlt_glucose_entries \
-  --partition "2024-10-15"
+phlo materialize --select dlt_glucose_entries --partition 2024-10-15
 
 # Materialize multiple assets
-docker exec dagster-webserver dagster asset materialize \
-  --select "dlt_glucose_entries,stg_glucose_entries" \
-  --partition "2024-10-15"
+phlo materialize --select "dlt_glucose_entries,stg_glucose_entries" --partition 2024-10-15
 
 # Materialize all downstream of ingestion
-docker exec dagster-webserver dagster asset materialize \
-  --select "dlt_glucose_entries*"  # Asterisk = all downstream
+phlo materialize --select "dlt_glucose_entries+"  # Plus = all downstream
 ```
 
 ### Via Python API
@@ -643,12 +637,12 @@ class PhloConfig(BaseSettings):
     iceberg_staging_path: str = "s3://lake/stage"
 
     # Nessie
-    nessie_uri: str = "http://nessie:19120"
+    nessie_uri: str = "http://nessie:10003"
     nessie_branch: str = "dev"
 
     # Trino
     trino_host: str = "trino"
-    trino_port: int = 8080
+    trino_port: int = 10005
 
     class Config:
         env_file = ".env"  # Read from .env

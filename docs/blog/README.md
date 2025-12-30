@@ -29,22 +29,46 @@ Each post includes:
 Want to see it in action immediately? Run this:
 
 ```bash
-# Clone and start
-git clone https://github.com/iamgp/lakehousekit.git phlo
-cd phlo
-cp .env.example .env
-make up
+# Step 1: Install core Phlo framework
+uv pip install phlo
+
+# Step 2: Add the services you need (modular)
+uv add phlo-dagster phlo-postgres phlo-trino phlo-nessie phlo-minio
+
+# Or install with defaults extra (all core services at once)
+# uv pip install phlo[defaults]
+
+# Step 3: Initialize and configure
+phlo init my-lakehouse
+cd my-lakehouse
+
+# Step 4: Start services
+phlo services start
 
 # Wait 2-3 minutes for services to start, then visit:
-# - Dagster UI: http://localhost:3000
-# - MinIO (storage): http://localhost:9001 (minioadmin/minioadmin123)
-# - Superset (dashboards): http://localhost:8088 (admin/admin)
+# - Dagster UI: http://localhost:10006
+# - MinIO Console: http://localhost:10002
+# - Observatory: http://localhost:3001
 
-# Materialize your first data pipeline
-# In Dagster UI, click "Materialize all" on the asset graph
+# Step 5: Materialize your first data pipeline
+phlo materialize --select "dlt_glucose_entries+"
 ```
 
-That's it! You now have a working data lakehouse with real glucose data flowing through bronze/silver/gold layers into dashboards.
+### Adding More Services Later
+
+```bash
+# Add observability stack
+uv add phlo-prometheus phlo-grafana phlo-loki
+phlo services start --profile observability
+
+# Add API layer
+uv add phlo-api phlo-hasura
+phlo services start --profile api
+
+# Add data catalog
+uv add phlo-openmetadata
+phlo services start --profile catalog
+```
 
 For detailed setup instructions, see [Part 2: Getting Started](02-setup-guide.md).
 

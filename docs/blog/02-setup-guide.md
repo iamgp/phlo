@@ -28,10 +28,12 @@ In this post, we'll get Phlo running on your machine. By the end, you'll have:
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-3. **Git** (to clone the repo)
+3. **Python 3.11+** with Phlo installed
    ```bash
-   git clone https://github.com/iamgp/lakehousekit.git phlo
-   cd phlo
+   # Install Phlo (with uv, recommended)
+   uv pip install phlo[defaults]
+   # or with pip
+   pip install phlo[defaults]
    ```
 
 ### System Requirements
@@ -45,37 +47,39 @@ In this post, we'll get Phlo running on your machine. By the end, you'll have:
 
 If you have less than 4GB RAM, you can start a minimal setup (Postgres + MinIO only) and add services gradually.
 
-## Step 1: Clone and Configure
+## Step 1: Initialize Your Project
 
 ```bash
-# Clone the repository
-git clone https://github.com/iamgp/lakehousekit.git phlo
-cd phlo
+# Create a new Phlo project
+phlo init my-lakehouse
+cd my-lakehouse
 
-# Copy example environment file
-cp .env.example .env
-
-# Edit .env with your choices (or use defaults)
-# For local development, defaults are fine
-vim .env  # or open in your editor
+# This creates:
+# - phlo.yaml (project configuration)
+# - .env (environment variables)
+# - workflows/ (your data pipelines)
+# - transforms/ (dbt models)
 ```
 
 ### What's in .env?
 
 ```env
 # Database
-POSTGRES_USER=phlo
-POSTGRES_PASSWORD=localpass123
+POSTGRES_USER=lake
+POSTGRES_PASSWORD=phlo
 POSTGRES_DB=lakehouse
 
 # Storage
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin123
+MINIO_ROOT_USER=minio
+MINIO_ROOT_PASSWORD=minio123
 
-# Services
-NESSIE_VERSION=0.85.1
-TRINO_VERSION=434
-DAGSTER_VERSION=1.8.0
+# Ports (all on 10xxx range)
+POSTGRES_PORT=10000
+MINIO_API_PORT=10001
+MINIO_CONSOLE_PORT=10002
+NESSIE_PORT=10003
+TRINO_PORT=10005
+DAGSTER_PORT=10006
 ```
 
 **For local development**: Use the defaults as-is.
@@ -90,18 +94,72 @@ DAGSTER_VERSION=1.8.0
 >
 > See [Part 12: Production Deployment](12-production-deployment.md) for production hardening guidance.
 
-## Step 2: Install Python Dependencies (Optional)
+## Step 2: Install Phlo Packages
 
-If you want to run local commands (linting, type checking), install Python deps:
+Phlo uses a modular architecture. Install the core framework, then add services as needed.
+
+### Option A: Install All Defaults (Quick Start)
 
 ```bash
-# This is optional—services run in Docker anyway
-cd packages/phlo-dagster
-uv pip install -e .
-cd ../..
+# Install Phlo with all default services at once
+uv pip install phlo[defaults]
 ```
 
-If you don't have `uv` and don't want to install it, you can skip this. Docker will handle everything.
+This installs:
+
+- `phlo` - Core framework
+- `phlo-dagster` - Data orchestration platform
+- `phlo-postgres` - PostgreSQL database
+- `phlo-trino` - Distributed SQL query engine
+- `phlo-nessie` - Git-like catalog for Iceberg
+- `phlo-minio` - S3-compatible object storage
+
+### Option B: Install Incrementally (Recommended for Learning)
+
+```bash
+# Start with core framework
+uv pip install phlo
+
+# Add data orchestration
+uv add phlo-dagster
+
+# Add storage layer
+uv add phlo-postgres phlo-minio
+
+# Add Iceberg catalog
+uv add phlo-nessie
+
+# Add query engine
+uv add phlo-trino
+
+# Add transformations
+uv add phlo-dbt
+
+# Add data quality
+uv add phlo-quality
+```
+
+This modular approach lets you:
+
+- Understand each component's role
+- Start with minimal resources
+- Add features as you need them
+
+### Option C: Add Optional Services Later
+
+```bash
+# Add observability (monitoring, logging)
+uv add phlo-prometheus phlo-grafana phlo-loki phlo-alloy
+
+# Add API layer (REST, GraphQL)
+uv add phlo-api phlo-postgrest phlo-hasura
+
+# Add data catalog
+uv add phlo-openmetadata
+
+# Add Observatory UI (web interface)
+uv add phlo-observatory
+```
 
 ## Step 3: Start Services
 
@@ -109,91 +167,60 @@ If you don't have `uv` and don't want to install it, you can skip this. Docker w
 
 ```bash
 # Start all services
-make up-all
+phlo services start
 
-# Or with docker compose directly
-docker compose up -d
+# View service status
+phlo services status
 ```
 
-### Option B: Start in Stages (If RAM is Limited)
+### Option B: Start Specific Services
 
 ```bash
-# Core services first
-make up-core
-# Output:
-# ✓ postgres
-# ✓ minio
-# ✓ nessie
-# ✓ dagster
+# Start only what you need
+phlo services start --service postgres --service dagster
 
-# Add query engines
-make up-query
-# ✓ trino
-
-# Add BI
-make up-bi
-# ✓ superset
+# Add more services later
+phlo services start --service trino --service observatory
 ```
 
 ### Verify Services Are Running
 
 ```bash
-# Check all containers
-docker compose ps
+# Check all services
+phlo services status
 
-# Output should show:
-# NAME              STATUS
-# pg                Up 2 minutes (healthy)
-# minio             Up 2 minutes (healthy)
-# nessie            Up 2 minutes (healthy)
-# trino             Up 2 minutes
-# dagster-webserver Up 2 minutes
-# dagster-daemon    Up 2 minutes
+# View logs
+phlo services logs -f
+
+# Or for a specific service
+phlo services logs dagster
 ```
 
-If any show "Exited", check logs:
+If any show errors, check logs:
 
 ```bash
-docker compose logs <service-name>
+phlo services logs dagster
 ```
 
 ## Step 4: Access the Services
 
-Each service runs on its own port for easy access:
+Each service runs on its own port:
 
 ```bash
-# Service Dashboard (overview of all services)
-make hub
-# Opens: http://localhost:54321
-
-# Dagster UI (data orchestration)
-make dagster
-# Opens: http://localhost:3000
-
-# MinIO Console (object storage)
-make minio
-# Opens: http://localhost:9001
-# Login: minioadmin / minioadmin123
-
-# Superset (dashboards)
-make superset
-# Opens: http://localhost:8088
-# (First login requires setup—see below)
-
-# Postgres Web UI (database browser)
-make pgweb
-# Opens: http://localhost:8081
+# Open services in browser
+phlo services open dagster
+phlo services open observatory
+phlo services open minio
 ```
 
-Or open them manually:
-| Service | URL | Purpose |
-|---------|-----|---------|
-| Hub | http://localhost:54321 | Service overview |
-| Dagster | http://localhost:3000 | Orchestration UI |
-| Trino | http://localhost:8080 | Query engine UI |
-| MinIO Console | http://localhost:9001 | Object storage |
-| Superset | http://localhost:8088 | Dashboards |
-| Postgres Web | http://localhost:8081 | Database browser |
+| Service       | URL                    | Purpose             |
+| ------------- | ---------------------- | ------------------- |
+| Dagster       | http://localhost:10006 | Orchestration UI    |
+| Observatory   | http://localhost:3001  | Data exploration UI |
+| Trino         | http://localhost:10005 | Query engine UI     |
+| MinIO Console | http://localhost:10002 | Object storage      |
+| PostgreSQL    | http://localhost:10000 | Database            |
+| Nessie        | http://localhost:10003 | Catalog API         |
 
 ## Step 5: First Data Ingestion
 
@@ -201,7 +228,7 @@ Now let's ingest some real glucose monitoring data and run the pipeline.
 
 ### 5a: Trigger Data Ingestion
 
-Open **Dagster** at http://localhost:3000
+Open **Dagster** at http://localhost:10006
 
 You should see the asset graph:
 
@@ -226,11 +253,14 @@ Click **Materialize** and watch the pipeline run.
 ### 5b: Monitor in Logs
 
 ```bash
-# Watch Dagster logs
-docker compose logs -f dagster-daemon
+# Watch service logs
+phlo services logs -f
+
+# Or just Dagster logs
+phlo services logs dagster
 
 # Watch asset progress in Dagster UI (it updates live)
-# Open http://localhost:3000
+# Open http://localhost:10006
 ```
 
 The ingestion does:
@@ -278,15 +308,13 @@ postgres_marts ⏳ (waiting)
 
 Once complete, verify data in the databases:
 
-**Option 1: Postgres Web UI**
+**Option 1: Observatory UI**
 
-```bash
-make pgweb
-# Opens http://localhost:8081
-# Click "lakehouse" database
-# Browse to "public" schema
-# View tables: mrt_glucose_overview, mrt_glucose_hourly_patterns
-```
+Open http://localhost:3001 in your browser:
+
+1. Click **Data Explorer** in the sidebar
+2. Select `silver.fct_glucose_readings` table
+3. View schema, preview data, and run queries
 
 **Option 2: Trino CLI**
 
@@ -312,36 +340,46 @@ duckdb
 D SELECT COUNT(*) FROM read_parquet('s3://lake/warehouse/silver/fct_glucose_readings/**/*.parquet');
 ```
 
-## Step 6: Create a Dashboard
+## Step 6: Explore with Observatory
 
-Now let's visualize the data in Superset.
+Phlo includes Observatory, a web UI for exploring your lakehouse.
 
-### 6a: Set Up Superset
+### 6a: Open Observatory
 
 ```bash
-make superset
-# Opens http://localhost:8088
+phlo services open observatory
+# Opens http://localhost:3001
 ```
 
-First-time setup:
+### 6b: Explore Data
 
-1. Click **Create Account**
-2. Fill in details (username: `admin`, password: `admin123`)
-3. Click **Next**
+1. Click **Data Explorer** in the sidebar
+2. Browse schemas: `raw`, `bronze`, `silver`, `gold`
+3. Click any table to see:
+   - Schema and column types
+   - Data preview
+   - Statistics
 
-### 6b: Add Data Source
+### 6c: View Lineage
 
-1. In Superset menu, click **+ Data** → **Add Database**
-2. Select **PostgreSQL**
-3. Fill in connection:
-   - Engine: `postgresql`
-   - Username: `phlo`
-   - Password: (from .env)
-   - Host: `postgres`
-   - Port: `5432`
-   - Database: `lakehouse`
-4. Click **Test Connection** (should succeed)
-5. Click **Save**
+1. Click **Lineage** in the sidebar
+2. See how data flows from source → bronze → silver → gold
+3. Click nodes to see details
+
+### 6d: Run Queries
+
+1. Click **SQL Workbench**
+2. Run ad-hoc queries against your Iceberg tables:
+
+```sql
+SELECT
+  date_trunc('hour', reading_timestamp) as hour,
+  avg(glucose_mg_dl) as avg_glucose
+FROM silver.fct_glucose_readings
+GROUP BY 1
+ORDER BY 1 DESC
+LIMIT 24
+```
 
 ### 6c: Create a Chart
 
@@ -361,50 +399,48 @@ Congratulations! You've visualized real glucose data from a lakehouse.
 ### Services Won't Start
 
 ```bash
-# Check container status
-docker compose ps
+# Check service status
+phlo services status
 
 # View specific service logs
-docker compose logs postgres
-docker compose logs nessie
-docker compose logs trino
+phlo services logs postgres
+phlo services logs dagster
 
 # Restart all services
-docker compose restart
+phlo services restart
 ```
 
 ### Out of Disk Space
 
 ```bash
-# Clean up old volumes
+# Clean up Docker resources
 docker system prune
 docker volume prune
 
-# Start fresh (WARNING: deletes all data)
-docker compose down -v
-docker compose up -d
+# Reset services (WARNING: deletes all data)
+phlo services reset
 ```
 
 ### Nessie Connection Error
 
 ```bash
-# Nessie needs Postgres to be ready first
-docker compose down
-docker compose up postgres
-# Wait 30 seconds
-docker compose up -d
+# Check Nessie status
+phlo services status nessie
+
+# View Nessie logs
+phlo services logs nessie
 
 # Verify Nessie is healthy
-curl http://localhost:19120/api/v1/config
+curl http://localhost:10003/api/v1/config
 ```
 
 ### Trino Can't Find Iceberg Connector
 
 ```bash
 # Check Trino logs
-docker compose logs trino
+phlo services logs trino
 
-# Verify catalog is configured
+# Verify catalog is configured (once Trino is running)
 docker exec trino trino --execute "SHOW CATALOGS;"
 
 # Should output:
@@ -417,11 +453,10 @@ docker exec trino trino --execute "SHOW CATALOGS;"
 ### Dagster Assets Not Appearing
 
 ```bash
-# Dagster needs to discover assets from code
-# Restart the daemon
-docker compose restart dagster-daemon
+# Restart Dagster services
+phlo services restart dagster
 
-# Wait 10 seconds, refresh http://localhost:3000
+# Wait 10 seconds, refresh http://localhost:10006
 ```
 
 ## What's Next?
@@ -438,39 +473,19 @@ But first, let's make sure everything works by running a quick health check.
 ## Quick Health Check
 
 ```bash
-#!/bin/bash
-# Save as: health-check.sh
+# Check all services at once
+phlo services status
 
-echo " Checking Phlo services..."
-
-# Postgres
-echo -n "Postgres: "
-docker exec pg pg_isready -U phlo && echo "OK" || echo "FAIL"
-
-# MinIO
-echo -n "MinIO: "
-curl -s -o /dev/null -w "%{http_code}" http://localhost:9000/minio/health/ready | grep 200 > /dev/null && echo "OK" || echo "FAIL"
-
-# Nessie
-echo -n "Nessie: "
-curl -s -o /dev/null -w "%{http_code}" http://localhost:19120/api/v1/config | grep 200 > /dev/null && echo "OK" || echo "FAIL"
-
-# Trino
-echo -n "Trino: "
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/info | grep 200 > /dev/null && echo "OK" || echo "FAIL"
-
-# Dagster
-echo -n "Dagster: "
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/graphql | grep 200 > /dev/null && echo "OK" || echo "FAIL"
-
-echo "All systems ready for data engineering!"
+# Or use the health endpoint
+curl http://localhost:10005/v1/info     # Trino
+curl http://localhost:10003/api/v1/config  # Nessie
+curl http://localhost:10006/graphql     # Dagster
 ```
 
-Run it:
+Or run the CLI check:
 
 ```bash
-chmod +x health-check.sh
-./health-check.sh
+phlo services status --json
 ```
 
 ## Summary
