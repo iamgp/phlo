@@ -394,6 +394,25 @@ def test_full_pipeline_local():
 
 Integration tests require the full Docker stack and test end-to-end pipelines.
 
+### Core Service Auto-Configure Validation
+
+Use this checklist after a fresh install or when core service definitions change.
+
+```bash
+phlo services start
+docker compose ps
+docker compose logs postgres
+docker compose logs minio
+docker compose logs nessie
+docker compose logs trino
+docker compose logs dagster
+```
+
+Edge cases to watch:
+- `SUPERSET_ADMIN_PASSWORD` is injected into Dagster even if Superset is not installed; set it only when enabling Superset.
+- `PHLO_VERSION` is optional (blank uses latest) for the Dagster image build.
+- `PHLO_HOST_PLATFORM` should be set for macOS hosts that need explicit Linux/amd64 builds.
+
 ### Prerequisites
 
 ```bash

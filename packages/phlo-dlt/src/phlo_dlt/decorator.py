@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from collections.abc import Callable, Iterator
 from datetime import timedelta
 from typing import Any, Literal
@@ -9,26 +8,14 @@ import dagster as dg
 from pandera.pandas import DataFrameModel
 from phlo_dagster.partitions import daily_partition
 from phlo.exceptions import PhloConfigError
-from phlo.hooks import (
-    IngestionEventContext,
-    IngestionEventEmitter,
-    TelemetryEventContext,
-    TelemetryEventEmitter,
-)
 from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
-    evaluate_pandera_contract_parquet,
-    pandera_contract_asset_check_result,
 )
 from phlo_iceberg.resource import IcebergResource
 
 from phlo_dlt.converter import pandera_to_iceberg
 from phlo_dlt.dlt_helpers import (
     get_branch_from_context,
-    inject_metadata_columns,
-    merge_to_iceberg,
-    setup_dlt_pipeline,
-    stage_to_parquet,
 )
 from phlo_dlt.registry import TableConfig
 
@@ -179,50 +166,41 @@ def phlo_ingestion(
             context, iceberg: IcebergResource
         ) -> Iterator[dg.AssetCheckResult | dg.MaterializeResult]:
             partition_date = context.partition_key
-            pipeline_name = f"{table_config.table_name}_{partition_date.replace('-', '_')}"
+            f"{table_config.table_name}_{partition_date.replace('-', '_')}"
             branch_name = get_branch_from_context(context)
             run_id = context.run.run_id if hasattr(context, "run") else None
-            emitter = IngestionEventEmitter(
-                IngestionEventContext(
-                    asset_key=f"dlt_{table_config.table_name}",
-                    table_name=table_config.full_table_name,
-                    group_name=table_config.group_name,
-                    partition_key=partition_date,
-                    run_id=run_id,
-                    branch_name=branch_name,
-                    tags={"group": table_config.group_name, "source": "dlt"},
-                )
-            )
-            telemetry = TelemetryEventEmitter(
-                TelemetryEventContext(
-                    tags={
-                        "asset": f"dlt_{table_config.table_name}",
-                        "group": table_config.group_name,
-                        "source": "dlt",
-                    }
-                )
-            )
-
             context.log.info(f"Starting ingestion for partition {partition_date}")
             context.log.info(f"Ingesting to branch: {branch_name}")
             context.log.info(f"Target table: {table_config.full_table_name}")
 
-            start_time = time.time()
-            emitter.emit_start()
-
             context.log.info("Calling user function to get DLT source...")
             try:
-                dlt_source = func(partition_date)
+                # 1. Initialize Ingester (Orchestrator Independent)
+                from phlo_dlt.executor import DltIngester
 
-                if dlt_source is None:
-                    context.log.info(f"No data for partition {partition_date}, skipping")
-                    emitter.emit_end(status="no_data", metrics={"rows_loaded": 0})
-                    telemetry.emit_metric(
-                        name="ingestion.rows_loaded",
-                        value=0,
-                        unit="rows",
-                        payload={"status": "no_data"},
-                    )
+                # Wrap Dagster context's logger
+                # DltIngester expects an object with .info(), .warning() etc
+                # context.log in Dagster satisfies this.
+
+                ingester = DltIngester(
+                    context=context,
+                    logger=context.log,
+                    table_config=table_config,
+                    iceberg_resource=iceberg,
+                    dlt_source_func=func,
+                    add_metadata_columns=add_metadata_columns,
+                    merge_strategy=merge_strategy,
+                    merge_config=merge_cfg,
+                )
+
+                # 2. Run Ingestion
+                # DltIngester handles source execution, pipeline setup, parquet staging, and iceberg merge
+                result = ingester.run_ingestion(
+                    partition_key=partition_date,
+                    parameters={"branch_name": branch_name, "run_id": run_id},
+                )
+
+                if result.status == "no_data":
                     yield dg.MaterializeResult(
                         metadata={
                             "branch": branch_name,
@@ -233,110 +211,29 @@ def phlo_ingestion(
                     )
                     return
 
-                pipeline, local_staging_root = setup_dlt_pipeline(
-                    pipeline_name=pipeline_name,
-                    dataset_name=group,
-                )
-
-                parquet_path, dlt_elapsed = stage_to_parquet(
-                    context=context,
-                    pipeline=pipeline,
-                    dlt_source=dlt_source,
-                    local_staging_root=local_staging_root,
-                )
-
-                if add_metadata_columns:
-                    inject_metadata_columns(
-                        parquet_path=parquet_path,
-                        partition_date=partition_date,
-                        run_id=run_id or "unknown",
-                        context=context,
-                    )
-
-                if validate and table_config.validation_schema is not None:
-                    evaluation = evaluate_pandera_contract_parquet(
-                        parquet_path,
-                        schema_class=table_config.validation_schema,
-                    )
-                    check_result = pandera_contract_asset_check_result(
-                        evaluation,
-                        partition_key=partition_date,
-                        schema_class=table_config.validation_schema,
-                        query_or_sql=f"parquet:{parquet_path}",
-                    )
-                    yield check_result
-                    if not evaluation.passed and strict_validation:
-                        raise dg.Failure(
-                            description=(
-                                f"Pandera contract failed for {table_config.table_name} "
-                                f"partition {partition_date}"
-                            )
-                        )
-
-                merge_metrics = merge_to_iceberg(
-                    context=context,
-                    iceberg=iceberg,
-                    table_config=table_config,
-                    parquet_path=parquet_path,
-                    branch_name=branch_name,
-                    merge_strategy=merge_strategy,
-                    merge_config=merge_cfg,
-                )
-
-                total_elapsed = time.time() - start_time
-                context.log.info(f"Ingestion completed successfully in {total_elapsed:.2f}s")
-                emitter.emit_end(
-                    status="success",
-                    metrics={
-                        "rows_inserted": merge_metrics["rows_inserted"],
-                        "rows_deleted": merge_metrics["rows_deleted"],
-                        "dlt_elapsed_seconds": dlt_elapsed,
-                        "total_elapsed_seconds": total_elapsed,
-                    },
-                )
-                telemetry.emit_metric(
-                    name="ingestion.rows_inserted",
-                    value=merge_metrics["rows_inserted"],
-                    unit="rows",
-                    payload={"table": table_config.full_table_name},
-                )
-                telemetry.emit_metric(
-                    name="ingestion.rows_deleted",
-                    value=merge_metrics["rows_deleted"],
-                    unit="rows",
-                    payload={"table": table_config.full_table_name},
-                )
-                telemetry.emit_metric(
-                    name="ingestion.duration_seconds",
-                    value=total_elapsed,
-                    unit="seconds",
-                    payload={"dlt_elapsed_seconds": dlt_elapsed},
-                )
+                # 3. Yield Results
+                # Ingester handles emission of Phlo events internally.
+                # We simply translate the IngestionResult to Dagster MaterializeResult
 
                 yield dg.MaterializeResult(
                     metadata={
                         "branch": branch_name,
                         "partition_date": dg.MetadataValue.text(partition_date),
-                        "rows_inserted": dg.MetadataValue.int(merge_metrics["rows_inserted"]),
-                        "rows_deleted": dg.MetadataValue.int(merge_metrics["rows_deleted"]),
+                        "rows_inserted": dg.MetadataValue.int(result.rows_inserted),
+                        "rows_deleted": dg.MetadataValue.int(result.rows_deleted),
                         "unique_key": dg.MetadataValue.text(table_config.unique_key),
                         "table_name": dg.MetadataValue.text(table_config.full_table_name),
-                        "dlt_elapsed_seconds": dg.MetadataValue.float(dlt_elapsed),
-                        "total_elapsed_seconds": dg.MetadataValue.float(total_elapsed),
+                        "dlt_elapsed_seconds": dg.MetadataValue.float(
+                            result.metadata.get("dlt_elapsed_seconds", 0.0)
+                        ),
+                        "total_elapsed_seconds": dg.MetadataValue.float(
+                            result.metadata.get("total_elapsed_seconds", 0.0)
+                        ),
                     }
                 )
-            except Exception as exc:
-                total_elapsed = time.time() - start_time
-                emitter.emit_end(
-                    status="failure",
-                    metrics={"total_elapsed_seconds": total_elapsed},
-                    error=str(exc),
-                )
-                telemetry.emit_log(
-                    name="ingestion.failure",
-                    level="error",
-                    payload={"error": str(exc), "elapsed_seconds": total_elapsed},
-                )
+
+            except Exception:
+                # Ingester emits failure events before raising
                 raise
 
         _INGESTION_ASSETS.append(wrapper)
