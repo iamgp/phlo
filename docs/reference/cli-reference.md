@@ -63,7 +63,7 @@ phlo plugin install phlo-observatory
 Initialize infrastructure directory and configuration.
 
 ```bash
-phlo services init
+phlo services init [OPTIONS]
 ```
 
 **What it does**:
@@ -71,17 +71,32 @@ phlo services init
 - Creates `.phlo/` directory
 - Generates Docker Compose configurations
 - Sets up network and volume definitions
+- Creates `phlo.yaml` config file
 
 **Options**:
 
 ```bash
 --force              # Overwrite existing configuration
+--name NAME          # Project name (default: directory name)
+--dev                # Development mode: mount local phlo source
+--no-dev             # Explicitly disable dev mode
+--phlo-source PATH   # Path to phlo repo or src/phlo for dev mode
 ```
 
-**Example**:
+**Examples**:
 
 ```bash
+# Basic initialization
+phlo services init
+
+# Force overwrite existing
 phlo services init --force
+
+# With custom project name
+phlo services init --name my-lakehouse
+
+# Development mode with local source
+phlo services init --dev --phlo-source /path/to/phlo
 ```
 
 ### phlo services start
@@ -151,17 +166,138 @@ phlo services stop [OPTIONS]
 
 ```bash
 --volumes, -v        # Remove volumes (deletes all data)
---remove-orphans     # Remove containers for services not in compose file
+--profile PROFILE    # Stop only services in specified profile
+--service SERVICE    # Stop specific service(s)
+--stop-native        # Also stop native subprocess services
 ```
 
 **Examples**:
 
 ```bash
-# Stop services (preserve data)
+# Stop all services (preserve data)
 phlo services stop
 
 # Stop and delete all data
 phlo services stop --volumes
+
+# Stop specific profile
+phlo services stop --profile observability
+
+# Stop specific services
+phlo services stop --service postgres,minio
+```
+
+### phlo services list
+
+List available services with status.
+
+```bash
+phlo services list [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--all                # Show all services including optional
+--json               # Output as JSON
+```
+
+**Examples**:
+
+```bash
+phlo services list
+phlo services list --all
+phlo services list --json
+```
+
+### phlo services add
+
+Add an optional service to the project.
+
+```bash
+phlo services add SERVICE_NAME [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--no-start           # Don't start the service after adding
+```
+
+**Examples**:
+
+```bash
+phlo services add prometheus
+phlo services add grafana --no-start
+```
+
+### phlo services remove
+
+Remove a service from the project.
+
+```bash
+phlo services remove SERVICE_NAME [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--keep-running       # Don't stop the service
+```
+
+**Examples**:
+
+```bash
+phlo services remove prometheus
+phlo services remove grafana --keep-running
+```
+
+### phlo services reset
+
+Reset infrastructure by stopping services and deleting volumes.
+
+```bash
+phlo services reset [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--service SERVICE    # Reset only specific service(s)
+-y, --yes            # Skip confirmation
+```
+
+**Examples**:
+
+```bash
+phlo services reset
+phlo services reset --service postgres
+phlo services reset -y
+```
+
+### phlo services restart
+
+Restart services (stop + start).
+
+```bash
+phlo services restart [OPTIONS]
+```
+
+**Options**:
+
+```bash
+--build              # Rebuild containers before starting
+--profile PROFILE    # Restart services in profile
+--service SERVICE    # Restart specific service(s)
+--dev                # Enable dev mode when restarting
+```
+
+**Examples**:
+
+```bash
+phlo services restart
+phlo services restart --build
+phlo services restart --service dagster
 ```
 
 ### phlo services status
