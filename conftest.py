@@ -6,8 +6,8 @@ to all tests in the repository.
 """
 
 import importlib
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Disable Telemetry aggressively at system level before any imports

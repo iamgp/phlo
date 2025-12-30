@@ -1,9 +1,5 @@
 """Integration tests for phlo-dagster."""
 
-import os
-import subprocess
-import sys
-from pathlib import Path
 
 import pytest
 from dagster import Definitions, asset, materialize
