@@ -59,7 +59,7 @@ phlo plugin install alerting
 phlo alerts test --destination slack
 
 # List configured destinations
-phlo alerts list-destinations
+phlo alerts list
 
 # Silence alerts for a table
 phlo alerts silence bronze.problematic_table --duration 1h

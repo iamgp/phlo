@@ -86,13 +86,15 @@ dagster asset materialize --select my_asset
 phlo materialize my_asset
 ```
 
-## Endpoints
+## Endpoints (Docker Mode)
 
-| Endpoint    | URL                             |
-| ----------- | ------------------------------- |
-| **Web UI**  | `http://localhost:3000`         |
-| **GraphQL** | `http://localhost:3000/graphql` |
-| **Metrics** | `http://localhost:3000/metrics` |
+| Endpoint    | URL                              |
+| ----------- | -------------------------------- |
+| **Web UI**  | `http://localhost:10006`         |
+| **GraphQL** | `http://localhost:10006/graphql` |
+| **Metrics** | `http://localhost:10006/metrics` |
+
+> **Note:** When using `phlo dev` for local development, these are available at port 3000 instead.
 
 ## Architecture
 

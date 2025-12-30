@@ -111,4 +111,4 @@ curl "http://localhost:3002/mrt_daily_summary?select=date,total_count"
 ## Next Steps
 
 - [PostgREST Setup](../setup/postgrest.md) - Complete configuration
-- [API Reference](../reference/api.md) - API documentation
+- [API Reference](../reference/phlo-api.md) - API documentation

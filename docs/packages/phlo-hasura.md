@@ -135,4 +135,4 @@ curl -X POST http://localhost:8082/v1/graphql \
 ## Next Steps
 
 - [Hasura Setup](../setup/hasura.md) - Complete configuration
-- [API Reference](../reference/api.md) - API documentation
+- [API Reference](../reference/phlo-api.md) - API documentation

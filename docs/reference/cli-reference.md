@@ -28,6 +28,7 @@ phlo --version           # Show version
 ## Command Overview
 
 **Core Commands:**
+
 ```bash
 phlo init                # Initialize new project
 phlo services            # Manage infrastructure services
@@ -38,12 +39,14 @@ phlo config              # Configuration management
 ```
 
 **Workflow Commands:**
+
 ```bash
 phlo create-workflow     # Create new workflow
 phlo validate-workflow   # Validate workflow configuration
 ```
 
 **Asset Commands:**
+
 ```bash
 phlo materialize         # Materialize assets
 phlo backfill            # Backfill partitioned assets
@@ -52,6 +55,7 @@ phlo logs                # Query structured logs
 ```
 
 **Data Catalog Commands:**
+
 ```bash
 phlo branch              # Manage Nessie branches
 phlo catalog             # Catalog operations (tables, describe, history)
@@ -59,12 +63,14 @@ phlo lineage             # Asset lineage (show, export)
 ```
 
 **Quality Commands:**
+
 ```bash
 phlo schema              # Manage Pandera schemas
 phlo validate-schema     # Validate Pandera schemas
 ```
 
 **Optional Plugin Commands** (requires installation):
+
 ```bash
 phlo postgrest           # PostgREST management
 phlo hasura              # Hasura GraphQL management
@@ -697,8 +703,8 @@ phlo dev [OPTIONS]
 **Options**:
 
 ```bash
---port PORT          # Port for webserver (default: 10006)
---host HOST          # Host to bind (default: 0.0.0.0)
+--port PORT          # Port for webserver (default: 3000)
+--host HOST          # Host to bind (default: 127.0.0.1)
 --workspace PATH     # Path to workspace.yaml
 ```
 
@@ -708,7 +714,7 @@ phlo dev [OPTIONS]
 phlo dev --port 3000
 ```
 
-Opens Dagster UI at http://localhost:10006
+Opens Dagster UI at http://localhost:3000
 
 ## Workflow Commands
 
@@ -1160,6 +1166,7 @@ phlo catalog describe bronze.events --ref dev
 **Output**:
 
 Shows table metadata including:
+
 - Location
 - Current snapshot ID
 - Format version

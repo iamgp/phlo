@@ -487,6 +487,7 @@ Updated daily at 2:00 AM UTC via Dagster pipeline.
 ```
 
 4. Add column descriptions:
+
    - `date`: Measurement date (partition key)
    - `mean_glucose`: Daily average glucose in mg/dL
    - `std_glucose`: Standard deviation of glucose readings
@@ -559,6 +560,7 @@ Click **Next**.
 | **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results                 |
 
 2. **Database Service Name:** `trino`
+
    - This links dbt models to your Trino tables
    - Must match the name of your Trino service
 
@@ -817,6 +819,7 @@ Indices should be created automatically by OpenMetadata. If they're missing afte
 **Solution:**
 
 1. **Disable stored procedures** in ingestion configuration:
+
    - Edit your Trino service ingestion pipeline
    - Advanced Options → Uncheck "Include Stored Procedures"
    - Advanced Options → Uncheck "Mark Deleted Stored Procedures"
@@ -881,11 +884,13 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 **Solutions:**
 
 1. **Verify schema filters aren't too restrictive:**
+
    - Go to Settings → Database Services → trino → Ingestion
    - Check Include/Exclude Schemas configuration
    - Ensure your target schemas are included
 
 2. **Search by fully qualified name:**
+
    - In UI search bar: `trino.iceberg.raw.glucose_entries`
    - Navigate to Explore → Tables and browse database hierarchy
 
@@ -947,6 +952,6 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ## Related Phlo Documentation
 
 - [Quick Start Guide](quick-start.md) - Get Phlo running
-- [API Documentation](../reference/api.md) - FastAPI and Hasura setup
+- [API Documentation](../reference/phlo-api.md) - FastAPI and Hasura setup
 - [dbt Development Guide](../guides/dbt-development.md) - Creating dbt models
 - [Workflow Development Guide](../guides/workflow-development.md) - Dagster pipelines

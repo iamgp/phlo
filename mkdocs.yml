@@ -104,7 +104,7 @@ nav:
           - phlo-core-plugins: packages/phlo-core-plugins.md
   - Reference:
       - Architecture: reference/architecture.md
-      - API Reference: reference/api.md
+      - API Reference: reference/phlo-api.md
       - CLI Reference: reference/cli-reference.md
       - Configuration: reference/configuration-reference.md
       - DuckDB Queries: reference/duckdb-queries.md

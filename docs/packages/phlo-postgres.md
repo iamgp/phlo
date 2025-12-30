@@ -136,4 +136,4 @@ compose:
 
 - [PostgREST Setup](../setup/postgrest.md) - REST API generation
 - [Hasura Setup](../setup/hasura.md) - GraphQL API
-- [API Reference](../reference/api.md) - Data access
+- [API Reference](../reference/phlo-api.md) - Data access

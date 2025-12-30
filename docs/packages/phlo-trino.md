@@ -153,5 +153,5 @@ compose:
 ## Next Steps
 
 - [DuckDB Queries](../reference/duckdb-queries.md) - Ad-hoc analysis
-- [API Reference](../reference/api.md) - REST/GraphQL access
+- [API Reference](../reference/phlo-api.md) - REST/GraphQL access
 - [dbt Development](../guides/dbt-development.md) - SQL transformations

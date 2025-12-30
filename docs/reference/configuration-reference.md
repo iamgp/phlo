@@ -25,22 +25,22 @@ POSTGRES_HOST=postgres
 POSTGRES_PORT=10000
 
 # Credentials
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+POSTGRES_USER=lake
+POSTGRES_PASSWORD=phlo
 
 # Database
-POSTGRES_DB=cascade
+POSTGRES_DB=lakehouse
 POSTGRES_MART_SCHEMA=marts
 
 # Lineage tracking database (optional, defaults to Dagster Postgres connection)
-PHLO_LINEAGE_DB_URL=postgresql://postgres:password@postgres:10000/lakehouse
+PHLO_LINEAGE_DB_URL=postgresql://lake:phlo@postgres:10000/lakehouse
 # Alternative: DAGSTER_PG_DB_CONNECTION_STRING (alias for lineage_db_url)
 ```
 
 **Connection string format**:
 
 ```
-postgresql://postgres:password@postgres:10000/cascade
+postgresql://lake:phlo@postgres:10000/lakehouse
 ```
 
 ### Storage Configuration
@@ -90,7 +90,7 @@ Trino distributed SQL engine:
 
 ```bash
 # Version and connectivity
-TRINO_VERSION=461
+TRINO_VERSION=477
 TRINO_PORT=10005
 TRINO_HOST=trino
 

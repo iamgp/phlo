@@ -27,6 +27,7 @@ phlo services start --native
 ```
 
 Access the API at:
+
 - **Base URL**: http://localhost:4000
 - **Health Check**: http://localhost:4000/health
 - **OpenAPI Docs**: http://localhost:4000/docs
@@ -111,7 +112,7 @@ PHLO_API_PORT=4000
 HOST=0.0.0.0
 
 # Backend Services
-TRINO_URL=http://trino:8080
+TRINO_URL=http://trino:10005
 DAGSTER_GRAPHQL_URL=http://dagster:3000/graphql
 NESSIE_URL=http://nessie:19120/api/v2
 LOKI_URL=http://loki:3100
@@ -184,6 +185,7 @@ curl http://localhost:4000/metrics
 ```
 
 Metrics include:
+
 - HTTP request counts and duration
 - Active requests
 - Error rates
@@ -208,7 +210,7 @@ Test each backend service:
 
 ```bash
 # Trino
-curl http://localhost:8080/v1/info
+curl http://localhost:10005/v1/info
 
 # Dagster
 curl http://localhost:3000/graphql
@@ -222,7 +224,7 @@ curl http://localhost:3100/ready
 
 ### Slow Queries
 
-- Check Trino query history at http://localhost:8080/ui
+- Check Trino query history at http://localhost:10005/ui
 - Use smaller `limit` values for data preview
 - Check table partitioning and use partition filters
 - Monitor query execution times in response metadata

@@ -45,16 +45,25 @@ phlo services start --native
 
 ## API Routes
 
-| Route                    | Method | Description               |
-| ------------------------ | ------ | ------------------------- |
-| `/health`                | GET    | Health check              |
-| `/api/lineage`           | GET    | Data lineage queries      |
-| `/api/quality`           | GET    | Quality check results     |
-| `/api/dagster/assets`    | GET    | Dagster asset information |
-| `/api/nessie/branches`   | GET    | Nessie branch management  |
-| `/api/nessie/branches`   | POST   | Create/merge branches     |
-| `/api/iceberg/tables`    | GET    | List Iceberg tables       |
-| `/api/trino/query`       | POST   | Execute SQL queries       |
+| Route                        | Method   | Description               |
+| ---------------------------- | -------- | ------------------------- |
+| `/health`                    | GET      | Health check              |
+| `/api/config`                | GET      | Project configuration     |
+| `/api/plugins`               | GET      | List all plugins          |
+| `/api/plugins/{type}`        | GET      | List plugins by type      |
+| `/api/plugins/{type}/{name}` | GET      | Get plugin details        |
+| `/api/services`              | GET      | List all services         |
+| `/api/services/{name}`       | GET      | Get service details       |
+| `/api/registry`              | GET      | Plugin registry           |
+| `/api/lineage/*`             | GET      | Data lineage queries      |
+| `/api/quality/*`             | GET      | Quality check results     |
+| `/api/dagster/*`             | GET      | Dagster asset information |
+| `/api/nessie/*`              | GET      | Nessie branch management  |
+| `/api/iceberg/*`             | GET      | Iceberg table operations  |
+| `/api/trino/*`               | GET/POST | Query execution           |
+| `/api/loki/*`                | GET      | Log queries               |
+| `/api/maintenance/*`         | GET      | Maintenance operations    |
+| `/api/search/*`              | GET      | Unified search            |
 
 ### Example Requests
 
@@ -102,5 +111,5 @@ curl -X POST http://localhost:4000/api/trino/query \
 
 ## Next Steps
 
-- [API Reference](../reference/api.md) - Full API documentation
+- [API Reference](../reference/phlo-api.md) - Full API documentation
 - [Observability Setup](../setup/observability.md) - API monitoring
