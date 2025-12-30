@@ -88,7 +88,7 @@ make catalog
 - Username: `admin`
 - Password: `admin`
 
-> ⚠️ **Security Note**: Change the default password in production by updating `OPENMETADATA_ADMIN_PASSWORD` in `.env`
+> ⚠️ **Security Note**: Change the default password in production by updating `OPENMETADATA_ADMIN_PASSWORD` in `.phlo/.env.local`
 
 ### 3. Complete Setup Checklist
 

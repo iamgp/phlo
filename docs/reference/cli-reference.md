@@ -36,6 +36,7 @@ phlo plugin              # Manage plugins
 phlo dev                 # Start development server
 phlo test                # Run tests
 phlo config              # Configuration management
+phlo env                 # Environment exports
 ```
 
 **Workflow Commands:**
@@ -682,7 +683,7 @@ cd my-lakehouse
 
 ```
 my-lakehouse/
-├── .env.example
+├── .env.example          # Local secrets template (.phlo/.env.local)
 ├── workflows/
 │   ├── ingestion/
 │   └── schemas/
@@ -1303,11 +1304,29 @@ phlo config validate [FILE]
 **Examples**:
 
 ```bash
-# Validate .env
-phlo config validate .env
-
 # Validate phlo.yaml
 phlo config validate phlo.yaml
+```
+
+### phlo env export
+
+Export the generated environment configuration.
+
+```bash
+phlo env export [OPTIONS]
+```
+
+**Examples**:
+
+```bash
+# Export non-secret defaults
+phlo env export
+
+# Export with secrets (from .phlo/.env.local)
+phlo env export --include-secrets
+
+# Write to a file
+phlo env export --include-secrets --output env.full
 ```
 
 ## Utility Commands

@@ -211,7 +211,7 @@ Now let's fetch data from the OpenWeather API and store it in Iceberg.
 
 ### 2.1 Add API Configuration
 
-Add your API configuration to `.env`:
+Add your API configuration to `.phlo/.env.local`:
 
 ```bash
 # Weather API Configuration

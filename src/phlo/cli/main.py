@@ -13,6 +13,7 @@ from typing import Optional
 import click
 
 from phlo.cli.config import config
+from phlo.cli.env import env
 from phlo.cli.plugin import plugin_group
 from phlo.cli.services import services
 
@@ -33,6 +34,7 @@ def cli():
 cli.add_command(services)
 cli.add_command(plugin_group)
 cli.add_command(config)
+cli.add_command(env)
 
 
 def _load_cli_plugin_commands() -> None:
@@ -164,7 +166,7 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo(f"  {project_name}/")
         click.echo("  ├── phlo.yaml            # Project configuration with infrastructure")
         click.echo("  ├── pyproject.toml       # Project dependencies")
-        click.echo("  ├── .env.example         # Environment variables template")
+        click.echo("  ├── .env.example         # Local secrets template (copy to .phlo/.env.local)")
         click.echo("  ├── workflows/           # Your workflow definitions")
         click.echo("  │   ├── ingestion/       # Data ingestion workflows")
         click.echo("  │   └── schemas/         # Pandera validation schemas")
@@ -422,24 +424,41 @@ select = ["E", "F", "I"]
 """
     (project_dir / "pyproject.toml").write_text(pyproject_content)
 
-    # Create .env.example
-    env_example_content = """# Phlo Configuration
-PHLO_WORKFLOWS_PATH=workflows
+    # Create .env.example (secrets template)
+    env_example_content = """# Phlo Local Secrets Template
+# Copy to .phlo/.env.local after running `phlo services init`.
 
-# Database Configuration
-POSTGRES_PASSWORD=your_password_here
-MINIO_ROOT_PASSWORD=your_password_here
+# Postgres
+POSTGRES_PASSWORD=phlo
 
-# Optional: Override dbt location
-# PHLO_DBT_PROJECT_DIR_OVERRIDE=custom_dbt
+# MinIO
+MINIO_ROOT_PASSWORD=minio123
+MINIO_OIDC_CLIENT_SECRET=
+MINIO_LDAP_BIND_PASSWORD=
 
-# Optional: Include core examples
-# PHLO_INCLUDE_CORE_ASSETS=false
+# Nessie
+NESSIE_OIDC_CLIENT_SECRET=
+
+# Trino
+TRINO_OAUTH2_CLIENT_SECRET=
+TRINO_HTTPS_KEYSTORE_PASSWORD=
+
+# Superset
+SUPERSET_SECRET_KEY=phlo-superset-secret-change-me
+SUPERSET_ADMIN_PASSWORD=admin
+
+# Hasura
+HASURA_ADMIN_SECRET=phlo-hasura-admin-secret
+
+# Grafana
+GRAFANA_ADMIN_PASSWORD=admin
 """
     (project_dir / ".env.example").write_text(env_example_content)
 
     # Create .gitignore
     gitignore_content = """.env
+.env.local
+.phlo/
 __pycache__/
 *.py[cod]
 *$py.class

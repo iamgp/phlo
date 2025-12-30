@@ -16,7 +16,7 @@ This document outlines the testing requirements for all components in the Phlo e
 | :--- | :--- | :--- |
 | **System E2E** | `tests/test_system_e2e.py` | **Golden Path**: Ingest (DLT) -> Store (Iceberg/Nessie) -> Transform (DBT) -> Monitor (Quality/Metrics).<br>**Goal**: Verify the entire platform works as a cohesive unit. |
 | **Workflow Discovery** | `tests/test_framework_integration.py` | **Project Loading**: Verify user project structures/files are correctly parsed and loaded into Dagster definitions. |
-| **Configuration** | `tests/test_config.py` | **Resolution**: Verify environment variable overrides, `.env` file loading, and default value merging. |
+| **Configuration** | `tests/test_config.py` | **Resolution**: Verify environment variable overrides, `.phlo/.env(.local)` loading, and default value merging. |
 | **Plugin System** | `tests/test_plugin_system.py` | **Lifecycle**: Verify plugin discovery, registration, conflict resolution, and metadata validation. |
 | **Hook Bus** | `tests/test_hook_bus.py` | **Event Propagation**: Verify events (Ingestion, Quality, Lineage) are correctly routed to all listeners with priority/ordering. |
 | **Services** | `tests/test_services_discovery.py` | **Dependency Injection**: Verify core services (Trino, MinIO) are correctly initialized and injected into asset contexts. |

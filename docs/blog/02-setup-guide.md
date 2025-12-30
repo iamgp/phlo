@@ -56,34 +56,42 @@ cd my-lakehouse
 
 # This creates:
 # - phlo.yaml (project configuration)
-# - .env (environment variables)
+# - .env.example (local secrets template)
 # - workflows/ (your data pipelines)
 # - transforms/ (dbt models)
 ```
 
-### What's in .env?
+Then initialize infra (generates `.phlo/.env` and `.phlo/.env.local`):
+
+```bash
+phlo services init
+```
+
+### What's in phlo.yaml (env:)?
+
+```yaml
+env:
+  # Ports (all on 10xxx range)
+  POSTGRES_PORT: 10000
+  MINIO_API_PORT: 10001
+  MINIO_CONSOLE_PORT: 10002
+  NESSIE_PORT: 10003
+  TRINO_PORT: 10005
+  DAGSTER_PORT: 10006
+```
+
+### What's in .phlo/.env.local?
 
 ```env
 # Database
-POSTGRES_USER=lake
 POSTGRES_PASSWORD=phlo
-POSTGRES_DB=lakehouse
 
 # Storage
-MINIO_ROOT_USER=minio
 MINIO_ROOT_PASSWORD=minio123
-
-# Ports (all on 10xxx range)
-POSTGRES_PORT=10000
-MINIO_API_PORT=10001
-MINIO_CONSOLE_PORT=10002
-NESSIE_PORT=10003
-TRINO_PORT=10005
-DAGSTER_PORT=10006
 ```
 
 **For local development**: Use the defaults as-is.
-**For production**: Change all passwords to strong values.
+**For production**: Change all passwords in `.phlo/.env.local` to strong values.
 
 > **SECURITY WARNING**: The default configuration uses weak passwords (`admin/admin`, `minioadmin/minioadmin123`, etc.) and has no authentication enabled on most services. This is fine for local development, but **NEVER expose these services to a network or the internet** without:
 >

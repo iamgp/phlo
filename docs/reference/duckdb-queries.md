@@ -14,7 +14,7 @@ This guide explains how to query Phlo's Iceberg tables directly using DuckDB's I
 
 - DuckDB v1.1.0 or later (supports Iceberg extension)
 - Access to MinIO endpoint (default: `localhost:10001`)
-- MinIO credentials from `.env` file
+- MinIO credentials from `.phlo/.env.local`
 
 ## Installation
 
@@ -364,11 +364,11 @@ curl http://localhost:10001/minio/health/ready
 Error: Access Denied
 ```
 
-**Solution**: Verify credentials match your `.env` file:
+**Solution**: Verify credentials match your `.phlo/.env.local` file:
 
 ```bash
-# Check .env file
-grep MINIO .env
+# Check .phlo/.env.local
+grep MINIO .phlo/.env.local
 
 # Use matching credentials in DuckDB
 SET s3_access_key_id = 'minio';
