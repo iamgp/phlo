@@ -38,6 +38,7 @@ try:
     from phlo_api.observatory_api.iceberg import router as iceberg_router
     from phlo_api.observatory_api.lineage import router as lineage_router
     from phlo_api.observatory_api.loki import router as loki_router
+    from phlo_api.observatory_api.maintenance import router as maintenance_router
     from phlo_api.observatory_api.nessie import router as nessie_router
     from phlo_api.observatory_api.quality import router as quality_router
     from phlo_api.observatory_api.search import router as search_router
@@ -50,6 +51,7 @@ try:
     app.include_router(quality_router, prefix="/api/quality")
     app.include_router(loki_router, prefix="/api/loki")
     app.include_router(lineage_router, prefix="/api/lineage")
+    app.include_router(maintenance_router, prefix="/api/maintenance")
     app.include_router(search_router, prefix="/api/search")
 except ImportError:
     # Routers not available (minimal install)

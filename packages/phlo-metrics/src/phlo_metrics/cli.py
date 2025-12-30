@@ -138,7 +138,7 @@ def metrics_asset(asset_name: str, runs: int) -> None:
 @metrics_group.command(name="export")
 @click.option(
     "--format",
-    type=click.Choice(["json", "csv"]),
+    type=click.Choice(["json", "csv", "prometheus"]),
     default="json",
     help="Export format",
 )
@@ -158,7 +158,7 @@ def metrics_export(format: str, output: Path, period: str) -> None:
     """
     Export metrics to JSON or CSV.
 
-    Useful for external analysis and integration with other tools.
+    Prometheus export includes maintenance telemetry metrics.
     """
     period_hours = _parse_period(period)
     collector = get_metrics_collector()
@@ -168,6 +168,8 @@ def metrics_export(format: str, output: Path, period: str) -> None:
         _export_json(metrics, output)
     elif format == "csv":
         _export_csv(metrics, output)
+    elif format == "prometheus":
+        _export_prometheus(output)
 
     console.print(f"[green]✓[/green] Metrics exported to {output}")
 
@@ -251,6 +253,14 @@ def _export_csv(metrics: object, output: Path) -> None:
             writer = csv.writer(f)
             writer.writerow(["data", "exported_at"])
             writer.writerow([str(result), datetime.utcnow().isoformat()])
+
+
+def _export_prometheus(output: Path) -> None:
+    """Export maintenance telemetry as Prometheus text format."""
+
+    from phlo_metrics.maintenance import render_maintenance_prometheus
+
+    output.write_text(render_maintenance_prometheus(), encoding="utf-8")
 
 
 def _dataclass_to_dict(obj: object) -> dict | object:
