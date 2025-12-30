@@ -89,6 +89,11 @@ def test_duckdb_iceberg():
         print("   ⚠ PyIceberg not available, using direct path")
         print("     Note: This may not work with Nessie table naming")
         return True  # Skip test gracefully
+    except Exception as exc:
+        message = str(exc)
+        if "Temporary failure in name resolution" in message or "NameResolutionError" in message:
+            pytest.skip("Skipping: Nessie not reachable from test host.")
+        raise
 
     # Step 4: Query Iceberg table using metadata location
     print("\n4. Querying Iceberg table (raw.entries)...")
