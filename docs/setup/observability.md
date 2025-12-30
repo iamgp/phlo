@@ -93,7 +93,7 @@ Default credentials:
 - Parses JSON logs and extracts fields
 - Forwards metrics to Prometheus, logs to Loki
 
-#### Grafana (Port 3001)
+#### Grafana (Port 3003)
 
 - Pre-configured datasources (Prometheus + Loki)
 - Pre-built dashboards:
@@ -353,7 +353,7 @@ docker compose logs grafana
 Common issues:
 
 - **Permission errors**: Check volume permissions in `volumes/`
-- **Port conflicts**: Ensure ports 9090, 3100, 3001, 12345 are free
+- **Port conflicts**: Ensure ports 9090, 3100, 3003, 12345 are free
 - **Config errors**: Validate YAML syntax in `.phlo/prometheus/`, `.phlo/loki/`, `.phlo/alloy/`
 
 ### No Metrics Appearing

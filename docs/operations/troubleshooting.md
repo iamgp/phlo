@@ -141,7 +141,7 @@ trino:
 docker-compose ps nessie
 
 # Check Nessie is healthy
-curl http://localhost:19120/api/v1/trees
+curl http://localhost:10003/api/v1/trees
 ```
 
 **Check 3: Configuration**
@@ -149,9 +149,6 @@ curl http://localhost:19120/api/v1/trees
 ```bash
 # View Trino logs
 docker-compose logs trino | grep ERROR
-
-# Check catalog configuration
-cat .phlo/trino/catalog/iceberg.properties
 ```
 
 ---
@@ -213,9 +210,9 @@ print(result)
 
 ```python
 # Are resources configured?
-from phlo.config import get_config
-config = get_config()
-print(config.TRINO_HOST)  # Should print value, not error
+from phlo.config import get_settings
+config = get_settings()
+print(config.trino_host)  # Should print value, not error
 ```
 
 ### Dagster Daemon Not Running
@@ -575,10 +572,6 @@ SHOW TABLES IN iceberg.raw;
 
 ```bash
 # Are you on the right branch?
-# Check Trino catalog configuration
-cat .phlo/trino/catalog/iceberg.properties | grep ref
-# iceberg.catalog.ref=main
-
 # To query dev branch, use iceberg_dev catalog
 SELECT * FROM iceberg_dev.raw.my_table
 ```
@@ -601,7 +594,7 @@ dagster asset materialize -m phlo.framework.definitions -a my_ingestion_asset
 docker-compose ps nessie
 
 # Test Nessie API
-curl http://localhost:19120/api/v1/trees
+curl http://localhost:10003/api/v1/trees
 
 # Should return: {"name": "main", ...}
 
@@ -614,13 +607,13 @@ docker-compose restart nessie
 **List branches:**
 
 ```bash
-curl http://localhost:19120/api/v1/trees
+curl http://localhost:10003/api/v1/trees
 ```
 
 **Create branch:**
 
 ```bash
-curl -X POST http://localhost:19120/api/v1/trees/branch/dev \
+curl -X POST http://localhost:10003/api/v1/trees/branch/dev \
   -H "Content-Type: application/json" \
   -d '{"sourceRefName": "main"}'
 ```
@@ -924,10 +917,10 @@ SELECT * FROM iceberg.raw."my_table$files";
 
 ```bash
 # View commit log
-curl http://localhost:19120/api/v1/trees/branch/main/log
+curl http://localhost:10003/api/v1/trees/branch/main/log
 
 # View specific table history
-curl http://localhost:19120/api/v1/trees/branch/main/contents/raw.my_table
+curl http://localhost:10003/api/v1/trees/branch/main/contents/raw.my_table
 ```
 
 ### Isolate the Problem
