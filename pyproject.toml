@@ -136,8 +136,9 @@ markers = [
     "integration: marks tests as requiring external services or dbt manifest (run with '-m integration')",
 ]
 filterwarnings = [
-    # pyiceberg still emits Pydantic v2.12 deprecations; filter until upstream cleanup.
-    "ignore:.*PydanticDeprecatedSince212.*:DeprecationWarning:pyiceberg.*",
+    # pyiceberg emits Pydantic v2.12 deprecations from @model_validator usage.
+    # Suppress until upstream fixes: https://github.com/apache/iceberg-python/issues
+    "ignore:Using `@model_validator` with mode='after' on a classmethod is deprecated:DeprecationWarning",
 ]
 
 [tool.ruff]
