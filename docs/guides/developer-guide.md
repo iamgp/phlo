@@ -553,6 +553,98 @@ CustomSQLCheck(
 )
 ```
 
+### Reconciliation Checks (Cross-table)
+
+Reconciliation checks live in `phlo_quality.reconciliation` and use the Trino resource
+from the Dagster context to query source tables.
+
+**ReconciliationCheck**: Row count parity / coverage between source and target
+
+- `check_type="rowcount_parity"`: target and source counts must match (within tolerance)
+- `check_type="rowcount_gte"`: target must be >= source (within tolerance)
+
+```python
+from phlo_quality.reconciliation import ReconciliationCheck
+
+ReconciliationCheck(
+    source_table="silver.stg_github_events",
+    partition_column="_phlo_partition_date",
+    check_type="rowcount_parity",
+    tolerance=0.02,  # 2% allowed difference
+    absolute_tolerance=50,  # Optional absolute row difference
+)
+```
+
+**AggregateConsistencyCheck**: Compare target aggregates to source aggregates
+
+```python
+from phlo_quality.reconciliation import AggregateConsistencyCheck
+
+AggregateConsistencyCheck(
+    source_table="silver.stg_github_events",
+    aggregate_column="total_events",
+    source_expression="COUNT(*)",
+    group_by=["activity_date"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+    absolute_tolerance=5,
+)
+```
+
+**KeyParityCheck**: Ensure keys match between source and target
+
+```python
+from phlo_quality.reconciliation import KeyParityCheck
+
+KeyParityCheck(
+    source_table="silver.stg_github_events",
+    key_columns=["event_id"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+)
+```
+
+**MultiAggregateConsistencyCheck**: Compare multiple aggregates in one check
+
+```python
+from phlo_quality.reconciliation import AggregateSpec, MultiAggregateConsistencyCheck
+
+MultiAggregateConsistencyCheck(
+    source_table="silver.stg_github_events",
+    aggregates=[
+        AggregateSpec(name="row_count", expression="COUNT(*)", target_column="total_events"),
+        AggregateSpec(name="total_amount", expression="SUM(amount)", target_column="amount_total"),
+    ],
+    group_by=["activity_date"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+    absolute_tolerance=5,
+)
+```
+
+**ChecksumReconciliationCheck**: Compare row-level hashes across tables
+
+```python
+from phlo_quality.reconciliation import ChecksumReconciliationCheck
+
+ChecksumReconciliationCheck(
+    source_table="silver.stg_github_events",
+    target_table="gold.fct_github_events",
+    key_columns=["event_id"],
+    columns=["event_type", "actor_id", "repo_id"],
+    partition_column="_phlo_partition_date",
+    tolerance=0.0,
+    absolute_tolerance=10,
+    hash_algorithm="xxhash64",
+)
+```
+
+**Common reconciliation gaps (use CustomSQLCheck or @asset_check):**
+
+- Multi-source or multi-target reconciliation in one check
+- Distribution drift checks (percentiles/histograms vs source)
+- Row-level checksum with engine-specific normalization rules
+
 ### Advanced Quality Checks
 
 **Multiple tables**:

@@ -41,7 +41,14 @@ from phlo_quality.checks import (
 )
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract, dbt_check_name
 from phlo_quality.decorator import get_quality_checks, phlo_quality
-from phlo_quality.reconciliation import AggregateConsistencyCheck, ReconciliationCheck
+from phlo_quality.reconciliation import (
+    AggregateConsistencyCheck,
+    AggregateSpec,
+    ChecksumReconciliationCheck,
+    KeyParityCheck,
+    MultiAggregateConsistencyCheck,
+    ReconciliationCheck,
+)
 
 __all__ = [
     # Decorator (use as @phlo_quality(...))
@@ -61,6 +68,10 @@ __all__ = [
     # Reconciliation checks
     "ReconciliationCheck",
     "AggregateConsistencyCheck",
+    "AggregateSpec",
+    "KeyParityCheck",
+    "MultiAggregateConsistencyCheck",
+    "ChecksumReconciliationCheck",
     # Contract helpers
     "PANDERA_CONTRACT_CHECK_NAME",
     "QualityCheckContract",
