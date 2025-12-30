@@ -16,7 +16,7 @@ Phlo's underlying services (Trino, Nessie, MinIO, PostgreSQL) support enterprise
 
 ## Quick Start
 
-For a minimal secure setup, configure these environment variables in your `.env`:
+For a minimal secure setup, configure these environment variables in your `.phlo/.env.local`:
 
 ```bash
 # Strong passwords (required)
@@ -48,7 +48,7 @@ LDAP works with Trino and MinIO. Configure your LDAP server details:
 #### Trino LDAP
 
 ```bash
-# .env
+# .phlo/.env.local
 TRINO_AUTH_TYPE=PASSWORD
 TRINO_LDAP_URL=ldaps://ldap.example.com:636
 TRINO_LDAP_USER_BIND_PATTERN=${USER}@example.com
@@ -59,7 +59,7 @@ Users authenticate with their LDAP credentials when connecting to Trino.
 #### MinIO LDAP
 
 ```bash
-# .env
+# .phlo/.env.local
 MINIO_LDAP_SERVER=ldap.example.com:636
 MINIO_LDAP_BIND_DN=cn=admin,dc=example,dc=com
 MINIO_LDAP_BIND_PASSWORD=ldap-admin-password
@@ -82,7 +82,7 @@ OIDC works with all services and is recommended for unified SSO.
 #### Nessie OIDC
 
 ```bash
-# .env
+# .phlo/.env.local
 NESSIE_OIDC_ENABLED=true
 NESSIE_OIDC_SERVER_URL=https://auth.example.com/realms/phlo
 NESSIE_OIDC_CLIENT_ID=nessie
@@ -92,7 +92,7 @@ NESSIE_OIDC_CLIENT_SECRET=your-client-secret
 #### MinIO OIDC
 
 ```bash
-# .env
+# .phlo/.env.local
 MINIO_OIDC_CONFIG_URL=https://auth.example.com/realms/phlo/.well-known/openid-configuration
 MINIO_OIDC_CLIENT_ID=minio
 MINIO_OIDC_CLIENT_SECRET=your-client-secret
@@ -104,7 +104,7 @@ The `policy` claim in the JWT should contain the MinIO policy name(s) to assign.
 #### Trino OAuth2
 
 ```bash
-# .env
+# .phlo/.env.local
 TRINO_AUTH_TYPE=OAUTH2
 TRINO_OAUTH2_ISSUER=https://auth.example.com/realms/phlo
 TRINO_OAUTH2_CLIENT_ID=trino
@@ -164,7 +164,7 @@ Create an access control rules file:
 }
 ```
 
-Enable in `.env`:
+Enable in `.phlo/.env.local`:
 
 ```bash
 TRINO_ACCESS_CONTROL_TYPE=file
@@ -236,7 +236,7 @@ The JWT token should include claims that set the user's role and context.
 #### PostgreSQL SSL
 
 ```bash
-# .env
+# .phlo/.env.local
 POSTGRES_SSL_MODE=require
 ```
 

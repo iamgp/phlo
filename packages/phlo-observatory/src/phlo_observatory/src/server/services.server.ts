@@ -8,7 +8,7 @@
 import { exec, execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 
 import { createServerFn } from '@tanstack/react-start'
@@ -217,26 +217,44 @@ const getPackagesPath = (): string => {
   return localRoot
 }
 
-// Path to .env file
+// Path to .phlo/.env file
 const getEnvPath = (): string => {
   if (envFilePath) {
     return envFilePath
   }
-  const dockerPath = '/app/.env'
-  if (existsSync(dockerPath)) {
-    return dockerPath
+  const candidates = [
+    '/app/.phlo/.env',
+    join(process.cwd(), '..', '..', '.phlo', '.env'),
+    join(process.cwd(), '.phlo', '.env'),
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate
+    }
   }
-  // Local: .env is at project root (parent of packages/)
-  const localPath = join(process.cwd(), '..', '..', '.env')
-  if (existsSync(localPath)) {
-    return localPath
+  return candidates[candidates.length - 1]
+}
+
+async function parseEnvFile(
+  envPath: string,
+  values: Record<string, string>,
+): Promise<void> {
+  try {
+    const content = await readFile(envPath, 'utf-8')
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith('#')) {
+        const eqIndex = trimmed.indexOf('=')
+        if (eqIndex > 0) {
+          const key = trimmed.slice(0, eqIndex)
+          const value = trimmed.slice(eqIndex + 1)
+          values[key] = value
+        }
+      }
+    }
+  } catch {
+    // .env file may not exist
   }
-  // Fallback: maybe cwd is project root
-  const projectEnvPath = join(process.cwd(), '.env')
-  if (existsSync(projectEnvPath)) {
-    return projectEnvPath
-  }
-  return localPath
 }
 
 function buildServiceDefinition(
@@ -469,28 +487,19 @@ async function runPhloCommand(args: Array<string>): Promise<void> {
 }
 
 /**
- * Parse .env file and merge with service defaults
+ * Parse env files and merge with service defaults
  */
 async function loadEnvValues(): Promise<Record<string, string>> {
   const envPath = getEnvPath()
   const values: Record<string, string> = {}
 
-  try {
-    const content = await readFile(envPath, 'utf-8')
+  await parseEnvFile(envPath, values)
 
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim()
-      if (trimmed && !trimmed.startsWith('#')) {
-        const eqIndex = trimmed.indexOf('=')
-        if (eqIndex > 0) {
-          const key = trimmed.slice(0, eqIndex)
-          const value = trimmed.slice(eqIndex + 1)
-          values[key] = value
-        }
-      }
-    }
-  } catch {
-    // .env file may not exist
+  const localEnvPath = envPath.endsWith('.env')
+    ? `${envPath}.local`
+    : join(dirname(envPath), '.env.local')
+  if (existsSync(localEnvPath)) {
+    await parseEnvFile(localEnvPath, values)
   }
 
   return values
@@ -588,7 +597,7 @@ export const getServices = createServerFn().handler(
         // Hide one-shot init containers from the Hub (they run once and exit successfully).
         .filter((service) => service.name !== 'minio-setup')
         .map((service) => {
-          // Update env vars with actual values from .env
+          // Update env vars with actual values from env files
           const enrichedEnvVars = service.envVars.map((ev) => ({
             ...ev,
             value: envValues[ev.name] ?? ev.value,

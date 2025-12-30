@@ -486,7 +486,7 @@ Complete end-to-end flow:
 
 **dbt models**: `transforms/dbt/models/{layer}/{model}.sql`
 
-**Configuration**: `phlo.config`, `.env`, `phlo.yaml`
+**Configuration**: `phlo.config`, `.phlo/.env.local`, `phlo.yaml`
 
 **Sensors**: `workflows/sensors/branch_lifecycle.py`
 

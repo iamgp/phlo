@@ -178,7 +178,7 @@ Instead of hardcoding connections, pass as resources:
 ```python
 @dg.resource
 def trino_resource(config) -> trino.dbapi.Connection:
-    """Trino connection (configured via .env)."""
+    """Trino connection (configured via phlo.yaml + .phlo/.env.local)."""
     return trino.dbapi.connect(
         host=config.trino_host,
         port=config.trino_port,
@@ -645,7 +645,7 @@ class PhloConfig(BaseSettings):
     trino_port: int = 10005
 
     class Config:
-        env_file = ".env"  # Read from .env
+        env_file = (".phlo/.env", ".phlo/.env.local")
 
 config = PhloConfig()  # Singleton
 ```

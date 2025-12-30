@@ -12,6 +12,7 @@ def compose_base_cmd(
 ) -> list[str]:
     compose_file = phlo_dir / "docker-compose.yml"
     env_file = phlo_dir / ".env"
+    env_local_file = phlo_dir / ".env.local"
 
     cmd = [
         "docker",
@@ -24,9 +25,8 @@ def compose_base_cmd(
         str(env_file),
     ]
 
-    project_env = Path.cwd() / ".env"
-    if project_env.exists():
-        cmd.extend(["--env-file", str(project_env)])
+    if env_local_file.exists():
+        cmd.extend(["--env-file", str(env_local_file)])
 
     for profile in profiles:
         cmd.extend(["--profile", profile])

@@ -17,7 +17,8 @@ Phlo is a decorator-driven data lakehouse framework that reduces boilerplate by 
 # Install and start
 git clone https://github.com/iamgp/phlo.git
 cd phlo
-cp .env.example .env
+phlo services init
+# Update secrets in .phlo/.env.local and port defaults in phlo.yaml (env:)
 phlo services start
 
 # Materialize example pipeline

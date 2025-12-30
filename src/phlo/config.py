@@ -1,6 +1,6 @@
 # config.py - Centralized configuration management for the Phlo lakehouse platform
 # This module defines all configurable settings using Pydantic, loaded from environment variables
-# and .env file. It provides computed properties for connection strings and catalog configs.
+# and .phlo/.env(.local) files. It provides computed properties for connection strings and catalog configs.
 
 from functools import lru_cache
 from pathlib import Path
@@ -11,12 +11,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Settings class: Main configuration class extending Pydantic BaseSettings
-# Loads from .env file and environment variables, provides validation and type safety
+# Loads from .phlo/.env(.local) and environment variables, provides validation and type safety
 class Settings(BaseSettings):
     """Centralized configuration for phlo using environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".phlo/.env", ".phlo/.env.local"),
         case_sensitive=False,
         extra="ignore",
     )

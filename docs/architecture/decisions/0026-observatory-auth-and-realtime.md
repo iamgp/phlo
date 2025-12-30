@@ -25,7 +25,7 @@ Use a simple token-based approach for environment-level protection.
 #### Environment Configuration
 
 ```bash
-# .env
+# .phlo/.env.local
 OBSERVATORY_AUTH_ENABLED=true
 OBSERVATORY_AUTH_TOKEN=your-secret-token-here
 ```
