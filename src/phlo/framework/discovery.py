@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from dagster import Definitions
+import dagster as dg
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def discover_user_workflows(
     workflows_path: Path | str,
     clear_registries: bool = False,
-) -> Definitions:
+) -> dg.Definitions:
     """
     Discover and load user workflow files from a directory.
 
@@ -58,7 +58,7 @@ def discover_user_workflows(
             "Workflows directory not found: %s. No user workflows will be loaded.",
             workflows_path,
         )
-        return Definitions()
+        return dg.Definitions()
 
     if not workflows_path.is_dir():
         raise ValueError(f"Workflows path must be a directory, got: {workflows_path}")
@@ -81,8 +81,36 @@ def discover_user_workflows(
     logger.info(f"Imported {len(imported_modules)} workflow modules from {workflows_path}")
 
     plugin_defs = _collect_dagster_extension_definitions()
-    logger.info("Discovered %d assets from Dagster plugins", len(list(plugin_defs.assets or [])))
-    return plugin_defs
+    plugin_assets = list(plugin_defs.assets or [])
+    plugin_asset_keys = {key for asset in plugin_assets for key in asset.keys}
+
+    module_defs = (
+        dg.load_definitions_from_modules(imported_modules) if imported_modules else dg.Definitions()
+    )
+    module_assets = list(module_defs.assets or [])
+    filtered_assets = [
+        asset for asset in module_assets if not asset.keys.issubset(plugin_asset_keys)
+    ]
+
+    if len(module_assets) != len(filtered_assets):
+        logger.info(
+            "Filtered %d duplicate assets from workflow modules",
+            len(module_assets) - len(filtered_assets),
+        )
+
+    module_defs = dg.Definitions(
+        assets=filtered_assets,
+        asset_checks=module_defs.asset_checks,
+        schedules=module_defs.schedules,
+        sensors=module_defs.sensors,
+        resources=module_defs.resources,
+        jobs=module_defs.jobs,
+    )
+
+    merged = dg.Definitions.merge(plugin_defs, module_defs)
+    logger.info("Discovered %d assets from Dagster plugins", len(plugin_assets))
+    logger.info("Discovered %d assets from workflow modules", len(filtered_assets))
+    return merged
 
 
 def _import_workflow_modules(workflows_path: Path) -> list[Any]:
@@ -138,13 +166,13 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
     return imported_modules
 
 
-def _collect_dagster_extension_definitions() -> Definitions:
+def _collect_dagster_extension_definitions() -> dg.Definitions:
     from phlo.discovery import discover_plugins, get_global_registry
 
     discover_plugins(plugin_type="dagster_extensions", auto_register=True)
     registry = get_global_registry()
 
-    definitions: list[Definitions] = []
+    definitions: list[dg.Definitions] = []
     for name in registry.list_dagster_extensions():
         plugin = registry.get_dagster_extension(name)
         if plugin is None:
@@ -154,7 +182,7 @@ def _collect_dagster_extension_definitions() -> Definitions:
         except Exception as exc:
             logger.error("Error creating Dagster definitions from plugin %s: %s", name, exc)
 
-    return Definitions.merge(*definitions) if definitions else Definitions()
+    return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
 
 
 def _clear_asset_registries() -> None:

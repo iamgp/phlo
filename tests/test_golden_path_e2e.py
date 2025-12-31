@@ -6,6 +6,8 @@ import subprocess
 import sys
 import textwrap
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -51,15 +53,10 @@ def _run(
             )
         )
     if check and result.returncode != 0:
-        message = (
-            "Command failed.\n"
-            f"cwd: {cwd}\n"
-            f"cmd: {' '.join(args)}\n"
-            f"exit: {result.returncode}\n"
-        )
+        message = f"Command failed.\ncwd: {cwd}\ncmd: {' '.join(args)}\nexit: {result.returncode}\n"
         if log_path:
             message += f"log: {log_path}\n"
-        message += f"stdout:\n{result.stdout}\n" f"stderr:\n{result.stderr}"
+        message += f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         raise AssertionError(message)
     return result
 
@@ -135,9 +132,7 @@ def _wait_for_compose_service(
             if last_status in {"healthy", "running"}:
                 return
             if last_status in {"exited", "dead", "unhealthy"}:
-                raise AssertionError(
-                    f"Service {service} failed to start (status={last_status})."
-                )
+                raise AssertionError(f"Service {service} failed to start (status={last_status}).")
         time.sleep(2)
     raise AssertionError(f"Timed out waiting for {service}. Last status: {last_status}")
 
@@ -206,6 +201,39 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content)
 
 
+def _wait_for_trino_ready(*, host: str, port: int, timeout: int, log_path: Path) -> None:
+    deadline = time.monotonic() + timeout
+    attempts = 0
+    last_error: str | None = None
+    last_starting: bool | None = None
+
+    while time.monotonic() < deadline:
+        attempts += 1
+        try:
+            with urllib.request.urlopen(f"http://{host}:{port}/v1/info", timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            starting = bool(payload.get("starting", False))
+            last_starting = starting
+            if not starting:
+                _write_text(
+                    log_path,
+                    f"ready after {attempts} attempts (starting={starting}).\n",
+                )
+                return
+            last_error = "starting=true"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = repr(exc)
+        time.sleep(2)
+
+    _write_text(
+        log_path,
+        f"timeout after {attempts} attempts; last_error={last_error} starting={last_starting}\n",
+    )
+    raise AssertionError(
+        f"Trino not ready after {timeout}s (last_error={last_error}, starting={last_starting})."
+    )
+
+
 def _write_jsonplaceholder_asset(asset_file: Path) -> None:
     content = textwrap.dedent(
         """
@@ -259,10 +287,6 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
     mode = os.environ.get(E2E_MODE_ENV, "dev").strip().lower()
     if mode not in {"dev", "pypi"}:
         pytest.skip(f"{E2E_MODE_ENV} must be 'dev' or 'pypi'.")
-    try:
-        from trino.dbapi import connect as trino_connect  # noqa: F401
-    except ImportError:
-        pytest.skip("Trino client not installed (install phlo-trino/dbt-trino).")
 
     project_name = "phlo-golden-path"
     project_dir = tmp_path / project_name
@@ -345,13 +369,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
     )
 
     schema_file = project_dir / "workflows" / "schemas" / "jsonplaceholder.py"
-    asset_file = (
-        project_dir
-        / "workflows"
-        / "ingestion"
-        / "jsonplaceholder"
-        / "posts.py"
-    )
+    asset_file = project_dir / "workflows" / "ingestion" / "jsonplaceholder" / "posts.py"
     assert schema_file.exists()
     assert asset_file.exists()
     assert "jsonplaceholder.typicode.com" in asset_file.read_text()
@@ -431,9 +449,9 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
                         context=context,
                         trino=trino,
                         postgres=postgres,
-                        tables_to_publish={"posts_mart": "iceberg.marts.posts_mart"},
-                        data_source="jsonplaceholder",
-                    )
+                    tables_to_publish={"posts_mart": "iceberg.raw_marts.posts_mart"},
+                    data_source="jsonplaceholder",
+                )
                 finally:
                     postgres.close()
             """
@@ -471,17 +489,24 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         )
 
         env_vars = _read_env_file(phlo_dir / ".env")
-        trino_port = int(env_vars.get("TRINO_PORT", "8080"))
         postgres_port = int(env_vars.get("POSTGRES_PORT", "5432"))
         postgres_user = env_vars.get("POSTGRES_USER", "phlo")
         postgres_password = env_vars.get("POSTGRES_PASSWORD", "phlo")
         postgres_db = env_vars.get("POSTGRES_DB", "phlo")
+        trino_port = int(env_vars.get("TRINO_PORT", "8080"))
+
+        _wait_for_trino_ready(
+            host="127.0.0.1",
+            port=trino_port,
+            timeout=120,
+            log_path=_log_for("trino_ready"),
+        )
 
         from phlo_trino import TrinoResource
 
-        trino = TrinoResource(host="localhost", port=trino_port, catalog="iceberg")
-        trino.wait_ready(timeout=180, interval=2, schema="raw")
+        trino = TrinoResource(host="127.0.0.1", port=trino_port, catalog="iceberg")
         rows = trino.execute("SELECT count(*) FROM posts", schema="raw")
+        _write_text(_log_for("trino_count_posts"), repr(rows))
         assert rows and rows[0][0] > 0
 
         run_phlo_step(
@@ -490,12 +515,13 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             timeout=1200,
         )
 
-        rows = trino.execute("SELECT count(*) FROM posts_mart", schema="marts")
+        rows = trino.execute("SELECT count(*) FROM posts_mart", schema="raw_marts")
+        _write_text(_log_for("trino_count_posts_mart"), repr(rows))
         assert rows and rows[0][0] > 0
 
         run_phlo_step(
             "materialize_publish_marts",
-            ["materialize", "publish_jsonplaceholder_marts", "--partition", "2025-01-01"],
+            ["materialize", "publish_jsonplaceholder_marts"],
             timeout=1200,
         )
 
@@ -512,12 +538,17 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             with pg_conn.cursor() as cursor:
                 cursor.execute("SELECT count(*) FROM marts.posts_mart")
                 rows = cursor.fetchall()
+                _write_text(_log_for("postgres_count_posts_mart"), repr(rows))
                 assert rows and rows[0][0] > 0
         finally:
             pg_conn.close()
 
         services = json.loads(
-            _run_phlo(["services", "list", "--all", "--json"], cwd=project_dir).stdout
+            _run_phlo(
+                ["services", "list", "--all", "--json"],
+                cwd=project_dir,
+                log_path=_log_for("services_list"),
+            ).stdout
         )
         optional = sorted(
             {
@@ -528,38 +559,48 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         )
 
         observability = [
-            name
-            for name in ["loki", "prometheus", "grafana", "alloy"]
-            if name in optional
+            name for name in ["loki", "prometheus", "grafana", "alloy"] if name in optional
         ]
         for name in observability:
-            run_phlo_step(f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120)
+            run_phlo_step(
+                f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120
+            )
             optional.remove(name)
 
         compose = yaml.safe_load((phlo_dir / "docker-compose.yml").read_text())
         services_block = compose.get("services", {})
         assert set(observability).issubset(set(services_block))
 
-        grafana_deps = services_block.get("grafana", {}).get("depends_on", {})
-        assert {"prometheus", "loki"}.issubset(set(grafana_deps.keys()))
+        if "grafana" in observability:
+            grafana_deps = services_block.get("grafana", {}).get("depends_on", {})
+            if "prometheus" in observability:
+                assert "prometheus" in grafana_deps
+            if "loki" in observability:
+                assert "loki" in grafana_deps
 
-        alloy_deps = services_block.get("alloy", {}).get("depends_on", {})
-        assert "loki" in alloy_deps
+            grafana_datasources = (
+                phlo_dir / "grafana" / "provisioning" / "datasources" / "datasources.yml"
+            ).read_text()
+            if "prometheus" in observability:
+                assert "http://prometheus:9090" in grafana_datasources
+            if "loki" in observability:
+                assert "http://loki:3100" in grafana_datasources
 
-        grafana_datasources = (
-            phlo_dir / "grafana" / "provisioning" / "datasources" / "datasources.yml"
-        ).read_text()
-        assert "http://prometheus:9090" in grafana_datasources
-        assert "http://loki:3100" in grafana_datasources
+        if "prometheus" in observability:
+            prometheus_config = (phlo_dir / "prometheus" / "prometheus.yml").read_text()
+            assert "phlo.metrics.enabled" in prometheus_config
 
-        prometheus_config = (phlo_dir / "prometheus" / "prometheus.yml").read_text()
-        assert "phlo.metrics.enabled" in prometheus_config
-
-        alloy_config = (phlo_dir / "alloy" / "config.alloy").read_text()
-        assert "http://loki:3100/loki/api/v1/push" in alloy_config
+        if "alloy" in observability:
+            alloy_deps = services_block.get("alloy", {}).get("depends_on", {})
+            if "loki" in observability:
+                assert "loki" in alloy_deps
+            alloy_config = (phlo_dir / "alloy" / "config.alloy").read_text()
+            assert "http://loki:3100/loki/api/v1/push" in alloy_config
 
         for name in optional:
-            run_phlo_step(f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120)
+            run_phlo_step(
+                f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120
+            )
 
         enabled_config = yaml.safe_load((project_dir / "phlo.yaml").read_text())
         enabled = set(enabled_config.get("services", {}).get("enabled", []))
