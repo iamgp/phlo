@@ -25,6 +25,7 @@ def _run(
     env: dict[str, str] | None = None,
     timeout: int | None = None,
     check: bool = True,
+    log_path: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         args,
@@ -34,12 +35,28 @@ def _run(
         capture_output=True,
         timeout=timeout,
     )
+    if log_path:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(
+            "\n".join(
+                [
+                    f"$ {' '.join(args)}",
+                    "",
+                    "STDOUT:",
+                    result.stdout,
+                    "",
+                    "STDERR:",
+                    result.stderr,
+                ]
+            )
+        )
     if check and result.returncode != 0:
         raise AssertionError(
             "Command failed.\n"
             f"cwd: {cwd}\n"
             f"cmd: {' '.join(args)}\n"
             f"exit: {result.returncode}\n"
+            + (f"log: {log_path}\n" if log_path else "")
             f"stdout:\n{result.stdout}\n"
             f"stderr:\n{result.stderr}"
         )
@@ -53,6 +70,7 @@ def _run_phlo(
     env: dict[str, str] | None = None,
     timeout: int | None = None,
     check: bool = True,
+    log_path: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return _run(
         [sys.executable, "-m", "phlo.cli.main", *args],
@@ -60,6 +78,7 @@ def _run_phlo(
         env=env,
         timeout=timeout,
         check=check,
+        log_path=log_path,
     )
 
 
@@ -163,6 +182,53 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content)
 
 
+def _write_jsonplaceholder_asset(asset_file: Path) -> None:
+    content = textwrap.dedent(
+        """
+        \"\"\"
+        Jsonplaceholder posts ingestion asset.
+        \"\"\"
+
+        from dlt.sources.rest_api import rest_api
+
+        from phlo_dlt import phlo_ingestion
+        from workflows.schemas.jsonplaceholder import RawPosts
+
+
+        @phlo_ingestion(
+            table_name="posts",
+            unique_key="id",
+            validation_schema=RawPosts,
+            group="jsonplaceholder",
+            cron="0 */1 * * *",
+            freshness_hours=(1, 24),
+            validate=False,
+        )
+        def posts(partition_date: str):
+            start_time = f\"{partition_date}T00:00:00.000Z\"
+            end_time = f\"{partition_date}T23:59:59.999Z\"
+            base_url = "https://jsonplaceholder.typicode.com"
+
+            return rest_api(
+                client={"base_url": base_url},
+                resources=[
+                    {
+                        "name": "posts",
+                        "endpoint": {
+                            "path": "posts",
+                            "params": {
+                                "start_date": start_time,
+                                "end_date": end_time,
+                            },
+                        },
+                    }
+                ],
+            )
+        """
+    ).lstrip()
+    _write_text(asset_file, content)
+
+
 def test_golden_path_e2e(tmp_path: Path) -> None:
     _require_e2e_flag()
     _ensure_docker_running()
@@ -176,11 +242,23 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
 
     project_name = "phlo-golden-path"
     project_dir = tmp_path / project_name
+    log_dir = tmp_path / "e2e-logs"
+    step_counter = 0
+
+    def _log_for(step: str) -> Path:
+        nonlocal step_counter
+        step_counter += 1
+        safe_step = step.replace(" ", "_").replace("/", "_")
+        return log_dir / f"{step_counter:02d}-{safe_step}.log"
+
+    def run_phlo_step(name: str, args: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
+        return _run_phlo(args, cwd=project_dir, log_path=_log_for(name), **kwargs)
 
     _run_phlo(
         ["init", project_name, "--template", "basic"],
         cwd=tmp_path,
         timeout=120,
+        log_path=_log_for("phlo_init"),
     )
 
     assert (project_dir / "pyproject.toml").exists()
@@ -196,15 +274,15 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
                 "PHLO_E2E_MODE=dev requires a local phlo checkout. "
                 f"Set {E2E_SOURCE_ENV}=/path/to/phlo."
             )
-        _run_phlo(
+        run_phlo_step(
+            "services_init_dev",
             ["services", "init", "--dev", "--phlo-source", str(phlo_source), "--force"],
-            cwd=project_dir,
             timeout=180,
         )
     else:
-        _run_phlo(
+        run_phlo_step(
+            "services_init_pypi",
             ["services", "init", "--no-dev", "--force"],
-            cwd=project_dir,
             timeout=180,
         )
 
@@ -216,7 +294,8 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
     assert (phlo_dir / ".gitignore").exists()
     assert (phlo_dir / "volumes").is_dir()
 
-    _run_phlo(
+    run_phlo_step(
+        "create_workflow",
         [
             "create-workflow",
             "--type",
@@ -238,7 +317,6 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             "--field",
             "body:str",
         ],
-        cwd=project_dir,
         timeout=60,
     )
 
@@ -253,6 +331,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
     assert schema_file.exists()
     assert asset_file.exists()
     assert "jsonplaceholder.typicode.com" in asset_file.read_text()
+    _write_jsonplaceholder_asset(asset_file)
 
     _write_text(
         project_dir / "transforms" / "dbt" / "profiles" / "profiles.yml",
@@ -355,15 +434,15 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         start_args = ["services", "start"]
         for name in services_to_start:
             start_args.extend(["--service", name])
-        _run_phlo(start_args, cwd=project_dir, timeout=600)
+        run_phlo_step("services_start_core", start_args, timeout=600)
 
         project = project_name
         for service in ["postgres", "minio", "nessie", "trino", "dagster"]:
             _wait_for_compose_service(project=project, service=service, timeout_seconds=420)
 
-        _run_phlo(
+        run_phlo_step(
+            "materialize_dlt_posts",
             ["materialize", "dlt_posts", "--partition", "2025-01-01"],
-            cwd=project_dir,
             timeout=1200,
         )
 
@@ -389,9 +468,9 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         finally:
             trino_conn.close()
 
-        _run_phlo(
+        run_phlo_step(
+            "materialize_posts_mart",
             ["materialize", "posts_mart", "--partition", "2025-01-01"],
-            cwd=project_dir,
             timeout=1200,
         )
 
@@ -410,9 +489,9 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         finally:
             trino_conn.close()
 
-        _run_phlo(
+        run_phlo_step(
+            "materialize_publish_marts",
             ["materialize", "publish_jsonplaceholder_marts", "--partition", "2025-01-01"],
-            cwd=project_dir,
             timeout=1200,
         )
 
@@ -450,7 +529,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             if name in optional
         ]
         for name in observability:
-            _run_phlo(["services", "add", name, "--no-start"], cwd=project_dir, timeout=120)
+            run_phlo_step(f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120)
             optional.remove(name)
 
         compose = yaml.safe_load((phlo_dir / "docker-compose.yml").read_text())
@@ -476,7 +555,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         assert "http://loki:3100/loki/api/v1/push" in alloy_config
 
         for name in optional:
-            _run_phlo(["services", "add", name, "--no-start"], cwd=project_dir, timeout=120)
+            run_phlo_step(f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120)
 
         enabled_config = yaml.safe_load((project_dir / "phlo.yaml").read_text())
         enabled = set(enabled_config.get("services", {}).get("enabled", []))
