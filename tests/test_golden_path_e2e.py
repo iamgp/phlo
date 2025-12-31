@@ -14,6 +14,8 @@ import yaml
 pytestmark = pytest.mark.integration
 
 E2E_FLAG = "PHLO_E2E"
+E2E_MODE_ENV = "PHLO_E2E_MODE"
+E2E_SOURCE_ENV = "PHLO_E2E_PHLO_SOURCE"
 
 
 def _run(
@@ -136,6 +138,20 @@ def _require_e2e_flag() -> None:
         pytest.skip(f"Set {E2E_FLAG}=1 to run the golden-path E2E test.")
 
 
+def _resolve_phlo_source() -> Path | None:
+    override = os.environ.get(E2E_SOURCE_ENV)
+    if override:
+        path = Path(override).expanduser().resolve()
+        if path.exists():
+            return path
+        return None
+
+    repo_root = Path(__file__).resolve().parents[1]
+    if (repo_root / "pyproject.toml").exists() and (repo_root / "src" / "phlo").exists():
+        return repo_root
+    return None
+
+
 def _ensure_materialize_command(project_dir: Path) -> None:
     result = _run_phlo(["materialize", "--help"], cwd=project_dir, check=False)
     if result.returncode != 0:
@@ -150,6 +166,9 @@ def _write_text(path: Path, content: str) -> None:
 def test_golden_path_e2e(tmp_path: Path) -> None:
     _require_e2e_flag()
     _ensure_docker_running()
+    mode = os.environ.get(E2E_MODE_ENV, "dev").strip().lower()
+    if mode not in {"dev", "pypi"}:
+        pytest.skip(f"{E2E_MODE_ENV} must be 'dev' or 'pypi'.")
     try:
         from trino.dbapi import connect as trino_connect  # noqa: F401
     except ImportError:
@@ -170,11 +189,24 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
     assert (project_dir / "workflows" / "schemas").is_dir()
     assert (project_dir / "transforms" / "dbt" / "dbt_project.yml").exists()
 
-    _run_phlo(
-        ["services", "init", "--no-dev", "--force"],
-        cwd=project_dir,
-        timeout=180,
-    )
+    if mode == "dev":
+        phlo_source = _resolve_phlo_source()
+        if not phlo_source:
+            pytest.skip(
+                "PHLO_E2E_MODE=dev requires a local phlo checkout. "
+                f"Set {E2E_SOURCE_ENV}=/path/to/phlo."
+            )
+        _run_phlo(
+            ["services", "init", "--dev", "--phlo-source", str(phlo_source), "--force"],
+            cwd=project_dir,
+            timeout=180,
+        )
+    else:
+        _run_phlo(
+            ["services", "init", "--no-dev", "--force"],
+            cwd=project_dir,
+            timeout=180,
+        )
 
     phlo_dir = project_dir / ".phlo"
     assert (project_dir / "phlo.yaml").exists()
