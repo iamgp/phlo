@@ -51,15 +51,16 @@ def _run(
             )
         )
     if check and result.returncode != 0:
-        raise AssertionError(
+        message = (
             "Command failed.\n"
             f"cwd: {cwd}\n"
             f"cmd: {' '.join(args)}\n"
             f"exit: {result.returncode}\n"
-            + (f"log: {log_path}\n" if log_path else "")
-            f"stdout:\n{result.stdout}\n"
-            f"stderr:\n{result.stderr}"
         )
+        if log_path:
+            message += f"log: {log_path}\n"
+        message += f"stdout:\n{result.stdout}\n" f"stderr:\n{result.stderr}"
+        raise AssertionError(message)
     return result
 
 
