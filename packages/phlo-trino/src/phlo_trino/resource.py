@@ -82,33 +82,48 @@ class TrinoResource:
 
 
 def _is_transient_trino_error(exc: Exception) -> bool:
-    message = str(exc).lower()
-    if "server_starting_up" in message:
-        return True
-    if any(
-        snippet in message
-        for snippet in (
-            "connection refused",
-            "failed to establish",
-            "temporarily unavailable",
-            "connection reset",
-            "connection aborted",
-            "timed out",
-        )
-    ):
-        return True
-    errno = getattr(exc, "errno", None)
-    if errno in {104, 111, 113}:
-        return True
-    error_code = getattr(exc, "error_code", None)
-    if error_code:
-        error_name = getattr(error_code, "name", None)
+    for error in _iter_exception_chain(exc):
+        message = str(error).lower()
+        if "server_starting_up" in message:
+            return True
+        if any(
+            snippet in message
+            for snippet in (
+                "connection refused",
+                "failed to establish",
+                "max retries exceeded",
+                "temporarily unavailable",
+                "connection reset",
+                "connection aborted",
+                "timed out",
+            )
+        ):
+            return True
+        errno = getattr(error, "errno", None)
+        if errno in {104, 111, 113}:
+            return True
+        error_code = getattr(error, "error_code", None)
+        if error_code:
+            error_name = getattr(error_code, "name", None)
+            if error_name and "server_starting_up" in str(error_name).lower():
+                return True
+            error_value = getattr(error_code, "code", None)
+            if error_value and "server_starting_up" in str(error_value).lower():
+                return True
+        error_name = getattr(error, "error_name", None)
         if error_name and "server_starting_up" in str(error_name).lower():
             return True
-        error_value = getattr(error_code, "code", None)
-        if error_value and "server_starting_up" in str(error_value).lower():
+        module_name = getattr(error.__class__, "__module__", "")
+        class_name = error.__class__.__name__.lower()
+        if module_name.startswith("urllib3") or module_name.startswith("requests"):
             return True
-    error_name = getattr(exc, "error_name", None)
-    if error_name and "server_starting_up" in str(error_name).lower():
-        return True
+        if "connectionerror" in class_name or "connection" in class_name:
+            return True
     return False
+
+
+def _iter_exception_chain(exc: Exception) -> Iterable[Exception]:
+    current: Exception | None = exc
+    while current is not None:
+        yield current
+        current = current.__cause__ or current.__context__
