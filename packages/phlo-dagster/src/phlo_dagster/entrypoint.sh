@@ -18,5 +18,18 @@ if [ "$PHLO_DEV_MODE" = "true" ] && [ -f /opt/phlo-dev/pyproject.toml ]; then
     echo "Dev mode: dependencies synced"
 fi
 
+# Create sitecustomize.py to suppress Dagster SupersessionWarning at Python startup
+# This runs before any Python script and filters out deprecated CLI warnings
+SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
+cat > "${SITE_PACKAGES}/sitecustomize.py" << 'EOF'
+# Phlo: Suppress Dagster deprecation warnings for deprecated CLI commands
+import warnings
+try:
+    from dagster import SupersessionWarning
+    warnings.filterwarnings("ignore", category=SupersessionWarning)
+except ImportError:
+    pass
+EOF
+
 # Execute the main command
 exec "$@"

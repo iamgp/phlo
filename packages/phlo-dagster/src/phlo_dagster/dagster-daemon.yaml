@@ -43,6 +43,7 @@ compose:
     DBT_PROJECT_DIR: /app/transforms/dbt
     SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
     PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
+    DISABLE_PANDERA_IMPORT_WARNING: "True"
   command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
   volumes:
     - ./dagster:/opt/dagster
