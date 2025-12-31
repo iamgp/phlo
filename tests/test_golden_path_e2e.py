@@ -152,6 +152,29 @@ def _ensure_docker_running() -> None:
         pytest.skip("Docker is not available or not running.")
 
 
+def _fix_ownership(path: Path) -> None:
+    if not path.exists():
+        return
+    uid = os.getuid()
+    gid = os.getgid()
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{path}:/work",
+            "alpine",
+            "sh",
+            "-c",
+            f"chown -R {uid}:{gid} /work || true",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
 def _require_e2e_flag() -> None:
     if os.environ.get(E2E_FLAG, "").lower() not in {"1", "true", "yes"}:
         pytest.skip(f"Set {E2E_FLAG}=1 to run the golden-path E2E test.")
@@ -453,20 +476,12 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         postgres_password = env_vars.get("POSTGRES_PASSWORD", "phlo")
         postgres_db = env_vars.get("POSTGRES_DB", "phlo")
 
-        trino_conn = trino_connect(
-            host="localhost",
-            port=trino_port,
-            user="dagster",
-            catalog="iceberg",
-            schema="raw",
-        )
-        try:
-            with trino_conn.cursor() as cursor:
-                cursor.execute("SELECT count(*) FROM posts")
-                rows = cursor.fetchall()
-                assert rows and rows[0][0] > 0
-        finally:
-            trino_conn.close()
+        from phlo_trino import TrinoResource
+
+        trino = TrinoResource(host="localhost", port=trino_port, catalog="iceberg")
+        trino.wait_ready(timeout=180, interval=2, schema="raw")
+        rows = trino.execute("SELECT count(*) FROM posts", schema="raw")
+        assert rows and rows[0][0] > 0
 
         run_phlo_step(
             "materialize_posts_mart",
@@ -474,20 +489,8 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             timeout=1200,
         )
 
-        trino_conn = trino_connect(
-            host="localhost",
-            port=trino_port,
-            user="dagster",
-            catalog="iceberg",
-            schema="marts",
-        )
-        try:
-            with trino_conn.cursor() as cursor:
-                cursor.execute("SELECT count(*) FROM posts_mart")
-                rows = cursor.fetchall()
-                assert rows and rows[0][0] > 0
-        finally:
-            trino_conn.close()
+        rows = trino.execute("SELECT count(*) FROM posts_mart", schema="marts")
+        assert rows and rows[0][0] > 0
 
         run_phlo_step(
             "materialize_publish_marts",
@@ -563,3 +566,4 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         assert enabled.issuperset(set(optional))
     finally:
         _run_phlo(stop_args, cwd=project_dir, timeout=300, check=False)
+        _fix_ownership(project_dir)

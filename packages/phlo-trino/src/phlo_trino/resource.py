@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+import time
 from typing import Iterable
 
 from trino.dbapi import connect
@@ -56,3 +57,58 @@ class TrinoResource:
             if cursor.description is None:
                 return []
             return cursor.fetchall()
+
+    def wait_ready(
+        self,
+        *,
+        timeout: float = 60.0,
+        interval: float = 1.0,
+        schema: str | None = None,
+    ) -> None:
+        """Wait for Trino to accept queries, retrying on startup/connection errors."""
+        deadline = time.monotonic() + timeout
+        last_error: Exception | None = None
+        interval = max(interval, 0.0)
+        while time.monotonic() < deadline:
+            try:
+                self.execute("SELECT 1", schema=schema)
+                return
+            except Exception as exc:  # noqa: BLE001 - surface real error after timeout
+                if not _is_transient_trino_error(exc):
+                    raise
+                last_error = exc
+                time.sleep(interval)
+        raise TimeoutError(f"Trino not ready after {timeout:.1f}s") from last_error
+
+
+def _is_transient_trino_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    if "server_starting_up" in message:
+        return True
+    if any(
+        snippet in message
+        for snippet in (
+            "connection refused",
+            "failed to establish",
+            "temporarily unavailable",
+            "connection reset",
+            "connection aborted",
+            "timed out",
+        )
+    ):
+        return True
+    errno = getattr(exc, "errno", None)
+    if errno in {104, 111, 113}:
+        return True
+    error_code = getattr(exc, "error_code", None)
+    if error_code:
+        error_name = getattr(error_code, "name", None)
+        if error_name and "server_starting_up" in str(error_name).lower():
+            return True
+        error_value = getattr(error_code, "code", None)
+        if error_value and "server_starting_up" in str(error_value).lower():
+            return True
+    error_name = getattr(exc, "error_name", None)
+    if error_name and "server_starting_up" in str(error_name).lower():
+        return True
+    return False
