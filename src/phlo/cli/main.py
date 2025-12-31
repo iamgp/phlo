@@ -384,6 +384,10 @@ profile: phlo
 model-paths: ["models"]
 seed-paths: ["seeds"]
 
+# Opt into new SSL behavior to suppress trino-dbt SSL warning
+flags:
+  require_certificate_validation: true
+
 models:
   {project_name.replace("-", "_")}:
     +materialized: table

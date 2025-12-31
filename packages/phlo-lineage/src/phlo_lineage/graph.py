@@ -244,25 +244,16 @@ def get_lineage_graph() -> LineageGraph:
 
 
 def _build_lineage_from_dagster() -> LineageGraph:
-    """Build lineage graph from Dagster instance."""
+    """Build lineage graph from Dagster instance.
+
+    Note: This method builds an empty graph that can be populated manually.
+    Full Dagster integration requires accessing the running Dagster instance's
+    GraphQL API or Definitions object directly, which is not available here.
+    """
     graph = LineageGraph()
 
-    try:
-        from dagster import DagsterInstance
-
-        instance = DagsterInstance.get()
-
-        # Get all assets
-        all_assets = instance.all_asset_definitions()
-        for asset_key in all_assets or []:
-            asset_name = asset_key.name if hasattr(asset_key, "name") else str(asset_key)
-            graph.add_asset(asset_name)
-
-        # Get dependencies - this is a simplified version
-        # In production, you'd query the Dagster definitions more comprehensively
-        # For now, we'll return an empty graph that can be populated manually
-
-    except Exception as e:
-        logger.warning(f"Failed to build lineage from Dagster: {e}")
+    # Return empty graph - lineage is built dynamically when
+    # running within the Dagster context where Definitions are available
+    logger.debug("Lineage graph initialized (empty - populate via Dagster context)")
 
     return graph

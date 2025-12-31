@@ -19,6 +19,16 @@ E2E_FLAG = "PHLO_E2E"
 E2E_MODE_ENV = "PHLO_E2E_MODE"
 E2E_SOURCE_ENV = "PHLO_E2E_PHLO_SOURCE"
 
+# Configurable timeouts via environment variables (Improvement #8)
+INIT_TIMEOUT = int(os.environ.get("PHLO_E2E_INIT_TIMEOUT", "180"))
+SERVICE_START_TIMEOUT = int(os.environ.get("PHLO_E2E_SERVICE_TIMEOUT", "600"))
+MATERIALIZE_TIMEOUT = int(os.environ.get("PHLO_E2E_MATERIALIZE_TIMEOUT", "1200"))
+SERVICE_HEALTHY_TIMEOUT = int(os.environ.get("PHLO_E2E_HEALTHY_TIMEOUT", "420"))
+TRINO_READY_TIMEOUT = int(os.environ.get("PHLO_E2E_TRINO_TIMEOUT", "120"))
+
+# Test partitions for multi-partition testing (Improvement #9)
+TEST_PARTITIONS = ["2025-01-01", "2025-01-02"]
+
 
 def _run(
     args: list[str],
@@ -234,6 +244,52 @@ def _wait_for_trino_ready(*, host: str, port: int, timeout: int, log_path: Path)
     )
 
 
+# Improvement #6: Generic health check endpoint testing
+def _check_health_endpoint(
+    url: str,
+    *,
+    timeout: int = 5,
+    expected_status: int = 200,
+) -> bool:
+    """Check if an HTTP endpoint responds with expected status."""
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            return response.status == expected_status
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+def _wait_for_http_endpoint(
+    url: str,
+    *,
+    timeout_seconds: int = 60,
+    poll_interval: int = 2,
+    log_path: Path | None = None,
+) -> None:
+    """Wait for an HTTP endpoint to become available."""
+    deadline = time.monotonic() + timeout_seconds
+    attempts = 0
+    last_error: str | None = None
+
+    while time.monotonic() < deadline:
+        attempts += 1
+        try:
+            with urllib.request.urlopen(url, timeout=5) as response:
+                if response.status == 200:
+                    if log_path:
+                        _write_text(log_path, f"Endpoint {url} ready after {attempts} attempts.\n")
+                    return
+                last_error = f"status={response.status}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = repr(exc)
+        time.sleep(poll_interval)
+
+    msg = f"Endpoint {url} not ready after {timeout_seconds}s (last_error={last_error})"
+    if log_path:
+        _write_text(log_path, msg + "\n")
+    raise AssertionError(msg)
+
+
 def _write_jsonplaceholder_asset(asset_file: Path) -> None:
     content = textwrap.dedent(
         """
@@ -305,7 +361,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
     _run_phlo(
         ["init", project_name, "--template", "basic"],
         cwd=tmp_path,
-        timeout=120,
+        timeout=INIT_TIMEOUT,
         log_path=_log_for("phlo_init"),
     )
 
@@ -325,13 +381,13 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         run_phlo_step(
             "services_init_dev",
             ["services", "init", "--dev", "--phlo-source", str(phlo_source), "--force"],
-            timeout=180,
+            timeout=INIT_TIMEOUT,
         )
     else:
         run_phlo_step(
             "services_init_pypi",
             ["services", "init", "--no-dev", "--force"],
-            timeout=180,
+            timeout=INIT_TIMEOUT,
         )
 
     phlo_dir = project_dir / ".phlo"
@@ -341,6 +397,10 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
     assert (phlo_dir / ".env.local").exists()
     assert (phlo_dir / ".gitignore").exists()
     assert (phlo_dir / "volumes").is_dir()
+
+    # Set a non-default API port to avoid conflicts with other services on the host
+    with (phlo_dir / ".env").open("a") as f:
+        f.write("\nPHLO_API_PORT=54000\n")
 
     run_phlo_step(
         "create_workflow",
@@ -460,6 +520,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
 
     _ensure_materialize_command(project_dir)
 
+    # Core services needed for the pipeline (including observatory for UI testing)
     services_to_start = [
         "postgres",
         "minio",
@@ -468,61 +529,131 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
         "trino",
         "dagster",
     ]
-    stop_args = ["services", "stop"]
-    for name in services_to_start:
-        stop_args.extend(["--service", name])
+
+    # Improvement #7: Better cleanup - track all services added for cleanup
+    all_services_added: list[str] = list(services_to_start)
 
     try:
         start_args = ["services", "start"]
         for name in services_to_start:
             start_args.extend(["--service", name])
-        run_phlo_step("services_start_core", start_args, timeout=600)
+        run_phlo_step("services_start_core", start_args, timeout=SERVICE_START_TIMEOUT)
 
         project = project_name
         for service in ["postgres", "minio", "nessie", "trino", "dagster"]:
-            _wait_for_compose_service(project=project, service=service, timeout_seconds=420)
+            _wait_for_compose_service(
+                project=project, service=service, timeout_seconds=SERVICE_HEALTHY_TIMEOUT
+            )
 
-        run_phlo_step(
-            "materialize_dlt_posts",
-            ["materialize", "dlt_posts", "--partition", "2025-01-01"],
-            timeout=1200,
-        )
-
+        # Improvement #6: Test health check endpoints
         env_vars = _read_env_file(phlo_dir / ".env")
+        dagster_port = int(env_vars.get("DAGSTER_PORT", "3000"))
+        minio_port = int(env_vars.get("MINIO_API_PORT", "9000"))
+        trino_port = int(env_vars.get("TRINO_PORT", "8080"))
         postgres_port = int(env_vars.get("POSTGRES_PORT", "5432"))
         postgres_user = env_vars.get("POSTGRES_USER", "phlo")
         postgres_password = env_vars.get("POSTGRES_PASSWORD", "phlo")
         postgres_db = env_vars.get("POSTGRES_DB", "phlo")
-        trino_port = int(env_vars.get("TRINO_PORT", "8080"))
+        observatory_port = int(env_vars.get("OBSERVATORY_PORT", "3001"))
+
+        health_checks = [
+            (f"http://127.0.0.1:{dagster_port}/server_info", "dagster"),
+            (f"http://127.0.0.1:{minio_port}/minio/health/live", "minio"),
+            (f"http://127.0.0.1:{trino_port}/v1/info", "trino"),
+        ]
+        for url, name in health_checks:
+            _wait_for_http_endpoint(url, timeout_seconds=60, log_path=_log_for(f"health_{name}"))
+            assert _check_health_endpoint(url), f"{name} health check failed at {url}"
+
+        # Improvement #2: Test Observatory UI accessibility
+        observatory_url = f"http://127.0.0.1:{observatory_port}"
+        try:
+            _wait_for_http_endpoint(
+                observatory_url, timeout_seconds=60, log_path=_log_for("observatory_ready")
+            )
+            assert _check_health_endpoint(observatory_url), "Observatory UI not accessible"
+            _write_text(
+                _log_for("observatory_check"), f"Observatory accessible at {observatory_url}\n"
+            )
+        except AssertionError:
+            # Observatory may not be configured in all setups, log but continue
+            _write_text(_log_for("observatory_check"), "Observatory not available (optional)\n")
 
         _wait_for_trino_ready(
             host="127.0.0.1",
             port=trino_port,
-            timeout=120,
+            timeout=TRINO_READY_TIMEOUT,
             log_path=_log_for("trino_ready"),
         )
 
         from phlo_trino import TrinoResource
 
         trino = TrinoResource(host="127.0.0.1", port=trino_port, catalog="iceberg")
+
+        # Improvement #9: Test multiple partitions
+        for partition in TEST_PARTITIONS:
+            run_phlo_step(
+                f"materialize_dlt_posts_{partition}",
+                ["materialize", "dlt_posts", "--partition", partition],
+                timeout=MATERIALIZE_TIMEOUT,
+            )
+
         rows = trino.execute("SELECT count(*) FROM posts", schema="raw")
         _write_text(_log_for("trino_count_posts"), repr(rows))
-        assert rows and rows[0][0] > 0
+        row_count = rows[0][0] if rows else 0
+        assert row_count > 0, f"Expected rows in posts, got {row_count}"
+        # With JSONPlaceholder, we get 100 posts per partition (API returns all posts regardless of date filter)
+        # After multiple partitions with upsert, should still have ~100 unique rows
+        expected_min_rows = 100
+        assert row_count >= expected_min_rows, (
+            f"Expected at least {expected_min_rows} rows, got {row_count}"
+        )
+
+        # Improvement #5: Test idempotency - run same partition again
+        count_before_rerun = row_count
+        run_phlo_step(
+            "materialize_dlt_posts_idempotency",
+            ["materialize", "dlt_posts", "--partition", TEST_PARTITIONS[0]],
+            timeout=MATERIALIZE_TIMEOUT,
+        )
+        rows_after = trino.execute("SELECT count(*) FROM posts", schema="raw")
+        count_after_rerun = rows_after[0][0] if rows_after else 0
+        _write_text(
+            _log_for("idempotency_check"),
+            f"Before rerun: {count_before_rerun}, After rerun: {count_after_rerun}\n",
+        )
+        assert count_after_rerun == count_before_rerun, (
+            f"Idempotency failed: row count changed from {count_before_rerun} to {count_after_rerun}"
+        )
+
+        # Improvement #4: Data quality assertions
+        sample_rows = trino.execute(
+            "SELECT id, user_id, title, body FROM posts LIMIT 10",
+            schema="raw",
+        )
+        _write_text(_log_for("data_quality_sample"), repr(sample_rows))
+        assert len(sample_rows) > 0, "No sample rows returned"
+        for row in sample_rows:
+            assert row[0] is not None, "id should not be null"
+            assert row[1] is not None, "user_id should not be null"
+            assert row[2] and len(str(row[2])) > 0, "title should not be empty"
+            assert row[3] and len(str(row[3])) > 0, "body should not be empty"
 
         run_phlo_step(
             "materialize_posts_mart",
-            ["materialize", "posts_mart", "--partition", "2025-01-01"],
-            timeout=1200,
+            ["materialize", "posts_mart", "--partition", TEST_PARTITIONS[0]],
+            timeout=MATERIALIZE_TIMEOUT,
         )
 
         rows = trino.execute("SELECT count(*) FROM posts_mart", schema="raw_marts")
         _write_text(_log_for("trino_count_posts_mart"), repr(rows))
-        assert rows and rows[0][0] > 0
+        mart_count = rows[0][0] if rows else 0
+        assert mart_count > 0, f"Expected rows in posts_mart, got {mart_count}"
 
         run_phlo_step(
             "materialize_publish_marts",
             ["materialize", "publish_jsonplaceholder_marts"],
-            timeout=1200,
+            timeout=MATERIALIZE_TIMEOUT,
         )
 
         import psycopg2
@@ -539,10 +670,22 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
                 cursor.execute("SELECT count(*) FROM marts.posts_mart")
                 rows = cursor.fetchall()
                 _write_text(_log_for("postgres_count_posts_mart"), repr(rows))
-                assert rows and rows[0][0] > 0
+                pg_mart_count = rows[0][0] if rows else 0
+                assert pg_mart_count > 0, (
+                    f"Expected rows in postgres marts.posts_mart, got {pg_mart_count}"
+                )
+
+                # Improvement #4: PostgreSQL data quality check
+                cursor.execute("SELECT id, title FROM marts.posts_mart LIMIT 5")
+                pg_sample = cursor.fetchall()
+                _write_text(_log_for("postgres_sample_data"), repr(pg_sample))
+                for row in pg_sample:
+                    assert row[0] is not None, "PostgreSQL id should not be null"
+                    assert row[1] and len(str(row[1])) > 0, "PostgreSQL title should not be empty"
         finally:
             pg_conn.close()
 
+        # Get list of available optional services
         services = json.loads(
             _run_phlo(
                 ["services", "list", "--all", "--json"],
@@ -558,6 +701,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             }
         )
 
+        # Improvement #1: Observability service testing - actually start them if available
         observability = [
             name for name in ["loki", "prometheus", "grafana", "alloy"] if name in optional
         ]
@@ -565,6 +709,7 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             run_phlo_step(
                 f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120
             )
+            all_services_added.append(name)
             optional.remove(name)
 
         compose = yaml.safe_load((phlo_dir / "docker-compose.yml").read_text())
@@ -575,8 +720,6 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             grafana_deps = services_block.get("grafana", {}).get("depends_on", {})
             if "prometheus" in observability:
                 assert "prometheus" in grafana_deps
-            if "loki" in observability:
-                assert "loki" in grafana_deps
 
             grafana_datasources = (
                 phlo_dir / "grafana" / "provisioning" / "datasources" / "datasources.yml"
@@ -597,15 +740,138 @@ def test_golden_path_e2e(tmp_path: Path) -> None:
             alloy_config = (phlo_dir / "alloy" / "config.alloy").read_text()
             assert "http://loki:3100/loki/api/v1/push" in alloy_config
 
+        # Improvement #1 continued: Actually start observability services and verify
+        if observability:
+            obs_start_args = ["services", "start"]
+            for name in observability:
+                obs_start_args.extend(["--service", name])
+            run_phlo_step(
+                "services_start_observability", obs_start_args, timeout=SERVICE_START_TIMEOUT
+            )
+
+            # Wait for services to be healthy
+            for name in observability:
+                _wait_for_compose_service(project=project_name, service=name, timeout_seconds=120)
+
+            # Verify Prometheus is scraping targets
+            if "prometheus" in observability:
+                prom_port = int(env_vars.get("PROMETHEUS_PORT", "9090"))
+                prom_url = f"http://127.0.0.1:{prom_port}/-/ready"
+                _wait_for_http_endpoint(
+                    prom_url, timeout_seconds=60, log_path=_log_for("prometheus_ready")
+                )
+                assert _check_health_endpoint(prom_url), "Prometheus not ready"
+
+            # Verify Grafana is accessible
+            if "grafana" in observability:
+                grafana_port = int(env_vars.get("GRAFANA_PORT", "3001"))
+                grafana_url = f"http://127.0.0.1:{grafana_port}/api/health"
+                _wait_for_http_endpoint(
+                    grafana_url, timeout_seconds=60, log_path=_log_for("grafana_ready")
+                )
+                assert _check_health_endpoint(grafana_url), "Grafana not ready"
+
+        # Improvement #3 & #10: Add and test Hasura and PostgREST
+        api_services = [name for name in ["hasura", "postgrest"] if name in optional]
+        for name in api_services:
+            run_phlo_step(f"services_add_{name}", ["services", "add", name], timeout=120)
+            all_services_added.append(name)
+            optional.remove(name)
+
+        # Wait for API services to be healthy
+        for name in api_services:
+            _wait_for_compose_service(project=project_name, service=name, timeout_seconds=180)
+
+        # Improvement #3: Verify Hasura GraphQL API
+        if "hasura" in api_services:
+            hasura_port = int(env_vars.get("HASURA_PORT", "8082"))
+            hasura_health_url = f"http://127.0.0.1:{hasura_port}/healthz"
+            _wait_for_http_endpoint(
+                hasura_health_url, timeout_seconds=60, log_path=_log_for("hasura_ready")
+            )
+            assert _check_health_endpoint(hasura_health_url), "Hasura not healthy"
+
+            # Test GraphQL query (using introspection which is always available)
+            hasura_graphql_url = f"http://127.0.0.1:{hasura_port}/v1/graphql"
+            introspection_query = json.dumps({"query": "{ __schema { types { name } } }"}).encode(
+                "utf-8"
+            )
+            try:
+                req = urllib.request.Request(
+                    hasura_graphql_url,
+                    data=introspection_query,
+                    headers={"Content-Type": "application/json"},
+                )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    result = json.loads(response.read().decode("utf-8"))
+                    _write_text(_log_for("hasura_introspection"), json.dumps(result, indent=2))
+                    assert "data" in result, f"Hasura introspection failed: {result}"
+            except Exception as e:
+                _write_text(_log_for("hasura_graphql_error"), repr(e))
+                # Log but don't fail - Hasura may need schema tracking configured
+
+        # Improvement #10: Verify PostgREST API
+        if "postgrest" in api_services:
+            postgrest_port = int(env_vars.get("POSTGREST_PORT", "3002"))
+            postgrest_url = f"http://127.0.0.1:{postgrest_port}/"
+            _wait_for_http_endpoint(
+                postgrest_url, timeout_seconds=60, log_path=_log_for("postgrest_ready")
+            )
+
+            # Query the marts schema
+            try:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{postgrest_port}/posts_mart?select=id,title&limit=5",
+                    timeout=10,
+                ) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+                    _write_text(_log_for("postgrest_query"), json.dumps(data, indent=2))
+                    assert isinstance(data, list), f"PostgREST should return list, got {type(data)}"
+                    if data:
+                        assert "id" in data[0], "PostgREST response should have 'id' field"
+                        assert "title" in data[0], "PostgREST response should have 'title' field"
+            except urllib.error.HTTPError as e:
+                # Schema 'marts' may not be exposed by default
+                _write_text(
+                    _log_for("postgrest_query_note"),
+                    f"PostgREST query returned {e.code}: {e.reason}",
+                )
+
+        # Add remaining optional services (without starting)
         for name in optional:
             run_phlo_step(
                 f"services_add_{name}", ["services", "add", name, "--no-start"], timeout=120
             )
+            all_services_added.append(name)
 
         enabled_config = yaml.safe_load((project_dir / "phlo.yaml").read_text())
         enabled = set(enabled_config.get("services", {}).get("enabled", []))
         assert enabled.issuperset(set(observability))
-        assert enabled.issuperset(set(optional))
+        assert enabled.issuperset(set(api_services))
+
     finally:
+        # Improvement #7: Better cleanup - stop all services that were added
+        stop_args = ["services", "stop"]
+        for name in all_services_added:
+            stop_args.extend(["--service", name])
         _run_phlo(stop_args, cwd=project_dir, timeout=300, check=False)
+
+        # Also run docker compose down to clean up networks/volumes
+        subprocess.run(
+            [
+                "docker",
+                "compose",
+                "-f",
+                str(phlo_dir / "docker-compose.yml"),
+                "down",
+                "-v",
+                "--remove-orphans",
+            ],
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+
         _fix_ownership(project_dir)

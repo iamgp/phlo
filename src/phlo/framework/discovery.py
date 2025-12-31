@@ -11,12 +11,20 @@ from __future__ import annotations
 import importlib.util
 import logging
 import sys
+import warnings
 from pathlib import Path
 from typing import Any
 
 import dagster as dg
 
 logger = logging.getLogger(__name__)
+
+# Suppress Dagster preview warnings for stable API usage
+warnings.filterwarnings(
+    "ignore",
+    message=".*is currently in preview.*",
+    category=UserWarning,
+)
 
 
 def discover_user_workflows(
