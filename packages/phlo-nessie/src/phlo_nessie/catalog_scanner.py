@@ -145,7 +145,9 @@ class NessieTableScanner:
         try:
             rows = trino.execute(f"DESCRIBE {namespace}.{table_name}")
         except Exception as exc:  # noqa: BLE001 - log and return None
-            logger.warning("Failed to describe table %s.%s via Trino: %s", namespace, table_name, exc)
+            logger.warning(
+                "Failed to describe table %s.%s via Trino: %s", namespace, table_name, exc
+            )
             return None
         fields = []
         for row in rows:
@@ -191,10 +193,7 @@ class NessieTableScanner:
             if isinstance(schemas, list):
                 if isinstance(current_schema_id, int):
                     for entry in schemas:
-                        if (
-                            isinstance(entry, dict)
-                            and entry.get("schema-id") == current_schema_id
-                        ):
+                        if isinstance(entry, dict) and entry.get("schema-id") == current_schema_id:
                             schema = entry
                             break
                 if schema is None and schemas:

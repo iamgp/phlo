@@ -209,9 +209,7 @@ class QualityCheckMapper:
         if isinstance(check, CountCheck):
             return "count_check"
         if isinstance(check, FreshnessCheck):
-            return QualityCheckMapper._sanitize_name(
-                f"freshness_check_{check.timestamp_column}"
-            )
+            return QualityCheckMapper._sanitize_name(f"freshness_check_{check.timestamp_column}")
         if isinstance(check, CustomSQLCheck):
             return QualityCheckMapper._sanitize_name(check.name_)
         return QualityCheckMapper._sanitize_name(type(check).__name__.lower())

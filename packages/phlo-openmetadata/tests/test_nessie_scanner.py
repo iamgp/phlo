@@ -144,7 +144,7 @@ class TestNessieTableScanner:
         assert om_table.description == "Glucose sensor readings"
         assert len(om_table.columns) == 2
         assert om_table.columns[0].name == "id"
-        assert om_table.columns[0].dataType == "LONG"
+        assert om_table.columns[0].dataType == "BIGINT"
         assert om_table.location == "s3://lake/warehouse/bronze/glucose_entries"
 
     @patch.object(NessieTableScanner, "get_table_metadata")
