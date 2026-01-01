@@ -124,8 +124,14 @@ class ComposeGenerator:
         else:
             config["restart"] = "unless-stopped"
 
+        if compose.get("user"):
+            config["user"] = compose["user"]
+
         if compose.get("container_name"):
             config["container_name"] = compose["container_name"]
+
+        if compose.get("labels"):
+            config["labels"] = compose["labels"]
 
         if compose.get("environment"):
             config["environment"] = compose["environment"]
