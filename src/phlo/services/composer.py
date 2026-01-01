@@ -185,11 +185,10 @@ class ComposeGenerator:
             for dep in service.depends_on:
                 dep_service = self.discovery.get_service(dep)
                 if dep_service:
-                    # Check if dependency has healthcheck
-                    if dep_service.compose.get("healthcheck"):
-                        depends_config[dep] = {"condition": "service_healthy"}
-                    elif dep == "minio-setup":
+                    if dep.endswith("-setup"):
                         depends_config[dep] = {"condition": "service_completed_successfully"}
+                    elif dep_service.compose.get("healthcheck"):
+                        depends_config[dep] = {"condition": "service_healthy"}
                     else:
                         depends_config[dep] = {"condition": "service_started"}
             if depends_config:

@@ -1,0 +1,32 @@
+name: openmetadata-setup
+description: OpenMetadata database migrations
+category: catalog
+default: false
+profile: openmetadata
+
+depends_on:
+  - openmetadata-mysql
+  - openmetadata-elasticsearch
+
+image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.9.7}
+
+compose:
+  restart: "no"
+  command: "./bootstrap/openmetadata-ops.sh migrate"
+  environment:
+    OPENMETADATA_CLUSTER_NAME: ${OPENMETADATA_CLUSTER_NAME:-openmetadata}
+    SERVER_PORT: ${OPENMETADATA_PORT:-8585}
+    SERVER_ADMIN_PORT: ${OPENMETADATA_ADMIN_PORT:-8586}
+    LOG_LEVEL: ${OPENMETADATA_LOG_LEVEL:-INFO}
+    DB_DRIVER_CLASS: ${OPENMETADATA_DB_DRIVER_CLASS:-com.mysql.cj.jdbc.Driver}
+    DB_SCHEME: ${OPENMETADATA_DB_SCHEME:-mysql}
+    DB_PARAMS: ${OPENMETADATA_DB_PARAMS:-allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC}
+    DB_USER: ${OPENMETADATA_DB_USER:-openmetadata_user}
+    DB_USER_PASSWORD: ${OPENMETADATA_DB_PASSWORD:-openmetadata_password}
+    DB_HOST: ${OPENMETADATA_DB_HOST:-openmetadata-mysql}
+    DB_PORT: ${OPENMETADATA_DB_PORT:-3306}
+    OM_DATABASE: ${OPENMETADATA_DB_NAME:-openmetadata_db}
+    ELASTICSEARCH_HOST: ${OPENMETADATA_ES_HOST:-openmetadata-elasticsearch}
+    ELASTICSEARCH_PORT: ${OPENMETADATA_ES_PORT:-9200}
+    ELASTICSEARCH_SCHEME: ${OPENMETADATA_ES_SCHEME:-http}
+    SEARCH_TYPE: ${OPENMETADATA_SEARCH_TYPE:-elasticsearch}
