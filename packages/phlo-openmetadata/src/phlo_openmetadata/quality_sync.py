@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -72,9 +73,11 @@ class QualityCheckMapper:
         return {
             "name": test_name,
             "displayName": test_name,
-            "testType": om_test_type,
             "description": cls._get_test_description(check),
+            "entityType": cls._get_entity_type(check),
             "parameterDefinition": cls._get_parameter_definition(check),
+            "testPlatforms": ["OpenMetadata"],
+            "testType": om_test_type,
         }
 
     @classmethod
@@ -102,11 +105,14 @@ class QualityCheckMapper:
             table_name = table_fqn.split(".")[-1]
             test_suite_name = f"{table_name}_quality_suite"
 
+        test_suite_name = cls._sanitize_name(test_suite_name)
+        test_case_name = f"{cls._sanitize_name(table_fqn)}_{cls._sanitize_name(test_name)}"
+
         return {
-            "name": f"{table_fqn}_{test_name}",
-            "entityLink": f"<#{table_fqn}>",
+            "name": test_case_name,
+            "entityLink": cls._get_entity_link(check, table_fqn),
             "testDefinition": {
-                "name": test_name,
+                "name": cls._sanitize_name(test_name),
                 "type": "testDefinition",
             },
             "testSuite": {
@@ -172,17 +178,17 @@ class QualityCheckMapper:
             dbt_test.get("type") or dbt_test.get("test_metadata", {}).get("name") or "unknown"
         )
 
-        test_def_name = f"dbt_{test_type}"
+        test_def_name = cls._sanitize_name(f"dbt_{test_type}")
 
         return {
-            "name": f"{table_fqn}_dbt_{test_name}",
-            "entityLink": f"<#{table_fqn}>",
+            "name": f"{cls._sanitize_name(table_fqn)}_dbt_{cls._sanitize_name(test_name)}",
+            "entityLink": cls._build_entity_link(table_fqn, None),
             "testDefinition": {
                 "name": test_def_name,
                 "type": "testDefinition",
             },
             "testSuite": {
-                "name": f"{table_fqn.split('.')[-1]}_dbt_suite",
+                "name": cls._sanitize_name(f"{table_fqn.split('.')[-1]}_dbt_suite"),
                 "type": "testSuite",
             },
             "parameterValues": cls._get_dbt_test_parameters(dbt_test),
@@ -193,20 +199,55 @@ class QualityCheckMapper:
     def _get_test_name(check: Any) -> str:
         """Generate OpenMetadata-friendly test name from check."""
         if isinstance(check, NullCheck):
-            cols = "+".join(check.columns)
-            return f"null_check_{cols}"
+            cols = "_".join(check.columns)
+            return QualityCheckMapper._sanitize_name(f"null_check_{cols}")
         if isinstance(check, RangeCheck):
-            return f"range_check_{check.column}"
+            return QualityCheckMapper._sanitize_name(f"range_check_{check.column}")
         if isinstance(check, UniqueCheck):
-            cols = "+".join(check.columns)
-            return f"unique_check_{cols}"
+            cols = "_".join(check.columns)
+            return QualityCheckMapper._sanitize_name(f"unique_check_{cols}")
         if isinstance(check, CountCheck):
             return "count_check"
         if isinstance(check, FreshnessCheck):
-            return f"freshness_check_{check.timestamp_column}"
+            return QualityCheckMapper._sanitize_name(
+                f"freshness_check_{check.timestamp_column}"
+            )
         if isinstance(check, CustomSQLCheck):
-            return check.name_
-        return type(check).__name__.lower()
+            return QualityCheckMapper._sanitize_name(check.name_)
+        return QualityCheckMapper._sanitize_name(type(check).__name__.lower())
+
+    @staticmethod
+    def _sanitize_name(value: str) -> str:
+        """Sanitize entity names for OpenMetadata compatibility."""
+        cleaned = re.sub(r"[^A-Za-z0-9_]", "_", value).strip("_")
+        return cleaned or "phlo"
+
+    @staticmethod
+    def _build_entity_link(table_fqn: str, column: str | None) -> str:
+        if column:
+            return f"<#E::table::{table_fqn}::columns::{column}>"
+        return f"<#E::table::{table_fqn}>"
+
+    @classmethod
+    def _get_entity_link(cls, check: Any, table_fqn: str) -> str:
+        column: str | None = None
+        if isinstance(check, NullCheck) and len(check.columns) == 1:
+            column = check.columns[0]
+        elif isinstance(check, RangeCheck):
+            column = check.column
+        elif isinstance(check, FreshnessCheck):
+            column = check.timestamp_column
+        elif isinstance(check, UniqueCheck) and len(check.columns) == 1:
+            column = check.columns[0]
+        return cls._build_entity_link(table_fqn, column)
+
+    @staticmethod
+    def _get_entity_type(check: Any) -> str:
+        if isinstance(check, (NullCheck, RangeCheck, FreshnessCheck)):
+            return "COLUMN"
+        if isinstance(check, UniqueCheck) and len(check.columns) == 1:
+            return "COLUMN"
+        return "TABLE"
 
     @staticmethod
     def _get_test_description(check: Any) -> str:
@@ -340,8 +381,11 @@ class QualityCheckPublisher:
                 # Create test definition (idempotent)
                 self.om_client.create_test_definition(
                     test_name=test_def["name"],
-                    test_type=test_def["testType"],
+                    test_type=test_def.get("testType"),
                     description=test_def.get("description"),
+                    entity_type=test_def.get("entityType"),
+                    parameter_definition=test_def.get("parameterDefinition"),
+                    test_platforms=test_def.get("testPlatforms"),
                 )
 
                 logger.info(f"Published test definition: {test_def['name']}")
@@ -386,6 +430,8 @@ class QualityCheckPublisher:
                         p["name"]: p["value"] for p in test_case.get("parameterValues", [])
                     },
                     description=test_case.get("description"),
+                    entity_link=test_case.get("entityLink"),
+                    test_suite_name=test_case.get("testSuite", {}).get("name"),
                 )
 
                 logger.info(f"Published test case: {test_case['name']}")
@@ -472,6 +518,8 @@ class QualityCheckPublisher:
                         p["name"]: p["value"] for p in test_case.get("parameterValues", [])
                     },
                     description=test_case.get("description"),
+                    entity_link=test_case.get("entityLink"),
+                    test_suite_name=test_case.get("testSuite", {}).get("name"),
                 )
 
                 logger.info(f"Published dbt test case: {test_case['name']}")

@@ -534,6 +534,31 @@ def openmetadata_login(base_url: str, *, username: str, password: str) -> str | 
     return None
 
 
+def openmetadata_get_with_fallback(
+    urls: list[str],
+    *,
+    token: str | None,
+    username: str,
+    password: str,
+    timeout: int = 30,
+) -> dict | list | str | None:
+    """GET the first available OpenMetadata endpoint."""
+    last_error: urllib.error.HTTPError | None = None
+    for url in urls:
+        try:
+            if token:
+                return http_get_bearer(url, token=token, timeout=timeout)
+            return http_get_basic(url, username=username, password=password, timeout=timeout)
+        except urllib.error.HTTPError as exc:
+            if exc.code in (404, 405):
+                last_error = exc
+                continue
+            raise
+    if last_error:
+        return None
+    return None
+
+
 def read_env_file(path: Path) -> dict[str, str]:
     """Read a .env file into a dict."""
     data: dict[str, str] = {}
@@ -1300,10 +1325,13 @@ def main() -> int:
                 om_user = env_vars.get("OPENMETADATA_USERNAME", "admin")
                 om_pass = env_vars.get("OPENMETADATA_PASSWORD", "admin")
                 table_fqn = f"{om_service}.{om_database}.raw_marts.posts_mart"
+                source_fqn = f"{om_service}.{om_database}.raw.posts"
                 table_url = (
                     f"http://127.0.0.1:{openmetadata_port}/api/v1/tables/name/"
                     f"{urllib.parse.quote(table_fqn, safe='')}"
                 )
+                table: dict | list | str | None = None
+                om_token: str | None = None
                 try:
                     om_token = openmetadata_login(
                         f"http://127.0.0.1:{openmetadata_port}",
@@ -1325,6 +1353,179 @@ def main() -> int:
                         log_warning(f"OpenMetadata table lookup returned: {table}")
                 except Exception as e:
                     log_warning(f"OpenMetadata table verification failed: {e}")
+
+                # Emit lineage + quality events to verify OpenMetadata hooks
+                log_info("Emitting OpenMetadata lineage + quality smoke events...")
+                emit_code = textwrap.dedent(
+                    f"""
+                    from phlo.hooks.emitters import (
+                        LineageEventContext,
+                        LineageEventEmitter,
+                        QualityResultEventContext,
+                        QualityResultEventEmitter,
+                    )
+
+                    source_fqn = {source_fqn!r}
+                    target_fqn = {table_fqn!r}
+
+                    LineageEventEmitter(LineageEventContext(tags={{"source": "golden_path"}})).emit_edges(
+                        edges=[(source_fqn, target_fqn)],
+                        asset_keys=[target_fqn],
+                        metadata={{"golden_path": True}},
+                    )
+
+                    QualityResultEventEmitter(
+                        QualityResultEventContext(asset_key=target_fqn, tags={{"source": "golden_path"}})
+                    ).emit_result(
+                        check_name="golden_path_row_count",
+                        passed=True,
+                        check_type="CountCheck",
+                        metadata={{"table_fqn": target_fqn, "metric_value": {{"row_count": 1}}}},
+                    )
+                    """
+                )
+                emit_env = os.environ.copy()
+                emit_env.update(
+                    {
+                        "OPENMETADATA_HOST": "127.0.0.1",
+                        "OPENMETADATA_PORT": str(openmetadata_port),
+                        "OPENMETADATA_SERVICE_NAME": om_service,
+                        "OPENMETADATA_SERVICE_TYPE": env_vars.get(
+                            "OPENMETADATA_SERVICE_TYPE", "Trino"
+                        ),
+                        "OPENMETADATA_DATABASE_NAME": om_database,
+                        "OPENMETADATA_USERNAME": om_user,
+                        "OPENMETADATA_PASSWORD": om_pass,
+                    }
+                )
+                try:
+                    subprocess.run(
+                        [project_python, "-c", emit_code],
+                        cwd=project_dir,
+                        env=emit_env,
+                        timeout=60,
+                        check=True,
+                    )
+                    log_success("OpenMetadata smoke events emitted")
+                except Exception as e:
+                    log_warning(f"Failed to emit OpenMetadata smoke events: {e}")
+
+                # Verify lineage edge in OpenMetadata
+                try:
+                    if isinstance(table, dict) and table.get("id"):
+                        source_table = openmetadata_get_with_fallback(
+                            [
+                                f"http://127.0.0.1:{openmetadata_port}/api/v1/tables/name/"
+                                f"{urllib.parse.quote(source_fqn, safe='')}"
+                            ],
+                            token=om_token,
+                            username=om_user,
+                            password=om_pass,
+                            timeout=30,
+                        )
+                        source_id = (
+                            source_table.get("id")
+                            if isinstance(source_table, dict)
+                            else None
+                        )
+                        lineage_url = (
+                            f"http://127.0.0.1:{openmetadata_port}/api/v1/lineage/table/"
+                            f"{table['id']}?upstreamDepth=1&downstreamDepth=0"
+                        )
+                        lineage = openmetadata_get_with_fallback(
+                            [lineage_url],
+                            token=om_token,
+                            username=om_user,
+                            password=om_pass,
+                            timeout=30,
+                        )
+                        edges = []
+                        nodes: dict[str, str] = {}
+                        if isinstance(lineage, dict):
+                            edges = (
+                                lineage.get("edges")
+                                or lineage.get("upstreamEdges")
+                                or []
+                            )
+                            for node in lineage.get("nodes", []) or []:
+                                if isinstance(node, dict) and node.get("id"):
+                                    nodes[str(node["id"])] = (
+                                        node.get("fullyQualifiedName")
+                                        or node.get("name")
+                                        or ""
+                                    )
+                        has_edge = False
+                        for edge in edges:
+                            if not isinstance(edge, dict):
+                                continue
+                            from_entity = edge.get("fromEntity")
+                            to_entity = edge.get("toEntity")
+                            from_id = None
+                            to_id = None
+                            from_fqn = None
+                            to_fqn = None
+                            if isinstance(from_entity, dict):
+                                from_id = from_entity.get("id")
+                                from_fqn = from_entity.get("fullyQualifiedName")
+                            elif isinstance(from_entity, str):
+                                from_id = from_entity
+                            if isinstance(to_entity, dict):
+                                to_id = to_entity.get("id")
+                                to_fqn = to_entity.get("fullyQualifiedName")
+                            elif isinstance(to_entity, str):
+                                to_id = to_entity
+                            if from_fqn is None and from_id is not None:
+                                from_fqn = nodes.get(str(from_id))
+                            if to_fqn is None and to_id is not None:
+                                to_fqn = nodes.get(str(to_id))
+                            if (
+                                (source_id and from_id == source_id)
+                                or from_fqn == source_fqn
+                            ) and (
+                                (table.get("id") and to_id == table.get("id"))
+                                or to_fqn == table_fqn
+                            ):
+                                has_edge = True
+                                break
+                        if has_edge:
+                            log_success("OpenMetadata lineage verified")
+                        else:
+                            log_warning("OpenMetadata lineage edge not found")
+                    else:
+                        log_warning("OpenMetadata lineage skipped: missing table id")
+                except Exception as e:
+                    log_warning(f"OpenMetadata lineage verification failed: {e}")
+
+                # Verify quality test cases in OpenMetadata
+                try:
+                    time.sleep(2)
+                    test_cases = openmetadata_get_with_fallback(
+                        [
+                            f"http://127.0.0.1:{openmetadata_port}/api/v1/dataQuality/testCases?limit=100",
+                            f"http://127.0.0.1:{openmetadata_port}/api/v1/testCases?limit=100",
+                        ],
+                        token=om_token,
+                        username=om_user,
+                        password=om_pass,
+                        timeout=30,
+                    )
+                    data = []
+                    if isinstance(test_cases, dict):
+                        data = test_cases.get("data", []) or []
+                    elif isinstance(test_cases, list):
+                        data = test_cases
+                    matches = [
+                        case
+                        for case in data
+                        if isinstance(case, dict)
+                        and table_fqn in str(case.get("entityLink", ""))
+                    ]
+                    if matches:
+                        log_success("OpenMetadata quality test cases verified")
+                    else:
+                        log_warning("OpenMetadata quality test cases not found")
+                except Exception as e:
+                    log_warning(f"OpenMetadata quality verification failed: {e}")
             else:
                 log_warning("OpenMetadata did not become ready in time")
 
