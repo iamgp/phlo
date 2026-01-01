@@ -826,11 +826,34 @@ def main() -> int:
         )
 
         write_file(
+            project_dir / "transforms" / "dbt" / "models" / "sources" / "raw.yml",
+            textwrap.dedent("""
+                version: 2
+
+                sources:
+                  - name: raw
+                    database: iceberg
+                    schema: raw
+                    tables:
+                      - name: posts
+                        columns:
+                          - name: id
+                          - name: user_id
+                          - name: title
+                          - name: body
+            """).lstrip(),
+        )
+
+        write_file(
             project_dir / "transforms" / "dbt" / "models" / "marts" / "posts_mart.sql",
             textwrap.dedent("""
                 {{ config(materialized='table', schema='marts') }}
-                select cast(id as varchar) as id, user_id, title, body
-                from iceberg.raw.posts
+                select
+                  cast(src.id as varchar) as id,
+                  src.user_id,
+                  src.title,
+                  src.body
+                from {{ source('raw', 'posts') }} as src
             """).lstrip(),
         )
 
@@ -1424,9 +1447,7 @@ def main() -> int:
                             timeout=30,
                         )
                         source_id = (
-                            source_table.get("id")
-                            if isinstance(source_table, dict)
-                            else None
+                            source_table.get("id") if isinstance(source_table, dict) else None
                         )
                         lineage_url = (
                             f"http://127.0.0.1:{openmetadata_port}/api/v1/lineage/table/"
@@ -1442,17 +1463,11 @@ def main() -> int:
                         edges = []
                         nodes: dict[str, str] = {}
                         if isinstance(lineage, dict):
-                            edges = (
-                                lineage.get("edges")
-                                or lineage.get("upstreamEdges")
-                                or []
-                            )
+                            edges = lineage.get("edges") or lineage.get("upstreamEdges") or []
                             for node in lineage.get("nodes", []) or []:
                                 if isinstance(node, dict) and node.get("id"):
                                     nodes[str(node["id"])] = (
-                                        node.get("fullyQualifiedName")
-                                        or node.get("name")
-                                        or ""
+                                        node.get("fullyQualifiedName") or node.get("name") or ""
                                     )
                         has_edge = False
                         for edge in edges:
@@ -1479,8 +1494,7 @@ def main() -> int:
                             if to_fqn is None and to_id is not None:
                                 to_fqn = nodes.get(str(to_id))
                             if (
-                                (source_id and from_id == source_id)
-                                or from_fqn == source_fqn
+                                (source_id and from_id == source_id) or from_fqn == source_fqn
                             ) and (
                                 (table.get("id") and to_id == table.get("id"))
                                 or to_fqn == table_fqn
@@ -1517,8 +1531,7 @@ def main() -> int:
                     matches = [
                         case
                         for case in data
-                        if isinstance(case, dict)
-                        and table_fqn in str(case.get("entityLink", ""))
+                        if isinstance(case, dict) and table_fqn in str(case.get("entityLink", ""))
                     ]
                     if matches:
                         log_success("OpenMetadata quality test cases verified")
