@@ -19,13 +19,16 @@ Optional service testing:
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import os
 import shutil
 import subprocess
 import sys
 import textwrap
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -445,7 +448,31 @@ def http_get(
         content_type = response.headers.get("Content-Type", "")
         if "json" in content_type:
             return json.loads(content)
-        return content
+    return content
+
+
+def http_get_basic(
+    url: str,
+    *,
+    username: str,
+    password: str,
+    timeout: int = 30,
+) -> dict | list | str:
+    """Make an HTTP GET request with basic auth."""
+    token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    headers = {"Authorization": f"Basic {token}"}
+    return http_get(url, headers=headers, timeout=timeout)
+
+
+def http_get_bearer(
+    url: str,
+    *,
+    token: str,
+    timeout: int = 30,
+) -> dict | list | str:
+    """Make an HTTP GET request with bearer auth."""
+    headers = {"Authorization": f"Bearer {token}"}
+    return http_get(url, headers=headers, timeout=timeout)
 
 
 def http_post(
@@ -465,6 +492,46 @@ def http_post(
         if "json" in content_type:
             return json.loads(content)
         return content
+
+
+def extract_openmetadata_token(payload: object) -> str | None:
+    """Extract a bearer token from common OpenMetadata auth responses."""
+    if isinstance(payload, dict):
+        for key in ("accessToken", "token", "jwtToken", "idToken"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+        for key in ("data", "result", "response", "auth"):
+            if key in payload:
+                token = extract_openmetadata_token(payload[key])
+                if token:
+                    return token
+    elif isinstance(payload, list):
+        for item in payload:
+            token = extract_openmetadata_token(item)
+            if token:
+                return token
+    return None
+
+
+def openmetadata_login(base_url: str, *, username: str, password: str) -> str | None:
+    """Login to OpenMetadata and return a bearer token if available."""
+    endpoints = ["/api/v1/users/login", "/api/v1/auth/login"]
+    encoded_password = base64.b64encode(password.encode("utf-8")).decode("ascii")
+    payloads = [{"email": username, "password": encoded_password}]
+    if "@" not in username:
+        payloads.append({"email": f"{username}@open-metadata.org", "password": encoded_password})
+    for endpoint in endpoints:
+        url = f"{base_url}{endpoint}"
+        for payload in payloads:
+            try:
+                response = http_post(url, payload, timeout=30)
+            except urllib.error.HTTPError:
+                continue
+            token = extract_openmetadata_token(response)
+            if token:
+                return token
+    return None
 
 
 def read_env_file(path: Path) -> dict[str, str]:
@@ -1202,6 +1269,62 @@ def main() -> int:
                 log_info(f"OpenMetadata UI: http://localhost:{openmetadata_port}")
                 log_info("  Login: admin / admin")
                 log_warning("Note: Run search reindex after setup for search to work")
+
+                # Sync Nessie + dbt metadata into OpenMetadata
+                log_info("Syncing metadata to OpenMetadata (Nessie + dbt)...")
+                om_service = env_vars.get("OPENMETADATA_SERVICE_NAME", "phlo")
+                om_database = env_vars.get(
+                    "OPENMETADATA_DATABASE_NAME",
+                    env_vars.get("TRINO_CATALOG", "iceberg"),
+                )
+                os.environ["OPENMETADATA_HOST"] = "127.0.0.1"
+                os.environ["OPENMETADATA_PORT"] = str(openmetadata_port)
+                os.environ["OPENMETADATA_SERVICE_NAME"] = om_service
+                os.environ["OPENMETADATA_SERVICE_TYPE"] = env_vars.get(
+                    "OPENMETADATA_SERVICE_TYPE",
+                    "Trino",
+                )
+                os.environ["OPENMETADATA_DATABASE_NAME"] = om_database
+                os.environ["NESSIE_HOST"] = "127.0.0.1"
+                os.environ["NESSIE_PORT"] = env_vars.get("NESSIE_PORT", "19120")
+                os.environ["TRINO_HOST"] = "127.0.0.1"
+                os.environ["TRINO_PORT"] = env_vars.get("TRINO_PORT", "8080")
+                run_phlo(
+                    ["openmetadata", "sync"],
+                    cwd=project_dir,
+                    timeout=600,
+                    python_exe=project_python,
+                )
+
+                # Verify dbt mart table is registered in OpenMetadata
+                om_user = env_vars.get("OPENMETADATA_USERNAME", "admin")
+                om_pass = env_vars.get("OPENMETADATA_PASSWORD", "admin")
+                table_fqn = f"{om_service}.{om_database}.raw_marts.posts_mart"
+                table_url = (
+                    f"http://127.0.0.1:{openmetadata_port}/api/v1/tables/name/"
+                    f"{urllib.parse.quote(table_fqn, safe='')}"
+                )
+                try:
+                    om_token = openmetadata_login(
+                        f"http://127.0.0.1:{openmetadata_port}",
+                        username=om_user,
+                        password=om_pass,
+                    )
+                    if om_token:
+                        table = http_get_bearer(table_url, token=om_token, timeout=30)
+                    else:
+                        table = http_get_basic(
+                            table_url,
+                            username=om_user,
+                            password=om_pass,
+                            timeout=30,
+                        )
+                    if isinstance(table, dict) and table.get("name") == "posts_mart":
+                        log_success(f"OpenMetadata verified table: {table_fqn}")
+                    else:
+                        log_warning(f"OpenMetadata table lookup returned: {table}")
+                except Exception as e:
+                    log_warning(f"OpenMetadata table verification failed: {e}")
             else:
                 log_warning("OpenMetadata did not become ready in time")
 

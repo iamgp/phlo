@@ -11,6 +11,7 @@ Provides authenticated access to OpenMetadata for:
 from __future__ import annotations
 
 import logging
+import base64
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Optional
@@ -107,6 +108,9 @@ class OpenMetadataClient:
         password: str,
         verify_ssl: bool = True,
         timeout: int = 30,
+        service_name: str | None = None,
+        service_type: str | None = None,
+        database_name: str | None = None,
     ):
         """
         Initialize OpenMetadata client.
@@ -123,6 +127,13 @@ class OpenMetadataClient:
         self.password = password
         self.verify_ssl = verify_ssl
         self.timeout = timeout
+        self.service_name = service_name
+        self.service_type = service_type
+        self.database_name = database_name
+        self._ensured_services: set[str] = set()
+        self._ensured_databases: set[str] = set()
+        self._ensured_schemas: dict[str, str] = {}
+        self._jwt_token: str | None = None
 
         # Create session for connection pooling
         self.session = requests.Session()
@@ -159,11 +170,103 @@ class OpenMetadataClient:
                 params=params,
                 timeout=self.timeout,
             )
+            if response.status_code == 401:
+                if self._jwt_token:
+                    self._jwt_token = None
+                    self.session.headers.pop("Authorization", None)
+                    self.session.auth = HTTPBasicAuth(self.username, self.password)
+                if self._authenticate():
+                    response = self.session.request(
+                        method=method,
+                        url=url,
+                        json=data,
+                        params=params,
+                        timeout=self.timeout,
+                    )
             response.raise_for_status()
             return response.json() if response.text else {}
 
         except requests.exceptions.RequestException as e:
             logger.error(f"OpenMetadata request failed: {method} {endpoint}: {e}")
+            raise
+
+    @staticmethod
+    def _extract_token(payload: Any) -> Optional[str]:
+        """Extract a bearer token from common OpenMetadata auth responses."""
+        if isinstance(payload, dict):
+            for key in ("accessToken", "token", "jwtToken", "idToken"):
+                value = payload.get(key)
+                if isinstance(value, str) and value:
+                    return value
+            for key in ("data", "result", "response", "auth"):
+                if key in payload:
+                    token = OpenMetadataClient._extract_token(payload[key])
+                    if token:
+                        return token
+        elif isinstance(payload, list):
+            for item in payload:
+                token = OpenMetadataClient._extract_token(item)
+                if token:
+                    return token
+        return None
+
+    def _authenticate(self) -> bool:
+        """Attempt to authenticate and store a bearer token for future requests."""
+        if self._jwt_token:
+            return False
+
+        if not self.username or not self.password:
+            return False
+
+        endpoints = ["/v1/users/login", "/v1/auth/login"]
+        encoded_password = base64.b64encode(self.password.encode("utf-8")).decode("ascii")
+        payloads = [{"email": self.username, "password": encoded_password}]
+        if "@" not in self.username:
+            payloads.append(
+                {"email": f"{self.username}@open-metadata.org", "password": encoded_password}
+            )
+
+        for endpoint in endpoints:
+            url = urljoin(self.base_url + "/", endpoint.lstrip("/"))
+            for payload in payloads:
+                try:
+                    response = self.session.request(
+                        method="POST",
+                        url=url,
+                        json=payload,
+                        timeout=self.timeout,
+                        auth=None,
+                    )
+                except requests.exceptions.RequestException as exc:
+                    logger.debug("OpenMetadata auth request failed: %s", exc)
+                    continue
+
+                if not (200 <= response.status_code < 300):
+                    continue
+
+                data = {}
+                if response.text:
+                    try:
+                        data = response.json()
+                    except ValueError:
+                        data = {}
+
+                token = self._extract_token(data)
+                if token:
+                    self._jwt_token = token
+                    self.session.headers.update({"Authorization": f"Bearer {token}"})
+                    self.session.auth = None
+                    return True
+
+        return False
+
+    def _get_optional(self, endpoint: str) -> Optional[dict[str, Any]]:
+        """GET an endpoint and return None if not found."""
+        try:
+            return self._request("GET", endpoint)
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                return None
             raise
 
     def health_check(self) -> bool:
@@ -173,29 +276,135 @@ class OpenMetadataClient:
         Returns:
             True if OpenMetadata is healthy, False otherwise
         """
-        try:
-            response = self.session.request("GET", urljoin(self.base_url + "/", "health"))
-            return response.status_code == 200
-        except Exception as e:
-            logger.warning(f"OpenMetadata health check failed: {e}")
-            return False
+        endpoints = ["/v1/system/version", "/health"]
+        for endpoint in endpoints:
+            try:
+                response = self.session.request(
+                    "GET", urljoin(self.base_url + "/", endpoint.lstrip("/"))
+                )
+                if response.status_code == 200:
+                    return True
+            except Exception as e:
+                logger.warning(f"OpenMetadata health check failed: {e}")
+                continue
+        return False
 
     def get_table(self, table_fqn: str) -> Optional[dict[str, Any]]:
         """
         Get table entity by fully qualified name.
 
         Args:
-            table_fqn: Fully qualified table name (schema.table)
+            table_fqn: Fully qualified table name (service.database.schema.table or schema.table)
 
         Returns:
             Table entity dict or None if not found
         """
-        try:
-            return self._request("GET", f"/v1/tables/name/{table_fqn}")
-        except requests.exceptions.HTTPError as e:
-            if e.response is not None and e.response.status_code == 404:
-                return None
-            raise
+        return self._get_optional(f"/v1/tables/name/{table_fqn}")
+
+    def get_database_service(self, name: str) -> Optional[dict[str, Any]]:
+        """Get database service by name."""
+        return self._get_optional(f"/v1/services/databaseServices/name/{name}")
+
+    def create_database_service(
+        self,
+        name: str,
+        service_type: str,
+        connection: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Create a database service."""
+        payload: dict[str, Any] = {"name": name, "serviceType": service_type}
+        if connection is not None:
+            payload["connection"] = connection
+        return self._request("POST", "/v1/services/databaseServices", data=payload)
+
+    def ensure_database_service(
+        self,
+        name: str,
+        service_type: Optional[str] = None,
+        connection: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Ensure database service exists, creating it if needed."""
+        if name in self._ensured_services:
+            return {"name": name}
+        existing = self.get_database_service(name)
+        if existing:
+            self._ensured_services.add(name)
+            return existing
+        resolved_type = service_type or self.service_type
+        if not resolved_type:
+            raise ValueError("service_type is required to create database service")
+        created = self.create_database_service(name, resolved_type, connection=connection)
+        self._ensured_services.add(name)
+        return created
+
+    def get_database(self, database_fqn: str) -> Optional[dict[str, Any]]:
+        """Get database by fully qualified name."""
+        return self._get_optional(f"/v1/databases/name/{database_fqn}")
+
+    def create_database(self, name: str, service_fqn: str) -> dict[str, Any]:
+        """Create a database within a service."""
+        payload = {"name": name, "service": service_fqn}
+        return self._request("POST", "/v1/databases", data=payload)
+
+    def ensure_database(self, service_name: str, database_name: str) -> dict[str, Any]:
+        """Ensure database exists within a service."""
+        database_fqn = f"{service_name}.{database_name}"
+        if database_fqn in self._ensured_databases:
+            return {"name": database_name}
+        existing = self.get_database(database_fqn)
+        if existing:
+            self._ensured_databases.add(database_fqn)
+            return existing
+        created = self.create_database(database_name, service_name)
+        self._ensured_databases.add(database_fqn)
+        return created
+
+    def get_database_schema(self, schema_fqn: str) -> Optional[dict[str, Any]]:
+        """Get database schema by fully qualified name."""
+        return self._get_optional(f"/v1/databaseSchemas/name/{schema_fqn}")
+
+    def create_database_schema(self, name: str, database_fqn: str) -> dict[str, Any]:
+        """Create a schema within a database."""
+        payload = {"name": name, "database": database_fqn}
+        return self._request("POST", "/v1/databaseSchemas", data=payload)
+
+    def ensure_database_schema(
+        self,
+        service_name: str,
+        database_name: str,
+        schema_name: str,
+        *,
+        service_type: Optional[str] = None,
+        connection: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Ensure database schema exists, creating service/database if needed."""
+        schema_fqn = f"{service_name}.{database_name}.{schema_name}"
+        cached_id = self._ensured_schemas.get(schema_fqn)
+        if cached_id:
+            return {"id": cached_id, "name": schema_name}
+        self.ensure_database_service(service_name, service_type=service_type, connection=connection)
+        self.ensure_database(service_name, database_name)
+        existing = self.get_database_schema(schema_fqn)
+        if existing:
+            schema_id = existing.get("id")
+            if isinstance(schema_id, str) and schema_id:
+                self._ensured_schemas[schema_fqn] = schema_id
+            return existing
+        created = self.create_database_schema(schema_name, f"{service_name}.{database_name}")
+        created_id = created.get("id") if isinstance(created, dict) else None
+        if isinstance(created_id, str) and created_id:
+            self._ensured_schemas[schema_fqn] = created_id
+        return created
+
+    def _schema_fqn(
+        self,
+        schema_name: str,
+        service_name: Optional[str],
+        database_name: Optional[str],
+    ) -> str:
+        if service_name and database_name:
+            return f"{service_name}.{database_name}.{schema_name}"
+        return schema_name
 
     def search_tables(self, query: str, limit: int = 100) -> list[dict[str, Any]]:
         """
@@ -216,7 +425,15 @@ class OpenMetadataClient:
         hits = result.get("hits", {}).get("hits", [])
         return [hit.get("_source", {}) for hit in hits]
 
-    def create_or_update_table(self, schema_name: str, table: OpenMetadataTable) -> dict[str, Any]:
+    def create_or_update_table(
+        self,
+        schema_name: str,
+        table: OpenMetadataTable,
+        *,
+        service_name: Optional[str] = None,
+        database_name: Optional[str] = None,
+        service_type: Optional[str] = None,
+    ) -> dict[str, Any]:
         """
         Create or update a table entity in OpenMetadata.
 
@@ -227,26 +444,24 @@ class OpenMetadataClient:
         Returns:
             Created/updated table entity from OpenMetadata
         """
-        # Ensure schema exists (create if needed)
-        # NOTE: In OpenMetadata, tables are tied to a database schema entity.
-        # For now, we assume the schema entity exists or OpenMetadata can resolve it by name.
+        resolved_service = service_name or self.service_name
+        resolved_database = database_name or self.database_name
+        resolved_service_type = service_type or self.service_type
 
-        table_fqn = f"{schema_name}.{table.name}"
+        if resolved_service and resolved_database:
+            self.ensure_database_schema(
+                resolved_service,
+                resolved_database,
+                schema_name,
+                service_type=resolved_service_type,
+            )
 
-        # Check if table exists
-        existing = self.search_tables(table_fqn, limit=10)
-        existing_match = next((t for t in existing if t.get("name") == table.name), None)
-
+        schema_fqn = self._schema_fqn(schema_name, resolved_service, resolved_database)
         payload = table.to_dict()
-        payload["databaseSchema"] = {"name": schema_name, "type": "databaseSchema"}
+        payload["databaseSchema"] = schema_fqn
 
-        if existing_match and existing_match.get("id"):
-            # Update existing table
-            payload["id"] = existing_match["id"]
-            return self._request("PUT", "/v1/tables", data=payload)
-
-        # Create new table
-        return self._request("POST", "/v1/tables", data=payload)
+        # OpenMetadata expects CreateTable schema (no id) for upserts via PUT.
+        return self._request("PUT", "/v1/tables", data=payload)
 
     def create_lineage(
         self, from_fqn: str, to_fqn: str, description: Optional[str] = None

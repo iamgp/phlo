@@ -14,7 +14,7 @@ from phlo_openmetadata.nessie_sync import (
 @pytest.fixture
 def nessie_scanner():
     """Create Nessie scanner for testing."""
-    return NessieTableScanner(nessie_uri="http://nessie:19120/api/v1")
+    return NessieTableScanner(nessie_uri="http://nessie:19120/iceberg")
 
 
 class TestNessieTableScanner:
@@ -22,13 +22,13 @@ class TestNessieTableScanner:
 
     def test_scanner_initialization(self, nessie_scanner):
         """Test scanner initialization."""
-        assert nessie_scanner.nessie_uri == "http://nessie:19120/api/v1"
+        assert nessie_scanner.nessie_uri == "http://nessie:19120/iceberg"
         assert nessie_scanner.timeout_seconds == 30
 
     def test_base_uri_trailing_slash_removed(self):
         """Test that trailing slash is removed from base URI."""
-        scanner = NessieTableScanner(nessie_uri="http://nessie:19120/api/v1/")
-        assert scanner.nessie_uri == "http://nessie:19120/api/v1"
+        scanner = NessieTableScanner(nessie_uri="http://nessie:19120/iceberg/")
+        assert scanner.nessie_uri == "http://nessie:19120/iceberg"
 
     @patch("phlo_nessie.catalog_scanner.requests.request")
     def test_list_namespaces(self, mock_request, nessie_scanner):
@@ -36,9 +36,9 @@ class TestNessieTableScanner:
         mock_response = Mock()
         mock_response.json.return_value = {
             "namespaces": [
-                {"namespace": ["bronze"]},
-                {"namespace": ["silver"]},
-                {"namespace": ["gold"]},
+                ["bronze"],
+                ["silver"],
+                ["gold"],
             ]
         }
         mock_response.text = "{}"
@@ -54,9 +54,9 @@ class TestNessieTableScanner:
         """Test listing tables in a namespace."""
         mock_response = Mock()
         mock_response.json.return_value = {
-            "tables": [
-                {"name": "glucose_entries"},
-                {"name": "glucose_readings"},
+            "identifiers": [
+                {"namespace": ["bronze"], "name": "glucose_entries"},
+                {"namespace": ["bronze"], "name": "glucose_readings"},
             ]
         }
         mock_response.text = "{}"
@@ -71,7 +71,7 @@ class TestNessieTableScanner:
     def test_list_tables_with_list_namespace(self, mock_request, nessie_scanner):
         """Test listing tables with namespace as list."""
         mock_response = Mock()
-        mock_response.json.return_value = {"tables": []}
+        mock_response.json.return_value = {"identifiers": []}
         mock_response.text = "{}"
         mock_request.return_value = mock_response
 
@@ -79,22 +79,27 @@ class TestNessieTableScanner:
 
         # Check that namespace was joined with dots
         call_args = mock_request.call_args
-        assert "bronze.sub" in str(call_args)
+        assert "/v1/namespaces/bronze.sub/tables" in str(call_args)
 
     @patch("phlo_nessie.catalog_scanner.requests.request")
     def test_get_table_metadata(self, mock_request, nessie_scanner):
         """Test getting table metadata."""
         mock_response = Mock()
         mock_response.json.return_value = {
-            "name": "glucose_entries",
-            "schema": {
-                "fields": [
-                    {"name": "id", "type": "long"},
-                    {"name": "timestamp", "type": "timestamp"},
-                    {"name": "value", "type": "double"},
-                ]
-            },
-            "properties": {"location": "s3://lake/warehouse/bronze/glucose_entries"},
+            "metadata": {
+                "schemas": [
+                    {
+                        "schema-id": 0,
+                        "fields": [
+                            {"name": "id", "type": "long"},
+                            {"name": "timestamp", "type": "timestamp"},
+                            {"name": "value", "type": "double"},
+                        ],
+                    }
+                ],
+                "current-schema-id": 0,
+                "location": "s3://lake/warehouse/bronze/glucose_entries",
+            }
         }
         mock_response.text = "{}"
         mock_request.return_value = mock_response
