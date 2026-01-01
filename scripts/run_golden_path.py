@@ -889,6 +889,7 @@ def main() -> int:
             step_num += 1
 
             # Add and start Hasura and PostgREST
+            # Note: Both services have post_start hooks that auto-discover schemas
             for svc in ["hasura", "postgrest"]:
                 log_info(f"Adding {svc}...")
                 run_phlo(
@@ -898,13 +899,7 @@ def main() -> int:
                     python_exe=project_python,
                 )
 
-            # Configure PostgREST to expose 'marts' schema (default is 'api,public')
-            env_file = project_dir / ".phlo" / ".env"
-            with env_file.open("a") as f:
-                f.write("\nPGRST_DB_SCHEMAS=api,public,marts\n")
-            log_info("Configured PostgREST to expose 'marts' schema")
-
-            # Start the API services
+            # Start the API services (hooks will auto-configure schemas)
             run_phlo(
                 ["services", "start", "--service", "hasura", "--service", "postgrest"],
                 cwd=project_dir,

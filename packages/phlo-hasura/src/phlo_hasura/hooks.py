@@ -42,19 +42,29 @@ def track_tables(schemas: str = "api") -> None:
     """Auto-track tables in the specified schema(s).
 
     Args:
-        schemas: Comma-separated list of schemas to track (e.g., "marts,api")
+        schemas: Comma-separated list of schemas to track (e.g., "marts,api"),
+                 or "auto" to discover all user schemas automatically
     """
-    from phlo_hasura.track import auto_track
+    from phlo_hasura.track import auto_track, auto_track_all
 
-    schema_list = [s.strip() for s in schemas.split(",") if s.strip()]
-    for schema in schema_list:
-        logger.info("Auto-tracking tables in schema: %s", schema)
+    if schemas == "auto":
+        logger.info("Auto-discovering all user schemas...")
         try:
-            result = auto_track(schema=schema, verbose=True)
-            logger.info("Tracking complete for %s: %s", schema, result)
+            result = auto_track_all(verbose=True)
+            logger.info("Auto-discovery complete: %d schemas processed", len(result))
         except Exception as e:
-            logger.error("Failed to auto-track tables in schema %s: %s", schema, e)
-            # Continue with other schemas even if one fails
+            logger.error("Failed to auto-track tables: %s", e)
+            raise
+    else:
+        schema_list = [s.strip() for s in schemas.split(",") if s.strip()]
+        for schema in schema_list:
+            logger.info("Auto-tracking tables in schema: %s", schema)
+            try:
+                result = auto_track(schema=schema, verbose=True)
+                logger.info("Tracking complete for %s: %s", schema, result)
+            except Exception as e:
+                logger.error("Failed to auto-track tables in schema %s: %s", schema, e)
+                # Continue with other schemas even if one fails
 
 
 if __name__ == "__main__":
@@ -64,8 +74,8 @@ if __name__ == "__main__":
     _load_env_files()
 
     if len(sys.argv) > 1 and sys.argv[1] == "track-tables":
-        schemas = sys.argv[2] if len(sys.argv) > 2 else "api"
+        schemas = sys.argv[2] if len(sys.argv) > 2 else "auto"
         track_tables(schemas=schemas)
     else:
         print("Usage: python -m phlo_hasura.hooks track-tables [schemas]")
-        print("  schemas: comma-separated list (e.g., 'marts,api')")
+        print("  schemas: comma-separated list (e.g., 'marts,api'), or 'auto' to discover")

@@ -93,6 +93,35 @@ class HasuraTableTracker:
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
 
+    def discover_user_schemas(self) -> list[str]:
+        """Discover all user schemas that contain tables.
+
+        Returns schemas that:
+        - Have at least one base table
+        - Are not system schemas (pg_*, information_schema, etc.)
+
+        Returns:
+            List of schema names
+        """
+        conn = self._get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                SELECT DISTINCT table_schema
+                FROM information_schema.tables
+                WHERE table_type = 'BASE TABLE'
+                  AND table_schema NOT LIKE 'pg_%%'
+                  AND table_schema != 'information_schema'
+                ORDER BY table_schema
+                """
+            )
+            return [row[0] for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+            conn.close()
+
     def get_tables_in_schema(self, schema: str) -> list[str]:
         """Get all tables in a schema.
 
@@ -364,3 +393,45 @@ def auto_track(schema: str = "api", verbose: bool = True) -> dict[str, Any]:
         "relationships": rel_results,
         "permissions": perm_results,
     }
+
+
+def auto_track_all(verbose: bool = True) -> dict[str, dict[str, Any]]:
+    """Auto-discover and track all tables in all user schemas.
+
+    Discovers all non-system schemas that contain tables and tracks them in Hasura.
+
+    Args:
+        verbose: Print progress messages
+
+    Returns:
+        Dict mapping schema names to their tracking results
+    """
+    if verbose:
+        logger.info("=" * 60)
+        logger.info("Hasura Auto-Track (All Schemas)")
+        logger.info("=" * 60)
+
+    tracker = HasuraTableTracker()
+    schemas = tracker.discover_user_schemas()
+
+    if verbose:
+        logger.info("Discovered %d user schemas: %s", len(schemas), ", ".join(schemas))
+        logger.info("")
+
+    results: dict[str, dict[str, Any]] = {}
+    for schema in schemas:
+        if verbose:
+            logger.info("Processing schema: %s", schema)
+        results[schema] = auto_track(schema=schema, verbose=verbose)
+
+    if verbose:
+        logger.info("=" * 60)
+        logger.info("✓ All schemas processed")
+        total_tables = sum(len(r.get("tables", {})) for r in results.values())
+        tracked_tables = sum(
+            sum(1 for v in r.get("tables", {}).values() if v) for r in results.values()
+        )
+        logger.info("  Total tables tracked: %d/%d", tracked_tables, total_tables)
+        logger.info("=" * 60)
+
+    return results
