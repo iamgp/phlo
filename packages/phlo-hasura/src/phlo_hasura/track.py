@@ -1,6 +1,8 @@
 """Hasura table tracking and auto-discovery."""
 
 import logging
+import os
+import socket
 from typing import Any
 
 import psycopg2
@@ -10,6 +12,39 @@ from phlo_hasura.client import HasuraClient
 from phlo.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_db_host(host: str, port: int) -> tuple[str, int]:
+    """Resolve database host, falling back to localhost if Docker hostname unreachable.
+
+    When running hooks from the host machine, Docker internal hostnames like 'postgres'
+    won't resolve. In that case, use localhost with the exposed port.
+
+    Args:
+        host: Database host (may be Docker internal hostname)
+        port: Database port (may be internal port)
+
+    Returns:
+        Tuple of (resolved_host, resolved_port)
+    """
+    # If already localhost, use as-is
+    if host in ("localhost", "127.0.0.1"):
+        return host, port
+
+    # Try to resolve the hostname
+    try:
+        socket.gethostbyname(host)
+        return host, port
+    except socket.gaierror:
+        # Can't resolve - we're likely running on the host, not in Docker
+        # Use localhost with the exposed port from environment
+        exposed_port = int(os.environ.get("POSTGRES_PORT", port))
+        logger.debug(
+            "Cannot resolve '%s', using localhost:%s (running outside Docker)",
+            host,
+            exposed_port,
+        )
+        return "localhost", exposed_port
 
 
 class HasuraTableTracker:
@@ -37,8 +72,11 @@ class HasuraTableTracker:
         self.client = hasura_client or HasuraClient()
 
         settings = get_settings()
-        self.db_host = db_host or settings.postgres_host
-        self.db_port = db_port or settings.postgres_port
+        raw_host = db_host or settings.postgres_host
+        raw_port = db_port or settings.postgres_port
+
+        # Resolve host - handle running outside Docker
+        self.db_host, self.db_port = _resolve_db_host(raw_host, raw_port)
         self.db_name = db_name or settings.postgres_db
         self.db_user = db_user or settings.postgres_user
         self.db_password = db_password or settings.postgres_password

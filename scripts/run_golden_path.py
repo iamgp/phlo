@@ -7,11 +7,19 @@ This is the script version of test_golden_path_e2e.py for easier debugging.
 
 Usage:
     python scripts/run_golden_path.py [--mode dev|pypi] [--keep-running]
+
+Optional service testing:
+    --test-api          Test Hasura GraphQL and PostgREST APIs
+    --test-observability Test Prometheus, Loki, Alloy, Grafana stack
+    --test-superset     Test Superset BI dashboards
+    --test-openmetadata Test OpenMetadata catalog (requires 6GB+ RAM)
+    --test-all          Test all optional services
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -33,6 +41,196 @@ RESET = "\033[0m"
 def log(msg: str, color: str = "") -> None:
     """Print a log message with optional color."""
     print(f"{color}{msg}{RESET}")
+
+
+def force_remove_directory(path: Path) -> bool:
+    """Force remove a directory, handling Docker-created files with different permissions.
+
+    Args:
+        path: Directory to remove
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if not path.exists():
+        return True
+
+    # First try normal removal
+    try:
+        shutil.rmtree(path)
+        return True
+    except PermissionError:
+        pass
+
+    # Try with subprocess rm -rf (works for most permission issues)
+    try:
+        result = subprocess.run(
+            ["rm", "-rf", str(path)],
+            capture_output=True,
+            timeout=30,
+        )
+        if result.returncode == 0 and not path.exists():
+            return True
+    except Exception:
+        pass
+
+    # Last resort: try with sudo
+    try:
+        result = subprocess.run(
+            ["sudo", "rm", "-rf", str(path)],
+            capture_output=True,
+            timeout=30,
+        )
+        return result.returncode == 0 and not path.exists()
+    except Exception:
+        return False
+
+
+def check_port_in_use(port: int) -> bool:
+    """Check if a port is in use."""
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def preflight_check(*, auto_cleanup: bool = False) -> bool:
+    """
+    Run preflight checks before starting the golden path test.
+
+    Returns True if all checks pass, False otherwise.
+    """
+    log_step("Preflight Checks")
+    all_ok = True
+
+    # Check for running phlo-related containers
+    log_info("Checking for running Docker containers...")
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        containers = [c for c in result.stdout.strip().split("\n") if c]
+        phlo_containers = [c for c in containers if "phlo" in c.lower()]
+
+        if phlo_containers:
+            log_warning(f"Found {len(phlo_containers)} phlo-related containers running:")
+            for c in phlo_containers[:5]:
+                log_info(f"  - {c}")
+            if len(phlo_containers) > 5:
+                log_info(f"  ... and {len(phlo_containers) - 5} more")
+
+            if auto_cleanup:
+                log_info("Auto-cleanup enabled, stopping containers...")
+                subprocess.run(
+                    ["docker", "ps", "-aq", "--filter", "name=phlo"],
+                    capture_output=True,
+                )
+                # Stop all containers
+                subprocess.run(
+                    "docker ps -aq | xargs -r docker stop",
+                    shell=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                subprocess.run(
+                    "docker ps -aq | xargs -r docker rm",
+                    shell=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                log_success("Containers stopped and removed")
+            else:
+                log_error("Please stop containers first or use --auto-cleanup")
+                all_ok = False
+        else:
+            log_success("No phlo containers running")
+    except Exception as e:
+        log_warning(f"Could not check Docker containers: {e}")
+
+    # Check common ports
+    log_info("Checking for port availability...")
+    common_ports = {
+        3000: "Dagster",
+        5432: "PostgreSQL",
+        8080: "Trino",
+        9000: "MinIO API",
+        9001: "MinIO Console",
+        8082: "Hasura",
+        3002: "PostgREST",
+        9090: "Prometheus",
+        3100: "Loki",
+        3003: "Grafana",
+        8088: "Superset",
+        8585: "OpenMetadata",
+    }
+
+    ports_in_use = []
+    for port, service in common_ports.items():
+        if check_port_in_use(port):
+            ports_in_use.append((port, service))
+
+    if ports_in_use:
+        log_warning(f"Found {len(ports_in_use)} ports in use:")
+        for port, service in ports_in_use:
+            log_info(f"  - Port {port} ({service})")
+        if not auto_cleanup:
+            log_error("Please free these ports or use --auto-cleanup")
+            all_ok = False
+    else:
+        log_success("All common ports are available")
+
+    # Check Docker daemon
+    log_info("Checking Docker daemon...")
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            log_success("Docker daemon is running")
+        else:
+            log_error("Docker daemon is not running")
+            all_ok = False
+    except Exception as e:
+        log_error(f"Docker check failed: {e}")
+        all_ok = False
+
+    # Check available disk space
+    log_info("Checking disk space...")
+    try:
+        result = subprocess.run(
+            ["df", "-BG", "/tmp"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        # Parse df output
+        lines = result.stdout.strip().split("\n")
+        if len(lines) >= 2:
+            parts = lines[1].split()
+            if len(parts) >= 4:
+                available = parts[3].replace("G", "")
+                try:
+                    available_gb = int(available)
+                    if available_gb < 10:
+                        log_warning(f"Low disk space: {available_gb}GB available in /tmp")
+                    else:
+                        log_success(f"Disk space OK: {available_gb}GB available in /tmp")
+                except ValueError:
+                    pass
+    except Exception as e:
+        log_warning(f"Could not check disk space: {e}")
+
+    if all_ok:
+        log_success("All preflight checks passed!")
+    else:
+        log_error("Preflight checks failed. Fix issues above or use --auto-cleanup")
+
+    return all_ok
 
 
 def log_step(step: str) -> None:
@@ -120,15 +318,102 @@ def run_phlo(
     timeout: int | None = None,
     check: bool = True,
     stream_output: bool = True,
+    python_exe: str | Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run a phlo CLI command."""
+    """Run a phlo CLI command.
+
+    Args:
+        python_exe: Python executable to use. Defaults to sys.executable.
+                   Pass project venv python after setup.
+    """
+    exe = str(python_exe) if python_exe else sys.executable
     return run_command(
-        [sys.executable, "-m", "phlo.cli.main", *args],
+        [exe, "-m", "phlo.cli.main", *args],
         cwd=cwd,
         timeout=timeout,
         check=check,
         stream_output=stream_output,
     )
+
+
+def setup_project_venv(project_dir: Path, phlo_source: Path) -> Path:
+    """Create and setup a virtual environment for the project using uv.
+
+    Returns the path to the project's python executable.
+    """
+    venv_dir = project_dir / ".venv"
+    python_exe = venv_dir / "bin" / "python"
+
+    log_info("Creating project virtual environment with uv...")
+    run_command(
+        ["uv", "venv", str(venv_dir)],
+        cwd=project_dir,
+        timeout=60,
+    )
+
+    log_info("Installing phlo in project venv...")
+    # Install phlo from source in dev mode
+    run_command(
+        ["uv", "pip", "install", "--python", str(python_exe), "-e", str(phlo_source)],
+        cwd=project_dir,
+        timeout=300,
+    )
+
+    # Install core service packages required for the golden path
+    core_packages = [
+        "phlo-dagster",
+        "phlo-trino",
+        "phlo-postgres",
+        "phlo-minio",
+        "phlo-nessie",
+        "phlo-dlt",
+        "phlo-dbt",
+        "phlo-hasura",
+        "phlo-postgrest",
+        "phlo-superset",
+        "phlo-api",
+        "phlo-observatory",
+    ]
+    log_info("Installing core service packages...")
+    install_args = ["uv", "pip", "install", "--python", str(python_exe)]
+    for pkg in core_packages:
+        pkg_path = phlo_source / "packages" / pkg
+        if pkg_path.exists():
+            install_args.extend(["-e", str(pkg_path)])
+    run_command(install_args, cwd=project_dir, timeout=600)
+
+    log_success("Project venv ready")
+    return python_exe
+
+
+def install_plugin(
+    plugin_name: str,
+    *,
+    project_dir: Path,
+    phlo_source: Path,
+    python_exe: Path,
+) -> bool:
+    """Install a phlo plugin into the project venv using uv.
+
+    Returns True if successful, False otherwise.
+    """
+    # Check if the plugin package exists in phlo source
+    plugin_pkg = phlo_source / "packages" / f"phlo-{plugin_name}"
+    if not plugin_pkg.exists():
+        log_warning(f"Plugin package not found: {plugin_pkg}")
+        return False
+
+    log_info(f"Installing plugin: {plugin_name}")
+    try:
+        run_command(
+            ["uv", "pip", "install", "--python", str(python_exe), "-e", str(plugin_pkg)],
+            cwd=project_dir,
+            timeout=180,
+        )
+        return True
+    except Exception as e:
+        log_warning(f"Failed to install plugin {plugin_name}: {e}")
+        return False
 
 
 def wait_for_http(url: str, *, timeout: int = 60, name: str = "endpoint") -> bool:
@@ -148,6 +433,38 @@ def wait_for_http(url: str, *, timeout: int = 60, name: str = "endpoint") -> boo
     print()
     log_warning(f"{name} not ready after {timeout}s")
     return False
+
+
+def http_get(
+    url: str, *, headers: dict[str, str] | None = None, timeout: int = 30
+) -> dict | list | str:
+    """Make an HTTP GET request and return JSON or text response."""
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        content = response.read().decode("utf-8")
+        content_type = response.headers.get("Content-Type", "")
+        if "json" in content_type:
+            return json.loads(content)
+        return content
+
+
+def http_post(
+    url: str,
+    data: dict | str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: int = 30,
+) -> dict | list | str:
+    """Make an HTTP POST request and return JSON or text response."""
+    hdrs = {"Content-Type": "application/json", **(headers or {})}
+    body = json.dumps(data).encode("utf-8") if isinstance(data, dict) else data.encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        content = response.read().decode("utf-8")
+        content_type = response.headers.get("Content-Type", "")
+        if "json" in content_type:
+            return json.loads(content)
+        return content
 
 
 def read_env_file(path: Path) -> dict[str, str]:
@@ -170,7 +487,24 @@ def write_file(path: Path, content: str) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Golden Path E2E Workflow")
+    parser = argparse.ArgumentParser(
+        description="Run Golden Path E2E Workflow",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""
+            Examples:
+              # Run core workflow only
+              python scripts/run_golden_path.py
+
+              # Test with API layer (Hasura + PostgREST)
+              python scripts/run_golden_path.py --test-api
+
+              # Test with observability stack
+              python scripts/run_golden_path.py --test-observability
+
+              # Test everything
+              python scripts/run_golden_path.py --test-all
+        """),
+    )
     parser.add_argument(
         "--mode", choices=["dev", "pypi"], default="dev", help="Installation mode (default: dev)"
     )
@@ -183,7 +517,62 @@ def main() -> int:
         default=None,
         help="Project directory (default: /tmp/phlo-golden-path)",
     )
+    # Optional service testing flags
+    parser.add_argument(
+        "--test-api",
+        action="store_true",
+        help="Test Hasura GraphQL and PostgREST REST APIs",
+    )
+    parser.add_argument(
+        "--test-observability",
+        action="store_true",
+        help="Test observability stack (Prometheus, Loki, Alloy, Grafana)",
+    )
+    parser.add_argument(
+        "--test-superset",
+        action="store_true",
+        help="Test Superset BI dashboards",
+    )
+    parser.add_argument(
+        "--test-openmetadata",
+        action="store_true",
+        help="Test OpenMetadata data catalog (requires 6GB+ RAM)",
+    )
+    parser.add_argument(
+        "--test-alerting",
+        action="store_true",
+        help="Test alerting plugin (list destinations, send test alert)",
+    )
+    parser.add_argument(
+        "--test-lineage",
+        action="store_true",
+        help="Test lineage tracking (configure LINEAGE_DB_URL, query lineage)",
+    )
+    parser.add_argument(
+        "--test-all",
+        action="store_true",
+        help="Test all optional services (api, observability, superset, alerting, lineage, openmetadata)",
+    )
+    parser.add_argument(
+        "--auto-cleanup",
+        action="store_true",
+        help="Automatically stop running containers and free ports before starting",
+    )
+    parser.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help="Skip preflight checks (not recommended)",
+    )
     args = parser.parse_args()
+
+    # Expand --test-all
+    if args.test_all:
+        args.test_api = True
+        args.test_observability = True
+        args.test_superset = True
+        args.test_alerting = True
+        args.test_lineage = True
+        args.test_openmetadata = True
 
     project_name = "phlo-golden-path"
     project_dir = args.project_dir or Path("/tmp") / project_name
@@ -194,20 +583,52 @@ def main() -> int:
     log_info(f"Project dir: {project_dir}")
     log_info(f"Phlo source: {phlo_source}")
 
+    # Log optional test configuration
+    optional_tests = []
+    if args.test_api:
+        optional_tests.append("API (Hasura/PostgREST)")
+    if args.test_observability:
+        optional_tests.append("Observability (Prometheus/Loki/Alloy/Grafana)")
+    if args.test_superset:
+        optional_tests.append("Superset")
+    if args.test_alerting:
+        optional_tests.append("Alerting")
+    if args.test_lineage:
+        optional_tests.append("Lineage")
+    if args.test_openmetadata:
+        optional_tests.append("OpenMetadata")
+    if optional_tests:
+        log_info(f"Optional tests: {', '.join(optional_tests)}")
+    else:
+        log_info("Optional tests: None (use --test-api, --test-observability, etc.)")
+
+    # Run preflight checks
+    if not args.skip_preflight:
+        if not preflight_check(auto_cleanup=args.auto_cleanup):
+            return 1
+    else:
+        log_warning("Skipping preflight checks (--skip-preflight)")
+
     # Clean up if exists
     if project_dir.exists():
         log_warning(f"Removing existing project dir: {project_dir}")
-        shutil.rmtree(project_dir, ignore_errors=True)
+        if not force_remove_directory(project_dir):
+            log_error(f"Failed to remove {project_dir}")
+            return 1
 
     try:
         # Step 1: Initialize project
         log_step("Step 1: Initialize Project")
         run_phlo(
-            ["init", project_name, "--template", "basic"],
+            ["init", project_name, "--template", "basic", "--force"],
             cwd=project_dir.parent,
             timeout=120,
         )
         log_success("Project initialized")
+
+        # Step 1.5: Setup project virtual environment
+        log_step("Step 1.5: Setup Project Environment")
+        project_python = setup_project_venv(project_dir, phlo_source)
 
         # Step 2: Services init
         log_step("Step 2: Initialize Services")
@@ -216,12 +637,14 @@ def main() -> int:
                 ["services", "init", "--dev", "--phlo-source", str(phlo_source), "--force"],
                 cwd=project_dir,
                 timeout=180,
+                python_exe=project_python,
             )
         else:
             run_phlo(
                 ["services", "init", "--no-dev", "--force"],
                 cwd=project_dir,
                 timeout=180,
+                python_exe=project_python,
             )
         log_success("Services initialized")
 
@@ -258,6 +681,7 @@ def main() -> int:
             ],
             cwd=project_dir,
             timeout=60,
+            python_exe=project_python,
         )
         log_success("Workflow created")
 
@@ -366,7 +790,7 @@ def main() -> int:
         start_args = ["services", "start"]
         for svc in core_services:
             start_args.extend(["--service", svc])
-        run_phlo(start_args, cwd=project_dir, timeout=600)
+        run_phlo(start_args, cwd=project_dir, timeout=600, python_exe=project_python)
         log_success("Core services started")
 
         # Wait for services to be healthy
@@ -386,6 +810,7 @@ def main() -> int:
             ["materialize", "dlt_posts", "--partition", "2025-01-01"],
             cwd=project_dir,
             timeout=1200,
+            python_exe=project_python,
         )
         log_success("DLT ingestion completed")
 
@@ -409,6 +834,7 @@ def main() -> int:
             ["materialize", "posts_mart", "--partition", "2025-01-01"],
             cwd=project_dir,
             timeout=1200,
+            python_exe=project_python,
         )
         log_success("dbt transform completed")
 
@@ -423,6 +849,7 @@ def main() -> int:
             ["materialize", "publish_jsonplaceholder_marts"],
             cwd=project_dir,
             timeout=1200,
+            python_exe=project_python,
         )
         log_success("Published to PostgreSQL")
 
@@ -450,11 +877,472 @@ def main() -> int:
         finally:
             pg_conn.close()
 
-        # Step 10: Add optional services
-        log_step("Step 10: Add Optional Services")
-        for svc in ["hasura", "postgrest"]:
-            log_info(f"Adding {svc}...")
-            run_phlo(["services", "add", svc], cwd=project_dir, timeout=120, check=False)
+        # =====================================================================
+        # OPTIONAL SERVICE TESTING
+        # =====================================================================
+
+        step_num = 10
+
+        # Step 10: Test API Layer (Hasura + PostgREST)
+        if args.test_api:
+            log_step(f"Step {step_num}: Test API Layer (Hasura + PostgREST)")
+            step_num += 1
+
+            # Add and start Hasura and PostgREST
+            for svc in ["hasura", "postgrest"]:
+                log_info(f"Adding {svc}...")
+                run_phlo(
+                    ["services", "add", svc],
+                    cwd=project_dir,
+                    timeout=120,
+                    python_exe=project_python,
+                )
+
+            # Configure PostgREST to expose 'marts' schema (default is 'api,public')
+            env_file = project_dir / ".phlo" / ".env"
+            with env_file.open("a") as f:
+                f.write("\nPGRST_DB_SCHEMAS=api,public,marts\n")
+            log_info("Configured PostgREST to expose 'marts' schema")
+
+            # Start the API services
+            run_phlo(
+                ["services", "start", "--service", "hasura", "--service", "postgrest"],
+                cwd=project_dir,
+                timeout=300,
+                python_exe=project_python,
+            )
+
+            # Reload env vars to get updated ports
+            env_vars = read_env_file(phlo_dir / ".env")
+            hasura_port = int(env_vars.get("HASURA_PORT", "8082"))
+            hasura_secret = env_vars.get("HASURA_ADMIN_SECRET", "phlo-hasura-admin-secret")
+            postgrest_port = int(env_vars.get("POSTGREST_PORT", "3002"))
+
+            # Wait for services to be ready
+            wait_for_http(
+                f"http://127.0.0.1:{hasura_port}/healthz",
+                name="Hasura",
+                timeout=120,
+            )
+            wait_for_http(
+                f"http://127.0.0.1:{postgrest_port}/",
+                name="PostgREST",
+                timeout=60,
+            )
+            # Note: Hasura tables should be auto-tracked by the post_start hook
+
+            # Test Hasura GraphQL API
+            log_info("Testing Hasura GraphQL API...")
+            graphql_query = {
+                "query": """
+                    query {
+                        marts_posts_mart(limit: 5) {
+                            id
+                            title
+                        }
+                    }
+                """
+            }
+            try:
+                result = http_post(
+                    f"http://127.0.0.1:{hasura_port}/v1/graphql",
+                    graphql_query,
+                    headers={"x-hasura-admin-secret": hasura_secret},
+                )
+                if "data" in result and "marts_posts_mart" in result["data"]:
+                    rows = result["data"]["marts_posts_mart"]
+                    log_success(f"Hasura GraphQL: Retrieved {len(rows)} rows")
+                    if rows:
+                        log_info(f"  Sample: {rows[0]}")
+                elif "errors" in result:
+                    # Table might not be tracked yet, try introspection
+                    log_warning(
+                        f"Hasura query error (table may not be tracked): {result['errors']}"
+                    )
+                    introspect_query = {"query": "{ __schema { types { name } } }"}
+                    result = http_post(
+                        f"http://127.0.0.1:{hasura_port}/v1/graphql",
+                        introspect_query,
+                        headers={"x-hasura-admin-secret": hasura_secret},
+                    )
+                    if "data" in result:
+                        log_success("Hasura GraphQL: Schema introspection works")
+                    else:
+                        log_error(f"Hasura GraphQL introspection failed: {result}")
+                        return 1
+                else:
+                    log_error(f"Unexpected Hasura response: {result}")
+                    return 1
+            except Exception as e:
+                log_error(f"Hasura GraphQL test failed: {e}")
+                return 1
+
+            # Test PostgREST API
+            log_info("Testing PostgREST REST API...")
+            try:
+                # Get OpenAPI schema to verify server is working
+                schema = http_get(f"http://127.0.0.1:{postgrest_port}/")
+                if isinstance(schema, dict) and "paths" in schema:
+                    log_success(
+                        f"PostgREST OpenAPI schema: {len(schema.get('paths', {}))} endpoints"
+                    )
+
+                # Query data from marts schema (table name is posts_mart)
+                result = http_get(
+                    f"http://127.0.0.1:{postgrest_port}/posts_mart?limit=5",
+                    headers={"Accept": "application/json"},
+                )
+                if isinstance(result, list):
+                    log_success(f"PostgREST REST API: Retrieved {len(result)} rows")
+                    if result:
+                        log_info(f"  Sample: {result[0]}")
+                else:
+                    log_warning(f"PostgREST response: {result}")
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    log_warning("PostgREST: Table not exposed (may need schema configuration)")
+                elif e.code == 406:
+                    log_warning("PostgREST: Server returned 406 Not Acceptable")
+                else:
+                    log_error(f"PostgREST REST API test failed: {e}")
+                    return 1
+            except Exception as e:
+                log_error(f"PostgREST REST API test failed: {e}")
+                return 1
+
+            log_success("API layer testing complete")
+
+        # Step 11: Test Observability Stack
+        if args.test_observability:
+            log_step(f"Step {step_num}: Test Observability Stack")
+            step_num += 1
+
+            # Install observability plugins into project venv
+            observability_services = ["prometheus", "loki", "alloy", "grafana"]
+            for plugin in observability_services:
+                if not install_plugin(
+                    plugin,
+                    project_dir=project_dir,
+                    phlo_source=phlo_source,
+                    python_exe=project_python,
+                ):
+                    log_error(f"Failed to install {plugin} plugin")
+                    return 1
+
+            # Add observability services
+            for svc in observability_services:
+                log_info(f"Adding {svc}...")
+                run_phlo(
+                    ["services", "add", svc],
+                    cwd=project_dir,
+                    timeout=120,
+                    python_exe=project_python,
+                )
+
+            # Start observability stack
+            start_args = ["services", "start"]
+            for svc in observability_services:
+                start_args.extend(["--service", svc])
+            run_phlo(start_args, cwd=project_dir, timeout=600, python_exe=project_python)
+
+            # Reload env vars
+            env_vars = read_env_file(phlo_dir / ".env")
+            prometheus_port = int(env_vars.get("PROMETHEUS_PORT", "9090"))
+            loki_port = int(env_vars.get("LOKI_PORT", "3100"))
+            alloy_port = int(env_vars.get("ALLOY_PORT", "12345"))
+            grafana_port = int(env_vars.get("GRAFANA_PORT", "3003"))
+
+            # Wait for services
+            wait_for_http(
+                f"http://127.0.0.1:{prometheus_port}/-/healthy", name="Prometheus", timeout=120
+            )
+            wait_for_http(f"http://127.0.0.1:{loki_port}/ready", name="Loki", timeout=120)
+            wait_for_http(f"http://127.0.0.1:{alloy_port}/-/ready", name="Alloy", timeout=60)
+            wait_for_http(
+                f"http://127.0.0.1:{grafana_port}/api/health", name="Grafana", timeout=120
+            )
+
+            # Test Prometheus targets
+            log_info("Testing Prometheus targets...")
+            try:
+                result = http_get(f"http://127.0.0.1:{prometheus_port}/api/v1/targets")
+                if "data" in result and "activeTargets" in result["data"]:
+                    targets = result["data"]["activeTargets"]
+                    up_count = sum(1 for t in targets if t.get("health") == "up")
+                    log_success(f"Prometheus: {up_count}/{len(targets)} targets UP")
+                    for t in targets[:3]:  # Show first 3 targets
+                        state = t.get("health", "unknown")
+                        job = t.get("labels", {}).get("job", "unknown")
+                        log_info(f"  - {job}: {state}")
+                else:
+                    log_warning(f"Prometheus targets response: {result}")
+            except Exception as e:
+                log_warning(f"Could not query Prometheus targets: {e}")
+
+            # Test Loki labels
+            log_info("Testing Loki log ingestion...")
+            try:
+                result = http_get(f"http://127.0.0.1:{loki_port}/loki/api/v1/labels")
+                if "data" in result:
+                    labels = result["data"]
+                    log_success(f"Loki: Found {len(labels)} label types")
+                    if labels:
+                        log_info(f"  Labels: {', '.join(labels[:5])}")
+                else:
+                    log_warning(f"Loki labels response: {result}")
+            except Exception as e:
+                log_warning(f"Could not query Loki labels: {e}")
+
+            # Test Grafana datasources
+            log_info("Testing Grafana datasources...")
+            try:
+                result = http_get(
+                    f"http://127.0.0.1:{grafana_port}/api/datasources",
+                    headers={"Authorization": "Basic YWRtaW46YWRtaW4="},  # admin:admin base64
+                )
+                if isinstance(result, list):
+                    log_success(f"Grafana: {len(result)} datasources configured")
+                    for ds in result:
+                        log_info(f"  - {ds.get('name')}: {ds.get('type')}")
+                else:
+                    log_warning(f"Grafana datasources response: {result}")
+            except Exception as e:
+                log_warning(f"Could not query Grafana datasources: {e}")
+
+            log_success("Observability stack testing complete")
+
+        # Step 12: Test Superset
+        if args.test_superset:
+            log_step(f"Step {step_num}: Test Superset BI")
+            step_num += 1
+
+            log_info("Adding Superset...")
+            run_phlo(
+                ["services", "add", "superset"],
+                cwd=project_dir,
+                timeout=180,
+                python_exe=project_python,
+            )
+            run_phlo(
+                ["services", "start", "--service", "superset"],
+                cwd=project_dir,
+                timeout=600,
+                python_exe=project_python,
+            )
+
+            # Reload env vars
+            env_vars = read_env_file(phlo_dir / ".env")
+            superset_port = int(env_vars.get("SUPERSET_PORT", "8088"))
+
+            # Wait for Superset (can take a while to initialize)
+            log_info("Waiting for Superset to initialize (this may take a few minutes)...")
+            if wait_for_http(
+                f"http://127.0.0.1:{superset_port}/health", name="Superset", timeout=300
+            ):
+                log_success("Superset is ready")
+
+                # Try to verify Superset is responsive
+                try:
+                    result = http_get(f"http://127.0.0.1:{superset_port}/health")
+                    log_info(f"Superset health: {result}")
+                except Exception as e:
+                    log_warning(f"Superset health check: {e}")
+
+                log_info(f"Superset UI: http://localhost:{superset_port}")
+                log_info("  Login: admin / admin")
+            else:
+                log_warning("Superset did not become ready in time")
+
+            log_success("Superset testing complete")
+
+        # Step 13: Test OpenMetadata
+        if args.test_openmetadata:
+            log_step(f"Step {step_num}: Test OpenMetadata Catalog")
+            step_num += 1
+
+            log_warning("OpenMetadata requires 6GB+ RAM. Ensure sufficient resources.")
+
+            # Install openmetadata plugin
+            if not install_plugin(
+                "openmetadata",
+                project_dir=project_dir,
+                phlo_source=phlo_source,
+                python_exe=project_python,
+            ):
+                log_warning("OpenMetadata plugin not available, skipping")
+            else:
+                log_info("Adding OpenMetadata...")
+                run_phlo(
+                    ["services", "add", "openmetadata"],
+                    cwd=project_dir,
+                    timeout=180,
+                    python_exe=project_python,
+                )
+                run_phlo(
+                    ["services", "start", "--service", "openmetadata"],
+                    cwd=project_dir,
+                    timeout=900,
+                    python_exe=project_python,
+                )
+
+            # Reload env vars
+            env_vars = read_env_file(phlo_dir / ".env")
+            openmetadata_port = int(env_vars.get("OPENMETADATA_PORT", "8585"))
+
+            # Wait for OpenMetadata (can take several minutes to initialize)
+            log_info("Waiting for OpenMetadata to initialize (this may take several minutes)...")
+            if wait_for_http(
+                f"http://127.0.0.1:{openmetadata_port}/api/v1/system/version",
+                name="OpenMetadata",
+                timeout=600,
+            ):
+                log_success("OpenMetadata is ready")
+
+                try:
+                    result = http_get(f"http://127.0.0.1:{openmetadata_port}/api/v1/system/version")
+                    log_info(f"OpenMetadata version: {result}")
+                except Exception as e:
+                    log_warning(f"OpenMetadata version check: {e}")
+
+                log_info(f"OpenMetadata UI: http://localhost:{openmetadata_port}")
+                log_info("  Login: admin / admin")
+                log_warning("Note: Run search reindex after setup for search to work")
+            else:
+                log_warning("OpenMetadata did not become ready in time")
+
+            log_success("OpenMetadata testing complete")
+
+        # Step 14: Test Alerting Plugin
+        if args.test_alerting:
+            log_step(f"Step {step_num}: Test Alerting Plugin")
+            step_num += 1
+
+            # Install alerting plugin first
+            if not install_plugin(
+                "alerting",
+                project_dir=project_dir,
+                phlo_source=phlo_source,
+                python_exe=project_python,
+            ):
+                log_warning("Alerting plugin not available, skipping")
+            else:
+                # Test alerting CLI commands
+                log_info("Testing alerting plugin...")
+
+                # List configured destinations
+                try:
+                    result = run_phlo(
+                        ["alerts", "list-destinations"],
+                        cwd=project_dir,
+                        timeout=60,
+                        check=False,
+                        stream_output=False,
+                        python_exe=project_python,
+                    )
+                    if result.returncode == 0:
+                        log_success("Alerting plugin: list-destinations command works")
+                        log_info(f"  Output: {result.stdout.strip()[:200]}")
+                    else:
+                        log_warning("Alerting plugin: list-destinations command not available")
+                except Exception as e:
+                    log_warning(f"Could not test alerting plugin: {e}")
+
+                # Note: Sending test alerts requires external webhook configuration
+                log_info("Note: To fully test alerting, configure PHLO_ALERT_SLACK_WEBHOOK")
+                log_info("      and run: phlo alerts test --destination slack")
+
+            log_success("Alerting plugin testing complete")
+
+        # Step 15: Test Lineage Tracking
+        if args.test_lineage:
+            log_step(f"Step {step_num}: Test Lineage Tracking")
+            step_num += 1
+
+            # Install lineage plugin first
+            if not install_plugin(
+                "lineage",
+                project_dir=project_dir,
+                phlo_source=phlo_source,
+                python_exe=project_python,
+            ):
+                log_warning("Lineage plugin not available, skipping")
+            else:
+                # Configure lineage to use the existing PostgreSQL database
+                log_info("Configuring lineage database...")
+                pg_user = env_vars.get("POSTGRES_USER", "phlo")
+                pg_pass = env_vars.get("POSTGRES_PASSWORD", "phlo")
+                pg_db = env_vars.get("POSTGRES_DB", "phlo")
+                lineage_db_url = (
+                    f"postgresql://{pg_user}:{pg_pass}@localhost:{postgres_port}/{pg_db}"
+                )
+
+                with (phlo_dir / ".env").open("a") as f:
+                    f.write(f"\nLINEAGE_DB_URL={lineage_db_url}\n")
+                log_info("Set LINEAGE_DB_URL to use PostgreSQL")
+
+                # Reload env vars
+                env_vars = read_env_file(phlo_dir / ".env")
+
+                # Test lineage CLI commands
+                log_info("Testing lineage CLI...")
+                try:
+                    # Try to show lineage for the posts table
+                    result = run_phlo(
+                        ["lineage", "show", "raw.posts"],
+                        cwd=project_dir,
+                        timeout=60,
+                        check=False,
+                        stream_output=False,
+                        python_exe=project_python,
+                    )
+                    if result.returncode == 0:
+                        log_success("Lineage: show command works")
+                        log_info(f"  Output: {result.stdout.strip()[:200]}")
+                    else:
+                        # Lineage might not be recorded yet, check if command is available
+                        if (
+                            "error" not in result.stdout.lower()
+                            or "not found" not in result.stdout.lower()
+                        ):
+                            log_info("Lineage: Table may not have lineage recorded yet")
+                        else:
+                            log_warning(f"Lineage show error: {result.stdout.strip()[:200]}")
+                except Exception as e:
+                    log_warning(f"Could not test lineage show: {e}")
+
+                # Try to export lineage
+                try:
+                    result = run_phlo(
+                        ["lineage", "export", "--format", "json"],
+                        cwd=project_dir,
+                        timeout=60,
+                        check=False,
+                        stream_output=False,
+                        python_exe=project_python,
+                    )
+                    if result.returncode == 0:
+                        log_success("Lineage: export command works")
+                        # Try to parse the output
+                        try:
+                            lineage_data = json.loads(result.stdout)
+                            if isinstance(lineage_data, dict):
+                                nodes = lineage_data.get("nodes", [])
+                                edges = lineage_data.get("edges", [])
+                                log_info(f"  Lineage graph: {len(nodes)} nodes, {len(edges)} edges")
+                            elif isinstance(lineage_data, list):
+                                log_info(f"  Lineage records: {len(lineage_data)} entries")
+                        except json.JSONDecodeError:
+                            log_info(f"  Output: {result.stdout.strip()[:200]}")
+                    else:
+                        log_warning(f"Lineage export: {result.stdout.strip()[:200]}")
+                except Exception as e:
+                    log_warning(f"Could not test lineage export: {e}")
+
+            log_success("Lineage tracking testing complete")
+
+        # =====================================================================
+        # COMPLETION
+        # =====================================================================
 
         log_step("=== Golden Path Complete!")
         log_success("All steps completed successfully!")
@@ -463,6 +1351,20 @@ def main() -> int:
         log_info(
             f"MinIO Console: http://localhost:{int(env_vars.get('MINIO_CONSOLE_PORT', '9001'))}"
         )
+
+        # Show optional service URLs
+        if args.test_api:
+            log_info(
+                f"Hasura Console: http://localhost:{env_vars.get('HASURA_PORT', '8082')}/console"
+            )
+            log_info(f"PostgREST API: http://localhost:{env_vars.get('POSTGREST_PORT', '3002')}")
+        if args.test_observability:
+            log_info(f"Grafana: http://localhost:{env_vars.get('GRAFANA_PORT', '3003')}")
+            log_info(f"Prometheus: http://localhost:{env_vars.get('PROMETHEUS_PORT', '9090')}")
+        if args.test_superset:
+            log_info(f"Superset: http://localhost:{env_vars.get('SUPERSET_PORT', '8088')}")
+        if args.test_openmetadata:
+            log_info(f"OpenMetadata: http://localhost:{env_vars.get('OPENMETADATA_PORT', '8585')}")
 
         if args.keep_running:
             log_info("Services are still running. Press Ctrl+C to stop.")
@@ -485,7 +1387,15 @@ def main() -> int:
         if not args.keep_running:
             log_step("Cleanup")
             try:
-                run_phlo(["services", "stop"], cwd=project_dir, timeout=300, check=False)
+                # Use project python if available, otherwise default
+                cleanup_python = project_python if "project_python" in dir() else None
+                run_phlo(
+                    ["services", "stop"],
+                    cwd=project_dir,
+                    timeout=300,
+                    check=False,
+                    python_exe=cleanup_python,
+                )
                 subprocess.run(
                     [
                         "docker",

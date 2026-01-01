@@ -1,9 +1,52 @@
 """Hasura Metadata API client for table tracking and permission management."""
 
 import json
+import os
+import socket
 from typing import Any
 
 import requests
+
+
+def _resolve_hasura_url(url: str) -> str:
+    """Resolve Hasura URL, falling back to localhost if Docker hostname unreachable.
+
+    When running hooks from the host machine, Docker internal hostnames like 'hasura'
+    won't resolve. In that case, use localhost with the exposed port.
+
+    Args:
+        url: Hasura URL (may contain Docker internal hostname)
+
+    Returns:
+        Resolved URL
+    """
+    # Parse the URL to extract host
+    if "://" in url:
+        protocol, rest = url.split("://", 1)
+        host_port = rest.split("/")[0]
+        path = "/" + "/".join(rest.split("/")[1:]) if "/" in rest else ""
+
+        if ":" in host_port:
+            host, port = host_port.rsplit(":", 1)
+        else:
+            host = host_port
+            port = "8080"
+    else:
+        return url  # Can't parse, return as-is
+
+    # If already localhost, use as-is
+    if host in ("localhost", "127.0.0.1"):
+        return url
+
+    # Try to resolve the hostname
+    try:
+        socket.gethostbyname(host)
+        return url
+    except socket.gaierror:
+        # Can't resolve - we're likely running on the host, not in Docker
+        # Use localhost with the exposed port from environment
+        exposed_port = os.environ.get("HASURA_PORT", port)
+        return f"{protocol}://localhost:{exposed_port}{path}"
 
 
 class HasuraClient:
@@ -18,10 +61,13 @@ class HasuraClient:
 
         Args:
             hasura_url: Hasura GraphQL endpoint URL (default: http://localhost:8080)
-            admin_secret: Hasura admin secret (default: minio from config)
+            admin_secret: Hasura admin secret (default: from env or fallback)
         """
-        self.hasura_url = hasura_url or "http://hasura:8080"
-        self.admin_secret = admin_secret or "hasura-secret-key"
+        raw_url = hasura_url or "http://hasura:8080"
+        self.hasura_url = _resolve_hasura_url(raw_url)
+        self.admin_secret = admin_secret or os.environ.get(
+            "HASURA_ADMIN_SECRET", "phlo-hasura-admin-secret"
+        )
         self.metadata_url = f"{self.hasura_url}/v1/metadata"
 
     def _request(

@@ -45,10 +45,11 @@ env_vars:
 hooks:
   post_start:
     - name: track-tables
+      delay: 5
       command:
         - python
         - -m
         - phlo_hasura.hooks
         - track-tables
-        - api
+        - marts,api
       timeout_seconds: 60
