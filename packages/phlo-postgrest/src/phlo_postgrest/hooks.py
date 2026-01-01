@@ -3,58 +3,119 @@
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
-import psycopg2
+from phlo.infrastructure.config import get_project_name_from_config, load_infrastructure_config
 
 logger = logging.getLogger(__name__)
 
 
-def _load_env_files() -> None:
-    """Load environment variables from .phlo/.env and .phlo/.env.local."""
-    try:
-        from dotenv import load_dotenv
-
-        phlo_dir = Path.cwd() / ".phlo"
-        env_file = phlo_dir / ".env"
-        env_local = phlo_dir / ".env.local"
-
-        if env_file.exists():
-            load_dotenv(env_file)
-        if env_local.exists():
-            load_dotenv(env_local, override=True)
-    except ImportError:
-        # dotenv not available, try manual parsing
-        phlo_dir = Path.cwd() / ".phlo"
-        for env_file in [phlo_dir / ".env", phlo_dir / ".env.local"]:
-            if env_file.exists():
-                with open(env_file) as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith("#") and "=" in line:
-                            key, _, value = line.partition("=")
-                            value = value.strip().strip('"').strip("'")
-                            os.environ.setdefault(key.strip(), value)
+def _get_config_file() -> Path:
+    """Return the PostgREST config file path."""
+    phlo_dir = Path.cwd() / ".phlo"
+    return phlo_dir / "postgrest" / "conf" / "postgrest.conf"
 
 
-def _get_db_connection():
-    """Get PostgreSQL connection using environment variables."""
-    host = os.environ.get("POSTGRES_HOST", "localhost")
-    port = int(os.environ.get("POSTGRES_PORT", "5432"))
-    db = os.environ.get("POSTGRES_DB", "lakehouse")
-    user = os.environ.get("POSTGRES_USER", "phlo")
-    password = os.environ.get("POSTGRES_PASSWORD", "phlo")
+def _read_config_values(config_file: Path) -> dict[str, str]:
+    """Parse PostgREST config file into a dict of key/value pairs."""
+    values: dict[str, str] = {}
+    if not config_file.exists():
+        return values
 
-    return psycopg2.connect(
-        host=host,
-        port=port,
-        database=db,
-        user=user,
-        password=password,
+    for raw_line in config_file.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "#" in line:
+            line = line.split("#", 1)[0].strip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if (value.startswith('"') and value.endswith('"')) or (
+            value.startswith("'") and value.endswith("'")
+        ):
+            value = value[1:-1]
+        values[key] = value
+
+    return values
+
+
+def _parse_db_uri(db_uri: str) -> dict[str, str]:
+    """Parse db-uri into connection parts."""
+    parsed = urlparse(db_uri)
+    username = unquote(parsed.username or "")
+    password = unquote(parsed.password or "")
+    database = parsed.path.lstrip("/")
+    return {
+        "username": username,
+        "password": password,
+        "database": database,
+    }
+
+
+def _resolve_container_name(service_name: str) -> str:
+    """Resolve a Docker container name using infrastructure config or default pattern."""
+    project_name = get_project_name_from_config() or Path.cwd().name
+    infra = load_infrastructure_config()
+    service = infra.get_service(service_name)
+    if service:
+        return service.get_container_name(project_name, infra.container_naming_pattern)
+    return infra.container_naming_pattern.format(project=project_name, service=service_name)
+
+
+def _discover_schemas_via_docker(db_uri: str) -> list[str]:
+    """Discover schemas by running psql inside the Postgres container."""
+    db_parts = _parse_db_uri(db_uri)
+    if not db_parts["username"] or not db_parts["database"]:
+        raise ValueError("db-uri must include username and database")
+
+    sql = (
+        "SELECT DISTINCT table_schema "
+        "FROM information_schema.tables "
+        "WHERE table_type = 'BASE TABLE' "
+        "AND table_schema NOT LIKE 'pg_%' "
+        "AND table_schema != 'information_schema' "
+        "AND table_schema != 'hdb_catalog' "
+        "ORDER BY table_schema;"
     )
+
+    postgres_container = _resolve_container_name("postgres")
+    cmd = [
+        "docker",
+        "exec",
+    ]
+    if db_parts["password"]:
+        cmd.extend(["-e", f"PGPASSWORD={db_parts['password']}"])
+    cmd.extend(
+        [
+            postgres_container,
+            "psql",
+            "-t",
+            "-A",
+            "-U",
+            db_parts["username"],
+            "-d",
+            db_parts["database"],
+            "-c",
+            sql,
+        ]
+    )
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"psql failed: {result.stderr.strip()}")
+
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
 def discover_schemas() -> list[str]:
@@ -63,24 +124,16 @@ def discover_schemas() -> list[str]:
     Returns:
         List of schema names
     """
-    conn = _get_db_connection()
-    cursor = conn.cursor()
+    config_file = _get_config_file()
+    if not config_file.exists():
+        raise FileNotFoundError(f"Config file not found at {config_file}")
 
-    try:
-        cursor.execute(
-            """
-            SELECT DISTINCT table_schema
-            FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE'
-              AND table_schema NOT LIKE 'pg_%%'
-              AND table_schema != 'information_schema'
-            ORDER BY table_schema
-            """
-        )
-        return [row[0] for row in cursor.fetchall()]
-    finally:
-        cursor.close()
-        conn.close()
+    config_values = _read_config_values(config_file)
+    db_uri = config_values.get("db-uri")
+    if not db_uri:
+        raise ValueError("db-uri not found in PostgREST config")
+
+    return _discover_schemas_via_docker(db_uri)
 
 
 def configure_schemas() -> None:
@@ -88,7 +141,7 @@ def configure_schemas() -> None:
 
     This function:
     1. Discovers all user schemas in PostgreSQL
-    2. Updates the .phlo/.env file with PGRST_DB_SCHEMAS
+    2. Updates the PostgREST config file with db-schemas
     3. Restarts the PostgREST container to pick up the change
     """
     logger.info("Discovering user schemas for PostgREST...")
@@ -100,61 +153,63 @@ def configure_schemas() -> None:
         raise
 
     if not schemas:
-        logger.warning("No user schemas found")
-        return
+        logger.warning("No user schemas found, using default 'public'")
+        schemas = ["public"]
+    elif "marts" in schemas:
+        schemas = ["marts"] + [schema for schema in schemas if schema != "marts"]
 
     schemas_str = ",".join(schemas)
     logger.info("Discovered schemas: %s", schemas_str)
 
-    # Update .env file
-    phlo_dir = Path.cwd() / ".phlo"
-    env_file = phlo_dir / ".env"
+    # Update PostgREST config file
+    config_file = _get_config_file()
 
-    if env_file.exists():
-        # Read existing content
-        content = env_file.read_text()
-        lines = content.splitlines()
+    if not config_file.exists():
+        logger.warning("Config file not found at %s", config_file)
+        return
 
-        # Update or add PGRST_DB_SCHEMAS
-        updated = False
-        new_lines = []
-        for line in lines:
-            if line.startswith("PGRST_DB_SCHEMAS="):
-                new_lines.append(f"PGRST_DB_SCHEMAS={schemas_str}")
-                updated = True
-            else:
-                new_lines.append(line)
+    # Read existing config
+    content = config_file.read_text()
+    lines = content.splitlines()
 
-        if not updated:
-            new_lines.append(f"PGRST_DB_SCHEMAS={schemas_str}")
+    # Update db-schemas line
+    updated = False
+    new_lines = []
+    for line in lines:
+        if line.startswith("db-schemas"):
+            new_lines.append(f'db-schemas = "{schemas_str}"')
+            updated = True
+        else:
+            new_lines.append(line)
 
-        env_file.write_text("\n".join(new_lines) + "\n")
-        logger.info("Updated %s with PGRST_DB_SCHEMAS=%s", env_file, schemas_str)
-    else:
-        logger.warning(".env file not found at %s", env_file)
+    if not updated:
+        # Add db-schemas line after db-anon-role
+        for i, line in enumerate(new_lines):
+            if line.startswith("db-anon-role"):
+                new_lines.insert(i + 1, f'db-schemas = "{schemas_str}"')
+                break
 
-    # Recreate PostgREST container to pick up new config from .env
-    # docker restart doesn't re-read env files, we need docker compose up
-    phlo_dir = Path.cwd() / ".phlo"
-    project_name = os.environ.get("COMPOSE_PROJECT_NAME", Path.cwd().name)
-    container_name = f"{project_name}-postgrest-1"
+    config_file.write_text("\n".join(new_lines) + "\n")
+    logger.info("Updated %s with db-schemas=%s", config_file, schemas_str)
 
-    logger.info("Recreating PostgREST container to apply new schema config...")
+    # Restart PostgREST container to pick up new config
+    container_name = _resolve_container_name("postgrest")
+
+    logger.info("Restarting PostgREST container to apply new schema config...")
     try:
         result = subprocess.run(
-            ["docker", "compose", "-f", str(phlo_dir / "docker-compose.yml"), "up", "-d", "--force-recreate", "postgrest"],
+            ["docker", "restart", container_name],
             capture_output=True,
             text=True,
-            timeout=60,
-            cwd=phlo_dir,
+            timeout=30,
         )
         if result.returncode == 0:
-            logger.info("PostgREST recreated, waiting for healthy status...")
+            logger.info("PostgREST restarted, waiting for healthy status...")
             _wait_for_healthy(container_name, timeout=30)
         else:
-            logger.warning("Failed to recreate PostgREST: %s", result.stderr)
+            logger.warning("Failed to restart PostgREST: %s", result.stderr)
     except Exception as e:
-        logger.warning("Could not recreate PostgREST container: %s", e)
+        logger.warning("Could not restart PostgREST container: %s", e)
 
 
 def _wait_for_healthy(container_name: str, timeout: int = 30) -> None:
@@ -187,9 +242,6 @@ def _wait_for_healthy(container_name: str, timeout: int = 30) -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-
-    # Load env files before running hooks
-    _load_env_files()
 
     if len(sys.argv) > 1 and sys.argv[1] == "configure-schemas":
         configure_schemas()

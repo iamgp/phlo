@@ -37,7 +37,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_postgrest = ["service.yaml", "sql/*.sql"]
+phlo_postgrest = ["service.yaml", "sql/*.sql", "conf/*.conf"]
 
 [tool.ruff]
 line-length = 100
