@@ -133,24 +133,56 @@ def configure_schemas() -> None:
     else:
         logger.warning(".env file not found at %s", env_file)
 
-    # Restart PostgREST container to pick up new config
+    # Recreate PostgREST container to pick up new config from .env
+    # docker restart doesn't re-read env files, we need docker compose up
+    phlo_dir = Path.cwd() / ".phlo"
     project_name = os.environ.get("COMPOSE_PROJECT_NAME", Path.cwd().name)
     container_name = f"{project_name}-postgrest-1"
 
-    logger.info("Restarting PostgREST container: %s", container_name)
+    logger.info("Recreating PostgREST container to apply new schema config...")
     try:
         result = subprocess.run(
-            ["docker", "restart", container_name],
+            ["docker", "compose", "-f", str(phlo_dir / "docker-compose.yml"), "up", "-d", "--force-recreate", "postgrest"],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=60,
+            cwd=phlo_dir,
         )
         if result.returncode == 0:
-            logger.info("PostgREST restarted successfully")
+            logger.info("PostgREST recreated, waiting for healthy status...")
+            _wait_for_healthy(container_name, timeout=30)
         else:
-            logger.warning("Failed to restart PostgREST: %s", result.stderr)
+            logger.warning("Failed to recreate PostgREST: %s", result.stderr)
     except Exception as e:
-        logger.warning("Could not restart PostgREST container: %s", e)
+        logger.warning("Could not recreate PostgREST container: %s", e)
+
+
+def _wait_for_healthy(container_name: str, timeout: int = 30) -> None:
+    """Wait for a Docker container to become healthy."""
+    import time
+
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            result = subprocess.run(
+                ["docker", "inspect", "--format", "{{.State.Health.Status}}", container_name],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            status = result.stdout.strip()
+            if status == "healthy":
+                logger.info("PostgREST container is healthy")
+                return
+            if status in ("unhealthy", ""):
+                # No health check or unhealthy, just wait a bit
+                time.sleep(2)
+                logger.info("PostgREST container ready (no healthcheck)")
+                return
+        except Exception:
+            pass
+        time.sleep(1)
+    logger.warning("Timeout waiting for PostgREST to become healthy")
 
 
 if __name__ == "__main__":
