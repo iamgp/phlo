@@ -146,7 +146,7 @@ phlo materialize --select dlt_glucose_entries --partition 2024-10-15
 ### dbt Model: Staging
 
 ```sql
--- File: transforms/dbt/models/bronze/stg_glucose_entries.sql
+-- File: workflows/transforms/dbt/models/bronze/stg_glucose_entries.sql
 
 {{ config(
     materialized='view',
@@ -195,7 +195,7 @@ WHERE sgv IS NOT NULL
 ### dbt Model: Enriched Facts
 
 ```sql
--- File: transforms/dbt/models/silver/fct_glucose_readings.sql
+-- File: workflows/transforms/dbt/models/silver/fct_glucose_readings.sql
 
 {{ config(
     materialized='table',
@@ -268,7 +268,7 @@ ORDER BY reading_timestamp DESC
 ### dbt Model: Summarized Metrics
 
 ```sql
--- File: transforms/dbt/models/gold/mrt_glucose_readings.sql
+-- File: workflows/transforms/dbt/models/gold/mrt_glucose_readings.sql
 
 {{ config(
     materialized='table',
@@ -312,7 +312,7 @@ ORDER BY reading_date DESC, hour_of_day DESC
 ### dbt Model: BI-Ready Marts
 
 ```sql
--- File: transforms/dbt/models/marts_postgres/mrt_glucose_overview.sql
+-- File: workflows/transforms/dbt/models/marts_postgres/mrt_glucose_overview.sql
 
 {{ config(
     materialized='table',

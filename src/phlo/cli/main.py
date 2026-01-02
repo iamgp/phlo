@@ -169,8 +169,8 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo("  ├── .env.example         # Local secrets template (copy to .phlo/.env.local)")
         click.echo("  ├── workflows/           # Your workflow definitions")
         click.echo("  │   ├── ingestion/       # Data ingestion workflows")
-        click.echo("  │   └── schemas/         # Pandera validation schemas")
-        click.echo("  ├── transforms/dbt/      # dbt transformation models")
+        click.echo("  │   ├── schemas/         # Pandera validation schemas")
+        click.echo("  │   └── transforms/dbt/  # dbt transformation models")
         click.echo("  └── tests/               # Workflow tests")
 
         click.echo("\nNext steps:")
@@ -369,9 +369,9 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     (workflows_dir / "schemas").mkdir(exist_ok=True)
     (workflows_dir / "schemas" / "__init__.py").write_text('"""Pandera validation schemas."""\n')
 
-    # Create transforms/dbt structure if basic template
+    # Create workflows/transforms/dbt structure if basic template
     if template == "basic":
-        transforms_dir = project_dir / "transforms" / "dbt"
+        transforms_dir = project_dir / "workflows" / "transforms" / "dbt"
         transforms_dir.mkdir(parents=True, exist_ok=True)
 
         # Create minimal dbt_project.yml
@@ -511,8 +511,8 @@ Phlo data workflows for {project_name}.
 {project_name}/
 ├── workflows/          # Your workflow definitions
 │   ├── ingestion/     # Data ingestion workflows
-│   └── schemas/       # Pandera validation schemas
-├── transforms/dbt/    # dbt transformation models
+│   ├── schemas/       # Pandera validation schemas
+│   └── transforms/dbt/ # dbt transformation models
 └── tests/            # Workflow tests
 ```
 

@@ -109,7 +109,7 @@ def dbt_model_to_pandera(
 
     Example:
         Schema = dbt_model_to_pandera(
-            "transforms/dbt/models/silver/fct_glucose_readings.yml",
+            "workflows/transforms/dbt/models/silver/fct_glucose_readings.yml",
             "fct_glucose_readings"
         )
         validated_df = Schema.validate(df)

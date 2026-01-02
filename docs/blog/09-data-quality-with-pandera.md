@@ -249,7 +249,7 @@ After ingestion, dbt tests validate business logic during transformations.
 ### Schema Tests (YAML-based)
 
 ```yaml
-# transforms/dbt/models/bronze/stg_glucose_entries.yml
+# workflows/transforms/dbt/models/bronze/stg_glucose_entries.yml
 version: 2
 
 models:
@@ -292,7 +292,7 @@ models:
 ### Custom Tests (SQL)
 
 ```sql
--- transforms/dbt/tests/no_duplicate_readings.sql
+-- workflows/transforms/dbt/tests/no_duplicate_readings.sql
 -- Test: Ensure no duplicate readings within 5 minutes
 
 SELECT
