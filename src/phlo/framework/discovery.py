@@ -116,6 +116,7 @@ def discover_user_workflows(
     )
 
     merged = dg.Definitions.merge(plugin_defs, module_defs)
+    merged = _ensure_core_resources(merged)
     logger.info("Discovered %d assets from Dagster plugins", len(plugin_assets))
     logger.info("Discovered %d assets from workflow modules", len(filtered_assets))
     return merged
@@ -191,6 +192,25 @@ def _collect_dagster_extension_definitions() -> dg.Definitions:
             logger.error("Error creating Dagster definitions from plugin %s: %s", name, exc)
 
     return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
+
+
+def _ensure_core_resources(definitions: dg.Definitions) -> dg.Definitions:
+    resources = dict(definitions.resources or {})
+    if "trino" not in resources:
+        trino_resource = _default_trino_resource()
+        if trino_resource is not None:
+            resources["trino"] = trino_resource
+    if resources == (definitions.resources or {}):
+        return definitions
+    return dg.Definitions.merge(definitions, dg.Definitions(resources=resources))
+
+
+def _default_trino_resource() -> Any | None:
+    try:
+        from phlo_trino.resource import TrinoResource
+    except Exception:  # noqa: BLE001 - optional dependency
+        return None
+    return TrinoResource()
 
 
 def _clear_asset_registries() -> None:

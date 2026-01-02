@@ -7,7 +7,6 @@ by automatically generating Dagster asset checks from declarative quality check 
 
 from __future__ import annotations
 
-from functools import wraps
 from typing import Any, Callable, List, Optional
 
 from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue, asset_check
@@ -128,8 +127,7 @@ def phlo_quality(
                 blocking=True,
                 description=f"Pandera schema contract for {table}",
             )
-            @wraps(func)
-            def pandera_contract_check(context, **resources) -> AssetCheckResult:
+            def pandera_contract_check(context) -> AssetCheckResult:
                 partition_key = get_partition_key(context)
                 partition_key_value = str(partition_key) if partition_key else None
                 asset_name = _asset_key_to_str(asset_key_value)
@@ -161,9 +159,11 @@ def phlo_quality(
 
                 try:
                     if backend == "trino":
-                        df = _load_data_trino(context, final_query, resources)
+                        trino = _resolve_trino_resource(context)
+                        df = _load_data_trino(context, final_query, trino)
                     elif backend == "duckdb":
-                        df = _load_data_duckdb(context, final_query, resources)
+                        duckdb_conn = _resolve_duckdb_connection(context)
+                        df = _load_data_duckdb(context, final_query, duckdb_conn)
                     else:
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
@@ -314,8 +314,7 @@ def phlo_quality(
                 blocking=blocking,
                 description=description,
             )
-            @wraps(func)
-            def quality_check_wrapper(context, **resources) -> AssetCheckResult:
+            def quality_check_wrapper(context) -> AssetCheckResult:
                 """
                 Execute all non-Pandera quality checks on the table.
 
@@ -353,9 +352,11 @@ def phlo_quality(
 
                 try:
                     if backend == "trino":
-                        df = _load_data_trino(context, final_query, resources)
+                        trino = _resolve_trino_resource(context)
+                        df = _load_data_trino(context, final_query, trino)
                     elif backend == "duckdb":
-                        df = _load_data_duckdb(context, final_query, resources)
+                        duckdb_conn = _resolve_duckdb_connection(context)
+                        df = _load_data_duckdb(context, final_query, duckdb_conn)
                     else:
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
@@ -573,14 +574,9 @@ def get_quality_checks() -> list[Any]:
     return _QUALITY_CHECKS.copy()
 
 
-def _load_data_trino(context: Any, query: str, resources: dict) -> Any:
+def _load_data_trino(context: Any, query: str, trino: Any) -> Any:
     """Load data from Trino."""
     import pandas as pd
-
-    # Get Trino resource
-    trino = resources.get("trino")
-    if trino is None:
-        raise ValueError("Trino resource not found in context")
 
     # Execute query
     with trino.cursor() as cursor:
@@ -600,13 +596,48 @@ def _load_data_trino(context: Any, query: str, resources: dict) -> Any:
     return df
 
 
-def _load_data_duckdb(context: Any, query: str, resources: dict) -> Any:
-    """Load data from DuckDB."""
+def _resolve_trino_resource(context: Any) -> Any:
+    resources = getattr(context, "resources", None)
+    trino = None
+    if resources is not None:
+        trino = getattr(resources, "trino", None)
+        if trino is None and isinstance(resources, dict):
+            trino = resources.get("trino")
+    if trino is None:
+        trino = getattr(context, "trino", None)
+    if trino is None:
+        try:
+            from phlo_trino.resource import TrinoResource
+        except Exception as exc:  # noqa: BLE001 - surface missing backend cleanly
+            raise ValueError(
+                "Trino resource not found in context and phlo_trino is not available"
+            ) from exc
+        trino = TrinoResource()
+    return trino
 
-    # Get DuckDB connection
-    duckdb_conn = resources.get("duckdb")
+
+def _resolve_duckdb_connection(context: Any) -> Any:
+    resources = getattr(context, "resources", None)
+    duckdb_conn = None
+    if resources is not None:
+        duckdb_conn = getattr(resources, "duckdb", None)
+        if duckdb_conn is None and isinstance(resources, dict):
+            duckdb_conn = resources.get("duckdb")
     if duckdb_conn is None:
-        raise ValueError("DuckDB resource not found in context")
+        duckdb_conn = getattr(context, "duckdb", None)
+    if duckdb_conn is None:
+        try:
+            import duckdb
+        except Exception as exc:  # noqa: BLE001 - surface missing backend cleanly
+            raise ValueError(
+                "DuckDB resource not found in context and duckdb is not available"
+            ) from exc
+        duckdb_conn = duckdb.connect()
+    return duckdb_conn
+
+
+def _load_data_duckdb(context: Any, query: str, duckdb_conn: Any) -> Any:
+    """Load data from DuckDB."""
 
     # Execute query
     df = duckdb_conn.execute(query).fetchdf()
