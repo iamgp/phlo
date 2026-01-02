@@ -166,6 +166,7 @@ class DltIngester(BaseIngester):
                 rows_deleted=merge_metrics.get("rows_deleted", 0),
                 metadata={
                     "dlt_elapsed_seconds": dlt_elapsed,
+                    "parquet_path": str(parquet_path),
                     "total_elapsed_seconds": total_elapsed,
                 },
             )
