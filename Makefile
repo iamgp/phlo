@@ -3,6 +3,15 @@ COMPOSE ?= docker compose
 REBUILD_SERVICES ?= dagster-webserver dagster-daemon
 DEFAULT_SERVICES ?= postgres minio pgweb dagster-webserver dagster-daemon superset hub
 DEFAULT_LOG_SERVICES ?= dagster-webserver dagster-daemon
+OBSERVATORY_DIR ?= packages/phlo-observatory/src/phlo_observatory
+NPM_OBSERVATORY := npm --prefix $(OBSERVATORY_DIR)
+CHECK_CMD := scripts/run-parallel \
+	"py lint" "uv run ruff check ." \
+	"py format" "uv run ruff format --check ." \
+	"py typecheck" "uv run ty check" \
+	"ts lint" "$(NPM_OBSERVATORY) run lint" \
+	"ts format" "$(NPM_OBSERVATORY) run format -- --check ." \
+	"ts typecheck" "$(NPM_OBSERVATORY) exec tsc -- -p $(OBSERVATORY_DIR)/tsconfig.json --noEmit"
 
 # Docker Compose profiles
 PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
@@ -20,7 +29,8 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(
 	dagster superset hub minio pgweb trino nessie grafana prometheus api hasura mkdocs openmetadata catalog \
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 	health-observability health-api health-catalog \
-	lint lint-sql lint-python fix-sql
+	check lint lint-sql lint-python format-python typecheck-python \
+	lint-ts format-ts typecheck-ts fix-sql
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -266,6 +276,24 @@ lint: lint-python lint-sql
 
 lint-python:
 	uv run ruff check .
+
+format-python:
+	uv run ruff format --check .
+
+typecheck-python:
+	uv run ty check
+
+lint-ts:
+	$(NPM_OBSERVATORY) run lint
+
+format-ts:
+	$(NPM_OBSERVATORY) run format -- --check .
+
+typecheck-ts:
+	$(NPM_OBSERVATORY) exec tsc -- -p $(OBSERVATORY_DIR)/tsconfig.json --noEmit
+
+check:
+	@$(CHECK_CMD)
 
 lint-sql:
 	uv run sqlfluff lint transforms/dbt
