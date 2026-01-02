@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Literal
 
 import dagster as dg
@@ -10,6 +11,9 @@ from phlo_dagster.partitions import daily_partition
 from phlo.exceptions import PhloConfigError
 from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
+    PanderaContractEvaluation,
+    evaluate_pandera_contract_parquet,
+    pandera_contract_asset_check_result,
 )
 from phlo_iceberg.resource import IcebergResource
 
@@ -201,6 +205,21 @@ def phlo_ingestion(
                 )
 
                 if result.status == "no_data":
+                    if validate and table_config.validation_schema is not None:
+                        evaluation = PanderaContractEvaluation(
+                            passed=True,
+                            failed_count=0,
+                            total_count=0,
+                            sample=[],
+                            error=None,
+                        )
+                        check_result = pandera_contract_asset_check_result(
+                            evaluation,
+                            partition_key=partition_date,
+                            schema_class=table_config.validation_schema,
+                            query_or_sql="status:no_data",
+                        )
+                        yield check_result
                     yield dg.MaterializeResult(
                         metadata={
                             "branch": branch_name,
@@ -210,6 +229,37 @@ def phlo_ingestion(
                         }
                     )
                     return
+
+                if validate and table_config.validation_schema is not None:
+                    parquet_path = result.metadata.get("parquet_path")
+                    query_or_sql = (
+                        f"parquet://{parquet_path}" if parquet_path else "parquet://<missing>"
+                    )
+                    try:
+                        if parquet_path is None:
+                            raise FileNotFoundError("Missing parquet_path in ingestion metadata")
+                        evaluation = evaluate_pandera_contract_parquet(
+                            Path(parquet_path),
+                            schema_class=table_config.validation_schema,
+                        )
+                    except Exception as exc:
+                        context.log.error(f"Pandera contract evaluation failed: {exc}")
+                        evaluation = PanderaContractEvaluation(
+                            passed=False,
+                            failed_count=1,
+                            total_count=0,
+                            sample=[{"error": str(exc)}],
+                            error=str(exc),
+                        )
+                    check_result = pandera_contract_asset_check_result(
+                        evaluation,
+                        partition_key=partition_date,
+                        schema_class=table_config.validation_schema,
+                        query_or_sql=query_or_sql,
+                    )
+                    yield check_result
+                    if strict_validation and not evaluation.passed:
+                        raise dg.Failure("Pandera contract validation failed")
 
                 # 3. Yield Results
                 # Ingester handles emission of Phlo events internally.
