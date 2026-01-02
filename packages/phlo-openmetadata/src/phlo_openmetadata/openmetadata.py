@@ -19,6 +19,7 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 
 import requests
+from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
 logger = logging.getLogger(__name__)
@@ -189,7 +190,7 @@ class OpenMetadataClient:
             response.raise_for_status()
             return response.json() if response.text else {}
 
-        except requests.exceptions.RequestException as e:
+        except requests_exceptions.RequestException as e:
             if log_errors:
                 logger.error(f"OpenMetadata request failed: {method} {endpoint}: {e}")
             raise
@@ -241,7 +242,7 @@ class OpenMetadataClient:
                         timeout=self.timeout,
                         auth=None,
                     )
-                except requests.exceptions.RequestException as exc:
+                except requests_exceptions.RequestException as exc:
                     logger.debug("OpenMetadata auth request failed: %s", exc)
                     continue
 
@@ -268,7 +269,7 @@ class OpenMetadataClient:
         """GET an endpoint and return None if not found."""
         try:
             return self._request("GET", endpoint)
-        except requests.exceptions.HTTPError as e:
+        except requests_exceptions.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
                 return None
             raise
@@ -278,7 +279,7 @@ class OpenMetadataClient:
         for endpoint in endpoints:
             try:
                 return self._request("GET", endpoint)
-            except requests.exceptions.HTTPError as e:
+            except requests_exceptions.HTTPError as e:
                 if e.response is not None and e.response.status_code == 404:
                     continue
                 raise
@@ -294,13 +295,13 @@ class OpenMetadataClient:
         log_errors: bool = True,
     ) -> dict[str, Any]:
         """Try multiple request targets, falling back on specific statuses."""
-        last_exc: requests.exceptions.HTTPError | None = None
+        last_exc: requests_exceptions.HTTPError | None = None
         for method, endpoint in attempts:
             try:
                 return self._request(
                     method, endpoint, data=data, params=params, log_errors=log_errors
                 )
-            except requests.exceptions.HTTPError as exc:
+            except requests_exceptions.HTTPError as exc:
                 status = exc.response.status_code if exc.response is not None else None
                 if status in retry_statuses:
                     last_exc = exc
@@ -621,7 +622,7 @@ class OpenMetadataClient:
                 [("POST", "/v1/dataQuality/testDefinitions"), ("POST", "/v1/testDefinitions")],
                 data=data_new,
             )
-        except requests.exceptions.HTTPError as exc:
+        except requests_exceptions.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
             if status == 409:
                 existing = self.get_test_definition(sanitized_name)
@@ -673,7 +674,7 @@ class OpenMetadataClient:
             return existing
         try:
             return self.create_test_suite(suite_name, table_fqn, description=description)
-        except requests.exceptions.HTTPError as exc:
+        except requests_exceptions.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
             if status == 409:
                 existing = self.get_test_suite(suite_name)
@@ -712,7 +713,7 @@ class OpenMetadataClient:
                 [("POST", "/v1/dataQuality/testCases"), ("POST", "/v1/testCases")],
                 data=payload,
             )
-        except requests.exceptions.HTTPError as exc:
+        except requests_exceptions.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
             if status in (400, 404, 409):
                 test_def = self.get_test_definition(test_definition_name)
@@ -749,7 +750,7 @@ class OpenMetadataClient:
         ]
         try:
             return self._request_fallback(attempts, data=data, log_errors=False)
-        except requests.exceptions.HTTPError as exc:
+        except requests_exceptions.HTTPError as exc:
             status = exc.response.status_code if exc.response is not None else None
             body = exc.response.text if exc.response is not None else ""
             if status in (404, 405) or (status == 500 and "Not Found" in body):

@@ -49,7 +49,7 @@ class SlackAlertDestination(AlertDestination):
         color = severity_colors.get(alert.severity, "#999999")
 
         # Build message blocks
-        fields = [
+        fields: list[dict[str, object]] = [
             {
                 "title": "Severity",
                 "value": alert.severity.value.upper(),
@@ -80,22 +80,22 @@ class SlackAlertDestination(AlertDestination):
                 }
             )
 
-        # Build attachment
-        attachment = {
-            "color": color,
-            "title": alert.title,
-            "text": alert.message,
-            "fields": fields,
-        }
-
         if alert.error_message:
-            attachment["fields"].append(
+            fields.append(
                 {
                     "title": "Error",
                     "value": f"```{alert.error_message[:500]}```",
                     "short": False,
                 }
             )
+
+        # Build attachment
+        attachment: dict[str, object] = {
+            "color": color,
+            "title": alert.title,
+            "text": alert.message,
+            "fields": fields,
+        }
 
         payload = {
             "attachments": [attachment],

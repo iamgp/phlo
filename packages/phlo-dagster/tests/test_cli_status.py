@@ -4,7 +4,7 @@ Tests the status CLI command for asset and service health monitoring.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from click.testing import CliRunner
@@ -25,7 +25,7 @@ class TestFreshnessIndicator:
         """Test that recently run assets are marked as fresh."""
         last_run = {
             "status": "success",
-            "timestamp": datetime.utcnow() - timedelta(minutes=30),
+            "timestamp": datetime.now(timezone.utc) - timedelta(minutes=30),
         }
         assert _get_freshness_indicator(last_run) == "fresh"
 
@@ -33,7 +33,7 @@ class TestFreshnessIndicator:
         """Test that assets run within 24 hours are okay."""
         last_run = {
             "status": "success",
-            "timestamp": datetime.utcnow() - timedelta(hours=12),
+            "timestamp": datetime.now(timezone.utc) - timedelta(hours=12),
         }
         assert _get_freshness_indicator(last_run) == "okay"
 
@@ -41,7 +41,7 @@ class TestFreshnessIndicator:
         """Test that assets older than 24 hours are stale."""
         last_run = {
             "status": "success",
-            "timestamp": datetime.utcnow() - timedelta(hours=48),
+            "timestamp": datetime.now(timezone.utc) - timedelta(hours=48),
         }
         assert _get_freshness_indicator(last_run) == "stale"
 
@@ -49,7 +49,7 @@ class TestFreshnessIndicator:
         """Test that failed assets are marked as failed."""
         last_run = {
             "status": "failure",
-            "timestamp": datetime.utcnow() - timedelta(hours=1),
+            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
         }
         assert _get_freshness_indicator(last_run) == "failed"
 
@@ -70,7 +70,7 @@ class TestStalenessCheck:
         """Test that recently run assets are not stale."""
         last_run = {
             "status": "success",
-            "timestamp": datetime.utcnow() - timedelta(hours=12),
+            "timestamp": datetime.now(timezone.utc) - timedelta(hours=12),
         }
         assert not _check_if_stale(last_run)
 
@@ -78,7 +78,7 @@ class TestStalenessCheck:
         """Test that old assets are stale."""
         last_run = {
             "status": "success",
-            "timestamp": datetime.utcnow() - timedelta(days=2),
+            "timestamp": datetime.now(timezone.utc) - timedelta(days=2),
         }
         assert _check_if_stale(last_run)
 
@@ -86,7 +86,7 @@ class TestStalenessCheck:
         """Test that failed assets are stale."""
         last_run = {
             "status": "failure",
-            "timestamp": datetime.utcnow() - timedelta(hours=1),
+            "timestamp": datetime.now(timezone.utc) - timedelta(hours=1),
         }
         assert _check_if_stale(last_run)
 
@@ -98,7 +98,7 @@ class TestStalenessCheck:
         """Test boundary condition at 24 hours."""
         last_run = {
             "status": "success",
-            "timestamp": datetime.utcnow() - timedelta(hours=24),
+            "timestamp": datetime.now(timezone.utc) - timedelta(hours=24),
         }
         # Boundary: should be considered stale
         assert _check_if_stale(last_run)
@@ -107,7 +107,7 @@ class TestStalenessCheck:
         """Test just under 24 hour boundary."""
         last_run = {
             "status": "success",
-            "timestamp": datetime.utcnow() - timedelta(hours=23, minutes=59),
+            "timestamp": datetime.now(timezone.utc) - timedelta(hours=23, minutes=59),
         }
         assert not _check_if_stale(last_run)
 

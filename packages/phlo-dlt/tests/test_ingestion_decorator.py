@@ -6,8 +6,10 @@ configuration parameters, and error handling.
 """
 
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
+from dagster import AssetsDefinition
 from pandera.pandas import DataFrameModel, Field
 from phlo_dlt.decorator import (
     _INGESTION_ASSETS,
@@ -34,6 +36,10 @@ def get_asset_spec(asset_def):
     return asset_def.specs_by_key[key]
 
 
+def _as_assets_def(asset: Any) -> AssetsDefinition:
+    return cast(AssetsDefinition, asset)
+
+
 class TestSchemaAutoGeneration:
     """Test automatic PyIceberg schema generation from Pandera."""
 
@@ -55,7 +61,8 @@ class TestSchemaAutoGeneration:
 
         # Verify asset was created
         assert test_asset is not None
-        assert test_asset.op.name == "dlt_test_table"
+        asset_def = _as_assets_def(test_asset)
+        assert asset_def.op.name == "dlt_test_table"
 
     def test_explicit_iceberg_schema_used(self):
         """Test explicit PyIceberg schema is used when provided."""
@@ -79,7 +86,8 @@ class TestSchemaAutoGeneration:
 
         # Asset should be created successfully
         assert test_asset is not None
-        assert test_asset.op.name == "dlt_test_table"
+        asset_def = _as_assets_def(test_asset)
+        assert asset_def.op.name == "dlt_test_table"
 
     def test_error_when_no_schema_provided(self):
         """Test error raised when neither validation_schema nor iceberg_schema provided."""
@@ -115,7 +123,8 @@ class TestDecoratorConfiguration:
             pass
 
         # Check asset name includes table name
-        assert test_asset.op.name == "dlt_custom_table"
+        asset_def = _as_assets_def(test_asset)
+        assert asset_def.op.name == "dlt_custom_table"
 
     def test_unique_key_configuration(self):
         """Test unique_key parameter is stored."""
@@ -260,8 +269,9 @@ class TestRetryConfiguration:
             pass
 
         # Check retry policy exists
-        assert test_asset.op.retry_policy is not None
-        assert test_asset.op.retry_policy.max_retries == 3  # Default
+        asset_def = _as_assets_def(test_asset)
+        assert asset_def.op.retry_policy is not None
+        assert asset_def.op.retry_policy.max_retries == 3  # Default
 
     def test_custom_retry_configuration(self):
         """Test custom max_retries and retry_delay configuration."""
@@ -281,9 +291,10 @@ class TestRetryConfiguration:
             pass
 
         # Check retry policy exists
-        assert test_asset.op.retry_policy is not None
-        assert test_asset.op.retry_policy.max_retries == 5
-        assert test_asset.op.retry_policy.delay == 60
+        asset_def = _as_assets_def(test_asset)
+        assert asset_def.op.retry_policy is not None
+        assert asset_def.op.retry_policy.max_retries == 5
+        assert asset_def.op.retry_policy.delay == 60
 
 
 class TestAssetRegistration:
@@ -344,7 +355,8 @@ class TestAssetAttributes:
             pass
 
         # Check asset name
-        assert test_asset.op.name == "dlt_github_events"
+        asset_def = _as_assets_def(test_asset)
+        assert asset_def.op.name == "dlt_github_events"
 
     def test_asset_has_description(self):
         """Test asset preserves function docstring as description."""
@@ -382,8 +394,9 @@ class TestAssetAttributes:
             pass
 
         # Check compute kind via asset's tags (dagster/kind/*)
-        asset_key = list(test_asset.tags_by_key.keys())[0]
-        tags = test_asset.tags_by_key[asset_key]
+        asset_def = _as_assets_def(test_asset)
+        asset_key = list(asset_def.tags_by_key.keys())[0]
+        tags = asset_def.tags_by_key[asset_key]
         assert "dagster/kind/dlt" in tags
         assert "dagster/kind/iceberg" in tags
 
@@ -435,7 +448,8 @@ class TestComplexSchemas:
 
         # Check asset configured correctly
         spec = get_asset_spec(github_events)
-        assert github_events.op.name == "dlt_github_user_events"
+        github_assets = _as_assets_def(github_events)
+        assert github_assets.op.name == "dlt_github_user_events"
         assert spec.group_name == "github"
         assert spec.automation_condition is not None
         assert spec.freshness_policy is not None
@@ -465,9 +479,10 @@ class TestComplexSchemas:
 
         # Check asset configured correctly
         spec = get_asset_spec(glucose_entries)
-        assert glucose_entries.op.name == "dlt_glucose_entries"
+        glucose_assets = _as_assets_def(glucose_entries)
+        assert glucose_assets.op.name == "dlt_glucose_entries"
         assert spec.group_name == "nightscout"
-        assert glucose_entries.op.tags["dagster/max_runtime"] == "600"
+        assert glucose_assets.op.tags["dagster/max_runtime"] == "600"
 
 
 class TestEdgeCases:
@@ -528,4 +543,5 @@ class TestEdgeCases:
             pass
 
         # Check op_tags
-        assert test_asset.op.tags["dagster/max_runtime"] == "900"
+        asset_def = _as_assets_def(test_asset)
+        assert asset_def.op.tags["dagster/max_runtime"] == "900"

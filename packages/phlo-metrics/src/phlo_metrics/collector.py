@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional, cast
 
 import psycopg2
 import psycopg2.extras
@@ -57,6 +57,7 @@ class SummaryMetrics:
     p95_duration_seconds: float = 0.0
     p99_duration_seconds: float = 0.0
     active_assets_count: int = 0
+    data_growth_bytes: int = 0
     assets_by_status: dict[str, int] = field(
         default_factory=lambda: {"success": 0, "warning": 0, "failure": 0}
     )
@@ -97,7 +98,7 @@ class MetricsCollector:
 
         # Try to get Prometheus metrics
         try:
-            metrics = self._collect_from_prometheus(period_hours)
+            metrics = cast(SummaryMetrics, self._collect_from_prometheus(period_hours))
         except Exception as e:
             logger.warning(f"Failed to collect from Prometheus: {e}")
 
@@ -112,8 +113,8 @@ class MetricsCollector:
         # Supplement with Iceberg stats
         try:
             iceberg_metrics = self._collect_from_iceberg()
-            metrics.active_assets_count = iceberg_metrics.get("table_count", 0)
-            metrics.data_growth_bytes = iceberg_metrics.get("total_bytes", 0)
+            metrics.active_assets_count = int(iceberg_metrics.get("table_count", 0) or 0)
+            metrics.data_growth_bytes = int(iceberg_metrics.get("total_bytes", 0) or 0)
         except Exception as e:
             logger.warning(f"Failed to collect from Iceberg: {e}")
 
@@ -250,7 +251,7 @@ class MetricsCollector:
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
             # Query Dagster events for metrics
-            since = datetime.utcnow() - timedelta(hours=period_hours)
+            since = datetime.now(timezone.utc) - timedelta(hours=period_hours)
             cur.execute(
                 """
                 SELECT 

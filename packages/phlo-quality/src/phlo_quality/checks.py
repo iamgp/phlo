@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-import pandera as pa
+import pandera.errors as pa_errors
 
 if TYPE_CHECKING:
     from dagster import AssetExecutionContext
@@ -282,7 +282,7 @@ class FreshnessCheck(QualityCheck):
             )
 
         # Convert to datetime if needed
-        timestamp_data = pd.to_datetime(df[self.timestamp_column])
+        timestamp_data = pd.Series(pd.to_datetime(df[self.timestamp_column], errors="coerce"))
 
         if len(timestamp_data.dropna()) == 0:
             return QualityCheckResult(
@@ -483,7 +483,7 @@ class SchemaCheck(QualityCheck):
                 },
             )
 
-        except pa.errors.SchemaErrors as err:
+        except pa_errors.SchemaErrors as err:
             failure_cases = err.failure_cases
 
             failures_by_column = failure_cases.groupby("column").size().to_dict()

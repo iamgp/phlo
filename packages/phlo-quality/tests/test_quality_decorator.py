@@ -72,6 +72,7 @@ class TestNullCheck:
         result = check.execute(df, context=None)
 
         assert result.passed is False
+        assert result.failure_message is not None
         assert "not found" in result.failure_message
 
 

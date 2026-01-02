@@ -212,7 +212,7 @@ class DbtTransformer(BaseTransformer):
         )
 
     def run_transform(
-        self, partition_key: Optional[str] = None, parameters: Dict[str, Any] = None
+        self, partition_key: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None
     ) -> TransformationResult:
         parameters = parameters or {}
         select_args = parameters.get("select", [])

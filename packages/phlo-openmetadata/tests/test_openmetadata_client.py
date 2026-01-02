@@ -84,6 +84,7 @@ class TestOpenMetadataTable:
 
         assert table.name == "users"
         assert table.description == "User data"
+        assert table.columns is not None
         assert len(table.columns) == 1
         assert table.location == "s3://bucket/users"
 

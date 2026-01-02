@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
@@ -142,7 +142,7 @@ class QualityCheckMapper:
             Dictionary with test result format
         """
         if execution_timestamp is None:
-            execution_timestamp = datetime.utcnow()
+            execution_timestamp = datetime.now(timezone.utc)
 
         return {
             "result": "Success" if check_result.passed else "Failed",

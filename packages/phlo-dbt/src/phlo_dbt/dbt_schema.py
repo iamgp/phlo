@@ -134,14 +134,22 @@ def dbt_model_to_pandera(
         class_name = "".join(word.capitalize() for word in model_name.split("_"))
 
     # Build annotations and namespace
-    annotations: dict[str, type] = {}
+    annotations: dict[str, Any] = {}
     namespace: dict[str, Any] = {
         "__annotations__": annotations,
         "__module__": __name__,
     }
 
-    for column in model_config.get("columns", []):
-        col_name = column["name"]
+    columns = model_config.get("columns", [])
+    if not isinstance(columns, list):
+        raise ValueError(f"Model '{model_name}' columns are not a list")
+
+    for column in columns:
+        if not isinstance(column, dict):
+            continue
+        col_name = column.get("name")
+        if not isinstance(col_name, str):
+            continue
         data_tests = column.get("data_tests", column.get("tests", []))
 
         # Parse tests into Field kwargs
@@ -162,7 +170,9 @@ def dbt_model_to_pandera(
             namespace[col_name] = Field(**field_kwargs)
 
     # Create the class dynamically
-    schema_class = type(class_name, (PhloSchema,), namespace)
+    from typing import cast
+
+    schema_class = cast(type[PhloSchema], type(class_name, (PhloSchema,), namespace))
     schema_class.__doc__ = model_config.get("description", f"Schema for {model_name}")
 
     return schema_class

@@ -39,10 +39,10 @@ def test_asset_metrics_defaults():
 
 def test_run_metrics_creation():
     """Test RunMetrics creation."""
-    from datetime import datetime
+    from datetime import datetime, timezone
     from phlo_metrics import RunMetrics
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     run = RunMetrics(
         asset_name="test_asset",
         run_id="run123",

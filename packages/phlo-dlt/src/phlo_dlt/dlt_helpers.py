@@ -103,7 +103,7 @@ def validate_with_pandera(
 def setup_dlt_pipeline(
     pipeline_name: str,
     dataset_name: str,
-) -> tuple[dlt.Pipeline, Path]:
+) -> tuple[Any, Path]:
     pipelines_dir = Path("/tmp/phlo/dlt")
     pipelines_dir.mkdir(parents=True, exist_ok=True)
     bucket_url = str((pipelines_dir / "bucket").resolve())
@@ -121,7 +121,7 @@ def setup_dlt_pipeline(
 
 def stage_to_parquet(
     context,
-    pipeline: dlt.Pipeline,
+    pipeline: Any,
     dlt_source: Any,
     local_staging_root: Path,
 ) -> tuple[Path, float]:

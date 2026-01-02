@@ -209,4 +209,4 @@ def sync_permissions(config: str):
         click.echo("✓ Permissions synced")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)

@@ -142,6 +142,7 @@ class TestNessieTableScanner:
 
         assert om_table.name == "glucose_entries"
         assert om_table.description == "Glucose sensor readings"
+        assert om_table.columns is not None
         assert len(om_table.columns) == 2
         assert om_table.columns[0].name == "id"
         assert om_table.columns[0].dataType == "BIGINT"
