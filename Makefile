@@ -296,7 +296,7 @@ check:
 	@$(CHECK_CMD)
 
 lint-sql:
-	uv run sqlfluff lint transforms/dbt
+	uv run sqlfluff lint workflows/transforms/dbt
 
 fix-sql:
-	uv run sqlfluff fix transforms/dbt
+	uv run sqlfluff fix workflows/transforms/dbt

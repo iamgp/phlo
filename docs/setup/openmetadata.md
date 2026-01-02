@@ -589,7 +589,7 @@ Click **Next** → **Deploy**.
 
    ```bash
    # From your local machine
-   cd transforms/dbt
+   cd workflows/transforms/dbt
    dbt compile --profiles-dir ./profiles
 
    # Or run the full build
@@ -685,7 +685,7 @@ OpenMetadata Ingestion: Daily at 3:00 AM (1 hour after data refresh)
 Add descriptions to dbt models that will appear in OpenMetadata:
 
 ```yaml
-# transforms/dbt/models/silver/glucose_daily_stats.yml
+# workflows/transforms/dbt/models/silver/glucose_daily_stats.yml
 version: 2
 
 models:

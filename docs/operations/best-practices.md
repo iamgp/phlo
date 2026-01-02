@@ -142,8 +142,9 @@ project/
 ├── workflows/                   # Dagster assets discovered by phlo.framework.definitions
 │   ├── ingestion/               # Ingestion assets
 │   ├── quality/                 # Quality checks and assets
-│   └── schemas/                 # Pandera schemas
-├── transforms/dbt/              # dbt models
+│   ├── schemas/                 # Pandera schemas
+│   └── transforms/              # dbt models
+│       └── dbt/
 └── tests/                       # Project tests
 ```
 
@@ -660,7 +661,7 @@ jobs:
         run: pytest tests/
 
       - name: Run dbt tests
-        run: dbt test --project-dir transforms/dbt
+        run: dbt test --project-dir workflows/transforms/dbt
 ```
 
 ---

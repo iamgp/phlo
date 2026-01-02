@@ -484,7 +484,7 @@ Complete end-to-end flow:
 
 **Quality checks**: `workflows/quality/{domain}.py`
 
-**dbt models**: `transforms/dbt/models/{layer}/{model}.sql`
+**dbt models**: `workflows/transforms/dbt/models/{layer}/{model}.sql`
 
 **Configuration**: `phlo.config`, `.phlo/.env.local`, `phlo.yaml`
 

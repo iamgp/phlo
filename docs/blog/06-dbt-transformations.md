@@ -263,7 +263,7 @@ dbt docs serve  # Opens http://localhost:8000
 ### Directory Layout
 
 ```
-transforms/dbt/
+workflows/transforms/dbt/
 ├── models/
 │   ├── sources.yml         # External data sources (raw Iceberg tables)
 │   ├── bronze/
@@ -448,26 +448,26 @@ if context.has_partition_key:
 ```bash
 # Run all models
 docker exec dagster-webserver dbt build \
-  --project-dir /transforms/dbt \
-  --profiles-dir /transforms/dbt/profiles \
+  --project-dir /app/workflows/transforms/dbt \
+  --profiles-dir /app/workflows/transforms/dbt/profiles \
   --target dev
 
 # Run specific model
 docker exec dagster-webserver dbt run \
-  --project-dir /transforms/dbt \
-  --profiles-dir /transforms/dbt/profiles \
+  --project-dir /app/workflows/transforms/dbt \
+  --profiles-dir /app/workflows/transforms/dbt/profiles \
   --select stg_glucose_entries
 
 # Run with tests
 docker exec dagster-webserver dbt test \
-  --project-dir /transforms/dbt \
-  --profiles-dir /transforms/dbt/profiles
+  --project-dir /app/workflows/transforms/dbt \
+  --profiles-dir /app/workflows/transforms/dbt/profiles
 ```
 
 ### Option 3: Local (if you have uv installed)
 
 ```bash
-cd transforms/dbt
+cd workflows/transforms/dbt
 
 # Install dbt
 uv pip install dbt-trino

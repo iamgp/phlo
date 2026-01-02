@@ -45,8 +45,10 @@ class TestConfigUnitTests:
             test_config = Settings()
 
             # Test dbt paths (assuming local environment)
-            assert test_config.dbt_project_dir == "transforms/dbt"
-            assert test_config.dbt_profiles_dir == "transforms/dbt/profiles"
+            assert test_config.dbt_project_dir == "workflows/transforms/dbt"
+            assert test_config.dbt_profiles_dir == "workflows/transforms/dbt/profiles"
+            assert test_config.dbt_manifest_path == "workflows/transforms/dbt/target/manifest.json"
+            assert test_config.dbt_catalog_path == "workflows/transforms/dbt/target/catalog.json"
 
             # Test computed properties
             assert (
@@ -88,6 +90,8 @@ class TestConfigUnitTests:
 
             assert test_config.dbt_project_dir == "/dbt"
             assert test_config.dbt_profiles_dir == "/dbt/profiles"
+            assert test_config.dbt_manifest_path == "/dbt/target/manifest.json"
+            assert test_config.dbt_catalog_path == "/dbt/target/catalog.json"
 
     def test_config_handles_caching_and_returns_same_instance(self):
         """Test that config handles caching and returns the same instance."""

@@ -40,13 +40,12 @@ compose:
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phlo}
     POSTGRES_DB: ${POSTGRES_DB:-phlo}
     WORKFLOWS_PATH: /app/workflows
-    DBT_PROJECT_DIR: /app/transforms/dbt
+    DBT_PROJECT_DIR: /app/workflows/transforms/dbt
     SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
     PHLO_HOST_PLATFORM: ${PHLO_HOST_PLATFORM:-}
     DISABLE_PANDERA_IMPORT_WARNING: "True"
   command: ["dagster-daemon", "run", "-w", "/opt/dagster/workspace.yaml"]
   volumes:
     - ./dagster:/opt/dagster
-    - ../workflows:/app/workflows:ro
-    - ../transforms:/app/transforms
+    - ../workflows:/app/workflows
     - ../tests:/app/tests:ro

@@ -84,7 +84,7 @@ docker exec dagster-webserver dbt compile
 - Commits follow Conventional Commits.
 - Configuration via `phlo.config.settings` (reads `.phlo/.env` and `.phlo/.env.local`).
 - Project templates use:
-  - `workflows/` for ingestion/quality assets and `transforms/dbt/` for dbt projects.
+  - `workflows/` for ingestion/quality assets and `workflows/transforms/dbt/` for dbt projects.
   - Pandera schemas in `workflows/schemas/{domain}.py`.
   - Asset names in snake_case; ingestion assets use `dlt_<table_name>`.
   - Database objects in lowercase.

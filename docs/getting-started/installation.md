@@ -71,9 +71,9 @@ my-project/
 ├── .env.example         # Local secrets template (.phlo/.env.local)
 ├── workflows/           # Data ingestion workflows
 │   ├── ingestion/
-│   └── schemas/
-├── transforms/          # dbt transformations
-│   └── dbt/
+│   ├── schemas/
+│   └── transforms/      # dbt transformations
+│       └── dbt/
 ├── tests/               # Test files
 └── phlo.yaml           # Project configuration
 ```
