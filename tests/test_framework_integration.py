@@ -136,8 +136,8 @@ def test_cli_init_command_structure():
         assert (project_dir / "workflows" / "__init__.py").exists()
         assert (project_dir / "workflows" / "ingestion").is_dir()
         assert (project_dir / "workflows" / "schemas").is_dir()
-        assert (project_dir / "transforms" / "dbt").is_dir()
-        assert (project_dir / "transforms" / "dbt" / "dbt_project.yml").exists()
+        assert (project_dir / "workflows" / "transforms" / "dbt").is_dir()
+        assert (project_dir / "workflows" / "transforms" / "dbt" / "dbt_project.yml").exists()
         assert (project_dir / "tests").is_dir()
         assert (project_dir / "pyproject.toml").exists()
         assert (project_dir / ".env.example").exists()
@@ -161,4 +161,4 @@ def test_cli_init_minimal_template():
 
         # Should have workflows but not transforms
         assert (project_dir / "workflows").is_dir()
-        assert not (project_dir / "transforms").exists()
+        assert not (project_dir / "workflows" / "transforms").exists()
