@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from phlo_alerting import Alert, AlertSeverity, get_alert_manager
+from phlo_alerting.manager import AlertDestination
 from phlo_alerting.destinations.email import EmailAlertDestination
 from phlo_alerting.destinations.pagerduty import PagerDutyAlertDestination
 from phlo_alerting.destinations.slack import SlackAlertDestination
@@ -76,7 +77,7 @@ class TestAlertManager:
         initial_count = len(manager.destinations)
 
         # Register a mock destination
-        class MockDestination:
+        class MockDestination(AlertDestination):
             def send(self, alert):
                 return True
 

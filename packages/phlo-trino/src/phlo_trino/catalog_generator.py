@@ -17,12 +17,13 @@ def discover_trino_catalogs() -> list[TrinoCatalogPlugin]:
     plugins = discover_plugins(plugin_type="trino_catalogs", auto_register=False)
     catalogs = []
 
-    for name, plugin_class in plugins.items():
+    for name, plugin_entries in plugins.items():
         try:
-            plugin = plugin_class()
-            if isinstance(plugin, TrinoCatalogPlugin):
-                catalogs.append(plugin)
-                logger.info("Discovered Trino catalog: %s", plugin.catalog_name)
+            for entry in plugin_entries:
+                plugin = entry() if isinstance(entry, type) else entry
+                if isinstance(plugin, TrinoCatalogPlugin):
+                    catalogs.append(plugin)
+                    logger.info("Discovered Trino catalog: %s", plugin.catalog_name)
         except Exception as exc:
             logger.error("Failed to instantiate catalog plugin %s: %s", name, exc)
 

@@ -7,8 +7,9 @@ import json
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -134,6 +135,7 @@ def backfill(
     if not asset_name:
         click.echo("Error: Asset name is required", err=True)
         sys.exit(1)
+    asset_name = str(asset_name)
 
     # Validate parallel value
     if parallel < 1:
@@ -296,14 +298,9 @@ def _run_backfill(
     total = len(partition_dates)
     already_done = len(completed_partitions)
 
-    results = {
-        "asset_name": asset_name,
-        "start_time": datetime.utcnow().isoformat(),
-        "total_partitions": total,
-        "completed_partitions": completed_partitions,
-        "successful": [],
-        "failed": [],
-    }
+    successful: list[str] = []
+    failed: list[dict[str, str]] = []
+    start_time = datetime.now(timezone.utc).isoformat()
 
     # Use ThreadPoolExecutor for parallel execution
     with Progress(
@@ -332,7 +329,7 @@ def _run_backfill(
                 try:
                     success, output = future.result()
                     if success:
-                        results["successful"].append(date)
+                        successful.append(date)
                         completed_count += 1
                         progress.update(
                             task,
@@ -340,34 +337,42 @@ def _run_backfill(
                             description=f"[green]✓ Completed {completed_count}/{total}[/green]",
                         )
                     else:
-                        results["failed"].append({"date": date, "error": output})
+                        failed.append({"date": date, "error": output})
                         progress.update(
                             task,
                             description=f"[yellow]⚠ Failed {date}[/yellow]",
                         )
                 except Exception as e:
-                    results["failed"].append({"date": date, "error": str(e)})
+                    failed.append({"date": date, "error": str(e)})
                     progress.update(
                         task,
                         description=f"[red]✗ Error {date}[/red]",
                     )
 
                 # Update state file periodically
-                _save_backfill_state(asset_name, remaining, results["successful"])
+                _save_backfill_state(asset_name, remaining, successful)
 
     # Display results
     console.print()
+    results = {
+        "asset_name": asset_name,
+        "start_time": start_time,
+        "total_partitions": total,
+        "completed_partitions": completed_partitions,
+        "successful": successful,
+        "failed": failed,
+    }
     _display_backfill_results(results)
 
     # Clean up state file on success
-    if not results["failed"]:
+    if not failed:
         state_file = Path(".phlo/backfill_state.json")
         if state_file.exists():
             state_file.unlink()
     else:
         # Save final state for resume
-        remaining_after = [d for d in partition_dates if d not in results["successful"]]
-        _save_backfill_state(asset_name, remaining_after, results["successful"])
+        remaining_after = [d for d in partition_dates if d not in successful]
+        _save_backfill_state(asset_name, remaining_after, successful)
 
 
 def _materialize_partition(
@@ -434,14 +439,14 @@ def _save_backfill_state(
         "asset_name": asset_name,
         "remaining_partitions": remaining_partitions,
         "completed_partitions": completed_partitions,
-        "last_updated": datetime.utcnow().isoformat(),
+        "last_updated": datetime.now(timezone.utc).isoformat(),
     }
 
     state_file = state_dir / "backfill_state.json"
     state_file.write_text(json.dumps(state, indent=2))
 
 
-def _display_backfill_results(results: dict[str, any]) -> None:
+def _display_backfill_results(results: dict[str, Any]) -> None:
     """
     Display backfill results in a formatted table.
 

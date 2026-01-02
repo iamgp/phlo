@@ -6,7 +6,7 @@ Access and filter Dagster run logs from CLI.
 import json
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import click
@@ -145,7 +145,7 @@ def _parse_since(since_str: str) -> datetime:
         amount = int(match.group(1))
         unit = match.group(2)
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if unit == "h":
             return now - timedelta(hours=amount)
         elif unit == "m":
@@ -156,7 +156,7 @@ def _parse_since(since_str: str) -> datetime:
             raise ValueError(f"Unknown time unit: {unit}")
     except Exception as e:
         console.print(f"[yellow]Warning: Invalid time filter '{since_str}': {e}[/yellow]")
-        return datetime.utcnow() - timedelta(hours=24)  # Default to last 24 hours
+        return datetime.now(timezone.utc) - timedelta(hours=24)  # Default to last 24 hours
 
 
 def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
@@ -186,7 +186,7 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
         query = _build_logs_query(filters)
 
         try:
-            result = client.execute(query)
+            result = client._execute(query)
             logs_list = []
 
             if result and "data" in result:
@@ -304,7 +304,7 @@ def _get_mock_logs(filters: dict, show_warning: bool = False) -> list[dict]:
     """Return mock logs for demo/testing."""
     if show_warning:
         console.print("[dim](showing demo data - Dagster not connected)[/dim]\n")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     mock_logs = [
         {
             "timestamp": (now - timedelta(minutes=5)).isoformat(),
@@ -393,7 +393,7 @@ def _tail_logs(
     """
     console.print("[yellow]Tailing logs (press Ctrl+C to stop)...[/yellow]\n")
 
-    last_fetch_time = datetime.utcnow()
+    last_fetch_time = datetime.now(timezone.utc)
     seen_logs = set()
 
     def generate_logs_table():
@@ -402,7 +402,7 @@ def _tail_logs(
         # Fetch new logs
         filters["start_time"] = last_fetch_time
         logs_data = _get_logs(filters)
-        last_fetch_time = datetime.utcnow()
+        last_fetch_time = datetime.now(timezone.utc)
 
         if not logs_data:
             return Text("[dim]No new logs...[/dim]")

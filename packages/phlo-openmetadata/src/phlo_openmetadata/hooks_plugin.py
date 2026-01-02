@@ -91,8 +91,11 @@ class OpenMetadataHookPlugin(HookPlugin):
 
         test_name = event.check_name
         test_type = _resolve_test_type(event)
+        entity_type = _resolve_entity_type(event)
         try:
-            client.create_test_definition(test_name=test_name, test_type=test_type)
+            client.create_test_definition(
+                test_name=test_name, test_type=test_type, entity_type=entity_type
+            )
         except Exception as exc:
             logger.warning("OpenMetadata test definition sync failed: %s", exc)
 
@@ -160,6 +163,9 @@ class OpenMetadataHookPlugin(HookPlugin):
                 username=settings.openmetadata_username,
                 password=settings.openmetadata_password,
                 verify_ssl=settings.openmetadata_verify_ssl,
+                service_name=settings.openmetadata_service_name,
+                service_type=settings.openmetadata_service_type,
+                database_name=settings.openmetadata_database,
             )
         return self._client
 
@@ -183,6 +189,15 @@ def _resolve_test_type(event: QualityResultEvent) -> str:
     if check_type.lower() == "pandera":
         return "schemaCheck"
     return QualityCheckMapper.CHECK_TYPE_MAP.get(check_type, "customCheck")
+
+
+def _resolve_entity_type(event: QualityResultEvent) -> str:
+    """Infer entity type for OpenMetadata tests."""
+
+    check_type = (event.check_type or "").lower()
+    if check_type in {"nullcheck", "rangecheck", "uniquecheck", "freshnesscheck"}:
+        return "COLUMN"
+    return "TABLE"
 
 
 def _split_table_fqn(table_fqn: str, default_schema: str) -> tuple[str, str]:

@@ -63,7 +63,7 @@ def generate_postgrest_views(
 
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @postgrest.command(name="setup-auth")
@@ -88,4 +88,4 @@ def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
         )
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)

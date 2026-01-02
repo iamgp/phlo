@@ -107,8 +107,8 @@ def load_maintenance_status(path: Path | None = None) -> MaintenanceStatusSnapsh
             continue
         if event.get("name") != MAINTENANCE_COMPLETE_EVENT:
             continue
-        tags = event.get("tags") if isinstance(event.get("tags"), dict) else {}
-        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        tags = _ensure_dict(event.get("tags"))
+        payload = _ensure_dict(event.get("payload"))
         completed_at = _parse_timestamp(event.get("timestamp"))
         operation = _coerce_str(
             tags.get("operation") or payload.get("operation"),
@@ -133,7 +133,7 @@ def load_maintenance_status(path: Path | None = None) -> MaintenanceStatusSnapsh
             snapshots_deleted=_coerce_int(payload.get("snapshots_deleted")),
             orphan_files=_coerce_int(payload.get("orphan_files")),
             total_records=_coerce_int(payload.get("total_records")),
-            total_size_mb=_coerce_float(payload.get("total_size_mb")),
+            total_size_mb=_coerce_float(payload.get("total_size_mb")) or 0.0,
             dry_run=_coerce_bool(tags.get("dry_run") or payload.get("dry_run")),
             run_id=_coerce_optional_str(payload.get("run_id")),
             job_name=_coerce_optional_str(payload.get("job_name")),
@@ -157,13 +157,15 @@ def render_maintenance_prometheus(path: Path | None = None) -> str:
         if event.get("event_type") != "telemetry.metric":
             continue
         name = event.get("name")
+        if not isinstance(name, str):
+            continue
         metric = _PROMETHEUS_MAP.get(name)
         if not metric:
             continue
         value = _coerce_float(event.get("value"))
         if value is None:
             continue
-        tags = event.get("tags") if isinstance(event.get("tags"), dict) else {}
+        tags = _ensure_dict(event.get("tags"))
         labels = _metric_labels(tags)
         label_key = tuple(sorted(labels.items()))
         if metric.mode == "counter":
@@ -212,6 +214,12 @@ def _parse_timestamp(value: Any) -> datetime:
         except ValueError:
             pass
     return datetime.now(timezone.utc)
+
+
+def _ensure_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    return {}
 
 
 def _metric_labels(tags: dict[str, Any]) -> dict[str, str]:

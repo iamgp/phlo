@@ -39,12 +39,6 @@ class IcebergCatalogPlugin(TrinoCatalogPlugin):
             "s3.endpoint": minio_endpoint,
             "s3.path-style-access": "true",
             "s3.region": s3_region,
-            # Metadata caching
-            "iceberg.metadata-cache-ttl": "5m",
-            "iceberg.file-status-cache-expire-after-write": "5m",
-            "iceberg.file-status-cache-max-size": "100000",
-            # Split planning
-            "iceberg.split-loader-parallelism": "8",
         }
 
 
@@ -81,10 +75,4 @@ class IcebergDevCatalogPlugin(TrinoCatalogPlugin):
             "s3.endpoint": minio_endpoint,
             "s3.path-style-access": "true",
             "s3.region": s3_region,
-            # Metadata caching
-            "iceberg.metadata-cache-ttl": "5m",
-            "iceberg.file-status-cache-expire-after-write": "5m",
-            "iceberg.file-status-cache-max-size": "100000",
-            # Split planning
-            "iceberg.split-loader-parallelism": "8",
         }

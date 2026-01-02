@@ -5,7 +5,7 @@ Display current state of assets, jobs, and services.
 
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import click
@@ -95,7 +95,7 @@ def status(
     elapsed = time.time() - start_time
 
     if output_json:
-        result["timestamp"] = datetime.utcnow().isoformat()
+        result["timestamp"] = datetime.now(timezone.utc).isoformat()
         result["elapsed_seconds"] = round(elapsed, 2)
         click.echo(json.dumps(result, indent=2, default=str))
     else:
@@ -151,7 +151,7 @@ def _get_asset_status(
         """
 
         try:
-            result = client.execute(query)
+            result = client._execute(query)
             if result and "data" in result:
                 for asset in result["data"].get("assetsOrError", {}).get("nodes", []):
                     asset_path = asset.get("key", {}).get("path", [])
@@ -211,7 +211,7 @@ def _check_if_stale(last_run: Optional[Dict[str, Any]]) -> bool:
         return True
 
     # Check if older than 24 hours
-    age = datetime.utcnow() - last_run_time
+    age = datetime.now(timezone.utc) - last_run_time
     return age > timedelta(hours=24)
 
 
@@ -227,7 +227,7 @@ def _get_freshness_indicator(last_run: Optional[Dict[str, Any]]) -> str:
     if not last_run_time:
         return "unknown"
 
-    age = datetime.utcnow() - last_run_time
+    age = datetime.now(timezone.utc) - last_run_time
 
     if age < timedelta(hours=1):
         return "fresh"
@@ -251,7 +251,7 @@ def _get_mock_asset_status(
             "group": "nightscout",
             "last_run": {
                 "status": "success",
-                "timestamp": datetime.utcnow() - timedelta(hours=0.5),
+                "timestamp": datetime.now(timezone.utc) - timedelta(hours=0.5),
             },
             "status": "success",
             "freshness": "fresh",
@@ -262,7 +262,7 @@ def _get_mock_asset_status(
             "group": "nightscout",
             "last_run": {
                 "status": "success",
-                "timestamp": datetime.utcnow() - timedelta(hours=2),
+                "timestamp": datetime.now(timezone.utc) - timedelta(hours=2),
             },
             "status": "success",
             "freshness": "okay",
@@ -273,7 +273,7 @@ def _get_mock_asset_status(
             "group": "nightscout",
             "last_run": {
                 "status": "failure",
-                "timestamp": datetime.utcnow() - timedelta(hours=48),
+                "timestamp": datetime.now(timezone.utc) - timedelta(hours=48),
             },
             "status": "failure",
             "freshness": "failed",
@@ -284,7 +284,7 @@ def _get_mock_asset_status(
             "group": "nightscout",
             "last_run": {
                 "status": "success",
-                "timestamp": datetime.utcnow() - timedelta(hours=30),
+                "timestamp": datetime.now(timezone.utc) - timedelta(hours=30),
             },
             "status": "success",
             "freshness": "stale",
@@ -341,6 +341,7 @@ def _check_service_health(
     """Check if a service is healthy."""
     try:
         import requests
+        from requests import exceptions as requests_exceptions
     except ImportError:
         return {
             "name": name,
@@ -363,14 +364,14 @@ def _check_service_health(
             "latency_ms": round(latency, 1),
             "status_code": response.status_code,
         }
-    except requests.exceptions.Timeout:
+    except requests_exceptions.Timeout:
         return {
             "name": name,
             "status": "timeout",
             "latency_ms": 2000,
             "error": "Request timeout",
         }
-    except requests.exceptions.ConnectionError:
+    except requests_exceptions.ConnectionError:
         return {
             "name": name,
             "status": "down",
@@ -431,7 +432,7 @@ def _display_asset_status(
         last_run = asset.get("last_run")
         if last_run and last_run.get("timestamp"):
             ts = last_run["timestamp"]
-            age = datetime.utcnow() - ts
+            age = datetime.now(timezone.utc) - ts
             if age < timedelta(hours=1):
                 last_run_str = f"{int(age.total_seconds() / 60)}m ago"
             elif age < timedelta(days=1):

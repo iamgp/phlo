@@ -150,7 +150,7 @@ select = ["E", "F", "I"]
 ignore = ["E501"]  # Line too long - let the formatter handle this
 
 [tool.ty.src]
-exclude = ["**/testing/**"]  # Mock/placeholder code with dynamic imports
+exclude = ["**/testing/**", "templates/**"]  # Mock/placeholder code with dynamic imports
 
 [tool.ty.environment]
 root = ["./src"]

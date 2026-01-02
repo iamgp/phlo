@@ -204,6 +204,7 @@ class TestReconciliationCheck:
         result = check.execute(df, context)
 
         assert result.passed is False
+        assert result.failure_message is not None
         assert "failed to query source table" in result.failure_message.lower()
 
     def test_name_property(self):
@@ -303,6 +304,7 @@ class TestAggregateConsistencyCheck:
 
         assert result.passed is False
         assert result.metric_value["mismatches"] == 1
+        assert result.failure_message is not None
         assert "mismatch" in result.failure_message.lower()
 
     def test_check_passes_within_tolerance(self):
@@ -380,6 +382,7 @@ class TestAggregateConsistencyCheck:
         result = check.execute(df, context)
 
         assert result.passed is False
+        assert result.failure_message is not None
         assert "not found" in result.failure_message.lower()
 
     def test_single_aggregate_comparison(self):

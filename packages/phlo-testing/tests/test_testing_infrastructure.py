@@ -237,6 +237,7 @@ class TestAssetExecution:
         result = run_asset_test(simple_asset, partition="2024-01-01")
 
         assert result.success
+        assert result.data is not None
         assert len(result.data) == 1
         assert result.data.iloc[0]["id"] == 1
 
@@ -254,6 +255,7 @@ class TestAssetExecution:
         result = run_asset_test(dataframe_asset, partition="2024-01-01")
 
         assert result.success
+        assert result.data is not None
         assert len(result.data) == 3
         assert result.metadata["row_count"] == 3
 
@@ -272,6 +274,7 @@ class TestAssetExecution:
         )
 
         assert result.success
+        assert result.data is not None
         assert len(result.data) == 1
 
     def test_asset_execution_time(self):
@@ -306,6 +309,7 @@ class TestAssetExecution:
         result = run_asset_test(empty_asset, partition="2024-01-01")
 
         assert result.success
+        assert result.data is not None
         assert len(result.data) == 0
 
 
@@ -460,6 +464,7 @@ class TestIntegration:
             )
 
             assert result.success
+            assert result.data is not None
             assert len(result.data) == 2
 
 

@@ -211,6 +211,34 @@ class TestTrinoResourceUnit:
 
             assert result == []
 
+    def test_wait_ready_retries_until_success(self):
+        """Wait ready should retry on startup errors and return once healthy."""
+        from phlo_trino import TrinoResource
+
+        resource = TrinoResource(host="test", port=8080)
+        calls = {"count": 0}
+
+        def side_effect(*_args, **_kwargs):
+            calls["count"] += 1
+            if calls["count"] < 3:
+                raise Exception("SERVER_STARTING_UP")
+            return [(1,)]
+
+        with patch.object(resource, "execute", side_effect=side_effect):
+            resource.wait_ready(timeout=1.0, interval=0.0, schema="raw")
+
+        assert calls["count"] == 3
+
+    def test_wait_ready_times_out(self):
+        """Wait ready should raise after timeout if Trino never starts."""
+        from phlo_trino import TrinoResource
+
+        resource = TrinoResource(host="test", port=8080)
+
+        with patch.object(resource, "execute", side_effect=Exception("SERVER_STARTING_UP")):
+            with pytest.raises(TimeoutError):
+                resource.wait_ready(timeout=0.01, interval=0.0, schema="raw")
+
 
 # =============================================================================
 # Unit Tests: Catalog Generator

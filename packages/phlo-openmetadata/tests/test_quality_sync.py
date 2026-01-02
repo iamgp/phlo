@@ -28,8 +28,8 @@ class TestQualityCheckMapper:
             check, "public.users"
         )
 
-        assert test_def["name"] == "null_check_id+timestamp"
-        assert test_def["testType"] == "nullCheck"
+        assert test_def["name"] == "null_check_id_timestamp"
+        assert test_def["entityType"] == "COLUMN"
         assert "null" in test_def["description"].lower()
 
     def test_map_range_check_to_test_definition(self):
@@ -41,7 +41,7 @@ class TestQualityCheckMapper:
         )
 
         assert test_def["name"] == "range_check_temperature"
-        assert test_def["testType"] == "rangeCheck"
+        assert test_def["entityType"] == "COLUMN"
         assert "-50" in test_def["description"]
         assert "60" in test_def["description"]
 
@@ -54,7 +54,7 @@ class TestQualityCheckMapper:
         )
 
         assert test_def["name"] == "freshness_check_created_at"
-        assert test_def["testType"] == "freshnessCheck"
+        assert test_def["entityType"] == "COLUMN"
         assert "24" in test_def["description"]
 
     def test_map_unique_check_to_test_definition(self):
@@ -65,8 +65,8 @@ class TestQualityCheckMapper:
             check, "public.accounts"
         )
 
-        assert test_def["name"] == "unique_check_email+domain"
-        assert test_def["testType"] == "uniqueCheck"
+        assert test_def["name"] == "unique_check_email_domain"
+        assert test_def["entityType"] == "TABLE"
 
     def test_map_count_check_to_test_definition(self):
         """Test mapping CountCheck to test definition."""
@@ -77,7 +77,7 @@ class TestQualityCheckMapper:
         )
 
         assert test_def["name"] == "count_check"
-        assert test_def["testType"] == "countCheck"
+        assert test_def["entityType"] == "TABLE"
 
     def test_map_custom_sql_check_to_test_definition(self):
         """Test mapping CustomSQLCheck to test definition."""
@@ -91,7 +91,7 @@ class TestQualityCheckMapper:
         )
 
         assert "temp_consistency" in test_def["name"]
-        assert test_def["testType"] == "customSQLCheck"
+        assert test_def["entityType"] == "TABLE"
 
     def test_map_check_to_test_case(self):
         """Test mapping check to test case."""
@@ -99,8 +99,8 @@ class TestQualityCheckMapper:
 
         test_case = QualityCheckMapper.map_check_to_test_case(check, "schema.table", "table_suite")
 
-        assert test_case["name"] == "schema.table_null_check_id"
-        assert test_case["entityLink"] == "<#schema.table>"
+        assert test_case["name"] == "schema_table_null_check_id"
+        assert test_case["entityLink"] == "<#E::table::schema.table::columns::id>"
         assert test_case["testSuite"]["name"] == "table_suite"
         assert test_case["testDefinition"]["name"] == "null_check_id"
 
@@ -167,7 +167,7 @@ class TestQualityCheckMapper:
 
         om_test = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, "public.users")
 
-        assert om_test["name"] == "public.users_dbt_not_null_id"
+        assert om_test["name"] == "public_users_dbt_not_null_id"
         assert om_test["testDefinition"]["name"] == "dbt_not_null"
         assert len(om_test["parameterValues"]) > 0
 

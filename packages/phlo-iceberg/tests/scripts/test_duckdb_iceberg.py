@@ -141,6 +141,9 @@ def test_duckdb_iceberg():
                 LIMIT 10
             """).fetchone()
 
+            if result is None:
+                raise AssertionError("Expected a result row from partition filtering query")
+
             print("   ✓ Partition filtering works")
             print(f"     Total rows: {result[0]}")
             print(f"     Date range: {result[1]} to {result[2]}\n")

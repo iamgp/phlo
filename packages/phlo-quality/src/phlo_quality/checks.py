@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-import pandera as pa
+import pandera.errors as pa_errors
 
 if TYPE_CHECKING:
     from dagster import AssetExecutionContext
@@ -52,7 +52,9 @@ class QualityCheck(ABC):
     """
 
     @abstractmethod
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """
         Execute the quality check on the given DataFrame.
 
@@ -89,7 +91,9 @@ class NullCheck(QualityCheck):
     allow_threshold: float = 0.0
     """Maximum fraction of nulls allowed (0.0 = no nulls, 0.05 = 5% nulls)."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute null check on DataFrame."""
         null_counts = {}
         null_percentages = {}
@@ -165,7 +169,9 @@ class RangeCheck(QualityCheck):
     allow_threshold: float = 0.0
     """Maximum fraction of out-of-range values allowed."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute range check on DataFrame."""
         if self.column not in df.columns:
             return QualityCheckResult(
@@ -263,7 +269,9 @@ class FreshnessCheck(QualityCheck):
     reference_time: datetime | None = None
     """Reference time to compare against (defaults to now)."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute freshness check on DataFrame."""
         if self.timestamp_column not in df.columns:
             return QualityCheckResult(
@@ -274,7 +282,7 @@ class FreshnessCheck(QualityCheck):
             )
 
         # Convert to datetime if needed
-        timestamp_data = pd.to_datetime(df[self.timestamp_column])
+        timestamp_data = pd.Series(pd.to_datetime(df[self.timestamp_column], errors="coerce"))
 
         if len(timestamp_data.dropna()) == 0:
             return QualityCheckResult(
@@ -336,7 +344,9 @@ class UniqueCheck(QualityCheck):
     allow_threshold: float = 0.0
     """Maximum fraction of duplicates allowed."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute uniqueness check on DataFrame."""
         missing_columns = [col for col in self.columns if col not in df.columns]
 
@@ -403,7 +413,9 @@ class CountCheck(QualityCheck):
     max_rows: int | None = None
     """Maximum expected row count."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute count check on DataFrame."""
         row_count = len(df)
 
@@ -452,7 +464,9 @@ class SchemaCheck(QualityCheck):
     lazy: bool = True
     """Use lazy validation to collect all errors."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute schema check on DataFrame."""
         try:
             # Validate with Pandera
@@ -469,7 +483,7 @@ class SchemaCheck(QualityCheck):
                 },
             )
 
-        except pa.errors.SchemaErrors as err:
+        except pa_errors.SchemaErrors as err:
             failure_cases = err.failure_cases
 
             failures_by_column = failure_cases.groupby("column").size().to_dict()
@@ -534,7 +548,9 @@ class CustomSQLCheck(QualityCheck):
     allow_threshold: float = 0.0
     """Maximum fraction of failures allowed."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute custom SQL check on DataFrame."""
         try:
             # Execute SQL in pandas context
@@ -634,7 +650,9 @@ class PatternCheck(QualityCheck):
     case_sensitive: bool = True
     """Whether pattern matching is case sensitive."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute pattern check on DataFrame."""
         if self.column not in df.columns:
             return QualityCheckResult(

@@ -12,6 +12,7 @@ depends_on:
 
 compose:
   restart: unless-stopped
+  user: "0"
   labels:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "grafana:3000"
