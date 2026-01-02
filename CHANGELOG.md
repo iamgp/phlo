@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.2.0-alpha.2](https://github.com/iamgp/phlo/compare/v0.1.0-alpha.2...v0.2.0-alpha.2) (2026-01-02)
+
+
+### Features
+
+* add hook bus and update plugins to use them ([#111](https://github.com/iamgp/phlo/issues/111)) ([fa06867](https://github.com/iamgp/phlo/commit/fa06867ac91a2a59dbacb03bcfb531df5c38bae1))
+* advanced reconciliation checks ([#128](https://github.com/iamgp/phlo/issues/128)) ([6c044cb](https://github.com/iamgp/phlo/commit/6c044cb0cc68406c5ffba0aac43c2b97f5973eb9))
+* auto-configure services for plug-and-play installation ([#119](https://github.com/iamgp/phlo/issues/119)) ([28d81c4](https://github.com/iamgp/phlo/commit/28d81c42939570e2ab82063558eff4b9cc492ebd))
+* **iceberg,trino:** add table maintenance and caching ([#118](https://github.com/iamgp/phlo/issues/118)) ([99ca691](https://github.com/iamgp/phlo/commit/99ca6910df66ba6d4d0307f0ebf08c52b391f4c1))
+* **iceberg:** add maintenance observability ([#127](https://github.com/iamgp/phlo/issues/127)) ([cc04def](https://github.com/iamgp/phlo/commit/cc04defd9727ba805bf5373cb0a3d07a52ad262a))
+* introduce golden-path e2e workflow test ([#132](https://github.com/iamgp/phlo/issues/132)) ([481d3ab](https://github.com/iamgp/phlo/commit/481d3ab344724195ea8fbc3ea9c51240f8ac7494))
+* make check ([#133](https://github.com/iamgp/phlo/issues/133)) ([561e4a6](https://github.com/iamgp/phlo/commit/561e4a6a16f03c412131324990960fcf388b5f29))
+* migrate from basedpyright to ty typechecker ([#120](https://github.com/iamgp/phlo/issues/120)) ([0ad792b](https://github.com/iamgp/phlo/commit/0ad792b6151863975b660d6a05e729bd947e480b))
+* register phlo-api service plugin ([#121](https://github.com/iamgp/phlo/issues/121)) ([6c8695a](https://github.com/iamgp/phlo/commit/6c8695af873b3140c1d91250183f545e0e2e3171))
+* **security:** add enterprise security configuration options ([#117](https://github.com/iamgp/phlo/issues/117)) ([3e0d4aa](https://github.com/iamgp/phlo/commit/3e0d4aafd0ee181cfdc81553daf7010dafe94054))
+* standardise env config and add env export ([#130](https://github.com/iamgp/phlo/issues/130)) ([fba3e0d](https://github.com/iamgp/phlo/commit/fba3e0d08bfd8ca850b89dbae70de06563176150))
+* **test:** integration tests ([#126](https://github.com/iamgp/phlo/issues/126)) ([6e096ee](https://github.com/iamgp/phlo/commit/6e096eef96c88e1cbd6d6d0ec92be4d7cc53f643))
+
+
+### Bug Fixes
+
+* suppress pyiceberg Pydantic v2.12 deprecation warnings ([#131](https://github.com/iamgp/phlo/issues/131)) ([5e68e28](https://github.com/iamgp/phlo/commit/5e68e282d44ee5157c44ddf8b1737598c5c2c7d4))
+
+
+### Documentation
+
+* update all documentation ([#129](https://github.com/iamgp/phlo/issues/129)) ([19be8f0](https://github.com/iamgp/phlo/commit/19be8f0eb033743dae7586f50f9a263f700b246c))
+* update documentation for pip installation and plugin system ([#108](https://github.com/iamgp/phlo/issues/108)) ([6728346](https://github.com/iamgp/phlo/commit/6728346fd74da8b32ac2d071ed4fc53030bfabfd))
+
 ## [0.1.0-alpha.2](https://github.com/iamgp/phlo/compare/v0.1.0-alpha.2...v0.1.0-alpha.2) (2025-12-26)
 
 

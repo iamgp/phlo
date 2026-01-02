@@ -11,7 +11,7 @@ include = ["src/phlo/plugins/registry_data.json", "registry/schema/v1.json", "re
 
 [project]
 name = "phlo"
-version = "0.1.0-alpha.2"
+version = "0.2.0-alpha.2"
 description = "Lakehouse platform"
 readme = "README.md"
 requires-python = ">=3.11"
