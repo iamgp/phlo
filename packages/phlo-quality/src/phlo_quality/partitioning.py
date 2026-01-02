@@ -29,13 +29,19 @@ def apply_partition_scope(sql: str, *, scope: PartitionScope) -> str:
         return sql
 
     if scope.partition_key is not None:
-        return _append_where(sql, f"{scope.partition_column} = '{scope.partition_key}'")
+        return _append_where(
+            sql, f"{scope.partition_column} = {_date_literal(scope.partition_key)}"
+        )
 
     if scope.rolling_window_days is None:
         return sql
 
     cutoff = date.today() - timedelta(days=scope.rolling_window_days)
-    return _append_where(sql, f"{scope.partition_column} >= '{cutoff.isoformat()}'")
+    return _append_where(sql, f"{scope.partition_column} >= {_date_literal(cutoff.isoformat())}")
+
+
+def _date_literal(value: str) -> str:
+    return f"DATE '{value}'"
 
 
 def _append_where(sql: str, condition: str) -> str:
