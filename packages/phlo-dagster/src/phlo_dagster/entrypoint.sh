@@ -18,6 +18,22 @@ if [ "$PHLO_DEV_MODE" = "true" ] && [ -f /opt/phlo-dev/pyproject.toml ]; then
     echo "Dev mode: dependencies synced"
 fi
 
+# Optionally install extra local packages in dev mode
+if [ "$PHLO_DEV_MODE" = "true" ] && [ -n "$PHLO_DEV_EXTRA_PACKAGES" ]; then
+    echo "Dev mode: installing extra packages: $PHLO_DEV_EXTRA_PACKAGES"
+    for pkg in ${PHLO_DEV_EXTRA_PACKAGES//,/ }; do
+        if [ -z "$pkg" ]; then
+            continue
+        fi
+        local_path="/opt/phlo-dev/packages/$pkg"
+        if [ -d "$local_path" ]; then
+            uv pip install --system -e "$local_path" || echo "Warning: Could not install $pkg"
+        else
+            uv pip install --system "$pkg" || echo "Warning: Could not install $pkg"
+        fi
+    done
+fi
+
 # Create sitecustomize.py to suppress Dagster SupersessionWarning at Python startup
 # This runs before any Python script and filters out deprecated CLI warnings
 SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")

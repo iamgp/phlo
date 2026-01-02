@@ -122,8 +122,8 @@ def _is_transient_trino_error(exc: Exception) -> bool:
     return False
 
 
-def _iter_exception_chain(exc: Exception) -> Iterable[Exception]:
-    current: Exception | None = exc
+def _iter_exception_chain(exc: BaseException) -> Iterable[BaseException]:
+    current: BaseException | None = exc
     while current is not None:
         yield current
         current = current.__cause__ or current.__context__

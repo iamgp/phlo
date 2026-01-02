@@ -52,7 +52,7 @@ def track(schema: str, exclude: tuple, verbose: bool):
 
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @hasura.command()
@@ -82,7 +82,7 @@ def relationships(schema: str, verbose: bool):
 
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @hasura.command()
@@ -112,7 +112,7 @@ def permissions(schema: str, verbose: bool):
 
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @hasura.command()
@@ -133,7 +133,7 @@ def auto_setup(schema: str, verbose: bool):
         auto_track(schema, verbose=verbose)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @hasura.command()
@@ -151,7 +151,7 @@ def export(output: str):
         click.echo(f"✓ Metadata exported to {output}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @hasura.command(name="apply")
@@ -169,7 +169,7 @@ def apply_meta(input: str):
         click.echo(f"✓ Metadata applied from {input}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @hasura.command()
@@ -190,7 +190,7 @@ def status():
 
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
-        raise click.Exit(1)
+        raise SystemExit(1)
 
 
 @hasura.command(name="sync-permissions")

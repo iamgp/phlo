@@ -134,6 +134,7 @@ def backfill(
     if not asset_name:
         click.echo("Error: Asset name is required", err=True)
         sys.exit(1)
+    asset_name = str(asset_name)
 
     # Validate parallel value
     if parallel < 1:

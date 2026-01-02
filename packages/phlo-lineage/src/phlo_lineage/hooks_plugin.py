@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+import logging
+
 from phlo.hooks import LineageEvent
 from phlo.plugins.base import PluginMetadata
 from phlo.plugins.hooks import HookFilter, HookPlugin, HookRegistration
 
 from phlo_lineage.graph import get_lineage_graph
+from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+
+logger = logging.getLogger(__name__)
 
 
 class LineageHookPlugin(HookPlugin):
@@ -43,3 +48,18 @@ class LineageHookPlugin(HookPlugin):
         graph = get_lineage_graph()
         for source, target in event.edges:
             graph.add_edge(source, target)
+
+        connection_string = resolve_lineage_db_url()
+        if not connection_string:
+            return
+
+        try:
+            store = LineageStore(connection_string)
+            store.record_asset_edges(
+                event.edges,
+                asset_keys=event.asset_keys,
+                metadata=event.metadata,
+                tags=event.tags,
+            )
+        except Exception as exc:
+            logger.warning("Failed to persist asset lineage edges: %s", exc)

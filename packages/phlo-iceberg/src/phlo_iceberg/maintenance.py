@@ -175,7 +175,9 @@ def expire_table_snapshots(
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
     """Expire old snapshots from all tables in the specified namespace."""
-    results = {"tables_processed": 0, "total_snapshots_deleted": 0, "errors": []}
+    tables_processed = 0
+    total_snapshots_deleted = 0
+    errors: list[str] = []
     operation = "expire_snapshots"
     start_time = time.time()
     telemetry = TelemetryEventEmitter(
@@ -206,8 +208,8 @@ def expire_table_snapshots(
                     retain_last=config.snapshot_retain_last,
                     ref=config.ref,
                 )
-                results["tables_processed"] += 1
-                results["total_snapshots_deleted"] += result["deleted_snapshots"]
+                tables_processed += 1
+                total_snapshots_deleted += result["deleted_snapshots"]
                 context.log.info(
                     f"Expired {result['deleted_snapshots']} snapshots from {table_name}",
                     extra=_maintenance_log_extra(
@@ -230,19 +232,19 @@ def expire_table_snapshots(
                         error=str(e),
                     ),
                 )
-                results["errors"].append(error_msg)
+                errors.append(error_msg)
 
     duration_seconds = time.time() - start_time
-    status = "success" if not results["errors"] else "failure"
+    status = "success" if not errors else "failure"
     summary_payload = _maintenance_payload(
         context,
         config,
         operation=operation,
         status=status,
         duration_seconds=duration_seconds,
-        tables_processed=results["tables_processed"],
-        snapshots_deleted=results["total_snapshots_deleted"],
-        errors=len(results["errors"]),
+        tables_processed=tables_processed,
+        snapshots_deleted=total_snapshots_deleted,
+        errors=len(errors),
     )
     context.log.info(
         "Completed Iceberg maintenance operation",
@@ -252,9 +254,9 @@ def expire_table_snapshots(
             operation=operation,
             status=status,
             duration_seconds=duration_seconds,
-            tables_processed=results["tables_processed"],
-            snapshots_deleted=results["total_snapshots_deleted"],
-            errors=len(results["errors"]),
+            tables_processed=tables_processed,
+            snapshots_deleted=total_snapshots_deleted,
+            errors=len(errors),
         ),
     )
     telemetry.emit_log(
@@ -262,7 +264,7 @@ def expire_table_snapshots(
         level="info",
         payload=summary_payload,
     )
-    if results["errors"]:
+    if errors:
         telemetry.emit_log(
             name="iceberg.maintenance.failed",
             level="error",
@@ -274,12 +276,19 @@ def expire_table_snapshots(
     _emit_maintenance_metrics(
         metrics_emitter,
         duration_seconds=duration_seconds,
-        tables_processed=results["tables_processed"],
-        errors=len(results["errors"]),
-        snapshots_deleted=results["total_snapshots_deleted"],
+        tables_processed=tables_processed,
+        errors=len(errors),
+        snapshots_deleted=total_snapshots_deleted,
     )
 
-    return results
+    summary_payload.update(
+        {
+            "tables_processed": tables_processed,
+            "total_snapshots_deleted": total_snapshots_deleted,
+            "errors": errors,
+        }
+    )
+    return summary_payload
 
 
 @dg.op

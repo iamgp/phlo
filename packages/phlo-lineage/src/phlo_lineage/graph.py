@@ -8,6 +8,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Optional, Set
 
+from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -239,21 +241,32 @@ def get_lineage_graph() -> LineageGraph:
     """Get or create global lineage graph."""
     global _lineage_graph
     if _lineage_graph is None:
-        _lineage_graph = _build_lineage_from_dagster()
+        _lineage_graph = _build_lineage_from_store()
     return _lineage_graph
 
 
-def _build_lineage_from_dagster() -> LineageGraph:
-    """Build lineage graph from Dagster instance.
-
-    Note: This method builds an empty graph that can be populated manually.
-    Full Dagster integration requires accessing the running Dagster instance's
-    GraphQL API or Definitions object directly, which is not available here.
-    """
+def _build_lineage_from_store() -> LineageGraph:
+    """Build lineage graph from the persistent lineage store."""
     graph = LineageGraph()
+    connection_string = resolve_lineage_db_url()
+    if not connection_string:
+        logger.debug("Lineage graph initialized (no lineage DB configured)")
+        return graph
 
-    # Return empty graph - lineage is built dynamically when
-    # running within the Dagster context where Definitions are available
-    logger.debug("Lineage graph initialized (empty - populate via Dagster context)")
+    try:
+        store = LineageStore(connection_string)
+        for node in store.list_asset_nodes():
+            graph.add_asset(
+                node["asset_key"],
+                asset_type=node.get("asset_type") or "unknown",
+                status=node.get("status") or "unknown",
+            )
+            if node.get("description"):
+                graph.assets[node["asset_key"]].description = node["description"]
+
+        for edge in store.list_asset_edges():
+            graph.add_edge(edge["source_asset"], edge["target_asset"])
+    except Exception as exc:
+        logger.warning("Failed to build lineage graph from store: %s", exc)
 
     return graph

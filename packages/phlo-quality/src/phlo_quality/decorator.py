@@ -695,7 +695,7 @@ def _collect_failure_sample(check_results: List[QualityCheckResult]) -> list[dic
 
 def _asset_key_to_str(asset_key: AssetKey) -> str:
     if hasattr(asset_key, "path") and asset_key.path:
-        return "/".join(str(part) for part in asset_key.path)
+        return ".".join(str(part) for part in asset_key.path)
     return str(asset_key)
 
 

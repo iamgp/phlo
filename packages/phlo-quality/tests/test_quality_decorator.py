@@ -471,6 +471,7 @@ class TestPatternCheck:
 
         assert not result.passed
         assert result.metadata["non_match_count"] == 2
+        assert result.failure_message is not None
         assert "invalid-email" in result.failure_message
 
     def test_pattern_check_with_threshold(self):
@@ -506,6 +507,7 @@ class TestPatternCheck:
         result = check.execute(df, context=None)
 
         assert not result.passed
+        assert result.failure_message is not None
         assert "not found" in result.failure_message
 
 

@@ -31,6 +31,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Any, cast
 
 # ANSI colors for output
 GREEN = "\033[92m"
@@ -95,6 +96,15 @@ def check_port_in_use(port: int) -> bool:
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def find_available_port(start_port: int, *, max_tries: int = 50) -> int | None:
+    """Find the first available port starting at start_port."""
+    for offset in range(max_tries):
+        port = start_port + offset
+        if not check_port_in_use(port):
+            return port
+    return None
 
 
 def preflight_check(*, auto_cleanup: bool = False) -> bool:
@@ -282,9 +292,10 @@ def run_command(
         )
         output_lines = []
         try:
-            for line in process.stdout:
-                print(f"    {line}", end="")
-                output_lines.append(line)
+            if process.stdout is not None:
+                for line in process.stdout:
+                    print(f"    {line}", end="")
+                    output_lines.append(line)
             process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             process.kill()
@@ -497,13 +508,15 @@ def http_post(
 def extract_openmetadata_token(payload: object) -> str | None:
     """Extract a bearer token from common OpenMetadata auth responses."""
     if isinstance(payload, dict):
+        payload_dict = cast(dict[str, Any], payload)
         for key in ("accessToken", "token", "jwtToken", "idToken"):
-            value = payload.get(key)
+            value = payload_dict.get(key)
             if isinstance(value, str) and value:
                 return value
         for key in ("data", "result", "response", "auth"):
-            if key in payload:
-                token = extract_openmetadata_token(payload[key])
+            nested = payload_dict.get(key)
+            if nested is not None:
+                token = extract_openmetadata_token(nested)
                 if token:
                     return token
     elif isinstance(payload, list):
@@ -569,6 +582,50 @@ def read_env_file(path: Path) -> dict[str, str]:
         key, value = stripped.split("=", 1)
         data[key.strip()] = value.strip()
     return data
+
+
+def upsert_env_file(path: Path, updates: dict[str, str]) -> None:
+    """Update or append entries in a .env file."""
+    existing_lines = path.read_text().splitlines() if path.exists() else []
+    rendered: list[str] = []
+    seen: set[str] = set()
+
+    for line in existing_lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            rendered.append(line)
+            continue
+        key, _ = stripped.split("=", 1)
+        key = key.strip()
+        if key in updates:
+            rendered.append(f"{key}={updates[key]}")
+            seen.add(key)
+        else:
+            rendered.append(line)
+
+    for key, value in updates.items():
+        if key not in seen:
+            rendered.append(f"{key}={value}")
+
+    path.write_text("\n".join(rendered) + "\n")
+
+
+def apply_env_updates(phlo_dir: Path, updates: dict[str, str]) -> None:
+    """Apply env updates to both .env and .env.local."""
+    for env_path in (phlo_dir / ".env", phlo_dir / ".env.local"):
+        upsert_env_file(env_path, updates)
+
+
+def resolve_port(service: str, default_port: int) -> int:
+    """Return a usable port for the service, falling back to the next available."""
+    if not check_port_in_use(default_port):
+        return default_port
+    candidate = find_available_port(default_port + 1)
+    if candidate is None:
+        log_warning(f"Port {default_port} for {service} is in use and no alternative found")
+        return default_port
+    log_warning(f"Port {default_port} for {service} is in use; using {candidate}")
+    return candidate
 
 
 def write_file(path: Path, content: str) -> None:
@@ -675,6 +732,8 @@ def main() -> int:
     log_info(f"Project dir: {project_dir}")
     log_info(f"Phlo source: {phlo_source}")
 
+    lineage_db_url_host: str | None = None
+
     # Log optional test configuration
     optional_tests = []
     if args.test_api:
@@ -741,11 +800,58 @@ def main() -> int:
         log_success("Services initialized")
 
         phlo_dir = project_dir / ".phlo"
+        env_vars = read_env_file(phlo_dir / ".env")
 
-        # Set API port to avoid conflicts
-        with (phlo_dir / ".env").open("a") as f:
-            f.write("\nPHLO_API_PORT=54000\n")
-        log_info("Set PHLO_API_PORT=54000 to avoid conflicts")
+        # Set ports to avoid conflicts before starting services.
+        env_updates: dict[str, str] = {}
+
+        phlo_api_port = resolve_port("Phlo API", 54000)
+        env_updates["PHLO_API_PORT"] = str(phlo_api_port)
+
+        core_port_defaults = {
+            "DAGSTER_PORT": 3000,
+            "POSTGRES_PORT": 5432,
+            "TRINO_PORT": 8080,
+            "MINIO_API_PORT": 9000,
+            "MINIO_CONSOLE_PORT": 9001,
+        }
+        for key, default_port in core_port_defaults.items():
+            env_updates[key] = str(resolve_port(key, default_port))
+
+        if args.test_api:
+            env_updates["HASURA_PORT"] = str(resolve_port("Hasura", 8082))
+            env_updates["POSTGREST_PORT"] = str(resolve_port("PostgREST", 3002))
+
+        if args.test_observability:
+            env_updates["PROMETHEUS_PORT"] = str(resolve_port("Prometheus", 9090))
+            env_updates["LOKI_PORT"] = str(resolve_port("Loki", 3100))
+            env_updates["GRAFANA_PORT"] = str(resolve_port("Grafana", 3003))
+            env_updates["ALLOY_PORT"] = str(resolve_port("Alloy", 12345))
+
+        if args.test_superset:
+            env_updates["SUPERSET_PORT"] = str(resolve_port("Superset", 8088))
+
+        if args.test_openmetadata:
+            env_updates["OPENMETADATA_PORT"] = str(resolve_port("OpenMetadata", 8585))
+
+        if args.test_lineage:
+            pg_user = env_vars.get("POSTGRES_USER", "phlo")
+            pg_pass = env_vars.get("POSTGRES_PASSWORD", "phlo")
+            pg_db = env_vars.get("POSTGRES_DB", "phlo")
+            postgres_port = int(
+                env_updates.get("POSTGRES_PORT", env_vars.get("POSTGRES_PORT", "5432"))
+            )
+            lineage_db_url_host = (
+                f"postgresql://{pg_user}:{pg_pass}@localhost:{postgres_port}/{pg_db}"
+            )
+            lineage_db_url_container = f"postgresql://{pg_user}:{pg_pass}@postgres:5432/{pg_db}"
+            env_updates["LINEAGE_DB_URL"] = lineage_db_url_container
+            env_updates["PHLO_DEV_EXTRA_PACKAGES"] = "phlo-lineage"
+            os.environ["LINEAGE_DB_URL"] = lineage_db_url_host
+
+        resolved_ports = dict(env_updates)
+        apply_env_updates(phlo_dir, resolved_ports)
+        log_info("Updated .phlo/.env and .phlo/.env.local with resolved ports")
 
         # Step 3: Create workflow
         log_step("Step 3: Create Workflow")
@@ -1008,11 +1114,13 @@ def main() -> int:
             for svc in ["hasura", "postgrest"]:
                 log_info(f"Adding {svc}...")
                 run_phlo(
-                    ["services", "add", svc],
+                    ["services", "add", svc, "--no-start"],
                     cwd=project_dir,
                     timeout=120,
                     python_exe=project_python,
                 )
+
+            apply_env_updates(phlo_dir, resolved_ports)
 
             # Start the API services (hooks will auto-configure schemas)
             run_phlo(
@@ -1059,26 +1167,35 @@ def main() -> int:
                     graphql_query,
                     headers={"x-hasura-admin-secret": hasura_secret},
                 )
-                if "data" in result and "marts_posts_mart" in result["data"]:
-                    rows = result["data"]["marts_posts_mart"]
-                    log_success(f"Hasura GraphQL: Retrieved {len(rows)} rows")
-                    if rows:
-                        log_info(f"  Sample: {rows[0]}")
-                elif "errors" in result:
-                    # Table might not be tracked yet, try introspection
-                    log_warning(
-                        f"Hasura query error (table may not be tracked): {result['errors']}"
-                    )
-                    introspect_query = {"query": "{ __schema { types { name } } }"}
-                    result = http_post(
-                        f"http://127.0.0.1:{hasura_port}/v1/graphql",
-                        introspect_query,
-                        headers={"x-hasura-admin-secret": hasura_secret},
-                    )
-                    if "data" in result:
-                        log_success("Hasura GraphQL: Schema introspection works")
+                if isinstance(result, dict):
+                    data = result.get("data")
+                    if isinstance(data, dict) and "marts_posts_mart" in data:
+                        rows = data["marts_posts_mart"]
+                        if isinstance(rows, list):
+                            log_success(f"Hasura GraphQL: Retrieved {len(rows)} rows")
+                            if rows:
+                                log_info(f"  Sample: {rows[0]}")
+                        else:
+                            log_error(f"Unexpected Hasura response: {result}")
+                            return 1
+                    elif "errors" in result:
+                        # Table might not be tracked yet, try introspection
+                        log_warning(
+                            f"Hasura query error (table may not be tracked): {result.get('errors')}"
+                        )
+                        introspect_query = {"query": "{ __schema { types { name } } }"}
+                        result = http_post(
+                            f"http://127.0.0.1:{hasura_port}/v1/graphql",
+                            introspect_query,
+                            headers={"x-hasura-admin-secret": hasura_secret},
+                        )
+                        if isinstance(result, dict) and "data" in result:
+                            log_success("Hasura GraphQL: Schema introspection works")
+                        else:
+                            log_error(f"Hasura GraphQL introspection failed: {result}")
+                            return 1
                     else:
-                        log_error(f"Hasura GraphQL introspection failed: {result}")
+                        log_error(f"Unexpected Hasura response: {result}")
                         return 1
                 else:
                     log_error(f"Unexpected Hasura response: {result}")
@@ -1143,11 +1260,13 @@ def main() -> int:
             for svc in observability_services:
                 log_info(f"Adding {svc}...")
                 run_phlo(
-                    ["services", "add", svc],
+                    ["services", "add", svc, "--no-start"],
                     cwd=project_dir,
                     timeout=120,
                     python_exe=project_python,
                 )
+
+            apply_env_updates(phlo_dir, resolved_ports)
 
             # Start observability stack
             start_args = ["services", "start"]
@@ -1176,14 +1295,21 @@ def main() -> int:
             log_info("Testing Prometheus targets...")
             try:
                 result = http_get(f"http://127.0.0.1:{prometheus_port}/api/v1/targets")
-                if "data" in result and "activeTargets" in result["data"]:
-                    targets = result["data"]["activeTargets"]
-                    up_count = sum(1 for t in targets if t.get("health") == "up")
-                    log_success(f"Prometheus: {up_count}/{len(targets)} targets UP")
-                    for t in targets[:3]:  # Show first 3 targets
-                        state = t.get("health", "unknown")
-                        job = t.get("labels", {}).get("job", "unknown")
-                        log_info(f"  - {job}: {state}")
+                if isinstance(result, dict):
+                    data = result.get("data")
+                    if isinstance(data, dict) and "activeTargets" in data:
+                        targets = data.get("activeTargets") or []
+                        if isinstance(targets, list):
+                            up_count = sum(1 for t in targets if t.get("health") == "up")
+                            log_success(f"Prometheus: {up_count}/{len(targets)} targets UP")
+                            for t in targets[:3]:  # Show first 3 targets
+                                state = t.get("health", "unknown")
+                                job = t.get("labels", {}).get("job", "unknown")
+                                log_info(f"  - {job}: {state}")
+                        else:
+                            log_warning(f"Prometheus targets response: {result}")
+                    else:
+                        log_warning(f"Prometheus targets response: {result}")
                 else:
                     log_warning(f"Prometheus targets response: {result}")
             except Exception as e:
@@ -1193,11 +1319,14 @@ def main() -> int:
             log_info("Testing Loki log ingestion...")
             try:
                 result = http_get(f"http://127.0.0.1:{loki_port}/loki/api/v1/labels")
-                if "data" in result:
-                    labels = result["data"]
-                    log_success(f"Loki: Found {len(labels)} label types")
-                    if labels:
-                        log_info(f"  Labels: {', '.join(labels[:5])}")
+                if isinstance(result, dict):
+                    labels = result.get("data")
+                    if isinstance(labels, list):
+                        log_success(f"Loki: Found {len(labels)} label types")
+                        if labels:
+                            log_info(f"  Labels: {', '.join(labels[:5])}")
+                    else:
+                        log_warning(f"Loki labels response: {result}")
                 else:
                     log_warning(f"Loki labels response: {result}")
             except Exception as e:
@@ -1228,11 +1357,12 @@ def main() -> int:
 
             log_info("Adding Superset...")
             run_phlo(
-                ["services", "add", "superset"],
+                ["services", "add", "superset", "--no-start"],
                 cwd=project_dir,
                 timeout=180,
                 python_exe=project_python,
             )
+            apply_env_updates(phlo_dir, resolved_ports)
             run_phlo(
                 ["services", "start", "--service", "superset"],
                 cwd=project_dir,
@@ -1283,11 +1413,12 @@ def main() -> int:
             else:
                 log_info("Adding OpenMetadata...")
                 run_phlo(
-                    ["services", "add", "openmetadata"],
+                    ["services", "add", "openmetadata", "--no-start"],
                     cwd=project_dir,
                     timeout=180,
                     python_exe=project_python,
                 )
+                apply_env_updates(phlo_dir, resolved_ports)
                 run_phlo(
                     ["services", "start", "--service", "openmetadata"],
                     cwd=project_dir,
@@ -1601,19 +1732,15 @@ def main() -> int:
             else:
                 # Configure lineage to use the existing PostgreSQL database
                 log_info("Configuring lineage database...")
-                pg_user = env_vars.get("POSTGRES_USER", "phlo")
-                pg_pass = env_vars.get("POSTGRES_PASSWORD", "phlo")
-                pg_db = env_vars.get("POSTGRES_DB", "phlo")
-                lineage_db_url = (
-                    f"postgresql://{pg_user}:{pg_pass}@localhost:{postgres_port}/{pg_db}"
-                )
-
-                with (phlo_dir / ".env").open("a") as f:
-                    f.write(f"\nLINEAGE_DB_URL={lineage_db_url}\n")
-                log_info("Set LINEAGE_DB_URL to use PostgreSQL")
-
-                # Reload env vars
-                env_vars = read_env_file(phlo_dir / ".env")
+                if lineage_db_url_host:
+                    os.environ["LINEAGE_DB_URL"] = lineage_db_url_host
+                    log_info("Using LINEAGE_DB_URL for host access")
+                else:
+                    lineage_db_url = os.environ.get("LINEAGE_DB_URL")
+                    if lineage_db_url:
+                        log_info("Using LINEAGE_DB_URL from environment")
+                    else:
+                        log_warning("LINEAGE_DB_URL not set; lineage may be empty")
 
                 # Test lineage CLI commands
                 log_info("Testing lineage CLI...")
@@ -1644,8 +1771,17 @@ def main() -> int:
 
                 # Try to export lineage
                 try:
+                    export_path = project_dir / ".phlo" / "lineage_export.json"
                     result = run_phlo(
-                        ["lineage", "export", "--format", "json"],
+                        [
+                            "lineage",
+                            "export",
+                            "raw.posts",
+                            "--format",
+                            "json",
+                            "--output",
+                            str(export_path),
+                        ],
                         cwd=project_dir,
                         timeout=60,
                         check=False,
@@ -1654,17 +1790,26 @@ def main() -> int:
                     )
                     if result.returncode == 0:
                         log_success("Lineage: export command works")
-                        # Try to parse the output
                         try:
-                            lineage_data = json.loads(result.stdout)
+                            if export_path.exists():
+                                lineage_data = json.loads(export_path.read_text(encoding="utf-8"))
+                            else:
+                                lineage_data = {}
                             if isinstance(lineage_data, dict):
-                                nodes = lineage_data.get("nodes", [])
-                                edges = lineage_data.get("edges", [])
-                                log_info(f"  Lineage graph: {len(nodes)} nodes, {len(edges)} edges")
+                                assets = lineage_data.get("assets", {})
+                                edges = lineage_data.get("edges", {})
+                                edge_count = (
+                                    sum(len(targets) for targets in edges.values())
+                                    if isinstance(edges, dict)
+                                    else len(edges or [])
+                                )
+                                log_info(
+                                    f"  Lineage graph: {len(assets)} assets, {edge_count} edges"
+                                )
                             elif isinstance(lineage_data, list):
                                 log_info(f"  Lineage records: {len(lineage_data)} entries")
-                        except json.JSONDecodeError:
-                            log_info(f"  Output: {result.stdout.strip()[:200]}")
+                        except (json.JSONDecodeError, OSError) as exc:
+                            log_info(f"  Lineage export parse failed: {exc}")
                     else:
                         log_warning(f"Lineage export: {result.stdout.strip()[:200]}")
                 except Exception as e:

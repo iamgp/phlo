@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 import pandas as pd
@@ -44,18 +44,11 @@ class AssetTestResult:
 
     success: bool
     data: Optional[pd.DataFrame] = None
-    metadata: dict[str, Any] = None
-    logs: list[str] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    logs: list[str] = field(default_factory=list)
     duration: float = 0.0
     error: Optional[Exception] = None
     raw_result: Optional[Any] = None
-
-    def __post_init__(self) -> None:
-        """Initialize defaults for mutable fields."""
-        if self.metadata is None:
-            self.metadata = {}
-        if self.logs is None:
-            self.logs = []
 
 
 class MockAssetContext:
