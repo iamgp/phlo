@@ -8,6 +8,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Optional, Set
 
+from phlo_lineage.store import LineageStore, resolve_lineage_db_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -239,30 +241,32 @@ def get_lineage_graph() -> LineageGraph:
     """Get or create global lineage graph."""
     global _lineage_graph
     if _lineage_graph is None:
-        _lineage_graph = _build_lineage_from_dagster()
+        _lineage_graph = _build_lineage_from_store()
     return _lineage_graph
 
 
-def _build_lineage_from_dagster() -> LineageGraph:
-    """Build lineage graph from Dagster instance."""
+def _build_lineage_from_store() -> LineageGraph:
+    """Build lineage graph from the persistent lineage store."""
     graph = LineageGraph()
+    connection_string = resolve_lineage_db_url()
+    if not connection_string:
+        logger.debug("Lineage graph initialized (no lineage DB configured)")
+        return graph
 
     try:
-        from dagster import DagsterInstance
+        store = LineageStore(connection_string)
+        for node in store.list_asset_nodes():
+            graph.add_asset(
+                node["asset_key"],
+                asset_type=node.get("asset_type") or "unknown",
+                status=node.get("status") or "unknown",
+            )
+            if node.get("description"):
+                graph.assets[node["asset_key"]].description = node["description"]
 
-        instance = DagsterInstance.get()
-
-        # Get all assets
-        all_assets = instance.all_asset_definitions()
-        for asset_key in all_assets or []:
-            asset_name = asset_key.name if hasattr(asset_key, "name") else str(asset_key)
-            graph.add_asset(asset_name)
-
-        # Get dependencies - this is a simplified version
-        # In production, you'd query the Dagster definitions more comprehensively
-        # For now, we'll return an empty graph that can be populated manually
-
-    except Exception as e:
-        logger.warning(f"Failed to build lineage from Dagster: {e}")
+        for edge in store.list_asset_edges():
+            graph.add_edge(edge["source_asset"], edge["target_asset"])
+    except Exception as exc:
+        logger.warning("Failed to build lineage graph from store: %s", exc)
 
     return graph

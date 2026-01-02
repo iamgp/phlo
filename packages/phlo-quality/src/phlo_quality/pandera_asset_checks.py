@@ -109,11 +109,15 @@ def pandera_contract_asset_check_result(
         metadata["error"] = MetadataValue.text(evaluation.error)
 
     severity = severity_for_pandera_contract(passed=evaluation.passed)
-    result_kwargs = {
-        "passed": evaluation.passed,
-        "check_name": PANDERA_CONTRACT_CHECK_NAME,
-        "metadata": metadata,
-    }
     if severity is not None:
-        result_kwargs["severity"] = severity
-    return AssetCheckResult(**result_kwargs)
+        return AssetCheckResult(
+            passed=evaluation.passed,
+            check_name=PANDERA_CONTRACT_CHECK_NAME,
+            metadata=metadata,
+            severity=severity,
+        )
+    return AssetCheckResult(
+        passed=evaluation.passed,
+        check_name=PANDERA_CONTRACT_CHECK_NAME,
+        metadata=metadata,
+    )

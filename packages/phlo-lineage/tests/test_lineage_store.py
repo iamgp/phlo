@@ -204,3 +204,30 @@ class TestRecordRowsBatch:
                 result = store.record_rows_batch(rows, "bronze.test", "dlt")
 
                 assert result == 1  # Only one row had _phlo_row_id
+
+
+class TestAssetLineageStore:
+    """Tests for asset-level lineage storage."""
+
+    def test_record_asset_edges_executes_insert(self):
+        """record_asset_edges should insert into asset lineage tables."""
+        with patch("phlo_lineage.store.psycopg2") as mock_psycopg2:
+            with patch("psycopg2.extras.execute_values") as mock_execute_values:
+                mock_conn = MagicMock()
+                mock_cursor = MagicMock()
+                mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+                mock_conn.__exit__ = MagicMock(return_value=False)
+                mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+                mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+                mock_psycopg2.connect.return_value = mock_conn
+
+                store = LineageStore("postgresql://test")
+                store.record_asset_edges(
+                    [("raw.posts", "raw_marts.posts_mart")],
+                    metadata={"source": "dbt"},
+                    tags={"env": "test"},
+                )
+
+                sql_calls = [call.args[1] for call in mock_execute_values.call_args_list]
+                assert any("INSERT INTO phlo.asset_lineage_nodes" in sql for sql in sql_calls)
+                assert any("INSERT INTO phlo.asset_lineage_edges" in sql for sql in sql_calls)

@@ -47,7 +47,7 @@ class DltIngester(BaseIngester):
         self.merge_config = merge_config or {}
 
     def run_ingestion(
-        self, partition_key: str, parameters: Dict[str, Any] = None
+        self, partition_key: str, parameters: Dict[str, Any] | None = None
     ) -> IngestionResult:
         """
         Run the full DLT -> Parquet -> Iceberg flow.

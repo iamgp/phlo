@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any, cast
 from pathlib import Path
 
 import click
@@ -224,13 +225,14 @@ def _export_json(metrics: object, output: Path) -> None:
     # Convert dataclass to dict
     result = _dataclass_to_dict(metrics)
     if isinstance(result, dict):
-        result["exported_at"] = datetime.utcnow().isoformat()
+        result_dict = cast(dict[str, Any], result)
+        result_dict["exported_at"] = datetime.now(timezone.utc).isoformat()
         with open(output, "w") as f:
-            json.dump(result, f, indent=2, default=str)
+            json.dump(result_dict, f, indent=2, default=str)
     else:
         with open(output, "w") as f:
             json.dump(
-                {"data": result, "exported_at": datetime.utcnow().isoformat()},
+                {"data": result, "exported_at": datetime.now(timezone.utc).isoformat()},
                 f,
                 indent=2,
                 default=str,
@@ -243,16 +245,17 @@ def _export_csv(metrics: object, output: Path) -> None:
 
     result = _dataclass_to_dict(metrics)
     if isinstance(result, dict):
-        result["exported_at"] = datetime.utcnow().isoformat()
+        result_dict = cast(dict[str, Any], result)
+        result_dict["exported_at"] = datetime.now(timezone.utc).isoformat()
         with open(output, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=result.keys())
+            writer = csv.DictWriter(f, fieldnames=result_dict.keys())
             writer.writeheader()
-            writer.writerow(result)
+            writer.writerow(result_dict)
     else:
         with open(output, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["data", "exported_at"])
-            writer.writerow([str(result), datetime.utcnow().isoformat()])
+            writer.writerow([str(result), datetime.now(timezone.utc).isoformat()])
 
 
 def _export_prometheus(output: Path) -> None:
@@ -263,12 +266,12 @@ def _export_prometheus(output: Path) -> None:
     output.write_text(render_maintenance_prometheus(), encoding="utf-8")
 
 
-def _dataclass_to_dict(obj: object) -> dict | object:
+def _dataclass_to_dict(obj: object) -> dict[str, Any] | object:
     """Recursively convert dataclass to dict."""
     import dataclasses
 
     if dataclasses.is_dataclass(obj):
-        result: dict = {}
+        result: dict[str, Any] = {}
         for field in dataclasses.fields(obj):
             value = getattr(obj, field.name)
             if dataclasses.is_dataclass(value):

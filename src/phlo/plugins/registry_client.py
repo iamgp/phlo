@@ -142,6 +142,11 @@ def list_registry_plugins() -> list[RegistryPlugin]:
     return _normalize_registry(registry)
 
 
+def get_registry_data() -> dict[str, Any]:
+    """Return raw registry data payload."""
+    return fetch_registry()
+
+
 def get_plugin(name: str) -> RegistryPlugin | None:
     """Return a single plugin entry by name."""
     registry = fetch_registry()

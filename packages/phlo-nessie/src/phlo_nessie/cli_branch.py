@@ -142,6 +142,7 @@ def create(branch_name: str, from_ref: str):
         if not source_ref:
             console.print(f"[red]Reference not found: {from_ref}[/red]")
             sys.exit(1)
+        assert source_ref is not None
 
         # Create branch
         try:
@@ -199,6 +200,7 @@ def delete(branch_name: str, force: bool):
         if not branch_ref:
             console.print(f"[red]Branch not found: {branch_name}[/red]")
             sys.exit(1)
+        assert branch_ref is not None
 
         # Delete branch
         try:
@@ -253,10 +255,12 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
         if not source_ref:
             console.print(f"[red]Source branch not found: {source_branch}[/red]")
             sys.exit(1)
+        assert source_ref is not None
 
         if not target_ref:
             console.print(f"[red]Target branch not found: {target_branch}[/red]")
             sys.exit(1)
+        assert target_ref is not None
 
         if dry_run:
             console.print(f"\n[bold]Dry-run: Merge {source_branch} into {target_branch}[/bold]")
@@ -329,6 +333,8 @@ def diff(source_branch: str, target_branch: str, format: str):
         if not source_ref or not target_ref:
             console.print("[red]One or both branches not found[/red]")
             sys.exit(1)
+        assert source_ref is not None
+        assert target_ref is not None
 
         console.print(f"\n[bold]Differences: {source_branch} -> {target_branch}[/bold]")
         console.print("[dim]Note: Table-level diff requires catalog access[/dim]")

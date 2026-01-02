@@ -54,7 +54,9 @@ class ReconciliationCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute reconciliation check comparing row counts."""
         target_count = len(df)
 
@@ -224,7 +226,9 @@ class AggregateConsistencyCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute aggregate consistency check."""
         if self.aggregate_column not in df.columns:
             return QualityCheckResult(
@@ -442,7 +446,9 @@ class KeyParityCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute key parity check."""
         missing_columns = [column for column in self.key_columns if column not in df.columns]
         if missing_columns:
@@ -581,7 +587,9 @@ class MultiAggregateConsistencyCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute multi-aggregate consistency check."""
         if not self.aggregates:
             return QualityCheckResult(
@@ -857,7 +865,9 @@ class ChecksumReconciliationCheck(QualityCheck):
     limit: int | None = None
     """Optional limit on the number of keys compared (applies to source)."""
 
-    def execute(self, df: pd.DataFrame, context: "AssetExecutionContext") -> QualityCheckResult:
+    def execute(
+        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
+    ) -> QualityCheckResult:
         """Execute checksum reconciliation check."""
         missing_columns = [column for column in self.key_columns if column not in df.columns]
         if missing_columns:

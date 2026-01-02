@@ -117,11 +117,14 @@ def phlo_quality(
         schema_checks = [check for check in checks if isinstance(check, SchemaCheck)]
         non_schema_checks = [check for check in checks if not isinstance(check, SchemaCheck)]
 
+        assert asset_key is not None
+        asset_key_value = asset_key
+
         if schema_checks:
 
             @asset_check(
                 name=PANDERA_CONTRACT_CHECK_NAME,
-                asset=asset_key,
+                asset=asset_key_value,
                 blocking=True,
                 description=f"Pandera schema contract for {table}",
             )
@@ -129,7 +132,7 @@ def phlo_quality(
             def pandera_contract_check(context, **resources) -> AssetCheckResult:
                 partition_key = get_partition_key(context)
                 partition_key_value = str(partition_key) if partition_key else None
-                asset_name = _asset_key_to_str(asset_key)
+                asset_name = _asset_key_to_str(asset_key_value)
                 emitter = QualityResultEventEmitter(
                     QualityResultEventContext(
                         asset_key=asset_name,
@@ -260,15 +263,10 @@ def phlo_quality(
                     sample=failures,
                 )
                 severity = severity_for_pandera_contract(passed=all_passed)
-                result_kwargs = {
-                    "passed": all_passed,
-                    "metadata": {
-                        **contract.to_dagster_metadata(),
-                        "schemas": MetadataValue.json(schema_names),
-                    },
+                metadata = {
+                    **contract.to_dagster_metadata(),
+                    "schemas": MetadataValue.json(schema_names),
                 }
-                if severity is not None:
-                    result_kwargs["severity"] = severity
                 event_metadata = _contract_metadata(contract)
                 event_metadata["schemas"] = schema_names
                 event_metadata["table"] = table
@@ -297,13 +295,22 @@ def phlo_quality(
                     unit="schemas",
                     payload={"table": table},
                 )
-                return AssetCheckResult(**result_kwargs)
+                if severity is not None:
+                    return AssetCheckResult(
+                        passed=all_passed,
+                        severity=severity,
+                        metadata=metadata,
+                    )
+                return AssetCheckResult(
+                    passed=all_passed,
+                    metadata=metadata,
+                )
 
         if non_schema_checks:
             # Create the Dagster asset check function
             @asset_check(
-                name=func.__name__,
-                asset=asset_key,
+                name=getattr(func, "__name__", "quality_check"),
+                asset=asset_key_value,
                 blocking=blocking,
                 description=description,
             )
@@ -317,7 +324,7 @@ def phlo_quality(
                 """
                 partition_key = get_partition_key(context)
                 partition_key_value = str(partition_key) if partition_key else None
-                asset_name = _asset_key_to_str(asset_key)
+                asset_name = _asset_key_to_str(asset_key_value)
                 emitter = QualityResultEventEmitter(
                     QualityResultEventContext(
                         asset_key=asset_name,
@@ -359,7 +366,7 @@ def phlo_quality(
                         payload={"error": str(exc), "table": table},
                     )
                     emitter.emit_result(
-                        check_name=func.__name__,
+                        check_name=getattr(func, "__name__", "quality_check"),
                         passed=False,
                         severity=AssetCheckSeverity.ERROR.value,
                         check_type="phlo",
@@ -383,7 +390,7 @@ def phlo_quality(
                 if df.empty:
                     context.log.warning("No rows returned; marking check as skipped.")
                     emitter.emit_result(
-                        check_name=func.__name__,
+                        check_name=getattr(func, "__name__", "quality_check"),
                         passed=True,
                         check_type="phlo",
                         metadata={
@@ -507,9 +514,12 @@ def phlo_quality(
                         metadata=event_metadata,
                     )
 
-                result_kwargs = {"passed": all_passed, "metadata": metadata}
                 if severity is not None:
-                    result_kwargs["severity"] = severity
+                    return AssetCheckResult(
+                        passed=all_passed,
+                        severity=severity,
+                        metadata=metadata,
+                    )
                 telemetry.emit_metric(
                     name="quality.rows_validated",
                     value=len(df),
@@ -534,7 +544,10 @@ def phlo_quality(
                     unit="ratio",
                     payload={"table": table},
                 )
-                return AssetCheckResult(**result_kwargs)
+                return AssetCheckResult(
+                    passed=all_passed,
+                    metadata=metadata,
+                )
 
             _QUALITY_CHECKS.append(quality_check_wrapper)
             if schema_checks:
@@ -695,7 +708,7 @@ def _collect_failure_sample(check_results: List[QualityCheckResult]) -> list[dic
 
 def _asset_key_to_str(asset_key: AssetKey) -> str:
     if hasattr(asset_key, "path") and asset_key.path:
-        return "/".join(str(part) for part in asset_key.path)
+        return ".".join(str(part) for part in asset_key.path)
     return str(asset_key)
 
 

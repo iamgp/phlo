@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import os
 from subprocess import CompletedProcess
+from typing import cast
 
 import pytest
 
 import phlo.cli.services as services_cli
 from phlo.cli._services.selection import select_services_to_install
 from phlo.discovery import ServiceDefinition
+from phlo.services import ServiceDiscovery
 from phlo.services.composer import ComposeGenerator
 
 
@@ -164,7 +166,7 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
         compose={},
     )
 
-    generator = ComposeGenerator(FakeDiscovery())
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
     compose = generator.generate_compose(
         services=[service],
         output_dir=tmp_path,

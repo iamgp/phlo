@@ -175,7 +175,9 @@ def expire_table_snapshots(
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
     """Expire old snapshots from all tables in the specified namespace."""
-    results = {"tables_processed": 0, "total_snapshots_deleted": 0, "errors": []}
+    tables_processed = 0
+    total_snapshots_deleted = 0
+    errors: list[str] = []
     operation = "expire_snapshots"
     start_time = time.time()
     telemetry = TelemetryEventEmitter(
@@ -197,8 +199,8 @@ def expire_table_snapshots(
         namespaces = [config.namespace]
 
     for namespace in namespaces:
-        tables = _list_tables(namespace, config.ref)
-        for table_name in tables:
+        table_names = _list_tables(namespace, config.ref)
+        for table_name in table_names:
             try:
                 result = expire_snapshots(
                     table_name=table_name,
@@ -206,8 +208,8 @@ def expire_table_snapshots(
                     retain_last=config.snapshot_retain_last,
                     ref=config.ref,
                 )
-                results["tables_processed"] += 1
-                results["total_snapshots_deleted"] += result["deleted_snapshots"]
+                tables_processed += 1
+                total_snapshots_deleted += result["deleted_snapshots"]
                 context.log.info(
                     f"Expired {result['deleted_snapshots']} snapshots from {table_name}",
                     extra=_maintenance_log_extra(
@@ -230,19 +232,19 @@ def expire_table_snapshots(
                         error=str(e),
                     ),
                 )
-                results["errors"].append(error_msg)
+                errors.append(error_msg)
 
     duration_seconds = time.time() - start_time
-    status = "success" if not results["errors"] else "failure"
+    status = "success" if not errors else "failure"
     summary_payload = _maintenance_payload(
         context,
         config,
         operation=operation,
         status=status,
         duration_seconds=duration_seconds,
-        tables_processed=results["tables_processed"],
-        snapshots_deleted=results["total_snapshots_deleted"],
-        errors=len(results["errors"]),
+        tables_processed=tables_processed,
+        snapshots_deleted=total_snapshots_deleted,
+        errors=len(errors),
     )
     context.log.info(
         "Completed Iceberg maintenance operation",
@@ -252,9 +254,9 @@ def expire_table_snapshots(
             operation=operation,
             status=status,
             duration_seconds=duration_seconds,
-            tables_processed=results["tables_processed"],
-            snapshots_deleted=results["total_snapshots_deleted"],
-            errors=len(results["errors"]),
+            tables_processed=tables_processed,
+            snapshots_deleted=total_snapshots_deleted,
+            errors=len(errors),
         ),
     )
     telemetry.emit_log(
@@ -262,7 +264,7 @@ def expire_table_snapshots(
         level="info",
         payload=summary_payload,
     )
-    if results["errors"]:
+    if errors:
         telemetry.emit_log(
             name="iceberg.maintenance.failed",
             level="error",
@@ -274,12 +276,19 @@ def expire_table_snapshots(
     _emit_maintenance_metrics(
         metrics_emitter,
         duration_seconds=duration_seconds,
-        tables_processed=results["tables_processed"],
-        errors=len(results["errors"]),
-        snapshots_deleted=results["total_snapshots_deleted"],
+        tables_processed=tables_processed,
+        errors=len(errors),
+        snapshots_deleted=total_snapshots_deleted,
     )
 
-    return results
+    summary_payload.update(
+        {
+            "tables_processed": tables_processed,
+            "total_snapshots_deleted": total_snapshots_deleted,
+            "errors": errors,
+        }
+    )
+    return summary_payload
 
 
 @dg.op
@@ -294,11 +303,14 @@ def cleanup_orphan_files(
     from storage. Always test with dry_run=True first and ensure no concurrent
     writes are happening during cleanup to avoid data loss.
     """
-    results = {
-        "tables_processed": 0,
-        "total_orphan_files": 0,
+    tables_processed = 0
+    total_orphan_files = 0
+    errors: list[str] = []
+    results: dict[str, Any] = {
+        "tables_processed": tables_processed,
+        "total_orphan_files": total_orphan_files,
         "dry_run": config.orphan_dry_run,
-        "errors": [],
+        "errors": errors,
     }
     operation = "cleanup_orphan_files"
     start_time = time.time()
@@ -350,8 +362,8 @@ def cleanup_orphan_files(
         namespaces = [config.namespace]
 
     for namespace in namespaces:
-        tables = _list_tables(namespace, config.ref)
-        for table_name in tables:
+        table_names = _list_tables(namespace, config.ref)
+        for table_name in table_names:
             try:
                 result = remove_orphan_files(
                     table_name=table_name,
@@ -359,17 +371,18 @@ def cleanup_orphan_files(
                     dry_run=config.orphan_dry_run,
                     ref=config.ref,
                 )
-                results["tables_processed"] += 1
-                results["total_orphan_files"] += result["orphan_count"]
+                tables_processed += 1
+                orphan_count = int(result.get("orphan_count", 0) or 0)
+                total_orphan_files += orphan_count
                 action = "Found" if config.orphan_dry_run else "Removed"
                 context.log.info(
-                    f"{action} {result['orphan_count']} orphan files in {table_name}",
+                    f"{action} {orphan_count} orphan files in {table_name}",
                     extra=_maintenance_log_extra(
                         context,
                         config,
                         operation=operation,
                         table_name=table_name,
-                        orphan_files=result["orphan_count"],
+                        orphan_files=orphan_count,
                         dry_run=config.orphan_dry_run,
                     ),
                 )
@@ -386,19 +399,19 @@ def cleanup_orphan_files(
                         error=str(e),
                     ),
                 )
-                results["errors"].append(error_msg)
+                errors.append(error_msg)
 
     duration_seconds = time.time() - start_time
-    status = "success" if not results["errors"] else "failure"
+    status = "success" if not errors else "failure"
     summary_payload = _maintenance_payload(
         context,
         config,
         operation=operation,
         status=status,
         duration_seconds=duration_seconds,
-        tables_processed=results["tables_processed"],
-        orphan_files=results["total_orphan_files"],
-        errors=len(results["errors"]),
+        tables_processed=tables_processed,
+        orphan_files=total_orphan_files,
+        errors=len(errors),
         dry_run=config.orphan_dry_run,
     )
     context.log.info(
@@ -409,9 +422,9 @@ def cleanup_orphan_files(
             operation=operation,
             status=status,
             duration_seconds=duration_seconds,
-            tables_processed=results["tables_processed"],
-            orphan_files=results["total_orphan_files"],
-            errors=len(results["errors"]),
+            tables_processed=tables_processed,
+            orphan_files=total_orphan_files,
+            errors=len(errors),
             dry_run=config.orphan_dry_run,
         ),
     )
@@ -420,7 +433,7 @@ def cleanup_orphan_files(
         level="info",
         payload=summary_payload,
     )
-    if results["errors"]:
+    if errors:
         telemetry.emit_log(
             name="iceberg.maintenance.failed",
             level="error",
@@ -439,10 +452,14 @@ def cleanup_orphan_files(
     _emit_maintenance_metrics(
         metrics_emitter,
         duration_seconds=duration_seconds,
-        tables_processed=results["tables_processed"],
-        errors=len(results["errors"]),
-        orphan_files=results["total_orphan_files"],
+        tables_processed=tables_processed,
+        errors=len(errors),
+        orphan_files=total_orphan_files,
     )
+
+    results["tables_processed"] = tables_processed
+    results["total_orphan_files"] = total_orphan_files
+    results["errors"] = errors
 
     return results
 
@@ -453,7 +470,16 @@ def collect_table_stats(
     config: MaintenanceConfig,
 ) -> dict[str, Any]:
     """Collect statistics for all tables in the specified namespace."""
-    results = {"tables": [], "total_size_mb": 0, "total_records": 0, "errors": []}
+    tables: list[dict[str, Any]] = []
+    total_size_mb = 0.0
+    total_records = 0
+    errors: list[str] = []
+    results: dict[str, Any] = {
+        "tables": tables,
+        "total_size_mb": total_size_mb,
+        "total_records": total_records,
+        "errors": errors,
+    }
     operation = "collect_table_stats"
     start_time = time.time()
     telemetry = TelemetryEventEmitter(
@@ -475,13 +501,13 @@ def collect_table_stats(
         namespaces = [config.namespace]
 
     for namespace in namespaces:
-        tables = _list_tables(namespace, config.ref)
-        for table_name in tables:
+        table_names = _list_tables(namespace, config.ref)
+        for table_name in table_names:
             try:
                 stats = get_table_stats(table_name=table_name, ref=config.ref)
-                results["tables"].append(stats)
-                results["total_size_mb"] += stats["total_size_mb"]
-                results["total_records"] += stats["total_records"]
+                tables.append(stats)
+                total_size_mb += stats["total_size_mb"]
+                total_records += stats["total_records"]
                 context.log.info(
                     f"Table {table_name}: {stats['total_records']} records, "
                     f"{stats['total_size_mb']} MB, {stats['snapshot_count']} snapshots",
@@ -507,20 +533,20 @@ def collect_table_stats(
                         error=str(e),
                     ),
                 )
-                results["errors"].append(error_msg)
+                errors.append(error_msg)
 
     duration_seconds = time.time() - start_time
-    status = "success" if not results["errors"] else "failure"
+    status = "success" if not errors else "failure"
     summary_payload = _maintenance_payload(
         context,
         config,
         operation=operation,
         status=status,
         duration_seconds=duration_seconds,
-        tables_processed=len(results["tables"]),
-        total_records=results["total_records"],
-        total_size_mb=results["total_size_mb"],
-        errors=len(results["errors"]),
+        tables_processed=len(tables),
+        total_records=total_records,
+        total_size_mb=total_size_mb,
+        errors=len(errors),
     )
     context.log.info(
         "Completed Iceberg maintenance operation",
@@ -530,10 +556,10 @@ def collect_table_stats(
             operation=operation,
             status=status,
             duration_seconds=duration_seconds,
-            tables_processed=len(results["tables"]),
-            total_records=results["total_records"],
-            total_size_mb=results["total_size_mb"],
-            errors=len(results["errors"]),
+            tables_processed=len(tables),
+            total_records=total_records,
+            total_size_mb=total_size_mb,
+            errors=len(errors),
         ),
     )
     telemetry.emit_log(
@@ -541,7 +567,7 @@ def collect_table_stats(
         level="info",
         payload=summary_payload,
     )
-    if results["errors"]:
+    if errors:
         telemetry.emit_log(
             name="iceberg.maintenance.failed",
             level="error",
@@ -553,11 +579,16 @@ def collect_table_stats(
     _emit_maintenance_metrics(
         metrics_emitter,
         duration_seconds=duration_seconds,
-        tables_processed=len(results["tables"]),
-        errors=len(results["errors"]),
-        total_records=results["total_records"],
-        total_size_mb=results["total_size_mb"],
+        tables_processed=len(tables),
+        errors=len(errors),
+        total_records=total_records,
+        total_size_mb=total_size_mb,
     )
+
+    results["tables"] = tables
+    results["total_size_mb"] = total_size_mb
+    results["total_records"] = total_records
+    results["errors"] = errors
 
     return results
 

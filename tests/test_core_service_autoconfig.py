@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from typing import Any, Iterable, Mapping
 
 import pytest
 from phlo_dagster.plugin import DagsterServicePlugin
@@ -18,7 +18,7 @@ PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)(?::-[^}]+)?\}")
 
 
 class ServiceFixture:
-    def __init__(self, name: str, definition: dict[str, object]):
+    def __init__(self, name: str, definition: Mapping[str, Any]):
         self.name = name
         self.definition = definition
 
@@ -44,7 +44,7 @@ def _collect_placeholders(values: Iterable[object]) -> set[str]:
     return placeholders
 
 
-def _collect_service_placeholders(definition: dict[str, object]) -> set[str]:
+def _collect_service_placeholders(definition: Mapping[str, Any]) -> set[str]:
     placeholders: set[str] = set()
 
     image = definition.get("image")

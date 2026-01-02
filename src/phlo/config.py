@@ -204,6 +204,18 @@ class Settings(BaseSettings):
     openmetadata_verify_ssl: bool = Field(
         default=False, description="Verify SSL certificates for OpenMetadata connections"
     )
+    openmetadata_service_name: str = Field(
+        default="phlo",
+        description="OpenMetadata database service name for Phlo metadata sync",
+    )
+    openmetadata_service_type: str = Field(
+        default="Trino",
+        description="OpenMetadata database service type (e.g., Trino, Postgres)",
+    )
+    openmetadata_database_name: str | None = Field(
+        default=None,
+        description="OpenMetadata database name (defaults to Trino catalog if unset)",
+    )
     openmetadata_sync_enabled: bool = Field(
         default=True, description="Enable automatic metadata sync to OpenMetadata"
     )
@@ -282,6 +294,11 @@ class Settings(BaseSettings):
     def openmetadata_uri(self) -> str:
         """Return OpenMetadata API base URI."""
         return f"http://{self.openmetadata_host}:{self.openmetadata_port}/api"
+
+    @property
+    def openmetadata_database(self) -> str:
+        """Return the OpenMetadata database name, defaulting to the Trino catalog."""
+        return self.openmetadata_database_name or self.trino_catalog
 
     # --- Helper Methods ---
 

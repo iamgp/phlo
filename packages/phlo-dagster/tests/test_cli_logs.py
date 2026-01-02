@@ -1,7 +1,7 @@
 """Tests for the phlo logs CLI command."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from click.testing import CliRunner
 
@@ -42,7 +42,7 @@ class TestTimeParsing:
 
     def test_parse_hours(self):
         """Parse hours from time filter."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         result = _parse_since("1h")
         # Should be approximately 1 hour ago
         diff = now - result
@@ -50,14 +50,14 @@ class TestTimeParsing:
 
     def test_parse_minutes(self):
         """Parse minutes from time filter."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         result = _parse_since("30m")
         diff = now - result
         assert timedelta(minutes=29.9) < diff < timedelta(minutes=30.1)
 
     def test_parse_days(self):
         """Parse days from time filter."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         result = _parse_since("2d")
         diff = now - result
         assert timedelta(days=1.99) < diff < timedelta(days=2.01)
@@ -66,7 +66,7 @@ class TestTimeParsing:
         """Handle invalid time format gracefully."""
         result = _parse_since("invalid")
         # Should default to last 24 hours
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         diff = now - result
         assert timedelta(hours=23.9) < diff < timedelta(hours=24.1)
 
@@ -122,7 +122,7 @@ class TestMockLogs:
 
     def test_filter_by_time(self):
         """Filter logs by time range."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         cutoff = now - timedelta(minutes=3)
         logs_data = _get_mock_logs({"start_time": cutoff})
 

@@ -8,6 +8,7 @@ image: grafana/loki:${LOKI_VERSION:-3.2.1}
 
 compose:
   restart: unless-stopped
+  user: "0"
   labels:
     phlo.metrics.enabled: "true"
     phlo.metrics.port: "loki:3100"

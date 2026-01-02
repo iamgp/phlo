@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from dagster import DagsterEventType, sensor
@@ -29,7 +29,7 @@ def failure_alert_sensor(context):
     instance = context.instance
 
     # Look for failed runs in the last 5 minutes
-    cutoff_time = datetime.utcnow() - timedelta(minutes=5)
+    cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=5)
 
     # Query for failed runs
     failed_runs = list(
@@ -65,7 +65,7 @@ def failure_alert_sensor(context):
                 asset_name=run.job_name,
                 run_id=run.run_id,
                 error_message=_extract_error_message(event),
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
             )
 
             # Send alert
@@ -116,6 +116,6 @@ def send_alert(
         asset_name=asset_name,
         run_id=run_id,
         error_message=error_message,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
     return alert_manager.send(alert)

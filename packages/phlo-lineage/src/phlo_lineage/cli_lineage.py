@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -12,6 +13,35 @@ from rich.panel import Panel
 from phlo_lineage import get_lineage_graph
 
 console = Console()
+
+
+def _resolve_asset_name(graph, asset_name: str) -> tuple[str | None, list[str]]:
+    """Resolve a user-provided asset name to a known asset key.
+
+    Returns a tuple of (resolved_name, matches). If resolved_name is None,
+    matches contains candidate asset keys (possibly empty).
+    """
+    if asset_name in graph.assets:
+        return asset_name, [asset_name]
+
+    normalized = asset_name.replace("/", ".")
+    if normalized in graph.assets:
+        return normalized, [normalized]
+
+    query_segments = [seg for seg in re.split(r"[./]", asset_name) if seg]
+    matches: list[str] = []
+    for name in graph.assets.keys():
+        name_segments = [seg for seg in re.split(r"[./]", name) if seg]
+        if (
+            len(name_segments) >= len(query_segments)
+            and name_segments[-len(query_segments) :] == query_segments
+        ):
+            matches.append(name)
+
+    if len(matches) == 1:
+        return matches[0], matches
+
+    return None, matches
 
 
 @click.group(name="lineage")
@@ -47,22 +77,32 @@ def show_lineage(asset_name: str, direction: str, depth: Optional[int]) -> None:
     """
     graph = get_lineage_graph()
 
-    if asset_name not in graph.assets:
+    resolved_name, matches = _resolve_asset_name(graph, asset_name)
+    if not resolved_name:
         console.print(f"[yellow]⚠[/yellow]  Asset '{asset_name}' not found in lineage graph")
-        console.print("\nAvailable assets:")
-        for name in sorted(graph.assets.keys()):
-            asset = graph.assets[name]
-            console.print(
-                f"  • {name} ({asset.asset_type})",
-                style="cyan" if asset.status == "success" else "red",
-            )
+        if matches:
+            console.print("\nPossible matches:")
+            for name in sorted(matches):
+                asset = graph.assets[name]
+                console.print(
+                    f"  • {name} ({asset.asset_type})",
+                    style="cyan" if asset.status == "success" else "red",
+                )
+        else:
+            console.print("\nAvailable assets:")
+            for name in sorted(graph.assets.keys()):
+                asset = graph.assets[name]
+                console.print(
+                    f"  • {name} ({asset.asset_type})",
+                    style="cyan" if asset.status == "success" else "red",
+                )
         return
 
     # Generate ASCII tree
-    tree = graph.to_ascii_tree(asset_name, direction=direction, depth=depth)
+    tree = graph.to_ascii_tree(resolved_name, direction=direction, depth=depth)
 
     # Display with panel
-    title = f"Lineage: {asset_name}"
+    title = f"Lineage: {resolved_name}"
     if depth:
         title += f" (depth ≤ {depth})"
 
@@ -142,14 +182,19 @@ def analyze_impact(asset_name: str) -> None:
     """
     graph = get_lineage_graph()
 
-    if asset_name not in graph.assets:
+    resolved_name, matches = _resolve_asset_name(graph, asset_name)
+    if not resolved_name:
         console.print(f"[yellow]⚠[/yellow]  Asset '{asset_name}' not found in lineage graph")
+        if matches:
+            console.print("\nPossible matches:")
+            for name in sorted(matches):
+                console.print(f"  • {name}")
         return
 
-    impact = graph.get_impact(asset_name)
+    impact = graph.get_impact(resolved_name)
 
     # Display impact analysis
-    console.print(f"\n[bold]Impact Analysis: {asset_name}[/bold]\n")
+    console.print(f"\n[bold]Impact Analysis: {resolved_name}[/bold]\n")
 
     console.print(f"Directly Affected: {impact['direct_count']} asset(s)")
     console.print(f"Indirectly Affected: {impact['indirect_count']} asset(s)")

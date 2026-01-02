@@ -12,6 +12,7 @@ Example:
 from __future__ import annotations
 
 import json
+import os
 import logging
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,21 @@ import psycopg2
 import ulid
 
 logger = logging.getLogger(__name__)
+
+_LINEAGE_DB_KEYS = (
+    "LINEAGE_DB_URL",
+    "PHLO_LINEAGE_DB_URL",
+    "DAGSTER_PG_DB_CONNECTION_STRING",
+)
+
+
+def resolve_lineage_db_url() -> str | None:
+    """Resolve the lineage database URL from environment variables."""
+    for key in _LINEAGE_DB_KEYS:
+        value = os.environ.get(key)
+        if value:
+            return value
+    return None
 
 
 def generate_row_id() -> str:
@@ -183,6 +199,176 @@ class LineageStore:
             conn.commit()
 
         return len(values)
+
+    def record_asset_nodes(
+        self,
+        asset_keys: list[str],
+        *,
+        asset_type: str | None = None,
+        status: str | None = None,
+        description: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        tags: dict[str, Any] | None = None,
+    ) -> int:
+        """Record asset nodes seen in lineage events."""
+        if not asset_keys:
+            return 0
+
+        unique_keys = sorted(set(asset_keys))
+        values = [
+            (
+                asset_key,
+                asset_type,
+                status,
+                description,
+                json.dumps(metadata) if metadata else None,
+                json.dumps(tags) if tags else None,
+            )
+            for asset_key in unique_keys
+        ]
+
+        self._ensure_schema()
+        with psycopg2.connect(self.connection_string) as conn:
+            with conn.cursor() as cur:
+                from psycopg2.extras import execute_values
+
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO phlo.asset_lineage_nodes
+                    (asset_key, asset_type, status, description, metadata, tags)
+                    VALUES %s
+                    ON CONFLICT (asset_key) DO UPDATE SET
+                        asset_type = COALESCE(EXCLUDED.asset_type, phlo.asset_lineage_nodes.asset_type),
+                        status = COALESCE(EXCLUDED.status, phlo.asset_lineage_nodes.status),
+                        description = COALESCE(
+                            EXCLUDED.description, phlo.asset_lineage_nodes.description
+                        ),
+                        metadata = COALESCE(EXCLUDED.metadata, phlo.asset_lineage_nodes.metadata),
+                        tags = COALESCE(EXCLUDED.tags, phlo.asset_lineage_nodes.tags),
+                        updated_at = NOW()
+                    """,
+                    values,
+                )
+            conn.commit()
+
+        return len(values)
+
+    def record_asset_edges(
+        self,
+        edges: list[tuple[str, str]],
+        *,
+        asset_keys: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        tags: dict[str, Any] | None = None,
+    ) -> int:
+        """Record asset lineage edges."""
+        if not edges and not asset_keys:
+            return 0
+
+        node_keys: set[str] = set(asset_keys or [])
+        for source, target in edges:
+            node_keys.add(source)
+            node_keys.add(target)
+
+        if node_keys:
+            self.record_asset_nodes(
+                list(node_keys),
+                metadata=metadata,
+                tags=tags,
+            )
+
+        if not edges:
+            return 0
+
+        values = [
+            (
+                source,
+                target,
+                json.dumps(metadata) if metadata else None,
+                json.dumps(tags) if tags else None,
+            )
+            for source, target in edges
+        ]
+
+        self._ensure_schema()
+        with psycopg2.connect(self.connection_string) as conn:
+            with conn.cursor() as cur:
+                from psycopg2.extras import execute_values
+
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO phlo.asset_lineage_edges
+                    (source_asset, target_asset, metadata, tags)
+                    VALUES %s
+                    ON CONFLICT (source_asset, target_asset) DO UPDATE SET
+                        metadata = COALESCE(EXCLUDED.metadata, phlo.asset_lineage_edges.metadata),
+                        tags = COALESCE(EXCLUDED.tags, phlo.asset_lineage_edges.tags),
+                        updated_at = NOW()
+                    """,
+                    values,
+                )
+            conn.commit()
+
+        return len(values)
+
+    def list_asset_nodes(self) -> list[dict[str, Any]]:
+        """List all asset nodes."""
+        self._ensure_schema()
+        with psycopg2.connect(self.connection_string) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT asset_key, asset_type, status, description, metadata, tags,
+                           created_at, updated_at
+                    FROM phlo.asset_lineage_nodes
+                    """
+                )
+                rows = cur.fetchall()
+
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            results.append(
+                {
+                    "asset_key": row[0],
+                    "asset_type": row[1],
+                    "status": row[2],
+                    "description": row[3],
+                    "metadata": row[4],
+                    "tags": row[5],
+                    "created_at": row[6].isoformat() if row[6] else None,
+                    "updated_at": row[7].isoformat() if row[7] else None,
+                }
+            )
+        return results
+
+    def list_asset_edges(self) -> list[dict[str, Any]]:
+        """List all asset lineage edges."""
+        self._ensure_schema()
+        with psycopg2.connect(self.connection_string) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT source_asset, target_asset, metadata, tags, created_at, updated_at
+                    FROM phlo.asset_lineage_edges
+                    """
+                )
+                rows = cur.fetchall()
+
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            results.append(
+                {
+                    "source_asset": row[0],
+                    "target_asset": row[1],
+                    "metadata": row[2],
+                    "tags": row[3],
+                    "created_at": row[4].isoformat() if row[4] else None,
+                    "updated_at": row[5].isoformat() if row[5] else None,
+                }
+            )
+        return results
 
     def get_row(self, row_id: str) -> dict[str, Any] | None:
         """Get lineage info for a single row.

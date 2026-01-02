@@ -84,6 +84,7 @@ class TestOpenMetadataTable:
 
         assert table.name == "users"
         assert table.description == "User data"
+        assert table.columns is not None
         assert len(table.columns) == 1
         assert table.location == "s3://bucket/users"
 
@@ -180,19 +181,11 @@ class TestOpenMetadataClient:
     @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_create_or_update_table_create(self, mock_request, om_client):
         """Test creating a new table."""
-        # First call returns empty (table doesn't exist)
-        # Second call returns created table
-        mock_response_check = Mock()
-        mock_response_check.status_code = 200
-        mock_response_check.json.return_value = {"data": []}
-        mock_response_check.text = "{}"
-
-        mock_response_create = Mock()
-        mock_response_create.status_code = 201
-        mock_response_create.json.return_value = {"id": "123", "name": "users"}
-        mock_response_create.text = "{}"
-
-        mock_request.side_effect = [mock_response_check, mock_response_create]
+        mock_response = Mock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {"id": "123", "name": "users"}
+        mock_response.text = "{}"
+        mock_request.return_value = mock_response
 
         col = OpenMetadataColumn(name="id", dataType="INT")
         table = OpenMetadataTable(name="users", columns=[col])
@@ -200,7 +193,7 @@ class TestOpenMetadataClient:
         result = om_client.create_or_update_table("public", table)
 
         assert result == {"id": "123", "name": "users"}
-        assert mock_request.call_count == 2
+        mock_request.assert_called_once()
 
     @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_get_table_found(self, mock_request, om_client):
@@ -246,7 +239,8 @@ class TestOpenMetadataClient:
         )
 
         assert "edges" in result
-        mock_request.assert_called_once()
+        assert mock_request.call_count == 3
+        assert mock_request.call_args_list[-1].kwargs["method"] == "PUT"
 
     @patch("phlo_openmetadata.openmetadata.requests.Session.request")
     def test_list_databases(self, mock_request, om_client):

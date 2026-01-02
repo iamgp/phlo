@@ -250,9 +250,24 @@ def _run_service_hooks(
 
                 if importlib.util.find_spec(required_module) is None:
                     continue
+
+            # Respect delay setting
+            delay = hook.get("delay")
+            if isinstance(delay, (int, float)) and delay > 0:
+                import time
+
+                time.sleep(delay)
+
             command = _format_hook_command(hook.get("command"), substitutions)
             if not command:
                 continue
+
+            # Use project's venv python if command starts with 'python'
+            if command and command[0] in ("python", "python3"):
+                venv_python = project_root / ".venv" / "bin" / "python"
+                if venv_python.exists():
+                    command[0] = str(venv_python)
+
             timeout = hook.get("timeout_seconds")
             if isinstance(timeout, str) and timeout.isdigit():
                 timeout = int(timeout)
