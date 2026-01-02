@@ -15,7 +15,7 @@ def test_apply_partition_scope_adds_where_for_partition_key() -> None:
     )
     assert (
         apply_partition_scope("SELECT * FROM some_table", scope=scope)
-        == "SELECT * FROM some_table\nWHERE _phlo_partition_date = '2024-01-02'"
+        == "SELECT * FROM some_table\nWHERE _phlo_partition_date = DATE '2024-01-02'"
     )
 
 
@@ -28,7 +28,7 @@ def test_apply_partition_scope_appends_and_when_where_exists() -> None:
     )
     assert (
         apply_partition_scope("SELECT * FROM some_table\nWHERE x = 1", scope=scope)
-        == "SELECT * FROM some_table\nWHERE x = 1\nAND _phlo_partition_date = '2024-01-02'"
+        == "SELECT * FROM some_table\nWHERE x = 1\nAND _phlo_partition_date = DATE '2024-01-02'"
     )
 
 
@@ -49,7 +49,7 @@ def test_apply_partition_scope_rolling_window(monkeypatch) -> None:
     )
     assert (
         apply_partition_scope("SELECT * FROM some_table", scope=scope)
-        == "SELECT * FROM some_table\nWHERE _phlo_partition_date >= '2024-01-03'"
+        == "SELECT * FROM some_table\nWHERE _phlo_partition_date >= DATE '2024-01-03'"
     )
 
 
