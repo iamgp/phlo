@@ -1,6 +1,8 @@
 """Hasura table tracking and auto-discovery."""
 
 import logging
+import os
+import socket
 from typing import Any
 
 import psycopg2
@@ -10,6 +12,39 @@ from phlo_hasura.client import HasuraClient
 from phlo.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_db_host(host: str, port: int) -> tuple[str, int]:
+    """Resolve database host, falling back to localhost if Docker hostname unreachable.
+
+    When running hooks from the host machine, Docker internal hostnames like 'postgres'
+    won't resolve. In that case, use localhost with the exposed port.
+
+    Args:
+        host: Database host (may be Docker internal hostname)
+        port: Database port (may be internal port)
+
+    Returns:
+        Tuple of (resolved_host, resolved_port)
+    """
+    # If already localhost, use as-is
+    if host in ("localhost", "127.0.0.1"):
+        return host, port
+
+    # Try to resolve the hostname
+    try:
+        socket.gethostbyname(host)
+        return host, port
+    except socket.gaierror:
+        # Can't resolve - we're likely running on the host, not in Docker
+        # Use localhost with the exposed port from environment
+        exposed_port = int(os.environ.get("POSTGRES_PORT", port))
+        logger.debug(
+            "Cannot resolve '%s', using localhost:%s (running outside Docker)",
+            host,
+            exposed_port,
+        )
+        return "localhost", exposed_port
 
 
 class HasuraTableTracker:
@@ -37,8 +72,11 @@ class HasuraTableTracker:
         self.client = hasura_client or HasuraClient()
 
         settings = get_settings()
-        self.db_host = db_host or settings.postgres_host
-        self.db_port = db_port or settings.postgres_port
+        raw_host = db_host or settings.postgres_host
+        raw_port = db_port or settings.postgres_port
+
+        # Resolve host - handle running outside Docker
+        self.db_host, self.db_port = _resolve_db_host(raw_host, raw_port)
         self.db_name = db_name or settings.postgres_db
         self.db_user = db_user or settings.postgres_user
         self.db_password = db_password or settings.postgres_password
@@ -54,6 +92,35 @@ class HasuraTableTracker:
         )
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         return conn
+
+    def discover_user_schemas(self) -> list[str]:
+        """Discover all user schemas that contain tables.
+
+        Returns schemas that:
+        - Have at least one base table
+        - Are not system schemas (pg_*, information_schema, etc.)
+
+        Returns:
+            List of schema names
+        """
+        conn = self._get_db_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                SELECT DISTINCT table_schema
+                FROM information_schema.tables
+                WHERE table_type = 'BASE TABLE'
+                  AND table_schema NOT LIKE 'pg_%%'
+                  AND table_schema != 'information_schema'
+                ORDER BY table_schema
+                """
+            )
+            return [row[0] for row in cursor.fetchall()]
+        finally:
+            cursor.close()
+            conn.close()
 
     def get_tables_in_schema(self, schema: str) -> list[str]:
         """Get all tables in a schema.
@@ -326,3 +393,45 @@ def auto_track(schema: str = "api", verbose: bool = True) -> dict[str, Any]:
         "relationships": rel_results,
         "permissions": perm_results,
     }
+
+
+def auto_track_all(verbose: bool = True) -> dict[str, dict[str, Any]]:
+    """Auto-discover and track all tables in all user schemas.
+
+    Discovers all non-system schemas that contain tables and tracks them in Hasura.
+
+    Args:
+        verbose: Print progress messages
+
+    Returns:
+        Dict mapping schema names to their tracking results
+    """
+    if verbose:
+        logger.info("=" * 60)
+        logger.info("Hasura Auto-Track (All Schemas)")
+        logger.info("=" * 60)
+
+    tracker = HasuraTableTracker()
+    schemas = tracker.discover_user_schemas()
+
+    if verbose:
+        logger.info("Discovered %d user schemas: %s", len(schemas), ", ".join(schemas))
+        logger.info("")
+
+    results: dict[str, dict[str, Any]] = {}
+    for schema in schemas:
+        if verbose:
+            logger.info("Processing schema: %s", schema)
+        results[schema] = auto_track(schema=schema, verbose=verbose)
+
+    if verbose:
+        logger.info("=" * 60)
+        logger.info("✓ All schemas processed")
+        total_tables = sum(len(r.get("tables", {})) for r in results.values())
+        tracked_tables = sum(
+            sum(1 for v in r.get("tables", {}).values() if v) for r in results.values()
+        )
+        logger.info("  Total tables tracked: %d/%d", tracked_tables, total_tables)
+        logger.info("=" * 60)
+
+    return results

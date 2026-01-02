@@ -13,13 +13,9 @@ compose:
   restart: unless-stopped
   labels:
     phlo.metrics.enabled: "false"
-  environment:
-    PGRST_DB_URI: postgresql://${POSTGRES_USER:-phlo}:${POSTGRES_PASSWORD:-phlo}@postgres:5432/${POSTGRES_DB:-phlo}
-    PGRST_DB_SCHEMAS: api,public
-    PGRST_DB_ANON_ROLE: ${POSTGRES_USER:-phlo}
-    PGRST_SERVER_HOST: 0.0.0.0
-    PGRST_SERVER_PORT: 3000
-    PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:${POSTGREST_PORT:-3002}
+  command: ["/bin/postgrest", "/etc/postgrest/postgrest.conf"]
+  volumes:
+    - ./postgrest/conf:/etc/postgrest:ro
   ports:
     - "${POSTGREST_PORT:-3002}:3000"
   healthcheck:
@@ -35,3 +31,21 @@ env_vars:
   POSTGREST_PORT:
     default: 3002
     description: PostgREST API port
+  PGRST_DB_SCHEMAS:
+    default: public
+    description: Comma-separated list of schemas to expose (auto-configured by hook)
+
+files:
+  - source: conf
+    dest: postgrest/conf
+
+hooks:
+  post_start:
+    - name: configure-schemas
+      delay: 5
+      command:
+        - python
+        - -m
+        - phlo_postgrest.hooks
+        - configure-schemas
+      timeout_seconds: 60

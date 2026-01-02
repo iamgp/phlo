@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import click
 from rich.console import Console
@@ -359,7 +359,7 @@ def _import_object(ref: str) -> Any:
         raise click.ClickException(f"Object not found: {ref}") from exc
 
 
-def _extract_source_callable(obj: Any) -> tuple[callable, dict[str, Any]]:
+def _extract_source_callable(obj: Any) -> tuple[Callable[..., Any], dict[str, Any]]:
     """
     Given either a callable or an AssetsDefinition created via @phlo_ingestion, return:
     - a callable that accepts partition_date and returns a DLT source/resource/iterable

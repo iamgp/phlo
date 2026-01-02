@@ -1,0 +1,69 @@
+name: openmetadata
+description: OpenMetadata data catalog and governance
+category: catalog
+default: false
+profile: openmetadata
+
+depends_on:
+  - openmetadata-mysql
+  - openmetadata-elasticsearch
+  - openmetadata-setup
+
+image: docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.9.7}
+
+compose:
+  restart: unless-stopped
+  labels:
+    phlo.metrics.enabled: "false"
+  ports:
+    - "${OPENMETADATA_PORT:-8585}:8585"
+  environment:
+    OPENMETADATA_CLUSTER_NAME: ${OPENMETADATA_CLUSTER_NAME:-openmetadata}
+    SERVER_PORT: ${OPENMETADATA_PORT:-8585}
+    SERVER_ADMIN_PORT: ${OPENMETADATA_ADMIN_PORT:-8586}
+    LOG_LEVEL: ${OPENMETADATA_LOG_LEVEL:-INFO}
+    AUTHENTICATION_PROVIDER: ${OPENMETADATA_AUTH_PROVIDER:-basic}
+    AUTHENTICATION_RESPONSE_TYPE: ${OPENMETADATA_AUTH_RESPONSE_TYPE:-id_token}
+    AUTHENTICATION_ENABLE_SELF_SIGNUP: ${OPENMETADATA_AUTH_ENABLE_SELF_SIGNUP:-true}
+    RSA_PUBLIC_KEY_FILE_PATH: ${OPENMETADATA_RSA_PUBLIC_KEY_FILE_PATH:-./conf/public_key.der}
+    RSA_PRIVATE_KEY_FILE_PATH: ${OPENMETADATA_RSA_PRIVATE_KEY_FILE_PATH:-./conf/private_key.der}
+    JWT_ISSUER: ${OPENMETADATA_JWT_ISSUER:-open-metadata.org}
+    JWT_KEY_ID: ${OPENMETADATA_JWT_KEY_ID:-Gb389a-9f76-gdjs-a92j-0242bk94356}
+    DB_DRIVER_CLASS: ${OPENMETADATA_DB_DRIVER_CLASS:-com.mysql.cj.jdbc.Driver}
+    DB_SCHEME: ${OPENMETADATA_DB_SCHEME:-mysql}
+    DB_PARAMS: ${OPENMETADATA_DB_PARAMS:-allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC}
+    DB_USER: ${OPENMETADATA_DB_USER:-openmetadata_user}
+    DB_USER_PASSWORD: ${OPENMETADATA_DB_PASSWORD:-openmetadata_password}
+    DB_HOST: ${OPENMETADATA_DB_HOST:-openmetadata-mysql}
+    DB_PORT: ${OPENMETADATA_DB_PORT:-3306}
+    OM_DATABASE: ${OPENMETADATA_DB_NAME:-openmetadata_db}
+    ELASTICSEARCH_HOST: ${OPENMETADATA_ES_HOST:-openmetadata-elasticsearch}
+    ELASTICSEARCH_PORT: ${OPENMETADATA_ES_PORT:-9200}
+    ELASTICSEARCH_SCHEME: ${OPENMETADATA_ES_SCHEME:-http}
+    SEARCH_TYPE: ${OPENMETADATA_SEARCH_TYPE:-elasticsearch}
+    PIPELINE_SERVICE_CLIENT_ENABLED: ${OPENMETADATA_PIPELINE_CLIENT_ENABLED:-false}
+  healthcheck:
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:8586/healthcheck"]
+    interval: 15s
+    timeout: 10s
+    retries: 10
+
+env_vars:
+  OPENMETADATA_VERSION:
+    default: "1.9.7"
+    description: OpenMetadata version
+  OPENMETADATA_PORT:
+    default: 8585
+    description: OpenMetadata API port
+  OPENMETADATA_ADMIN_PORT:
+    default: 8586
+    description: OpenMetadata admin port
+  OPENMETADATA_HOST:
+    default: openmetadata
+    description: OpenMetadata server host
+  OPENMETADATA_USERNAME:
+    default: admin
+    description: OpenMetadata admin username
+  OPENMETADATA_PASSWORD:
+    default: admin
+    description: OpenMetadata admin password

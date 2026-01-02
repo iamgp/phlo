@@ -105,12 +105,16 @@ def _find_pandera_schemas(module: Any) -> List[Any]:
     """Find all Pandera DataFrameModel classes in module."""
     import pandera as pa
 
+    dataframe_model = getattr(pa, "DataFrameModel", None)
+    if dataframe_model is None:
+        return []
+
     schemas = []
     for name in dir(module):
         obj = getattr(module, name)
-        if isinstance(obj, type) and issubclass(obj, pa.DataFrameModel):
+        if isinstance(obj, type) and issubclass(obj, dataframe_model):
             # Exclude the base DataFrameModel itself
-            if obj is not pa.DataFrameModel:
+            if obj is not dataframe_model:
                 schemas.append(obj)
 
     return schemas

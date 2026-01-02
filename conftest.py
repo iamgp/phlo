@@ -5,7 +5,6 @@ This conftest.py imports fixtures from phlo_testing and makes them available
 to all tests in the repository.
 """
 
-import importlib
 import os
 import sys
 from pathlib import Path
@@ -36,13 +35,14 @@ if packages_dir.exists():
 
 def _register_workspace_plugins() -> None:
     try:
-        registry_module = importlib.import_module("phlo.plugins.registry")
-        dlt_module = importlib.import_module("phlo_dlt.plugin")
+        from phlo_dlt.plugin import DltDagsterPlugin
+
+        from phlo.discovery import get_global_registry
     except Exception:
         return
 
-    registry = registry_module.get_global_registry()
-    registry.register_dagster_extension(dlt_module.DltDagsterPlugin(), replace=True)
+    registry = get_global_registry()
+    registry.register_dagster_extension(DltDagsterPlugin(), replace=True)
 
 
 _register_workspace_plugins()

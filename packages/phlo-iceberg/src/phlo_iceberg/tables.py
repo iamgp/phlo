@@ -6,6 +6,7 @@ Ported from `phlo` core as a capability plugin.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -13,6 +14,13 @@ from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
 from phlo_iceberg.catalog import create_namespace, get_catalog
+
+# Suppress expected pyiceberg warning on first run (no rows to delete during merge)
+warnings.filterwarnings(
+    "ignore",
+    message="Delete operation did not match any records",
+    category=UserWarning,
+)
 
 
 def ensure_table(

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pandera.errors
 import pytest
-from pandera.typing import Series
+from pandera.typing import Series  # type: ignore[possibly-missing-import]
 from phlo_dlt.dlt_helpers import validate_with_pandera
 
 from phlo_quality.schemas import PhloSchema

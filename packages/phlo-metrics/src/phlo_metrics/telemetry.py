@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -35,7 +35,7 @@ class TelemetryRecorder:
             return
         if self.path.stat().st_size < self.max_bytes:
             return
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         rotated = self.path.with_name(f"{self.path.stem}.{timestamp}{self.path.suffix}")
         self.path.rename(rotated)
 

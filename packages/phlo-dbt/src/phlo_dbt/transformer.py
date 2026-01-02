@@ -63,6 +63,15 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
             needs_compile = True
 
     if not needs_compile:
+        try:
+            manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            needs_compile = True
+        else:
+            if not isinstance(manifest_payload, Mapping):
+                needs_compile = True
+
+    if not needs_compile:
         return True
 
     try:
@@ -78,12 +87,20 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
     except subprocess.TimeoutExpired:
         return False
 
-    return result.returncode == 0 and manifest_path.exists()
+    if result.returncode != 0 or not manifest_path.exists():
+        return False
+
+    try:
+        manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+
+    return isinstance(manifest_payload, Mapping)
 
 
 def _asset_key_to_str(asset_key: AssetKey) -> str:
     if hasattr(asset_key, "path") and asset_key.path:
-        return "/".join(str(part) for part in asset_key.path)
+        return ".".join(str(part) for part in asset_key.path)
     return str(asset_key)
 
 
@@ -195,7 +212,7 @@ class DbtTransformer(BaseTransformer):
         )
 
     def run_transform(
-        self, partition_key: Optional[str] = None, parameters: Dict[str, Any] = None
+        self, partition_key: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None
     ) -> TransformationResult:
         parameters = parameters or {}
         select_args = parameters.get("select", [])

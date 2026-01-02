@@ -16,7 +16,7 @@ import json
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 import pandas as pd
 import pytest
@@ -307,7 +307,7 @@ def setup_test_trino(
 
 
 @pytest.fixture
-def load_json_fixture(test_data_dir: Path) -> callable:
+def load_json_fixture(test_data_dir: Path) -> Callable[[str], Any]:
     """
     Provide helper to load JSON fixture files.
 
@@ -328,7 +328,7 @@ def load_json_fixture(test_data_dir: Path) -> callable:
 
 
 @pytest.fixture
-def load_csv_fixture(test_data_dir: Path) -> callable:
+def load_csv_fixture(test_data_dir: Path) -> Callable[[str], pd.DataFrame]:
     """
     Provide helper to load CSV fixture files.
 

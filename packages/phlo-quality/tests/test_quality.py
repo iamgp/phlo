@@ -4,6 +4,7 @@ This module contains unit, integration, and data quality tests for the
 workflows.quality.nightscout module.
 """
 
+import importlib
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -16,7 +17,10 @@ pytestmark = pytest.mark.integration
 try:
     from dagster import AssetCheckResult, MetadataValue, build_asset_check_context
 
-    from workflows.quality.nightscout import nightscout_glucose_quality_check
+    nightscout_module = importlib.import_module("workflows.quality.nightscout")
+    nightscout_glucose_quality_check = getattr(
+        nightscout_module, "nightscout_glucose_quality_check"
+    )
 except Exception as e:
     pytest.skip(f"Skipping module: dependencies not available ({e})", allow_module_level=True)
 

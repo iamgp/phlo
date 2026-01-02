@@ -216,6 +216,7 @@ class TestDbtManifestParser:
 
         assert om_table.name == "stg_glucose_entries"
         assert om_table.description == "Staging glucose entries"
+        assert om_table.columns is not None
         assert len(om_table.columns) == 2
         assert om_table.columns[0].name == "id"
 
@@ -230,6 +231,7 @@ class TestDbtManifestParser:
         om_table = parser.extract_openmetadata_table(model, "bronze", columns_info)
 
         # Model has 2 documented columns; catalog info supplements dataType
+        assert om_table.columns is not None
         assert len(om_table.columns) == 2
         # Check that dataType comes from columns_info
         value_col = next(c for c in om_table.columns if c.name == "value")

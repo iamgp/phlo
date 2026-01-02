@@ -21,24 +21,24 @@ def _map_iceberg_to_openmetadata_type(iceberg_type: str) -> str:
     type_map = {
         "boolean": "BOOLEAN",
         "int": "INT",
-        "long": "LONG",
+        "long": "BIGINT",
         "float": "FLOAT",
         "double": "DOUBLE",
         "decimal": "DECIMAL",
         "date": "DATE",
         "time": "TIME",
         "timestamp": "TIMESTAMP",
-        "timestamptz": "TIMESTAMPTZ",
+        "timestamptz": "TIMESTAMPZ",
         "string": "STRING",
-        "uuid": "UUID",
-        "fixed": "FIXED",
+        "uuid": "STRING",
+        "fixed": "BINARY",
         "binary": "BINARY",
         "struct": "STRUCT",
         "list": "ARRAY",
         "map": "MAP",
     }
     base_type = iceberg_type.split("<")[0].lower()
-    return type_map.get(base_type, "UNKNOWN")
+    return type_map.get(base_type, "STRING")
 
 
 def nessie_table_metadata_to_openmetadata_table(

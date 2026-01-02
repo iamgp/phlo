@@ -30,11 +30,23 @@ openmetadata = "phlo_openmetadata.cli_plugin:OpenMetadataCliPlugin"
 [project.entry-points."phlo.plugins.hooks"]
 openmetadata = "phlo_openmetadata.hooks_plugin:OpenMetadataHookPlugin"
 
+[project.entry-points."phlo.plugins.services"]
+openmetadata = "phlo_openmetadata.plugin:OpenMetadataServicePlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+phlo_openmetadata = [
+  "service.yaml",
+  "openmetadata-setup.yaml",
+  "openmetadata-mysql-setup.yaml",
+  "openmetadata-elasticsearch-setup.yaml",
+]
 
 [tool.ruff]
 line-length = 100

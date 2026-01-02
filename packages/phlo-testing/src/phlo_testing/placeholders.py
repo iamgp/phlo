@@ -16,7 +16,7 @@ For comprehensive testing guide, see: docs/TESTING_GUIDE.md
 import json
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 import pandas as pd
 
@@ -97,9 +97,8 @@ class MockDLTSource:
             resource_name: Name of the mock DLT resource
         """
         if isinstance(data, pd.DataFrame):
-            df_data = cast(pd.DataFrame, data)
-            self.data = df_data.to_dict("records")
-            self._dataframe = df_data
+            self.data = data.to_dict("records")
+            self._dataframe = data
         else:
             self.data = data
             self._dataframe = None
@@ -792,8 +791,7 @@ def save_fixture(
 
     elif suffix == ".csv":
         if isinstance(data, pd.DataFrame):
-            df_data = cast(pd.DataFrame, data)
-            df_data.to_csv(path, index=False)
+            data.to_csv(path, index=False)
         else:
             # Convert to DataFrame first
             df: pd.DataFrame = (
@@ -803,8 +801,7 @@ def save_fixture(
 
     elif suffix == ".parquet":
         if isinstance(data, pd.DataFrame):
-            df_data = cast(pd.DataFrame, data)
-            df_data.to_parquet(path, index=False)
+            data.to_parquet(path, index=False)
         else:
             # Convert to DataFrame first
             df: pd.DataFrame = (
