@@ -2,8 +2,6 @@
   "packages": {
     ".": {
       "release-type": "python",
-      "prerelease": true,
-      "prerelease-type": "alpha",
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true
     }

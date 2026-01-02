@@ -656,7 +656,7 @@ phlo materialize --select "tag:critical" --partition $(date -d "yesterday" +%Y-%
 
 ## Release Management
 
-Phlo uses Release Please to manage prerelease versions and changelogs on `main`.
+Phlo uses Release Please to manage versions and changelogs on `main`.
 
 ### Release Please Configuration
 
@@ -664,8 +664,7 @@ Phlo uses Release Please to manage prerelease versions and changelogs on `main`.
 - Config: `.github/release-please-config.json`
 - Manifest: `.github/release-please-manifest.json`
 
-The manifest tracks the current prerelease version, and the config pins prerelease
-behavior to alpha tags (for example `v0.1.0-alpha.2`).
+The manifest tracks the current release version used to generate tags and changelogs.
 
 ### Local Validation (Dry Run)
 
@@ -679,8 +678,8 @@ npx release-please manifest-pr \
   --dry-run
 ```
 
-If the output shows the next version incrementing the `alpha.N` suffix and the
-compare link targets the previous tag, the configuration is working as expected.
+If the output shows the next version incrementing as expected and the compare link
+targets the previous tag, the configuration is working as expected.
 
 ## Maintenance Windows
 
