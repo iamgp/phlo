@@ -28,6 +28,12 @@ Guidelines for AI agents and developers working on the Phlo monorepo.
 uv pip install -e .
 ```
 
+### All Checks
+
+```bash
+make check
+```
+
 ### Python Quality
 
 ```bash
@@ -75,6 +81,7 @@ docker exec dagster-webserver dbt compile
 - Type checking: ty.
 - Lint/format: ruff.
 - Absolute imports only.
+- Commits follow Conventional Commits.
 - Configuration via `phlo.config.settings` (reads `.phlo/.env` and `.phlo/.env.local`).
 - Project templates use:
   - `workflows/` for ingestion/quality assets and `transforms/dbt/` for dbt projects.
