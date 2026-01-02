@@ -95,19 +95,8 @@ def select_changed_packages(
     root_name: str,
     root_path: Path,
 ) -> set[str]:
-    package_dir_to_name = {
-        path.name: name for name, path in package_paths.items() if path != root_path
-    }
-
     changed_packages: set[str] = set()
     for file in changed_files:
-        if file.startswith("packages/"):
-            parts = file.split("/", 2)
-            if len(parts) > 1:
-                name = package_dir_to_name.get(parts[1])
-                if name:
-                    changed_packages.add(name)
-            continue
         if (
             file == "pyproject.toml"
             or file.startswith("src/phlo/")
