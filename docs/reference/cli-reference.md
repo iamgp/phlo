@@ -686,9 +686,9 @@ my-lakehouse/
 ├── .env.example          # Local secrets template (.phlo/.env.local)
 ├── workflows/
 │   ├── ingestion/
-│   └── schemas/
-├── transforms/
-│   └── dbt/
+│   ├── schemas/
+│   └── transforms/
+│       └── dbt/
 ├── tests/
 └── phlo.yaml
 ```

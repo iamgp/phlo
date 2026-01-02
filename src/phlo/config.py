@@ -136,7 +136,7 @@ class Settings(BaseSettings):
         description="Path to user workflows directory (for external projects)",
     )
     dbt_project_dir: str = Field(
-        default="transforms/dbt",
+        default="workflows/transforms/dbt",
         description="Path to dbt project directory",
     )
 
@@ -226,13 +226,19 @@ class Settings(BaseSettings):
     # --- dbt Configuration ---
     # Settings for dbt integration and manifest location
     dbt_manifest_path: str = Field(
-        default="transforms/dbt/target/manifest.json",
+        default="",
         description="Path to dbt manifest.json after running dbt docs generate",
     )
     dbt_catalog_path: str = Field(
-        default="transforms/dbt/target/catalog.json",
+        default="",
         description="Path to dbt catalog.json for column-level documentation",
     )
+
+    def model_post_init(self, __context: object) -> None:
+        if not self.dbt_manifest_path:
+            self.dbt_manifest_path = f"{self.dbt_project_dir}/target/manifest.json"
+        if not self.dbt_catalog_path:
+            self.dbt_catalog_path = f"{self.dbt_project_dir}/target/catalog.json"
 
     # --- Nessie Configuration ---
     # Settings for Nessie catalog access

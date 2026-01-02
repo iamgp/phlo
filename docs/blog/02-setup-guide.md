@@ -58,7 +58,7 @@ cd my-lakehouse
 # - phlo.yaml (project configuration)
 # - .env.example (local secrets template)
 # - workflows/ (your data pipelines)
-# - transforms/ (dbt models)
+# - workflows/transforms/dbt/ (dbt models)
 ```
 
 Then initialize infra (generates `.phlo/.env` and `.phlo/.env.local`):

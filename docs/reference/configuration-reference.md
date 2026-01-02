@@ -407,12 +407,12 @@ POSTGRES_SSL_CA_FILE=/path/to/ca.pem
 ### dbt Configuration
 
 ```bash
-# dbt artifact paths
-DBT_MANIFEST_PATH=transforms/dbt/target/manifest.json
-DBT_CATALOG_PATH=transforms/dbt/target/catalog.json
+# dbt artifact paths (defaults to <DBT_PROJECT_DIR>/target when unset)
+DBT_MANIFEST_PATH=workflows/transforms/dbt/target/manifest.json
+DBT_CATALOG_PATH=workflows/transforms/dbt/target/catalog.json
 
 # dbt project directory
-DBT_PROJECT_DIR=transforms/dbt
+DBT_PROJECT_DIR=workflows/transforms/dbt
 
 # Workflows path (for external projects)
 WORKFLOWS_PATH=workflows
