@@ -1564,7 +1564,7 @@ def main() -> int:
                 # List configured destinations
                 try:
                     result = run_phlo(
-                        ["alerts", "list-destinations"],
+                        ["alerts", "list"],
                         cwd=project_dir,
                         timeout=60,
                         check=False,
@@ -1572,10 +1572,10 @@ def main() -> int:
                         python_exe=project_python,
                     )
                     if result.returncode == 0:
-                        log_success("Alerting plugin: list-destinations command works")
+                        log_success("Alerting plugin: list command works")
                         log_info(f"  Output: {result.stdout.strip()[:200]}")
                     else:
-                        log_warning("Alerting plugin: list-destinations command not available")
+                        log_warning("Alerting plugin: list command not available")
                 except Exception as e:
                     log_warning(f"Could not test alerting plugin: {e}")
 

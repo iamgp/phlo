@@ -10,6 +10,7 @@ depends_on:
   - trino
 
 compose:
+  user: "0"
   restart: unless-stopped
   labels:
     phlo.metrics.enabled: "false" # Superset doesn't expose native Prometheus metrics
@@ -25,10 +26,14 @@ compose:
     SUPERSET_ADMIN_EMAIL: ${SUPERSET_ADMIN_EMAIL:-admin@example.com}
   command: >
     /bin/sh -c "
+    mkdir -p /app/superset_home &&
+    chown -R superset:superset /app/superset_home &&
+    su superset -s /bin/sh -c '
     superset db upgrade &&
     superset fab create-admin --username $${SUPERSET_ADMIN_USER} --firstname Admin --lastname User --email $${SUPERSET_ADMIN_EMAIL} --password $${SUPERSET_ADMIN_PASSWORD} || true &&
     superset init &&
     superset run -h 0.0.0.0 -p 8088 --with-threads
+    '
     "
   ports:
     - "${SUPERSET_PORT:-8088}:8088"
