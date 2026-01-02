@@ -10,10 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Common locations to search for dbt projects
 DEFAULT_SEARCH_PATHS = [
-    "transforms/dbt",
-    "transforms",
-    "dbt",
-    ".",
+    "workflows/transforms/dbt",
 ]
 
 
@@ -47,14 +44,6 @@ def find_dbt_projects(
             discovered.append(candidate.parent)
             logger.info("Discovered dbt project: %s", candidate.parent)
 
-    # Also search all immediate subdirectories for dbt_project.yml
-    if root_dir.exists():
-        for subdir in root_dir.iterdir():
-            if subdir.is_dir() and (subdir / "dbt_project.yml").exists():
-                if subdir not in discovered:
-                    discovered.append(subdir)
-                    logger.info("Discovered dbt project: %s", subdir)
-
     return discovered
 
 
@@ -65,7 +54,7 @@ def get_dbt_project_dir() -> Path:
     Priority:
     1. DBT_PROJECT_DIR environment variable
     2. Auto-discovered project in workspace
-    3. Default: transforms/dbt
+    3. Default: workflows/transforms/dbt
 
     Returns:
         Path to dbt project directory
@@ -81,7 +70,7 @@ def get_dbt_project_dir() -> Path:
         return projects[0]
 
     # Fall back to default
-    return Path("transforms/dbt")
+    return Path("workflows/transforms/dbt")
 
 
 if __name__ == "__main__":

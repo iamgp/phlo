@@ -370,7 +370,7 @@ SELECT
 In dbt, select the target to use the appropriate catalog:
 
 ```yaml
-# transforms/dbt/profiles.yml
+# workflows/transforms/dbt/profiles.yml
 
 phlo:
   outputs:

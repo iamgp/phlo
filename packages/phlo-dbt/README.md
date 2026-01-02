@@ -18,10 +18,10 @@ phlo plugin install dbt
 
 | Variable            | Default                               | Description                   |
 | ------------------- | ------------------------------------- | ----------------------------- |
-| `DBT_PROJECT_DIR`   | `transforms/dbt`                      | Path to dbt project directory |
-| `DBT_PROFILES_DIR`  | `transforms/dbt/profiles`             | Path to dbt profiles          |
-| `DBT_MANIFEST_PATH` | `transforms/dbt/target/manifest.json` | Path to dbt manifest          |
-| `DBT_CATALOG_PATH`  | `transforms/dbt/target/catalog.json`  | Path to dbt catalog           |
+| `DBT_PROJECT_DIR`   | `workflows/transforms/dbt`                      | Path to dbt project directory |
+| `DBT_PROFILES_DIR`  | `workflows/transforms/dbt/profiles`             | Path to dbt profiles          |
+| `DBT_MANIFEST_PATH` | `workflows/transforms/dbt/target/manifest.json` | Path to dbt manifest          |
+| `DBT_CATALOG_PATH`  | `workflows/transforms/dbt/target/catalog.json`  | Path to dbt catalog           |
 
 ## Auto-Configuration
 
@@ -36,12 +36,11 @@ This package is **fully auto-configured**:
 
 ### Discovery Locations
 
+If `DBT_PROJECT_DIR` is set, it is used before discovery.
+
 The discovery module searches these paths in order:
 
-1. `transforms/dbt/`
-2. `transforms/`
-3. `dbt/`
-4. Current directory
+1. `workflows/transforms/dbt/`
 
 ## Usage
 

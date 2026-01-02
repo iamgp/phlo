@@ -251,7 +251,7 @@ Let's see how Phlo uses Iceberg in practice.
 ### Reading Data (in dbt)
 
 ```sql
--- File: phlo-examples/nightscout/transforms/dbt/models/bronze/stg_glucose_entries.sql
+-- File: phlo-examples/nightscout/workflows/transforms/dbt/models/bronze/stg_glucose_entries.sql
 {{ config(
     materialized='view',
 ) }}

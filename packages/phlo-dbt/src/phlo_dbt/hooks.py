@@ -6,13 +6,23 @@ import argparse
 import time
 from pathlib import Path
 
+from phlo.config import get_settings
 from phlo.cli._services.command import CommandError, run_command
 from phlo.cli._services.utils import find_dagster_container, get_project_name
 
 
 def compile_dbt() -> int:
-    dbt_project = Path.cwd() / "transforms" / "dbt"
-    if not (dbt_project / "dbt_project.yml").exists():
+    settings = get_settings()
+    dbt_project_dir = Path(settings.dbt_project_dir)
+
+    if dbt_project_dir.is_absolute():
+        local_project = dbt_project_dir
+        if not local_project.exists() and dbt_project_dir.parts[:2] == ("/", "app"):
+            local_project = Path.cwd() / Path(*dbt_project_dir.parts[2:])
+    else:
+        local_project = Path.cwd() / dbt_project_dir
+
+    if not (local_project / "dbt_project.yml").exists():
         return 0
 
     print("Compiling dbt models...")
@@ -29,7 +39,7 @@ def compile_dbt() -> int:
                 container_name,
                 "bash",
                 "-c",
-                "cd /app/transforms/dbt && dbt deps --profiles-dir profiles",
+                f"cd {Path('/app') / dbt_project_dir} && dbt deps --profiles-dir profiles",
             ],
             timeout_seconds=60,
             check=False,
@@ -44,7 +54,8 @@ def compile_dbt() -> int:
                 container_name,
                 "bash",
                 "-c",
-                "cd /app/transforms/dbt && dbt compile --profiles-dir profiles --target dev",
+                f"cd {Path('/app') / dbt_project_dir} && "
+                "dbt compile --profiles-dir profiles --target dev",
             ],
             timeout_seconds=120,
             check=False,

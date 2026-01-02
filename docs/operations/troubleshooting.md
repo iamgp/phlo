@@ -266,7 +266,7 @@ dagster-webserver:
 ```bash
 # Test Trino connection
 docker-compose exec dagster-webserver \
-  dbt debug --project-dir /opt/dagster/app/transforms/dbt
+  dbt debug --project-dir /app/workflows/transforms/dbt
 
 # Should show all checks passing
 ```
@@ -276,7 +276,7 @@ docker-compose exec dagster-webserver \
 ```bash
 # Compile first (catches syntax errors)
 docker-compose exec dagster-webserver \
-  dbt compile --project-dir /opt/dagster/app/transforms/dbt
+  dbt compile --project-dir /app/workflows/transforms/dbt
 ```
 
 **Check 3: Dependencies**
@@ -298,9 +298,9 @@ docker-compose exec trino trino --execute \
 ```bash
 # View compiled SQL
 docker-compose exec dagster-webserver \
-  dbt compile --project-dir /opt/dagster/app/transforms/dbt
+  dbt compile --project-dir /app/workflows/transforms/dbt
 
-# Check: transforms/dbt/target/compiled/phlo/models/your_model.sql
+# Check: workflows/transforms/dbt/target/compiled/phlo/models/your_model.sql
 # This shows the actual SQL generated
 ```
 
@@ -343,7 +343,7 @@ FROM table
 ```bash
 # Run single test
 docker-compose exec dagster-webserver \
-  dbt test --project-dir /opt/dagster/app/transforms/dbt \
+  dbt test --project-dir /app/workflows/transforms/dbt \
   --select fct_orders,column:customer_id,test_name:not_null
 
 # View failed rows
@@ -889,10 +889,10 @@ For dbt issues:
 
 ```bash
 # Compile models
-dbt compile --project-dir /opt/dagster/app/transforms/dbt
+dbt compile --project-dir /app/workflows/transforms/dbt
 
 # View compiled SQL
-cat transforms/dbt/target/compiled/phlo/models/silver/fct_my_model.sql
+cat workflows/transforms/dbt/target/compiled/phlo/models/silver/fct_my_model.sql
 
 # Run compiled SQL directly in Trino to debug
 docker-compose exec trino trino < compiled.sql

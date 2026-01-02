@@ -432,7 +432,7 @@ Click **Next** → **Deploy**.
 1. Ensure dbt artifacts are fresh:
 
    ```bash
-   cd transforms/dbt
+   cd workflows/transforms/dbt
    dbt compile --profiles-dir ./profiles
    ```
 
@@ -524,7 +524,7 @@ OpenMetadata Ingestion: Daily at 3:00 AM (1 hour after data refresh)
 Add descriptions to dbt models that will appear in OpenMetadata:
 
 ```yaml
-# transforms/dbt/models/silver/fct_glucose_readings.yml
+# workflows/transforms/dbt/models/silver/fct_glucose_readings.yml
 version: 2
 
 models:

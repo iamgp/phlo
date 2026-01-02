@@ -50,13 +50,13 @@ This guide teaches you how to use dbt effectively in Phlo for data transformatio
 
 ### dbt in Phlo
 
-**Location:** `transforms/dbt/`
+**Location:** `workflows/transforms/dbt/`
 
-**Configuration:** `transforms/dbt/dbt_project.yml`
+**Configuration:** `workflows/transforms/dbt/dbt_project.yml`
 
-**Profile:** `transforms/dbt/profiles/profiles.yml` (Trino connection)
+**Profile:** `workflows/transforms/dbt/profiles/profiles.yml` (Trino connection)
 
-**Models:** `transforms/dbt/models/`
+**Models:** `workflows/transforms/dbt/models/`
 
 **Integration:** Dag ster runs dbt and tracks lineage automatically
 
@@ -65,7 +65,7 @@ This guide teaches you how to use dbt effectively in Phlo for data transformatio
 ## Project Structure
 
 ```
-transforms/dbt/
+workflows/transforms/dbt/
 ├── dbt_project.yml          # Project configuration
 ├── profiles/
 │   └── profiles.yml          # Connection settings
@@ -192,7 +192,7 @@ sources:
 Check freshness:
 
 ```bash
-dbt source freshness --project-dir /opt/dagster/app/transforms/dbt
+dbt source freshness --project-dir /app/workflows/transforms/dbt
 ```
 
 ---
@@ -448,7 +448,7 @@ models:
 
 ```bash
 # Run all tests
-dbt test --project-dir /opt/dagster/app/transforms/dbt
+dbt test --project-dir /app/workflows/transforms/dbt
 
 # Test specific model
 dbt test --select fct_weather_readings
@@ -518,10 +518,10 @@ models:
 
 ```bash
 # Generate docs
-dbt docs generate --project-dir /opt/dagster/app/transforms/dbt
+dbt docs generate --project-dir /app/workflows/transforms/dbt
 
 # Serve docs locally
-dbt docs serve --project-dir /opt/dagster/app/transforms/dbt --port 8080
+dbt docs serve --project-dir /app/workflows/transforms/dbt --port 8080
 
 # Open browser to http://localhost:8080
 ```

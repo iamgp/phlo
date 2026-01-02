@@ -750,7 +750,7 @@ Phlo automatically integrates with dbt for transformations.
 
 ```bash
 # dbt project structure
-transforms/dbt/
+workflows/transforms/dbt/
 ├── dbt_project.yml
 ├── models/
 │   ├── bronze/      # Staging models

@@ -498,7 +498,7 @@ The Bronze layer cleans and standardizes raw data.
 
 ### 3.1 Define the Source
 
-Create: `transforms/dbt/models/sources/sources_weather.yml`
+Create: `workflows/transforms/dbt/models/sources/sources_weather.yml`
 
 ```yaml
 version: 2
@@ -530,7 +530,7 @@ sources:
 
 ### 3.2 Create the Staging Model
 
-Create: `transforms/dbt/models/bronze/stg_weather_observations.sql`
+Create: `workflows/transforms/dbt/models/bronze/stg_weather_observations.sql`
 
 ```sql
 {{
@@ -600,7 +600,7 @@ SELECT * FROM cleaned
 
 ### 3.3 Add Tests
 
-Create: `transforms/dbt/models/bronze/schema.yml`
+Create: `workflows/transforms/dbt/models/bronze/schema.yml`
 
 ```yaml
 version: 2
@@ -649,7 +649,7 @@ The Silver layer adds business logic and calculated fields.
 
 ### 4.1 Create the Fact Table
 
-Create: `transforms/dbt/models/silver/fct_weather_readings.sql`
+Create: `workflows/transforms/dbt/models/silver/fct_weather_readings.sql`
 
 ```sql
 {{
@@ -741,7 +741,7 @@ SELECT * FROM enriched
 
 ### 4.2 Add Tests
 
-Create: `transforms/dbt/models/silver/schema.yml`
+Create: `workflows/transforms/dbt/models/silver/schema.yml`
 
 ```yaml
 version: 2
@@ -781,7 +781,7 @@ The Gold layer creates aggregated, business-ready datasets.
 
 ### 5.1 Create Daily Summary
 
-Create: `transforms/dbt/models/gold/agg_daily_weather_summary.sql`
+Create: `workflows/transforms/dbt/models/gold/agg_daily_weather_summary.sql`
 
 ```sql
 {{
@@ -852,7 +852,7 @@ ORDER BY observation_date DESC, location_key
 
 ### 5.2 Create Location Dimension
 
-Create: `transforms/dbt/models/gold/dim_location.sql`
+Create: `workflows/transforms/dbt/models/gold/dim_location.sql`
 
 ```sql
 {{
@@ -899,7 +899,7 @@ Marts are optimized for BI tools and end-user queries.
 
 ### 6.1 Create Weather Overview Mart
 
-Create: `transforms/dbt/models/marts_postgres/mrt_weather_overview.sql`
+Create: `workflows/transforms/dbt/models/marts_postgres/mrt_weather_overview.sql`
 
 ```sql
 {{
@@ -960,7 +960,7 @@ ORDER BY observation_date DESC, city_name
 
 ### 6.2 Create Recent Readings Mart
 
-Create: `transforms/dbt/models/marts_postgres/mrt_recent_weather.sql`
+Create: `workflows/transforms/dbt/models/marts_postgres/mrt_recent_weather.sql`
 
 ```sql
 {{
@@ -1310,7 +1310,7 @@ ORDER BY observation_date DESC;
 
 ```bash
 docker-compose exec dagster-webserver \
-  dbt test --project-dir /opt/dagster/app/transforms/dbt \
+  dbt test --project-dir /app/workflows/transforms/dbt \
   --select tag:weather
 ```
 
