@@ -12,7 +12,7 @@ import os
 
 from phlo.config import get_settings
 from phlo.discovery.registry import get_global_registry
-from phlo.logging import get_logger
+from phlo.logging import get_logger, suppress_log_routing
 from phlo.plugins.base import (
     CliCommandPlugin,
     DagsterExtensionPlugin,
@@ -96,10 +96,22 @@ def discover_plugins(
     """
     settings = get_settings()
 
-    # Check if plugins are enabled
-    if not settings.plugins_enabled:
-        logger.info("Plugin system is disabled")
-        return {
+    with suppress_log_routing():
+        # Check if plugins are enabled
+        if not settings.plugins_enabled:
+            logger.info("Plugin system is disabled")
+            return {
+                "source_connectors": [],
+                "quality_checks": [],
+                "transformations": [],
+                "services": [],
+                "dagster_extensions": [],
+                "cli_commands": [],
+                "hooks": [],
+                "trino_catalogs": [],
+            }
+
+        discovered: dict[str, list[Plugin]] = {
             "source_connectors": [],
             "quality_checks": [],
             "transformations": [],
@@ -110,119 +122,111 @@ def discover_plugins(
             "trino_catalogs": [],
         }
 
-    discovered: dict[str, list[Plugin]] = {
-        "source_connectors": [],
-        "quality_checks": [],
-        "transformations": [],
-        "services": [],
-        "dagster_extensions": [],
-        "cli_commands": [],
-        "hooks": [],
-        "trino_catalogs": [],
-    }
+        # Determine which plugin types to discover
+        types_to_discover = [plugin_type] if plugin_type else list(ENTRY_POINT_GROUPS.keys())
 
-    # Determine which plugin types to discover
-    types_to_discover = [plugin_type] if plugin_type else list(ENTRY_POINT_GROUPS.keys())
-
-    for ptype in types_to_discover:
-        if ptype not in ENTRY_POINT_GROUPS:
-            logger.warning(f"Unknown plugin type: {ptype}")
-            continue
-
-        entry_point_group = ENTRY_POINT_GROUPS[ptype]
-
-        logger.info(f"Discovering {ptype} plugins from entry point: {entry_point_group}")
-
-        # Discover entry points
-        try:
-            entry_points = importlib.metadata.entry_points(group=entry_point_group)
-        except TypeError:
-            # Python 3.9 compatibility - entry_points() returns dict
-            all_entry_points = importlib.metadata.entry_points()
-            entry_points = all_entry_points.get(entry_point_group, [])
-
-        # Load each plugin
-        for entry_point in entry_points:
-            try:
-                # Check if plugin is allowed
-                if not _is_plugin_allowed(entry_point.name):
-                    continue
-
-                logger.info(f"Loading plugin: {entry_point.name} from {entry_point.value}")
-
-                # Load the plugin class
-                plugin_class = entry_point.load()
-
-                # Instantiate the plugin
-                if isinstance(plugin_class, type):
-                    # It's a class, instantiate it
-                    plugin = plugin_class()
-                else:
-                    # It's already an instance
-                    plugin = plugin_class
-
-                # Validate plugin type
-                if not isinstance(plugin, Plugin):
-                    logger.error(
-                        f"Plugin {entry_point.name} does not inherit from Plugin base class"
-                    )
-                    continue
-
-                # Validate specific plugin type
-                expected_type = {
-                    "source_connectors": SourceConnectorPlugin,
-                    "quality_checks": QualityCheckPlugin,
-                    "transformations": TransformationPlugin,
-                    "services": ServicePlugin,
-                    "dagster_extensions": DagsterExtensionPlugin,
-                    "cli_commands": CliCommandPlugin,
-                    "hooks": HookPlugin,
-                    "trino_catalogs": TrinoCatalogPlugin,
-                }[ptype]
-
-                if not isinstance(plugin, expected_type):
-                    logger.error(
-                        f"Plugin {entry_point.name} has incorrect type. "
-                        f"Expected {expected_type.__name__}, got {type(plugin).__name__}"
-                    )
-                    continue
-
-                # Add to discovered plugins
-                discovered[ptype].append(plugin)
-
-                logger.info(
-                    f"Successfully loaded plugin: {plugin.metadata.name} v{plugin.metadata.version}"
-                )
-
-                # Auto-register if requested
-                if auto_register:
-                    registry = get_global_registry()
-                    if ptype == "source_connectors":
-                        registry.register_source_connector(plugin, replace=True)
-                    elif ptype == "quality_checks":
-                        registry.register_quality_check(plugin, replace=True)
-                    elif ptype == "transformations":
-                        registry.register_transformation(plugin, replace=True)
-                    elif ptype == "services":
-                        registry.register_service(plugin, replace=True)
-                    elif ptype == "dagster_extensions":
-                        registry.register_dagster_extension(plugin, replace=True)
-                    elif ptype == "cli_commands":
-                        registry.register_cli_command_plugin(plugin, replace=True)
-                    elif ptype == "hooks":
-                        registry.register_hook_plugin(plugin, replace=True)
-                    elif ptype == "trino_catalogs":
-                        pass  # Trino catalogs are used directly, not registry-based
-
-            except Exception as exc:
-                logger.error(f"Failed to load plugin {entry_point.name}: {exc}", exc_info=True)
+        for ptype in types_to_discover:
+            if ptype not in ENTRY_POINT_GROUPS:
+                logger.warning(f"Unknown plugin type: {ptype}")
                 continue
 
-    # Log summary
-    total = sum(len(plugins) for plugins in discovered.values())
-    logger.info(f"Discovered {total} plugins: {discovered}")
+            entry_point_group = ENTRY_POINT_GROUPS[ptype]
 
-    return discovered
+            logger.info(f"Discovering {ptype} plugins from entry point: {entry_point_group}")
+
+            # Discover entry points
+            try:
+                entry_points = importlib.metadata.entry_points(group=entry_point_group)
+            except TypeError:
+                # Python 3.9 compatibility - entry_points() returns dict
+                all_entry_points = importlib.metadata.entry_points()
+                entry_points = all_entry_points.get(entry_point_group, [])
+
+            # Load each plugin
+            for entry_point in entry_points:
+                try:
+                    # Check if plugin is allowed
+                    if not _is_plugin_allowed(entry_point.name):
+                        continue
+
+                    logger.info(f"Loading plugin: {entry_point.name} from {entry_point.value}")
+
+                    # Load the plugin class
+                    plugin_class = entry_point.load()
+
+                    # Instantiate the plugin
+                    if isinstance(plugin_class, type):
+                        # It's a class, instantiate it
+                        plugin = plugin_class()
+                    else:
+                        # It's already an instance
+                        plugin = plugin_class
+
+                    # Validate plugin type
+                    if not isinstance(plugin, Plugin):
+                        logger.error(
+                            f"Plugin {entry_point.name} does not inherit from Plugin base class"
+                        )
+                        continue
+
+                    # Validate specific plugin type
+                    expected_type = {
+                        "source_connectors": SourceConnectorPlugin,
+                        "quality_checks": QualityCheckPlugin,
+                        "transformations": TransformationPlugin,
+                        "services": ServicePlugin,
+                        "dagster_extensions": DagsterExtensionPlugin,
+                        "cli_commands": CliCommandPlugin,
+                        "hooks": HookPlugin,
+                        "trino_catalogs": TrinoCatalogPlugin,
+                    }[ptype]
+
+                    if not isinstance(plugin, expected_type):
+                        logger.error(
+                            f"Plugin {entry_point.name} has incorrect type. "
+                            f"Expected {expected_type.__name__}, got {type(plugin).__name__}"
+                        )
+                        continue
+
+                    # Add to discovered plugins
+                    discovered[ptype].append(plugin)
+
+                    logger.info(
+                        f"Successfully loaded plugin: {plugin.metadata.name} v{plugin.metadata.version}"
+                    )
+
+                    # Auto-register if requested
+                    if auto_register:
+                        registry = get_global_registry()
+                        if ptype == "source_connectors":
+                            registry.register_source_connector(plugin, replace=True)
+                        elif ptype == "quality_checks":
+                            registry.register_quality_check(plugin, replace=True)
+                        elif ptype == "transformations":
+                            registry.register_transformation(plugin, replace=True)
+                        elif ptype == "services":
+                            registry.register_service(plugin, replace=True)
+                        elif ptype == "dagster_extensions":
+                            registry.register_dagster_extension(plugin, replace=True)
+                        elif ptype == "cli_commands":
+                            registry.register_cli_command_plugin(plugin, replace=True)
+                        elif ptype == "hooks":
+                            registry.register_hook_plugin(plugin, replace=True)
+                        elif ptype == "trino_catalogs":
+                            pass  # Trino catalogs are used directly, not registry-based
+
+                except Exception as exc:
+                    logger.error(
+                        f"Failed to load plugin {entry_point.name}: {exc}",
+                        exc_info=True,
+                    )
+                    continue
+
+        # Log summary
+        total = sum(len(plugins) for plugins in discovered.values())
+        logger.info(f"Discovered {total} plugins: {discovered}")
+
+        return discovered
 
 
 def list_plugins(plugin_type: str | None = None) -> dict[str, list[str]]:

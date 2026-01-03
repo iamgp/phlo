@@ -11,6 +11,7 @@ import contextvars
 import logging
 import sys
 import traceback
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import wraps
@@ -165,6 +166,17 @@ def clear_context() -> None:
     """Clear all structlog contextvars fields for the current scope."""
 
     structlog.contextvars.clear_contextvars()
+
+
+@contextmanager
+def suppress_log_routing() -> Any:
+    """Temporarily disable log routing to the hook bus."""
+
+    token = _ROUTER_ACTIVE.set(True)
+    try:
+        yield
+    finally:
+        _ROUTER_ACTIVE.reset(token)
 
 
 def dagster_logger(
