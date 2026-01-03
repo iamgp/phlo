@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-highlightio"
+version = "0.1.0"
+description = "Highlight.io log export for Phlo"
+readme = {text = "Highlight.io log export for Phlo.", content-type = "text/plain"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Phlo Team", email = "team@phlo.dev"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "phlo>=0.1.0",
+    "highlight-io>=0.10.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
+
+[project.entry-points."phlo.plugins.hooks"]
+highlightio = "phlo_highlightio.hooks_plugin:HighlightHookPlugin"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

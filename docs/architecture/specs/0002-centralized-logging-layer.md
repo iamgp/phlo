@@ -129,8 +129,10 @@ Create `packages/phlo-highlightio` that registers a hook plugin:
 - Configuration via `phlo.config.settings` and `.phlo/.env`:
   - `PHLO_HIGHLIGHT_ENABLED`
   - `PHLO_HIGHLIGHT_PROJECT_ID`
-  - `PHLO_HIGHLIGHT_API_KEY`
   - `PHLO_HIGHLIGHT_ENVIRONMENT`
+  - `PHLO_HIGHLIGHT_OTLP_ENDPOINT`
+  - `PHLO_HIGHLIGHT_SERVICE_NAME`
+  - `PHLO_HIGHLIGHT_DEBUG`
 
 ### 6. Configuration
 
@@ -139,7 +141,7 @@ Add logging settings to `phlo.config.settings`:
 - `phlo_log_level` (default: INFO)
 - `phlo_log_format` (json | console)
 - `phlo_log_router_enabled` (default: true)
-- `phlo_log_service_name` (default: package name)
+- `phlo_log_service_name` (default: phlo)
 
 Allow overrides via env vars and `.phlo/.env(.local)`.
 

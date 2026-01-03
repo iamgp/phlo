@@ -96,6 +96,7 @@ phlo-api = { workspace = true }
 phlo-quality = { workspace = true }
 phlo-lineage = { workspace = true }
 phlo-alerting = { workspace = true }
+phlo-highlightio = { workspace = true }
 phlo-observatory = { workspace = true }
 phlo-postgres = { workspace = true }
 phlo-minio = { workspace = true }
@@ -165,6 +166,7 @@ extra-paths = [
   "packages/phlo-dbt/src",
   "packages/phlo-dlt/src",
   "packages/phlo-grafana/src",
+  "packages/phlo-highlightio/src",
   "packages/phlo-hasura/src",
   "packages/phlo-iceberg/src",
   "packages/phlo-lineage/src",
