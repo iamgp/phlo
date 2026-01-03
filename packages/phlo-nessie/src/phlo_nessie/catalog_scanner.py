@@ -11,13 +11,13 @@ It deliberately does not know about any downstream metadata systems (e.g., OpenM
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import requests
 from phlo.config import get_settings
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NessieTableScanner:

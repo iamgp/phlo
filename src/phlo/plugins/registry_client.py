@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import time
 from dataclasses import dataclass
 from importlib import resources
@@ -13,8 +12,9 @@ from typing import Any
 import requests
 
 from phlo.config import get_settings
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)

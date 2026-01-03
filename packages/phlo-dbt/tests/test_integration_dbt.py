@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from phlo.logging import get_logger
+
 pytestmark = pytest.mark.integration
 
 
@@ -108,10 +110,9 @@ def test_dbt_transformer_execution(dbt_project_dir):
         pytest.skip("dbt-duckdb adapter not installed")
 
     # Import and use DbtTransformer
-    import logging
     from phlo_dbt.transformer import DbtTransformer
 
-    logger = logging.getLogger("test_dbt")
+    logger = get_logger("test_dbt")
 
     transformer = DbtTransformer(
         context=None,

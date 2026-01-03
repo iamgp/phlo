@@ -13,14 +13,15 @@ from __future__ import annotations
 
 import json
 import os
-import logging
 from pathlib import Path
 from typing import Any
 
 import psycopg2
 import ulid
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 _LINEAGE_DB_KEYS = (
     "LINEAGE_DB_URL",

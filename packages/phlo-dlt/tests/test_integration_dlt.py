@@ -1,13 +1,14 @@
 """Integration tests for phlo-dlt using shared infrastructure."""
 
-import pytest
-from pandera.pandas import DataFrameModel
 from unittest.mock import patch
 
-# Imports
-from phlo_iceberg.resource import IcebergResource
-from phlo_dlt.registry import TableConfig
+import pytest
+from pandera.pandas import DataFrameModel
+
+from phlo.logging import get_logger
 from phlo_dlt.converter import pandera_to_iceberg
+from phlo_dlt.registry import TableConfig
+from phlo_iceberg.resource import IcebergResource
 # from phlo_dlt.decorator import phlo_ingestion # Removed to avoid Dagster dependency in this test
 
 pytestmark = pytest.mark.integration
@@ -58,9 +59,7 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
 
         # Initialize the Executor
         # We pass a dummy logger or use standard logging
-        import logging
-
-        logger = logging.getLogger("test_logger")
+        logger = get_logger("test_logger")
 
         from phlo_dlt.executor import DltIngester
 

@@ -7,14 +7,14 @@ This module bridges the Nessie catalog backend (`phlo-nessie`) with the OpenMeta
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from phlo_nessie.catalog_scanner import NessieTableScanner
 
+from phlo.logging import get_logger
 from phlo_openmetadata.openmetadata import OpenMetadataClient, OpenMetadataColumn, OpenMetadataTable
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _map_iceberg_to_openmetadata_type(iceberg_type: str) -> str:

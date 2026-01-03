@@ -33,6 +33,7 @@ __all__ = [
     "ServiceLifecycleEvent",
     "TelemetryEvent",
     "TransformEvent",
+    "LogEvent",
     "get_hook_bus",
 ]
 
@@ -63,6 +64,7 @@ _EVENT_EXPORTS = {
     "ServiceLifecycleEvent",
     "TelemetryEvent",
     "TransformEvent",
+    "LogEvent",
 }
 
 
@@ -89,6 +91,7 @@ if TYPE_CHECKING:
         HookEvent,
         IngestionEvent,
         LineageEvent,
+        LogEvent,
         PublishEvent,
         QualityResultEvent,
         ServiceLifecycleEvent,
