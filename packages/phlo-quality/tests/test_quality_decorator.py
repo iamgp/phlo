@@ -22,9 +22,15 @@ from phlo_quality import (
     PatternCheck,
     RangeCheck,
     UniqueCheck,
+    clear_quality_checks,
     get_quality_checks,
     phlo_quality,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_quality_checks() -> None:
+    clear_quality_checks()
 
 
 class TestNullCheck:
@@ -309,6 +315,7 @@ class TestPhloQualityDecorator:
 
     def test_decorator_creates_asset_check(self):
         """Test that decorator creates a valid Dagster asset check."""
+        clear_quality_checks()
         # Get baseline count
         baseline = len(get_quality_checks())
 
@@ -325,6 +332,7 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_multiple_checks(self):
         """Test decorator with multiple quality checks."""
+        clear_quality_checks()
 
         @phlo_quality(
             table="test.table",
@@ -342,6 +350,7 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_warn_threshold(self):
         """Test decorator with warn_threshold parameter."""
+        clear_quality_checks()
 
         @phlo_quality(
             table="test.table",
@@ -356,6 +365,7 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_custom_description(self):
         """Test decorator with custom description."""
+        clear_quality_checks()
 
         @phlo_quality(
             table="test.table",
@@ -370,12 +380,12 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_custom_asset_key(self):
         """Test decorator with custom asset key."""
-        from dagster import AssetKey
+        clear_quality_checks()
 
         @phlo_quality(
             table="test.table",
             checks=[NullCheck(columns=["id"])],
-            asset_key=AssetKey(["custom", "path"]),
+            asset_key="custom.path",
         )
         def custom_key_check():
             pass

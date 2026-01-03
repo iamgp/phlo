@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, List, Optional
 
-from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue, asset_check
+from phlo.capabilities import AssetCheckSpec, CheckResult, register_check
+from phlo.capabilities.runtime import RuntimeContext
 
 from phlo.hooks import (
     QualityResultEventContext,
@@ -28,7 +29,7 @@ _QUALITY_CHECKS: list[Any] = []
 def phlo_quality(
     table: str,
     checks: List[QualityCheck],
-    asset_key: Optional[AssetKey] = None,
+    asset_key: Optional[str] = None,
     group: Optional[str] = None,
     blocking: bool = True,
     partition_aware: bool = True,
@@ -49,7 +50,7 @@ def phlo_quality(
     Args:
         table: Fully qualified table name (e.g., "bronze.weather_observations")
         checks: List of quality checks to execute
-        asset_key: Optional Dagster AssetKey (derived from table if not provided)
+        asset_key: Optional asset key string (derived from table if not provided)
         group: Optional asset group
         blocking: Whether check failures block downstream assets (default: True)
         partition_aware: Whether to apply partition scoping (default: True)
@@ -84,7 +85,7 @@ def phlo_quality(
         This generates a Dagster asset check that:
         - Queries the table via Trino/DuckDB
         - Executes all quality checks
-        - Returns AssetCheckResult with rich metadata
+        - Returns capability check results with rich metadata
         - Reduces code from ~40 lines to ~8 lines (80% reduction)
     """
 
@@ -99,8 +100,7 @@ def phlo_quality(
             # Extract table name from fully qualified name
             # e.g., "bronze.weather_observations" -> "weather_observations"
             table_parts = table.split(".")
-            table_name = table_parts[-1]
-            asset_key = AssetKey([table_name])
+            asset_key = table_parts[-1]
 
         # Auto-generate description if not provided
         if description is None:
@@ -120,20 +120,12 @@ def phlo_quality(
         asset_key_value = asset_key
 
         if schema_checks:
-
-            @asset_check(
-                name=PANDERA_CONTRACT_CHECK_NAME,
-                asset=asset_key_value,
-                blocking=True,
-                description=f"Pandera schema contract for {table}",
-            )
-            def pandera_contract_check(context) -> AssetCheckResult:
-                partition_key = get_partition_key(context)
+            def pandera_contract_check(runtime: RuntimeContext) -> CheckResult:
+                partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
-                asset_name = _asset_key_to_str(asset_key_value)
                 emitter = QualityResultEventEmitter(
                     QualityResultEventContext(
-                        asset_key=asset_name,
+                        asset_key=asset_key_value,
                         partition_key=partition_key_value,
                         tags={"source": "pandera", "backend": backend},
                     )
@@ -141,7 +133,7 @@ def phlo_quality(
                 telemetry = TelemetryEventEmitter(
                     TelemetryEventContext(
                         tags={
-                            "asset": asset_name,
+                            "asset": asset_key_value,
                             "source": "pandera",
                             "backend": backend,
                         }
@@ -155,19 +147,19 @@ def phlo_quality(
                 )
                 final_query = apply_partition_scope(sql_query, scope=scope)
                 if partition_key and not full_table:
-                    context.log.info(f"Validating partition: {partition_key}")
+                    runtime.logger.info(f"Validating partition: {partition_key}")
 
                 try:
                     if backend == "trino":
-                        trino = _resolve_trino_resource(context)
-                        df = _load_data_trino(context, final_query, trino)
+                        trino = _resolve_trino_resource(runtime)
+                        df = _load_data_trino(runtime, final_query, trino)
                     elif backend == "duckdb":
-                        duckdb_conn = _resolve_duckdb_connection(context)
-                        df = _load_data_duckdb(context, final_query, duckdb_conn)
+                        duckdb_conn = _resolve_duckdb_connection(runtime)
+                        df = _load_data_duckdb(runtime, final_query, duckdb_conn)
                     else:
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
-                    context.log.error(f"Failed to load data: {exc}")
+                    runtime.logger.error(f"Failed to load data: {exc}")
                     telemetry.emit_log(
                         name="quality.query_failed",
                         level="error",
@@ -189,17 +181,19 @@ def phlo_quality(
                     emitter.emit_result(
                         check_name=PANDERA_CONTRACT_CHECK_NAME,
                         passed=False,
-                        severity=AssetCheckSeverity.ERROR.value,
+                        severity="error",
                         check_type="pandera",
                         metadata=event_metadata,
                     )
-                    return AssetCheckResult(
+                    return CheckResult(
                         passed=False,
-                        severity=AssetCheckSeverity.ERROR,
+                        check_name=PANDERA_CONTRACT_CHECK_NAME,
+                        asset_key=asset_key_value,
+                        severity="error",
                         metadata={
-                            **contract.to_dagster_metadata(),
-                            "reason": MetadataValue.text("query_failed"),
-                            "error": MetadataValue.text(str(exc)),
+                            **contract.to_metadata(),
+                            "reason": "query_failed",
+                            "error": str(exc),
                         },
                     )
 
@@ -228,11 +222,13 @@ def phlo_quality(
                         unit="rows",
                         payload={"status": "no_data", "table": table},
                     )
-                    return AssetCheckResult(
+                    return CheckResult(
                         passed=True,
+                        check_name=PANDERA_CONTRACT_CHECK_NAME,
+                        asset_key=asset_key_value,
                         metadata={
-                            **contract.to_dagster_metadata(),
-                            "note": MetadataValue.text("No data available for validation"),
+                            **contract.to_metadata(),
+                            "note": "No data available for validation",
                         },
                     )
 
@@ -243,7 +239,7 @@ def phlo_quality(
 
                 for check in schema_checks:
                     schema_names.append(getattr(check.schema, "__name__", str(type(check.schema))))
-                    result = check.execute(df, context)
+                    result = check.execute(df, runtime)
                     if not result.passed:
                         all_passed = False
                         failed_checks = int(
@@ -263,17 +259,13 @@ def phlo_quality(
                     sample=failures,
                 )
                 severity = severity_for_pandera_contract(passed=all_passed)
-                metadata = {
-                    **contract.to_dagster_metadata(),
-                    "schemas": MetadataValue.json(schema_names),
-                }
                 event_metadata = _contract_metadata(contract)
                 event_metadata["schemas"] = schema_names
                 event_metadata["table"] = table
                 emitter.emit_result(
                     check_name=PANDERA_CONTRACT_CHECK_NAME,
                     passed=all_passed,
-                    severity=severity.value if severity else None,
+                    severity=severity,
                     check_type="pandera",
                     metadata=event_metadata,
                 )
@@ -295,38 +287,31 @@ def phlo_quality(
                     unit="schemas",
                     payload={"table": table},
                 )
-                if severity is not None:
-                    return AssetCheckResult(
-                        passed=all_passed,
-                        severity=severity,
-                        metadata=metadata,
-                    )
-                return AssetCheckResult(
+                return CheckResult(
                     passed=all_passed,
-                    metadata=metadata,
+                    check_name=PANDERA_CONTRACT_CHECK_NAME,
+                    asset_key=asset_key_value,
+                    severity=severity,
+                    metadata={**contract.to_metadata(), "schemas": schema_names},
                 )
 
-        if non_schema_checks:
-            # Create the Dagster asset check function
-            @asset_check(
-                name=getattr(func, "__name__", "quality_check"),
-                asset=asset_key_value,
-                blocking=blocking,
-                description=description,
+            pandera_spec = AssetCheckSpec(
+                name=PANDERA_CONTRACT_CHECK_NAME,
+                asset_key=asset_key_value,
+                fn=pandera_contract_check,
+                blocking=True,
+                description=f"Pandera schema contract for {table}",
             )
-            def quality_check_wrapper(context) -> AssetCheckResult:
-                """
-                Execute all non-Pandera quality checks on the table.
+            _QUALITY_CHECKS.append(pandera_spec)
+            register_check(pandera_spec)
 
-                Pandera schema checks are emitted as a separate ``pandera_contract`` asset check when
-                ``SchemaCheck`` is included in the decorator's check list.
-                """
-                partition_key = get_partition_key(context)
+        if non_schema_checks:
+            def quality_check_wrapper(runtime: RuntimeContext) -> CheckResult:
+                partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
-                asset_name = _asset_key_to_str(asset_key_value)
                 emitter = QualityResultEventEmitter(
                     QualityResultEventContext(
-                        asset_key=asset_name,
+                        asset_key=asset_key_value,
                         partition_key=partition_key_value,
                         tags={"source": "phlo", "backend": backend},
                     )
@@ -334,7 +319,7 @@ def phlo_quality(
                 telemetry = TelemetryEventEmitter(
                     TelemetryEventContext(
                         tags={
-                            "asset": asset_name,
+                            "asset": asset_key_value,
                             "source": "phlo",
                             "backend": backend,
                         }
@@ -348,19 +333,19 @@ def phlo_quality(
                 )
                 final_query = apply_partition_scope(sql_query, scope=scope)
                 if partition_key and not full_table:
-                    context.log.info(f"Validating partition: {partition_key}")
+                    runtime.logger.info(f"Validating partition: {partition_key}")
 
                 try:
                     if backend == "trino":
-                        trino = _resolve_trino_resource(context)
-                        df = _load_data_trino(context, final_query, trino)
+                        trino = _resolve_trino_resource(runtime)
+                        df = _load_data_trino(runtime, final_query, trino)
                     elif backend == "duckdb":
-                        duckdb_conn = _resolve_duckdb_connection(context)
-                        df = _load_data_duckdb(context, final_query, duckdb_conn)
+                        duckdb_conn = _resolve_duckdb_connection(runtime)
+                        df = _load_data_duckdb(runtime, final_query, duckdb_conn)
                     else:
                         raise ValueError(f"Unknown backend: {backend}")
                 except Exception as exc:
-                    context.log.error(f"Failed to load data: {exc}")
+                    runtime.logger.error(f"Failed to load data: {exc}")
                     telemetry.emit_log(
                         name="quality.query_failed",
                         level="error",
@@ -369,7 +354,7 @@ def phlo_quality(
                     emitter.emit_result(
                         check_name=getattr(func, "__name__", "quality_check"),
                         passed=False,
-                        severity=AssetCheckSeverity.ERROR.value,
+                        severity="error",
                         check_type="phlo",
                         metadata={
                             "reason": "query_failed",
@@ -378,18 +363,20 @@ def phlo_quality(
                             "table": table,
                         },
                     )
-                    return AssetCheckResult(
+                    return CheckResult(
                         passed=False,
-                        severity=AssetCheckSeverity.ERROR,
+                        check_name=getattr(func, "__name__", "quality_check"),
+                        asset_key=asset_key_value,
+                        severity="error",
                         metadata={
-                            "reason": MetadataValue.text("query_failed"),
-                            "error": MetadataValue.text(str(exc)),
-                            "query": MetadataValue.text(final_query),
+                            "reason": "query_failed",
+                            "error": str(exc),
+                            "query": final_query,
                         },
                     )
 
                 if df.empty:
-                    context.log.warning("No rows returned; marking check as skipped.")
+                    runtime.logger.warning("No rows returned; marking check as skipped.")
                     emitter.emit_result(
                         check_name=getattr(func, "__name__", "quality_check"),
                         passed=True,
@@ -406,15 +393,17 @@ def phlo_quality(
                         unit="rows",
                         payload={"status": "no_data", "table": table},
                     )
-                    return AssetCheckResult(
+                    return CheckResult(
                         passed=True,
+                        check_name=getattr(func, "__name__", "quality_check"),
+                        asset_key=asset_key_value,
                         metadata={
-                            "rows_validated": MetadataValue.int(0),
-                            "note": MetadataValue.text("No data available for validation"),
+                            "rows_validated": 0,
+                            "note": "No data available for validation",
                         },
                     )
 
-                context.log.info(
+                runtime.logger.info(
                     f"Executing {len(non_schema_checks)} quality checks on {len(df)} rows..."
                 )
 
@@ -423,18 +412,18 @@ def phlo_quality(
 
                 for check in non_schema_checks:
                     try:
-                        result = check.execute(df, context)
+                        result = check.execute(df, runtime)
                         check_results.append(result)
 
                         if not result.passed:
                             all_passed = False
-                            context.log.warning(
+                            runtime.logger.warning(
                                 f"Quality check '{check.name}' failed: {result.failure_message}"
                             )
                         else:
-                            context.log.info(f"Quality check '{check.name}' passed")
+                            runtime.logger.info(f"Quality check '{check.name}' passed")
                     except Exception as exc:
-                        context.log.exception(
+                        runtime.logger.exception(
                             f"Error executing quality check '{check.name}': {exc}"
                         )
                         check_results.append(
@@ -458,7 +447,7 @@ def phlo_quality(
                     repro_sql=_repro_sql(final_query),
                     sample=_collect_failure_sample(check_results),
                 )
-                metadata.update(contract.to_dagster_metadata())
+                metadata.update(contract.to_metadata())
 
                 passed_count = sum(1 for r in check_results if r.passed)
                 failed_count = sum(1 for r in check_results if not r.passed)
@@ -471,23 +460,23 @@ def phlo_quality(
                         for r in check_results
                         if not r.passed
                     ]
-                    metadata["failures"] = MetadataValue.md(
-                        "## Failed Checks\n\n" + "\n".join(f"- {f}" for f in failed_checks)
+                    metadata["failures"] = "## Failed Checks\n\n" + "\n".join(
+                        f"- {f}" for f in failed_checks
                     )
-                metadata["summary"] = MetadataValue.text(summary)
+                metadata["summary"] = summary
 
                 severity = severity_for_quality_check(
                     passed=all_passed,
                     failure_fraction=failure_fraction,
                     warn_threshold=warn_threshold,
                 )
-                if severity == AssetCheckSeverity.WARN:
-                    context.log.warning(
+                if severity == "warn":
+                    runtime.logger.warning(
                         f"Quality check warning: {failure_fraction:.1%} of checks failed "
                         f"(within warn threshold of {warn_threshold:.1%})"
                     )
 
-                severity_label = severity.value if severity else None
+                severity_label = severity if not all_passed else None
                 for check, result in zip(non_schema_checks, check_results):
                     failed_count = _estimate_failed_count([result])
                     contract = QualityCheckContract(
@@ -515,12 +504,6 @@ def phlo_quality(
                         metadata=event_metadata,
                     )
 
-                if severity is not None:
-                    return AssetCheckResult(
-                        passed=all_passed,
-                        severity=severity,
-                        metadata=metadata,
-                    )
                 telemetry.emit_metric(
                     name="quality.rows_validated",
                     value=len(df),
@@ -545,19 +528,27 @@ def phlo_quality(
                     unit="ratio",
                     payload={"table": table},
                 )
-                return AssetCheckResult(
+
+                return CheckResult(
                     passed=all_passed,
+                    check_name=getattr(func, "__name__", "quality_check"),
+                    asset_key=asset_key_value,
+                    severity=severity,
                     metadata=metadata,
                 )
 
-            _QUALITY_CHECKS.append(quality_check_wrapper)
-            if schema_checks:
-                _QUALITY_CHECKS.append(pandera_contract_check)
-            return quality_check_wrapper
+            quality_spec = AssetCheckSpec(
+                name=getattr(func, "__name__", "quality_check"),
+                asset_key=asset_key_value,
+                fn=quality_check_wrapper,
+                blocking=blocking,
+                description=description,
+            )
+            _QUALITY_CHECKS.append(quality_spec)
+            register_check(quality_spec)
 
-        if schema_checks:
-            _QUALITY_CHECKS.append(pandera_contract_check)
-            return pandera_contract_check
+        if schema_checks or non_schema_checks:
+            return func
 
         raise ValueError("phlo_quality requires at least one check")
 
@@ -565,16 +556,16 @@ def phlo_quality(
 
 
 def get_quality_checks() -> list[Any]:
-    """
-    Get all asset checks registered with @phlo_quality decorator.
-
-    Returns:
-        List of Dagster asset check definitions
-    """
+    """Get all asset check specs registered with @phlo_quality decorator."""
     return _QUALITY_CHECKS.copy()
 
 
-def _load_data_trino(context: Any, query: str, trino: Any) -> Any:
+def clear_quality_checks() -> None:
+    """Clear registered quality check specs (useful for tests)."""
+    _QUALITY_CHECKS.clear()
+
+
+def _load_data_trino(context: RuntimeContext, query: str, trino: Any) -> Any:
     """Load data from Trino."""
     import pandas as pd
 
@@ -591,20 +582,23 @@ def _load_data_trino(context: Any, query: str, trino: Any) -> Any:
     # Convert to DataFrame
     df = pd.DataFrame(rows, columns=columns)
 
-    context.log.info(f"Loaded {len(df)} rows from Trino")
+    context.logger.info(f"Loaded {len(df)} rows from Trino")
 
     return df
 
 
-def _resolve_trino_resource(context: Any) -> Any:
-    resources = getattr(context, "resources", None)
+def _resolve_trino_resource(context: RuntimeContext) -> Any:
     trino = None
-    if resources is not None:
+    resources = context.resources
+    if isinstance(resources, dict):
+        trino = resources.get("trino")
+    elif resources is not None:
         trino = getattr(resources, "trino", None)
-        if trino is None and isinstance(resources, dict):
-            trino = resources.get("trino")
     if trino is None:
-        trino = getattr(context, "trino", None)
+        try:
+            trino = context.get_resource("trino")
+        except Exception:
+            trino = None
     if trino is None:
         try:
             from phlo_trino.resource import TrinoResource
@@ -616,15 +610,18 @@ def _resolve_trino_resource(context: Any) -> Any:
     return trino
 
 
-def _resolve_duckdb_connection(context: Any) -> Any:
-    resources = getattr(context, "resources", None)
+def _resolve_duckdb_connection(context: RuntimeContext) -> Any:
     duckdb_conn = None
-    if resources is not None:
+    resources = context.resources
+    if isinstance(resources, dict):
+        duckdb_conn = resources.get("duckdb")
+    elif resources is not None:
         duckdb_conn = getattr(resources, "duckdb", None)
-        if duckdb_conn is None and isinstance(resources, dict):
-            duckdb_conn = resources.get("duckdb")
     if duckdb_conn is None:
-        duckdb_conn = getattr(context, "duckdb", None)
+        try:
+            duckdb_conn = context.get_resource("duckdb")
+        except Exception:
+            duckdb_conn = None
     if duckdb_conn is None:
         try:
             import duckdb
@@ -636,48 +633,38 @@ def _resolve_duckdb_connection(context: Any) -> Any:
     return duckdb_conn
 
 
-def _load_data_duckdb(context: Any, query: str, duckdb_conn: Any) -> Any:
+def _load_data_duckdb(context: RuntimeContext, query: str, duckdb_conn: Any) -> Any:
     """Load data from DuckDB."""
 
     # Execute query
     df = duckdb_conn.execute(query).fetchdf()
 
-    context.log.info(f"Loaded {len(df)} rows from DuckDB")
+    context.logger.info(f"Loaded {len(df)} rows from DuckDB")
 
     return df
 
 
-def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict:
-    """Build metadata dictionary for Dagster UI."""
-    metadata = {
-        "rows_validated": MetadataValue.int(len(df)),
-        "columns_validated": MetadataValue.int(len(df.columns)),
-        "checks_executed": MetadataValue.int(len(check_results)),
-        "checks_passed": MetadataValue.int(sum(1 for r in check_results if r.passed)),
-        "checks_failed": MetadataValue.int(sum(1 for r in check_results if not r.passed)),
+def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict[str, Any]:
+    """Build metadata dictionary for downstream consumers."""
+    metadata: dict[str, Any] = {
+        "rows_validated": len(df),
+        "columns_validated": len(df.columns),
+        "checks_executed": len(check_results),
+        "checks_passed": sum(1 for r in check_results if r.passed),
+        "checks_failed": sum(1 for r in check_results if not r.passed),
     }
 
     # Add individual check results
     for result in check_results:
         # Add metric value
         if result.metric_value is not None:
-            if isinstance(result.metric_value, dict):
-                metadata[f"{result.metric_name}_value"] = MetadataValue.json(result.metric_value)
-            else:
-                metadata[f"{result.metric_name}_value"] = MetadataValue.text(
-                    str(result.metric_value)
-                )
+            metadata[f"{result.metric_name}_value"] = result.metric_value
 
         # Add check metadata
         if result.metadata:
             for key, value in result.metadata.items():
                 metadata_key = f"{result.metric_name}_{key}"
-                if isinstance(value, (dict, list)):
-                    metadata[metadata_key] = MetadataValue.json(value)
-                elif isinstance(value, (int, float)):
-                    metadata[metadata_key] = MetadataValue.float(float(value))
-                else:
-                    metadata[metadata_key] = MetadataValue.text(str(value))
+                metadata[metadata_key] = value
 
     # Build quality summary table
     summary_rows = []
@@ -693,7 +680,7 @@ def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict:
             "| Check | Status | Value | Message |\n"
             "|-------|--------|-------|----------|\n" + "\n".join(summary_rows)
         )
-        metadata["quality_summary"] = MetadataValue.md(summary_table)
+        metadata["quality_summary"] = summary_table
 
     return metadata
 
@@ -735,12 +722,6 @@ def _collect_failure_sample(check_results: List[QualityCheckResult]) -> list[dic
             if len(sample) >= 20:
                 return sample
     return sample
-
-
-def _asset_key_to_str(asset_key: AssetKey) -> str:
-    if hasattr(asset_key, "path") and asset_key.path:
-        return ".".join(str(part) for part in asset_key.path)
-    return str(asset_key)
 
 
 def _contract_metadata(contract: QualityCheckContract) -> dict[str, Any]:
