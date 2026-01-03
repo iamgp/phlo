@@ -7,6 +7,43 @@ assets, checks, and resources.
 This guide explains the primitives, how discovery works, and how to build new packages
 without importing any orchestrator libraries.
 
+## System diagram
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                          Installed Packages                       │
+│  phlo-dlt   phlo-dbt   phlo-quality   phlo-iceberg   phlo-trino    │
+└──────────────────────────────────────────────────────────────────┘
+              │                       │
+              │ entry points           │ entry points
+              ▼                       ▼
+┌───────────────────────┐   ┌───────────────────────────┐
+│ Capability Providers  │   │ Catalog Providers         │
+│ phlo.plugins.assets   │   │ phlo.plugins.catalogs      │
+│ phlo.plugins.resources│   └───────────────────────────┘
+└───────────────────────┘               │
+              │                         │ catalog configs
+              │ specs                   ▼
+              ▼               ┌───────────────────────────┐
+┌───────────────────────┐     │ Catalog Generator         │
+│ Capability Registry   │     │ (per engine)              │
+│ (Asset/Check/Resource)│     └───────────────────────────┘
+└───────────────────────┘
+              │
+              │ active orchestrator
+              ▼
+┌───────────────────────┐
+│ Orchestrator Adapter  │
+│ phlo.plugins.orchestrators
+└───────────────────────┘
+              │
+              ▼
+┌───────────────────────┐
+│ Orchestrator Runtime  │
+│ (Dagster/Spark/etc.)  │
+└───────────────────────┘
+```
+
 ## Why capability primitives
 
 - Packages stay decoupled from specific orchestrators.
@@ -113,6 +150,43 @@ Register via entry points:
 my_resources = "my_pkg.plugin:MyResourceProvider"
 ```
 
+### Catalog providers
+
+Catalog providers define static catalog configuration for engines that load files
+at startup (Trino, Spark).
+
+```python
+from phlo.plugins.base import CatalogPlugin, PluginMetadata
+
+
+class IcebergCatalog(CatalogPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="iceberg",
+            version="0.1.0",
+            description="Iceberg catalog configuration",
+        )
+
+    @property
+    def targets(self) -> list[str]:
+        return ["trino"]
+
+    @property
+    def catalog_name(self) -> str:
+        return "iceberg"
+
+    def get_properties(self) -> dict[str, str]:
+        return {"connector.name": "iceberg"}
+```
+
+Register via entry points:
+
+```toml
+[project.entry-points."phlo.plugins.catalogs"]
+iceberg = "my_pkg.catalog:IcebergCatalog"
+```
+
 ### Orchestrator adapters
 
 Adapters translate specs into orchestrator-native definitions.
@@ -152,8 +226,32 @@ environment.
 Packages should only:
 
 - Emit `AssetSpec`, `AssetCheckSpec`, and `ResourceSpec`.
+- Provide `CatalogPlugin` entries when an engine needs static catalog files.
 - Use `RuntimeContext` only.
 - Avoid importing orchestrator libraries.
 
 Orchestrator-specific utilities belong in the adapter package (for example
 `packages/phlo-dagster/`).
+
+## Catalog entry points (why they write files)
+
+Some engines (Trino, Spark) load **static catalog files** at service startup.
+Those files are not runtime resources, so they live in a separate capability.
+
+How it works:
+
+1) A package registers a catalog provider in `phlo.plugins.catalogs`.
+2) The provider declares `targets` (for example: `["trino"]`, `["spark"]`).
+3) The engine's service process calls a generator that filters catalogs by target.
+4) The generator writes files into the engine's config directory.
+
+Example (Iceberg for Trino):
+
+```toml
+[project.entry-points."phlo.plugins.catalogs"]
+iceberg = "phlo_iceberg.catalog_plugin:IcebergCatalogPlugin"
+```
+
+The Trino service calls `phlo_trino.catalog_generator.generate_catalog_files(...)`,
+which loads `phlo.plugins.catalogs`, filters `targets=["trino"]`, and writes
+`.properties` files into Trino's catalog directory.

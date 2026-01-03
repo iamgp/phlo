@@ -34,16 +34,18 @@ Works out-of-the-box when MinIO and Nessie are running:
 | Feature                | How It Works                                                                     |
 | ---------------------- | -------------------------------------------------------------------------------- |
 | **Resource Provider**  | `IcebergResource` published via capability specs                                 |
-| **Trino Catalogs**     | Registers `iceberg` and `iceberg_dev` catalogs via `phlo.plugins.trino_catalogs` |
+| **Catalogs**           | Registers `iceberg` and `iceberg_dev` catalogs via `phlo.plugins.catalogs`       |
 | **Catalog Generation** | Catalog `.properties` files auto-generated at Trino startup                      |
 
-### Trino Catalog Entry Points
+### Catalog Entry Points
 
 ```toml
-[project.entry-points."phlo.plugins.trino_catalogs"]
+[project.entry-points."phlo.plugins.catalogs"]
 iceberg = "phlo_iceberg.catalog_plugin:IcebergCatalogPlugin"
 iceberg_dev = "phlo_iceberg.catalog_plugin:IcebergDevCatalogPlugin"
 ```
+
+Each catalog plugin declares `targets` in code (for example: `["trino"]`).
 
 ## Usage
 
@@ -70,4 +72,4 @@ config = get_settings().get_pyiceberg_catalog_config("main")
 ## Entry Points
 
 - `phlo.plugins.resources` - Provides `IcebergResourceProvider`
-- `phlo.plugins.trino_catalogs` - Provides Iceberg catalog configurations
+- `phlo.plugins.catalogs` - Provides Iceberg catalog configurations (targets: trino)

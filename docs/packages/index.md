@@ -126,7 +126,7 @@ All packages integrate through Phlo's unified plugin system using Python entry p
 | `phlo.plugins.transforms`     | Data transformation plugins                    |
 | `phlo.plugins.cli`            | CLI command extensions                         |
 | `phlo.plugins.hooks`          | Event hook handlers                            |
-| `phlo.plugins.trino_catalogs` | Trino catalog configurations                   |
+| `phlo.plugins.catalogs`       | Catalog configurations (filter by target)      |
 | `phlo.plugins.dagster`        | Legacy Dagster extensions (when needed)        |
 
 ### Discovering Installed Plugins
