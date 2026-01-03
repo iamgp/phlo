@@ -102,11 +102,10 @@ def project_root() -> Path:
 def minio_service():
     """Spin up a MinIO container for integration tests."""
     try:
+        import docker
         from testcontainers.minio import MinioContainer
 
         # Try to verify docker access early
-        import docker
-
         client = docker.from_env()
         client.ping()
     except (ImportError, Exception):
