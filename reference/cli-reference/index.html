@@ -1,0 +1,2810 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
+<meta content="Phlo Team" name="author"/>
+<link href="../phlo-api/" rel="prev"/>
+<link href="../configuration-reference/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator"/>
+<title>CLI Reference - Phlo Lakehouse Platform</title>
+<link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#cli-reference">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Phlo Lakehouse Platform" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              CLI Reference
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"></path></svg>
+</label>
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_2" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to system preference" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_2" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to system preference">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Phlo Lakehouse Platform" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Phlo Lakehouse Platform
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../..">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../getting-started/installation/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../guides/developer-guide/">
+<span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../setup/hasura/">
+<span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../packages/">
+<span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox"/>
+<label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../architecture/">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../phlo-api/">
+<span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#installation">
+<span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#global-options">
+<span class="md-ellipsis">
+      
+        Global Options
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#command-overview">
+<span class="md-ellipsis">
+      
+        Command Overview
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#services-commands">
+<span class="md-ellipsis">
+      
+        Services Commands
+      
+    </span>
+</a>
+<nav aria-label="Services Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-init">
+<span class="md-ellipsis">
+      
+        phlo services init
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-start">
+<span class="md-ellipsis">
+      
+        phlo services start
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-stop">
+<span class="md-ellipsis">
+      
+        phlo services stop
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-list">
+<span class="md-ellipsis">
+      
+        phlo services list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-add">
+<span class="md-ellipsis">
+      
+        phlo services add
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-remove">
+<span class="md-ellipsis">
+      
+        phlo services remove
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-reset">
+<span class="md-ellipsis">
+      
+        phlo services reset
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-restart">
+<span class="md-ellipsis">
+      
+        phlo services restart
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-status">
+<span class="md-ellipsis">
+      
+        phlo services status
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-logs">
+<span class="md-ellipsis">
+      
+        phlo services logs
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-commands">
+<span class="md-ellipsis">
+      
+        Plugin Commands
+      
+    </span>
+</a>
+<nav aria-label="Plugin Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-list">
+<span class="md-ellipsis">
+      
+        phlo plugin list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-search">
+<span class="md-ellipsis">
+      
+        phlo plugin search
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-install">
+<span class="md-ellipsis">
+      
+        phlo plugin install
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-info">
+<span class="md-ellipsis">
+      
+        phlo plugin info
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-update">
+<span class="md-ellipsis">
+      
+        phlo plugin update
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-create">
+<span class="md-ellipsis">
+      
+        phlo plugin create
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-check">
+<span class="md-ellipsis">
+      
+        phlo plugin check
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#project-commands">
+<span class="md-ellipsis">
+      
+        Project Commands
+      
+    </span>
+</a>
+<nav aria-label="Project Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-init">
+<span class="md-ellipsis">
+      
+        phlo init
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-dev">
+<span class="md-ellipsis">
+      
+        phlo dev
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#workflow-commands">
+<span class="md-ellipsis">
+      
+        Workflow Commands
+      
+    </span>
+</a>
+<nav aria-label="Workflow Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-create-workflow">
+<span class="md-ellipsis">
+      
+        phlo create-workflow
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#asset-commands">
+<span class="md-ellipsis">
+      
+        Asset Commands
+      
+    </span>
+</a>
+<nav aria-label="Asset Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-materialize">
+<span class="md-ellipsis">
+      
+        phlo materialize
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#testing-commands">
+<span class="md-ellipsis">
+      
+        Testing Commands
+      
+    </span>
+</a>
+<nav aria-label="Testing Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-test">
+<span class="md-ellipsis">
+      
+        phlo test
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#logging-monitoring-commands">
+<span class="md-ellipsis">
+      
+        Logging &amp; Monitoring Commands
+      
+    </span>
+</a>
+<nav aria-label="Logging &amp; Monitoring Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-logs">
+<span class="md-ellipsis">
+      
+        phlo logs
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-backfill">
+<span class="md-ellipsis">
+      
+        phlo backfill
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#branch-commands">
+<span class="md-ellipsis">
+      
+        Branch Commands
+      
+    </span>
+</a>
+<nav aria-label="Branch Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-create">
+<span class="md-ellipsis">
+      
+        phlo branch create
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-list">
+<span class="md-ellipsis">
+      
+        phlo branch list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-merge">
+<span class="md-ellipsis">
+      
+        phlo branch merge
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-delete">
+<span class="md-ellipsis">
+      
+        phlo branch delete
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-diff">
+<span class="md-ellipsis">
+      
+        phlo branch diff
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#catalog-commands">
+<span class="md-ellipsis">
+      
+        Catalog Commands
+      
+    </span>
+</a>
+<nav aria-label="Catalog Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-catalog-tables">
+<span class="md-ellipsis">
+      
+        phlo catalog tables
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-catalog-describe">
+<span class="md-ellipsis">
+      
+        phlo catalog describe
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-catalog-history">
+<span class="md-ellipsis">
+      
+        phlo catalog history
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-lineage-show">
+<span class="md-ellipsis">
+      
+        phlo lineage show
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-lineage-export">
+<span class="md-ellipsis">
+      
+        phlo lineage export
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#configuration-commands">
+<span class="md-ellipsis">
+      
+        Configuration Commands
+      
+    </span>
+</a>
+<nav aria-label="Configuration Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-config-show">
+<span class="md-ellipsis">
+      
+        phlo config show
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-config-validate">
+<span class="md-ellipsis">
+      
+        phlo config validate
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-env-export">
+<span class="md-ellipsis">
+      
+        phlo env export
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#utility-commands">
+<span class="md-ellipsis">
+      
+        Utility Commands
+      
+    </span>
+</a>
+<nav aria-label="Utility Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-status">
+<span class="md-ellipsis">
+      
+        phlo status
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-validate-schema">
+<span class="md-ellipsis">
+      
+        phlo validate-schema
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-validate-workflow">
+<span class="md-ellipsis">
+      
+        phlo validate-workflow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema">
+<span class="md-ellipsis">
+      
+        phlo schema
+      
+    </span>
+</a>
+<nav aria-label="phlo schema" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#list">
+<span class="md-ellipsis">
+      
+        list
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#optional-plugin-commands">
+<span class="md-ellipsis">
+      
+        Optional Plugin Commands
+      
+    </span>
+</a>
+<nav aria-label="Optional Plugin Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-postgrest">
+<span class="md-ellipsis">
+      
+        phlo postgrest
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-hasura">
+<span class="md-ellipsis">
+      
+        phlo hasura
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-publishing">
+<span class="md-ellipsis">
+      
+        phlo publishing
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-metrics">
+<span class="md-ellipsis">
+      
+        phlo metrics
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-alerts">
+<span class="md-ellipsis">
+      
+        phlo alerts
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-openmetadata">
+<span class="md-ellipsis">
+      
+        phlo openmetadata
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#environment-variables">
+<span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#exit-codes">
+<span class="md-ellipsis">
+      
+        Exit Codes
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#examples-cookbook">
+<span class="md-ellipsis">
+      
+        Examples Cookbook
+      
+    </span>
+</a>
+<nav aria-label="Examples Cookbook" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#complete-workflow-setup">
+<span class="md-ellipsis">
+      
+        Complete Workflow Setup
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#development-workflow">
+<span class="md-ellipsis">
+      
+        Development Workflow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#troubleshooting-workflow">
+<span class="md-ellipsis">
+      
+        Troubleshooting Workflow
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#next-steps">
+<span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../configuration-reference/">
+<span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../duckdb-queries/">
+<span class="md-ellipsis">
+    
+  
+    DuckDB Queries
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../common-errors/">
+<span class="md-ellipsis">
+    
+  
+    Common Errors
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../operations/operations-guide/">
+<span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#installation">
+<span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#global-options">
+<span class="md-ellipsis">
+      
+        Global Options
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#command-overview">
+<span class="md-ellipsis">
+      
+        Command Overview
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#services-commands">
+<span class="md-ellipsis">
+      
+        Services Commands
+      
+    </span>
+</a>
+<nav aria-label="Services Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-init">
+<span class="md-ellipsis">
+      
+        phlo services init
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-start">
+<span class="md-ellipsis">
+      
+        phlo services start
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-stop">
+<span class="md-ellipsis">
+      
+        phlo services stop
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-list">
+<span class="md-ellipsis">
+      
+        phlo services list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-add">
+<span class="md-ellipsis">
+      
+        phlo services add
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-remove">
+<span class="md-ellipsis">
+      
+        phlo services remove
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-reset">
+<span class="md-ellipsis">
+      
+        phlo services reset
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-restart">
+<span class="md-ellipsis">
+      
+        phlo services restart
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-status">
+<span class="md-ellipsis">
+      
+        phlo services status
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-services-logs">
+<span class="md-ellipsis">
+      
+        phlo services logs
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-commands">
+<span class="md-ellipsis">
+      
+        Plugin Commands
+      
+    </span>
+</a>
+<nav aria-label="Plugin Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-list">
+<span class="md-ellipsis">
+      
+        phlo plugin list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-search">
+<span class="md-ellipsis">
+      
+        phlo plugin search
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-install">
+<span class="md-ellipsis">
+      
+        phlo plugin install
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-info">
+<span class="md-ellipsis">
+      
+        phlo plugin info
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-update">
+<span class="md-ellipsis">
+      
+        phlo plugin update
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-create">
+<span class="md-ellipsis">
+      
+        phlo plugin create
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-plugin-check">
+<span class="md-ellipsis">
+      
+        phlo plugin check
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#project-commands">
+<span class="md-ellipsis">
+      
+        Project Commands
+      
+    </span>
+</a>
+<nav aria-label="Project Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-init">
+<span class="md-ellipsis">
+      
+        phlo init
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-dev">
+<span class="md-ellipsis">
+      
+        phlo dev
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#workflow-commands">
+<span class="md-ellipsis">
+      
+        Workflow Commands
+      
+    </span>
+</a>
+<nav aria-label="Workflow Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-create-workflow">
+<span class="md-ellipsis">
+      
+        phlo create-workflow
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#asset-commands">
+<span class="md-ellipsis">
+      
+        Asset Commands
+      
+    </span>
+</a>
+<nav aria-label="Asset Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-materialize">
+<span class="md-ellipsis">
+      
+        phlo materialize
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#testing-commands">
+<span class="md-ellipsis">
+      
+        Testing Commands
+      
+    </span>
+</a>
+<nav aria-label="Testing Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-test">
+<span class="md-ellipsis">
+      
+        phlo test
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#logging-monitoring-commands">
+<span class="md-ellipsis">
+      
+        Logging &amp; Monitoring Commands
+      
+    </span>
+</a>
+<nav aria-label="Logging &amp; Monitoring Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-logs">
+<span class="md-ellipsis">
+      
+        phlo logs
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-backfill">
+<span class="md-ellipsis">
+      
+        phlo backfill
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#branch-commands">
+<span class="md-ellipsis">
+      
+        Branch Commands
+      
+    </span>
+</a>
+<nav aria-label="Branch Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-create">
+<span class="md-ellipsis">
+      
+        phlo branch create
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-list">
+<span class="md-ellipsis">
+      
+        phlo branch list
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-merge">
+<span class="md-ellipsis">
+      
+        phlo branch merge
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-delete">
+<span class="md-ellipsis">
+      
+        phlo branch delete
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-branch-diff">
+<span class="md-ellipsis">
+      
+        phlo branch diff
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#catalog-commands">
+<span class="md-ellipsis">
+      
+        Catalog Commands
+      
+    </span>
+</a>
+<nav aria-label="Catalog Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-catalog-tables">
+<span class="md-ellipsis">
+      
+        phlo catalog tables
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-catalog-describe">
+<span class="md-ellipsis">
+      
+        phlo catalog describe
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-catalog-history">
+<span class="md-ellipsis">
+      
+        phlo catalog history
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-lineage-show">
+<span class="md-ellipsis">
+      
+        phlo lineage show
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-lineage-export">
+<span class="md-ellipsis">
+      
+        phlo lineage export
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#configuration-commands">
+<span class="md-ellipsis">
+      
+        Configuration Commands
+      
+    </span>
+</a>
+<nav aria-label="Configuration Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-config-show">
+<span class="md-ellipsis">
+      
+        phlo config show
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-config-validate">
+<span class="md-ellipsis">
+      
+        phlo config validate
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-env-export">
+<span class="md-ellipsis">
+      
+        phlo env export
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#utility-commands">
+<span class="md-ellipsis">
+      
+        Utility Commands
+      
+    </span>
+</a>
+<nav aria-label="Utility Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-status">
+<span class="md-ellipsis">
+      
+        phlo status
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-validate-schema">
+<span class="md-ellipsis">
+      
+        phlo validate-schema
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-validate-workflow">
+<span class="md-ellipsis">
+      
+        phlo validate-workflow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-schema">
+<span class="md-ellipsis">
+      
+        phlo schema
+      
+    </span>
+</a>
+<nav aria-label="phlo schema" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#list">
+<span class="md-ellipsis">
+      
+        list
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#optional-plugin-commands">
+<span class="md-ellipsis">
+      
+        Optional Plugin Commands
+      
+    </span>
+</a>
+<nav aria-label="Optional Plugin Commands" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-postgrest">
+<span class="md-ellipsis">
+      
+        phlo postgrest
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-hasura">
+<span class="md-ellipsis">
+      
+        phlo hasura
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-publishing">
+<span class="md-ellipsis">
+      
+        phlo publishing
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-metrics">
+<span class="md-ellipsis">
+      
+        phlo metrics
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-alerts">
+<span class="md-ellipsis">
+      
+        phlo alerts
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#phlo-openmetadata">
+<span class="md-ellipsis">
+      
+        phlo openmetadata
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#environment-variables">
+<span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#exit-codes">
+<span class="md-ellipsis">
+      
+        Exit Codes
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#examples-cookbook">
+<span class="md-ellipsis">
+      
+        Examples Cookbook
+      
+    </span>
+</a>
+<nav aria-label="Examples Cookbook" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#complete-workflow-setup">
+<span class="md-ellipsis">
+      
+        Complete Workflow Setup
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#development-workflow">
+<span class="md-ellipsis">
+      
+        Development Workflow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#troubleshooting-workflow">
+<span class="md-ellipsis">
+      
+        Troubleshooting Workflow
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#next-steps">
+<span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="cli-reference">CLI Reference</h1>
+<p>Complete reference for the Phlo command-line interface.</p>
+<h2 id="installation">Installation</h2>
+<pre><code class="language-bash"># Using pip
+pip install -e .
+
+# Using uv (recommended)
+uv pip install -e .
+</code></pre>
+<p>Verify:</p>
+<pre><code class="language-bash">phlo --version
+</code></pre>
+<h2 id="global-options">Global Options</h2>
+<pre><code class="language-bash">phlo --help              # Show help
+phlo --version           # Show version
+</code></pre>
+<h2 id="command-overview">Command Overview</h2>
+<p><strong>Core Commands:</strong></p>
+<pre><code class="language-bash">phlo init                # Initialize new project
+phlo services            # Manage infrastructure services
+phlo plugin              # Manage plugins
+phlo dev                 # Start development server
+phlo test                # Run tests
+phlo config              # Configuration management
+phlo env                 # Environment exports
+</code></pre>
+<p><strong>Workflow Commands:</strong></p>
+<pre><code class="language-bash">phlo create-workflow     # Create new workflow
+phlo validate-workflow   # Validate workflow configuration
+</code></pre>
+<p><strong>Asset Commands:</strong></p>
+<pre><code class="language-bash">phlo materialize         # Materialize assets
+phlo backfill            # Backfill partitioned assets
+phlo status              # Show asset status
+phlo logs                # Query structured logs
+</code></pre>
+<p><strong>Data Catalog Commands:</strong></p>
+<pre><code class="language-bash">phlo branch              # Manage Nessie branches
+phlo catalog             # Catalog operations (tables, describe, history)
+phlo lineage             # Asset lineage (show, export)
+</code></pre>
+<p><strong>Quality Commands:</strong></p>
+<pre><code class="language-bash">phlo schema              # Manage Pandera schemas
+phlo validate-schema     # Validate Pandera schemas
+</code></pre>
+<p><strong>Optional Plugin Commands</strong> (requires installation):</p>
+<pre><code class="language-bash">phlo postgrest           # PostgREST management
+phlo hasura              # Hasura GraphQL management
+phlo publishing          # dbt publishing layer
+phlo metrics             # Prometheus metrics
+phlo alerts              # Alerting rules
+phlo openmetadata        # OpenMetadata catalog
+</code></pre>
+<h2 id="services-commands">Services Commands</h2>
+<p>Manage Docker infrastructure services.</p>
+<p>Services are provided by installed service packages (e.g., <code>phlo-dagster</code>, <code>phlo-trino</code>). Install
+core services with:</p>
+<pre><code class="language-bash">uv pip install -e ".[core-services]"
+</code></pre>
+<p>Optional services can be added later:</p>
+<pre><code class="language-bash">phlo plugin install phlo-observatory
+</code></pre>
+<h3 id="phlo-services-init">phlo services init</h3>
+<p>Initialize infrastructure directory and configuration.</p>
+<pre><code class="language-bash">phlo services init [OPTIONS]
+</code></pre>
+<p><strong>What it does</strong>:</p>
+<ul>
+<li>Creates <code>.phlo/</code> directory</li>
+<li>Generates Docker Compose configurations</li>
+<li>Sets up network and volume definitions</li>
+<li>Creates <code>phlo.yaml</code> config file</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--force              # Overwrite existing configuration
+--name NAME          # Project name (default: directory name)
+--dev                # Development mode: mount local phlo source
+--no-dev             # Explicitly disable dev mode
+--phlo-source PATH   # Path to phlo repo or src/phlo for dev mode
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Basic initialization
+phlo services init
+
+# Force overwrite existing
+phlo services init --force
+
+# With custom project name
+phlo services init --name my-lakehouse
+
+# Development mode with local source
+phlo services init --dev --phlo-source /path/to/phlo
+</code></pre>
+<h3 id="phlo-services-start">phlo services start</h3>
+<p>Start all infrastructure services.</p>
+<pre><code class="language-bash">phlo services start [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--native                 # Run native dev services (phlo-api, Observatory) as subprocesses
+--profile PROFILE        # Additional service profiles
+--detach, -d             # Run in background
+--build                  # Rebuild containers before starting
+</code></pre>
+<p><strong>Profiles</strong>:</p>
+<ul>
+<li><code>observability</code>: Prometheus, Grafana, Loki</li>
+<li><code>api</code>: PostgREST, Hasura</li>
+<li><code>catalog</code>: OpenMetadata</li>
+</ul>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Start core services
+phlo services start
+
+# Start with observability
+phlo services start --profile observability
+
+# Run Observatory/phlo-api without Docker (useful on ARM Macs)
+phlo services start --native
+
+# Develop the phlo framework from a local monorepo (Dagster container installs editable from source)
+phlo services init --force --dev --phlo-source /path/to/phlo
+phlo services start
+
+# Multiple profiles
+phlo services start --profile observability --profile api
+
+# Rebuild and start
+phlo services start --build
+</code></pre>
+<p><strong>Services started</strong>:</p>
+<ul>
+<li>PostgreSQL (port 10000)</li>
+<li>MinIO (ports 10001-10002)</li>
+<li>Nessie (port 10003)</li>
+<li>Trino (port 10005)</li>
+<li>Dagster webserver (port 10006)</li>
+<li>Dagster daemon</li>
+</ul>
+<h3 id="phlo-services-stop">phlo services stop</h3>
+<p>Stop all running services.</p>
+<pre><code class="language-bash">phlo services stop [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--volumes, -v        # Remove volumes (deletes all data)
+--profile PROFILE    # Stop only services in specified profile
+--service SERVICE    # Stop specific service(s)
+--stop-native        # Also stop native subprocess services
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Stop all services (preserve data)
+phlo services stop
+
+# Stop and delete all data
+phlo services stop --volumes
+
+# Stop specific profile
+phlo services stop --profile observability
+
+# Stop specific services
+phlo services stop --service postgres,minio
+</code></pre>
+<h3 id="phlo-services-list">phlo services list</h3>
+<p>List available services with status.</p>
+<pre><code class="language-bash">phlo services list [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--all                # Show all services including optional
+--json               # Output as JSON
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo services list
+phlo services list --all
+phlo services list --json
+</code></pre>
+<h3 id="phlo-services-add">phlo services add</h3>
+<p>Add an optional service to the project.</p>
+<pre><code class="language-bash">phlo services add SERVICE_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--no-start           # Don't start the service after adding
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo services add prometheus
+phlo services add grafana --no-start
+</code></pre>
+<h3 id="phlo-services-remove">phlo services remove</h3>
+<p>Remove a service from the project.</p>
+<pre><code class="language-bash">phlo services remove SERVICE_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--keep-running       # Don't stop the service
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo services remove prometheus
+phlo services remove grafana --keep-running
+</code></pre>
+<h3 id="phlo-services-reset">phlo services reset</h3>
+<p>Reset infrastructure by stopping services and deleting volumes.</p>
+<pre><code class="language-bash">phlo services reset [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--service SERVICE    # Reset only specific service(s)
+-y, --yes            # Skip confirmation
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo services reset
+phlo services reset --service postgres
+phlo services reset -y
+</code></pre>
+<h3 id="phlo-services-restart">phlo services restart</h3>
+<p>Restart services (stop + start).</p>
+<pre><code class="language-bash">phlo services restart [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--build              # Rebuild containers before starting
+--profile PROFILE    # Restart services in profile
+--service SERVICE    # Restart specific service(s)
+--dev                # Enable dev mode when restarting
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo services restart
+phlo services restart --build
+phlo services restart --service dagster
+</code></pre>
+<h3 id="phlo-services-status">phlo services status</h3>
+<p>Show status of all services.</p>
+<pre><code class="language-bash">phlo services status
+</code></pre>
+<p><strong>Output</strong>:</p>
+<pre><code>SERVICE              STATUS    PORTS
+postgres             running   10000
+minio                running   10001-10002
+nessie               running   10003
+trino                running   10005
+dagster-webserver    running   10006
+dagster-daemon       running
+</code></pre>
+<h3 id="phlo-services-logs">phlo services logs</h3>
+<p>View service logs.</p>
+<pre><code class="language-bash">phlo services logs [OPTIONS] [SERVICE]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--follow, -f         # Follow log output
+--tail N             # Show last N lines
+--timestamps         # Show timestamps
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># All logs
+phlo services logs
+
+# Follow specific service
+phlo services logs -f dagster-webserver
+
+# Last 100 lines
+phlo services logs --tail 100 trino
+</code></pre>
+<h2 id="plugin-commands">Plugin Commands</h2>
+<p>Manage Phlo plugins for extending functionality.</p>
+<h3 id="phlo-plugin-list">phlo plugin list</h3>
+<p>List all installed plugins.</p>
+<pre><code class="language-bash">phlo plugin list [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--type TYPE          # Filter by plugin type (sources, quality, transforms, services, hooks, dagster, cli)
+--json               # Output as JSON
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># List all plugins
+phlo plugin list
+
+# List only source connectors
+phlo plugin list --type sources
+
+# List hook plugins
+phlo plugin list --type hooks
+
+# JSON output
+phlo plugin list --json
+</code></pre>
+<p><strong>Output</strong>:</p>
+<pre><code>Services:
+  NAME              VERSION    DESCRIPTION
+  dagster           0.1.0      Dagster orchestration engine
+  postgres          0.1.0      PostgreSQL database
+  trino             0.1.0      Distributed SQL query engine
+
+Sources:
+  NAME              VERSION    DESCRIPTION
+  rest_api          1.0.0      REST API connector
+  jsonplaceholder   1.0.0      JSONPlaceholder example source
+
+Quality Checks:
+  NAME              VERSION    DESCRIPTION
+  null_check        1.0.0      Null value validation
+  threshold_check   1.0.0      Threshold validation
+</code></pre>
+<h3 id="phlo-plugin-search">phlo plugin search</h3>
+<p>Search available plugins in the registry.</p>
+<pre><code class="language-bash">phlo plugin search [QUERY] [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--type TYPE          # Filter by plugin type
+--json               # Output as JSON
+--tag TAG            # Filter by tag
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Search for PostgreSQL-related plugins
+phlo plugin search postgres
+
+# Search for quality check plugins
+phlo plugin search --type quality
+
+# Search for hook plugins
+phlo plugin search --type hooks
+
+# Search by tag
+phlo plugin search --tag observability
+</code></pre>
+<h3 id="phlo-plugin-install">phlo plugin install</h3>
+<p>Install a plugin from the registry.</p>
+<pre><code class="language-bash">phlo plugin install PLUGIN_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--version VERSION    # Specific version to install
+--upgrade            # Upgrade if already installed
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Install a plugin
+phlo plugin install phlo-superset
+
+# Install specific version
+phlo plugin install phlo-superset --version 0.2.0
+
+# Upgrade existing
+phlo plugin install phlo-superset --upgrade
+</code></pre>
+<h3 id="phlo-plugin-info">phlo plugin info</h3>
+<p>Show detailed information about a plugin.</p>
+<pre><code class="language-bash">phlo plugin info PLUGIN_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--type TYPE          # Plugin type (auto-detected if omitted)
+--json               # Output as JSON
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Get plugin info (auto-detect type)
+phlo plugin info dagster
+
+# Specify type
+phlo plugin info rest_api --type sources
+
+# JSON output
+phlo plugin info dagster --json
+</code></pre>
+<p><strong>Output</strong>:</p>
+<pre><code>dagster
+Type: services
+Version: 0.1.0
+Author: Phlo Team
+Description: Dagster orchestration engine for workflow management
+License: MIT
+Homepage: https://github.com/iamgp/phlo
+Tags: orchestration, core, service
+
+Service Details:
+  Container: dagster-webserver
+  Ports: 10006
+  Dependencies: postgres
+</code></pre>
+<h3 id="phlo-plugin-update">phlo plugin update</h3>
+<p>Update plugins to latest versions.</p>
+<pre><code class="language-bash">phlo plugin update [PLUGIN_NAME] [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--all                # Update all plugins
+--check              # Check for updates without installing
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Update specific plugin
+phlo plugin update phlo-superset
+
+# Update all plugins
+phlo plugin update --all
+
+# Check for updates
+phlo plugin update --check
+</code></pre>
+<h3 id="phlo-plugin-create">phlo plugin create</h3>
+<p>Create a new plugin scaffold (for plugin development).</p>
+<pre><code class="language-bash">phlo plugin create PLUGIN_NAME --type TYPE [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--type TYPE          # Plugin type: source, quality, transform, service
+--path PATH          # Custom output path
+--author AUTHOR      # Author name
+--description DESC   # Plugin description
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Create source connector plugin
+phlo plugin create my-api-source --type source
+
+# Create quality check plugin
+phlo plugin create my-validation --type quality
+
+# Create hook plugin
+phlo plugin create my-hooks --type hook
+
+# Create with custom path
+phlo plugin create my-plugin --type source --path ./plugins/my-plugin
+</code></pre>
+<p><strong>Creates</strong>:</p>
+<pre><code>phlo-plugin-my-api-source/
+├── pyproject.toml           # Package config with entry points
+├── README.md                # Documentation
+├── src/
+│   └── phlo_my_api_source/
+│       ├── __init__.py
+│       └── plugin.py        # Plugin implementation
+└── tests/
+    └── test_plugin.py       # Test suite
+</code></pre>
+<h3 id="phlo-plugin-check">phlo plugin check</h3>
+<p>Validate installed plugins.</p>
+<pre><code class="language-bash">phlo plugin check [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--json               # Output as JSON
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Validate all plugins
+phlo plugin check
+
+# JSON output
+phlo plugin check --json
+</code></pre>
+<h2 id="project-commands">Project Commands</h2>
+<h3 id="phlo-init">phlo init</h3>
+<p>Initialize a new Phlo project.</p>
+<pre><code class="language-bash">phlo init [PROJECT_NAME] [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--template TEMPLATE      # Project template (default: basic)
+--directory PATH         # Target directory
+--no-git                 # Don't initialize git repository
+</code></pre>
+<p><strong>Templates</strong>:</p>
+<ul>
+<li><code>basic</code>: Minimal project structure</li>
+<li><code>complete</code>: Full example with ingestion and transformations</li>
+</ul>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-bash">phlo init my-lakehouse --template complete
+cd my-lakehouse
+</code></pre>
+<p><strong>Creates</strong>:</p>
+<pre><code>my-lakehouse/
+├── .env.example          # Local secrets template (.phlo/.env.local)
+├── workflows/
+│   ├── ingestion/
+│   ├── schemas/
+│   └── transforms/
+│       └── dbt/
+├── tests/
+└── phlo.yaml
+</code></pre>
+<h3 id="phlo-dev">phlo dev</h3>
+<p>Start Dagster development server.</p>
+<pre><code class="language-bash">phlo dev [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--port PORT          # Port for webserver (default: 3000)
+--host HOST          # Host to bind (default: 127.0.0.1)
+--workspace PATH     # Path to workspace.yaml
+</code></pre>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-bash">phlo dev --port 3000
+</code></pre>
+<p>Opens Dagster UI at http://localhost:3000</p>
+<h2 id="workflow-commands">Workflow Commands</h2>
+<h3 id="phlo-create-workflow">phlo create-workflow</h3>
+<p>Interactive workflow creation wizard.</p>
+<pre><code class="language-bash">phlo create-workflow [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--type TYPE          # Workflow type: ingestion, quality, transform
+--domain DOMAIN      # Domain/namespace (e.g., api, files)
+--table TABLE        # Table name
+--unique-key KEY     # Unique key column
+--non-interactive    # Non-interactive mode (requires all options)
+</code></pre>
+<p><strong>Interactive prompts</strong>:</p>
+<ol>
+<li>Workflow type (ingestion/quality/transform)</li>
+<li>Domain name</li>
+<li>Table name</li>
+<li>Unique key column</li>
+<li>Validation schema (optional)</li>
+<li>Schedule (cron expression)</li>
+</ol>
+<p><strong>Example (interactive)</strong>:</p>
+<pre><code class="language-bash">phlo create-workflow
+</code></pre>
+<p><strong>Example (non-interactive)</strong>:</p>
+<pre><code class="language-bash">phlo create-workflow \
+  --type ingestion \
+  --domain github \
+  --table events \
+  --unique-key id
+</code></pre>
+<p><strong>Creates</strong>:</p>
+<pre><code>workflows/
+├── ingestion/
+│   └── github/
+│       └── events.py
+└── schemas/
+    └── github.py
+</code></pre>
+<h2 id="asset-commands">Asset Commands</h2>
+<h3 id="phlo-materialize">phlo materialize</h3>
+<p>Materialize Dagster assets.</p>
+<pre><code class="language-bash">phlo materialize [ASSET_KEYS...] [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--select SELECTOR        # Asset selection query
+--partition PARTITION    # Specific partition to materialize
+--tags TAG=VALUE         # Filter by tags
+--all                    # Materialize all assets
+</code></pre>
+<p><strong>Selection Syntax</strong>:</p>
+<pre><code class="language-bash">asset_name               # Single asset
+asset_name+              # Asset and downstream
++asset_name              # Asset and upstream
+asset_name*              # Asset and all dependencies
+tag:group_name           # All assets with tag
+*                        # All assets
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Single asset
+phlo materialize dlt_glucose_entries
+
+# Asset and downstream
+phlo materialize dlt_glucose_entries+
+
+# Specific partition
+phlo materialize dlt_glucose_entries --partition 2025-01-15
+
+# By tag
+phlo materialize --select "tag:nightscout"
+
+# Multiple assets
+phlo materialize asset1 asset2 asset3
+
+# All assets
+phlo materialize --all
+</code></pre>
+<h2 id="testing-commands">Testing Commands</h2>
+<h3 id="phlo-test">phlo test</h3>
+<p>Run tests.</p>
+<pre><code class="language-bash">phlo test [TEST_PATH] [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--local              # Skip Docker integration tests
+--verbose, -v        # Verbose output
+--marker, -m MARKER  # Run tests with marker
+--keyword, -k EXPR   # Run tests matching keyword
+--coverage           # Generate coverage report
+</code></pre>
+<p><strong>Markers</strong>:</p>
+<ul>
+<li><code>integration</code>: Integration tests requiring Docker</li>
+<li><code>unit</code>: Fast unit tests</li>
+<li><code>slow</code>: Slow-running tests</li>
+</ul>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># All tests
+phlo test
+
+# Specific test file
+phlo test tests/test_ingestion.py
+
+# Unit tests only
+phlo test -m unit
+
+# Skip integration tests
+phlo test --local
+
+# Specific test
+phlo test -k test_glucose_ingestion
+
+# With coverage
+phlo test --coverage
+</code></pre>
+<h2 id="logging-monitoring-commands">Logging &amp; Monitoring Commands</h2>
+<h3 id="phlo-logs">phlo logs</h3>
+<p>Query and filter structured logs from Dagster runs.</p>
+<pre><code class="language-bash">phlo logs [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--asset NAME         # Filter by asset name
+--job NAME           # Filter by job name
+--level LEVEL        # Filter by log level: DEBUG, INFO, WARNING, ERROR
+--since TIME         # Filter by time (e.g., 1h, 30m, 2d)
+--run-id ID          # Get logs for specific run
+--follow, -f         # Tail mode - follow new logs in real-time
+--full               # Don't truncate long messages
+--limit N            # Number of logs to retrieve (default: 100)
+--json               # JSON output for scripting
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># View recent logs
+phlo logs
+
+# Filter by asset
+phlo logs --asset dlt_glucose_entries
+
+# Filter by log level
+phlo logs --level ERROR
+
+# Logs from last hour
+phlo logs --since 1h
+
+# Follow logs in real-time
+phlo logs --follow
+
+# Logs for specific run
+phlo logs --run-id abc-123-def
+
+# JSON output for processing
+phlo logs --json --limit 500
+</code></pre>
+<h3 id="phlo-backfill">phlo backfill</h3>
+<p>Backfill partitioned assets over a date range.</p>
+<pre><code class="language-bash">phlo backfill [ASSET_NAME] [OPTIONS]
+</code></pre>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>ASSET_NAME</code> (optional): Asset to backfill</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--start-date DATE    # Start date (YYYY-MM-DD)
+--end-date DATE      # End date (YYYY-MM-DD)
+--partitions DATES   # Comma-separated partition dates (YYYY-MM-DD,...)
+--parallel N         # Number of concurrent partitions (default: 1)
+--resume             # Resume last backfill, skipping completed partitions
+--dry-run            # Show what would be executed without running
+--delay SECS         # Delay between parallel executions in seconds (default: 0.0)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Backfill for date range
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31
+
+# Specific partitions
+phlo backfill dlt_glucose_entries --partitions 2025-01-15,2025-01-16,2025-01-17
+
+# Parallel backfill (5 concurrent)
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31 --parallel 5
+
+# Resume interrupted backfill
+phlo backfill dlt_glucose_entries --resume
+
+# Dry run to see what would execute
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-07 --dry-run
+
+# With delay between executions
+phlo backfill dlt_glucose_entries --start-date 2025-01-01 --end-date 2025-01-31 --parallel 3 --delay 2.5
+</code></pre>
+<h2 id="branch-commands">Branch Commands</h2>
+<p>Manage Nessie catalog branches.</p>
+<h3 id="phlo-branch-create">phlo branch create</h3>
+<p>Create a new branch.</p>
+<pre><code class="language-bash">phlo branch create BRANCH_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--from REF           # Create from reference (default: main)
+--description DESC   # Branch description
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Create from main
+phlo branch create dev
+
+# Create from specific commit
+phlo branch create feature --from abc123
+
+# With description
+phlo branch create dev --description "Development branch"
+</code></pre>
+<h3 id="phlo-branch-list">phlo branch list</h3>
+<p>List all branches.</p>
+<pre><code class="language-bash">phlo branch list [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--pattern PATTERN    # Filter by pattern
+--show-hashes        # Show commit hashes
+</code></pre>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-bash">phlo branch list
+phlo branch list --pattern "pipeline/*"
+</code></pre>
+<h3 id="phlo-branch-merge">phlo branch merge</h3>
+<p>Merge branches.</p>
+<pre><code class="language-bash">phlo branch merge SOURCE TARGET [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--strategy STRATEGY  # Merge strategy (default: normal)
+--no-ff              # Create merge commit even if fast-forward
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Merge dev to main
+phlo branch merge dev main
+
+# Force merge commit
+phlo branch merge dev main --no-ff
+</code></pre>
+<h3 id="phlo-branch-delete">phlo branch delete</h3>
+<p>Delete a branch.</p>
+<pre><code class="language-bash">phlo branch delete BRANCH_NAME [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--force, -f          # Force delete even if not merged
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo branch delete old-feature
+phlo branch delete old-feature --force
+</code></pre>
+<h3 id="phlo-branch-diff">phlo branch diff</h3>
+<p>Show differences between two branches.</p>
+<pre><code class="language-bash">phlo branch diff SOURCE_BRANCH [TARGET_BRANCH] [OPTIONS]
+</code></pre>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>SOURCE_BRANCH</code>: Source branch to compare</li>
+<li><code>TARGET_BRANCH</code>: Target branch (default: main)</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--format FORMAT      # Output format: table, json (default: table)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Compare dev to main
+phlo branch diff dev
+
+# Compare two branches
+phlo branch diff feature-a feature-b
+
+# JSON output
+phlo branch diff dev main --format json
+</code></pre>
+<h2 id="catalog-commands">Catalog Commands</h2>
+<p>Manage the Iceberg catalog (Nessie-backed).</p>
+<h3 id="phlo-catalog-tables">phlo catalog tables</h3>
+<p>List all Iceberg tables in the catalog.</p>
+<pre><code class="language-bash">phlo catalog tables [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--namespace NS       # Filter by namespace (e.g., bronze, silver)
+--ref REF            # Nessie branch/tag reference (default: main)
+--format FORMAT      # Output format: table, json (default: table)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># List all tables
+phlo catalog tables
+
+# List tables in specific namespace
+phlo catalog tables --namespace bronze
+
+# List tables on specific branch
+phlo catalog tables --ref feature-branch
+
+# JSON output
+phlo catalog tables --format json
+</code></pre>
+<h3 id="phlo-catalog-describe">phlo catalog describe</h3>
+<p>Show detailed table metadata.</p>
+<pre><code class="language-bash">phlo catalog describe TABLE_NAME [OPTIONS]
+</code></pre>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>TABLE_NAME</code>: Table to describe (e.g., <code>bronze.events</code>)</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--ref REF            # Nessie branch/tag reference (default: main)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Describe table
+phlo catalog describe bronze.events
+
+# Describe on specific branch
+phlo catalog describe bronze.events --ref dev
+</code></pre>
+<p><strong>Output</strong>:</p>
+<p>Shows table metadata including:</p>
+<ul>
+<li>Location</li>
+<li>Current snapshot ID</li>
+<li>Format version</li>
+<li>Schema (columns, types, constraints)</li>
+<li>Partitioning</li>
+<li>Properties</li>
+</ul>
+<h3 id="phlo-catalog-history">phlo catalog history</h3>
+<p>Show table snapshot history.</p>
+<pre><code class="language-bash">phlo catalog history TABLE_NAME [OPTIONS]
+</code></pre>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>TABLE_NAME</code>: Table name</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--limit N            # Number of snapshots to show (default: 10)
+--ref REF            # Nessie branch/tag reference (default: main)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Show recent snapshots
+phlo catalog history bronze.events
+
+# Show last 20 snapshots
+phlo catalog history bronze.events --limit 20
+</code></pre>
+<h3 id="phlo-lineage-show">phlo lineage show</h3>
+<p>Display asset lineage in ASCII tree format.</p>
+<pre><code class="language-bash">phlo lineage show ASSET_NAME [OPTIONS]
+</code></pre>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>ASSET_NAME</code>: Asset name to show lineage for</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--direction DIR      # Direction: upstream, downstream, both (default: both)
+--depth N            # Maximum depth to traverse
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Show full lineage
+phlo lineage show dlt_glucose_entries
+
+# Show only upstream dependencies
+phlo lineage show dlt_glucose_entries --direction upstream
+
+# Limit depth
+phlo lineage show dlt_glucose_entries --depth 2
+</code></pre>
+<h3 id="phlo-lineage-export">phlo lineage export</h3>
+<p>Export lineage to external formats.</p>
+<pre><code class="language-bash">phlo lineage export ASSET_NAME [OPTIONS]
+</code></pre>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>ASSET_NAME</code>: Asset name to export lineage for</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--format FORMAT      # Export format: dot, mermaid, json (default: dot)
+--output PATH        # Output file path (required)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Export to Graphviz DOT
+phlo lineage export dlt_glucose_entries --format dot --output lineage.dot
+
+# Export to Mermaid diagram
+phlo lineage export dlt_glucose_entries --format mermaid --output lineage.md
+
+# Export to JSON
+phlo lineage export dlt_glucose_entries --format json --output lineage.json
+</code></pre>
+<h2 id="configuration-commands">Configuration Commands</h2>
+<h3 id="phlo-config-show">phlo config show</h3>
+<p>Display current configuration.</p>
+<pre><code class="language-bash">phlo config show [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--format FORMAT      # Output format: yaml, json, env
+--secrets            # Show secrets (masked by default)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash">phlo config show
+phlo config show --format json
+phlo config show --secrets
+</code></pre>
+<h3 id="phlo-config-validate">phlo config validate</h3>
+<p>Validate configuration files.</p>
+<pre><code class="language-bash">phlo config validate [FILE]
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Validate phlo.yaml
+phlo config validate phlo.yaml
+</code></pre>
+<h3 id="phlo-env-export">phlo env export</h3>
+<p>Export the generated environment configuration.</p>
+<pre><code class="language-bash">phlo env export [OPTIONS]
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Export non-secret defaults
+phlo env export
+
+# Export with secrets (from .phlo/.env.local)
+phlo env export --include-secrets
+
+# Write to a file
+phlo env export --include-secrets --output env.full
+</code></pre>
+<h2 id="utility-commands">Utility Commands</h2>
+<h3 id="phlo-status">phlo status</h3>
+<p>Show asset status and freshness.</p>
+<pre><code class="language-bash">phlo status [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--stale              # Show only stale assets
+--failed             # Show only failed assets
+--group GROUP        # Filter by group
+</code></pre>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-bash">phlo status
+phlo status --stale
+phlo status --group nightscout
+</code></pre>
+<h3 id="phlo-validate-schema">phlo validate-schema</h3>
+<p>Validate Pandera schemas.</p>
+<pre><code class="language-bash">phlo validate-schema SCHEMA_PATH [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--data DATA_PATH     # Validate against sample data
+</code></pre>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-bash">phlo validate-schema workflows/schemas/events.py
+phlo validate-schema workflows/schemas/events.py --data sample.parquet
+</code></pre>
+<h3 id="phlo-validate-workflow">phlo validate-workflow</h3>
+<p>Validate workflow configuration.</p>
+<pre><code class="language-bash">phlo validate-workflow WORKFLOW_PATH [OPTIONS]
+</code></pre>
+<p><strong>Arguments</strong>:</p>
+<ul>
+<li><code>WORKFLOW_PATH</code>: Path to workflow file or directory</li>
+</ul>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--fix                # Auto-fix issues where possible
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># Validate single workflow
+phlo validate-workflow workflows/ingestion/api/events.py
+
+# Validate directory
+phlo validate-workflow workflows/ingestion/
+
+# Auto-fix where possible
+phlo validate-workflow workflows/ingestion/weather.py --fix
+</code></pre>
+<h3 id="phlo-schema">phlo schema</h3>
+<p>Manage Pandera schemas.</p>
+<pre><code class="language-bash">phlo schema COMMAND [OPTIONS]
+</code></pre>
+<p><strong>Subcommands</strong>:</p>
+<h4 id="list">list</h4>
+<p>List all available Pandera schemas.</p>
+<pre><code class="language-bash">phlo schema list [OPTIONS]
+</code></pre>
+<p><strong>Options</strong>:</p>
+<pre><code class="language-bash">--domain DOMAIN      # Filter by domain
+--format FORMAT      # Output format: table, json (default: table)
+</code></pre>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-bash"># List all schemas
+phlo schema list
+
+# Filter by domain
+phlo schema list --domain api
+
+# JSON output
+phlo schema list --format json
+</code></pre>
+<h2 id="optional-plugin-commands">Optional Plugin Commands</h2>
+<p>The following commands are provided by optional packages. Install the corresponding package to use these commands.</p>
+<h3 id="phlo-postgrest">phlo postgrest</h3>
+<p>PostgREST configuration and management.</p>
+<p><strong>Installation</strong>: <code>phlo plugin install phlo-postgrest</code></p>
+<h3 id="phlo-hasura">phlo hasura</h3>
+<p>Hasura GraphQL engine management.</p>
+<p><strong>Installation</strong>: <code>phlo plugin install phlo-hasura</code></p>
+<h3 id="phlo-publishing">phlo publishing</h3>
+<p>dbt publishing layer management.</p>
+<p><strong>Installation</strong>: <code>phlo plugin install phlo-dbt</code></p>
+<h3 id="phlo-metrics">phlo metrics</h3>
+<p>Prometheus metrics configuration.</p>
+<p><strong>Installation</strong>: <code>phlo plugin install phlo-metrics</code></p>
+<h3 id="phlo-alerts">phlo alerts</h3>
+<p>Alerting rules and notifications.</p>
+<p><strong>Installation</strong>: <code>phlo plugin install phlo-alerting</code></p>
+<h3 id="phlo-openmetadata">phlo openmetadata</h3>
+<p>OpenMetadata catalog integration.</p>
+<p><strong>Installation</strong>: <code>phlo plugin install phlo-openmetadata</code></p>
+<p>Run <code>phlo &lt;command&gt; --help</code> after installation for command-specific documentation.</p>
+<h2 id="environment-variables">Environment Variables</h2>
+<p>CLI behavior can be customized with environment variables:</p>
+<pre><code class="language-bash"># Dagster home directory
+export DAGSTER_HOME=~/.dagster
+
+# Workspace YAML location
+export DAGSTER_WORKSPACE=/path/to/workspace.yaml
+
+# Phlo configuration
+export PHLO_CONFIG=/path/to/phlo.yaml
+
+# Log level
+export PHLO_LOG_LEVEL=DEBUG
+</code></pre>
+<h2 id="exit-codes">Exit Codes</h2>
+<pre><code class="language-bash">0    # Success
+1    # General error
+2    # Command not found
+3    # Invalid arguments
+4    # Configuration error
+5    # Service error
+</code></pre>
+<h2 id="examples-cookbook">Examples Cookbook</h2>
+<h3 id="complete-workflow-setup">Complete Workflow Setup</h3>
+<pre><code class="language-bash"># 1. Create project
+phlo init my-project
+cd my-project
+
+# 2. Initialize infrastructure
+phlo services init
+
+# 3. Start services
+phlo services start
+
+# 4. Create workflow
+phlo create-workflow
+
+# 5. Run tests
+phlo test
+
+# 6. Materialize
+phlo materialize --all
+</code></pre>
+<h3 id="development-workflow">Development Workflow</h3>
+<pre><code class="language-bash"># Start Observatory/phlo-api natively (no Docker)
+phlo services start --native
+
+# Create feature branch
+phlo branch create feature-new-workflow
+
+# Create workflow
+phlo create-workflow
+
+# Test workflow
+phlo test workflows/ingestion/api/events.py
+
+# Materialize to test
+phlo materialize dlt_events --partition 2025-01-15
+
+# Merge to main
+phlo branch merge feature-new-workflow main
+</code></pre>
+<h3 id="troubleshooting-workflow">Troubleshooting Workflow</h3>
+<pre><code class="language-bash"># Check service status
+phlo services status
+
+# View logs
+phlo services logs -f dagster-webserver
+
+# Check asset status
+phlo status --failed
+
+# Validate configuration
+phlo config validate
+
+# Re-materialize failed asset
+phlo materialize failed_asset
+</code></pre>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><a href="configuration.md">Configuration Reference</a> - Detailed configuration options</li>
+<li><a href="../../guides/developer-guide/">Developer Guide</a> - Building workflows</li>
+<li><a href="../../operations/troubleshooting/">Troubleshooting</a> - Common issues</li>
+</ul>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+</body>
+</html>

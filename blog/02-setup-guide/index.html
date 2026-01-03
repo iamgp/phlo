@@ -1,0 +1,1625 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Part 2: Getting Started with Phlo—Setup Guide - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#part-2-getting-started-with-phlosetup-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Part 2: Getting Started with Phlo—Setup Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-you-need" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You Need
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#system-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-initialize-your-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Initialize Your Project
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 1: Initialize Your Project">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-in-phloyaml-env" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's in phlo.yaml (env:)?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-in-phloenvlocal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's in .phlo/.env.local?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-install-phlo-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Install Phlo Packages
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2: Install Phlo Packages">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-install-all-defaults-quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: Install All Defaults (Quick Start)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-install-incrementally-recommended-for-learning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: Install Incrementally (Recommended for Learning)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-add-optional-services-later" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C: Add Optional Services Later
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-start-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Start Services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 3: Start Services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-start-everything-at-once-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A: Start Everything at Once (Recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-start-specific-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B: Start Specific Services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verify-services-are-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verify Services Are Running
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-access-the-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Access the Services
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-first-data-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: First Data Ingestion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 5: First Data Ingestion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#5a-trigger-data-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5a: Trigger Data Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5b-monitor-in-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5b: Monitor in Logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5c-run-transformations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5c: Run Transformations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5d-check-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5d: Check Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-6-explore-with-observatory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Explore with Observatory
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 6: Explore with Observatory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#6a-open-observatory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6a: Open Observatory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6b-explore-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6b: Explore Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6c-view-lineage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6c: View Lineage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6d-run-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6d: Run Queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6c-create-a-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6c: Create a Chart
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#services-wont-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Services Won't Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#out-of-disk-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of Disk Space
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nessie-connection-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nessie Connection Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-cant-find-iceberg-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Can't Find Iceberg Connector
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dagster-assets-not-appearing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dagster Assets Not Appearing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's Next?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-health-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Health Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="part-2-getting-started-with-phlosetup-guide">Part 2: Getting Started with Phlo—Setup Guide</h1>
+<p>In this post, we'll get Phlo running on your machine. By the end, you'll have:</p>
+<ul>
+<li>All services running (Postgres, MinIO, Nessie, Trino, Dagster)</li>
+<li>Sample data ingested</li>
+<li>Your first data pipeline executed</li>
+<li>A dashboard showing results</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<h3 id="what-you-need">What You Need</h3>
+<ol>
+<li><strong>Docker &amp; Docker Compose</strong> (required)</li>
+</ol>
+<p><code>bash
+   # Verify installation
+   docker --version
+   docker compose --version</code></p>
+<p><a href="https://docs.docker.com/get-docker/">Install Docker</a> if you don't have it</p>
+<ol>
+<li><strong>uv</strong> (Python package manager, optional but recommended)</li>
+</ol>
+<p><code>bash
+   # Install uv (10x faster than pip)
+   curl -LsSf https://astral.sh/uv/install.sh | sh</code></p>
+<ol>
+<li><strong>Python 3.11+</strong> with Phlo installed
+   <code>bash
+   # Install Phlo (with uv, recommended)
+   uv pip install phlo[defaults]
+   # or with pip
+   pip install phlo[defaults]</code></li>
+</ol>
+<h3 id="system-requirements">System Requirements</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Minimum</th>
+<th>Recommended</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>2 cores</td>
+<td>4+ cores</td>
+</tr>
+<tr>
+<td>RAM</td>
+<td>4 GB</td>
+<td>8+ GB</td>
+</tr>
+<tr>
+<td>Disk</td>
+<td>10 GB</td>
+<td>20+ GB</td>
+</tr>
+<tr>
+<td>OS</td>
+<td>Linux/Mac/Windows</td>
+<td>Mac/Linux</td>
+</tr>
+</tbody>
+</table>
+<p>If you have less than 4GB RAM, you can start a minimal setup (Postgres + MinIO only) and add services gradually.</p>
+<h2 id="step-1-initialize-your-project">Step 1: Initialize Your Project</h2>
+<pre><code class="language-bash"># Create a new Phlo project
+phlo init my-lakehouse
+cd my-lakehouse
+
+# This creates:
+# - phlo.yaml (project configuration)
+# - .env.example (local secrets template)
+# - workflows/ (your data pipelines)
+# - workflows/transforms/dbt/ (dbt models)
+</code></pre>
+<p>Then initialize infra (generates <code>.phlo/.env</code> and <code>.phlo/.env.local</code>):</p>
+<pre><code class="language-bash">phlo services init
+</code></pre>
+<h3 id="whats-in-phloyaml-env">What's in phlo.yaml (env:)?</h3>
+<pre><code class="language-yaml">env:
+  # Ports (all on 10xxx range)
+  POSTGRES_PORT: 10000
+  MINIO_API_PORT: 10001
+  MINIO_CONSOLE_PORT: 10002
+  NESSIE_PORT: 10003
+  TRINO_PORT: 10005
+  DAGSTER_PORT: 10006
+</code></pre>
+<h3 id="whats-in-phloenvlocal">What's in .phlo/.env.local?</h3>
+<pre><code class="language-env"># Database
+POSTGRES_PASSWORD=phlo
+
+# Storage
+MINIO_ROOT_PASSWORD=minio123
+</code></pre>
+<p><strong>For local development</strong>: Use the defaults as-is.
+<strong>For production</strong>: Change all passwords in <code>.phlo/.env.local</code> to strong values.</p>
+<blockquote>
+<p><strong>SECURITY WARNING</strong>: The default configuration uses weak passwords (<code>admin/admin</code>, <code>minioadmin/minioadmin123</code>, etc.) and has no authentication enabled on most services. This is fine for local development, but <strong>NEVER expose these services to a network or the internet</strong> without:</p>
+<ul>
+<li>Changing all default passwords to strong, unique values</li>
+<li>Enabling authentication on all services (Dagster, Trino, MinIO, Superset)</li>
+<li>Using TLS/SSL for encrypted connections</li>
+<li>Implementing proper network security (firewall rules, VPNs)</li>
+</ul>
+<p>See <a href="../12-production-deployment/">Part 12: Production Deployment</a> for production hardening guidance.</p>
+</blockquote>
+<h2 id="step-2-install-phlo-packages">Step 2: Install Phlo Packages</h2>
+<p>Phlo uses a modular architecture. Install the core framework, then add services as needed.</p>
+<h3 id="option-a-install-all-defaults-quick-start">Option A: Install All Defaults (Quick Start)</h3>
+<pre><code class="language-bash"># Install Phlo with all default services at once
+uv pip install phlo[defaults]
+</code></pre>
+<p>This installs:</p>
+<ul>
+<li><code>phlo</code> - Core framework</li>
+<li><code>phlo-dagster</code> - Data orchestration platform</li>
+<li><code>phlo-postgres</code> - PostgreSQL database</li>
+<li><code>phlo-trino</code> - Distributed SQL query engine</li>
+<li><code>phlo-nessie</code> - Git-like catalog for Iceberg</li>
+<li><code>phlo-minio</code> - S3-compatible object storage</li>
+</ul>
+<h3 id="option-b-install-incrementally-recommended-for-learning">Option B: Install Incrementally (Recommended for Learning)</h3>
+<pre><code class="language-bash"># Start with core framework
+uv pip install phlo
+
+# Add data orchestration
+uv add phlo-dagster
+
+# Add storage layer
+uv add phlo-postgres phlo-minio
+
+# Add Iceberg catalog
+uv add phlo-nessie
+
+# Add query engine
+uv add phlo-trino
+
+# Add transformations
+uv add phlo-dbt
+
+# Add data quality
+uv add phlo-quality
+</code></pre>
+<p>This modular approach lets you:</p>
+<ul>
+<li>Understand each component's role</li>
+<li>Start with minimal resources</li>
+<li>Add features as you need them</li>
+</ul>
+<h3 id="option-c-add-optional-services-later">Option C: Add Optional Services Later</h3>
+<pre><code class="language-bash"># Add observability (monitoring, logging)
+uv add phlo-prometheus phlo-grafana phlo-loki phlo-alloy
+
+# Add API layer (REST, GraphQL)
+uv add phlo-api phlo-postgrest phlo-hasura
+
+# Add data catalog
+uv add phlo-openmetadata
+
+# Add Observatory UI (web interface)
+uv add phlo-observatory
+</code></pre>
+<h2 id="step-3-start-services">Step 3: Start Services</h2>
+<h3 id="option-a-start-everything-at-once-recommended">Option A: Start Everything at Once (Recommended)</h3>
+<pre><code class="language-bash"># Start all services
+phlo services start
+
+# View service status
+phlo services status
+</code></pre>
+<h3 id="option-b-start-specific-services">Option B: Start Specific Services</h3>
+<pre><code class="language-bash"># Start only what you need
+phlo services start --service postgres --service dagster
+
+# Add more services later
+phlo services start --service trino --service observatory
+</code></pre>
+<h3 id="verify-services-are-running">Verify Services Are Running</h3>
+<pre><code class="language-bash"># Check all services
+phlo services status
+
+# View logs
+phlo services logs -f
+
+# Or for a specific service
+phlo services logs dagster
+</code></pre>
+<p>If any show errors, check logs:</p>
+<pre><code class="language-bash">phlo services logs dagster
+</code></pre>
+<h2 id="step-4-access-the-services">Step 4: Access the Services</h2>
+<p>Each service runs on its own port:</p>
+<pre><code class="language-bash"># Open services in browser
+phlo services open dagster
+phlo services open observatory
+phlo services open minio
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>URL</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dagster</td>
+<td>http://localhost:10006</td>
+<td>Orchestration UI</td>
+</tr>
+<tr>
+<td>Observatory</td>
+<td>http://localhost:3001</td>
+<td>Data exploration UI</td>
+</tr>
+<tr>
+<td>Trino</td>
+<td>http://localhost:10005</td>
+<td>Query engine UI</td>
+</tr>
+<tr>
+<td>MinIO Console</td>
+<td>http://localhost:10002</td>
+<td>Object storage</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>http://localhost:10000</td>
+<td>Database</td>
+</tr>
+<tr>
+<td>Nessie</td>
+<td>http://localhost:10003</td>
+<td>Catalog API</td>
+</tr>
+</tbody>
+</table>
+<h2 id="step-5-first-data-ingestion">Step 5: First Data Ingestion</h2>
+<p>Now let's ingest some real glucose monitoring data and run the pipeline.</p>
+<h3 id="5a-trigger-data-ingestion">5a: Trigger Data Ingestion</h3>
+<p>Open <strong>Dagster</strong> at http://localhost:10006</p>
+<p>You should see the asset graph:</p>
+<pre><code>glucose_entries
+  ↓
+stg_glucose_entries (dbt)
+  ↓
+fct_glucose_readings (dbt)
+  ↓
+fct_daily_glucose_metrics
+  ↓
+postgres_marts
+</code></pre>
+<p>Click on <code>glucose_entries</code> → Click <strong>Materialize this asset</strong></p>
+<p>In the modal, select <strong>Date range</strong>: pick yesterday's date (or any recent date)</p>
+<p>Click <strong>Materialize</strong> and watch the pipeline run.</p>
+<h3 id="5b-monitor-in-logs">5b: Monitor in Logs</h3>
+<pre><code class="language-bash"># Watch service logs
+phlo services logs -f
+
+# Or just Dagster logs
+phlo services logs dagster
+
+# Watch asset progress in Dagster UI (it updates live)
+# Open http://localhost:10006
+</code></pre>
+<p>The ingestion does:</p>
+<ol>
+<li>Fetches glucose entries from Nightscout API</li>
+<li>Validates with Pandera schemas</li>
+<li>Stages to MinIO as parquet</li>
+<li>Merges to Iceberg with deduplication</li>
+</ol>
+<p>You should see output like:</p>
+<pre><code>2024-10-15 10:30:45 - Successfully fetched 288 entries from API
+2024-10-15 10:30:46 - Raw data validation passed for 288 entries
+2024-10-15 10:30:48 - DLT staging completed in 1.23s
+2024-10-15 10:30:50 - Merged 288 rows to raw.glucose_entries
+</code></pre>
+<h3 id="5c-run-transformations">5c: Run Transformations</h3>
+<p>Once ingestion completes, run dbt transforms:</p>
+<p>In Dagster, click <strong>Materialize this asset</strong> on <code>stg_glucose_entries</code></p>
+<p>This will:</p>
+<ol>
+<li>Run dbt bronze layer (staging)</li>
+<li>Run dbt silver layer (fact tables with business logic)</li>
+<li>Run dbt gold layer (dimensions)</li>
+<li>Publish to Postgres marts</li>
+</ol>
+<p>Watch it propagate through the graph:</p>
+<pre><code>glucose_entries [SUCCESS]
+  ↓
+stg_glucose_entries ⏳ (running)
+  ↓
+fct_glucose_readings ⏳ (waiting)
+  ↓
+postgres_marts ⏳ (waiting)
+</code></pre>
+<h3 id="5d-check-results">5d: Check Results</h3>
+<p>Once complete, verify data in the databases:</p>
+<p><strong>Option 1: Observatory UI</strong></p>
+<p>Open http://localhost:3001 in your browser:</p>
+<ol>
+<li>Click <strong>Data Explorer</strong> in the sidebar</li>
+<li>Select <code>silver.fct_glucose_readings</code> table</li>
+<li>View schema, preview data, and run queries</li>
+</ol>
+<p><strong>Option 2: Trino CLI</strong></p>
+<pre><code class="language-bash">docker exec -it trino trino \
+  --catalog iceberg \
+  --schema silver \
+  --execute &quot;SELECT COUNT(*) as row_count FROM fct_glucose_readings;&quot;
+
+# Output:
+# row_count
+# ─────────
+#      288
+</code></pre>
+<p><strong>Option 3: DuckDB (Local Analysis)</strong></p>
+<pre><code class="language-bash"># If you have DuckDB installed locally
+duckdb
+
+-- Connect to MinIO data
+D SELECT COUNT(*) FROM read_parquet('s3://lake/warehouse/silver/fct_glucose_readings/**/*.parquet');
+</code></pre>
+<h2 id="step-6-explore-with-observatory">Step 6: Explore with Observatory</h2>
+<p>Phlo includes Observatory, a web UI for exploring your lakehouse.</p>
+<h3 id="6a-open-observatory">6a: Open Observatory</h3>
+<pre><code class="language-bash">phlo services open observatory
+# Opens http://localhost:3001
+</code></pre>
+<h3 id="6b-explore-data">6b: Explore Data</h3>
+<ol>
+<li>Click <strong>Data Explorer</strong> in the sidebar</li>
+<li>Browse schemas: <code>raw</code>, <code>bronze</code>, <code>silver</code>, <code>gold</code></li>
+<li>Click any table to see:</li>
+<li>Schema and column types</li>
+<li>Data preview</li>
+<li>Statistics</li>
+</ol>
+<h3 id="6c-view-lineage">6c: View Lineage</h3>
+<ol>
+<li>Click <strong>Lineage</strong> in the sidebar</li>
+<li>See how data flows from source → bronze → silver → gold</li>
+<li>Click nodes to see details</li>
+</ol>
+<h3 id="6d-run-queries">6d: Run Queries</h3>
+<ol>
+<li>Click <strong>SQL Workbench</strong></li>
+<li>Run ad-hoc queries against your Iceberg tables:</li>
+</ol>
+<pre><code class="language-sql">SELECT
+  date_trunc('hour', reading_timestamp) as hour,
+  avg(glucose_mg_dl) as avg_glucose
+FROM silver.fct_glucose_readings
+GROUP BY 1
+ORDER BY 1 DESC
+LIMIT 24
+</code></pre>
+<h3 id="6c-create-a-chart">6c: Create a Chart</h3>
+<ol>
+<li>Click <strong>+ Data</strong> → <strong>Create Chart</strong></li>
+<li>Choose Dataset: <code>mrt_glucose_overview</code> (Postgres table)</li>
+<li>Chart type: <strong>Line Chart</strong></li>
+<li>Drag columns:</li>
+<li>X-Axis: <code>reading_date</code></li>
+<li>Y-Axis: <code>avg_glucose_mg_dl</code></li>
+<li>Click <strong>Update Chart</strong></li>
+<li>Click <strong>Save Chart</strong></li>
+</ol>
+<p>Congratulations! You've visualized real glucose data from a lakehouse.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="services-wont-start">Services Won't Start</h3>
+<pre><code class="language-bash"># Check service status
+phlo services status
+
+# View specific service logs
+phlo services logs postgres
+phlo services logs dagster
+
+# Restart all services
+phlo services restart
+</code></pre>
+<h3 id="out-of-disk-space">Out of Disk Space</h3>
+<pre><code class="language-bash"># Clean up Docker resources
+docker system prune
+docker volume prune
+
+# Reset services (WARNING: deletes all data)
+phlo services reset
+</code></pre>
+<h3 id="nessie-connection-error">Nessie Connection Error</h3>
+<pre><code class="language-bash"># Check Nessie status
+phlo services status nessie
+
+# View Nessie logs
+phlo services logs nessie
+
+# Verify Nessie is healthy
+curl http://localhost:10003/api/v1/config
+</code></pre>
+<h3 id="trino-cant-find-iceberg-connector">Trino Can't Find Iceberg Connector</h3>
+<pre><code class="language-bash"># Check Trino logs
+phlo services logs trino
+
+# Verify catalog is configured (once Trino is running)
+docker exec trino trino --execute &quot;SHOW CATALOGS;&quot;
+
+# Should output:
+# catalog
+# ─────────
+# iceberg
+# system
+</code></pre>
+<h3 id="dagster-assets-not-appearing">Dagster Assets Not Appearing</h3>
+<pre><code class="language-bash"># Restart Dagster services
+phlo services restart dagster
+
+# Wait 10 seconds, refresh http://localhost:10006
+</code></pre>
+<h2 id="whats-next">What's Next?</h2>
+<p>You now have a working lakehouse! Next steps:</p>
+<ol>
+<li><strong>Explore the Data</strong> (Part 3): Understand Iceberg and Nessie</li>
+<li><strong>Understand Ingestion</strong> (Part 4): How DLT + PyIceberg works</li>
+<li><strong>Learn dbt</strong> (Part 5): SQL transformations</li>
+<li><strong>Master Dagster</strong> (Part 6): Orchestration and dependencies</li>
+</ol>
+<p>But first, let's make sure everything works by running a quick health check.</p>
+<h2 id="quick-health-check">Quick Health Check</h2>
+<pre><code class="language-bash"># Check all services at once
+phlo services status
+
+# Or use the health endpoint
+curl http://localhost:10005/v1/info     # Trino
+curl http://localhost:10003/api/v1/config  # Nessie
+curl http://localhost:10006/graphql     # Dagster
+</code></pre>
+<p>Or run the CLI check:</p>
+<pre><code class="language-bash">phlo services status --json
+</code></pre>
+<h2 id="summary">Summary</h2>
+<p>You've successfully:</p>
+<ul>
+<li>Set up Phlo with all services</li>
+<li>Ingested real glucose data</li>
+<li>Ran transformations</li>
+<li>Created a dashboard</li>
+</ul>
+<p>In Part 3, we'll dive deep into <strong>Apache Iceberg</strong>—the magic that makes this lakehouse work.</p>
+<p><strong>Next</strong>: <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg—The Table Format That Changed Everything</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,1495 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Plugin DX Implementation Roadmap - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#plugin-dx-implementation-roadmap" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Plugin DX Implementation Roadmap
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#status-as-of-2025-12-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status (as of 2025-12-24)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-architectural-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Architectural Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-0-package-first-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 0: Package-First Services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 0: Package-First Services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current State
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Target State
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes Required
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changes Required">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-keep-observatory-as-a-service-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Keep Observatory as a Service Package
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-update-service-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Update Service Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-create-phlo-api-backend-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Create phlo-api Backend Package
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-keep-plugin-wrapper-for-observatory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Keep Plugin Wrapper for Observatory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-optional-defaults-extra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Optional Defaults Extra
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-remove-phlo-fastapi-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Remove phlo-fastapi Package
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-1-unified-discovery-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Unified Discovery Flow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Unified Discovery Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#solution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2-naming-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Naming Cleanup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: Naming Cleanup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cascade-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        "Cascade" → "Phlo"
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-3-user-service-overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: User Service Overrides
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: User Service Overrides">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#proposed-solution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed Solution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation Changes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-4-enabledisable-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Enable/Disable Services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 4: Enable/Disable Services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#solution_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-5-inline-custom-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Inline Custom Services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 5: Inline Custom Services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#solution_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Solution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-6-enhanced-discoverability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 6: Enhanced Discoverability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 6: Enhanced Discoverability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#proposed-cli-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed CLI Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-7-documentation-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 7: Documentation &amp; Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registry-clarification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registry Clarification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e2e-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        E2E Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="plugin-dx-implementation-roadmap">Plugin DX Implementation Roadmap</h1>
+<p>This document outlines what changes are needed to achieve the <a href="../plugin-dx/">DX goals</a>.</p>
+<h2 id="status-as-of-2025-12-24">Status (as of 2025-12-24)</h2>
+<ul>
+<li><strong>Phase 0</strong>: COMPLETED - Package-first services, core is glue-only</li>
+<li><strong>Phase 1</strong>: COMPLETED - Unified discovery flow</li>
+<li><strong>Phase 2</strong>: COMPLETED - Naming cleanup</li>
+<li><strong>Phase 3</strong>: COMPLETED - User service overrides</li>
+<li><strong>Phase 4</strong>: COMPLETED - Enable/disable services</li>
+<li><strong>Phase 5</strong>: COMPLETED - Inline custom services (with test coverage)</li>
+<li><strong>Phase 6</strong>: COMPLETED - Enhanced CLI discoverability (runtime status, ports, disabled services)</li>
+<li><strong>Phase 7</strong>: COMPLETED - Documentation updated, phlo-fastapi removed from registry</li>
+</ul>
+<h2 id="key-architectural-changes">Key Architectural Changes</h2>
+<ol>
+<li><strong>Observatory as package</strong> - Remains a service plugin (not core)</li>
+<li><strong>phlo-api backend</strong> - Service plugin exposing phlo internals</li>
+<li><strong>Unified discovery</strong> - Single flow for plugins and services</li>
+<li><strong>User service overrides</strong> - Enable <code>phlo.yaml</code> customization</li>
+<li><strong>Remove phlo-fastapi</strong> - Superseded by postgrest and phlo-api</li>
+</ol>
+<hr />
+<h2 id="phase-0-package-first-services">Phase 0: Package-First Services</h2>
+<p>The most significant change is keeping <strong>Observatory and phlo-api as packages</strong> while phlo core stays glue-only.</p>
+<h3 id="current-state">Current State</h3>
+<pre><code>pip install phlo                  # Core only
+pip install phlo-observatory      # Separate package
+</code></pre>
+<p>Observatory is a Python package wrapper around a TanStack Start app, registered via entry points.</p>
+<h3 id="target-state">Target State</h3>
+<pre><code>pip install phlo                  # Core glue only
+pip install phlo-observatory      # UI package
+pip install phlo-api              # Backend for Observatory
+</code></pre>
+<p>Observatory and phlo-api ship as packages, discovered via service plugins.</p>
+<h3 id="changes-required">Changes Required</h3>
+<h4 id="1-keep-observatory-as-a-service-package">1. Keep Observatory as a Service Package</h4>
+<p>Maintain Observatory in <code>packages/phlo-observatory</code> with its own <code>service.yaml</code> and plugin entry point:</p>
+<pre><code>packages/phlo-observatory/
+└── src/phlo_observatory/service.yaml
+</code></pre>
+<h4 id="2-update-service-discovery">2. Update Service Discovery</h4>
+<p>Modify <code>src/phlo/services/discovery.py</code> to load <strong>only package services</strong> from plugins.</p>
+<h4 id="3-create-phlo-api-backend-package">3. Create phlo-api Backend Package</h4>
+<p>Implement the FastAPI service in <code>packages/phlo-api/src/phlo_api/</code> and expose service metadata via the service plugin.</p>
+<h4 id="4-keep-plugin-wrapper-for-observatory">4. Keep Plugin Wrapper for Observatory</h4>
+<p>Observatory remains a plugin package with a <code>service.yaml</code> and entry point registration.</p>
+<h4 id="5-optional-defaults-extra">5. Optional Defaults Extra</h4>
+<pre><code class="language-toml">[project.optional-dependencies]
+defaults = [
+    &quot;phlo-dagster&quot;,
+    &quot;phlo-postgres&quot;,
+    &quot;phlo-trino&quot;,
+    &quot;phlo-nessie&quot;,
+    &quot;phlo-minio&quot;,
+]
+</code></pre>
+<h4 id="6-remove-phlo-fastapi-package">6. Remove phlo-fastapi Package</h4>
+<p>Delete <code>packages/phlo-fastapi/</code> - superseded by:</p>
+<ul>
+<li><strong>postgrest</strong> for auto-generated REST APIs</li>
+<li><strong>phlo-api</strong> for phlo-specific internal APIs</li>
+</ul>
+<p><strong>Effort</strong>: ~2-3 days</p>
+<hr />
+<h2 id="phase-1-unified-discovery-flow">Phase 1: Unified Discovery Flow</h2>
+<h3 id="current-problem">Current Problem</h3>
+<p>Two separate discovery systems:</p>
+<ul>
+<li><code>src/phlo/plugins/discovery.py</code> - discovers <strong>plugins</strong> via entry points</li>
+<li><code>src/phlo/services/discovery.py</code> - discovers <strong>services</strong> from plugins</li>
+</ul>
+<p>Confusing naming and duplicated logic.</p>
+<h3 id="solution">Solution</h3>
+<p>Consolidate into a single flow:</p>
+<pre><code>src/phlo/discovery/
+├── __init__.py
+├── plugins.py       # Entry point discovery for all plugin types
+├── services.py      # ServiceDefinition loading (from core + plugins)
+└── registry.py      # Remote registry search
+</code></pre>
+<p><strong>Key changes:</strong></p>
+<ul>
+<li>Rename <code>plugins/discovery.py</code> → <code>discovery/plugins.py</code></li>
+<li>Rename <code>services/discovery.py</code> → <code>discovery/services.py</code></li>
+<li>Single import: <code>from phlo.discovery import discover_plugins, discover_services</code></li>
+</ul>
+<p><strong>Effort</strong>: ~1 day</p>
+<hr />
+<h2 id="phase-2-naming-cleanup">Phase 2: Naming Cleanup</h2>
+<h3 id="cascade-phlo">"Cascade" → "Phlo"</h3>
+<p>Several files still reference "Cascade":</p>
+<ul>
+<li><code>src/phlo/cli/plugin.py</code> docstring: "CLI commands for managing Cascade plugins"</li>
+<li>Possibly other locations</li>
+</ul>
+<p><strong>Action</strong>: Global search/replace and verify.</p>
+<p><strong>Effort</strong>: ~0.5 days</p>
+<hr />
+<h2 id="phase-3-user-service-overrides">Phase 3: User Service Overrides</h2>
+<h3 id="current-behavior">Current Behavior</h3>
+<p>Users cannot customize installed service configs via <code>phlo.yaml</code>.</p>
+<h3 id="proposed-solution">Proposed Solution</h3>
+<pre><code class="language-yaml"># phlo.yaml
+name: my-lakehouse
+
+services:
+  dagster:
+    ports:
+      - &quot;3005:3000&quot;
+    environment:
+      CUSTOM_FLAG: &quot;enabled&quot;
+    enabled: false # Disable
+
+  observatory:
+    port: 8080
+</code></pre>
+<h3 id="implementation-changes">Implementation Changes</h3>
+<p><strong>1. Update <code>config_schema.py</code></strong></p>
+<p>Add <code>ServiceOverride</code> model:</p>
+<pre><code class="language-python">class ServiceOverride(BaseModel):
+    enabled: bool = True
+    ports: list[str] | None = None
+    environment: dict[str, str] | None = None
+    volumes: list[str] | None = None
+    depends_on: list[str] | None = None
+    command: list[str] | str | None = None
+</code></pre>
+<p><strong>2. Update <code>composer.py</code></strong></p>
+<p>Apply user overrides in <code>_build_service_config()</code>:</p>
+<pre><code class="language-python">def _apply_user_overrides(self, config, overrides):
+    if overrides.ports:
+        config[&quot;ports&quot;] = overrides.ports
+    if overrides.environment:
+        config.setdefault(&quot;environment&quot;, {})
+        config[&quot;environment&quot;].update(overrides.environment)
+    # etc.
+</code></pre>
+<p><strong>3. Update <code>services.py</code> CLI</strong></p>
+<p>Load and pass overrides to composer.</p>
+<p><strong>Effort</strong>: ~2 days</p>
+<hr />
+<h2 id="phase-4-enabledisable-services">Phase 4: Enable/Disable Services</h2>
+<h3 id="solution_1">Solution</h3>
+<pre><code class="language-yaml">services:
+  superset:
+    enabled: false
+</code></pre>
+<h3 id="implementation">Implementation</h3>
+<p>In <code>ServiceDiscovery.get_default_services()</code>:</p>
+<pre><code class="language-python">def get_default_services(self, disabled_services=None):
+    disabled = set(disabled_services or [])
+    return [
+        s for s in self._services.values()
+        if s.default and s.name not in disabled
+    ]
+</code></pre>
+<p><strong>Effort</strong>: ~0.5 days</p>
+<hr />
+<h2 id="phase-5-inline-custom-services">Phase 5: Inline Custom Services</h2>
+<h3 id="solution_2">Solution</h3>
+<pre><code class="language-yaml">services:
+  custom-api:
+    type: inline
+    image: my-registry/api:latest
+    ports:
+      - &quot;4000:4000&quot;
+    depends_on:
+      - trino
+</code></pre>
+<h3 id="implementation_1">Implementation</h3>
+<p>Add <code>ServiceDefinition.from_inline()</code> and detect in CLI.</p>
+<p><strong>Effort</strong>: ~1 day</p>
+<hr />
+<h2 id="phase-6-enhanced-discoverability">Phase 6: Enhanced Discoverability</h2>
+<h3 id="proposed-cli-output">Proposed CLI Output</h3>
+<pre><code>$ phlo services list
+
+Package Services (installed):
+  ✓ observatory      Running    :3001   Phlo UI
+  ✓ phlo-api         Running    :4000   Phlo API backend
+  ✓ dagster          Running    :3000   Orchestration
+  ✓ postgres         Running    :5432   Database
+  ✗ superset         Disabled           (disabled in phlo.yaml)
+
+Custom Services (phlo.yaml):
+  ✓ custom-api       Running    :4000   (inline)
+</code></pre>
+<p><strong>Effort</strong>: ~1 day</p>
+<hr />
+<h2 id="phase-7-documentation-cleanup">Phase 7: Documentation &amp; Cleanup</h2>
+<ol>
+<li>Update <code>docs/guides/service-packages.md</code></li>
+<li>Update README examples</li>
+<li>Add examples to <code>phlo-examples/github/phlo.yaml</code></li>
+<li>Remove <code>packages/phlo-fastapi/</code></li>
+<li>Build/release strategy for Observatory (Docker image in CI)</li>
+</ol>
+<p><strong>Effort</strong>: ~1 day</p>
+<hr />
+<h2 id="summary">Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Description</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>0</strong></td>
+<td>Package-first Observatory + phlo-api</td>
+<td>2-3 days</td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td>Unified discovery flow</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>Naming cleanup (Cascade → Phlo)</td>
+<td>0.5 days</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>User service overrides</td>
+<td>2 days</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>Enable/disable services</td>
+<td>0.5 days</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td>Inline custom services</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td>Enhanced discoverability</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td><strong>7</strong></td>
+<td>Documentation &amp; cleanup</td>
+<td>1 day</td>
+</tr>
+<tr>
+<td></td>
+<td><strong>Total</strong></td>
+<td><strong>~9-10 days</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="registry-clarification">Registry Clarification</h2>
+<p>The two registries serve different purposes:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>registry/plugins.json</code></td>
+<td><strong>Complete offerings</strong> - all available plugins for <code>phlo plugin search</code></td>
+</tr>
+<tr>
+<td>Entry points (installed packages)</td>
+<td><strong>What's actually installed</strong> - for service discovery</td>
+</tr>
+</tbody>
+</table>
+<p>This is correct and intentional. The JSON registry enables discoverability of uninstalled plugins.</p>
+<hr />
+<h2 id="testing-strategy">Testing Strategy</h2>
+<h3 id="unit-tests">Unit Tests</h3>
+<ul>
+<li><code>test_service_discovery_plugins_only()</code> - Service discovery via plugins only</li>
+<li><code>test_service_override_merge()</code> - Verify config merging</li>
+<li><code>test_enabled_false_excludes_service()</code> - Verify disable logic</li>
+<li><code>test_inline_service_creation()</code> - Verify inline parsing</li>
+</ul>
+<h3 id="integration-tests">Integration Tests</h3>
+<ul>
+<li>Start services with override in phlo.yaml</li>
+<li>Verify disabled service doesn't start</li>
+<li>Verify inline service starts correctly</li>
+<li>Verify Observatory can reach phlo-api</li>
+</ul>
+<h3 id="e2e-tests">E2E Tests</h3>
+<ul>
+<li>Full workflow: install packages → override → start → verify</li>
+<li>Observatory shows installed plugins via phlo-api</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

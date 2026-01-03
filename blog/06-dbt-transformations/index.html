@@ -1,0 +1,1634 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Part 6: SQL Transformations with dbt—The Right Way - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#part-6-sql-transformations-with-dbtthe-right-way" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Part 6: SQL Transformations with dbt—The Right Way
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem-without-dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem Without dbt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dbt-solves-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt Solves This
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dbts-four-core-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt's Four Core Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="dbt&#39;s Four Core Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-models-reusable-sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Models (Reusable SQL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-dependencies-auto-resolved" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Dependencies (Auto-Resolved)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-testing-data-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Testing (Data Quality)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-documentation-auto-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Documentation (Auto-Generated)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phlos-dbt-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phlo's dbt Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phlo&#39;s dbt Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#directory-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Directory Layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-layer-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4-Layer Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Phlo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration with Phlo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partition-aware-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partition-Aware Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hands-on-run-dbt-transforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hands-On: Run dbt Transforms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hands-On: Run dbt Transforms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-via-dagster-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1: Via Dagster UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-2-direct-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2: Direct Command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-local-if-you-have-uv-installed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 3: Local (if you have uv installed)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices-in-dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices in dbt
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices in dbt">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-naming-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Naming Convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-ctes-for-clarity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. CTEs for Clarity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-comments-for-complex-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Comments for Complex Logic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-tests-for-critical-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Tests for Critical Columns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Tips
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Tips">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-incremental-models-large-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Incremental Models (Large Tables)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-limit-in-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Limit in Development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-pre-filter-before-joins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Pre-filter Before Joins
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-orchestration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next: Orchestration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="part-6-sql-transformations-with-dbtthe-right-way">Part 6: SQL Transformations with dbt—The Right Way</h1>
+<p>Raw data is in the lakehouse. Now we <strong>transform</strong> it into analysis-ready datasets using <strong>dbt</strong> (data build tool).</p>
+<p>dbt solves a critical problem: <strong>How do you manage SQL transformations professionally?</strong></p>
+<h2 id="the-problem-without-dbt">The Problem Without dbt</h2>
+<pre><code class="language-python"># Without dbt: SQL in Python files (nightmare)
+
+def transform_glucose():
+    sql1 = &quot;&quot;&quot;
+    CREATE TABLE bronze_stg_entries AS
+    SELECT _id, sgv, date_string FROM raw.entries
+    WHERE sgv IS NOT NULL
+    &quot;&quot;&quot;
+    trino.execute(sql1)
+
+    sql2 = &quot;&quot;&quot;
+    CREATE TABLE silver_fct_readings AS
+    SELECT
+        entry_id,
+        glucose_mg_dl,
+        CASE WHEN glucose_mg_dl &lt; 70 THEN 'hypoglycemia' END as category
+    FROM bronze_stg_entries
+    &quot;&quot;&quot;
+    trino.execute(sql2)
+
+    sql3 = &quot;&quot;&quot;
+    CREATE TABLE gold_dim_date AS
+    SELECT DISTINCT DATE(reading_timestamp) as reading_date
+    FROM silver_fct_readings
+    &quot;&quot;&quot;
+    trino.execute(sql3)
+
+    # Problems:
+    # 1. No documentation
+    # 2. No testing (did the join work?)
+    # 3. No lineage (which table depends on which?)
+    # 4. No version control (what changed?)
+    # 5. Manual dependency management (run sql3 after sql2)
+</code></pre>
+<h2 id="dbt-solves-this">dbt Solves This</h2>
+<pre><code class="language-sql">-- dbt: SQL with structure and discipline
+
+-- File: models/bronze/stg_glucose_entries.sql
+SELECT
+    _id as entry_id,
+    sgv as glucose_mg_dl,
+    date_string as timestamp_iso,
+    -- Comments documented
+FROM {{ source('dagster_assets', 'glucose_entries') }}
+WHERE sgv IS NOT NULL
+
+-- File: models/silver/fct_glucose_readings.sql
+SELECT
+    entry_id,
+    glucose_mg_dl,
+    CASE
+        WHEN glucose_mg_dl &lt; 70 THEN 'hypoglycemia'
+        WHEN glucose_mg_dl &lt;= 180 THEN 'in_range'
+        ELSE 'hyperglycemia'
+    END as glucose_category
+FROM {{ ref('stg_glucose_entries') }}  -- Auto-dependency!
+
+-- File: models/gold/dim_date.sql
+SELECT DISTINCT DATE(reading_timestamp) as reading_date
+FROM {{ ref('fct_glucose_readings') }}  -- dbt finds dependencies
+</code></pre>
+<p>One command runs everything:</p>
+<pre><code class="language-bash">dbt build
+# dbt figures out: run bronze first, then silver, then gold
+# Tests each transformation
+# Generates documentation
+</code></pre>
+<h2 id="dbts-four-core-features">dbt's Four Core Features</h2>
+<h3 id="1-models-reusable-sql">1. Models (Reusable SQL)</h3>
+<p>A model is a <code>.sql</code> file that transforms data:</p>
+<pre><code class="language-sql">-- models/bronze/stg_glucose_entries.sql
+{{ config(
+    materialized='view',  -- or 'table' for persistent storage
+    tags=['nightscout'],   -- organize models
+) }}
+
+-- CTEs for clarity
+WITH raw_data AS (
+    SELECT * FROM {{ source('dagster_assets', 'glucose_entries') }}
+),
+
+cleaned AS (
+    SELECT
+        _id as entry_id,
+        sgv as glucose_mg_dl,
+        date_string as timestamp_iso,
+        -- More transformations
+    FROM raw_data
+    WHERE sgv IS NOT NULL
+)
+
+SELECT * FROM cleaned
+</code></pre>
+<p>dbt materializes this as:</p>
+<ul>
+<li><strong>View</strong>: Query source every time (slow for complex transforms)</li>
+<li><strong>Table</strong>: Precompute once, fast queries (Phlo uses this)</li>
+<li><strong>Incremental</strong>: Only process new data (for huge tables)</li>
+</ul>
+<p>Phlo's config:</p>
+<pre><code class="language-sql">-- Bronze models
+{{ config(materialized='view') }}
+-- Staging layer, not persisted
+
+-- Silver models
+{{ config(materialized='table') }}
+-- Fact tables, persisted in Iceberg
+
+-- Gold models
+{{ config(materialized='table') }}
+-- Dimensions, persisted in Iceberg
+</code></pre>
+<h3 id="2-dependencies-auto-resolved">2. Dependencies (Auto-Resolved)</h3>
+<p>Instead of manual ordering, dbt resolves dependencies:</p>
+<pre><code class="language-sql">-- Model A: source data
+FROM {{ source('dagster_assets', 'glucose_entries') }}
+
+-- Model B: depends on Model A
+FROM {{ ref('stg_glucose_entries') }}  -- ref('A')
+
+-- Model C: depends on Model B
+FROM {{ ref('fct_glucose_readings') }}  -- ref('B')
+</code></pre>
+<p>dbt builds a DAG (directed acyclic graph):</p>
+<pre><code>glucose_entries (source)
+    ↓ (Model A)
+stg_glucose_entries
+    ↓ (Model B)
+fct_glucose_readings
+    ↓ (Model C)
+dim_date, mrt_glucose_readings
+    ↓ (Model D)
+gold/marts tables
+</code></pre>
+<p>Execute order: automatic!</p>
+<h3 id="3-testing-data-quality">3. Testing (Data Quality)</h3>
+<p>dbt includes built-in tests:</p>
+<pre><code class="language-yaml"># models/silver/fct_glucose_readings.yml
+version: 2
+
+models:
+  - name: fct_glucose_readings
+    description: Enriched glucose readings with business logic
+    columns:
+      - name: entry_id
+        tests:
+          - unique # Each entry_id appears once
+          - not_null # No missing values
+
+      - name: glucose_mg_dl
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0] # 0 for missing data
+
+      - name: glucose_category
+        tests:
+          - accepted_values:
+              values:
+                [
+                  &quot;hypoglycemia&quot;,
+                  &quot;in_range&quot;,
+                  &quot;hyperglycemia_mild&quot;,
+                  &quot;hyperglycemia_severe&quot;,
+                ]
+</code></pre>
+<p>Run tests:</p>
+<pre><code class="language-bash">dbt test
+
+# Output
+Running with dbt=1.8.0
+Found 3 models, 8 tests...
+
+Testing fct_glucose_readings
+  Running test unique_fct_glucose_readings_entry_id ... PASS
+  Running test not_null_fct_glucose_readings_entry_id ... PASS
+  Running test accepted_values_fct_glucose_readings_glucose_category ... PASS
+</code></pre>
+<h3 id="4-documentation-auto-generated">4. Documentation (Auto-Generated)</h3>
+<p>dbt generates a knowledge base from YAML:</p>
+<pre><code class="language-yaml"># models/silver/schema.yml
+version: 2
+
+models:
+  - name: fct_glucose_readings
+    description: |
+      Enriched glucose readings with calculated metrics.
+      Serves as foundation for all downstream analytics.
+
+    columns:
+      - name: entry_id
+        description: Unique Nightscout entry ID (MongoDB ObjectId)
+
+      - name: glucose_mg_dl
+        description: Glucose reading in mg/dL
+        tests:
+          - not_null
+
+      - name: glucose_category
+        description: Classification (hypoglycemia/in_range/hyperglycemia)
+
+      - name: hour_of_day
+        description: Hour extracted from reading_timestamp (0-23)
+</code></pre>
+<p>Run:</p>
+<pre><code class="language-bash">dbt docs generate
+dbt docs serve  # Opens http://localhost:8000
+
+# Generates interactive documentation with:
+# - Column descriptions
+# - Test results
+# - Data lineage (visual DAG)
+# - Query execution stats
+</code></pre>
+<h2 id="phlos-dbt-structure">Phlo's dbt Structure</h2>
+<h3 id="directory-layout">Directory Layout</h3>
+<pre><code>workflows/transforms/dbt/
+├── models/
+│   ├── sources.yml         # External data sources (raw Iceberg tables)
+│   ├── bronze/
+│   │   ├── stg_glucose_entries.sql    # Staging (filter, rename, validate)
+│   │   ├── stg_github_user_events.sql
+│   │   └── stg_*.sql
+│   ├── silver/
+│   │   ├── fct_glucose_readings.sql   # Fact tables (business logic)
+│   │   ├── fct_github_user_events.sql
+│   │   └── fct_*.sql
+│   ├── gold/
+│   │   ├── dim_date.sql               # Dimensions
+│   │   ├── mrt_glucose_readings.sql   # Metrics
+│   │   └── *.sql
+│   └── marts_postgres/
+│       ├── mrt_glucose_overview.sql   # Publish to Postgres
+│       └── *.sql
+├── tests/
+│   └── custom_tests.sql               # Custom SQL tests
+├── profiles.yml                       # Connection config
+└── dbt_project.yml                   # Project config
+</code></pre>
+<h3 id="4-layer-architecture">4-Layer Architecture</h3>
+<ol>
+<li>
+<p><strong>Bronze</strong> (Staging):</p>
+</li>
+<li>
+<p>Raw data cleanup</p>
+</li>
+<li>Type conversions</li>
+<li>Rename columns</li>
+<li>Filter obvious errors</li>
+</ol>
+<p><code>sql
+   -- stg_glucose_entries.sql
+   SELECT
+       _id as entry_id,
+       CAST(sgv as INT) as glucose_mg_dl,
+       CAST(date_string as TIMESTAMP) as timestamp_iso
+   FROM {{ source('dagster_assets', 'glucose_entries') }}
+   WHERE sgv IS NOT NULL</code></p>
+<ol>
+<li>
+<p><strong>Silver</strong> (Fact Tables):</p>
+</li>
+<li>
+<p>Business logic</p>
+</li>
+<li>Calculations</li>
+<li>Joins and enrichment</li>
+<li>Metrics</li>
+</ol>
+<p><code>sql
+   -- fct_glucose_readings.sql
+   SELECT
+       entry_id,
+       glucose_mg_dl,
+       CASE
+           WHEN glucose_mg_dl &lt; 70 THEN 'hypoglycemia'
+           WHEN glucose_mg_dl &lt;= 180 THEN 'in_range'
+           ELSE 'hyperglycemia'
+       END as glucose_category,
+       -- Rate of change (lag window function)
+       glucose_mg_dl - LAG(glucose_mg_dl) OVER (
+           PARTITION BY device ORDER BY reading_timestamp
+       ) as glucose_change_mg_dl
+   FROM {{ ref('stg_glucose_entries') }}</code></p>
+<ol>
+<li>
+<p><strong>Gold</strong> (Dimensions):</p>
+</li>
+<li>
+<p>Pre-computed dimensions</p>
+</li>
+<li>Slow-changing dimensions</li>
+<li>Reference tables</li>
+</ol>
+<p><code>sql
+   -- dim_date.sql
+   SELECT DISTINCT
+       DATE(reading_timestamp) as reading_date,
+       EXTRACT(YEAR FROM reading_timestamp) as year,
+       EXTRACT(QUARTER FROM reading_timestamp) as quarter,
+       EXTRACT(MONTH FROM reading_timestamp) as month,
+       EXTRACT(WEEK FROM reading_timestamp) as week,
+       EXTRACT(DAY_OF_WEEK FROM reading_timestamp) as day_of_week
+   FROM {{ ref('fct_glucose_readings') }}
+   ORDER BY reading_date</code></p>
+<ol>
+<li>
+<p><strong>Marts</strong> (Published):</p>
+</li>
+<li>
+<p>Business-ready tables</p>
+</li>
+<li>Published to Postgres for BI tools</li>
+<li>Aggregations and summaries</li>
+</ol>
+<p><code>sql
+   -- marts_postgres/mrt_glucose_overview.sql
+   SELECT
+       reading_date,
+       ROUND(AVG(glucose_mg_dl), 1) as avg_glucose,
+       MIN(glucose_mg_dl) as min_glucose,
+       MAX(glucose_mg_dl) as max_glucose,
+       COUNT(*) as reading_count,
+       ROUND(100.0 * SUM(CASE WHEN is_in_range THEN 1 ELSE 0 END)
+             / COUNT(*), 1) as percent_in_range
+   FROM {{ ref('fct_glucose_readings') }}
+   GROUP BY reading_date
+   ORDER BY reading_date DESC</code></p>
+<h2 id="integration-with-phlo">Integration with Phlo</h2>
+<h3 id="connection-configuration">Connection Configuration</h3>
+<p>Nessie branching is configured via different Trino catalogs:</p>
+<pre><code class="language-yaml"># profiles.yml
+phlo:
+  target: dev # development by default
+
+  outputs:
+    dev:
+      type: trino
+      host: trino
+      port: 8080
+      catalog: iceberg_dev # Dev branch catalog
+      schema: bronze
+
+    prod:
+      type: trino
+      host: trino
+      port: 8080
+      catalog: iceberg # Main branch catalog
+      schema: bronze
+</code></pre>
+<p>The <code>iceberg_dev</code> catalog points to the Nessie dev branch, while <code>iceberg</code> points to main.
+This is configured in Trino's catalog properties, not via session properties.</p>
+<h3 id="partition-aware-execution">Partition-Aware Execution</h3>
+<p>dbt runs on daily partitions (via Dagster):</p>
+<pre><code class="language-sql">-- models/silver/fct_glucose_readings.sql
+{{ config(
+    materialized='table',
+) }}
+
+SELECT
+    entry_id,
+    glucose_mg_dl,
+    ...
+FROM {{ ref('stg_glucose_entries') }}
+{% if var('partition_date_str', None) is not none %}
+-- Filter to partition when running daily
+WHERE DATE(reading_timestamp) = DATE('{{ var(&quot;partition_date_str&quot;) }}')
+{% endif %}
+</code></pre>
+<p>Dagster passes partition date:</p>
+<pre><code class="language-python"># From workflows/transform/dbt.py
+
+if context.has_partition_key:
+    partition_date = context.partition_key
+    build_args.extend([
+        &quot;--vars&quot;,
+        f'{{&quot;partition_date_str&quot;: &quot;{partition_date}&quot;}}'
+    ])
+</code></pre>
+<h2 id="hands-on-run-dbt-transforms">Hands-On: Run dbt Transforms</h2>
+<h3 id="option-1-via-dagster-ui">Option 1: Via Dagster UI</h3>
+<ol>
+<li>Open http://localhost:10006</li>
+<li>Click asset: <code>stg_glucose_entries</code></li>
+<li>Click <strong>Materialize</strong></li>
+<li>Watch dbt run in logs</li>
+</ol>
+<h3 id="option-2-direct-command">Option 2: Direct Command</h3>
+<pre><code class="language-bash"># Run all models
+docker exec dagster-webserver dbt build \
+  --project-dir /app/workflows/transforms/dbt \
+  --profiles-dir /app/workflows/transforms/dbt/profiles \
+  --target dev
+
+# Run specific model
+docker exec dagster-webserver dbt run \
+  --project-dir /app/workflows/transforms/dbt \
+  --profiles-dir /app/workflows/transforms/dbt/profiles \
+  --select stg_glucose_entries
+
+# Run with tests
+docker exec dagster-webserver dbt test \
+  --project-dir /app/workflows/transforms/dbt \
+  --profiles-dir /app/workflows/transforms/dbt/profiles
+</code></pre>
+<h3 id="option-3-local-if-you-have-uv-installed">Option 3: Local (if you have uv installed)</h3>
+<pre><code class="language-bash">cd workflows/transforms/dbt
+
+# Install dbt
+uv pip install dbt-trino
+
+# Create dbt profiles
+mkdir -p ~/.dbt
+cat &gt; ~/.dbt/profiles.yml &lt;&lt; EOF
+phlo:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      host: localhost
+      port: 8080
+      catalog: iceberg
+      schema: bronze
+EOF
+
+# Run dbt
+dbt run --select stg_glucose_entries
+dbt test
+dbt docs generate &amp;&amp; dbt docs serve
+</code></pre>
+<h2 id="best-practices-in-dbt">Best Practices in dbt</h2>
+<h3 id="1-naming-convention">1. Naming Convention</h3>
+<pre><code>bronze/stg_*              Staging (from source)
+silver/fct_*              Fact tables
+silver/dim_*              Dimension tables
+gold/*                    Summarized/published
+marts_postgres/*          Published to Postgres
+</code></pre>
+<h3 id="2-ctes-for-clarity">2. CTEs for Clarity</h3>
+<pre><code class="language-sql">-- Good: logical steps with CTEs
+WITH source_data AS (
+    SELECT * FROM {{ source(...) }}
+),
+cleaned AS (
+    SELECT ... FROM source_data WHERE ...
+),
+enriched AS (
+    SELECT ... FROM cleaned
+)
+SELECT * FROM enriched
+
+-- Bad: nested subqueries (hard to read)
+SELECT * FROM (
+    SELECT ... FROM (
+        SELECT * FROM ...
+    ) sub
+) outer_sub
+</code></pre>
+<h3 id="3-comments-for-complex-logic">3. Comments for Complex Logic</h3>
+<pre><code class="language-sql">-- Document the &quot;why&quot; not the &quot;what&quot;
+SELECT
+    entry_id,
+    -- Rate of change: glucose difference from previous reading
+    -- Used to identify rapid spikes (potential errors)
+    glucose_mg_dl - LAG(glucose_mg_dl) OVER (...) as glucose_change
+FROM {{ ref('stg_glucose_entries') }}
+</code></pre>
+<h3 id="4-tests-for-critical-columns">4. Tests for Critical Columns</h3>
+<pre><code class="language-yaml">columns:
+  - name: entry_id
+    tests:
+      - unique # Must be unique
+      - not_null # Cannot be missing
+
+  - name: glucose_mg_dl
+    tests:
+      - not_null
+      - dbt_utils.accepted_range:
+          min_value: 20
+          max_value: 600
+</code></pre>
+<h2 id="performance-tips">Performance Tips</h2>
+<h3 id="1-incremental-models-large-tables">1. Incremental Models (Large Tables)</h3>
+<p>For tables with millions of rows, use incremental:</p>
+<pre><code class="language-sql">{{ config(
+    materialized='incremental',
+    unique_key='entry_id',
+    on_schema_change='fail',
+) }}
+
+SELECT *
+FROM {{ source('raw', 'entries') }}
+
+{% if execute %}
+  {% set max_partition = run_started_at %}
+  WHERE _cascade_ingested_at &gt; '{{ max_partition }}'
+{% endif %}
+</code></pre>
+<p>Only processes new data since last run.</p>
+<h3 id="2-limit-in-development">2. Limit in Development</h3>
+<pre><code class="language-sql">SELECT * FROM {{ ref('large_table') }}
+{% if execute and execute_sql %}
+  LIMIT 1000  -- Don't scan 100M rows while developing
+{% endif %}
+</code></pre>
+<h3 id="3-pre-filter-before-joins">3. Pre-filter Before Joins</h3>
+<pre><code class="language-sql">-- Bad: Join large tables then filter
+SELECT * FROM {{ ref('fact') }}
+LEFT JOIN {{ ref('dimension') }} ...
+WHERE dimension.active = true
+
+-- Good: Filter dimension first
+SELECT * FROM {{ ref('fact') }}
+LEFT JOIN (
+    SELECT * FROM {{ ref('dimension') }}
+    WHERE active = true
+) dim ...
+</code></pre>
+<h2 id="next-orchestration">Next: Orchestration</h2>
+<p>We have ingestion and transformation. Now: <strong>Who runs this, and when?</strong></p>
+<p><strong>Part 7: Orchestration with Dagster</strong></p>
+<p>See you there!</p>
+<h2 id="summary">Summary</h2>
+<p><strong>dbt provides</strong>:</p>
+<ul>
+<li>Reusable SQL models</li>
+<li>Auto-resolved dependencies</li>
+<li>Built-in data quality tests</li>
+<li>Documentation generation</li>
+<li>Version control (git-friendly)</li>
+</ul>
+<p><strong>Phlo uses dbt for</strong>:</p>
+<ul>
+<li>Bronze: Raw data staging</li>
+<li>Silver: Fact tables with business logic</li>
+<li>Gold: Dimensions and metrics</li>
+<li>Marts: Published to Postgres for BI</li>
+</ul>
+<p><strong>Key Pattern</strong>: Define models as SQL files, dbt handles orchestration and testing.</p>
+<p><strong>Next</strong>: <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster—Running Your Pipelines</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

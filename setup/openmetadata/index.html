@@ -1,0 +1,3267 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../observability/">
+      
+      
+        <link rel="next" href="../security/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>OpenMetadata - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#openmetadata-data-catalog-setup-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              OpenMetadata
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hasura/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hasura
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../postgrest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PostgREST
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenMetadata
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenMetadata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-a-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is a Data Catalog?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-openmetadata-for-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why OpenMetadata for Phlo?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-openmetadata-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Start OpenMetadata Services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-access-openmetadata-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Access OpenMetadata UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-complete-setup-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Complete Setup Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-first-login" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. First Login
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connecting-phlo-data-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting Phlo Data Sources
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connecting Phlo Data Sources">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-add-trino-database-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Add Trino Database Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-configure-trino-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Configure Trino Connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-configure-metadata-ingestion-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Configure Metadata Ingestion Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-configure-scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Configure Scheduling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-review-and-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Review and Deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-run-initial-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Run Initial Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-7-enable-search-critical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Enable Search (CRITICAL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-verify-everything-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: Verify Everything Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#complete-ingestion-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Ingestion Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editing-configuration-later" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing Configuration Later
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#discovered-data-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovered Data Assets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Discovered Data Assets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bronze-layer-staging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bronze Layer (Staging)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#silver-layer-facts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Silver Layer (Facts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gold-layer-dimensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gold Layer (Dimensions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#marts-bi-ready" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marts (BI-Ready)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the Data Catalog
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using the Data Catalog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#search-for-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search for Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-table-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Table Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Tags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-lineage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Lineage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Lineage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enable-lineage-tracking-with-dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable Lineage Tracking with dbt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quality-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glossary-terms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Glossary Terms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Access
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-phlo-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Phlo Workflows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration with Phlo Workflows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#update-ingestion-schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Ingestion Schedule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#document-in-dbt-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document in dbt Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#openmetadata-ui-not-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenMetadata UI Not Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-not-working-all-shards-failed-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search Not Working / "All Shards Failed" Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#missing-elasticsearch-indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing Elasticsearch Indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-crashes-during-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server Crashes During Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#elasticsearch-out-of-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Elasticsearch Out of Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-connection-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Connection Failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingestion-pipeline-failing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingestion Pipeline Failing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tables-not-appearing-after-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables Not Appearing After Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-phlo-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Phlo Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-a-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is a Data Catalog?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-openmetadata-for-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why OpenMetadata for Phlo?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-openmetadata-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Start OpenMetadata Services
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-access-openmetadata-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Access OpenMetadata UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-complete-setup-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Complete Setup Checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-first-login" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. First Login
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connecting-phlo-data-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connecting Phlo Data Sources
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connecting Phlo Data Sources">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-add-trino-database-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Add Trino Database Service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-configure-trino-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Configure Trino Connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-configure-metadata-ingestion-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Configure Metadata Ingestion Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-configure-scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Configure Scheduling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-review-and-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Review and Deploy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-run-initial-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Run Initial Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-7-enable-search-critical" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Enable Search (CRITICAL)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-verify-everything-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: Verify Everything Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#complete-ingestion-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Ingestion Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editing-configuration-later" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing Configuration Later
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#discovered-data-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovered Data Assets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Discovered Data Assets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bronze-layer-staging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bronze Layer (Staging)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#silver-layer-facts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Silver Layer (Facts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gold-layer-dimensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gold Layer (Dimensions)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#marts-bi-ready" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Marts (BI-Ready)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-data-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using the Data Catalog
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using the Data Catalog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#search-for-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search for Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-table-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Table Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Tags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set Ownership
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-lineage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Lineage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Lineage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enable-lineage-tracking-with-dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable Lineage Tracking with dbt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#quality-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#glossary-terms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Glossary Terms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Access
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-phlo-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Phlo Workflows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration with Phlo Workflows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#update-ingestion-schedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update Ingestion Schedule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#document-in-dbt-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document in dbt Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#openmetadata-ui-not-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenMetadata UI Not Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-not-working-all-shards-failed-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search Not Working / "All Shards Failed" Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#missing-elasticsearch-indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Missing Elasticsearch Indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-crashes-during-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server Crashes During Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#elasticsearch-out-of-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Elasticsearch Out of Memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trino-connection-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trino Connection Failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingestion-pipeline-failing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingestion Pipeline Failing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tables-not-appearing-after-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tables Not Appearing After Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource Requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-phlo-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Phlo Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="openmetadata-data-catalog-setup-guide">OpenMetadata Data Catalog Setup Guide</h1>
+<h2 id="overview">Overview</h2>
+<p>OpenMetadata is an open-source data catalog that provides a unified platform for data discovery, governance, and collaboration. This guide explains how to set up and use OpenMetadata with Phlo to enable self-service data discovery.</p>
+<h2 id="what-is-a-data-catalog">What is a Data Catalog?</h2>
+<p>A data catalog is a searchable inventory of your data assets that helps users:</p>
+<ul>
+<li><strong>Discover</strong> datasets through search and browsing</li>
+<li><strong>Understand</strong> data through metadata, descriptions, and lineage</li>
+<li><strong>Access</strong> data through multiple interfaces (SQL, APIs, dashboards)</li>
+<li><strong>Govern</strong> data with ownership, tags, and quality metrics</li>
+</ul>
+<h2 id="why-openmetadata-for-phlo">Why OpenMetadata for Phlo?</h2>
+<p>OpenMetadata integrates seamlessly with Phlo's tech stack:</p>
+<ul>
+<li>✅ <strong>Trino connector</strong> - Auto-discovers Iceberg tables</li>
+<li>✅ <strong>Modern UI</strong> - Intuitive search and browsing experience</li>
+<li>✅ <strong>Active development</strong> - Regular updates and improvements</li>
+<li>✅ <strong>Simple architecture</strong> - MySQL + Elasticsearch (6GB RAM required)</li>
+<li>✅ <strong>Open source</strong> - No licensing costs</li>
+</ul>
+<h2 id="architecture">Architecture</h2>
+<pre><code>┌─────────────────────────────────────────────┐
+│         OpenMetadata Server (UI)           │
+│         http://localhost:10020              │
+└─────────────┬───────────────────────────────┘
+              │
+       ┌──────┴──────┐
+       │             │
+┌──────▼──────┐ ┌───▼────────────┐
+│    MySQL    │ │ Elasticsearch  │
+│  (metadata) │ │   (search)     │
+└─────────────┘ └────────────────┘
+       │
+       │ Ingests metadata from:
+       │
+┌──────▼──────────────────────────────┐
+│  Trino → Iceberg Tables (Nessie)   │
+│  - bronze.entries_cleaned          │
+│  - silver.glucose_daily_stats      │
+│  - gold.dim_date                   │
+│  - marts.glucose_analytics_mart    │
+└────────────────────────────────────┘
+</code></pre>
+<h2 id="quick-start">Quick Start</h2>
+<h3 id="1-start-openmetadata-services">1. Start OpenMetadata Services</h3>
+<pre><code class="language-bash"># Start the data catalog stack
+make up-catalog
+
+# Check health status
+make health-catalog
+</code></pre>
+<p><strong>Expected output:</strong></p>
+<pre><code>=== Data Catalog Health Check ===
+OpenMetadata:
+  Ready
+  UI: http://localhost:10020
+  Default credentials: admin / admin
+MySQL:
+  Ready
+Elasticsearch:
+  Ready
+</code></pre>
+<h3 id="2-access-openmetadata-ui">2. Access OpenMetadata UI</h3>
+<pre><code class="language-bash"># Open in browser
+make catalog
+# Or manually visit: http://localhost:10020
+</code></pre>
+<p><strong>Default credentials:</strong></p>
+<ul>
+<li>Username: <code>admin</code></li>
+<li>Password: <code>admin</code></li>
+</ul>
+<blockquote>
+<p>⚠️ <strong>Security Note</strong>: Change the default password in production by updating <code>OPENMETADATA_ADMIN_PASSWORD</code> in <code>.phlo/.env.local</code></p>
+</blockquote>
+<h3 id="3-complete-setup-checklist">3. Complete Setup Checklist</h3>
+<p>After first-time setup, you MUST complete these steps in order:</p>
+<ol>
+<li>✅ Configure Trino data source (see "Setting Up Trino Source" section)</li>
+<li>✅ Create and run metadata ingestion pipeline</li>
+<li>✅ <strong>Enable search indices</strong> (Settings → OpenMetadata → Search → Run with "Recreate Indexes")</li>
+<li>✅ Verify search works on Explore page</li>
+</ol>
+<p><strong>Skip step 3 at your own peril</strong> - without it, search and the Explore page will be completely broken.</p>
+<h3 id="3-first-login">3. First Login</h3>
+<ol>
+<li>Navigate to http://localhost:10020</li>
+<li>Login with <code>admin</code> / <code>admin</code></li>
+<li>Complete the welcome tour (optional)</li>
+<li>You'll see the empty catalog dashboard</li>
+</ol>
+<h2 id="connecting-phlo-data-sources">Connecting Phlo Data Sources</h2>
+<h3 id="step-1-add-trino-database-service">Step 1: Add Trino Database Service</h3>
+<ol>
+<li>Click <strong>Settings</strong> (gear icon) in the top-right corner</li>
+<li>Navigate to <strong>Integrations</strong> → <strong>Databases</strong></li>
+<li>Click <strong>Add New Service</strong></li>
+<li>Select <strong>Trino</strong> from the list of database types</li>
+<li>Click <strong>Next</strong></li>
+</ol>
+<h3 id="step-2-configure-trino-connection">Step 2: Configure Trino Connection</h3>
+<p><strong>Service Name:</strong></p>
+<pre><code>trino
+</code></pre>
+<p><strong>Description (optional):</strong></p>
+<pre><code>Phlo lakehouse Trino query engine with Iceberg catalog
+</code></pre>
+<p><strong>Connection Configuration:</strong></p>
+<p>Click on <strong>Basic</strong> authentication type, then configure:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Host</strong></td>
+<td><code>trino</code></td>
+<td>Docker service name (internal network)</td>
+</tr>
+<tr>
+<td><strong>Port</strong></td>
+<td><code>8080</code></td>
+<td>Internal container port (NOT 10005!)</td>
+</tr>
+<tr>
+<td><strong>Username</strong></td>
+<td><code>phlo</code></td>
+<td>Any username (no auth in dev)</td>
+</tr>
+<tr>
+<td><strong>Catalog</strong></td>
+<td>Leave empty</td>
+<td>We'll filter by catalog in ingestion</td>
+</tr>
+<tr>
+<td><strong>Database Schema</strong></td>
+<td>Leave empty</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Port Note:</strong> Trino runs on port <code>8080</code> inside the Docker network. The external host port <code>10005</code> is only for accessing Trino from your laptop. OpenMetadata uses the internal port <code>8080</code>.</p>
+</blockquote>
+<p><strong>Advanced Options (leave defaults):</strong></p>
+<ul>
+<li>Connection Options: (empty)</li>
+<li>Connection Arguments: (empty)</li>
+</ul>
+<p>Click <strong>Test Connection</strong> - you should see:</p>
+<pre><code>Connection test was successful
+</code></pre>
+<p>If the test fails, verify Trino is running:</p>
+<pre><code class="language-bash">docker ps --filter name=trino
+curl http://localhost:8080/v1/info
+</code></pre>
+<p>Click <strong>Submit</strong> to save the service.</p>
+<h3 id="step-3-configure-metadata-ingestion-pipeline">Step 3: Configure Metadata Ingestion Pipeline</h3>
+<p>After creating the service, you'll be prompted to set up metadata ingestion.</p>
+<ol>
+<li><strong>Pipeline Name:</strong> <code>trino-metadata</code></li>
+<li><strong>Pipeline Type:</strong> Select <strong>Metadata Ingestion</strong></li>
+<li>Click <strong>Next</strong></li>
+</ol>
+<p><strong>Metadata Configuration:</strong></p>
+<p><strong>Filter Patterns (CRITICAL - prevents crashes):</strong></p>
+<pre><code class="language-yaml">Database Filter Pattern:
+  Include: iceberg
+  Exclude: system
+
+Schema Filter Pattern:
+  Include: raw, bronze, silver, gold
+  Exclude: information_schema
+
+Table Filter Pattern:
+  Include: .*
+  Exclude: (leave empty)
+</code></pre>
+<p><strong>Advanced Configuration:</strong></p>
+<p>Enable/disable these options:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Enable?</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Include Tables</td>
+<td>✅ Yes</td>
+<td>Core metadata</td>
+</tr>
+<tr>
+<td>Include Views</td>
+<td>✅ Yes</td>
+<td>Include views</td>
+</tr>
+<tr>
+<td>Include Tags</td>
+<td>✅ Yes</td>
+<td>Catalog tags</td>
+</tr>
+<tr>
+<td>Include Owners</td>
+<td>❌ No</td>
+<td>Not used in dev</td>
+</tr>
+<tr>
+<td>Include Stored Procedures</td>
+<td>❌ <strong>NO</strong></td>
+<td><strong>Causes crashes</strong></td>
+</tr>
+<tr>
+<td>Mark Deleted Stored Procedures</td>
+<td>❌ <strong>NO</strong></td>
+<td><strong>Causes crashes</strong></td>
+</tr>
+<tr>
+<td>Include DDL</td>
+<td>❌ No</td>
+<td>Not needed</td>
+</tr>
+<tr>
+<td>Override Metadata</td>
+<td>❌ No</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ingestion Settings:</strong></p>
+<ul>
+<li>Thread Count: <code>1</code> (default)</li>
+<li>Timeout: <code>300</code> seconds (default)</li>
+</ul>
+<p><strong>Query Log Ingestion:</strong> Skip for now (can add later for lineage)</p>
+<p>Click <strong>Next</strong>.</p>
+<h3 id="step-4-configure-scheduling">Step 4: Configure Scheduling</h3>
+<p><strong>Schedule Type:</strong> Choose one:</p>
+<p><strong>Option A: Manual (Recommended for Development)</strong></p>
+<ul>
+<li>Select <strong>Manual</strong></li>
+<li>Run ingestion on-demand when you need to refresh metadata</li>
+<li>Good for: Development, testing</li>
+</ul>
+<p><strong>Option B: Scheduled (Recommended for Production)</strong></p>
+<ul>
+<li>Select <strong>Scheduled</strong></li>
+<li>Choose <strong>Cron Expression</strong></li>
+<li>Enter: <code>0 3 * * *</code> (runs daily at 3 AM, after Dagster pipelines complete)</li>
+<li>Timezone: <code>UTC</code></li>
+</ul>
+<p>Click <strong>Next</strong>.</p>
+<h3 id="step-5-review-and-deploy">Step 5: Review and Deploy</h3>
+<ol>
+<li>Review your configuration</li>
+<li>Click <strong>Deploy</strong></li>
+<li>The pipeline will be created</li>
+</ol>
+<p>You'll see a success message with the pipeline ID.</p>
+<h3 id="step-6-run-initial-ingestion">Step 6: Run Initial Ingestion</h3>
+<p><strong>Via OpenMetadata UI:</strong></p>
+<ol>
+<li>Go to <strong>Settings → Integrations → Databases</strong></li>
+<li>Click on <strong>trino</strong> service</li>
+<li>Click <strong>Ingestions</strong> tab</li>
+<li>Find <code>trino-metadata</code> pipeline</li>
+<li>Click <strong>Run</strong> (play button)</li>
+<li>Monitor progress in real-time</li>
+</ol>
+<p><strong>Expected Output:</strong></p>
+<pre><code>INFO - Starting metadata ingestion
+INFO - Connecting to Trino at trino:8080
+INFO - Processing catalog: iceberg
+INFO - Processing schema: raw
+INFO - Discovered 1 tables in schema raw
+INFO - Processing table: glucose_entries
+INFO - Successfully ingested table: trino.iceberg.raw.glucose_entries
+INFO - Processing schema: bronze
+INFO - Processing schema: silver
+INFO - Processing schema: gold
+INFO - Metadata ingestion completed
+INFO - Total tables ingested: 15
+INFO - Total schemas ingested: 4
+INFO - Total errors: 0
+</code></pre>
+<h3 id="step-7-enable-search-critical">Step 7: Enable Search (CRITICAL)</h3>
+<p>After initial ingestion, search will NOT work until you populate the search index. This is a required step.</p>
+<p><strong>Navigate to Search Settings:</strong></p>
+<ol>
+<li>Go to <strong>Settings</strong> (gear icon) → <strong>OpenMetadata</strong> → <strong>Search</strong></li>
+<li>Click on <strong>SearchIndexingApplication</strong></li>
+<li>Click <strong>Run Now</strong> button</li>
+</ol>
+<p><strong>Configure the Reindex Job:</strong></p>
+<ol>
+<li>Enable <strong>"Recreate Indexes"</strong> toggle (IMPORTANT)</li>
+<li>Select <strong>"All"</strong> entities (or leave default)</li>
+<li>Click <strong>Submit</strong></li>
+</ol>
+<p><strong>Monitor Progress:</strong></p>
+<ul>
+<li>The job will run for 1-2 minutes</li>
+<li>You'll see "Success" when complete</li>
+<li>Or check logs:
+  <code>bash
+  docker logs openmetadata-server --tail 100 | grep -i "reindex"</code></li>
+</ul>
+<p><strong>What This Does:</strong></p>
+<ul>
+<li>Creates the <code>all</code> search alias</li>
+<li>Populates search indices from metadata</li>
+<li>Enables Explore page and search functionality</li>
+</ul>
+<p><strong>Without this step:</strong></p>
+<ul>
+<li>Explore page will show error: "Search failed due to Elasticsearch exception"</li>
+<li>Global search will not work</li>
+<li>You can only navigate by direct URLs</li>
+</ul>
+<h3 id="step-8-verify-everything-works">Step 8: Verify Everything Works</h3>
+<p><strong>Check Search Works:</strong></p>
+<ol>
+<li>Go to <strong>Explore</strong> page</li>
+<li>Should see databases/tables listed (no errors)</li>
+<li>Type <code>glucose</code> in search bar</li>
+<li>Should find <code>glucose_entries</code> table</li>
+</ol>
+<p><strong>Browse via Navigation:</strong></p>
+<ol>
+<li>Go to <strong>Settings → Services → Database Services</strong></li>
+<li>Click on <strong>trino</strong></li>
+<li>Navigate: iceberg → raw → glucose_entries</li>
+<li>You should see:</li>
+<li>Table schema with all columns</li>
+<li>Column descriptions</li>
+<li>Sample data (if profiling enabled)</li>
+</ol>
+<p><strong>Direct URL Access:</strong></p>
+<pre><code>http://localhost:10020/table/trino.iceberg.raw.glucose_entries
+</code></pre>
+<p><strong>Check Elasticsearch Indices:</strong></p>
+<pre><code class="language-bash"># Verify tables are indexed
+docker exec openmetadata-elasticsearch curl -s \
+  &quot;http://localhost:9200/table_search_index/_count&quot;
+
+# Should show: {&quot;count&quot;: 6, ...}
+</code></pre>
+<h2 id="configuration-reference">Configuration Reference</h2>
+<h3 id="complete-ingestion-configuration">Complete Ingestion Configuration</h3>
+<p>This is what your pipeline configuration looks like:</p>
+<pre><code class="language-json">{
+  &quot;source&quot;: {
+    &quot;type&quot;: &quot;trino&quot;,
+    &quot;serviceName&quot;: &quot;trino&quot;,
+    &quot;sourceConfig&quot;: {
+      &quot;config&quot;: {
+        &quot;type&quot;: &quot;DatabaseMetadata&quot;,
+        &quot;markDeletedTables&quot;: true,
+        &quot;markDeletedStoredProcedures&quot;: false,
+        &quot;includeTables&quot;: true,
+        &quot;includeViews&quot;: true,
+        &quot;includeTags&quot;: true,
+        &quot;includeOwners&quot;: false,
+        &quot;includeStoredProcedures&quot;: false,
+        &quot;includeDDL&quot;: false,
+        &quot;overrideMetadata&quot;: false,
+        &quot;databaseFilterPattern&quot;: {
+          &quot;includes&quot;: [&quot;iceberg&quot;],
+          &quot;excludes&quot;: [&quot;system&quot;]
+        },
+        &quot;schemaFilterPattern&quot;: {
+          &quot;includes&quot;: [&quot;raw&quot;, &quot;bronze&quot;, &quot;silver&quot;, &quot;gold&quot;],
+          &quot;excludes&quot;: [&quot;information_schema&quot;]
+        },
+        &quot;tableFilterPattern&quot;: {
+          &quot;includes&quot;: [&quot;.*&quot;]
+        },
+        &quot;threads&quot;: 1,
+        &quot;queryLogDuration&quot;: 1
+      }
+    }
+  },
+  &quot;sink&quot;: {
+    &quot;type&quot;: &quot;metadata-rest&quot;,
+    &quot;config&quot;: {}
+  },
+  &quot;workflowConfig&quot;: {
+    &quot;loggerLevel&quot;: &quot;INFO&quot;,
+    &quot;openMetadataServerConfig&quot;: {
+      &quot;hostPort&quot;: &quot;http://openmetadata-server:8585/api&quot;,
+      &quot;authProvider&quot;: &quot;openmetadata&quot;,
+      &quot;securityConfig&quot;: {
+        &quot;jwtToken&quot;: &quot;&lt;auto-generated&gt;&quot;
+      }
+    }
+  },
+  &quot;airflowConfig&quot;: {
+    &quot;pausePipeline&quot;: false,
+    &quot;concurrency&quot;: 1,
+    &quot;pipelineCatchup&quot;: false,
+    &quot;pipelineTimezone&quot;: &quot;UTC&quot;,
+    &quot;retries&quot;: 0,
+    &quot;retryDelay&quot;: 300,
+    &quot;maxActiveRuns&quot;: 1
+  }
+}
+</code></pre>
+<h3 id="editing-configuration-later">Editing Configuration Later</h3>
+<p><strong>Via UI:</strong></p>
+<ol>
+<li>Go to <strong>Settings → Databases → trino</strong></li>
+<li>Click <strong>Ingestions</strong> tab</li>
+<li>Click <strong>Edit</strong> (pencil icon) on your pipeline</li>
+<li>Modify configuration</li>
+<li>Click <strong>Save</strong></li>
+<li>Re-run the pipeline</li>
+</ol>
+<h2 id="discovered-data-assets">Discovered Data Assets</h2>
+<p>After ingestion, you'll see:</p>
+<h3 id="bronze-layer-staging">Bronze Layer (Staging)</h3>
+<ul>
+<li><code>bronze.entries_cleaned</code> - CGM entries with type conversions</li>
+<li><code>bronze.device_status_cleaned</code> - Device status events</li>
+</ul>
+<h3 id="silver-layer-facts">Silver Layer (Facts)</h3>
+<ul>
+<li><code>silver.glucose_daily_stats</code> - Daily glucose aggregations</li>
+<li><code>silver.glucose_weekly_stats</code> - Weekly glucose aggregations</li>
+</ul>
+<h3 id="gold-layer-dimensions">Gold Layer (Dimensions)</h3>
+<ul>
+<li><code>gold.dim_date</code> - Date dimension table</li>
+</ul>
+<h3 id="marts-bi-ready">Marts (BI-Ready)</h3>
+<ul>
+<li><code>marts.glucose_analytics_mart</code> - Published to Postgres for Superset</li>
+</ul>
+<h2 id="using-the-data-catalog">Using the Data Catalog</h2>
+<h3 id="search-for-data">Search for Data</h3>
+<ol>
+<li>Use the search bar at the top</li>
+<li>Search by:</li>
+<li>Table name: <code>glucose_daily_stats</code></li>
+<li>Column name: <code>mean_glucose</code></li>
+<li>Description keywords: <code>"blood sugar"</code></li>
+<li>Tags: <code>#glucose</code> (after adding tags)</li>
+</ol>
+<h3 id="view-table-details">View Table Details</h3>
+<p>Click on any table to see:</p>
+<ul>
+<li><strong>Schema</strong>: Column names, types, descriptions</li>
+<li><strong>Sample Data</strong>: Preview of actual data</li>
+<li><strong>Lineage</strong>: Visual graph showing upstream/downstream tables</li>
+<li><strong>Queries</strong>: Recent SQL queries (if query log enabled)</li>
+<li><strong>Usage</strong>: Access patterns and popularity</li>
+</ul>
+<h3 id="add-documentation">Add Documentation</h3>
+<ol>
+<li>Click on a table (e.g., <code>silver.glucose_daily_stats</code>)</li>
+<li>Click <strong>Edit</strong> (pencil icon)</li>
+<li>Add description:</li>
+</ol>
+<pre><code class="language-markdown">## Description
+
+Daily aggregated glucose statistics including mean, standard deviation,
+time in range, and estimated A1C.
+
+## Update Schedule
+
+Updated daily at 2:00 AM UTC via Dagster pipeline.
+
+## Business Logic
+
+- `time_in_range_pct`: Percentage of readings between 70-180 mg/dL
+- `estimated_a1c`: Calculated using formula: (mean_glucose + 46.7) / 28.7
+</code></pre>
+<ol>
+<li>
+<p>Add column descriptions:</p>
+</li>
+<li>
+<p><code>date</code>: Measurement date (partition key)</p>
+</li>
+<li><code>mean_glucose</code>: Daily average glucose in mg/dL</li>
+<li><code>std_glucose</code>: Standard deviation of glucose readings</li>
+<li>
+<p><code>time_in_range_pct</code>: % of time in target range (70-180 mg/dL)</p>
+</li>
+<li>
+<p>Click <strong>Save</strong></p>
+</li>
+</ol>
+<h3 id="add-tags">Add Tags</h3>
+<ol>
+<li>Click on a table</li>
+<li>Click <strong>Add Tag</strong></li>
+<li>Use built-in tags or create custom:</li>
+<li><code>PII.None</code> - No personal information</li>
+<li><code>Tier.Bronze</code> / <code>Tier.Silver</code> / <code>Tier.Gold</code></li>
+<li>Create custom: <code>Healthcare</code>, <code>CGM</code>, <code>Analytics</code></li>
+</ol>
+<h3 id="set-ownership">Set Ownership</h3>
+<ol>
+<li>Click on a table</li>
+<li>Click <strong>Add Owner</strong></li>
+<li>Select user or team (create teams in Settings)</li>
+</ol>
+<h2 id="data-lineage">Data Lineage</h2>
+<p>OpenMetadata can show visual lineage graphs:</p>
+<pre><code>entries_raw (raw)
+    ↓
+entries_cleaned (bronze) ← dbt model
+    ↓
+glucose_daily_stats (silver) ← dbt model
+    ↓
+glucose_analytics_mart (mart) ← Trino publish
+    ↓
+Superset Dashboard: &quot;CGM Overview&quot;
+</code></pre>
+<h3 id="enable-lineage-tracking-with-dbt">Enable Lineage Tracking with dbt</h3>
+<p>Lineage is automatically extracted from:</p>
+<ul>
+<li><strong>dbt models</strong> - Shows dependencies between models and tables</li>
+<li><strong>SQL queries</strong> - Enable query log ingestion (advanced)</li>
+</ul>
+<p><strong>Step 1: Add dbt Service</strong></p>
+<ol>
+<li>Go to <strong>Settings</strong> → <strong>Services</strong> → <strong>Pipeline Services</strong></li>
+<li>Click <strong>Add Service</strong></li>
+<li>Select <strong>dbt</strong></li>
+<li>Configure:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Name</strong></td>
+<td><code>phlo-dbt</code></td>
+</tr>
+<tr>
+<td><strong>dbt Cloud API URL</strong></td>
+<td>Leave empty (we use local files)</td>
+</tr>
+<tr>
+<td><strong>dbt Cloud Account ID</strong></td>
+<td>Leave empty</td>
+</tr>
+</tbody>
+</table>
+<p>Click <strong>Next</strong>.</p>
+<p><strong>Step 2: Configure dbt Metadata Ingestion</strong></p>
+<ol>
+<li><strong>Source Configuration:</strong></li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>dbt Configuration Source</strong></td>
+<td><code>Local</code></td>
+<td>We're using local files, not dbt Cloud</td>
+</tr>
+<tr>
+<td><strong>dbt Catalog File Path</strong></td>
+<td><code>/dbt/target/catalog.json</code></td>
+<td>Contains column-level metadata</td>
+</tr>
+<tr>
+<td><strong>dbt Manifest File Path</strong></td>
+<td><code>/dbt/target/manifest.json</code></td>
+<td>Contains lineage and dependencies</td>
+</tr>
+<tr>
+<td><strong>dbt Run Results File Path</strong></td>
+<td><code>/dbt/target/run_results.json</code></td>
+<td>Optional: test results</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>
+<p><strong>Database Service Name:</strong> <code>trino</code></p>
+</li>
+<li>
+<p>This links dbt models to your Trino tables</p>
+</li>
+<li>
+<p>Must match the name of your Trino service</p>
+</li>
+<li>
+<p><strong>Include Tags:</strong> <code>Yes</code> (Enable)</p>
+</li>
+<li>Imports dbt model tags as OpenMetadata tags</li>
+</ol>
+<p>Click <strong>Next</strong>.</p>
+<p><strong>Step 3: Schedule dbt Ingestion</strong></p>
+<p><strong>For Development:</strong></p>
+<ul>
+<li>Select <strong>Manual</strong></li>
+<li>Run after <code>dbt run</code> or <code>dbt build</code> completes</li>
+</ul>
+<p><strong>For Production:</strong></p>
+<ul>
+<li>Select <strong>Scheduled</strong></li>
+<li>Cron: <code>0 4 * * *</code> (4 AM, after Dagster + Trino ingestion)</li>
+</ul>
+<p>Click <strong>Next</strong> → <strong>Deploy</strong>.</p>
+<p><strong>Step 4: Run dbt Ingestion</strong></p>
+<ol>
+<li>Ensure dbt artifacts are fresh:</li>
+</ol>
+<p>```bash
+   # From your local machine
+   cd workflows/transforms/dbt
+   dbt compile --profiles-dir ./profiles</p>
+<p># Or run the full build
+   dbt build --profiles-dir ./profiles
+   ```</p>
+<ol>
+<li>Go to <strong>Settings → Integrations → Pipeline → phlo-dbt</strong></li>
+<li>Click <strong>Ingestions</strong> tab</li>
+<li>Find <code>phlo-dbt-metadata</code> pipeline</li>
+<li>Click <strong>Run</strong> (play button)</li>
+</ol>
+<p><strong>Expected Output:</strong></p>
+<pre><code>INFO - Starting dbt metadata ingestion
+INFO - Reading manifest from /dbt/target/manifest.json
+INFO - Found 12 dbt models
+INFO - Processing model: glucose_daily_stats
+INFO - Linking model to table: trino.iceberg.silver.glucose_daily_stats
+INFO - Extracted lineage: bronze.entries_cleaned → silver.glucose_daily_stats
+INFO - Successfully ingested dbt metadata
+</code></pre>
+<p><strong>What You'll See:</strong></p>
+<p>After ingestion:</p>
+<ol>
+<li><strong>Enhanced Table Descriptions</strong>: dbt model descriptions appear on tables</li>
+<li><strong>Column Descriptions</strong>: From dbt schema YAML files</li>
+<li><strong>Lineage Graphs</strong>: Visual connections between models</li>
+<li><strong>dbt Tags</strong>: As OpenMetadata tags on tables</li>
+<li><strong>Test Results</strong>: dbt tests show as data quality metrics</li>
+</ol>
+<p><strong>Verify dbt Integration:</strong></p>
+<p>Navigate to a table created by dbt (e.g., <code>silver.glucose_daily_stats</code>):</p>
+<ul>
+<li><strong>Lineage</strong> tab: Shows upstream dependencies</li>
+<li><strong>Schema</strong> tab: Has column descriptions from dbt</li>
+<li><strong>Data Quality</strong> tab: Shows dbt test results</li>
+</ul>
+<h2 id="advanced-features">Advanced Features</h2>
+<h3 id="quality-checks">Quality Checks</h3>
+<p>Add data quality tests in OpenMetadata UI:</p>
+<ol>
+<li>Navigate to table</li>
+<li>Click <strong>Profiler &amp; Data Quality</strong></li>
+<li>Add tests:</li>
+<li>Column null checks</li>
+<li>Value range validations</li>
+<li>Uniqueness constraints</li>
+</ol>
+<h3 id="glossary-terms">Glossary Terms</h3>
+<p>Create a business glossary:</p>
+<ol>
+<li><strong>Settings</strong> → <strong>Glossary</strong></li>
+<li>Add terms:</li>
+<li><strong>Time in Range (TIR)</strong>: Percentage of glucose readings within target range (70-180 mg/dL)</li>
+<li><strong>A1C</strong>: Hemoglobin A1C estimated from mean glucose</li>
+<li>Link terms to table columns</li>
+</ol>
+<h3 id="api-access">API Access</h3>
+<p>OpenMetadata provides a REST API:</p>
+<pre><code class="language-bash"># Get all tables
+curl http://localhost:10020/api/v1/tables
+
+# Get specific table
+curl http://localhost:10020/api/v1/tables/name/iceberg.silver.glucose_daily_stats
+
+# Search
+curl &quot;http://localhost:10020/api/v1/search/query?q=glucose&quot;
+</code></pre>
+<h2 id="integration-with-phlo-workflows">Integration with Phlo Workflows</h2>
+<h3 id="update-ingestion-schedule">Update Ingestion Schedule</h3>
+<p>Match OpenMetadata ingestion with your Dagster pipelines:</p>
+<pre><code class="language-yaml">Dagster Pipeline: Daily at 2:00 AM
+OpenMetadata Ingestion: Daily at 3:00 AM (1 hour after data refresh)
+</code></pre>
+<h3 id="document-in-dbt-models">Document in dbt Models</h3>
+<p>Add descriptions to dbt models that will appear in OpenMetadata:</p>
+<pre><code class="language-yaml"># workflows/transforms/dbt/models/silver/glucose_daily_stats.yml
+version: 2
+
+models:
+  - name: glucose_daily_stats
+    description: |
+      Daily aggregated glucose statistics with A1C estimates.
+      Source: bronze.entries_cleaned
+      Refresh: Daily at 2 AM
+    columns:
+      - name: date
+        description: Measurement date (partition key)
+      - name: mean_glucose
+        description: Daily average glucose in mg/dL
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 40
+              max_value: 400
+</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="openmetadata-ui-not-loading">OpenMetadata UI Not Loading</h3>
+<pre><code class="language-bash"># Check service health
+make health-catalog
+
+# Check logs
+docker logs openmetadata-server
+docker logs openmetadata-mysql
+docker logs openmetadata-elasticsearch
+</code></pre>
+<p><strong>Common causes:</strong></p>
+<ol>
+<li>Database migrations haven't run yet</li>
+<li>Server still initializing (wait 2-3 minutes)</li>
+<li>Dependency services not healthy</li>
+</ol>
+<p><strong>Check migration status:</strong></p>
+<pre><code class="language-bash"># Verify migration completed successfully
+docker logs openmetadata-migrate
+
+# Check exit code (should be 0)
+docker inspect openmetadata-migrate --format='{{.State.ExitCode}}'
+</code></pre>
+<h3 id="search-not-working-all-shards-failed-error">Search Not Working / "All Shards Failed" Error</h3>
+<p><strong>Symptom:</strong></p>
+<ul>
+<li>Explore page shows: "Search failed due to Elasticsearch exception [type=search_phase_execution_exception, reason=all shards failed]"</li>
+<li>Global search returns no results</li>
+<li>Direct table URLs work fine</li>
+</ul>
+<p><strong>Cause:</strong> The <code>all</code> search index is not populated after initial setup.</p>
+<p><strong>Solution:</strong></p>
+<ol>
+<li>Go to <strong>Settings → OpenMetadata → Search</strong></li>
+<li>Click on <strong>SearchIndexingApplication</strong></li>
+<li>Click <strong>Run Now</strong></li>
+<li><strong>IMPORTANT:</strong> Enable "Recreate Indexes" toggle</li>
+<li>Click <strong>Submit</strong></li>
+<li>Wait 1-2 minutes for completion</li>
+<li>Refresh browser and test search</li>
+</ol>
+<p><strong>If reindex fails with "Invalid alias name [all]" error:</strong></p>
+<pre><code class="language-bash"># Delete the incorrect index
+docker exec openmetadata-elasticsearch curl -s -X DELETE &quot;http://localhost:9200/all&quot;
+
+# Run reindex again from UI with &quot;Recreate Indexes&quot; enabled
+</code></pre>
+<p><strong>Verify search is working:</strong></p>
+<pre><code class="language-bash"># Check all alias exists and points to indices
+docker exec openmetadata-elasticsearch curl -s &quot;http://localhost:9200/_cat/aliases?v&quot; | grep all
+
+# Test search query
+docker exec openmetadata-elasticsearch curl -s \
+  &quot;http://localhost:9200/all/_search?q=glucose&amp;size=1&quot; | grep -o '&quot;total&quot;:{&quot;value&quot;:[0-9]*'
+</code></pre>
+<h3 id="missing-elasticsearch-indices">Missing Elasticsearch Indices</h3>
+<p><strong>Error:</strong> <code>Failed to find index table_search_index</code> or similar</p>
+<p><strong>Root cause:</strong> OpenMetadata should create Elasticsearch indices automatically on startup. If you see this error, it indicates the initialization failed.</p>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash"># Check if indices exist
+docker exec openmetadata-elasticsearch curl -s http://localhost:9200/_cat/indices | grep search_index
+</code></pre>
+<p><strong>Solution:</strong>
+Indices should be created automatically by OpenMetadata. If they're missing after a fresh install:</p>
+<ol>
+<li>Check OpenMetadata server logs for initialization errors:</li>
+</ol>
+<p><code>bash
+   docker logs openmetadata-server | grep -i "elastic\|index"</code></p>
+<ol>
+<li>Restart OpenMetadata server to trigger re-initialization:</li>
+</ol>
+<p><code>bash
+   docker restart openmetadata-server</code></p>
+<ol>
+<li>If problem persists, this is a bug in OpenMetadata 1.6.1 - report to the OpenMetadata team</li>
+</ol>
+<h3 id="server-crashes-during-ingestion">Server Crashes During Ingestion</h3>
+<p><strong>Symptoms:</strong></p>
+<ul>
+<li>OpenMetadata server keeps restarting</li>
+<li>Container shows "Restarting (137)" or "Killed"</li>
+<li>Logs show signal 9 or OOM errors</li>
+</ul>
+<p><strong>Root cause:</strong> Memory exhaustion, typically from stored procedure queries</p>
+<p><strong>Solution:</strong></p>
+<ol>
+<li>
+<p><strong>Disable stored procedures</strong> in ingestion configuration:</p>
+</li>
+<li>
+<p>Edit your Trino service ingestion pipeline</p>
+</li>
+<li>Advanced Options → Uncheck "Include Stored Procedures"</li>
+<li>
+<p>Advanced Options → Uncheck "Mark Deleted Stored Procedures"</p>
+</li>
+<li>
+<p><strong>Add schema filters</strong> to reduce scope:</p>
+</li>
+</ol>
+<p><code>yaml
+   Include Schemas: raw,bronze,silver,gold
+   Exclude Schemas: information_schema,system
+   Include Databases: iceberg</code></p>
+<ol>
+<li><strong>Increase server memory</strong> if crashes continue:
+   <code>yaml
+   # In docker-compose.yml
+   openmetadata-server:
+     environment:
+       OPENMETADATA_HEAP_OPTS: "-Xmx4G -Xms4G" # Increase from default</code></li>
+</ol>
+<h3 id="elasticsearch-out-of-memory">Elasticsearch Out of Memory</h3>
+<p>If you see OOM errors, increase memory:</p>
+<pre><code class="language-yaml"># In docker-compose.yml
+openmetadata-elasticsearch:
+  environment:
+    ES_JAVA_OPTS: &quot;-Xms1g -Xmx1g&quot; # Increase from 512m
+</code></pre>
+<h3 id="trino-connection-failed">Trino Connection Failed</h3>
+<p>Ensure Trino is running:</p>
+<pre><code class="language-bash">make health
+
+# Start Trino if not running
+make up-query
+</code></pre>
+<p>Check connection from OpenMetadata container:</p>
+<pre><code class="language-bash">docker exec -it openmetadata-server curl http://trino:8080/v1/info
+</code></pre>
+<h3 id="ingestion-pipeline-failing">Ingestion Pipeline Failing</h3>
+<ol>
+<li>Check logs in OpenMetadata UI → <strong>Settings</strong> → <strong>Services</strong> → <strong>Ingestion Logs</strong></li>
+<li>Verify schemas exist in Trino:
+   <code>bash
+   make trino-shell
+   SHOW SCHEMAS FROM iceberg;</code></li>
+</ol>
+<h3 id="tables-not-appearing-after-ingestion">Tables Not Appearing After Ingestion</h3>
+<p><strong>Problem:</strong> Ingestion runs successfully but tables don't show in UI</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>
+<p><strong>Verify schema filters aren't too restrictive:</strong></p>
+</li>
+<li>
+<p>Go to Settings → Database Services → trino → Ingestion</p>
+</li>
+<li>Check Include/Exclude Schemas configuration</li>
+<li>
+<p>Ensure your target schemas are included</p>
+</li>
+<li>
+<p><strong>Search by fully qualified name:</strong></p>
+</li>
+<li>
+<p>In UI search bar: <code>trino.iceberg.raw.glucose_entries</code></p>
+</li>
+<li>
+<p>Navigate to Explore → Tables and browse database hierarchy</p>
+</li>
+<li>
+<p><strong>Check Elasticsearch index:</strong>
+   <code>bash
+   # Verify table is in Elasticsearch
+   docker exec openmetadata-elasticsearch curl -s \
+     "http://localhost:9200/table_search_index/_search?q=glucose_entries&amp;pretty"</code></p>
+</li>
+</ol>
+<h2 id="resource-requirements">Resource Requirements</h2>
+<p><strong>Minimum:</strong></p>
+<ul>
+<li>6 GB RAM</li>
+<li>4 vCPUs</li>
+<li>10 GB disk space</li>
+</ul>
+<p><strong>Recommended:</strong></p>
+<ul>
+<li>8 GB RAM</li>
+<li>6 vCPUs</li>
+<li>20 GB disk space</li>
+</ul>
+<h2 id="best-practices">Best Practices</h2>
+<ol>
+<li><strong>Document Everything</strong>: Add descriptions to all tables and columns</li>
+<li><strong>Use Tags</strong>: Create a consistent tagging strategy (layers, domains, sensitivity)</li>
+<li><strong>Set Ownership</strong>: Assign owners to all datasets</li>
+<li><strong>Regular Updates</strong>: Run ingestion daily to keep metadata fresh</li>
+<li><strong>Quality Checks</strong>: Add data quality tests to critical tables</li>
+<li><strong>Glossary</strong>: Maintain business terms for domain-specific language</li>
+</ol>
+<h2 id="comparison-with-alternatives">Comparison with Alternatives</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>OpenMetadata</th>
+<th>Amundsen</th>
+<th>DataHub</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Setup Ease</td>
+<td>⭐⭐ Moderate</td>
+<td>⭐ Easy</td>
+<td>⭐⭐⭐ Complex</td>
+</tr>
+<tr>
+<td>Active Development</td>
+<td>✅ Active</td>
+<td>⚠️ Slowed</td>
+<td>✅ Very Active</td>
+</tr>
+<tr>
+<td>UI/UX</td>
+<td>Excellent</td>
+<td>Good</td>
+<td>Very Good</td>
+</tr>
+<tr>
+<td>Resource Usage</td>
+<td>Medium (6GB)</td>
+<td>Low</td>
+<td>High (Kafka)</td>
+</tr>
+<tr>
+<td>Iceberg Support</td>
+<td>✅ Yes</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+</tbody>
+</table>
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li><strong>Enrich Metadata</strong>: Add descriptions and tags to all tables</li>
+<li><strong>Set Up dbt Ingestion</strong>: Enable lineage tracking from dbt models</li>
+<li><strong>Create Glossary</strong>: Define business terms</li>
+<li><strong>Add Quality Tests</strong>: Monitor data quality</li>
+<li><strong>Enable Alerts</strong>: Get notified about schema changes</li>
+</ol>
+<h2 id="additional-resources">Additional Resources</h2>
+<ul>
+<li><a href="https://docs.open-metadata.org/">OpenMetadata Documentation</a></li>
+<li><a href="https://docs.open-metadata.org/connectors/database/trino">Trino Connector Guide</a></li>
+<li><a href="https://docs.open-metadata.org/how-to-guides/data-quality-observability">Data Quality Guide</a></li>
+<li><a href="https://docs.open-metadata.org/developers/apis">API Documentation</a></li>
+</ul>
+<h2 id="related-phlo-documentation">Related Phlo Documentation</h2>
+<ul>
+<li><a href="quick-start.md">Quick Start Guide</a> - Get Phlo running</li>
+<li><a href="../../reference/phlo-api/">API Documentation</a> - FastAPI and Hasura setup</li>
+<li><a href="../../guides/dbt-development/">dbt Development Guide</a> - Creating dbt models</li>
+<li><a href="../../guides/workflow-development/">Workflow Development Guide</a> - Dagster pipelines</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

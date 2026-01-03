@@ -1,0 +1,2880 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../../getting-started/core-concepts/">
+      
+      
+        <link rel="next" href="../workflow-development/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Developer Guide - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#developer-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Developer Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phlo_ingestion-decorator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @phlo_ingestion Decorator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="@phlo_ingestion Decorator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlt-source-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DLT Source Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merge Strategies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partition-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partition Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pandera-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pandera Schemas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pandera Schemas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-conversion-to-iceberg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Conversion to Iceberg
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phlo_quality-decorator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @phlo_quality Decorator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="@phlo_quality Decorator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#built-in-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reconciliation-checks-cross-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reconciliation Checks (Cross-table)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-quality-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Quality Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-check-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Check Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dbt-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="dbt Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dagster-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dagster Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running dbt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#publishing-to-bi-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publishing to BI Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Publishing to BI Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#publishing-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publishing Asset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generic-publisher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generic Publisher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#superset-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Superset Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-resource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Resource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditional-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditional Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-schema-first-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Schema-First Development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-incremental-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Incremental Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dbt-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dbt Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-modeling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Modeling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dagster-assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dagster Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugin Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../service-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phlo_ingestion-decorator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @phlo_ingestion Decorator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="@phlo_ingestion Decorator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlt-source-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DLT Source Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merge Strategies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partition-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partition Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pandera-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pandera Schemas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pandera Schemas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-conversion-to-iceberg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Conversion to Iceberg
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phlo_quality-decorator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @phlo_quality Decorator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="@phlo_quality Decorator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#built-in-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reconciliation-checks-cross-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reconciliation Checks (Cross-table)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-quality-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Quality Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-check-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Check Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dbt-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="dbt Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#source-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dagster-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dagster Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running dbt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#publishing-to-bi-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publishing to BI Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Publishing to BI Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#publishing-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Publishing Asset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generic-publisher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generic Publisher
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#superset-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Superset Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-resource" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Resource
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditional-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditional Execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-schema-first-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Schema-First Development
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-incremental-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Incremental Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="developer-guide">Developer Guide</h1>
+<p>Complete guide to building data pipelines with Phlo's decorator-driven framework.</p>
+<h2 id="overview">Overview</h2>
+<p>Phlo provides powerful decorators that transform simple functions into complete data pipelines. This guide covers:</p>
+<ul>
+<li>Using <code>@phlo_ingestion</code> for data ingestion</li>
+<li>Using <code>@phlo_quality</code> for data quality checks</li>
+<li>Schema definition with Pandera</li>
+<li>Integration with dbt</li>
+<li>Publishing to BI tools</li>
+<li>Advanced patterns and best practices</li>
+</ul>
+<h2 id="quick-example">Quick Example</h2>
+<p>A complete ingestion pipeline in ~30 lines:</p>
+<pre><code class="language-python"># workflows/schemas/api.py
+import pandera as pa
+from pandera.typing import Series
+
+class EventSchema(pa.DataFrameModel):
+    id: Series[str] = pa.Field(nullable=False, unique=True)
+    timestamp: Series[datetime] = pa.Field(nullable=False)
+    value: Series[float] = pa.Field(ge=0, le=100)
+
+# workflows/ingestion/api/events.py
+from dlt.sources.rest_api import rest_api
+from phlo_dlt import phlo_ingestion
+from workflows.schemas.api import EventSchema
+
+@phlo_ingestion(
+    table_name=&quot;events&quot;,
+    unique_key=&quot;id&quot;,
+    validation_schema=EventSchema,
+    group=&quot;api&quot;,
+    cron=&quot;0 */1 * * *&quot;,
+    freshness_hours=(1, 24),
+)
+def api_events(partition_date: str):
+    return rest_api({
+        &quot;client&quot;: {&quot;base_url&quot;: &quot;https://api.example.com&quot;},
+        &quot;resources&quot;: [{
+            &quot;name&quot;: &quot;events&quot;,
+            &quot;endpoint&quot;: {&quot;path&quot;: f&quot;/events?date={partition_date}&quot;}
+        }]
+    })
+
+# workflows/quality/api.py
+from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
+
+@phlo_quality(
+    table=&quot;bronze.events&quot;,
+    checks=[
+        NullCheck(columns=[&quot;id&quot;, &quot;timestamp&quot;]),
+        RangeCheck(column=&quot;value&quot;, min_value=0, max_value=100),
+        UniqueCheck(columns=[&quot;id&quot;])
+    ]
+)
+def events_quality():
+    pass
+</code></pre>
+<p>That's it! You get:</p>
+<ul>
+<li>Automatic DLT pipeline setup</li>
+<li>Iceberg table creation from Pandera schema</li>
+<li>Merge with deduplication</li>
+<li>Validation enforcement</li>
+<li>Quality checks with detailed reporting</li>
+<li>Branch-aware writes</li>
+<li>Retry handling</li>
+<li>Metrics tracking</li>
+</ul>
+<h2 id="phlo_ingestion-decorator">@phlo_ingestion Decorator</h2>
+<h3 id="basic-usage">Basic Usage</h3>
+<pre><code class="language-python">from phlo_dlt import phlo_ingestion
+from dlt.sources.rest_api import rest_api
+
+@phlo_ingestion(
+    table_name=&quot;my_table&quot;,
+    unique_key=&quot;id&quot;,
+    validation_schema=MySchema,
+    group=&quot;my_group&quot;,
+)
+def my_ingestion(partition_date: str):
+    # Return a DLT source
+    return rest_api(...)
+</code></pre>
+<h3 id="parameters">Parameters</h3>
+<p><strong>Required</strong>:</p>
+<p><code>table_name</code> (str): Name of target Iceberg table</p>
+<pre><code class="language-python">table_name=&quot;events&quot;  # Creates bronze.events
+</code></pre>
+<p><code>unique_key</code> (str): Column used for deduplication</p>
+<pre><code class="language-python">unique_key=&quot;id&quot;  # Primary key column
+</code></pre>
+<p><code>validation_schema</code> (pa.DataFrameModel): Pandera schema for validation</p>
+<pre><code class="language-python">validation_schema=EventSchema  # Must be a Pandera DataFrameModel
+</code></pre>
+<p><code>group</code> (str): Logical grouping for organization</p>
+<pre><code class="language-python">group=&quot;api&quot;  # Groups assets in Dagster UI
+</code></pre>
+<p><strong>Optional</strong>:</p>
+<p><code>cron</code> (str): Cron schedule expression</p>
+<pre><code class="language-python">cron=&quot;0 */1 * * *&quot;  # Every hour
+cron=&quot;0 0 * * *&quot;    # Daily at midnight
+</code></pre>
+<p><code>freshness_hours</code> (tuple): Freshness policy (warn, error)</p>
+<pre><code class="language-python">freshness_hours=(1, 24)  # Warn after 1h, error after 24h
+</code></pre>
+<p><code>merge_strategy</code> (str): How to handle updates</p>
+<pre><code class="language-python">merge_strategy=&quot;merge&quot;   # Upsert (default)
+merge_strategy=&quot;append&quot;  # Insert-only
+</code></pre>
+<p><code>merge_config</code> (dict): Merge and deduplication configuration</p>
+<pre><code class="language-python">merge_config={&quot;deduplication_method&quot;: &quot;last&quot;}   # Keep last occurrence (default)
+merge_config={&quot;deduplication_method&quot;: &quot;first&quot;}  # Keep first occurrence
+merge_config={&quot;deduplication_method&quot;: &quot;hash&quot;}   # Keep based on content hash
+</code></pre>
+<p><code>max_retries</code> (int): Number of retry attempts (default: 3)</p>
+<pre><code class="language-python">max_retries=3
+</code></pre>
+<p><code>retry_delay_seconds</code> (int): Delay between retries in seconds (default: 30)</p>
+<pre><code class="language-python">retry_delay_seconds=30
+</code></pre>
+<p><code>max_runtime_seconds</code> (int): Execution timeout in seconds (default: 300)</p>
+<pre><code class="language-python">max_runtime_seconds=3600  # 1 hour
+</code></pre>
+<p><code>validate</code> (bool): Enable validation (default: True)</p>
+<pre><code class="language-python">validate=True
+</code></pre>
+<p><code>strict_validation</code> (bool): Fail on validation errors (default: True)</p>
+<pre><code class="language-python">strict_validation=True
+</code></pre>
+<p><code>add_metadata_columns</code> (bool): Add <code>_phlo_*</code> metadata columns (default: True)</p>
+<pre><code class="language-python">add_metadata_columns=True
+</code></pre>
+<h3 id="dlt-source-integration">DLT Source Integration</h3>
+<p>Phlo works with any DLT source. Common patterns:</p>
+<p><strong>REST API Source</strong>:</p>
+<pre><code class="language-python">from dlt.sources.rest_api import rest_api
+
+@phlo_ingestion(...)
+def api_data(partition_date: str):
+    return rest_api({
+        &quot;client&quot;: {
+            &quot;base_url&quot;: &quot;https://api.example.com&quot;,
+            &quot;auth&quot;: {
+                &quot;type&quot;: &quot;bearer&quot;,
+                &quot;token&quot;: os.getenv(&quot;API_TOKEN&quot;)
+            }
+        },
+        &quot;resources&quot;: [{
+            &quot;name&quot;: &quot;events&quot;,
+            &quot;endpoint&quot;: {
+                &quot;path&quot;: &quot;events&quot;,
+                &quot;params&quot;: {
+                    &quot;date&quot;: partition_date,
+                    &quot;limit&quot;: 1000
+                }
+            },
+            &quot;write_disposition&quot;: &quot;replace&quot;
+        }]
+    })
+</code></pre>
+<p><strong>Custom Python Source</strong>:</p>
+<pre><code class="language-python">import dlt
+
+@dlt.source
+def my_source(start_date: str):
+    @dlt.resource(write_disposition=&quot;append&quot;)
+    def events():
+        # Custom logic to yield records
+        for record in fetch_data(start_date):
+            yield record
+    return events
+
+@phlo_ingestion(...)
+def custom_data(partition_date: str):
+    return my_source(start_date=partition_date)
+</code></pre>
+<p><strong>File Source</strong>:</p>
+<pre><code class="language-python">from dlt.sources.filesystem import filesystem
+
+@phlo_ingestion(...)
+def file_data(partition_date: str):
+    return filesystem(
+        bucket_url=f&quot;s3://bucket/data/{partition_date}&quot;,
+        file_glob=&quot;*.csv&quot;
+    )
+</code></pre>
+<p><strong>SQL Source</strong>:</p>
+<pre><code class="language-python">import dlt
+from sqlalchemy import create_engine
+
+@phlo_ingestion(...)
+def sql_data(partition_date: str):
+    @dlt.resource
+    def query():
+        engine = create_engine(os.getenv(&quot;DATABASE_URL&quot;))
+        return pd.read_sql(
+            f&quot;SELECT * FROM events WHERE date = '{partition_date}'&quot;,
+            engine
+        ).to_dict('records')
+    return query
+</code></pre>
+<h3 id="merge-strategies">Merge Strategies</h3>
+<p><strong>Append Strategy</strong> (fastest, no deduplication):</p>
+<pre><code class="language-python">@phlo_ingestion(
+    table_name=&quot;logs&quot;,
+    unique_key=&quot;id&quot;,
+    merge_strategy=&quot;append&quot;,  # Insert-only
+    ...
+)
+def logs(partition_date: str):
+    # Good for: immutable event streams, logs
+    return source
+</code></pre>
+<p><strong>Merge Strategy</strong> (upsert with deduplication):</p>
+<pre><code class="language-python">@phlo_ingestion(
+    table_name=&quot;users&quot;,
+    unique_key=&quot;user_id&quot;,
+    merge_strategy=&quot;merge&quot;,
+    merge_config={&quot;deduplication_method&quot;: &quot;last&quot;},  # Keep most recent
+    ...
+)
+def users(partition_date: str):
+    # Good for: dimension tables, user profiles
+    return source
+</code></pre>
+<p><strong>Deduplication Strategies</strong>:</p>
+<p><code>last</code> (default): Keep last occurrence by partition</p>
+<pre><code class="language-python">merge_config={&quot;deduplication_method&quot;: &quot;last&quot;}
+# If same ID appears twice, keep the one with latest timestamp
+</code></pre>
+<p><code>first</code>: Keep first occurrence</p>
+<pre><code class="language-python">merge_config={&quot;deduplication_method&quot;: &quot;first&quot;}
+# If same ID appears twice, keep the one with earliest timestamp
+</code></pre>
+<p><code>hash</code>: Keep based on content hash</p>
+<pre><code class="language-python">merge_config={&quot;deduplication_method&quot;: &quot;hash&quot;}
+# If same ID appears twice, keep the one with different content
+</code></pre>
+<h3 id="partition-handling">Partition Handling</h3>
+<p>Phlo uses daily partitioning by default:</p>
+<pre><code class="language-python">@phlo_ingestion(...)
+def my_data(partition_date: str):
+    # partition_date is automatically provided by Dagster
+    # Format: &quot;YYYY-MM-DD&quot;
+    start_time = f&quot;{partition_date}T00:00:00Z&quot;
+    end_time = f&quot;{partition_date}T23:59:59Z&quot;
+
+    return rest_api({
+        &quot;resources&quot;: [{
+            &quot;endpoint&quot;: {
+                &quot;params&quot;: {
+                    &quot;start&quot;: start_time,
+                    &quot;end&quot;: end_time
+                }
+            }
+        }]
+    })
+</code></pre>
+<p><strong>Backfills</strong>:</p>
+<pre><code class="language-bash"># Backfill specific date
+phlo materialize my_data --partition 2025-01-15
+
+# Backfill date range (in Dagster UI)
+# Select partitions → 2025-01-01 to 2025-01-31 → Materialize
+</code></pre>
+<h2 id="pandera-schemas">Pandera Schemas</h2>
+<p>Schemas serve as the source of truth for data structure and validation.</p>
+<h3 id="basic-schema">Basic Schema</h3>
+<pre><code class="language-python">import pandera as pa
+from pandera.typing import Series
+from datetime import datetime
+
+class MySchema(pa.DataFrameModel):
+    &quot;&quot;&quot;My data schema.&quot;&quot;&quot;
+
+    # Basic types
+    id: Series[str]
+    count: Series[int]
+    amount: Series[float]
+    timestamp: Series[datetime]
+    is_active: Series[bool]
+
+    class Config:
+        strict = True  # Reject unknown columns
+        coerce = True  # Coerce types automatically
+</code></pre>
+<h3 id="field-constraints">Field Constraints</h3>
+<pre><code class="language-python">class AdvancedSchema(pa.DataFrameModel):
+    # Not null
+    id: Series[str] = pa.Field(nullable=False)
+
+    # Unique values
+    email: Series[str] = pa.Field(unique=True)
+
+    # Range validation
+    age: Series[int] = pa.Field(ge=0, le=150)
+    temperature: Series[float] = pa.Field(ge=-50.0, le=50.0)
+
+    # String patterns
+    postal_code: Series[str] = pa.Field(regex=r&quot;^\d{5}$&quot;)
+
+    # Allowed values
+    status: Series[str] = pa.Field(isin=[&quot;active&quot;, &quot;inactive&quot;, &quot;pending&quot;])
+
+    # String length
+    name: Series[str] = pa.Field(str_length={&quot;min_value&quot;: 1, &quot;max_value&quot;: 100})
+
+    # Custom checks
+    email: Series[str] = pa.Field(str_contains=&quot;@&quot;)
+
+    # Descriptions (for documentation)
+    user_id: Series[str] = pa.Field(
+        description=&quot;Unique user identifier&quot;,
+        nullable=False
+    )
+</code></pre>
+<h3 id="optional-fields">Optional Fields</h3>
+<pre><code class="language-python">class SchemaWithOptional(pa.DataFrameModel):
+    # Required field
+    id: Series[str] = pa.Field(nullable=False)
+
+    # Optional field (allows None)
+    notes: Series[str] | None = pa.Field(nullable=True)
+
+    # Optional with default
+    status: Series[str] = pa.Field(
+        nullable=True,
+        default=&quot;pending&quot;
+    )
+</code></pre>
+<h3 id="custom-validators">Custom Validators</h3>
+<pre><code class="language-python">import pandera as pa
+from pandera import check
+
+class CustomSchema(pa.DataFrameModel):
+    value: Series[float]
+
+    @check(&quot;value&quot;)
+    def value_is_positive(cls, value):
+        return value &gt; 0
+
+    @check(&quot;value&quot;)
+    def value_is_reasonable(cls, value):
+        return value &lt; 1000000
+
+# Multi-column check
+class MultiColumnSchema(pa.DataFrameModel):
+    start_date: Series[datetime]
+    end_date: Series[datetime]
+
+    @pa.check(&quot;end_date&quot;)
+    def end_after_start(cls, series):
+        return series &gt;= cls.start_date
+</code></pre>
+<h3 id="schema-conversion-to-iceberg">Schema Conversion to Iceberg</h3>
+<p>Pandera types automatically convert to Iceberg types:</p>
+<pre><code class="language-python"># Pandera → Iceberg mapping:
+str → StringType()
+int → LongType()
+float → DoubleType()
+datetime → TimestamptzType()
+bool → BooleanType()
+
+# Example:
+class MySchema(pa.DataFrameModel):
+    id: Series[str]         # → StringType()
+    count: Series[int]      # → LongType()
+    amount: Series[float]   # → DoubleType()
+    timestamp: Series[datetime]  # → TimestamptzType()
+
+# Results in Iceberg schema:
+Schema(
+    NestedField(1, &quot;id&quot;, StringType(), required=True),
+    NestedField(2, &quot;count&quot;, LongType(), required=True),
+    NestedField(3, &quot;amount&quot;, DoubleType(), required=True),
+    NestedField(4, &quot;timestamp&quot;, TimestamptzType(), required=True),
+    # DLT metadata fields added automatically:
+    NestedField(100, &quot;_dlt_load_id&quot;, StringType(), required=False),
+    NestedField(101, &quot;_dlt_id&quot;, StringType(), required=False),
+    NestedField(102, &quot;_cascade_ingested_at&quot;, TimestamptzType(), required=False),
+)
+</code></pre>
+<h2 id="phlo_quality-decorator">@phlo_quality Decorator</h2>
+<h3 id="basic-usage_1">Basic Usage</h3>
+<pre><code class="language-python">from phlo_quality import phlo_quality
+from phlo_quality.checks import NullCheck, RangeCheck
+
+@phlo_quality(
+    table=&quot;bronze.events&quot;,
+    checks=[
+        NullCheck(columns=[&quot;id&quot;, &quot;timestamp&quot;]),
+        RangeCheck(column=&quot;value&quot;, min_value=0, max_value=100)
+    ]
+)
+def events_quality():
+    pass
+</code></pre>
+<h3 id="built-in-checks">Built-in Checks</h3>
+<p><strong>NullCheck</strong>: Ensure no null values</p>
+<pre><code class="language-python">NullCheck(columns=[&quot;id&quot;, &quot;email&quot;, &quot;timestamp&quot;])
+</code></pre>
+<p><strong>RangeCheck</strong>: Numeric values within bounds</p>
+<pre><code class="language-python">RangeCheck(column=&quot;age&quot;, min_value=0, max_value=150)
+RangeCheck(column=&quot;temperature&quot;, min_value=-50.0, max_value=50.0)
+</code></pre>
+<p><strong>FreshnessCheck</strong>: Data recency</p>
+<pre><code class="language-python">FreshnessCheck(
+    column=&quot;timestamp&quot;,
+    max_age_hours=24  # Error if data older than 24h
+)
+</code></pre>
+<p><strong>UniqueCheck</strong>: No duplicate values</p>
+<pre><code class="language-python">UniqueCheck(columns=[&quot;id&quot;])
+UniqueCheck(columns=[&quot;user_id&quot;, &quot;timestamp&quot;])  # Composite key
+</code></pre>
+<p><strong>CountCheck</strong>: Row count validation</p>
+<pre><code class="language-python">CountCheck(min_count=1)  # At least 1 row
+CountCheck(max_count=1000000)  # At most 1M rows
+CountCheck(min_count=100, max_count=10000)  # Between 100-10k
+</code></pre>
+<p><strong>SchemaCheck</strong>: Full Pandera schema validation</p>
+<pre><code class="language-python">from workflows.schemas.api import EventSchema
+
+SchemaCheck(schema=EventSchema)
+</code></pre>
+<p><strong>CustomSQLCheck</strong>: Arbitrary SQL validation</p>
+<pre><code class="language-python">CustomSQLCheck(
+    query=&quot;SELECT COUNT(*) FROM bronze.events WHERE value &lt; 0&quot;,
+    expected_result=0,
+    description=&quot;No negative values&quot;
+)
+</code></pre>
+<h3 id="reconciliation-checks-cross-table">Reconciliation Checks (Cross-table)</h3>
+<p>Reconciliation checks live in <code>phlo_quality.reconciliation</code> and use the Trino resource
+from the Dagster context to query source tables.</p>
+<p><strong>ReconciliationCheck</strong>: Row count parity / coverage between source and target</p>
+<ul>
+<li><code>check_type="rowcount_parity"</code>: target and source counts must match (within tolerance)</li>
+<li><code>check_type="rowcount_gte"</code>: target must be &gt;= source (within tolerance)</li>
+</ul>
+<pre><code class="language-python">from phlo_quality.reconciliation import ReconciliationCheck
+
+ReconciliationCheck(
+    source_table=&quot;silver.stg_github_events&quot;,
+    partition_column=&quot;_phlo_partition_date&quot;,
+    check_type=&quot;rowcount_parity&quot;,
+    tolerance=0.02,  # 2% allowed difference
+    absolute_tolerance=50,  # Optional absolute row difference
+)
+</code></pre>
+<p><strong>AggregateConsistencyCheck</strong>: Compare target aggregates to source aggregates</p>
+<pre><code class="language-python">from phlo_quality.reconciliation import AggregateConsistencyCheck
+
+AggregateConsistencyCheck(
+    source_table=&quot;silver.stg_github_events&quot;,
+    aggregate_column=&quot;total_events&quot;,
+    source_expression=&quot;COUNT(*)&quot;,
+    group_by=[&quot;activity_date&quot;],
+    partition_column=&quot;_phlo_partition_date&quot;,
+    tolerance=0.0,
+    absolute_tolerance=5,
+)
+</code></pre>
+<p><strong>KeyParityCheck</strong>: Ensure keys match between source and target</p>
+<pre><code class="language-python">from phlo_quality.reconciliation import KeyParityCheck
+
+KeyParityCheck(
+    source_table=&quot;silver.stg_github_events&quot;,
+    key_columns=[&quot;event_id&quot;],
+    partition_column=&quot;_phlo_partition_date&quot;,
+    tolerance=0.0,
+)
+</code></pre>
+<p><strong>MultiAggregateConsistencyCheck</strong>: Compare multiple aggregates in one check</p>
+<pre><code class="language-python">from phlo_quality.reconciliation import AggregateSpec, MultiAggregateConsistencyCheck
+
+MultiAggregateConsistencyCheck(
+    source_table=&quot;silver.stg_github_events&quot;,
+    aggregates=[
+        AggregateSpec(name=&quot;row_count&quot;, expression=&quot;COUNT(*)&quot;, target_column=&quot;total_events&quot;),
+        AggregateSpec(name=&quot;total_amount&quot;, expression=&quot;SUM(amount)&quot;, target_column=&quot;amount_total&quot;),
+    ],
+    group_by=[&quot;activity_date&quot;],
+    partition_column=&quot;_phlo_partition_date&quot;,
+    tolerance=0.0,
+    absolute_tolerance=5,
+)
+</code></pre>
+<p><strong>ChecksumReconciliationCheck</strong>: Compare row-level hashes across tables</p>
+<pre><code class="language-python">from phlo_quality.reconciliation import ChecksumReconciliationCheck
+
+ChecksumReconciliationCheck(
+    source_table=&quot;silver.stg_github_events&quot;,
+    target_table=&quot;gold.fct_github_events&quot;,
+    key_columns=[&quot;event_id&quot;],
+    columns=[&quot;event_type&quot;, &quot;actor_id&quot;, &quot;repo_id&quot;],
+    partition_column=&quot;_phlo_partition_date&quot;,
+    tolerance=0.0,
+    absolute_tolerance=10,
+    hash_algorithm=&quot;xxhash64&quot;,
+)
+</code></pre>
+<p><strong>Common reconciliation gaps (use CustomSQLCheck or @asset_check):</strong></p>
+<ul>
+<li>Multi-source or multi-target reconciliation in one check</li>
+<li>Distribution drift checks (percentiles/histograms vs source)</li>
+<li>Row-level checksum with engine-specific normalization rules</li>
+</ul>
+<h3 id="advanced-quality-checks">Advanced Quality Checks</h3>
+<p><strong>Multiple tables</strong>:</p>
+<pre><code class="language-python">@phlo_quality(
+    table=&quot;bronze.events&quot;,
+    checks=[
+        CustomSQLCheck(
+            query=&quot;&quot;&quot;
+                SELECT COUNT(*)
+                FROM bronze.events e
+                LEFT JOIN bronze.users u ON e.user_id = u.id
+                WHERE u.id IS NULL
+            &quot;&quot;&quot;,
+            expected_result=0,
+            description=&quot;All events have valid user_id&quot;
+        )
+    ]
+)
+def referential_integrity():
+    pass
+</code></pre>
+<p><strong>Conditional checks</strong>:</p>
+<pre><code class="language-python">import pandas as pd
+from datetime import datetime
+from phlo_quality.checks import QualityCheck, QualityCheckResult
+
+class ConditionalCheck(QualityCheck):
+    def execute(self, df: pd.DataFrame, context) -&gt; QualityCheckResult:
+        # Only run check on weekdays
+        if datetime.now().weekday() &gt;= 5:
+            return QualityCheckResult(
+                passed=True,
+                failed=False,
+                message=&quot;Skipped on weekend&quot;
+            )
+
+        # Run validation
+        passed = len(df) &gt; 0  # Example validation
+        return QualityCheckResult(
+            passed=passed,
+            failed=not passed,
+            message=f&quot;Validated {len(df)} rows&quot;
+        )
+
+@phlo_quality(
+    table=&quot;bronze.events&quot;,
+    checks=[ConditionalCheck()]
+)
+def conditional_quality():
+    pass
+</code></pre>
+<h3 id="quality-check-results">Quality Check Results</h3>
+<p>Check results include rich metadata:</p>
+<pre><code class="language-python">{
+    &quot;passed&quot;: True,
+    &quot;check_name&quot;: &quot;NullCheck&quot;,
+    &quot;table&quot;: &quot;bronze.events&quot;,
+    &quot;columns&quot;: [&quot;id&quot;, &quot;timestamp&quot;],
+    &quot;row_count&quot;: 1000,
+    &quot;null_count&quot;: 0,
+    &quot;execution_time_seconds&quot;: 0.5
+}
+</code></pre>
+<p>Displayed in Dagster UI with:</p>
+<ul>
+<li>Pass/fail status</li>
+<li>Detailed metrics table</li>
+<li>Execution timing</li>
+<li>Error messages (if failed)</li>
+</ul>
+<h2 id="dbt-integration">dbt Integration</h2>
+<p>Phlo automatically integrates with dbt for transformations.</p>
+<h3 id="setup">Setup</h3>
+<pre><code class="language-bash"># dbt project structure
+workflows/transforms/dbt/
+├── dbt_project.yml
+├── models/
+│   ├── bronze/      # Staging models
+│   ├── silver/      # Cleaned models
+│   └── gold/        # Marts
+├── tests/
+└── macros/
+</code></pre>
+<h3 id="source-configuration">Source Configuration</h3>
+<p>Define Iceberg tables as dbt sources:</p>
+<pre><code class="language-yaml"># models/bronze/sources.yml
+version: 2
+
+sources:
+  - name: raw
+    description: Raw ingested data
+    tables:
+      - name: events
+        description: Event data from API
+        meta:
+          dagster_asset_key: &quot;dlt_events&quot;
+</code></pre>
+<h3 id="model-development">Model Development</h3>
+<p><strong>Bronze (staging)</strong>:</p>
+<pre><code class="language-sql">-- models/bronze/stg_events.sql
+{{
+    config(
+        materialized='incremental',
+        unique_key='id',
+        on_schema_change='append_new_columns'
+    )
+}}
+
+SELECT
+    id,
+    timestamp,
+    value,
+    category,
+    _dlt_load_id,
+    CURRENT_TIMESTAMP() as _transformed_at
+FROM {{ source('raw', 'events') }}
+
+{% if is_incremental() %}
+WHERE timestamp &gt; (SELECT MAX(timestamp) FROM {{ this }})
+{% endif %}
+</code></pre>
+<p><strong>Silver (cleaned)</strong>:</p>
+<pre><code class="language-sql">-- models/silver/events_cleaned.sql
+{{
+    config(
+        materialized='incremental',
+        unique_key='id'
+    )
+}}
+
+SELECT
+    id,
+    timestamp,
+    COALESCE(value, 0) as value,
+    UPPER(category) as category,
+    _dlt_load_id
+FROM {{ ref('stg_events') }}
+WHERE value IS NOT NULL
+
+{% if is_incremental() %}
+AND timestamp &gt; (SELECT MAX(timestamp) FROM {{ this }})
+{% endif %}
+</code></pre>
+<p><strong>Gold (marts)</strong>:</p>
+<pre><code class="language-sql">-- models/gold/daily_aggregates.sql
+{{
+    config(
+        materialized='table'
+    )
+}}
+
+SELECT
+    DATE(timestamp) as date,
+    category,
+    COUNT(*) as event_count,
+    AVG(value) as avg_value,
+    MIN(value) as min_value,
+    MAX(value) as max_value,
+    STDDEV(value) as stddev_value
+FROM {{ ref('events_cleaned') }}
+GROUP BY 1, 2
+</code></pre>
+<h3 id="dagster-integration">Dagster Integration</h3>
+<p>dbt models automatically become Dagster assets:</p>
+<pre><code class="language-python"># workflows/transform/dbt.py
+from dagster_dbt import DbtCliResource, dbt_assets
+from phlo_dbt.translator import CustomDbtTranslator
+
+@dbt_assets(
+    manifest=DBT_PROJECT_DIR / &quot;target&quot; / &quot;manifest.json&quot;,
+    dagster_dbt_translator=CustomDbtTranslator(),
+    partitions_def=daily_partition,
+)
+def all_dbt_assets(context, dbt: DbtCliResource):
+    yield from dbt.cli([&quot;build&quot;], context=context).stream()
+</code></pre>
+<p><strong>Custom Translator</strong> maps dbt sources to Dagster assets:</p>
+<ul>
+<li><code>dlt_{table}</code> convention for ingestion assets</li>
+<li>Group inference from folder structure</li>
+<li>Partition support</li>
+</ul>
+<h3 id="running-dbt">Running dbt</h3>
+<p><strong>Via Dagster UI</strong>:</p>
+<ul>
+<li>Navigate to asset in UI</li>
+<li>Click "Materialize"</li>
+</ul>
+<p><strong>Via CLI</strong>:</p>
+<pre><code class="language-bash"># Materialize specific model
+phlo materialize stg_events
+
+# Materialize with dependencies
+phlo materialize stg_events+
+
+# All dbt models
+phlo materialize --select &quot;tag:dbt&quot;
+</code></pre>
+<h2 id="publishing-to-bi-tools">Publishing to BI Tools</h2>
+<p>Automatically publish Iceberg marts to PostgreSQL for BI tools.</p>
+<h3 id="publishing-asset">Publishing Asset</h3>
+<pre><code class="language-python"># workflows/publishing/events.py
+from dagster import asset
+from phlo.publishing import publish_marts_to_postgres
+
+@asset(
+    deps=[&quot;marts__daily_aggregates&quot;],  # Depends on dbt mart
+    group=&quot;publishing&quot;
+)
+def publish_daily_aggregates(context, trino, postgres):
+    &quot;&quot;&quot;Publish daily aggregates to PostgreSQL.&quot;&quot;&quot;
+    return publish_marts_to_postgres(
+        context=context,
+        trino=trino,
+        postgres=postgres,
+        tables_to_publish={
+            &quot;daily_aggregates&quot;: &quot;marts.daily_aggregates&quot;
+        },
+        data_source=&quot;events&quot;
+    )
+</code></pre>
+<h3 id="generic-publisher">Generic Publisher</h3>
+<p>The <code>publish_marts_to_postgres</code> function:</p>
+<ol>
+<li>Queries Iceberg table via Trino</li>
+<li>Drops existing PostgreSQL table</li>
+<li>Creates new table with inferred schema</li>
+<li>Batch inserts with transactions</li>
+<li>Returns statistics</li>
+</ol>
+<pre><code class="language-python"># Usage example:
+publish_marts_to_postgres(
+    context=context,
+    trino=trino,
+    postgres=postgres,
+    tables_to_publish={
+        &quot;table1&quot;: &quot;marts.fct_table1&quot;,
+        &quot;table2&quot;: &quot;marts.dim_table2&quot;,
+    },
+    data_source=&quot;my_domain&quot;
+)
+</code></pre>
+<h3 id="superset-integration">Superset Integration</h3>
+<p>Connect Superset to PostgreSQL:</p>
+<ol>
+<li>Add database connection</li>
+<li>Create datasets from published tables</li>
+<li>Build dashboards</li>
+</ol>
+<h2 id="advanced-patterns">Advanced Patterns</h2>
+<h3 id="custom-resource">Custom Resource</h3>
+<p>Create custom Dagster resources:</p>
+<pre><code class="language-python"># workflows/resources/custom.py
+from dagster import ConfigurableResource
+
+class MyAPIResource(ConfigurableResource):
+    api_key: str
+    base_url: str
+
+    def fetch_data(self, endpoint: str):
+        # Custom logic
+        pass
+
+# Usage in asset:
+@phlo_ingestion(...)
+def my_data(context, my_api: MyAPIResource):
+    data = my_api.fetch_data(&quot;/events&quot;)
+    return data
+</code></pre>
+<h3 id="sensors">Sensors</h3>
+<p>Create custom sensors for automation:</p>
+<pre><code class="language-python"># workflows/sensors/custom.py
+from dagster import sensor, RunRequest
+
+@sensor(job=my_job)
+def file_sensor(context):
+    # Check for new files
+    new_files = check_for_files()
+
+    for file in new_files:
+        yield RunRequest(
+            run_key=file,
+            run_config={&quot;file_path&quot;: file}
+        )
+</code></pre>
+<h3 id="conditional-execution">Conditional Execution</h3>
+<pre><code class="language-python">@phlo_ingestion(...)
+def conditional_data(context):
+    # Skip on weekends
+    if datetime.now().weekday() &gt;= 5:
+        context.log.info(&quot;Skipping weekend execution&quot;)
+        return None
+
+    return rest_api(...)
+</code></pre>
+<h2 id="best-practices">Best Practices</h2>
+<h3 id="1-schema-first-development">1. Schema-First Development</h3>
+<p>Always define Pandera schemas before writing ingestion code.</p>
+<h3 id="2-incremental-loading">2. Incremental Loading</h3>
+<p>Use partition-aware queries to load only new data:</p>
+<pre><code class="language-python">def my_data(partition_date: str):
+    return rest_api({
+        &quot;params&quot;: {&quot;date&quot;: partition_date}  # Only fetch partition data
+    })
+</code></pre>
+<h3 id="3-error-handling">3. Error Handling</h3>
+<p>Let Phlo handle retries, but add custom handling where needed:</p>
+<pre><code class="language-python">@phlo_ingestion(
+    max_retries=3,
+    retry_delay_seconds=30,
+    max_runtime_seconds=3600
+)
+def robust_data(partition_date: str):
+    try:
+        return fetch_data(partition_date)
+    except SpecificError as e:
+        context.log.error(f&quot;Custom handling: {e}&quot;)
+        raise  # Re-raise for Dagster retry
+</code></pre>
+<h3 id="4-testing">4. Testing</h3>
+<p>Write tests for schemas and workflows:</p>
+<pre><code class="language-python"># tests/test_schemas.py
+def test_event_schema():
+    df = pd.DataFrame({
+        &quot;id&quot;: [&quot;1&quot;, &quot;2&quot;],
+        &quot;value&quot;: [10.0, 20.0]
+    })
+    EventSchema.validate(df)  # Should not raise
+
+# tests/test_ingestion.py
+def test_api_events():
+    result = api_events(&quot;2025-01-15&quot;)
+    assert result is not None
+</code></pre>
+<h3 id="5-documentation">5. Documentation</h3>
+<p>Document schemas and workflows:</p>
+<pre><code class="language-python">class EventSchema(pa.DataFrameModel):
+    &quot;&quot;&quot;Event data from API.
+
+    This schema validates incoming event data from the external API.
+    All events must have a unique ID and valid timestamp.
+    &quot;&quot;&quot;
+
+    id: Series[str] = pa.Field(
+        description=&quot;Unique event identifier from source system&quot;,
+        nullable=False
+    )
+</code></pre>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><a href="../../reference/cli-reference/">CLI Reference</a> - Command-line tools</li>
+<li><a href="../../reference/configuration-reference/">Configuration Reference</a> - Advanced configuration</li>
+<li><a href="../../operations/testing/">Testing Guide</a> - Testing strategies</li>
+<li><a href="../../operations/best-practices/">Best Practices</a> - Production patterns</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

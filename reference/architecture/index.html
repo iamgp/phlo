@@ -1,0 +1,1003 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
+<meta content="Phlo Team" name="author"/>
+<link href="../../packages/phlo-core-plugins/" rel="prev"/>
+<link href="../phlo-api/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator"/>
+<title>Architecture - Phlo Lakehouse Platform</title>
+<link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#architecture-overview">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Phlo Lakehouse Platform" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"></path></svg>
+</label>
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_2" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to system preference" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_2" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to system preference">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Phlo Lakehouse Platform" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Phlo Lakehouse Platform
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../..">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../getting-started/installation/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../guides/developer-guide/">
+<span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../setup/hasura/">
+<span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../packages/">
+<span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_6" type="checkbox"/>
+<label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#design-principles">
+<span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+</a>
+<nav aria-label="Design Principles" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-open-standards">
+<span class="md-ellipsis">
+      
+        1. Open Standards
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-stateless-services">
+<span class="md-ellipsis">
+      
+        2. Stateless Services
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-git-like-workflows">
+<span class="md-ellipsis">
+      
+        3. Git-Like Workflows
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-asset-based-orchestration">
+<span class="md-ellipsis">
+      
+        4. Asset-Based Orchestration
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#system-architecture">
+<span class="md-ellipsis">
+      
+        System Architecture
+      
+    </span>
+</a>
+<nav aria-label="System Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#high-level-component-diagram">
+<span class="md-ellipsis">
+      
+        High-Level Component Diagram
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#key-components">
+<span class="md-ellipsis">
+      
+        Key Components
+      
+    </span>
+</a>
+<nav aria-label="Key Components" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#user-interface-layer">
+<span class="md-ellipsis">
+      
+        User Interface Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#api-layer">
+<span class="md-ellipsis">
+      
+        API Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#storage-layer">
+<span class="md-ellipsis">
+      
+        Storage Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#compute-layer">
+<span class="md-ellipsis">
+      
+        Compute Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#orchestration">
+<span class="md-ellipsis">
+      
+        Orchestration
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#analytics-layer">
+<span class="md-ellipsis">
+      
+        Analytics Layer
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#data-flow">
+<span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-system-architecture">
+<span class="md-ellipsis">
+      
+        Plugin System Architecture
+      
+    </span>
+</a>
+<nav aria-label="Plugin System Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-types">
+<span class="md-ellipsis">
+      
+        Plugin Types
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-discovery">
+<span class="md-ellipsis">
+      
+        Plugin Discovery
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-registry">
+<span class="md-ellipsis">
+      
+        Plugin Registry
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#branching-strategy">
+<span class="md-ellipsis">
+      
+        Branching Strategy
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#for-more-details">
+<span class="md-ellipsis">
+      
+        For More Details
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../phlo-api/">
+<span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../cli-reference/">
+<span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../configuration-reference/">
+<span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../duckdb-queries/">
+<span class="md-ellipsis">
+    
+  
+    DuckDB Queries
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../common-errors/">
+<span class="md-ellipsis">
+    
+  
+    Common Errors
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../operations/operations-guide/">
+<span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#design-principles">
+<span class="md-ellipsis">
+      
+        Design Principles
+      
+    </span>
+</a>
+<nav aria-label="Design Principles" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-open-standards">
+<span class="md-ellipsis">
+      
+        1. Open Standards
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-stateless-services">
+<span class="md-ellipsis">
+      
+        2. Stateless Services
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-git-like-workflows">
+<span class="md-ellipsis">
+      
+        3. Git-Like Workflows
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-asset-based-orchestration">
+<span class="md-ellipsis">
+      
+        4. Asset-Based Orchestration
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#system-architecture">
+<span class="md-ellipsis">
+      
+        System Architecture
+      
+    </span>
+</a>
+<nav aria-label="System Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#high-level-component-diagram">
+<span class="md-ellipsis">
+      
+        High-Level Component Diagram
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#key-components">
+<span class="md-ellipsis">
+      
+        Key Components
+      
+    </span>
+</a>
+<nav aria-label="Key Components" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#user-interface-layer">
+<span class="md-ellipsis">
+      
+        User Interface Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#api-layer">
+<span class="md-ellipsis">
+      
+        API Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#storage-layer">
+<span class="md-ellipsis">
+      
+        Storage Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#compute-layer">
+<span class="md-ellipsis">
+      
+        Compute Layer
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#orchestration">
+<span class="md-ellipsis">
+      
+        Orchestration
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#analytics-layer">
+<span class="md-ellipsis">
+      
+        Analytics Layer
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#data-flow">
+<span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-system-architecture">
+<span class="md-ellipsis">
+      
+        Plugin System Architecture
+      
+    </span>
+</a>
+<nav aria-label="Plugin System Architecture" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-types">
+<span class="md-ellipsis">
+      
+        Plugin Types
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-discovery">
+<span class="md-ellipsis">
+      
+        Plugin Discovery
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#plugin-registry">
+<span class="md-ellipsis">
+      
+        Plugin Registry
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#branching-strategy">
+<span class="md-ellipsis">
+      
+        Branching Strategy
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#for-more-details">
+<span class="md-ellipsis">
+      
+        For More Details
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="architecture-overview">Architecture Overview</h1>
+<p>Phlo is built on modern lakehouse principles using Apache Iceberg as the table format and Project Nessie as a Git-like catalog. This architecture provides ACID transactions, schema evolution, time travel, and branch isolation for data engineering workflows.</p>
+<h2 id="design-principles">Design Principles</h2>
+<h3 id="1-open-standards">1. Open Standards</h3>
+<ul>
+<li>Apache Iceberg for table format (open spec, multi-engine support)</li>
+<li>S3-compatible storage (portable across cloud providers)</li>
+<li>Standard SQL via Trino</li>
+<li>Open-source components throughout</li>
+</ul>
+<h3 id="2-stateless-services">2. Stateless Services</h3>
+<ul>
+<li>All state stored in volumes (MinIO, PostgreSQL)</li>
+<li>Services can be restarted without data loss</li>
+<li>Configuration via environment variables</li>
+<li>12-factor app compliance</li>
+</ul>
+<h3 id="3-git-like-workflows">3. Git-Like Workflows</h3>
+<ul>
+<li>Branch isolation (dev/staging/prod)</li>
+<li>Atomic multi-table commits</li>
+<li>Time travel to any point in history</li>
+<li>Tag releases for reproducibility</li>
+</ul>
+<h3 id="4-asset-based-orchestration">4. Asset-Based Orchestration</h3>
+<ul>
+<li>Declarative data assets in Dagster</li>
+<li>Automatic lineage tracking</li>
+<li>Partition-aware dependencies</li>
+<li>Freshness policies for monitoring</li>
+</ul>
+<h2 id="system-architecture">System Architecture</h2>
+<h3 id="high-level-component-diagram">High-Level Component Diagram</h3>
+<div class="mermaid">graph TB
+    subgraph "Data Sources"
+        NS[Nightscout API]
+        FILES[CSV/Excel Files]
+        EXTERNAL[External APIs]
+    end
+
+    subgraph "User Interface"
+        OBS[Observatory UI]
+        DAGUI[Dagster Web UI]
+    end
+
+    subgraph "API Layer"
+        PAPI[phlo-api]
+        POSTGREST[PostgREST]
+        HASURA[Hasura GraphQL]
+    end
+
+    subgraph "Ingestion Layer"
+        DLT[DLT Python]
+        STAGE[S3 Staging Area]
+        PYI[PyIceberg Writer]
+    end
+
+    subgraph "Storage Layer"
+        MINIO[MinIO S3 Storage]
+        NESSIE[Nessie Catalog]
+        PG[PostgreSQL]
+    end
+
+    subgraph "Compute Layer"
+        TRINO[Trino Query Engine]
+        DBT[dbt Transformations]
+        DUCK[DuckDB Ad-hoc]
+    end
+
+    subgraph "Orchestration"
+        DAGSTER[Dagster Assets]
+        SCHEDULES[Schedules &amp; Sensors]
+    end
+
+    subgraph "Analytics Layer"
+        MARTS[PostgreSQL Marts]
+        SUPERSET[Superset Dashboards]
+    end
+
+    NS --&gt; DLT
+    FILES --&gt; DLT
+    EXTERNAL --&gt; DLT
+    DLT --&gt; STAGE
+    STAGE --&gt; PYI
+    PYI --&gt; MINIO
+    PYI --&gt; NESSIE
+
+    NESSIE --&gt; TRINO
+    MINIO --&gt; TRINO
+    TRINO --&gt; DBT
+    MINIO --&gt; DUCK
+
+    DAGSTER --&gt; DLT
+    DAGSTER --&gt; DBT
+    DAGSTER --&gt; TRINO
+    SCHEDULES --&gt; DAGSTER
+
+    DBT --&gt; MARTS
+    TRINO --&gt; MARTS
+    MARTS --&gt; SUPERSET
+    TRINO --&gt; SUPERSET
+
+    PG --&gt; NESSIE
+    PG --&gt; DAGSTER
+    PG --&gt; SUPERSET
+    PG --&gt; POSTGREST
+    PG --&gt; HASURA
+
+    OBS --&gt; PAPI
+    PAPI --&gt; TRINO
+    PAPI --&gt; NESSIE
+    PAPI --&gt; DAGSTER
+    PAPI --&gt; MINIO
+    DAGUI --&gt; DAGSTER
+</div>
+<h2 id="key-components">Key Components</h2>
+<h3 id="user-interface-layer">User Interface Layer</h3>
+<ul>
+<li><strong>Observatory</strong>: Web-based UI for exploring data, viewing lineage, managing branches, and monitoring data quality. Provides a unified interface for all Phlo operations.</li>
+<li><strong>Dagster Web UI</strong>: Native Dagster interface for asset materialization, run monitoring, and workflow debugging.</li>
+</ul>
+<h3 id="api-layer">API Layer</h3>
+<ul>
+<li><strong>phlo-api</strong>: Python FastAPI service exposing Phlo internals (plugins, services, configs) and providing data access endpoints for Observatory.</li>
+<li><strong>PostgREST</strong> (optional): Auto-generated REST API from PostgreSQL schemas.</li>
+<li><strong>Hasura</strong> (optional): GraphQL API with real-time subscriptions.</li>
+</ul>
+<h3 id="storage-layer">Storage Layer</h3>
+<ul>
+<li><strong>MinIO</strong>: S3-compatible object storage for data files and Iceberg metadata</li>
+<li><strong>Nessie</strong>: Git-like catalog for table metadata and branching</li>
+<li><strong>PostgreSQL</strong>: Relational database for operational metadata and analytics marts</li>
+</ul>
+<h3 id="compute-layer">Compute Layer</h3>
+<ul>
+<li><strong>Trino</strong>: Distributed SQL query engine for analytics</li>
+<li><strong>dbt</strong>: Data transformation framework with SQL</li>
+<li><strong>DuckDB</strong>: Embedded analytical database for ad-hoc queries</li>
+</ul>
+<h3 id="orchestration">Orchestration</h3>
+<ul>
+<li><strong>Dagster</strong>: Asset-based data orchestration platform</li>
+<li><strong>Schedules &amp; Sensors</strong>: Automated pipeline triggers</li>
+</ul>
+<h3 id="analytics-layer">Analytics Layer</h3>
+<ul>
+<li><strong>PostgreSQL Marts</strong>: Curated datasets for BI tools</li>
+<li><strong>Superset</strong> (optional): Business intelligence and visualization</li>
+</ul>
+<h2 id="data-flow">Data Flow</h2>
+<ol>
+<li><strong>Ingestion</strong>: Data sources → DLT → S3 staging → PyIceberg → Iceberg tables</li>
+<li><strong>Transformation</strong>: Iceberg tables → dbt → PostgreSQL marts</li>
+<li><strong>Querying</strong>: Multiple engines can query Iceberg tables directly</li>
+<li><strong>Visualization</strong>: BI tools connect to PostgreSQL marts or query engines</li>
+</ol>
+<h2 id="plugin-system-architecture">Plugin System Architecture</h2>
+<p>Phlo uses a unified plugin system for extending functionality:</p>
+<h3 id="plugin-types">Plugin Types</h3>
+<ol>
+<li><strong>Service Plugins</strong>: Infrastructure services (Dagster, Postgres, Trino, etc.)</li>
+<li>Distributed as Python packages (e.g., <code>phlo-dagster</code>, <code>phlo-trino</code>)</li>
+<li>Contain Docker service definitions via <code>service.yaml</code></li>
+<li>
+<p>Auto-discovered via <code>phlo.plugins.services</code> entry points</p>
+</li>
+<li>
+<p><strong>Data Plugins</strong>: Data processing extensions</p>
+</li>
+<li><strong>Source Connectors</strong>: Fetch data from external systems</li>
+<li><strong>Quality Checks</strong>: Custom validation rules</li>
+<li>
+<p><strong>Transformations</strong>: Reusable transformation logic</p>
+</li>
+<li>
+<p><strong>Dagster Extension Plugins</strong>: Extend Dagster functionality</p>
+</li>
+<li>Custom resources, sensors, schedules</li>
+<li>
+<p>Integration with external systems</p>
+</li>
+<li>
+<p><strong>CLI Plugins</strong>: Add custom CLI commands</p>
+</li>
+</ol>
+<h3 id="plugin-discovery">Plugin Discovery</h3>
+<p>Plugins are automatically discovered using Python entry points:</p>
+<pre><code>┌──────────────────────────────────────┐
+│     Python Environment               │
+│  - phlo (core framework)             │
+│  - phlo-dagster (service plugin)     │
+│  - phlo-custom-source (data plugin)  │
+└──────────────────────────────────────┘
+              │
+              ▼
+┌──────────────────────────────────────┐
+│   Entry Point Discovery              │
+│   (importlib.metadata)               │
+└──────────────────────────────────────┘
+              │
+              ▼
+┌──────────────────────────────────────┐
+│   Plugin Registry                    │
+│   - Installed plugins                │
+│   - Available plugins (remote)       │
+└──────────────────────────────────────┘
+</code></pre>
+<h3 id="plugin-registry">Plugin Registry</h3>
+<ul>
+<li><strong>registry/plugins.json</strong>: Authoritative catalog of available plugins</li>
+<li><strong>Remote + Bundled</strong>: Fetches from remote, falls back to bundled version offline</li>
+<li><strong>CLI Management</strong>: <code>phlo plugin search/install/list</code> commands</li>
+</ul>
+<p>For more details, see:
+- <a href="../../blog/13-plugin-system/">Plugin System Blog Post</a>
+- <a href="../../architecture/decisions/0030-unified-plugin-system-with-registry/">ADR 0030: Unified Plugin System</a></p>
+<h2 id="branching-strategy">Branching Strategy</h2>
+<p>Phlo uses a Git-like branching model for data:</p>
+<ul>
+<li><strong>main</strong>: Production data (read-only for most users)</li>
+<li><strong>dev</strong>: Development workspace (read-write)</li>
+<li><strong>feature branches</strong>: Isolated development environments</li>
+</ul>
+<p>See <a href="../../NESSIE_WORKFLOW.md">NESSIE_WORKFLOW.md</a> for detailed branching workflows.</p>
+<h2 id="for-more-details">For More Details</h2>
+<p>Read the full <a href="../../ARCHITECTURE.md">Architecture Guide</a> for complete technical specifications.</p>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+mermaid.initialize({});</script></body>
+</html>

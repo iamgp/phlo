@@ -1,0 +1,1831 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Part 5: Data Ingestion—Getting Data Into the Lakehouse - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#part-5-data-ingestiongetting-data-into-the-lakehouse" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Part 5: Data Ingestion—Getting Data Into the Lakehouse
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-step-ingestion-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Two-Step Ingestion Pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-dlt-data-load-tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: DLT (Data Load Tool)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 1: DLT (Data Load Tool)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-phlo_ingestion-decorator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The @phlo_ingestion Decorator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-phlo_ingestion-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What @phlo_ingestion Does
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merge Strategies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Merge Strategies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#append-strategy-insert-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Append Strategy (Insert-Only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-strategy-upsert-with-deduplication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merge Strategy (Upsert with Deduplication)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategy-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategy Comparison
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#real-world-example-glucose-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-World Example: Glucose Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlt-schema-normalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DLT Schema Normalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pandera-schema-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pandera Schema Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-pyiceberg-merge-into-lakehouse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: PyIceberg (Merge into Lakehouse)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2: PyIceberg (Merge into Lakehouse)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#creating-the-iceberg-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating the Iceberg Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merging-data-idempotent-upsert" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Merging Data (Idempotent Upsert)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#real-example-glucose-ingestion-with-phlo_ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real Example: Glucose Ingestion with @phlo_ingestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quality-checks-with-phlo_quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Checks with @phlo_quality
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quality Checks with @phlo_quality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#traditional-asset-checks-alternative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Traditional Asset Checks (Alternative)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#handling-different-data-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handling Different Data Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ingestion-patterns-in-phlo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingestion Patterns in Phlo
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ingestion Patterns in Phlo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-api-ingestion-nightscout-github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 1: API Ingestion (Nightscout, GitHub)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-file-upload-csv-excel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 2: File Upload (CSV, Excel)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-3-database-replication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 3: Database Replication
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hands-on-trace-an-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hands-On: Trace an Ingestion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#batch-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch Size
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deduplication-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deduplication Key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Idempotency
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-transformations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next: Transformations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="part-5-data-ingestiongetting-data-into-the-lakehouse">Part 5: Data Ingestion—Getting Data Into the Lakehouse</h1>
+<p>We have our lakehouse infrastructure. Now: <strong>how does data actually get in?</strong></p>
+<p>Phlo uses a two-step pattern:</p>
+<ol>
+<li><strong>DLT (Data Load Tool)</strong>: Fetch and stage data</li>
+<li><strong>PyIceberg</strong>: Merge staged data into Iceberg tables</li>
+</ol>
+<h2 id="the-two-step-ingestion-pattern">The Two-Step Ingestion Pattern</h2>
+<p>Why two steps instead of one?</p>
+<pre><code>Single Step (Risky)
+    External API
+      ↓ (network fails?)
+    Iceberg Table
+      (Corruption if interrupted)
+
+Two Steps (Safe)
+    External API
+      ↓ (network fails? No problem, retry)
+    S3 Staging (Temporary)
+      ↓ (Has backup of raw data)
+    Iceberg Table
+      (Merge with idempotent deduplication)
+</code></pre>
+<p>The two-step pattern ensures:</p>
+<ul>
+<li>If network fails during fetch → restart from API</li>
+<li>📦 If staging fails → S3 has backup</li>
+<li>If merge fails → can retry with same data</li>
+<li>Idempotent: run multiple times safely</li>
+</ul>
+<h2 id="step-1-dlt-data-load-tool">Step 1: DLT (Data Load Tool)</h2>
+<p>DLT is a Python library that:</p>
+<ul>
+<li>Fetches data from sources</li>
+<li>Normalizes schema (makes consistent)</li>
+<li>Stages to parquet files</li>
+</ul>
+<h3 id="the-phlo_ingestion-decorator">The @phlo_ingestion Decorator</h3>
+<p>Phlo provides the <code>@phlo_ingestion</code> decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:</p>
+<pre><code class="language-python"># From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
+
+import phlo
+from dlt.sources.rest_api import rest_api
+from workflows.schemas.nightscout import RawGlucoseEntries
+
+@phlo_ingestion(
+    table_name=&quot;glucose_entries&quot;,
+    unique_key=&quot;_id&quot;,
+    validation_schema=RawGlucoseEntries,
+    group=&quot;nightscout&quot;,
+    cron=&quot;0 */1 * * *&quot;,
+    freshness_hours=(1, 24),
+)
+def glucose_entries(partition_date: str):
+    &quot;&quot;&quot;
+    Ingest Nightscout glucose entries using DLT rest_api source.
+
+    Fetches CGM glucose readings from the Nightscout API for a specific partition date,
+    stages to parquet, and merges to Iceberg with idempotent deduplication.
+
+    Features:
+    - Idempotent ingestion: safe to run multiple times without duplicates
+    - Deduplication based on _id field (Nightscout's unique entry ID)
+    - Daily partitioning by timestamp
+    - Automatic validation with Pandera schema
+    - Branch-aware writes to Iceberg
+
+    Args:
+        partition_date: Date partition in YYYY-MM-DD format
+
+    Returns:
+        DLT resource for glucose entries, or None if no data
+    &quot;&quot;&quot;
+    start_time_iso = f&quot;{partition_date}T00:00:00.000Z&quot;
+    end_time_iso = f&quot;{partition_date}T23:59:59.999Z&quot;
+
+    source = rest_api(
+        client={
+            &quot;base_url&quot;: &quot;https://gwp-diabetes.fly.dev/api/v1&quot;,
+        },
+        resources=[
+            {
+                &quot;name&quot;: &quot;entries&quot;,
+                &quot;endpoint&quot;: {
+                    &quot;path&quot;: &quot;entries.json&quot;,
+                    &quot;params&quot;: {
+                        &quot;count&quot;: 10000,
+                        &quot;find[dateString][$gte]&quot;: start_time_iso,
+                        &quot;find[dateString][$lt]&quot;: end_time_iso,
+                    },
+                },
+            }
+        ],
+    )
+
+    return source
+</code></pre>
+<h3 id="what-phlo_ingestion-does">What @phlo_ingestion Does</h3>
+<p>The decorator handles all the complexity:</p>
+<ol>
+<li><strong>DLT Pipeline Setup</strong>: Automatically configures DLT staging and execution</li>
+<li><strong>Schema Validation</strong>: Validates data with Pandera schema before ingestion</li>
+<li><strong>Iceberg Merge</strong>: Performs idempotent upsert to Iceberg table using unique_key</li>
+<li><strong>Scheduling</strong>: Supports cron-based scheduling</li>
+<li><strong>Freshness Checks</strong>: Monitors data freshness (1-24 hours in this example)</li>
+<li><strong>Asset Metadata</strong>: Tracks lineage and dependencies in Dagster</li>
+</ol>
+<h3 id="merge-strategies">Merge Strategies</h3>
+<p>Phlo supports two merge strategies, allowing you to optimize for different data patterns:</p>
+<h4 id="append-strategy-insert-only">Append Strategy (Insert-Only)</h4>
+<p>Best for immutable event streams where you never update existing records:</p>
+<pre><code class="language-python">@phlo_ingestion(
+    table_name=&quot;api_events&quot;,
+    unique_key=&quot;event_id&quot;,
+    validation_schema=EventSchema,
+    merge_strategy=&quot;append&quot;,  # Insert-only, no deduplication
+    group=&quot;events&quot;,
+)
+def api_events(partition_date: str):
+    return rest_api(...)
+</code></pre>
+<p><strong>Characteristics:</strong></p>
+<ul>
+<li>Fastest performance (no deduplication overhead)</li>
+<li>No checking for duplicates</li>
+<li>Simply appends all new records</li>
+<li><strong>Use for</strong>: Server logs, clickstream events, time-series sensor data, immutable audit trails</li>
+</ul>
+<p><strong>Trade-offs:</strong></p>
+<ul>
+<li>If you accidentally run the same partition twice, you'll get duplicates</li>
+<li>No way to update existing records</li>
+<li>Requires careful pipeline design to avoid re-runs</li>
+</ul>
+<h4 id="merge-strategy-upsert-with-deduplication">Merge Strategy (Upsert with Deduplication)</h4>
+<p>Best for dimension tables and data that may need updates:</p>
+<pre><code class="language-python">@phlo_ingestion(
+    table_name=&quot;user_profiles&quot;,
+    unique_key=&quot;user_id&quot;,
+    validation_schema=UserSchema,
+    merge_strategy=&quot;merge&quot;,      # Upsert mode
+    merge_config={&quot;deduplication_method&quot;: &quot;last&quot;},  # Keep most recent
+    group=&quot;users&quot;,
+)
+def user_profiles(partition_date: str):
+    return rest_api(...)
+</code></pre>
+<p><strong>Deduplication Strategies:</strong></p>
+<ol>
+<li><strong><code>last</code> (default)</strong>: Keep the most recent occurrence</li>
+</ol>
+<p><code>python
+   merge_config={"deduplication_method": "last"}</code></p>
+<ul>
+<li>Based on insertion order during the pipeline run</li>
+<li>Most common choice for dimension tables</li>
+<li>
+<p>Example: User profile updates (keep latest email, phone, etc.)</p>
+</li>
+<li>
+<p><strong><code>first</code></strong>: Keep the earliest occurrence</p>
+</li>
+</ul>
+<p><code>python
+   merge_config={"deduplication_method": "first"}</code></p>
+<ul>
+<li>Useful when first value is authoritative</li>
+<li>
+<p>Example: Initial signup timestamp, first purchase date</p>
+</li>
+<li>
+<p><strong><code>hash</code></strong>: Keep based on content hash
+   <code>python
+   merge_config={"deduplication_method": "hash"}</code></p>
+</li>
+<li>
+<p>Compares full record content, not just timestamp</p>
+</li>
+<li>Useful when you want to detect actual data changes</li>
+<li>Example: Configuration snapshots (only update if content differs)</li>
+</ul>
+<p><strong>Characteristics:</strong></p>
+<ul>
+<li>Performs upsert: UPDATE if <code>unique_key</code> exists, INSERT if new</li>
+<li>Removes duplicates within the same batch</li>
+<li>Idempotent: running multiple times produces same result</li>
+<li><strong>Use for</strong>: User profiles, product catalogs, reference data, slowly changing dimensions</li>
+</ul>
+<p><strong>Trade-offs:</strong></p>
+<ul>
+<li>Slower than append (requires deduplication logic)</li>
+<li>More memory usage during merge</li>
+<li>Worth it for data correctness</li>
+</ul>
+<h4 id="strategy-comparison">Strategy Comparison</h4>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Append</th>
+<th>Merge (last)</th>
+<th>Merge (first)</th>
+<th>Merge (hash)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Performance</strong></td>
+<td>Fastest</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Slowest</td>
+</tr>
+<tr>
+<td><strong>Deduplication</strong></td>
+<td>None</td>
+<td>By order</td>
+<td>By order</td>
+<td>By content</td>
+</tr>
+<tr>
+<td><strong>Idempotency</strong></td>
+<td>No</td>
+<td>Yes</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>Updates</strong></td>
+<td>No</td>
+<td>Yes (keeps latest)</td>
+<td>No (keeps first)</td>
+<td>Yes (if changed)</td>
+</tr>
+<tr>
+<td><strong>Use Case</strong></td>
+<td>Logs, events</td>
+<td>Dimensions</td>
+<td>Historical records</td>
+<td>Config snapshots</td>
+</tr>
+</tbody>
+</table>
+<h4 id="real-world-example-glucose-data">Real-World Example: Glucose Data</h4>
+<p>The glucose ingestion uses merge strategy because:</p>
+<ol>
+<li><strong>API may return overlapping data</strong>: Querying "last 24 hours" twice gives duplicates</li>
+<li><strong>Data corrections</strong>: Nightscout allows retroactive corrections to glucose readings</li>
+<li><strong>Idempotency</strong>: We want <code>materialize --partition 2024-10-15</code> to be safe to run multiple times</li>
+</ol>
+<pre><code class="language-python">@phlo_ingestion(
+    table_name=&quot;glucose_entries&quot;,
+    unique_key=&quot;_id&quot;,              # Nightscout's unique entry ID
+    merge_strategy=&quot;merge&quot;,        # Upsert mode
+    merge_config={&quot;deduplication_method&quot;: &quot;last&quot;},  # Keep most recent reading
+    validation_schema=RawGlucoseEntries,
+    ...
+)
+</code></pre>
+<p>If we used <code>append</code> strategy instead:</p>
+<ul>
+<li>Running the same partition twice would create duplicates</li>
+<li>Corrected readings wouldn't update (you'd have both old and new)</li>
+<li>dbt transformations downstream would need to handle deduplication</li>
+</ul>
+<h3 id="dlt-schema-normalization">DLT Schema Normalization</h3>
+<p>DLT normalizes messy API responses:</p>
+<pre><code class="language-python"># API Response (original)
+[
+  {
+    &quot;dateString&quot;: &quot;2024-10-15T10:30:00.000Z&quot;,
+    &quot;_id&quot;: &quot;abc123&quot;,
+    &quot;sgv&quot;: 145,
+    &quot;direction&quot;: &quot;Flat&quot;,
+    &quot;device&quot;: &quot;iPhone&quot;,
+    &quot;type&quot;: &quot;sgv&quot;
+  },
+  ...
+]
+
+# After DLT (normalized schema)
+Parquet file with columns:
+├── date_string: string (converted from dateString)
+├── _id: string
+├── sgv: int64
+├── direction: string
+├── device: string
+├── type: string
+</code></pre>
+<p>DLT automatically:</p>
+<ul>
+<li>Infers column types</li>
+<li>🚫 Handles nulls</li>
+<li>📛 Renames fields (snake_case)</li>
+<li>Validates structure</li>
+</ul>
+<h3 id="pandera-schema-validation">Pandera Schema Validation</h3>
+<p>The validation schema is defined in <code>phlo-examples/nightscout/workflows/schemas/nightscout.py</code>:</p>
+<pre><code class="language-python"># From workflows/schemas/nightscout.py
+
+from pandera.pandas import DataFrameModel, Field
+
+class RawGlucoseEntries(DataFrameModel):
+    &quot;&quot;&quot;
+    Schema for raw Nightscout glucose entries from the API.
+
+    Validates raw glucose data at ingestion time:
+    - Valid glucose ranges (1-1000 mg/dL for raw data)
+    - Proper field types and nullability
+    - Required metadata fields
+    - Unique entry IDs
+    &quot;&quot;&quot;
+
+    _id: str = Field(
+        nullable=False,
+        unique=True,
+        description=&quot;Nightscout entry ID (unique identifier)&quot;,
+    )
+
+    sgv: int = Field(
+        ge=1,
+        le=1000,
+        nullable=False,
+        description=&quot;Sensor glucose value in mg/dL (1-1000 for raw data)&quot;,
+    )
+
+    date: int = Field(
+        nullable=False,
+        description=&quot;Unix timestamp in milliseconds&quot;,
+    )
+
+    date_string: datetime = Field(
+        nullable=False,
+        description=&quot;ISO 8601 timestamp&quot;,
+    )
+
+    direction: str | None = Field(
+        isin=[&quot;Flat&quot;, &quot;FortyFiveUp&quot;, &quot;FortyFiveDown&quot;, &quot;SingleUp&quot;, &quot;SingleDown&quot;, &quot;DoubleUp&quot;, &quot;DoubleDown&quot;, &quot;NONE&quot;],
+        nullable=True,
+        description=&quot;Trend direction (e.g., 'SingleUp', 'Flat')&quot;,
+    )
+
+    class Config:
+        strict = False  # Allow DLT metadata fields
+        coerce = True
+</code></pre>
+<h2 id="step-2-pyiceberg-merge-into-lakehouse">Step 2: PyIceberg (Merge into Lakehouse)</h2>
+<p>PyIceberg is the Python client for Iceberg. It:</p>
+<ul>
+<li>Loads the staged parquet</li>
+<li>Creates/updates Iceberg table</li>
+<li>Performs idempotent merge (upsert)</li>
+</ul>
+<h3 id="creating-the-iceberg-table">Creating the Iceberg Table</h3>
+<p>First, ensure the table exists:</p>
+<pre><code class="language-python"># From packages/phlo-iceberg/src/phlo_iceberg/tables.py
+
+from pyiceberg.schema import Schema
+from pyiceberg.types import NestedField, StringType, IntegerType, TimestampType
+
+schema = Schema(
+    NestedField(1, &quot;_id&quot;, StringType(), required=True),
+    NestedField(2, &quot;sgv&quot;, IntegerType(), required=False),
+    NestedField(3, &quot;date_string&quot;, StringType(), required=False),
+    NestedField(4, &quot;direction&quot;, StringType(), required=False),
+    NestedField(5, &quot;timestamp_iso&quot;, StringType(), required=False),
+    NestedField(6, &quot;_cascade_ingested_at&quot;, TimestampType(), required=False),
+)
+
+catalog.create_table(
+    identifier=&quot;raw.glucose_entries&quot;,
+    schema=schema,
+    partition_spec=None  # Iceberg will auto-partition by date
+)
+</code></pre>
+<p>Result in MinIO:</p>
+<pre><code>s3://lake/warehouse/raw/glucose_entries/
+├── metadata/
+│   └── v1.metadata.json      ← Table created
+└── data/ (empty)
+</code></pre>
+<h3 id="merging-data-idempotent-upsert">Merging Data (Idempotent Upsert)</h3>
+<p>Now merge staged parquet into Iceberg:</p>
+<pre><code class="language-python"># From workflows/resources/iceberg.py
+
+def merge_parquet(
+    self,
+    table_name: str,
+    data_path: str,
+    unique_key: str = &quot;_id&quot;
+) -&gt; dict:
+    &quot;&quot;&quot;
+    Merge parquet file into Iceberg table (idempotent upsert).
+
+    Args:
+        table_name: &quot;raw.glucose_entries&quot;
+        data_path: &quot;/path/to/data.parquet&quot;
+        unique_key: Column to deduplicate on
+
+    Returns:
+        Metrics: rows_inserted, rows_deleted, etc.
+    &quot;&quot;&quot;
+
+    # Load table
+    table = self.catalog.load_table(table_name)
+
+    # Read new data from parquet
+    new_df = read_parquet(data_path)
+
+    # SQL merge operation:
+    # - If _id exists: delete old, insert new (deduplication)
+    # - If _id new: insert it
+    merge_query = f&quot;&quot;&quot;
+    MERGE INTO {table_name} t
+    USING (SELECT * FROM read_parquet('{data_path}')) n
+    ON t.{unique_key} = n.{unique_key}
+    WHEN MATCHED THEN DELETE
+    WHEN NOT MATCHED THEN INSERT *
+    &quot;&quot;&quot;
+
+    result = self.trino.execute(merge_query)
+
+    return {
+        'rows_inserted': result['inserted'],
+        'rows_deleted': result['deleted'],
+        'rows_total': len(table.scan().to_pandas())
+    }
+</code></pre>
+<p>This ensures <strong>idempotency</strong>: running the same ingestion multiple times produces the same result.</p>
+<h3 id="real-example-glucose-ingestion-with-phlo_ingestion">Real Example: Glucose Ingestion with @phlo_ingestion</h3>
+<p>Let's trace through what happens when you materialize a <code>@phlo_ingestion</code> asset:</p>
+<pre><code class="language-bash"># Timeline: 2024-10-15
+
+# 1. Materialize the asset
+dagster asset materialize --select glucose_entries \
+  --partition &quot;2024-10-15&quot;
+
+# 2. The @phlo_ingestion decorator executes your function
+# Your function returns a DLT source configured for 2024-10-15
+
+# 3. Decorator automatically stages data via DLT
+Fetching data from Nightscout API...
+Successfully fetched 288 entries from API
+Staging data to parquet via DLT...
+DLT staging completed in 1.23s
+
+# 4. Decorator validates with Pandera schema (RawGlucoseEntries)
+Validating raw glucose data with Pandera schema...
+Raw data validation passed for 288 entries
+
+# 5. Decorator creates Iceberg table if needed
+Ensuring Iceberg table glucose_entries exists...
+
+# 6. Decorator merges with deduplication (using unique_key=&quot;_id&quot;)
+Merging data to Iceberg table (idempotent upsert)...
+Merged 288 rows to glucose_entries
+  (deleted 0 existing duplicates)
+
+# 7. Decorator tracks metadata in Dagster
+Asset materialized successfully
+Metadata:
+  - rows_ingested: 288
+  - table_name: glucose_entries
+  - partition_date: 2024-10-15
+
+# Success!
+Ingestion completed successfully in 2.45s
+</code></pre>
+<p><strong>You wrote</strong>: ~10 lines of code (just the DLT source configuration)
+<strong>You got</strong>: Full ingestion pipeline with validation, staging, merging, and monitoring</p>
+<p>Now the data lives in Iceberg:</p>
+<pre><code>s3://lake/warehouse/raw/glucose_entries/
+├── metadata/
+│   ├── v1.metadata.json
+│   └── snap-1234.avro         ← New snapshot for this ingestion
+└── data/
+    └── year=2024/month=10/day=15/
+        ├── 00001.parquet (100 rows)
+        ├── 00002.parquet (100 rows)
+        └── 00003.parquet (88 rows)
+</code></pre>
+<h2 id="quality-checks-with-phlo_quality">Quality Checks with @phlo_quality</h2>
+<p>After ingestion and transformation, Phlo validates data with quality checks. The <code>@phlo_quality</code> decorator provides a declarative way to define quality checks:</p>
+<pre><code class="language-python"># From phlo-examples/nightscout/workflows/quality/nightscout.py
+
+import phlo
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck
+
+@phlo_quality(
+    table=&quot;silver.fct_glucose_readings&quot;,
+    checks=[
+        NullCheck(columns=[&quot;entry_id&quot;, &quot;glucose_mg_dl&quot;, &quot;reading_timestamp&quot;]),
+        RangeCheck(column=&quot;glucose_mg_dl&quot;, min_value=20, max_value=600),
+        RangeCheck(column=&quot;hour_of_day&quot;, min_value=0, max_value=23),
+        FreshnessCheck(column=&quot;reading_timestamp&quot;, max_age_hours=24),
+    ],
+    group=&quot;nightscout&quot;,
+    blocking=True,
+)
+def glucose_readings_quality():
+    &quot;&quot;&quot;Declarative quality checks for glucose readings using @phlo_quality.&quot;&quot;&quot;
+    pass
+</code></pre>
+<p>The <code>@phlo_quality</code> decorator provides:</p>
+<ol>
+<li><strong>NullCheck</strong>: Ensures critical columns have no null values</li>
+<li><strong>RangeCheck</strong>: Validates numeric values are within expected ranges</li>
+<li><strong>FreshnessCheck</strong>: Ensures data is not stale (within 24 hours)</li>
+<li><strong>Blocking</strong>: If <code>blocking=True</code>, downstream assets wait for checks to pass</li>
+</ol>
+<h3 id="traditional-asset-checks-alternative">Traditional Asset Checks (Alternative)</h3>
+<p>You can also use traditional Dagster asset checks for more control:</p>
+<pre><code class="language-python"># From workflows/quality/nightscout.py
+
+from dagster import AssetCheckResult, AssetKey, asset_check
+from workflows.schemas.nightscout import FactGlucoseReadings
+
+@asset_check(
+    name=&quot;nightscout_glucose_quality&quot;,
+    asset=AssetKey([&quot;fct_glucose_readings&quot;]),
+    blocking=True,
+)
+def nightscout_glucose_quality_check(context, trino: TrinoResource) -&gt; AssetCheckResult:
+    &quot;&quot;&quot;Quality check using Pandera for type-safe schema validation.&quot;&quot;&quot;
+
+    # Query data from Iceberg via Trino
+    query = &quot;SELECT * FROM iceberg_dev.silver.fct_glucose_readings&quot;
+    with trino.cursor(schema=&quot;silver&quot;) as cursor:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+
+    fact_df = pd.DataFrame(rows, columns=columns)
+
+    # Validate with Pandera schema
+    try:
+        FactGlucoseReadings.validate(fact_df, lazy=True)
+        return AssetCheckResult(
+            passed=True,
+            metadata={
+                &quot;rows_validated&quot;: MetadataValue.int(len(fact_df)),
+            }
+        )
+    except pandera.errors.SchemaErrors as err:
+        return AssetCheckResult(
+            passed=False,
+            metadata={
+                &quot;failed_checks&quot;: MetadataValue.int(len(err.failure_cases)),
+            }
+        )
+</code></pre>
+<p>This approach gives you more control over the validation logic and error handling.</p>
+<h2 id="handling-different-data-sources">Handling Different Data Sources</h2>
+<p>The <code>@phlo_ingestion</code> decorator works with any DLT source. You just return a DLT source/resource and the decorator handles the rest.</p>
+<p><strong>Pattern</strong>: Define your data source, return it, and let <code>@phlo_ingestion</code> handle staging, validation, and merging.</p>
+<pre><code class="language-python"># Example: Custom API ingestion
+
+import phlo
+from dlt.sources.rest_api import rest_api
+
+@phlo_ingestion(
+    table_name=&quot;github_events&quot;,
+    unique_key=&quot;event_id&quot;,
+    validation_schema=GitHubEventSchema,
+    group=&quot;github&quot;,
+)
+def github_events(partition_date: str):
+    &quot;&quot;&quot;Ingest GitHub events using DLT.&quot;&quot;&quot;
+
+    # DLT rest_api source handles pagination and retries
+    source = rest_api(
+        client={
+            &quot;base_url&quot;: &quot;https://api.github.com&quot;,
+            &quot;auth&quot;: {
+                &quot;token&quot;: os.getenv(&quot;GITHUB_TOKEN&quot;),
+            },
+        },
+        resources=[
+            {
+                &quot;name&quot;: &quot;events&quot;,
+                &quot;endpoint&quot;: {
+                    &quot;path&quot;: &quot;/users/{username}/events&quot;,
+                    &quot;params&quot;: {
+                        &quot;per_page&quot;: 100,
+                    },
+                },
+            }
+        ],
+    )
+
+    return source
+    # @phlo_ingestion automatically:
+    # 1. Runs DLT pipeline to stage to parquet
+    # 2. Validates with GitHubEventSchema
+    # 3. Merges to Iceberg table with deduplication on event_id
+</code></pre>
+<h2 id="ingestion-patterns-in-phlo">Ingestion Patterns in Phlo</h2>
+<h3 id="pattern-1-api-ingestion-nightscout-github">Pattern 1: API Ingestion (Nightscout, GitHub)</h3>
+<pre><code>API (network)
+  ↓ (requests.get)
+Python dict
+  ↓ (DLT pipeline)
+S3 parquet
+  ↓ (PyIceberg merge)
+Iceberg table
+</code></pre>
+<h3 id="pattern-2-file-upload-csv-excel">Pattern 2: File Upload (CSV, Excel)</h3>
+<pre><code>Local file
+  ↓ (read_csv, openpyxl)
+Pandas DataFrame
+  ↓ (DLT pipeline)
+S3 parquet
+  ↓ (PyIceberg merge)
+Iceberg table
+</code></pre>
+<h3 id="pattern-3-database-replication">Pattern 3: Database Replication</h3>
+<pre><code>Source Database (PostgreSQL, MySQL)
+  ↓ (SELECT * from table)
+Pandas DataFrame
+  ↓ (DLT pipeline)
+S3 parquet
+  ↓ (PyIceberg merge)
+Iceberg table
+</code></pre>
+<p>All follow the same pattern for safety and idempotency.</p>
+<h2 id="hands-on-trace-an-ingestion">Hands-On: Trace an Ingestion</h2>
+<pre><code class="language-bash"># Run ingestion and watch the flow
+# This uses the @phlo_ingestion decorated function
+dagster asset materialize \
+  --select glucose_entries \
+  --partition &quot;2024-10-15&quot;
+
+# Check Iceberg table via PyIceberg
+python3 &lt;&lt; 'EOF'
+from phlo_iceberg.catalog import get_catalog
+import pandas as pd
+
+catalog = get_catalog()
+table = catalog.load_table(&quot;glucose_entries&quot;)
+
+# Load all data
+df = table.scan().to_pandas()
+print(f&quot;Total rows: {len(df)}&quot;)
+print(f&quot;\nLatest snapshot: {table.current_snapshot().snapshot_id}&quot;)
+print(f&quot;\nColumns:\n{df.columns.tolist()}&quot;)
+print(f&quot;\nSample data:\n{df.head(3)}&quot;)
+EOF
+
+# Or query via Trino
+docker exec trino trino \
+  --catalog iceberg_dev \
+  --schema raw \
+  --execute &quot;SELECT COUNT(*) as total FROM glucose_entries;&quot;
+</code></pre>
+<h2 id="performance-considerations">Performance Considerations</h2>
+<h3 id="batch-size">Batch Size</h3>
+<p>DLT chunks data into batches:</p>
+<pre><code class="language-python"># Small batches = more overhead
+info = pipeline.run(
+    provide_entries(),
+    loader_file_format=&quot;parquet&quot;,
+)  # Default: batches of ~10K rows
+
+# For large datasets, you want good batch size
+# 100K-1M rows per batch is typical
+</code></pre>
+<h3 id="deduplication-key">Deduplication Key</h3>
+<p>Choose a column that's truly unique:</p>
+<pre><code class="language-python"># Good: Nightscout API's unique ID
+unique_key=&quot;_id&quot;  # MongoDB ObjectId, guaranteed unique
+
+# Bad: Reading data multiple times
+unique_key=&quot;date_string&quot;  # Multiple readings per minute!
+</code></pre>
+<h3 id="idempotency">Idempotency</h3>
+<p>Always design for idempotency:</p>
+<pre><code class="language-python"># Good: Can run any time, same result
+merge_parquet(table, data, unique_key=&quot;_id&quot;)
+merge_parquet(table, data, unique_key=&quot;_id&quot;)  # Second run does nothing
+# Result: 288 rows
+
+# Bad: Non-idempotent (duplicates!)
+append_parquet(table, data)
+append_parquet(table, data)  # Second run duplicates!
+# Result: 576 rows (corrupted)
+</code></pre>
+<h2 id="next-transformations">Next: Transformations</h2>
+<p>Data is now in the lakehouse. Next: <strong>Transform it with dbt and Trino</strong>.</p>
+<p><strong>Part 6: SQL Transformations with dbt</strong></p>
+<p>See you there!</p>
+<h2 id="summary">Summary</h2>
+<p><strong>Phlo's Ingestion with @phlo_ingestion</strong>:</p>
+<p>The <code>@phlo_ingestion</code> decorator simplifies data ingestion by handling:</p>
+<ol>
+<li><strong>DLT pipeline execution</strong>: Stages data from source to parquet</li>
+<li><strong>Schema validation</strong>: Validates with Pandera before loading</li>
+<li><strong>Iceberg merge</strong>: Performs idempotent upsert using unique_key</li>
+<li><strong>Monitoring</strong>: Tracks metrics in Dagster (rows, freshness, etc.)</li>
+<li><strong>Scheduling</strong>: Supports cron-based execution</li>
+</ol>
+<p><strong>Decorator Parameters</strong>:</p>
+<ul>
+<li><code>table_name</code>: Iceberg table to write to</li>
+<li><code>unique_key</code>: Column for deduplication</li>
+<li><code>validation_schema</code>: Pandera schema for validation</li>
+<li><code>group</code>: Asset group for organization</li>
+<li><code>cron</code>: Schedule (optional)</li>
+<li><code>freshness_hours</code>: Expected data freshness (optional)</li>
+</ul>
+<p><strong>Your Function</strong>:</p>
+<ul>
+<li>Takes <code>partition_date: str</code> parameter</li>
+<li>Returns a DLT source or resource</li>
+<li>The decorator handles everything else</li>
+</ul>
+<p><strong>Why This Pattern Works</strong>:</p>
+<ul>
+<li><strong>Simple</strong>: Write 10 lines, get full pipeline</li>
+<li><strong>Idempotent</strong>: Safe to retry/rerun</li>
+<li><strong>Atomic</strong>: All-or-nothing commits</li>
+<li><strong>Validated</strong>: Pandera schema checks</li>
+<li><strong>Auditable</strong>: Iceberg snapshot history</li>
+<li><strong>Scalable</strong>: Works from KB to TB</li>
+</ul>
+<p><strong>Quality Checks</strong>:</p>
+<ul>
+<li>Use <code>@phlo_quality</code> for declarative checks (NullCheck, RangeCheck, FreshnessCheck)</li>
+<li>Or use traditional <code>@asset_check</code> for custom validation logic</li>
+<li>Both integrate with Dagster's asset check system</li>
+</ul>
+<p><strong>Next</strong>: <a href="../06-dbt-transformations/">Part 6: SQL Transformations with dbt—The Right Way</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

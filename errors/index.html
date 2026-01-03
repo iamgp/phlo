@@ -1,0 +1,1631 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Phlo Error Documentation - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#phlo-error-documentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Phlo Error Documentation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../reference/architecture/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Categories
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Categories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#discovery-and-configuration-errors-phlo-001-to-phlo-099" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovery and Configuration Errors (PHLO-001 to PHLO-099)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Discovery and Configuration Errors (PHLO-001 to PHLO-099)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phlo-001-asset-not-discovered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-001: Asset Not Discovered
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-002-schema-mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-002: Schema Mismatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-003-invalid-cron-expression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-003: Invalid Cron Expression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-004-validation-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-004: Validation Failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-005-missing-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-005: Missing Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime-and-integration-errors-phlo-006-to-phlo-099" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime and Integration Errors (PHLO-006 to PHLO-099)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime and Integration Errors (PHLO-006 to PHLO-099)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phlo-006-ingestion-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-006: Ingestion Failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-007-table-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-007: Table Not Found
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-008-infrastructure-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-008: Infrastructure Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-and-type-errors-phlo-200-to-phlo-299" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema and Type Errors (PHLO-200 to PHLO-299)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schema and Type Errors (PHLO-200 to PHLO-299)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phlo-200-schema-conversion-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-200: Schema Conversion Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-201-type-conversion-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-201: Type Conversion Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dlt-errors-phlo-300-to-phlo-399" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DLT Errors (PHLO-300 to PHLO-399)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DLT Errors (PHLO-300 to PHLO-399)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phlo-300-dlt-pipeline-failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-300: DLT Pipeline Failed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-301-dlt-source-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-301: DLT Source Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iceberg-errors-phlo-400-to-phlo-499" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Iceberg Errors (PHLO-400 to PHLO-499)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Iceberg Errors (PHLO-400 to PHLO-499)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phlo-400-iceberg-catalog-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-400: Iceberg Catalog Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-401-iceberg-table-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-401: Iceberg Table Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phlo-402-iceberg-write-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PHLO-402: Iceberg Write Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Handling Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-use-structured-error-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Use Structured Error Classes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-provide-actionable-suggestions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Provide Actionable Suggestions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-include-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Include Context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-log-errors-appropriately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Log Errors Appropriately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-test-error-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Test Error Paths
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="phlo-error-documentation">Phlo Error Documentation</h1>
+<p>Comprehensive documentation for all Phlo error codes with solutions, examples, and prevention strategies.</p>
+<h2 id="quick-reference">Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Error Code</th>
+<th>Description</th>
+<th>Severity</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#phlo-001">PHLO-001</a></td>
+<td>Asset Not Discovered</td>
+<td>High</td>
+<td>Discovery</td>
+</tr>
+<tr>
+<td><a href="#phlo-002">PHLO-002</a></td>
+<td>Schema Mismatch</td>
+<td>High</td>
+<td>Configuration</td>
+</tr>
+<tr>
+<td><a href="#phlo-003">PHLO-003</a></td>
+<td>Invalid Cron Expression</td>
+<td>Medium</td>
+<td>Configuration</td>
+</tr>
+<tr>
+<td><a href="#phlo-004">PHLO-004</a></td>
+<td>Validation Failed</td>
+<td>High</td>
+<td>Validation</td>
+</tr>
+<tr>
+<td><a href="#phlo-005">PHLO-005</a></td>
+<td>Missing Schema</td>
+<td>High</td>
+<td>Configuration</td>
+</tr>
+<tr>
+<td><a href="#phlo-006">PHLO-006</a></td>
+<td>Ingestion Failed</td>
+<td>High</td>
+<td>Runtime</td>
+</tr>
+<tr>
+<td><a href="#phlo-007">PHLO-007</a></td>
+<td>Table Not Found</td>
+<td>High</td>
+<td>Runtime</td>
+</tr>
+<tr>
+<td><a href="#phlo-008">PHLO-008</a></td>
+<td>Infrastructure Error</td>
+<td>Critical</td>
+<td>Infrastructure</td>
+</tr>
+<tr>
+<td><a href="#phlo-200">PHLO-200</a></td>
+<td>Schema Conversion Error</td>
+<td>High</td>
+<td>Schema</td>
+</tr>
+<tr>
+<td><a href="#phlo-201">PHLO-201</a></td>
+<td>Type Conversion Error</td>
+<td>Medium</td>
+<td>Schema</td>
+</tr>
+<tr>
+<td><a href="#phlo-300">PHLO-300</a></td>
+<td>DLT Pipeline Failed</td>
+<td>High</td>
+<td>DLT</td>
+</tr>
+<tr>
+<td><a href="#phlo-301">PHLO-301</a></td>
+<td>DLT Source Error</td>
+<td>High</td>
+<td>DLT</td>
+</tr>
+<tr>
+<td><a href="#phlo-400">PHLO-400</a></td>
+<td>Iceberg Catalog Error</td>
+<td>High</td>
+<td>Iceberg</td>
+</tr>
+<tr>
+<td><a href="#phlo-401">PHLO-401</a></td>
+<td>Iceberg Table Error</td>
+<td>High</td>
+<td>Iceberg</td>
+</tr>
+<tr>
+<td><a href="#phlo-402">PHLO-402</a></td>
+<td>Iceberg Write Error</td>
+<td>High</td>
+<td>Iceberg</td>
+</tr>
+</tbody>
+</table>
+<h2 id="error-categories">Error Categories</h2>
+<h3 id="discovery-and-configuration-errors-phlo-001-to-phlo-099">Discovery and Configuration Errors (PHLO-001 to PHLO-099)</h3>
+<p>Errors related to asset discovery, configuration, and setup.</p>
+<h4 id="phlo-001-asset-not-discovered">PHLO-001: Asset Not Discovered</h4>
+<p><strong>Exception:</strong> <code>PhloDiscoveryError</code></p>
+<p>Dagster cannot discover your asset definitions.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Asset outside the workflows path</li>
+<li>Missing decorator</li>
+<li>Import errors in asset module</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python">from phlo.framework.definitions import defs
+assert len(list(defs.assets or [])) &gt; 0
+</code></pre>
+<p><a href="PHLO-001/"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-002-schema-mismatch">PHLO-002: Schema Mismatch</h4>
+<p><strong>Exception:</strong> <code>PhloSchemaError</code></p>
+<p>Mismatch between decorator configuration and Pandera schema.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>unique_key not in schema</li>
+<li>Typo in field name</li>
+<li>Case sensitivity issues</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Verify unique_key matches schema field
+@phlo_ingestion(
+    unique_key=&quot;observation_id&quot;,  # Must match schema field exactly
+    validation_schema=WeatherObservations,
+)
+</code></pre>
+<p><a href="PHLO-002/"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-003-invalid-cron-expression">PHLO-003: Invalid Cron Expression</h4>
+<p><strong>Exception:</strong> <code>PhloCronError</code></p>
+<p>Invalid or malformed cron schedule expression.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Wrong number of fields (need 5)</li>
+<li>Invalid field values</li>
+<li>Incorrect syntax</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Use standard 5-field cron format
+@phlo_ingestion(
+    cron=&quot;0 */1 * * *&quot;,  # minute hour day month weekday
+    ...
+)
+</code></pre>
+<p><strong>Test your cron:</strong> <a href="https://crontab.guru">crontab.guru</a></p>
+<p><a href="PHLO-003/"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-004-validation-failed">PHLO-004: Validation Failed</h4>
+<p><strong>Exception:</strong> <code>PhloValidationError</code></p>
+<p>Data validation failed against Pandera schema.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Data doesn't match schema constraints</li>
+<li>Type mismatches</li>
+<li>Null values in non-nullable fields</li>
+<li>Values out of allowed range</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Check Pandera validation errors in logs
+# Fix data transformation to match schema constraints
+</code></pre>
+<p><a href="./PHLO-004.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-005-missing-schema">PHLO-005: Missing Schema</h4>
+<p><strong>Exception:</strong> <code>PhloConfigError</code></p>
+<p>Validation schema not provided to decorator.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>validation_schema parameter missing</li>
+<li>Schema class not imported</li>
+<li>Typo in schema name</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python">from workflows.schemas.weather import WeatherObservations
+
+@phlo_ingestion(
+    unique_key=&quot;observation_id&quot;,
+    validation_schema=WeatherObservations,  # ✅ Required
+)
+</code></pre>
+<p><a href="./PHLO-005.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h3 id="runtime-and-integration-errors-phlo-006-to-phlo-099">Runtime and Integration Errors (PHLO-006 to PHLO-099)</h3>
+<p>Errors during asset execution and external integrations.</p>
+<h4 id="phlo-006-ingestion-failed">PHLO-006: Ingestion Failed</h4>
+<p><strong>Exception:</strong> <code>PhloIngestionError</code></p>
+<p>Data ingestion failed during asset execution.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>API failures</li>
+<li>Network issues</li>
+<li>Authentication problems</li>
+<li>Data processing errors</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Add retry logic and error handling
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+session = requests.Session()
+retry = Retry(total=3, backoff_factor=1)
+session.mount(&quot;http://&quot;, HTTPAdapter(max_retries=retry))
+</code></pre>
+<p><a href="PHLO-006/"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-007-table-not-found">PHLO-007: Table Not Found</h4>
+<p><strong>Exception:</strong> <code>PhloTableError</code></p>
+<p>Iceberg table not found in catalog.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Table hasn't been created yet</li>
+<li>Wrong table name</li>
+<li>Wrong catalog/namespace</li>
+<li>Permissions issue</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Verify table exists in Iceberg catalog
+from phlo_iceberg.catalog import get_catalog
+
+catalog = get_catalog()
+tables = catalog.list_tables(&quot;bronze&quot;)
+print(f&quot;Available tables: {tables}&quot;)
+</code></pre>
+<p><a href="./PHLO-007.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-008-infrastructure-error">PHLO-008: Infrastructure Error</h4>
+<p><strong>Exception:</strong> <code>PhloInfrastructureError</code></p>
+<p>Infrastructure services (Dagster, Trino, S3, etc.) are unavailable.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Service not running</li>
+<li>Connection refused</li>
+<li>Network issues</li>
+<li>Authentication failed</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-bash"># Check service status
+docker ps
+docker logs dagster-webserver
+docker logs trino
+
+# Restart services if needed
+docker-compose restart
+</code></pre>
+<p><a href="./PHLO-008.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h3 id="schema-and-type-errors-phlo-200-to-phlo-299">Schema and Type Errors (PHLO-200 to PHLO-299)</h3>
+<p>Errors related to schema conversion and type handling.</p>
+<h4 id="phlo-200-schema-conversion-error">PHLO-200: Schema Conversion Error</h4>
+<p><strong>Exception:</strong> <code>SchemaConversionError</code></p>
+<p>Failed to convert Pandera schema to PyIceberg schema.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Unsupported Pandera type</li>
+<li>Custom type without converter</li>
+<li>Complex nested types</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Use supported Pandera types:
+# str, int, float, bool, datetime, date, bytes
+
+class MySchema(DataFrameModel):
+    id: str  # ✅ Supported
+    count: int  # ✅ Supported
+    value: float  # ✅ Supported
+    timestamp: datetime  # ✅ Supported
+</code></pre>
+<p><a href="./PHLO-200.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-201-type-conversion-error">PHLO-201: Type Conversion Error</h4>
+<p><strong>Exception:</strong> <code>PhloError</code></p>
+<p>Failed to convert data types during processing.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Invalid data format</li>
+<li>Type mismatch</li>
+<li>Encoding issues</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Explicit type conversion
+df[&quot;temperature&quot;] = pd.to_numeric(df[&quot;temperature&quot;], errors=&quot;coerce&quot;)
+df[&quot;timestamp&quot;] = pd.to_datetime(df[&quot;timestamp&quot;])
+</code></pre>
+<p><a href="./PHLO-201.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h3 id="dlt-errors-phlo-300-to-phlo-399">DLT Errors (PHLO-300 to PHLO-399)</h3>
+<p>Errors specific to DLT (Data Load Tool) operations.</p>
+<h4 id="phlo-300-dlt-pipeline-failed">PHLO-300: DLT Pipeline Failed</h4>
+<p><strong>Exception:</strong> <code>DLTPipelineError</code></p>
+<p>DLT pipeline execution failed.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Source connection failed</li>
+<li>Data transformation error</li>
+<li>Destination write failed</li>
+<li>Pipeline configuration invalid</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Check DLT logs
+import dlt
+
+# Enable verbose logging
+dlt.config.log_level = &quot;DEBUG&quot;
+</code></pre>
+<p><a href="./PHLO-300.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-301-dlt-source-error">PHLO-301: DLT Source Error</h4>
+<p><strong>Exception:</strong> <code>PhloError</code></p>
+<p>DLT source connector failed.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Source not accessible</li>
+<li>Invalid credentials</li>
+<li>Rate limiting</li>
+<li>Data format unexpected</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Test source connectivity
+source = my_source()
+for item in source:
+    print(item)
+    break  # Test first item
+</code></pre>
+<p><a href="./PHLO-301.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h3 id="iceberg-errors-phlo-400-to-phlo-499">Iceberg Errors (PHLO-400 to PHLO-499)</h3>
+<p>Errors related to Apache Iceberg operations.</p>
+<h4 id="phlo-400-iceberg-catalog-error">PHLO-400: Iceberg Catalog Error</h4>
+<p><strong>Exception:</strong> <code>IcebergCatalogError</code></p>
+<p>Iceberg catalog operations failed.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Catalog not initialized</li>
+<li>Connection to catalog failed</li>
+<li>Catalog permissions issue</li>
+<li>S3/backend unavailable</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Verify catalog connectivity
+from pyiceberg.catalog import load_catalog
+
+catalog = load_catalog(&quot;default&quot;)
+print(f&quot;Catalog namespaces: {catalog.list_namespaces()}&quot;)
+</code></pre>
+<p><a href="./PHLO-400.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-401-iceberg-table-error">PHLO-401: Iceberg Table Error</h4>
+<p><strong>Exception:</strong> <code>PhloError</code></p>
+<p>Iceberg table operations failed.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Table not found</li>
+<li>Schema mismatch</li>
+<li>Concurrent modification</li>
+<li>Permissions issue</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># List available tables
+catalog = load_catalog(&quot;default&quot;)
+tables = catalog.list_tables(&quot;bronze&quot;)
+print(f&quot;Tables in bronze: {tables}&quot;)
+</code></pre>
+<p><a href="./PHLO-401.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h4 id="phlo-402-iceberg-write-error">PHLO-402: Iceberg Write Error</h4>
+<p><strong>Exception:</strong> <code>PhloError</code></p>
+<p>Failed to write data to Iceberg table.</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Schema mismatch</li>
+<li>Partition spec invalid</li>
+<li>S3 write failed</li>
+<li>Insufficient permissions</li>
+</ul>
+<p><strong>Quick fix:</strong></p>
+<pre><code class="language-python"># Verify schema matches table
+table_schema = table.schema()
+df_schema = df.dtypes
+
+print(&quot;Table schema:&quot;, table_schema)
+print(&quot;DataFrame schema:&quot;, df_schema)
+</code></pre>
+<p><a href="./PHLO-402.md"><strong>Full Documentation →</strong></a></p>
+<hr />
+<h2 id="error-handling-best-practices">Error Handling Best Practices</h2>
+<h3 id="1-use-structured-error-classes">1. Use Structured Error Classes</h3>
+<p>Always use Phlo exception classes with error codes:</p>
+<pre><code class="language-python">from phlo.exceptions import PhloIngestionError
+
+raise PhloIngestionError(
+    message=&quot;Failed to fetch weather data&quot;,
+    suggestions=[
+        &quot;Check API connectivity&quot;,
+        &quot;Verify API credentials&quot;,
+        &quot;Review rate limits&quot;,
+    ],
+    cause=original_exception
+)
+</code></pre>
+<h3 id="2-provide-actionable-suggestions">2. Provide Actionable Suggestions</h3>
+<p>Include specific, actionable suggestions:</p>
+<pre><code class="language-python"># ❌ Bad: Generic suggestion
+suggestions=[&quot;Fix the error&quot;]
+
+# ✅ Good: Specific actions
+suggestions=[
+    &quot;Check that unique_key 'observation_id' exists in WeatherObservations schema&quot;,
+    &quot;Available fields: id, station_id, temperature, timestamp&quot;,
+    &quot;Update unique_key to match one of the available fields&quot;,
+]
+</code></pre>
+<h3 id="3-include-context">3. Include Context</h3>
+<p>Provide relevant context in error messages:</p>
+<pre><code class="language-python"># ❌ Bad: No context
+raise PhloError(&quot;Schema mismatch&quot;)
+
+# ✅ Good: Detailed context
+raise PhloSchemaError(
+    message=f&quot;unique_key '{unique_key}' not found in {schema.__name__}&quot;,
+    suggestions=suggest_similar_field_names(unique_key, available_fields)
+)
+</code></pre>
+<h3 id="4-log-errors-appropriately">4. Log Errors Appropriately</h3>
+<p>Use Dagster context for logging:</p>
+<pre><code class="language-python">@phlo_ingestion(...)
+def my_asset(partition: str, context):
+    try:
+        data = fetch_data(partition)
+        context.log.info(f&quot;✅ Fetched {len(data)} records&quot;)
+        return data
+    except Exception as e:
+        context.log.error(f&quot;❌ Ingestion failed: {e}&quot;)
+        raise PhloIngestionError(
+            message=f&quot;Failed to fetch data for partition {partition}&quot;,
+            cause=e
+        )
+</code></pre>
+<h3 id="5-test-error-paths">5. Test Error Paths</h3>
+<p>Write tests for error conditions:</p>
+<pre><code class="language-python">def test_ingestion_handles_api_failure():
+    with pytest.raises(PhloIngestionError) as exc_info:
+        weather_observations(partition=&quot;invalid&quot;)
+
+    assert &quot;API returned 404&quot; in str(exc_info.value)
+    assert exc_info.value.code == PhloErrorCode.INGESTION_FAILED
+</code></pre>
+<h2 id="getting-help">Getting Help</h2>
+<p>If you encounter an error not covered in this documentation:</p>
+<ol>
+<li><strong>Check Error Code:</strong> Look up the PHLO-XXX code in the index above</li>
+<li><strong>Read Full Documentation:</strong> Click the link to read detailed documentation</li>
+<li><strong>Search Issues:</strong> Check <a href="https://github.com/phlo/phlo/issues">GitHub Issues</a></li>
+<li><strong>Ask for Help:</strong> Create a new issue with:</li>
+<li>Error code and full error message</li>
+<li>Steps to reproduce</li>
+<li>Relevant code snippets</li>
+<li>Environment details (OS, Python version, Phlo version)</li>
+</ol>
+<h2 id="contributing">Contributing</h2>
+<p>Found an error not documented? Help us improve:</p>
+<ol>
+<li>Fork the repository</li>
+<li>Add documentation in <code>docs/errors/PHLO-XXX.md</code></li>
+<li>Update this index</li>
+<li>Submit a pull request</li>
+</ol>
+<p>Template for new error documentation:</p>
+<pre><code class="language-markdown"># PHLO-XXX: Error Name
+
+**Error Type:** Category
+**Severity:** High/Medium/Low
+**Exception Class:** `ExceptionClassName`
+
+## Description
+
+[Clear description of when this error occurs]
+
+## Common Causes
+
+[List of common causes]
+
+## Solutions
+
+[Step-by-step solutions]
+
+## Examples
+
+[Code examples showing incorrect and correct usage]
+
+## Related Errors
+
+[Links to related error codes]
+
+## Prevention
+
+[Best practices to avoid this error]
+</code></pre>
+<hr />
+<p><strong>Documentation Version:</strong> 1.0.0
+<strong>Last Updated:</strong> 2024-01-15
+<strong>Phlo Version:</strong> 0.1.0</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
