@@ -16,7 +16,6 @@ Guidelines for AI agents and developers working on the Phlo monorepo.
 - `packages/` - Workspace packages (phlo-dlt, phlo-dbt, phlo-dagster, phlo-quality, phlo-observatory, etc.).
 - `tests/` - Repo-level tests; package tests live in `packages/*/tests`.
 - `registry/` - Plugin registry schema + published metadata.
-- `templates/` - Project scaffolding templates.
 - `docs/` - Documentation site content.
 - `scripts/` - Developer automation helpers.
 
