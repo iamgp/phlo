@@ -1,0 +1,159 @@
+# Capability Primitives and Orchestrator Adapters
+
+Phlo packages are plug-and-play. Packages publish orchestrator-agnostic specs, and an
+orchestrator adapter (for example `phlo-dagster`) translates those specs into runtime
+assets, checks, and resources.
+
+This guide explains the primitives, how discovery works, and how to build new packages
+without importing any orchestrator libraries.
+
+## Why capability primitives
+
+- Packages stay decoupled from specific orchestrators.
+- The active orchestrator can change without rewriting package code.
+- Packages can be installed in any order; adapters only activate when present.
+- Specs are easy to test and document without runtime dependencies.
+
+## Core primitives (specs)
+
+These live in `phlo.capabilities.specs` and are the stable protocol between packages
+and orchestrators.
+
+- `AssetSpec`: Core asset definition. Includes `key`, `group`, `description`, `kinds`,
+  `tags`, `metadata`, `deps`, `resources`, `partitions`, `run`, and `checks`.
+- `AssetCheckSpec`: Describes a check attached to an asset. The `fn` is optional so
+  adapters can wire checks separately from assets.
+- `ResourceSpec`: Register a resource by name for adapters to inject.
+- `RunSpec`: Execution details for an asset, including the `fn` that runs it and
+  execution metadata (cron, retries, freshness).
+- `PartitionSpec`: Partitioning metadata (currently `kind` plus optional bounds).
+- `MaterializeResult` and `CheckResult`: Uniform outputs from asset/check functions.
+
+## Runtime context
+
+Asset and check functions receive a `RuntimeContext`, which is implemented by the active
+orchestrator adapter. It provides:
+
+- `run_id`, `partition_key`, `tags`
+- `logger`
+- `resources` and `get_resource(name)`
+
+Do not rely on orchestrator-native context objects inside packages.
+
+## Providers and adapters
+
+### Asset providers
+
+Asset providers return a list of `AssetSpec` objects.
+
+```python
+from phlo.capabilities import AssetSpec, PartitionSpec, RunSpec
+from phlo.plugins import AssetProviderPlugin, PluginMetadata
+
+
+class MyAssetProvider(AssetProviderPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="my-assets",
+            version="0.1.0",
+            description="Asset specs for my domain",
+        )
+
+    def get_assets(self):
+        return [
+            AssetSpec(
+                key="my_asset",
+                group="demo",
+                description="Demo asset",
+                partitions=PartitionSpec(kind="daily"),
+                run=RunSpec(fn=self.run_asset),
+            )
+        ]
+
+    def run_asset(self, context):
+        return []
+```
+
+Register via entry points:
+
+```toml
+[project.entry-points."phlo.plugins.assets"]
+my_assets = "my_pkg.plugin:MyAssetProvider"
+```
+
+### Resource providers
+
+Resource providers return `ResourceSpec` objects.
+
+```python
+from phlo.capabilities import ResourceSpec
+from phlo.plugins import ResourceProviderPlugin, PluginMetadata
+
+
+class MyResourceProvider(ResourceProviderPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="my-resources",
+            version="0.1.0",
+            description="Resources for my assets",
+        )
+
+    def get_resources(self):
+        return [
+            ResourceSpec(name="warehouse", resource=object()),
+        ]
+```
+
+Register via entry points:
+
+```toml
+[project.entry-points."phlo.plugins.resources"]
+my_resources = "my_pkg.plugin:MyResourceProvider"
+```
+
+### Orchestrator adapters
+
+Adapters translate specs into orchestrator-native definitions.
+
+```python
+from phlo.plugins import OrchestratorAdapterPlugin, PluginMetadata
+
+
+class MyOrchestrator(OrchestratorAdapterPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="my-orchestrator",
+            version="0.1.0",
+            description="Adapter for My Orchestrator",
+        )
+
+    def build_definitions(self, *, assets, checks, resources):
+        return MyDefinitions(...)
+```
+
+Register via entry points:
+
+```toml
+[project.entry-points."phlo.plugins.orchestrators"]
+my_orchestrator = "my_pkg.adapter:MyOrchestrator"
+```
+
+## Orchestrator selection
+
+The active orchestrator is selected via `phlo_orchestrator` in configuration. The default
+is `dagster` when `phlo-dagster` is installed. Only one orchestrator is active per
+environment.
+
+## What belongs in packages
+
+Packages should only:
+
+- Emit `AssetSpec`, `AssetCheckSpec`, and `ResourceSpec`.
+- Use `RuntimeContext` only.
+- Avoid importing orchestrator libraries.
+
+Orchestrator-specific utilities belong in the adapter package (for example
+`packages/phlo-dagster/`).

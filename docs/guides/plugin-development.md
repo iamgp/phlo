@@ -19,6 +19,9 @@ Phlo's plugin system allows you to extend the platform with custom functionality
 
 This guide walks through creating each type of plugin.
 
+For the orchestrator-agnostic spec model, read
+[Capability Primitives](capability-primitives.md) first.
+
 ## Plugin System Basics
 
 ### How Plugin Discovery Works
