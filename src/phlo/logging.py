@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextvars
 import logging
+import os
 import sys
 import traceback
 from contextlib import contextmanager
@@ -41,7 +42,7 @@ _LOGGING_CONFIGURED = False
 @dataclass(frozen=True)
 class LoggingSettings:
     level: str = "INFO"
-    log_format: str = "json"
+    log_format: str = "auto"
     router_enabled: bool = True
     service_name: str = "phlo"
     log_file_template: str | None = None
@@ -59,7 +60,7 @@ class LoggingSettings:
 
 
 def setup_logging(settings: LoggingSettings | None = None, *, force: bool = False) -> None:
-    """Configure structlog + stdlib logging with JSON output and routing."""
+    """Configure structlog + stdlib logging with configurable output and routing."""
 
     global _LOGGING_CONFIGURED
     if _LOGGING_CONFIGURED and not force:
@@ -97,9 +98,16 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     )
 
     if log_format == "console":
-        renderer = structlog.dev.ConsoleRenderer()
+        stream_renderer = structlog.dev.ConsoleRenderer()
+    elif log_format == "auto":
+        stream_renderer = (
+            structlog.dev.ConsoleRenderer()
+            if sys.stdout.isatty()
+            else structlog.processors.JSONRenderer()
+        )
     else:
-        renderer = structlog.processors.JSONRenderer()
+        stream_renderer = structlog.processors.JSONRenderer()
+    file_renderer = structlog.processors.JSONRenderer()
 
     foreign_pre_chain = [
         structlog.contextvars.merge_contextvars,
@@ -109,10 +117,17 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
         add_service,
     ]
 
-    formatter = structlog.stdlib.ProcessorFormatter(
+    stream_formatter = structlog.stdlib.ProcessorFormatter(
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            renderer,
+            stream_renderer,
+        ],
+        foreign_pre_chain=foreign_pre_chain,
+    )
+    file_formatter = structlog.stdlib.ProcessorFormatter(
+        processors=[
+            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            file_renderer,
         ],
         foreign_pre_chain=foreign_pre_chain,
     )
@@ -123,12 +138,12 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
 
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setLevel(level)
-    stream_handler.setFormatter(formatter)
+    stream_handler.setFormatter(stream_formatter)
     _mark_phlo_handler(stream_handler)
     root.addHandler(stream_handler)
 
     if resolved.log_file_template:
-        file_handler = _build_file_handler(resolved.log_file_template, formatter)
+        file_handler = _build_file_handler(resolved.log_file_template, file_formatter)
         if file_handler is not None:
             file_handler.setLevel(level)
             _mark_phlo_handler(file_handler)
@@ -401,7 +416,9 @@ def _render_log_file_path(template: str) -> Path | None:
         return None
     path = Path(rendered)
     if not path.is_absolute():
-        path = Path.cwd() / path
+        project_root = os.environ.get("PHLO_PROJECT_PATH")
+        base_path = Path(project_root) if project_root else Path.cwd()
+        path = base_path / path
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
 

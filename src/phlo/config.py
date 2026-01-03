@@ -272,8 +272,8 @@ class Settings(BaseSettings):
     # --- Logging Configuration ---
     phlo_log_level: str = Field(default="INFO", description="Default log level for Phlo")
     phlo_log_format: str = Field(
-        default="json",
-        description="Log format (json|console)",
+        default="auto",
+        description="Log format (auto|json|console)",
     )
     phlo_log_router_enabled: bool = Field(
         default=True,

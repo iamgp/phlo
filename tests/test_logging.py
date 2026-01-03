@@ -20,6 +20,19 @@ def test_render_log_file_path_resolves_template(tmp_path: Path) -> None:
     assert len(path.stem) == 8
 
 
+def test_render_log_file_path_respects_project_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHLO_PROJECT_PATH", str(tmp_path))
+    template = ".phlo/logs/{YMD}.log"
+
+    path = _render_log_file_path(template)
+
+    assert path is not None
+    assert path.parent == tmp_path / ".phlo" / "logs"
+    assert path.suffix == ".log"
+
+
 def test_render_log_file_path_warns_on_unknown_placeholder(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
