@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from phlo.plugins.base import (
     AssetProviderPlugin,
+    CatalogPlugin,
     CliCommandPlugin,
     DagsterExtensionPlugin,
     OrchestratorAdapterPlugin,
@@ -42,6 +43,7 @@ class PluginRegistry:
         self._assets: dict[str, AssetProviderPlugin] = {}
         self._resources: dict[str, ResourceProviderPlugin] = {}
         self._orchestrators: dict[str, OrchestratorAdapterPlugin] = {}
+        self._catalogs: dict[str, CatalogPlugin] = {}
         self._all_plugins: dict[str, Plugin] = {}
 
     def register_source_connector(
@@ -208,6 +210,25 @@ class PluginRegistry:
         self._orchestrators[name] = plugin
         self._all_plugins[f"orchestrators:{name}"] = plugin
 
+    def register_catalog(self, plugin: CatalogPlugin, replace: bool = False) -> None:
+        """
+        Register a catalog plugin.
+
+        Args:
+            plugin: Catalog plugin instance
+            replace: Whether to replace existing plugin with same name
+
+        Raises:
+            ValueError: If plugin with same name exists and replace=False
+        """
+        name = plugin.metadata.name
+        if name in self._catalogs and not replace:
+            raise ValueError(
+                f"Catalog plugin '{name}' is already registered. Use replace=True to overwrite."
+            )
+        self._catalogs[name] = plugin
+        self._all_plugins[f"catalogs:{name}"] = plugin
+
     def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
         """
         Get a source connector plugin by name.
@@ -280,6 +301,10 @@ class PluginRegistry:
         """Get an orchestrator adapter plugin by name."""
         return self._orchestrators.get(name)
 
+    def get_catalog(self, name: str) -> CatalogPlugin | None:
+        """Get a catalog plugin by name."""
+        return self._catalogs.get(name)
+
     def list_source_connectors(self) -> list[str]:
         """
         List all registered source connector plugins.
@@ -340,6 +365,10 @@ class PluginRegistry:
         """List all registered orchestrator adapter plugins."""
         return list(self._orchestrators.keys())
 
+    def list_catalogs(self) -> list[str]:
+        """List all registered catalog plugins."""
+        return list(self._catalogs.keys())
+
     def list_all_plugins(self) -> dict[str, list[str]]:
         """
         List all registered plugins by type.
@@ -358,6 +387,7 @@ class PluginRegistry:
             "asset_providers": self.list_asset_providers(),
             "resource_providers": self.list_resource_providers(),
             "orchestrators": self.list_orchestrators(),
+            "catalogs": self.list_catalogs(),
         }
 
     def clear(self) -> None:
@@ -372,6 +402,7 @@ class PluginRegistry:
         self._assets.clear()
         self._resources.clear()
         self._orchestrators.clear()
+        self._catalogs.clear()
         self._all_plugins.clear()
 
     def iter_plugins(self) -> list[Plugin]:
@@ -392,7 +423,7 @@ class PluginRegistry:
 
         Args:
             plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
-                "services")
+                "services", "catalogs")
             name: Plugin name
 
         Returns:
@@ -415,6 +446,8 @@ class PluginRegistry:
             plugin = self.get_resource_provider(name)
         elif plugin_type == "orchestrators":
             plugin = self.get_orchestrator(name)
+        elif plugin_type == "catalogs":
+            plugin = self.get_catalog(name)
 
         if not plugin:
             return None
@@ -480,6 +513,11 @@ class PluginRegistry:
             return hasattr(plugin, "get_resources") and callable(plugin.get_resources)
         elif isinstance(plugin, OrchestratorAdapterPlugin):
             return hasattr(plugin, "build_definitions") and callable(plugin.build_definitions)
+        elif isinstance(plugin, CatalogPlugin):
+            has_catalog = hasattr(plugin, "catalog_name")
+            has_targets = hasattr(plugin, "targets")
+            has_properties = hasattr(plugin, "get_properties") and callable(plugin.get_properties)
+            return has_catalog and has_targets and has_properties
 
         return True
 

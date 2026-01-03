@@ -136,6 +136,7 @@ from typing import TYPE_CHECKING
 
 from phlo.plugins.base import (
     AssetProviderPlugin,
+    CatalogPlugin,
     IngestionEnginePlugin,
     OrchestratorAdapterPlugin,
     Plugin,
@@ -196,6 +197,7 @@ __all__ = [
     "TransformationPlugin",
     "IngestionEnginePlugin",
     "AssetProviderPlugin",
+    "CatalogPlugin",
     "ResourceProviderPlugin",
     "OrchestratorAdapterPlugin",
     "HookPlugin",

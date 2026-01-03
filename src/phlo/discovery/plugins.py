@@ -15,6 +15,7 @@ from phlo.discovery.registry import get_global_registry
 from phlo.logging import get_logger, suppress_log_routing
 from phlo.plugins.base import (
     AssetProviderPlugin,
+    CatalogPlugin,
     CliCommandPlugin,
     DagsterExtensionPlugin,
     OrchestratorAdapterPlugin,
@@ -24,7 +25,6 @@ from phlo.plugins.base import (
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
-    TrinoCatalogPlugin,
 )
 from phlo.plugins.hooks import HookPlugin
 
@@ -39,7 +39,7 @@ ENTRY_POINT_GROUPS = {
     "dagster_extensions": "phlo.plugins.dagster",
     "cli_commands": "phlo.plugins.cli",
     "hooks": "phlo.plugins.hooks",
-    "trino_catalogs": "phlo.plugins.trino_catalogs",
+    "catalogs": "phlo.plugins.catalogs",
     "asset_providers": "phlo.plugins.assets",
     "resource_providers": "phlo.plugins.resources",
     "orchestrators": "phlo.plugins.orchestrators",
@@ -82,7 +82,7 @@ def discover_plugins(
 
     Args:
         plugin_type: Optional plugin type to discover ("source_connectors",
-            "quality_checks", "transformations", "services"). If None, discover all types.
+            "quality_checks", "transformations", "services", "catalogs"). If None, discover all types.
         auto_register: If True, automatically register discovered plugins
             in the global registry (default: True)
 
@@ -114,7 +114,7 @@ def discover_plugins(
                 "dagster_extensions": [],
                 "cli_commands": [],
                 "hooks": [],
-                "trino_catalogs": [],
+                "catalogs": [],
                 "asset_providers": [],
                 "resource_providers": [],
                 "orchestrators": [],
@@ -128,7 +128,7 @@ def discover_plugins(
             "dagster_extensions": [],
             "cli_commands": [],
             "hooks": [],
-            "trino_catalogs": [],
+            "catalogs": [],
             "asset_providers": [],
             "resource_providers": [],
             "orchestrators": [],
@@ -190,7 +190,7 @@ def discover_plugins(
                         "dagster_extensions": DagsterExtensionPlugin,
                         "cli_commands": CliCommandPlugin,
                         "hooks": HookPlugin,
-                        "trino_catalogs": TrinoCatalogPlugin,
+                        "catalogs": CatalogPlugin,
                         "asset_providers": AssetProviderPlugin,
                         "resource_providers": ResourceProviderPlugin,
                         "orchestrators": OrchestratorAdapterPlugin,
@@ -227,8 +227,8 @@ def discover_plugins(
                             registry.register_cli_command_plugin(plugin, replace=True)
                         elif ptype == "hooks":
                             registry.register_hook_plugin(plugin, replace=True)
-                        elif ptype == "trino_catalogs":
-                            pass  # Trino catalogs are used directly, not registry-based
+                        elif ptype == "catalogs":
+                            registry.register_catalog(plugin, replace=True)
                         elif ptype == "asset_providers":
                             registry.register_asset_provider(plugin, replace=True)
                         elif ptype == "resource_providers":
@@ -256,7 +256,7 @@ def list_plugins(plugin_type: str | None = None) -> dict[str, list[str]]:
 
     Args:
         plugin_type: Optional plugin type to list ("source_connectors",
-            "quality_checks", "transformations", "services"). If None, list all types.
+            "quality_checks", "transformations", "services", "catalogs"). If None, list all types.
 
     Returns:
         Dictionary mapping plugin type to list of plugin names
@@ -290,7 +290,7 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
     Args:
         plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
         "services", "dagster_extensions", "cli_commands", "hooks", "asset_providers",
-        "resource_providers", "orchestrators")
+        "resource_providers", "orchestrators", "catalogs")
         name: Plugin name
 
     Returns:
@@ -325,6 +325,8 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
         return registry.get_resource_provider(name)
     elif plugin_type == "orchestrators":
         return registry.get_orchestrator(name)
+    elif plugin_type == "catalogs":
+        return registry.get_catalog(name)
     else:
         logger.warning(f"Unknown plugin type: {plugin_type}")
         return None
@@ -427,7 +429,7 @@ def get_plugin_info(plugin_type: str, name: str) -> dict | None:
 
     Args:
         plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
-            "services", "dagster_extensions", "cli_commands", "hooks")
+            "services", "dagster_extensions", "cli_commands", "hooks", "catalogs")
         name: Plugin name
 
     Returns:
@@ -485,6 +487,8 @@ def validate_plugins() -> dict[str, list[str]]:
                 plugin = registry.get_resource_provider(name)
             elif plugin_type == "orchestrators":
                 plugin = registry.get_orchestrator(name)
+            elif plugin_type == "catalogs":
+                plugin = registry.get_catalog(name)
 
             if plugin and registry.validate_plugin(plugin):
                 valid.append(f"{plugin_type}:{name}")

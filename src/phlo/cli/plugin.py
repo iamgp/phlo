@@ -46,6 +46,7 @@ PLUGIN_TYPE_MAP = {
     "assets": "asset_providers",
     "resources": "resource_providers",
     "orchestrators": "orchestrators",
+    "catalogs": "catalogs",
 }
 
 PLUGIN_TYPE_LABELS = {
@@ -57,6 +58,7 @@ PLUGIN_TYPE_LABELS = {
     "asset_providers": "Assets",
     "resource_providers": "Resources",
     "orchestrators": "Orchestrators",
+    "catalogs": "Catalogs",
 }
 
 PLUGIN_INTERNAL_TO_REGISTRY = {
@@ -68,6 +70,7 @@ PLUGIN_INTERNAL_TO_REGISTRY = {
     "asset_providers": "assets",
     "resource_providers": "resources",
     "orchestrators": "orchestrator",
+    "catalogs": "catalogs",
 }
 
 REGISTRY_TYPE_MAP = {
@@ -79,6 +82,7 @@ REGISTRY_TYPE_MAP = {
     "assets": "assets",
     "resources": "resources",
     "orchestrators": "orchestrator",
+    "catalogs": "catalogs",
 }
 
 
@@ -102,6 +106,7 @@ def plugin_group():
             "assets",
             "resources",
             "orchestrators",
+            "catalogs",
             "all",
         ]
     ),
@@ -166,6 +171,7 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
             "assets",
             "resources",
             "orchestrators",
+            "catalogs",
         ]
     ),
     help="Plugin type (auto-detected if not specified)",
@@ -200,6 +206,8 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
                         plugin_type = "transforms"
                     elif ptype_key == "services":
                         plugin_type = "services"
+                    elif ptype_key == "catalogs":
+                        plugin_type = "catalogs"
                     break
 
         if not plugin_type:
@@ -216,6 +224,7 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
             "assets": "asset_providers",
             "resources": "resource_providers",
             "orchestrators": "orchestrators",
+            "catalogs": "catalogs",
         }
         internal_type = type_mapping.get(plugin_type, plugin_type)
 
@@ -324,7 +333,7 @@ def check_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service", "hooks"]),
+    type=click.Choice(["source", "quality", "transform", "service", "hooks", "catalog"]),
     help="Filter by plugin type",
 )
 @click.option(
@@ -442,7 +451,7 @@ def update_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service", "hook"]),
+    type=click.Choice(["source", "quality", "transform", "service", "hook", "catalog"]),
     default="source",
     help="Type of plugin to create",
 )
@@ -677,6 +686,7 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "transform": "TransformationPlugin",
         "service": "ServicePlugin",
         "hook": "HookPlugin",
+        "catalog": "CatalogPlugin",
     }
     base_class = type_mapping[plugin_type]
 
@@ -686,6 +696,7 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "transform": "phlo.plugins.transforms",
         "service": "phlo.plugins.services",
         "hook": "phlo.plugins.hooks",
+        "catalog": "phlo.plugins.catalogs",
     }[plugin_type]
 
     # Create __init__.py
@@ -829,6 +840,22 @@ class {class_name}({base_class}):
                 "image": "your-service:latest",
             },
         }
+'''
+    elif plugin_type == "catalog":
+        plugin_content += '''
+    @property
+    def targets(self) -> list[str]:
+        """Return engine targets for this catalog."""
+        return ["trino"]
+
+    @property
+    def catalog_name(self) -> str:
+        """Return catalog name."""
+        return "example"
+
+    def get_properties(self) -> dict[str, str]:
+        """Return catalog properties."""
+        return {"connector.name": "example"}
 '''
 
     (src_dir / "plugin.py").write_text(plugin_content)

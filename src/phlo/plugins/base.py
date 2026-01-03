@@ -9,6 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+import warnings
 from typing import Any, Callable, Iterable
 
 import click
@@ -487,16 +488,16 @@ class TransformationPlugin(Plugin, ABC):
         return True
 
 
-class TrinoCatalogPlugin(Plugin, ABC):
+class CatalogPlugin(Plugin, ABC):
     """
-    Base class for Trino catalog plugins.
+    Base class for engine-agnostic catalog plugins.
 
-    Catalog plugins define Trino connector configurations that are
+    Catalog plugins define connector configurations that are
     auto-discovered and generated into .properties files at startup.
 
     Example:
         ```python
-        class IcebergCatalogPlugin(TrinoCatalogPlugin):
+        class IcebergCatalogPlugin(CatalogPlugin):
             @property
             def metadata(self) -> PluginMetadata:
                 return PluginMetadata(
@@ -504,6 +505,10 @@ class TrinoCatalogPlugin(Plugin, ABC):
                     version="1.0.0",
                     description="Iceberg catalog with Nessie backend",
                 )
+
+            @property
+            def targets(self) -> list[str]:
+                return ["trino", "spark"]
 
             @property
             def catalog_name(self) -> str:
@@ -520,11 +525,21 @@ class TrinoCatalogPlugin(Plugin, ABC):
 
     @property
     @abstractmethod
+    def targets(self) -> list[str]:
+        """
+        Return engine identifiers that can consume this catalog.
+
+        Examples: ["trino"], ["spark"], ["trino", "spark"].
+        """
+        pass
+
+    @property
+    @abstractmethod
     def catalog_name(self) -> str:
         """
         Return the catalog name.
 
-        This becomes the .properties filename and catalog name in Trino.
+        This becomes the .properties filename and catalog name in the engine.
         """
         pass
 
@@ -538,12 +553,33 @@ class TrinoCatalogPlugin(Plugin, ABC):
         """
         pass
 
+    def supports_target(self, target: str) -> bool:
+        """Return True if the catalog supports the requested engine target."""
+        return target in self.targets
+
     def to_properties_file(self) -> str:
         """Convert properties to .properties file format."""
         lines = []
         for key, value in self.get_properties().items():
             lines.append(f"{key}={value}")
         return "\n".join(lines) + "\n"
+
+
+class TrinoCatalogPlugin(CatalogPlugin, ABC):
+    """
+    Deprecated: use CatalogPlugin with targets=["trino"] instead.
+    """
+
+    def __init__(self) -> None:
+        warnings.warn(
+            "TrinoCatalogPlugin is deprecated; use CatalogPlugin with targets=['trino'].",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+    @property
+    def targets(self) -> list[str]:
+        return ["trino"]
 
 
 class AssetProviderPlugin(Plugin, ABC):

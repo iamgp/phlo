@@ -26,7 +26,7 @@ dev = [
 [project.entry-points."phlo.plugins.resources"]
 iceberg = "phlo_iceberg.plugin:IcebergResourceProvider"
 
-[project.entry-points."phlo.plugins.trino_catalogs"]
+[project.entry-points."phlo.plugins.catalogs"]
 iceberg = "phlo_iceberg.catalog_plugin:IcebergCatalogPlugin"
 iceberg_dev = "phlo_iceberg.catalog_plugin:IcebergDevCatalogPlugin"
 

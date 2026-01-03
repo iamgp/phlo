@@ -3,31 +3,75 @@
 from __future__ import annotations
 
 import os
+import importlib.metadata
 from pathlib import Path
 
 from phlo.discovery.plugins import discover_plugins
 from phlo.logging import get_logger, setup_logging
-from phlo.plugins.base import TrinoCatalogPlugin
+from phlo.plugins.base import CatalogPlugin
 
 logger = get_logger(__name__)
 
 
-def discover_trino_catalogs() -> list[TrinoCatalogPlugin]:
-    """Discover all Trino catalog plugins via entry points."""
-    plugins = discover_plugins(plugin_type="trino_catalogs", auto_register=False)
-    catalogs = []
+def _load_entry_points(group: str) -> list[CatalogPlugin]:
+    try:
+        entry_points = importlib.metadata.entry_points(group=group)
+    except TypeError:
+        all_entry_points = importlib.metadata.entry_points()
+        entry_points = all_entry_points.get(group, [])
 
-    for name, plugin_entries in plugins.items():
+    catalogs: list[CatalogPlugin] = []
+    for entry_point in entry_points:
         try:
-            for entry in plugin_entries:
-                plugin = entry() if isinstance(entry, type) else entry
-                if isinstance(plugin, TrinoCatalogPlugin):
-                    catalogs.append(plugin)
-                    logger.info("Discovered Trino catalog: %s", plugin.catalog_name)
+            plugin_class = entry_point.load()
+            plugin = plugin_class() if isinstance(plugin_class, type) else plugin_class
+            if isinstance(plugin, CatalogPlugin):
+                catalogs.append(plugin)
+            else:
+                logger.error(
+                    "Catalog plugin %s does not inherit from CatalogPlugin",
+                    entry_point.name,
+                )
         except Exception as exc:
-            logger.error("Failed to instantiate catalog plugin %s: %s", name, exc)
+            logger.error("Failed to instantiate catalog plugin %s: %s", entry_point.name, exc)
 
     return catalogs
+
+
+def _filter_catalogs(catalogs: list[CatalogPlugin], target: str) -> list[CatalogPlugin]:
+    filtered: list[CatalogPlugin] = []
+    for catalog in catalogs:
+        if catalog.supports_target(target):
+            filtered.append(catalog)
+            logger.info("Discovered %s catalog: %s", target, catalog.catalog_name)
+        else:
+            logger.debug(
+                "Skipping catalog %s (targets=%s) for target=%s",
+                catalog.catalog_name,
+                catalog.targets,
+                target,
+            )
+    return filtered
+
+
+def discover_trino_catalogs() -> list[CatalogPlugin]:
+    """Discover Trino-compatible catalog plugins via entry points."""
+    plugins = discover_plugins(plugin_type="catalogs", auto_register=False)
+    catalogs = list(plugins.get("catalogs", []))
+
+    legacy_catalogs = _load_entry_points("phlo.plugins.trino_catalogs")
+    if legacy_catalogs:
+        logger.warning(
+            "Detected legacy phlo.plugins.trino_catalogs entry points. "
+            "Please migrate to phlo.plugins.catalogs."
+        )
+
+    combined = catalogs + legacy_catalogs
+    unique: dict[str, CatalogPlugin] = {}
+    for catalog in combined:
+        unique.setdefault(catalog.catalog_name, catalog)
+
+    return _filter_catalogs(list(unique.values()), "trino")
 
 
 def generate_catalog_files(output_dir: str | Path | None = None) -> dict[str, Path]:
