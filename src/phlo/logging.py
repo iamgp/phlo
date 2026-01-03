@@ -13,8 +13,8 @@ import sys
 import traceback
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
 from functools import wraps
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Mapping, MutableMapping, TypeVar
 
 import structlog

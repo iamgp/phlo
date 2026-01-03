@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from phlo.discovery.plugins import discover_plugins
-from phlo.logging import get_logger
+from phlo.logging import get_logger, setup_logging
 from phlo.plugins.base import TrinoCatalogPlugin
 
 logger = get_logger(__name__)
@@ -68,10 +68,10 @@ def generate_catalog_files(output_dir: str | Path | None = None) -> dict[str, Pa
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(level=logging.INFO)
+    setup_logging()
 
     output = sys.argv[1] if len(sys.argv) > 1 else None
     result = generate_catalog_files(output)
-    print(f"Generated {len(result)} catalog files:")
+    logger.info("Generated %s catalog files:", len(result))
     for name, path in result.items():
-        print(f"  - {name}: {path}")
+        logger.info("  - %s: %s", name, path)
