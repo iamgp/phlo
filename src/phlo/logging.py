@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, MutableMapping, TypeVa
 import structlog
 
 from phlo.config import get_settings
-from phlo.hooks import LogEvent, get_hook_bus
+from phlo.hooks.events import LogEvent
 
 if TYPE_CHECKING:
     from dagster import AssetExecutionContext, OpExecutionContext
@@ -262,6 +262,8 @@ class LogRouterHandler(logging.Handler):
             event = _record_to_event(record, self._service_name)
             if event is None:
                 return
+            from phlo.hooks.bus import get_hook_bus
+
             get_hook_bus().emit(event)
         except Exception:
             self.handleError(record)
