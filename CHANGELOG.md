@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/iamgp/phlo/compare/v0.3.0...v0.4.0) (2026-01-03)
+
+
+### Features
+
+* **logging:** logging improvements ([#149](https://github.com/iamgp/phlo/issues/149)) ([c548132](https://github.com/iamgp/phlo/commit/c5481329959e9ec1a4e85ff76c9f72100c05abea))
+* move dbt project under workflows ([#146](https://github.com/iamgp/phlo/issues/146)) ([0eabde9](https://github.com/iamgp/phlo/commit/0eabde9673da6489dca66207b8e3a145f16e898b))
+
+
+### Documentation
+
+* refresh AGENTS guidance ([#144](https://github.com/iamgp/phlo/issues/144)) ([a34a88e](https://github.com/iamgp/phlo/commit/a34a88e75793e103d417b91e9bd58b01e18e14be))
+
 ## [0.3.0](https://github.com/iamgp/phlo/compare/v0.2.0...v0.3.0) (2026-01-02)
 
 
