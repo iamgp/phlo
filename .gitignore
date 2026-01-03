@@ -143,8 +143,6 @@ logs/
 
 transforms/dbt/target
 specs
-!docs/architecture/specs/
-!docs/architecture/specs/**
 PLATFORM_REVIEW.md
 
 # Temporary/working files
