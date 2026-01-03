@@ -9,12 +9,15 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, TYPE_CHECKING
 
 import click
-import dagster as dg
 import pandas as pd
 
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
+
+if TYPE_CHECKING:
+    import dagster as dg
 
 @dataclass
 class PluginMetadata:
@@ -98,14 +101,14 @@ class DagsterExtensionPlugin(Plugin, ABC):
 
     These plugins contribute Dagster definitions (assets/resources/schedules/sensors/etc.)
     to the running Phlo instance.
-
-    This is the primary mechanism for first-party "capability" packages (e.g. ingestion engines,
-    catalogs, transform integrations) to auto-wire themselves into the lakehouse without living in
-    `phlo` core.
     """
 
-    def get_definitions(self) -> dg.Definitions:
+    def get_definitions(self) -> Any:
         """Return Dagster definitions to merge into the global Definitions."""
+        try:
+            import dagster as dg
+        except Exception as exc:  # noqa: BLE001 - optional dependency
+            raise RuntimeError("Dagster is required for DagsterExtensionPlugin") from exc
         return dg.Definitions()
 
     def get_exports(self) -> dict[str, Any]:
@@ -127,8 +130,7 @@ class IngestionEnginePlugin(DagsterExtensionPlugin, ABC):
     """
     Base class for ingestion engine capability plugins.
 
-    Ingestion engines expose a decorator for defining ingestion assets and
-    a registry of those assets for Dagster definitions.
+    Deprecated in favor of capability specs + orchestrator adapters.
     """
 
     @abstractmethod
@@ -140,14 +142,6 @@ class IngestionEnginePlugin(DagsterExtensionPlugin, ABC):
     def get_ingestion_decorator(self) -> Callable[..., Any]:
         """Return the decorator used to define ingestion assets."""
         raise NotImplementedError
-
-    def get_definitions(self) -> dg.Definitions:
-        """Return Dagster definitions for all registered ingestion assets."""
-        return dg.Definitions(assets=list(self.get_ingestion_assets()))
-
-    def get_exports(self) -> dict[str, Any]:
-        """Expose the ingestion decorator for `phlo` public API exports."""
-        return {"ingestion": self.get_ingestion_decorator()}
 
 
 class CliCommandPlugin(Plugin, ABC):
@@ -552,3 +546,36 @@ class TrinoCatalogPlugin(Plugin, ABC):
         for key, value in self.get_properties().items():
             lines.append(f"{key}={value}")
         return "\n".join(lines) + "\n"
+
+
+class AssetProviderPlugin(Plugin, ABC):
+    """Base class for capability plugins that provide asset specs."""
+
+    @abstractmethod
+    def get_assets(self) -> Iterable[AssetSpec]:
+        raise NotImplementedError
+
+    def get_checks(self) -> Iterable[AssetCheckSpec]:
+        return []
+
+
+class ResourceProviderPlugin(Plugin, ABC):
+    """Base class for plugins that provide resource specs."""
+
+    @abstractmethod
+    def get_resources(self) -> Iterable[ResourceSpec]:
+        raise NotImplementedError
+
+
+class OrchestratorAdapterPlugin(Plugin, ABC):
+    """Base class for orchestrator adapters."""
+
+    @abstractmethod
+    def build_definitions(
+        self,
+        *,
+        assets: Iterable[AssetSpec],
+        checks: Iterable[AssetCheckSpec],
+        resources: Iterable[ResourceSpec],
+    ) -> Any:
+        raise NotImplementedError

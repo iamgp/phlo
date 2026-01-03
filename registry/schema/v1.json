@@ -39,7 +39,21 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["source", "quality", "transform", "service"]
+          "enum": [
+            "source",
+            "quality",
+            "transform",
+            "service",
+            "hooks",
+            "orchestrator",
+            "assets",
+            "resources",
+            "semantic",
+            "observability",
+            "api",
+            "logging",
+            "bi"
+          ]
         },
         "package": {
           "type": "string",

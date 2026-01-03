@@ -43,6 +43,9 @@ PLUGIN_TYPE_MAP = {
     "transforms": "transformations",
     "services": "services",
     "hooks": "hooks",
+    "assets": "asset_providers",
+    "resources": "resource_providers",
+    "orchestrators": "orchestrators",
 }
 
 PLUGIN_TYPE_LABELS = {
@@ -51,6 +54,9 @@ PLUGIN_TYPE_LABELS = {
     "transformations": "Transforms",
     "services": "Services",
     "hooks": "Hooks",
+    "asset_providers": "Assets",
+    "resource_providers": "Resources",
+    "orchestrators": "Orchestrators",
 }
 
 PLUGIN_INTERNAL_TO_REGISTRY = {
@@ -59,6 +65,9 @@ PLUGIN_INTERNAL_TO_REGISTRY = {
     "transformations": "transform",
     "services": "service",
     "hooks": "hooks",
+    "asset_providers": "assets",
+    "resource_providers": "resources",
+    "orchestrators": "orchestrator",
 }
 
 REGISTRY_TYPE_MAP = {
@@ -67,6 +76,9 @@ REGISTRY_TYPE_MAP = {
     "transforms": "transform",
     "services": "service",
     "hooks": "hooks",
+    "assets": "assets",
+    "resources": "resources",
+    "orchestrators": "orchestrator",
 }
 
 
@@ -80,7 +92,9 @@ def plugin_group():
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms", "services", "hooks", "all"]),
+    type=click.Choice(
+        ["sources", "quality", "transforms", "services", "hooks", "assets", "resources", "orchestrators", "all"]
+    ),
     default="all",
     help="Filter by plugin type",
 )
@@ -132,7 +146,9 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms", "services", "hooks"]),
+    type=click.Choice(
+        ["sources", "quality", "transforms", "services", "hooks", "assets", "resources", "orchestrators"]
+    ),
     help="Plugin type (auto-detected if not specified)",
 )
 @click.option(
@@ -177,6 +193,10 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
             "quality": "quality_checks",
             "transforms": "transformations",
             "services": "services",
+            "hooks": "hooks",
+            "assets": "asset_providers",
+            "resources": "resource_providers",
+            "orchestrators": "orchestrators",
         }
         internal_type = type_mapping.get(plugin_type, plugin_type)
 

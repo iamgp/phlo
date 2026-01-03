@@ -14,10 +14,13 @@ from phlo.config import get_settings
 from phlo.discovery.registry import get_global_registry
 from phlo.logging import get_logger, suppress_log_routing
 from phlo.plugins.base import (
+    AssetProviderPlugin,
     CliCommandPlugin,
     DagsterExtensionPlugin,
+    OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
+    ResourceProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
@@ -37,6 +40,9 @@ ENTRY_POINT_GROUPS = {
     "cli_commands": "phlo.plugins.cli",
     "hooks": "phlo.plugins.hooks",
     "trino_catalogs": "phlo.plugins.trino_catalogs",
+    "asset_providers": "phlo.plugins.assets",
+    "resource_providers": "phlo.plugins.resources",
+    "orchestrators": "phlo.plugins.orchestrators",
 }
 
 
@@ -109,6 +115,9 @@ def discover_plugins(
                 "cli_commands": [],
                 "hooks": [],
                 "trino_catalogs": [],
+                "asset_providers": [],
+                "resource_providers": [],
+                "orchestrators": [],
             }
 
         discovered: dict[str, list[Plugin]] = {
@@ -120,6 +129,9 @@ def discover_plugins(
             "cli_commands": [],
             "hooks": [],
             "trino_catalogs": [],
+            "asset_providers": [],
+            "resource_providers": [],
+            "orchestrators": [],
         }
 
         # Determine which plugin types to discover
@@ -179,6 +191,9 @@ def discover_plugins(
                         "cli_commands": CliCommandPlugin,
                         "hooks": HookPlugin,
                         "trino_catalogs": TrinoCatalogPlugin,
+                        "asset_providers": AssetProviderPlugin,
+                        "resource_providers": ResourceProviderPlugin,
+                        "orchestrators": OrchestratorAdapterPlugin,
                     }[ptype]
 
                     if not isinstance(plugin, expected_type):
@@ -214,6 +229,12 @@ def discover_plugins(
                             registry.register_hook_plugin(plugin, replace=True)
                         elif ptype == "trino_catalogs":
                             pass  # Trino catalogs are used directly, not registry-based
+                        elif ptype == "asset_providers":
+                            registry.register_asset_provider(plugin, replace=True)
+                        elif ptype == "resource_providers":
+                            registry.register_resource_provider(plugin, replace=True)
+                        elif ptype == "orchestrators":
+                            registry.register_orchestrator(plugin, replace=True)
 
                 except Exception as exc:
                     logger.error(
@@ -268,7 +289,8 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
 
     Args:
         plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
-            "services", "dagster_extensions", "cli_commands", "hooks")
+        "services", "dagster_extensions", "cli_commands", "hooks", "asset_providers",
+        "resource_providers", "orchestrators")
         name: Plugin name
 
     Returns:
@@ -297,6 +319,12 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
         return registry.get_cli_command_plugin(name)
     elif plugin_type == "hooks":
         return registry.get_hook_plugin(name)
+    elif plugin_type == "asset_providers":
+        return registry.get_asset_provider(name)
+    elif plugin_type == "resource_providers":
+        return registry.get_resource_provider(name)
+    elif plugin_type == "orchestrators":
+        return registry.get_orchestrator(name)
     else:
         logger.warning(f"Unknown plugin type: {plugin_type}")
         return None
@@ -451,6 +479,12 @@ def validate_plugins() -> dict[str, list[str]]:
                 plugin = registry.get_cli_command_plugin(name)
             elif plugin_type == "hooks":
                 plugin = registry.get_hook_plugin(name)
+            elif plugin_type == "asset_providers":
+                plugin = registry.get_asset_provider(name)
+            elif plugin_type == "resource_providers":
+                plugin = registry.get_resource_provider(name)
+            elif plugin_type == "orchestrators":
+                plugin = registry.get_orchestrator(name)
 
             if plugin and registry.validate_plugin(plugin):
                 valid.append(f"{plugin_type}:{name}")
