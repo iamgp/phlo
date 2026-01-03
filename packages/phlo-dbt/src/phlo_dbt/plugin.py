@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import dagster as dg
-from phlo.plugins.base import DagsterExtensionPlugin, PluginMetadata
+from phlo.plugins.base import AssetProviderPlugin, PluginMetadata
 
-from phlo_dbt.assets import build_dbt_definitions
+from phlo_dbt.assets import build_dbt_asset_specs
 
 
-class DbtDagsterPlugin(DagsterExtensionPlugin):
+class DbtAssetProvider(AssetProviderPlugin):
     @property
     def metadata(self) -> PluginMetadata:
         return PluginMetadata(
@@ -15,5 +14,5 @@ class DbtDagsterPlugin(DagsterExtensionPlugin):
             description="dbt models as Dagster assets",
         )
 
-    def get_definitions(self) -> dg.Definitions:
-        return build_dbt_definitions()
+    def get_assets(self):
+        return build_dbt_asset_specs()

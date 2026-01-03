@@ -4,7 +4,7 @@ dbt transformation integration for Phlo.
 
 ## Description
 
-Integrates dbt (data build tool) with the Phlo lakehouse. Provides Dagster assets from dbt models, CLI commands, and automatic project discovery.
+Integrates dbt (data build tool) with the Phlo lakehouse. Provides asset specs from dbt models, CLI commands, and automatic project discovery. Orchestrator adapters (for example `phlo-dagster`) translate the specs into runtime assets when installed.
 
 ## Installation
 
@@ -30,9 +30,9 @@ This package is **fully auto-configured**:
 | Feature               | How It Works                                                            |
 | --------------------- | ----------------------------------------------------------------------- |
 | **Project Discovery** | Auto-discovers `dbt_project.yml` in workspace via `find_dbt_projects()` |
-| **Dagster Assets**    | Automatically creates Dagster assets from dbt models                    |
+| **Asset Specs**       | Automatically creates asset specs from dbt models                        |
 | **Lineage Events**    | Emits lineage events during model execution                             |
-| **Auto-Compile**      | Compiles dbt on Dagster startup via post_start hook                     |
+| **Auto-Compile**      | Compiles dbt on startup via post_start hook                             |
 
 ### Discovery Locations
 
@@ -71,5 +71,5 @@ project_dir = get_dbt_project_dir()
 
 ## Entry Points
 
-- `phlo.plugins.dagster` - Provides `DbtDagsterPlugin` for asset definitions
+- `phlo.plugins.assets` - Provides `DbtAssetProvider` for asset specs
 - `phlo.plugins.cli` - Provides `dbt` CLI commands
