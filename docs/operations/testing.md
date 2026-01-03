@@ -16,10 +16,14 @@ This guide covers:
 
 ## Quick Start
 
-### 1. Copy the Test Template
+### 1. Create a Test File
 
 ```bash
-cp templates/tests/test_ingestion.py tests/test_my_workflow.py
+# Option A: scaffold a workflow (creates schema + tests)
+phlo create-workflow --type ingestion --domain my_domain --table my_table --unique-key id
+
+# Option B: create a test file if you already have a schema
+touch tests/test_my_workflow.py
 ```
 
 ### 2. Run Your Tests
@@ -896,7 +900,7 @@ open htmlcov/index.html
 
 ## Next Steps
 
-1. **Start with schema tests**: Copy `templates/tests/test_ingestion.py`
+1. **Start with schema tests**: Use the example in this guide or the scaffolded test file
 2. **Add business logic tests**: Test any custom transformations
 3. **Add integration tests**: Test full pipelines when ready
 4. **Set up CI/CD**: Run tests on every commit
@@ -906,7 +910,6 @@ open htmlcov/index.html
 
 ## Additional Resources
 
-- **Template**: [templates/tests/test_ingestion.py](../templates/tests/test_ingestion.py)
 - **Pandera Docs**: https://pandera.readthedocs.io/
 - **Pytest Docs**: https://docs.pytest.org/
 - **Troubleshooting**: [Troubleshooting Guide](troubleshooting.md)
