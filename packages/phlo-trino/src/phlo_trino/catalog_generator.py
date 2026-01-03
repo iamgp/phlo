@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 
 from phlo.discovery.plugins import discover_plugins
+from phlo.logging import get_logger
 from phlo.plugins.base import TrinoCatalogPlugin
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def discover_trino_catalogs() -> list[TrinoCatalogPlugin]:

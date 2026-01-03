@@ -6,7 +6,6 @@ Loads infrastructure configuration from phlo.yaml.
 
 from __future__ import annotations
 
-import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -15,8 +14,9 @@ import yaml
 from pydantic import ValidationError
 
 from phlo.config_schema import InfrastructureConfig, ServiceConfig
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)

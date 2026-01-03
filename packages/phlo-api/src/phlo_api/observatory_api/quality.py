@@ -7,7 +7,6 @@ Powers the Quality Center dashboard and asset quality tabs.
 from __future__ import annotations
 
 import json
-import logging
 import os
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -16,7 +15,9 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["quality"])
 

@@ -6,7 +6,6 @@ Used by the Observatory frontend to display row provenance.
 
 from __future__ import annotations
 
-import logging
 from collections import deque
 from typing import Any
 
@@ -17,8 +16,9 @@ from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
 from phlo.config import get_settings
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["lineage"])
 

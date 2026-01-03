@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _load_env_files() -> None:

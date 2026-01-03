@@ -8,11 +8,11 @@ that declare phlo.plugins entry points.
 from __future__ import annotations
 
 import importlib.metadata
-import logging
 import os
 
 from phlo.config import get_settings
 from phlo.discovery.registry import get_global_registry
+from phlo.logging import get_logger
 from phlo.plugins.base import (
     CliCommandPlugin,
     DagsterExtensionPlugin,
@@ -25,7 +25,7 @@ from phlo.plugins.base import (
 )
 from phlo.plugins.hooks import HookPlugin
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Entry point group names for different plugin types
 ENTRY_POINT_GROUPS = {

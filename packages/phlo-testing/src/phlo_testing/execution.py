@@ -81,8 +81,9 @@ class MockAssetContext:
 
     def _create_logger(self) -> logging.Logger:
         """Create logger that captures to self._logs."""
-        logger = logging.getLogger(f"asset_test_{id(self)}")
+        logger = logging.Logger(f"asset_test_{id(self)}")
         logger.setLevel(logging.DEBUG)
+        logger.propagate = False
 
         # Clear existing handlers
         logger.handlers = []

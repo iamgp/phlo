@@ -7,7 +7,6 @@ Supports correlation by run_id, asset_key, job_name, and partition_key.
 from __future__ import annotations
 
 import json
-import logging
 import os
 from datetime import datetime, timedelta
 from typing import Any, Literal
@@ -16,7 +15,9 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["loki"])
 

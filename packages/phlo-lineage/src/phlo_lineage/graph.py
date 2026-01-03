@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Optional, Set
 
+from phlo.logging import get_logger
 from phlo_lineage.store import LineageStore, resolve_lineage_db_url
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

@@ -4,7 +4,6 @@ Service Discovery Module
 Discovers and loads service definitions from installed plugins and optional directories.
 """
 
-import logging
 from dataclasses import dataclass, field
 from importlib.util import find_spec
 from pathlib import Path
@@ -12,10 +11,11 @@ from typing import Any
 
 import yaml
 
+from phlo.logging import get_logger
 from phlo.discovery.plugins import discover_plugins
 from phlo.discovery.registry import get_global_registry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

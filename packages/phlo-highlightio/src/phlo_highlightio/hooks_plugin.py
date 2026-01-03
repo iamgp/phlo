@@ -9,10 +9,11 @@ from highlight_io import H
 
 from phlo.config import get_settings
 from phlo.hooks import LogEvent
+from phlo.logging import get_logger
 from phlo.plugins.base import PluginMetadata
 from phlo.plugins.hooks import HookFilter, HookPlugin, HookRegistration
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HighlightHookPlugin(HookPlugin):

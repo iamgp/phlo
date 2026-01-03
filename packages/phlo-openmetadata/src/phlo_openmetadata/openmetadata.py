@@ -10,7 +10,6 @@ Provides authenticated access to OpenMetadata for:
 
 from __future__ import annotations
 
-import logging
 import base64
 import re
 from dataclasses import asdict, dataclass
@@ -22,7 +21,9 @@ import requests
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

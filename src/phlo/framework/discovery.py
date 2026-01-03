@@ -9,7 +9,6 @@ then collects all registered assets, jobs, and schedules.
 from __future__ import annotations
 
 import importlib.util
-import logging
 import sys
 import warnings
 from pathlib import Path
@@ -17,7 +16,9 @@ from typing import Any
 
 import dagster as dg
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Suppress Dagster preview warnings for stable API usage
 warnings.filterwarnings(
