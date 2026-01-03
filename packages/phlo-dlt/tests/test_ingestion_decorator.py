@@ -6,17 +6,11 @@ configuration parameters, and error handling.
 """
 
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 import pytest
-from dagster import AssetsDefinition
 from pandera.pandas import DataFrameModel, Field
-from phlo_dlt.decorator import (
-    _INGESTION_ASSETS,
-    clear_ingestion_assets,
-    get_ingestion_assets,
-    phlo_ingestion,
-)
+from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phlo_ingestion
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
@@ -30,14 +24,12 @@ def test_phlo_ingestion_export_is_available() -> None:
     assert callable(phlo_ingestion)
 
 
-def get_asset_spec(asset_def):
-    """Helper to get AssetSpec from AssetsDefinition."""
-    key = list(asset_def.keys)[0]
-    return asset_def.specs_by_key[key]
-
-
-def _as_assets_def(asset: Any) -> AssetsDefinition:
-    return cast(AssetsDefinition, asset)
+def get_asset_spec(asset_key: str) -> Any:
+    """Helper to get AssetSpec by key."""
+    for spec in get_ingestion_assets():
+        if spec.key == asset_key:
+            return spec
+    raise AssertionError(f"AssetSpec {asset_key} not found")
 
 
 class TestSchemaAutoGeneration:
@@ -61,8 +53,8 @@ class TestSchemaAutoGeneration:
 
         # Verify asset was created
         assert test_asset is not None
-        asset_def = _as_assets_def(test_asset)
-        assert asset_def.op.name == "dlt_test_table"
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.key == "dlt_test_table"
 
     def test_explicit_iceberg_schema_used(self):
         """Test explicit PyIceberg schema is used when provided."""
@@ -86,8 +78,8 @@ class TestSchemaAutoGeneration:
 
         # Asset should be created successfully
         assert test_asset is not None
-        asset_def = _as_assets_def(test_asset)
-        assert asset_def.op.name == "dlt_test_table"
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.key == "dlt_test_table"
 
     def test_error_when_no_schema_provided(self):
         """Test error raised when neither validation_schema nor iceberg_schema provided."""
@@ -123,8 +115,8 @@ class TestDecoratorConfiguration:
             pass
 
         # Check asset name includes table name
-        asset_def = _as_assets_def(test_asset)
-        assert asset_def.op.name == "dlt_custom_table"
+        spec = get_asset_spec("dlt_custom_table")
+        assert spec.key == "dlt_custom_table"
 
     def test_unique_key_configuration(self):
         """Test unique_key parameter is stored."""
@@ -160,8 +152,8 @@ class TestDecoratorConfiguration:
             pass
 
         # Check asset has correct group
-        spec = get_asset_spec(test_asset)
-        assert spec.group_name == "custom_group"
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.group == "custom_group"
 
 
 class TestAutomationConfiguration:
@@ -184,8 +176,9 @@ class TestAutomationConfiguration:
             pass
 
         # Check automation condition is set
-        spec = get_asset_spec(test_asset)
-        assert spec.automation_condition is not None
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.run is not None
+        assert spec.run.cron == "0 */1 * * *"
 
     def test_no_cron_means_no_automation(self):
         """Test no automation condition when cron not provided."""
@@ -203,8 +196,9 @@ class TestAutomationConfiguration:
             pass
 
         # Check no automation condition
-        spec = get_asset_spec(test_asset)
-        assert spec.automation_condition is None
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.run is not None
+        assert spec.run.cron is None
 
 
 class TestFreshnessConfiguration:
@@ -227,8 +221,9 @@ class TestFreshnessConfiguration:
             pass
 
         # Check freshness policy is set
-        spec = get_asset_spec(test_asset)
-        assert spec.freshness_policy is not None
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.run is not None
+        assert spec.run.freshness_hours == (1, 24)
 
     def test_no_freshness_when_not_provided(self):
         """Test no freshness policy when freshness_hours not provided."""
@@ -246,8 +241,9 @@ class TestFreshnessConfiguration:
             pass
 
         # Check no freshness policy
-        spec = get_asset_spec(test_asset)
-        assert spec.freshness_policy is None
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.run is not None
+        assert spec.run.freshness_hours is None
 
 
 class TestRetryConfiguration:
@@ -269,9 +265,9 @@ class TestRetryConfiguration:
             pass
 
         # Check retry policy exists
-        asset_def = _as_assets_def(test_asset)
-        assert asset_def.op.retry_policy is not None
-        assert asset_def.op.retry_policy.max_retries == 3  # Default
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.run is not None
+        assert spec.run.max_retries == 3  # Default
 
     def test_custom_retry_configuration(self):
         """Test custom max_retries and retry_delay configuration."""
@@ -291,10 +287,10 @@ class TestRetryConfiguration:
             pass
 
         # Check retry policy exists
-        asset_def = _as_assets_def(test_asset)
-        assert asset_def.op.retry_policy is not None
-        assert asset_def.op.retry_policy.max_retries == 5
-        assert asset_def.op.retry_policy.delay == 60
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.run is not None
+        assert spec.run.max_retries == 5
+        assert spec.run.retry_delay_seconds == 60
 
 
 class TestAssetRegistration:
@@ -320,7 +316,7 @@ class TestAssetRegistration:
 
         # Check asset was registered
         assert len(_INGESTION_ASSETS) == initial_count + 1
-        assert test_asset in _INGESTION_ASSETS
+        assert any(spec.key == "dlt_registration_test" for spec in _INGESTION_ASSETS)
 
     def test_get_ingestion_assets_returns_copy(self):
         """Test get_ingestion_assets() returns a copy of registered assets."""
@@ -355,8 +351,8 @@ class TestAssetAttributes:
             pass
 
         # Check asset name
-        asset_def = _as_assets_def(test_asset)
-        assert asset_def.op.name == "dlt_github_events"
+        spec = get_asset_spec("dlt_github_events")
+        assert spec.key == "dlt_github_events"
 
     def test_asset_has_description(self):
         """Test asset preserves function docstring as description."""
@@ -375,7 +371,7 @@ class TestAssetAttributes:
             pass
 
         # Check description
-        spec = get_asset_spec(test_asset)
+        spec = get_asset_spec("dlt_test_table")
         assert "Custom docstring" in spec.description
 
     def test_asset_compute_kind(self):
@@ -393,12 +389,9 @@ class TestAssetAttributes:
         def test_asset(partition_date: str):
             pass
 
-        # Check compute kind via asset's tags (dagster/kind/*)
-        asset_def = _as_assets_def(test_asset)
-        asset_key = list(asset_def.tags_by_key.keys())[0]
-        tags = asset_def.tags_by_key[asset_key]
-        assert "dagster/kind/dlt" in tags
-        assert "dagster/kind/iceberg" in tags
+        spec = get_asset_spec("dlt_test_table")
+        assert "dlt" in spec.kinds
+        assert "iceberg" in spec.kinds
 
     def test_asset_has_partitions_def(self):
         """Test asset has partitions_def configured."""
@@ -416,8 +409,9 @@ class TestAssetAttributes:
             pass
 
         # Check partitions def
-        spec = get_asset_spec(test_asset)
-        assert spec.partitions_def is not None
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.partitions is not None
+        assert spec.partitions.kind == "daily"
 
 
 class TestComplexSchemas:
@@ -447,12 +441,12 @@ class TestComplexSchemas:
             pass
 
         # Check asset configured correctly
-        spec = get_asset_spec(github_events)
-        github_assets = _as_assets_def(github_events)
-        assert github_assets.op.name == "dlt_github_user_events"
-        assert spec.group_name == "github"
-        assert spec.automation_condition is not None
-        assert spec.freshness_policy is not None
+        spec = get_asset_spec("dlt_github_user_events")
+        assert spec.key == "dlt_github_user_events"
+        assert spec.group == "github"
+        assert spec.run is not None
+        assert spec.run.cron == "0 */1 * * *"
+        assert spec.run.freshness_hours == (1, 24)
 
     def test_glucose_entries_like_schema(self):
         """Test decorator with Nightscout glucose-like schema."""
@@ -478,11 +472,11 @@ class TestComplexSchemas:
             pass
 
         # Check asset configured correctly
-        spec = get_asset_spec(glucose_entries)
-        glucose_assets = _as_assets_def(glucose_entries)
-        assert glucose_assets.op.name == "dlt_glucose_entries"
-        assert spec.group_name == "nightscout"
-        assert glucose_assets.op.tags["dagster/max_runtime"] == "600"
+        spec = get_asset_spec("dlt_glucose_entries")
+        assert spec.key == "dlt_glucose_entries"
+        assert spec.group == "nightscout"
+        assert spec.run is not None
+        assert spec.run.max_runtime_seconds == 600
 
 
 class TestEdgeCases:
@@ -542,6 +536,6 @@ class TestEdgeCases:
         def test_asset(partition_date: str):
             pass
 
-        # Check op_tags
-        asset_def = _as_assets_def(test_asset)
-        assert asset_def.op.tags["dagster/max_runtime"] == "900"
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.run is not None
+        assert spec.run.max_runtime_seconds == 900
