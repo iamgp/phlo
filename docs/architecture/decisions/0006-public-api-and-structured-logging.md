@@ -20,8 +20,8 @@ to standard logging.
 
 - Use explicit `__all__` exports for public modules and resources, with typed/lazy imports where
   necessary.
-- Replace non-CLI `print()` usage with structured logging (`logging.getLogger(__name__)` and
-  Dagster context logs where applicable).
+- Replace non-CLI `print()` usage with structured logging (`phlo.logging.get_logger(__name__)`
+  and Dagster context logs where applicable).
 
 ## Consequences
 

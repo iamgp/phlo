@@ -10,6 +10,7 @@ from typing import Optional
 import click
 
 from phlo.cli._services.utils import find_dagster_container, get_project_name
+from phlo.logging import get_logger
 
 
 @click.command()
@@ -42,6 +43,8 @@ def materialize(
         "exec",
         "-e",
         f"PHLO_HOST_PLATFORM={host_platform}",
+        "-e",
+        "PHLO_PROJECT_PATH=/app",
         "-w",
         "/app",
         container_name,
@@ -68,15 +71,29 @@ def materialize(
     click.echo(f"Materializing {asset_name}...\n")
 
     try:
-        result = subprocess.run(cmd, check=False)
-        if result.returncode == 0:
+        logger = get_logger("phlo.dagster.materialize", service="dagster")
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if process.stdout:
+            for line in process.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                message = line.rstrip()
+                if message:
+                    logger.info(message, tags={"source": "dagster"})
+        returncode = process.wait()
+        if returncode == 0:
             click.echo(f"\nSuccessfully materialized {asset_name}")
         else:
             click.echo(
-                f"\nMaterialization failed with exit code {result.returncode}",
+                f"\nMaterialization failed with exit code {returncode}",
                 err=True,
             )
-        sys.exit(result.returncode)
+        sys.exit(returncode)
     except FileNotFoundError:
         click.echo(
             f"Error: Docker not found or {container_name} container not running",

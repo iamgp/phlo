@@ -6,7 +6,6 @@ Provides health metrics, asset listing, and materialization history.
 
 from __future__ import annotations
 
-import logging
 import os
 import time
 from datetime import datetime
@@ -16,9 +15,10 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from phlo.logging import get_logger
 from phlo_api.observatory_api.quality import fetch_quality_snapshot
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["dagster"])
 

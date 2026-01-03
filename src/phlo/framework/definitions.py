@@ -9,7 +9,6 @@ This is the entry point for user projects using Phlo as an installable package.
 
 from __future__ import annotations
 
-import logging
 import platform
 from pathlib import Path
 
@@ -17,8 +16,9 @@ import dagster as dg
 
 from phlo.config import get_settings
 from phlo.framework.discovery import discover_user_workflows
+from phlo.logging import get_logger, setup_logging
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _default_executor() -> dg.ExecutorDefinition | None:
@@ -103,6 +103,7 @@ def build_definitions(
         defs = build_definitions()
         ```
     """
+    setup_logging()
     settings = get_settings()
 
     # Determine workflows path

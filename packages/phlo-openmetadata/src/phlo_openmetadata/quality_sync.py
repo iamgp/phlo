@@ -8,7 +8,6 @@ to OpenMetadata test definitions and publishes results.
 from __future__ import annotations
 
 import json
-import logging
 import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
@@ -16,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Optional
 if TYPE_CHECKING:
     from phlo_openmetadata.openmetadata import OpenMetadataClient
 
+from phlo.logging import get_logger
 from phlo_quality.checks import (
     CountCheck,
     CustomSQLCheck,
@@ -26,7 +26,7 @@ from phlo_quality.checks import (
     UniqueCheck,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class QualityCheckMapper:

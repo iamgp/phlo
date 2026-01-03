@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def _load_env_files() -> None:
@@ -68,7 +69,7 @@ def track_tables(schemas: str = "api") -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    setup_logging()
 
     # Load env files before running hooks
     _load_env_files()
@@ -77,5 +78,5 @@ if __name__ == "__main__":
         schemas = sys.argv[2] if len(sys.argv) > 2 else "auto"
         track_tables(schemas=schemas)
     else:
-        print("Usage: python -m phlo_hasura.hooks track-tables [schemas]")
-        print("  schemas: comma-separated list (e.g., 'marts,api'), or 'auto' to discover")
+        logger.info("Usage: python -m phlo_hasura.hooks track-tables [schemas]")
+        logger.info("  schemas: comma-separated list (e.g., 'marts,api'), or 'auto' to discover")

@@ -1,6 +1,5 @@
 """Hasura table tracking and auto-discovery."""
 
-import logging
 import os
 import socket
 from typing import Any
@@ -8,10 +7,11 @@ from typing import Any
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-from phlo_hasura.client import HasuraClient
 from phlo.config import get_settings
+from phlo.logging import get_logger
+from phlo_hasura.client import HasuraClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _resolve_db_host(host: str, port: int) -> tuple[str, int]:

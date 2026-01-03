@@ -8,7 +8,6 @@ Used for running phlo-api and Observatory natively.
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 import re
 import signal
@@ -22,8 +21,9 @@ from typing import TextIO
 import httpx
 
 from phlo.discovery import ServiceDefinition
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

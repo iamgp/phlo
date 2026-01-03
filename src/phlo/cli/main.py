@@ -16,6 +16,7 @@ from phlo.cli.config import config
 from phlo.cli.env import env
 from phlo.cli.plugin import plugin_group
 from phlo.cli.services import services
+from phlo.logging import setup_logging
 
 
 @click.group()
@@ -28,7 +29,7 @@ def cli():
 
     Documentation: https://github.com/iamgp/phlo
     """
-    pass
+    setup_logging()
 
 
 cli.add_command(services)

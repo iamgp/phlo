@@ -258,6 +258,8 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
         "exec",
         "-e",
         f"PHLO_HOST_PLATFORM={host_platform}",
+        "-e",
+        "PHLO_PROJECT_PATH=/app",
         "-w",
         "/app",
         container_name,

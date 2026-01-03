@@ -4,16 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-import logging
-
 from phlo.hooks import LineageEvent
+from phlo.logging import get_logger
 from phlo.plugins.base import PluginMetadata
 from phlo.plugins.hooks import HookFilter, HookPlugin, HookRegistration
 
 from phlo_lineage.graph import get_lineage_graph
 from phlo_lineage.store import LineageStore, resolve_lineage_db_url
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LineageHookPlugin(HookPlugin):

@@ -269,6 +269,25 @@ class Settings(BaseSettings):
         default=10, description="Registry fetch timeout in seconds"
     )
 
+    # --- Logging Configuration ---
+    phlo_log_level: str = Field(default="INFO", description="Default log level for Phlo")
+    phlo_log_format: str = Field(
+        default="auto",
+        description="Log format (auto|json|console)",
+    )
+    phlo_log_router_enabled: bool = Field(
+        default=True,
+        description="Emit structured log events to the hook bus",
+    )
+    phlo_log_service_name: str = Field(
+        default="phlo",
+        description="Default service name for log records",
+    )
+    phlo_log_file_template: str = Field(
+        default=".phlo/logs/{YMD}.log",
+        description="Optional log file path template (empty to disable)",
+    )
+
     # --- Computed Properties ---
     # Additional properties computed from the base settings
     @property

@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from phlo.config import get_settings
 from phlo.hooks import LineageEvent, PublishEvent, QualityResultEvent
+from phlo.logging import get_logger
 from phlo.plugins.base import PluginMetadata
 from phlo.plugins.hooks import HookFilter, HookPlugin, HookRegistration
 
 from phlo_openmetadata.openmetadata import OpenMetadataClient, OpenMetadataTable
 from phlo_openmetadata.quality_sync import QualityCheckMapper
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OpenMetadataHookPlugin(HookPlugin):

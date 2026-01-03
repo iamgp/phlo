@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from phlo.hooks.events import HookEvent
+from phlo.logging import get_logger
 from phlo.plugins.hooks import (
     FailurePolicy,
     HookFilter,
@@ -15,7 +15,7 @@ from phlo.plugins.hooks import (
     HookRegistration,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)

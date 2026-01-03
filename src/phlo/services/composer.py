@@ -4,7 +4,6 @@ Compose Generator Module
 Generates docker-compose.yml and .env/.env.local files from service definitions.
 """
 
-import logging
 import os
 import shutil
 from pathlib import Path
@@ -13,8 +12,9 @@ from typing import Any
 import yaml
 
 from phlo.discovery import ServiceDefinition, ServiceDiscovery
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ComposeGenerator:

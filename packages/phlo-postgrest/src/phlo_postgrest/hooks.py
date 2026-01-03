@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from phlo.infrastructure.config import get_project_name_from_config, load_infrastructure_config
+from phlo.logging import get_logger, setup_logging
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _get_config_file() -> Path:
@@ -241,9 +241,9 @@ def _wait_for_healthy(container_name: str, timeout: int = 30) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    setup_logging()
 
     if len(sys.argv) > 1 and sys.argv[1] == "configure-schemas":
         configure_schemas()
     else:
-        print("Usage: python -m phlo_postgrest.hooks configure-schemas")
+        logger.info("Usage: python -m phlo_postgrest.hooks configure-schemas")

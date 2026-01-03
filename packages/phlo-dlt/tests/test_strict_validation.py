@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from types import SimpleNamespace
 
 import pandera.errors
@@ -11,6 +10,7 @@ from pandera.typing import Series  # type: ignore[possibly-missing-import]
 from phlo_dlt.dlt_helpers import validate_with_pandera
 
 from phlo_quality.schemas import PhloSchema
+from phlo.logging import get_logger
 
 
 class StrictTestSchema(PhloSchema):
@@ -23,7 +23,7 @@ class StrictTestSchema(PhloSchema):
 @pytest.fixture
 def mock_context():
     """Create a mock Dagster context with a logger."""
-    return SimpleNamespace(log=logging.getLogger("phlo.tests.strict_validation"))
+    return SimpleNamespace(log=get_logger("phlo.tests.strict_validation"))
 
 
 class TestValidateWithPanderaStrictMode:

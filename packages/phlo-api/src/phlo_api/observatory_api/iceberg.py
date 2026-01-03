@@ -6,13 +6,13 @@ Provides table listing, schema info, and metadata.
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from phlo.logging import get_logger
 from phlo_api.observatory_api.trino import (
     DEFAULT_CATALOG,
     QueryExecutionError,
@@ -20,7 +20,7 @@ from phlo_api.observatory_api.trino import (
     quote_identifier,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["iceberg"])
 

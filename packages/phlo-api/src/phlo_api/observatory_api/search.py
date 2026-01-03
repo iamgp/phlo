@@ -7,16 +7,16 @@ Combines data from Dagster (assets) and Iceberg/Trino (tables, columns).
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from phlo.logging import get_logger
 from phlo_api.observatory_api.dagster import get_assets
 from phlo_api.observatory_api.iceberg import get_table_schema, get_tables
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["search"])
 
