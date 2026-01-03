@@ -13,6 +13,7 @@ import sys
 import traceback
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Mapping, MutableMapping, TypeVar
 
@@ -42,6 +43,7 @@ class LoggingSettings:
     log_format: str = "json"
     router_enabled: bool = True
     service_name: str = "phlo"
+    log_file_template: str | None = None
 
     @classmethod
     def from_settings(cls) -> "LoggingSettings":
@@ -51,6 +53,7 @@ class LoggingSettings:
             log_format=settings.phlo_log_format,
             router_enabled=settings.phlo_log_router_enabled,
             service_name=settings.phlo_log_service_name,
+            log_file_template=settings.phlo_log_file_template,
         )
 
 
@@ -78,6 +81,7 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
         add_service,
+        structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
@@ -121,6 +125,13 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     stream_handler.setFormatter(formatter)
     _mark_phlo_handler(stream_handler)
     root.addHandler(stream_handler)
+
+    if resolved.log_file_template:
+        file_handler = _build_file_handler(resolved.log_file_template, formatter)
+        if file_handler is not None:
+            file_handler.setLevel(level)
+            _mark_phlo_handler(file_handler)
+            root.addHandler(file_handler)
 
     if resolved.router_enabled:
         router_handler = LogRouterHandler(service_name=service_name, level=level)
@@ -335,6 +346,50 @@ def _build_metadata(record: logging.LogRecord, extra: dict[str, Any]) -> dict[st
     if record.exc_info:
         metadata["exception"] = "".join(traceback.format_exception(*record.exc_info))
     return metadata
+
+
+def _build_file_handler(
+    template: str,
+    formatter: logging.Formatter,
+) -> logging.Handler | None:
+    path = _render_log_file_path(template)
+    if path is None:
+        return None
+    handler = logging.FileHandler(path, encoding="utf-8")
+    handler.setFormatter(formatter)
+    return handler
+
+
+def _render_log_file_path(template: str) -> Path | None:
+    now = datetime.now(timezone.utc)
+    tokens = {
+        "YMD": now.strftime("%Y%m%d"),
+        "YM": now.strftime("%Y%m"),
+        "Y": now.strftime("%Y"),
+        "YYYY": now.strftime("%Y"),
+        "M": now.strftime("%m"),
+        "MM": now.strftime("%m"),
+        "D": now.strftime("%d"),
+        "DD": now.strftime("%d"),
+        "H": now.strftime("%H"),
+        "HM": now.strftime("%H%M"),
+        "HMS": now.strftime("%H%M%S"),
+        "DATE": now.strftime("%Y-%m-%d"),
+        "TIMESTAMP": now.strftime("%Y%m%d%H%M%S"),
+    }
+    try:
+        rendered = template.format(**tokens)
+    except KeyError as exc:
+        logging.getLogger(__name__).warning(
+            "Unknown log file template placeholder: %s",
+            exc,
+        )
+        return None
+    path = Path(rendered)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _pop_tags(extra: dict[str, Any]) -> dict[str, str]:

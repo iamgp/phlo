@@ -283,6 +283,10 @@ class Settings(BaseSettings):
         default="phlo",
         description="Default service name for log records",
     )
+    phlo_log_file_template: str = Field(
+        default=".phlo/logs/{YMD}.log",
+        description="Optional log file path template (empty to disable)",
+    )
 
     # --- Highlight.io Configuration ---
     phlo_highlight_enabled: bool = Field(

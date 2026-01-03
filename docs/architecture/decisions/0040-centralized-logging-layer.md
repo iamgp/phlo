@@ -29,6 +29,8 @@ Key elements:
 - Define a normalized `LogEvent` (`event_type="log.record"`) and emit it via a
   `LogRouterHandler` into the HookBus.
 - Keep JSON to stdout as the default sink for Alloy/Loki ingestion.
+- Support optional file logging via `phlo_log_file_template` (default
+  `.phlo/logs/{YMD}.log`, empty disables).
 - Implement `phlo-highlightio` as a HookPlugin that consumes `log.record`
   events and forwards them to Highlight.io.
 - Align log schema fields with ADR-0028 correlation keys.

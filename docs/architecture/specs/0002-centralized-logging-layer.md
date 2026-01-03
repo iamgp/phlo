@@ -142,6 +142,14 @@ Add logging settings to `phlo.config.settings`:
 - `phlo_log_format` (json | console)
 - `phlo_log_router_enabled` (default: true)
 - `phlo_log_service_name` (default: phlo)
+- `phlo_log_file_template` (default: .phlo/logs/{YMD}.log, empty disables)
+
+Supported template placeholders (UTC):
+
+- `{YMD}` / `{YM}` / `{Y}` / `{YYYY}`
+- `{M}` / `{MM}` / `{D}` / `{DD}`
+- `{H}` / `{HM}` / `{HMS}`
+- `{DATE}` (YYYY-MM-DD) / `{TIMESTAMP}` (YYYYMMDDHHMMSS)
 
 Allow overrides via env vars and `.phlo/.env(.local)`.
 
