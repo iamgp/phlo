@@ -115,16 +115,19 @@ All packages integrate through Phlo's unified plugin system using Python entry p
 
 ### Entry Point Groups
 
-| Entry Point                   | Description                        |
-| ----------------------------- | ---------------------------------- |
-| `phlo.plugins.services`       | Infrastructure service definitions |
-| `phlo.plugins.dagster`        | Dagster resources and definitions  |
-| `phlo.plugins.sources`        | Data source connectors             |
-| `phlo.plugins.quality`        | Quality check implementations      |
-| `phlo.plugins.transforms`     | Data transformation plugins        |
-| `phlo.plugins.cli`            | CLI command extensions             |
-| `phlo.plugins.hooks`          | Event hook handlers                |
-| `phlo.plugins.trino_catalogs` | Trino catalog configurations       |
+| Entry Point                   | Description                                    |
+| ----------------------------- | ---------------------------------------------- |
+| `phlo.plugins.services`       | Infrastructure service definitions             |
+| `phlo.plugins.assets`         | Asset spec providers                            |
+| `phlo.plugins.resources`      | Resource spec providers                         |
+| `phlo.plugins.orchestrators`  | Orchestrator adapters                           |
+| `phlo.plugins.sources`        | Data source connectors                         |
+| `phlo.plugins.quality`        | Quality check implementations                  |
+| `phlo.plugins.transforms`     | Data transformation plugins                    |
+| `phlo.plugins.cli`            | CLI command extensions                         |
+| `phlo.plugins.hooks`          | Event hook handlers                            |
+| `phlo.plugins.trino_catalogs` | Trino catalog configurations                   |
+| `phlo.plugins.dagster`        | Legacy Dagster extensions (when needed)        |
 
 ### Discovering Installed Plugins
 

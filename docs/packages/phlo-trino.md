@@ -139,9 +139,10 @@ compose:
 
 ## Entry Points
 
-| Entry Point             | Plugin               |
-| ----------------------- | -------------------- |
-| `phlo.plugins.services` | `TrinoServicePlugin` |
+| Entry Point               | Plugin                    |
+| ------------------------- | ------------------------- |
+| `phlo.plugins.services`   | `TrinoServicePlugin`      |
+| `phlo.plugins.resources`  | `TrinoResourceProvider`   |
 
 ## Related Packages
 

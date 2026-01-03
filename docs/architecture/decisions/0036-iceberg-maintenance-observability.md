@@ -39,7 +39,7 @@ Implement first-class observability for Iceberg maintenance operations, aligned 
 
 ## Implementation
 
-- Add maintenance telemetry and structured logging to `phlo_iceberg.maintenance` for
+- Add maintenance telemetry and structured logging to `phlo_dagster.iceberg_maintenance` for
   `expire_table_snapshots`, `cleanup_orphan_files`, and `collect_table_stats`.
 - Extend `phlo-metrics` to aggregate maintenance telemetry into Prometheus-compatible metrics.
 - Trigger alerts through `phlo-alerting` when maintenance errors occur.

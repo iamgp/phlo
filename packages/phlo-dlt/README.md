@@ -64,7 +64,7 @@ def ingest_github_events():
 Ingestion assets are automatically discovered and can be materialized via the active orchestrator:
 
 ```bash
-dagster asset materialize --select github_events
+phlo materialize dlt_github_events
 ```
 
 ## Entry Points

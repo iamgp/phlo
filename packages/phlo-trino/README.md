@@ -73,3 +73,4 @@ phlo trino query "SELECT * FROM iceberg.bronze.users LIMIT 10"
 ## Entry Points
 
 - `phlo.plugins.services` - Provides `TrinoServicePlugin`
+- `phlo.plugins.resources` - Provides `TrinoResourceProvider`

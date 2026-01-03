@@ -46,7 +46,7 @@ Phlo uses Python entry points to automatically discover plugins:
 │     • phlo.plugins.sources           │
 │     • phlo.plugins.quality           │
 │     • phlo.plugins.transforms        │
-│     • phlo.plugins.dagster           │
+│     • phlo.plugins.dagster (legacy)  │
 │     • phlo.plugins.cli               │
 │     • phlo.plugins.hooks             │
 │     • phlo.plugins.assets            │

@@ -29,7 +29,7 @@ phlo plugin install dlt
 
 | Feature                | How It Works                                                         |
 | ---------------------- | -------------------------------------------------------------------- |
-| **Asset Registration** | Ingestion assets auto-registered with Dagster via entry points       |
+| **Asset Registration** | Ingestion assets published as capability specs via entry points      |
 | **Lineage Events**     | Emits `ingestion.start`, `ingestion.end` events for lineage tracking |
 | **Schema Evolution**   | Automatically handles schema changes during ingestion                |
 | **Hook Integration**   | Events captured by alerting, metrics, and OpenMetadata plugins       |
@@ -100,8 +100,8 @@ def api_events(partition_date: str):
 ### Running Ingestion
 
 ```bash
-# Via Dagster CLI
-dagster asset materialize --select api_events
+# Via Phlo CLI
+phlo materialize dlt_api_events
 
 # Via Phlo CLI
 phlo materialize api_events --partition 2025-01-15
@@ -127,11 +127,11 @@ Iceberg Table (on Nessie branch)
 
 | Entry Point            | Plugin                                  |
 | ---------------------- | --------------------------------------- |
-| `phlo.plugins.dagster` | `DltDagsterPlugin` for ingestion assets |
+| `phlo.plugins.assets`  | `DltAssetProvider` for ingestion specs |
 
 ## Related Packages
 
-- [phlo-dagster](phlo-dagster.md) - Orchestration platform
+- [phlo-dagster](phlo-dagster.md) - Dagster adapter for capability specs
 - [phlo-iceberg](phlo-iceberg.md) - Iceberg table format
 - [phlo-quality](phlo-quality.md) - Data validation
 - [phlo-nessie](phlo-nessie.md) - Branch management
