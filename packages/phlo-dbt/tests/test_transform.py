@@ -9,7 +9,9 @@ from phlo_dbt.translator import DbtSpecTranslator
 
 def test_custom_dbt_translator_asset_key_model() -> None:
     translator = DbtSpecTranslator()
-    asset_key = translator.get_asset_key({"name": "stg_nightscout_entries", "resource_type": "model"})
+    asset_key = translator.get_asset_key(
+        {"name": "stg_nightscout_entries", "resource_type": "model"}
+    )
     assert asset_key == "stg_nightscout_entries"
 
 

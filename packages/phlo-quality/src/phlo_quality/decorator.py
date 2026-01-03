@@ -120,6 +120,7 @@ def phlo_quality(
         asset_key_value = asset_key
 
         if schema_checks:
+
             def pandera_contract_check(runtime: RuntimeContext) -> CheckResult:
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
@@ -306,6 +307,7 @@ def phlo_quality(
             register_check(pandera_spec)
 
         if non_schema_checks:
+
             def quality_check_wrapper(runtime: RuntimeContext) -> CheckResult:
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None

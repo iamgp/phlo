@@ -300,7 +300,7 @@ class TestAssetRegistration:
         """Test decorated asset is added to _INGESTION_ASSETS."""
 
         # Clear registry before test
-        initial_count = len(_INGESTION_ASSETS)
+        initial_count = len(get_ingestion_assets())
 
         class TestSchema(DataFrameModel):
             id: str
@@ -315,11 +315,24 @@ class TestAssetRegistration:
             pass
 
         # Check asset was registered
-        assert len(_INGESTION_ASSETS) == initial_count + 1
-        assert any(spec.key == "dlt_registration_test" for spec in _INGESTION_ASSETS)
+        assets = get_ingestion_assets()
+        assert len(assets) == initial_count + 1
+        assert any(spec.key == "dlt_registration_test" for spec in assets)
 
     def test_get_ingestion_assets_returns_copy(self):
         """Test get_ingestion_assets() returns a copy of registered assets."""
+
+        class TestSchema(DataFrameModel):
+            id: str
+
+        @phlo_ingestion(
+            table_name="copy_test",
+            unique_key="id",
+            validation_schema=TestSchema,
+            group="test",
+        )
+        def test_asset(partition_date: str):
+            pass
 
         assets = get_ingestion_assets()
 
@@ -327,9 +340,9 @@ class TestAssetRegistration:
         assert isinstance(assets, list)
 
         # Modifying returned list should not affect internal registry
-        original_length = len(_INGESTION_ASSETS)
-        assets.append(None)
-        assert len(_INGESTION_ASSETS) == original_length
+        original_length = len(assets)
+        assets.append(assets[0])
+        assert len(get_ingestion_assets()) == original_length
 
 
 class TestAssetAttributes:

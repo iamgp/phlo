@@ -30,7 +30,7 @@ def extract_dbt_asset_checks(
         if normalized in {"error", "critical"}:
             return AssetCheckSeverity.ERROR
         if normalized in {"info", "informational"}:
-            return AssetCheckSeverity.INFO
+            return AssetCheckSeverity.WARN
         return AssetCheckSeverity.ERROR
 
     def _metadata_value(value: Any) -> MetadataValue:
@@ -77,8 +77,10 @@ def extract_dbt_asset_checks(
             asset_key_str = translator.get_asset_key(target_props)
         except Exception:
             continue
-        asset_key = AssetKey(asset_key_str.split(".")) if "." in asset_key_str else AssetKey(
-            [asset_key_str]
+        asset_key = (
+            AssetKey(asset_key_str.split("."))
+            if "." in asset_key_str
+            else AssetKey([asset_key_str])
         )
 
         test_props = nodes.get(unique_id, {})
@@ -132,7 +134,7 @@ def extract_dbt_asset_checks(
                 asset_key=asset_key,
                 check_name=check_name,
                 passed=passed,
-                severity=severity,
+                severity=severity or AssetCheckSeverity.ERROR,
                 metadata=metadata,
             )
         )

@@ -9,15 +9,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, TYPE_CHECKING
+from typing import Any, Callable, Iterable
 
 import click
 import pandas as pd
 
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
 
-if TYPE_CHECKING:
-    import dagster as dg
 
 @dataclass
 class PluginMetadata:

@@ -93,7 +93,17 @@ def plugin_group():
     "--type",
     "plugin_type",
     type=click.Choice(
-        ["sources", "quality", "transforms", "services", "hooks", "assets", "resources", "orchestrators", "all"]
+        [
+            "sources",
+            "quality",
+            "transforms",
+            "services",
+            "hooks",
+            "assets",
+            "resources",
+            "orchestrators",
+            "all",
+        ]
     ),
     default="all",
     help="Filter by plugin type",
@@ -147,7 +157,16 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
     "--type",
     "plugin_type",
     type=click.Choice(
-        ["sources", "quality", "transforms", "services", "hooks", "assets", "resources", "orchestrators"]
+        [
+            "sources",
+            "quality",
+            "transforms",
+            "services",
+            "hooks",
+            "assets",
+            "resources",
+            "orchestrators",
+        ]
     ),
     help="Plugin type (auto-detected if not specified)",
 )

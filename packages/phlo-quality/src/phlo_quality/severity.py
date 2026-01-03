@@ -29,9 +29,7 @@ def severity_for_quality_check(
     return "error"
 
 
-def severity_for_dbt_test(
-    *, test_type: str | None, tags: Iterable[str] | None
-) -> str:
+def severity_for_dbt_test(*, test_type: str | None, tags: Iterable[str] | None) -> str:
     normalized_tags = normalize_dbt_tags(tags)
     normalized_test_type = (test_type or "").strip().lower()
 

@@ -4,6 +4,7 @@ import json
 import subprocess
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from phlo.capabilities import AssetSpec, MaterializeResult, PartitionSpec, RunSpec
 from phlo.capabilities.runtime import RuntimeContext
@@ -89,9 +90,7 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
     return isinstance(manifest_payload, Mapping)
 
 
-def _asset_deps(
-    unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, str]
-) -> list[str]:
+def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, str]) -> list[str]:
     props = nodes.get(unique_id, {})
     depends_on = props.get("depends_on") or {}
     depends_nodes = depends_on.get("nodes") or []

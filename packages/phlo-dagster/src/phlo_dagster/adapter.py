@@ -73,7 +73,7 @@ def _severity_from_string(value: str | None) -> dg.AssetCheckSeverity | None:
         return None
     normalized = value.strip().lower()
     if normalized in {"info", "informational"}:
-        return dg.AssetCheckSeverity.INFO
+        return dg.AssetCheckSeverity.WARN
     if normalized in {"warn", "warning"}:
         return dg.AssetCheckSeverity.WARN
     if normalized in {"error", "critical"}:
@@ -220,7 +220,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
                         metadata.setdefault("status", dg.MetadataValue.text(result.status))
                     yield dg.MaterializeResult(metadata=metadata)
                 elif isinstance(result, CheckResult):
-                    severity = _severity_from_string(result.severity)
+                    severity = _severity_from_string(result.severity) or dg.AssetCheckSeverity.ERROR
                     asset_check_key = _asset_key_from_string(result.asset_key)
                     metadata = _convert_metadata(result.metadata)
                     yield dg.AssetCheckResult(
@@ -235,7 +235,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
 
     def _build_check(self, spec: AssetCheckSpec) -> dg.AssetChecksDefinition:
         asset_key = _asset_key_from_string(spec.asset_key)
-        severity = _severity_from_string(spec.severity)
+        default_severity = _severity_from_string(spec.severity) or dg.AssetCheckSeverity.ERROR
 
         @dg.asset_check(
             name=spec.name,
@@ -250,7 +250,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
                 return dg.AssetCheckResult(passed=True, check_name=spec.name, asset_key=asset_key)
             metadata = _convert_metadata(result.metadata)
             result_severity = _severity_from_string(result.severity)
-            severity = result_severity or severity
+            severity = result_severity or default_severity
             return dg.AssetCheckResult(
                 passed=result.passed,
                 check_name=result.check_name,

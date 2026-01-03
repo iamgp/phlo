@@ -26,7 +26,4 @@ def test_dbt_severity_tag_overrides() -> None:
     assert severity_for_dbt_test(test_type="not_null", tags=[]) == "error"
     assert severity_for_dbt_test(test_type="accepted_values", tags=[]) == "warn"
     assert severity_for_dbt_test(test_type="not_null", tags=["warn"]) == "warn"
-    assert (
-        severity_for_dbt_test(test_type="accepted_values", tags=["blocking"])
-        == "error"
-    )
+    assert severity_for_dbt_test(test_type="accepted_values", tags=["blocking"]) == "error"
