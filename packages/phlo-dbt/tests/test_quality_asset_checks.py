@@ -4,7 +4,6 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from dagster import AssetCheckSeverity
 from phlo_dbt.translator import DbtSpecTranslator
 
 from phlo_dbt.asset_checks import extract_dbt_asset_checks
@@ -61,10 +60,10 @@ def test_pandera_contract_asset_check_passes_for_valid_parquet(tmp_path) -> None
 @pytest.mark.parametrize(
     ("tags", "expected_severity"),
     [
-        ([], AssetCheckSeverity.ERROR),
-        (["warn"], AssetCheckSeverity.WARN),
-        (["anomaly"], AssetCheckSeverity.WARN),
-        (["blocking"], AssetCheckSeverity.ERROR),
+        ([], "error"),
+        (["warn"], "warn"),
+        (["anomaly"], "warn"),
+        (["blocking"], "error"),
     ],
 )
 def test_dbt_test_results_emit_asset_checks_with_severity(tags, expected_severity) -> None:
@@ -102,7 +101,7 @@ def test_dbt_test_results_emit_asset_checks_with_severity(tags, expected_severit
     )
     assert len(checks) == 1
     check = checks[0]
-    assert check.asset_key.path == ["mrt_orders"]
+    assert check.asset_key == "mrt_orders"
     assert check.check_name == "dbt__not_null__mrt_orders"
     assert check.passed is False
     assert check.severity == expected_severity

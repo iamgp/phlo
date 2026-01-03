@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from phlo.capabilities import CheckResult
 from phlo_quality.contract import QualityCheckContract, dbt_check_name
 from phlo_quality.severity import severity_for_dbt_test
 from phlo_dbt.translator import DbtSpecTranslator
@@ -15,43 +16,9 @@ def extract_dbt_asset_checks(
     translator: DbtSpecTranslator,
     partition_key: str | None,
     max_sql_chars: int = 100_000,
-) -> list[Any]:
-    try:
-        from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue
-    except ModuleNotFoundError as exc:
-        raise RuntimeError("Dagster is required to build dbt AssetCheckResult objects.") from exc
-
-    def _to_asset_check_severity(value: str | None) -> AssetCheckSeverity | None:
-        if not value:
-            return None
-        normalized = value.strip().lower()
-        if normalized in {"warn", "warning"}:
-            return AssetCheckSeverity.WARN
-        if normalized in {"error", "critical"}:
-            return AssetCheckSeverity.ERROR
-        if normalized in {"info", "informational"}:
-            return AssetCheckSeverity.WARN
-        return AssetCheckSeverity.ERROR
-
-    def _metadata_value(value: Any) -> MetadataValue:
-        if isinstance(value, MetadataValue):
-            return value
-        if isinstance(value, bool):
-            return MetadataValue.bool(value)
-        if isinstance(value, int):
-            return MetadataValue.int(value)
-        if isinstance(value, float):
-            return MetadataValue.float(value)
-        if isinstance(value, str):
-            return MetadataValue.text(value)
-        return MetadataValue.json(value)
-
-    def _contract_metadata(contract: QualityCheckContract) -> dict[str, MetadataValue]:
-        raw = contract.to_metadata()
-        return {key: _metadata_value(value) for key, value in raw.items()}
-
+) -> list[CheckResult]:
     nodes = manifest.get("nodes") or {}
-    checks: list[AssetCheckResult] = []
+    checks: list[CheckResult] = []
 
     for result in run_results.get("results", []) or []:
         unique_id = result.get("unique_id")
@@ -77,11 +44,6 @@ def extract_dbt_asset_checks(
             asset_key_str = translator.get_asset_key(target_props)
         except Exception:
             continue
-        asset_key = (
-            AssetKey(asset_key_str.split("."))
-            if "." in asset_key_str
-            else AssetKey([asset_key_str])
-        )
 
         test_props = nodes.get(unique_id, {})
         test_type = _dbt_test_type(test_props, fallback_unique_id=unique_id)
@@ -94,14 +56,14 @@ def extract_dbt_asset_checks(
         failures = _int_or_none(result.get("failures"))
         failed_count = 0 if passed else (failures if failures is not None else 1)
 
-        severity: AssetCheckSeverity | None
+        severity: str | None
         if passed:
             severity = None
         elif status == "fail":
             severity_label = severity_for_dbt_test(test_type=test_type, tags=tags)
-            severity = _to_asset_check_severity(severity_label)
+            severity = severity_label or "error"
         else:
-            severity = AssetCheckSeverity.ERROR
+            severity = "error"
 
         compiled_sql = _dbt_compiled_sql(test_props)
         compiled_sql = _truncate(compiled_sql, max_chars=max_sql_chars)
@@ -116,25 +78,25 @@ def extract_dbt_asset_checks(
             sample=_sample_for_result(result, passed=passed),
         )
 
-        metadata: dict[str, MetadataValue] = {
-            **_contract_metadata(contract),
-            "status": MetadataValue.text(status or "unknown"),
-            "test_unique_id": MetadataValue.text(unique_id),
-            "test_type": MetadataValue.text(test_type),
-            "target_unique_id": MetadataValue.text(target_unique_id),
-            "target_name": MetadataValue.text(target_name),
+        metadata: dict[str, Any] = {
+            **contract.to_metadata(),
+            "status": status or "unknown",
+            "test_unique_id": unique_id,
+            "test_type": test_type,
+            "target_unique_id": target_unique_id,
+            "target_name": target_name,
         }
         if tags:
-            metadata["tags"] = MetadataValue.json(sorted(tags))
+            metadata["tags"] = sorted(tags)
         if failures is not None:
-            metadata["failed_rows"] = MetadataValue.int(failures)
+            metadata["failed_rows"] = failures
 
         checks.append(
-            AssetCheckResult(
-                asset_key=asset_key,
+            CheckResult(
+                asset_key=asset_key_str,
                 check_name=check_name,
                 passed=passed,
-                severity=severity or AssetCheckSeverity.ERROR,
+                severity=severity,
                 metadata=metadata,
             )
         )

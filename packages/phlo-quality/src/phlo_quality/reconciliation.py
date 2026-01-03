@@ -7,14 +7,12 @@ These checks compare data between tables to ensure consistency across pipeline l
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pandas as pd
 
+from phlo.capabilities.runtime import RuntimeContext
 from phlo_quality.checks import QualityCheck, QualityCheckResult
-
-if TYPE_CHECKING:
-    from dagster import AssetExecutionContext
 
 
 @dataclass
@@ -54,9 +52,7 @@ class ReconciliationCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(
-        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
-    ) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: RuntimeContext | None) -> QualityCheckResult:
         """Execute reconciliation check comparing row counts."""
         target_count = len(df)
 
@@ -161,19 +157,20 @@ class ReconciliationCheck(QualityCheck):
 
         return query
 
-    def _get_source_count(self, context: "AssetExecutionContext", query: str) -> int | None:
+    def _get_source_count(self, context: RuntimeContext, query: str) -> int | None:
         """Execute query to get source row count."""
         try:
-            # Try to use Trino resource from context
-            if hasattr(context, "resources") and hasattr(context.resources, "trino"):
-                trino = context.resources.trino
+            if context is None:
+                return None
+            trino = context.get_resource("trino")
+            if trino is not None:
                 result = trino.execute_query(query)
                 if result and len(result) > 0:
                     return int(result[0][0])
 
         except Exception as e:
-            if hasattr(context, "log"):
-                context.log.warning(f"Failed to query source: {e}")
+            if context and context.logger:
+                context.logger.warning(f"Failed to query source: {e}")
             return None
 
     @property
@@ -226,9 +223,7 @@ class AggregateConsistencyCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(
-        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
-    ) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: RuntimeContext | None) -> QualityCheckResult:
         """Execute aggregate consistency check."""
         if self.aggregate_column not in df.columns:
             return QualityCheckResult(
@@ -376,13 +371,14 @@ class AggregateConsistencyCheck(QualityCheck):
         return query
 
     def _get_source_aggregates(
-        self, context: "AssetExecutionContext", query: str
+        self, context: RuntimeContext, query: str
     ) -> dict[tuple, Any] | None:
         """Execute query to get source aggregate values."""
         try:
-            # Try to use Trino resource from context
-            if hasattr(context, "resources") and hasattr(context.resources, "trino"):
-                trino = context.resources.trino
+            if context is None:
+                return None
+            trino = context.get_resource("trino")
+            if trino is not None:
                 result = trino.execute_query(query)
                 if result:
                     # Build dict of group_key -> aggregate_value
@@ -399,8 +395,8 @@ class AggregateConsistencyCheck(QualityCheck):
             return None
 
         except Exception as e:
-            if hasattr(context, "log"):
-                context.log.warning(f"Failed to query source aggregates: {e}")
+            if context and context.logger:
+                context.logger.warning(f"Failed to query source aggregates: {e}")
             return None
 
     @property
@@ -446,9 +442,7 @@ class KeyParityCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(
-        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
-    ) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: RuntimeContext | None) -> QualityCheckResult:
         """Execute key parity check."""
         missing_columns = [column for column in self.key_columns if column not in df.columns]
         if missing_columns:
@@ -538,17 +532,19 @@ class KeyParityCheck(QualityCheck):
 
         return query
 
-    def _get_source_rows(self, context: "AssetExecutionContext", query: str) -> list[tuple] | None:
+    def _get_source_rows(self, context: RuntimeContext, query: str) -> list[tuple] | None:
         """Execute query to fetch source keys."""
         try:
-            if hasattr(context, "resources") and hasattr(context.resources, "trino"):
-                trino = context.resources.trino
+            if context is None:
+                return None
+            trino = context.get_resource("trino")
+            if trino is not None:
                 result = trino.execute_query(query)
                 if result is not None:
                     return [tuple(row) for row in result]
         except Exception as exc:
-            if hasattr(context, "log"):
-                context.log.warning(f"Failed to query source keys: {exc}")
+            if context and context.logger:
+                context.logger.warning(f"Failed to query source keys: {exc}")
             return None
         return None
 
@@ -587,9 +583,7 @@ class MultiAggregateConsistencyCheck(QualityCheck):
     where_clause: str | None = None
     """Optional WHERE clause to filter source data."""
 
-    def execute(
-        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
-    ) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: RuntimeContext | None) -> QualityCheckResult:
         """Execute multi-aggregate consistency check."""
         if not self.aggregates:
             return QualityCheckResult(
@@ -790,12 +784,14 @@ class MultiAggregateConsistencyCheck(QualityCheck):
         return query
 
     def _get_source_aggregates(
-        self, context: "AssetExecutionContext", query: str
+        self, context: RuntimeContext, query: str
     ) -> dict[tuple, dict[str, Any]] | None:
         """Execute query to get source aggregate values."""
         try:
-            if hasattr(context, "resources") and hasattr(context.resources, "trino"):
-                trino = context.resources.trino
+            if context is None:
+                return None
+            trino = context.get_resource("trino")
+            if trino is not None:
                 result = trino.execute_query(query)
                 if result:
                     values: dict[tuple, dict[str, Any]] = {}
@@ -817,8 +813,8 @@ class MultiAggregateConsistencyCheck(QualityCheck):
 
             return None
         except Exception as exc:
-            if hasattr(context, "log"):
-                context.log.warning(f"Failed to query source aggregates: {exc}")
+            if context and context.logger:
+                context.logger.warning(f"Failed to query source aggregates: {exc}")
             return None
 
     @property
@@ -865,9 +861,7 @@ class ChecksumReconciliationCheck(QualityCheck):
     limit: int | None = None
     """Optional limit on the number of keys compared (applies to source)."""
 
-    def execute(
-        self, df: pd.DataFrame, context: "AssetExecutionContext | None"
-    ) -> QualityCheckResult:
+    def execute(self, df: pd.DataFrame, context: RuntimeContext | None) -> QualityCheckResult:
         """Execute checksum reconciliation check."""
         missing_columns = [column for column in self.key_columns if column not in df.columns]
         if missing_columns:
@@ -1066,17 +1060,19 @@ class ChecksumReconciliationCheck(QualityCheck):
             return f"lower(to_hex(md5({concatenated})))"
         raise ValueError(f"Unsupported hash algorithm: {self.hash_algorithm}")
 
-    def _get_hash_rows(self, context: "AssetExecutionContext", query: str) -> list[tuple] | None:
+    def _get_hash_rows(self, context: RuntimeContext, query: str) -> list[tuple] | None:
         """Execute query to fetch key + hash rows."""
         try:
-            if hasattr(context, "resources") and hasattr(context.resources, "trino"):
-                trino = context.resources.trino
+            if context is None:
+                return None
+            trino = context.get_resource("trino")
+            if trino is not None:
                 result = trino.execute_query(query)
                 if result is not None:
                     return [tuple(row) for row in result]
         except Exception as exc:
-            if hasattr(context, "log"):
-                context.log.warning(f"Failed to query hashes: {exc}")
+            if context and context.logger:
+                context.logger.warning(f"Failed to query hashes: {exc}")
             return None
         return None
 

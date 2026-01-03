@@ -23,8 +23,8 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.entry-points."phlo.plugins.dagster"]
-iceberg = "phlo_iceberg.plugin:IcebergDagsterPlugin"
+[project.entry-points."phlo.plugins.resources"]
+iceberg = "phlo_iceberg.plugin:IcebergResourceProvider"
 
 [project.entry-points."phlo.plugins.trino_catalogs"]
 iceberg = "phlo_iceberg.catalog_plugin:IcebergCatalogPlugin"

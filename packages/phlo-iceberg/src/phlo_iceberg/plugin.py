@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import dagster as dg
-from phlo.plugins.base import DagsterExtensionPlugin, PluginMetadata
+from phlo.capabilities import ResourceSpec
+from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 
 from phlo_iceberg.resource import IcebergResource
 
 
-class IcebergDagsterPlugin(DagsterExtensionPlugin):
+class IcebergResourceProvider(ResourceProviderPlugin):
     @property
     def metadata(self) -> PluginMetadata:
         return PluginMetadata(
@@ -15,5 +15,5 @@ class IcebergDagsterPlugin(DagsterExtensionPlugin):
             description="Iceberg/Nessie catalog resource for Phlo",
         )
 
-    def get_definitions(self) -> dg.Definitions:
-        return dg.Definitions(resources={"iceberg": IcebergResource()})
+    def get_resources(self) -> list[ResourceSpec]:
+        return [ResourceSpec(name="iceberg", resource=IcebergResource())]

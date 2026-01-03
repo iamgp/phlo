@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import Any, Callable, Optional
 
 import click
 from rich.console import Console
@@ -21,9 +21,6 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from phlo_quality.cli_schema_utils import classify_schema_change, discover_pandera_schemas
-
-if TYPE_CHECKING:
-    pass
 
 console = Console()
 
@@ -361,57 +358,29 @@ def _import_object(ref: str) -> Any:
 
 def _extract_source_callable(obj: Any) -> tuple[Callable[..., Any], dict[str, Any]]:
     """
-    Given either a callable or an AssetsDefinition created via @phlo_ingestion, return:
+    Given a callable created via @phlo_ingestion, return:
     - a callable that accepts partition_date and returns a DLT source/resource/iterable
     - best-effort metadata (table_name, unique_key, group)
     """
     import inspect
 
-    try:
-        from dagster import AssetsDefinition as RuntimeAssetsDefinition
-    except Exception:  # pragma: no cover
-        # Dagster not available at runtime - this is okay for CLI usage
-        if callable(obj):
-            return obj, {}
-        raise click.ClickException(
-            "Unsupported input. Provide either a callable or a Dagster AssetsDefinition created via "
-            "@phlo_ingestion."
-        )
-
-    if isinstance(obj, RuntimeAssetsDefinition):
-        wrapper = obj.node_def.compute_fn.decorated_fn
-        freevars = wrapper.__code__.co_freevars
-        closure = wrapper.__closure__ or ()
-        env = {name: cell.cell_contents for name, cell in zip(freevars, closure)}
-
-        func = env.get("func")
-        table_config = env.get("table_config")
-
-        if not callable(func):
-            raise click.ClickException(
-                "Unsupported asset: expected a @phlo_ingestion asset with a callable source builder."
-            )
-
+    if callable(obj):
         meta: dict[str, Any] = {}
+        table_config = getattr(obj, "_phlo_table_config", None)
         if table_config is not None:
             meta["table_name"] = getattr(table_config, "table_name", None)
             meta["unique_key"] = getattr(table_config, "unique_key", None)
             meta["group"] = getattr(table_config, "group_name", None)
 
-        sig = inspect.signature(func)
+        sig = inspect.signature(obj)
         if "partition_date" not in sig.parameters:
             raise click.ClickException(
                 "Unsupported asset source function signature: expected (partition_date: str)."
             )
 
-        return func, meta
+        return obj, meta
 
-    if callable(obj):
-        return obj, {}
-
-    raise click.ClickException(
-        "Unsupported input. Provide either a callable or a Dagster AssetsDefinition created via @phlo_ingestion."
-    )
+    raise click.ClickException("Unsupported input. Provide a callable created via @phlo_ingestion.")
 
 
 def _to_pascal_case(name: str) -> str:

@@ -647,7 +647,7 @@ def get_maintenance_definitions() -> dg.Definitions:
 
     Example:
         ```python
-        from phlo_iceberg.maintenance import get_maintenance_definitions
+        from phlo_dagster.iceberg_maintenance import get_maintenance_definitions
 
         # In your definitions file
         maintenance_defs = get_maintenance_definitions()

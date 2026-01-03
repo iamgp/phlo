@@ -132,7 +132,11 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
     ) -> dg.Definitions:
         resources_map: dict[str, Any] = {}
         for resource in resources:
-            resources_map[resource.name] = resource.resource
+            value = resource.resource
+            if isinstance(value, dg.ResourceDefinition):
+                resources_map[resource.name] = value
+            else:
+                resources_map[resource.name] = dg.ResourceDefinition.hardcoded_resource(value)
 
         asset_defs = [self._build_asset(spec) for spec in assets if spec.run is not None]
         check_defs = [self._build_check(check) for check in checks if check.fn is not None]

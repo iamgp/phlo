@@ -292,6 +292,11 @@ def phlo_ingestion(
             description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
             kinds={"dlt", "iceberg"},
             tags={"source": "dlt"},
+            metadata={
+                "table_name": table_config.table_name,
+                "unique_key": table_config.unique_key,
+                "group": table_config.group_name,
+            },
             partitions=PartitionSpec(kind="daily"),
             resources={"iceberg"},
             run=RunSpec(
@@ -307,6 +312,7 @@ def phlo_ingestion(
 
         _INGESTION_ASSETS.append(asset_spec)
         register_asset(asset_spec)
+        setattr(func, "_phlo_table_config", table_config)
         return func
 
     return decorator

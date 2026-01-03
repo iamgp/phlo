@@ -2596,7 +2596,6 @@ version = "0.1.0"
 source = { editable = "packages/phlo-alerting" }
 dependencies = [
     { name = "click" },
-    { name = "dagster" },
     { name = "phlo" },
     { name = "requests" },
     { name = "rich" },
@@ -2611,7 +2610,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click" },
-    { name = "dagster" },
     { name = "phlo", editable = "." },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "requests" },
@@ -3152,7 +3150,6 @@ version = "0.1.0"
 source = { editable = "packages/phlo-quality" }
 dependencies = [
     { name = "click" },
-    { name = "dagster" },
     { name = "pandas" },
     { name = "pandera" },
     { name = "phlo" },
@@ -3168,7 +3165,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click" },
-    { name = "dagster" },
     { name = "pandas" },
     { name = "pandera", specifier = ">=0.18.0" },
     { name = "phlo", editable = "." },
