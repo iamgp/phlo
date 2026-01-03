@@ -6,7 +6,7 @@ Phlo currently emits logs in multiple ways (stdlib logging, Dagster `context.log
 ad-hoc telemetry events, and Pino in Observatory). This spec defines a centralized
 logging layer for Python packages that standardizes log shape, routes every log
 through a middle layer, and supports pluggable observability sinks (Loki/Alloy
-by default, with optional Highlight.io integration).
+by default, with optional hook-based sinks).
 
 The design keeps logs visible even when optional packages are not installed and
 ensures packages can import either a setup function or a logger instance.
@@ -17,7 +17,7 @@ ensures packages can import either a setup function or a logger instance.
 - Standardize log schema and correlation fields across services.
 - Route every log through a middle layer that can fan out to multiple sinks.
 - Keep default behavior simple: JSON to stdout for Alloy/Loki collection.
-- Enable optional sinks via packages (e.g., `phlo-highlightio`).
+- Enable optional sinks via hook plugins/packages.
 - Keep compatibility with Dagster `context.log` and stdlib `logging`.
 
 ## Non-Goals
@@ -35,7 +35,7 @@ ensures packages can import either a setup function or a logger instance.
 - Observatory (TypeScript) uses Pino and logs to stdout.
 
 Gaps: no centralized configuration, inconsistent fields, no shared routing layer,
-no unified integration for external observability tools like Highlight.
+no unified integration for external observability tools via plugins.
 
 ## Proposed Architecture
 
@@ -100,8 +100,8 @@ stdlib logging / structlog
           │
     ┌─────┼──────────┐
     ▼     ▼          ▼
- stdout  metrics   highlight
- (JSON)  plugin    plugin
+ stdout  metrics   custom
+ (JSON)  plugin    plugins
 ```
 
 Implementation details:
@@ -119,20 +119,11 @@ Use `structlog` on top of stdlib `logging`:
 - Supports structured JSON output with processors.
 - Allows a single handler pipeline for routing.
 
-### 5. Highlight.io Integration
+### 5. Hook-Based Log Sinks
 
-Create `packages/phlo-highlightio` that registers a hook plugin:
-
-- Entry point: `phlo.plugins.hooks`.
-- Handles `log.record` events.
-- Uses Highlight Python SDK to send logs (and optional traces).
-- Configuration via `phlo.config.settings` and `.phlo/.env`:
-  - `PHLO_HIGHLIGHT_ENABLED`
-  - `PHLO_HIGHLIGHT_PROJECT_ID`
-  - `PHLO_HIGHLIGHT_ENVIRONMENT`
-  - `PHLO_HIGHLIGHT_OTLP_ENDPOINT`
-  - `PHLO_HIGHLIGHT_SERVICE_NAME`
-  - `PHLO_HIGHLIGHT_DEBUG`
+Allow optional packages to register HookBus handlers for `log.record` events.
+These sinks can forward logs to external tools (APMs, alerting systems, or
+custom storage) without changing core logging code.
 
 ### 6. Configuration
 
@@ -169,8 +160,7 @@ Allow overrides via env vars and `.phlo/.env(.local)`.
 1. Implement core `phlo.logging` API + `LogRouterHandler` + `LogEvent`.
 2. Wire `setup_logging()` into CLI entrypoints and services.
 3. Update packages to use `get_logger()` or `setup_logging()`.
-4. Add `phlo-highlightio` hook plugin.
-5. Update docs and examples.
+4. Update docs and examples.
 
 ## Migration & Compatibility
 
@@ -182,5 +172,5 @@ Allow overrides via env vars and `.phlo/.env(.local)`.
 ## Open Questions
 
 - Should `log.record` be emitted for every log level, or only INFO+ by default?
-- Should Highlight be enabled automatically when installed, or opt-in via config?
 - Do we want to require JSON logs in all environments or allow console output for dev?
+- Should file logging default to on in all environments, or only in local dev?

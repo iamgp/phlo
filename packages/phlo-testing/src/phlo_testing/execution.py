@@ -23,6 +23,7 @@ from typing import Any, Callable, Optional
 
 import pandas as pd
 
+from phlo.logging import get_logger
 from phlo_testing.mock_iceberg import MockIcebergCatalog
 from phlo_testing.mock_trino import MockTrinoResource
 
@@ -79,14 +80,15 @@ class MockAssetContext:
         self._logs: list[str] = []
         self._logger = self._create_logger()
 
-    def _create_logger(self) -> logging.Logger:
+    def _create_logger(self) -> Any:
         """Create logger that captures to self._logs."""
-        logger = logging.Logger(f"asset_test_{id(self)}")
-        logger.setLevel(logging.DEBUG)
-        logger.propagate = False
+        name = f"asset_test_{id(self)}"
+        logger = get_logger(name)
 
-        # Clear existing handlers
-        logger.handlers = []
+        std_logger = logging.getLogger(name)
+        std_logger.setLevel(logging.DEBUG)
+        std_logger.propagate = False
+        std_logger.handlers = []
 
         # Add custom handler to capture logs
         class LogCapture(logging.Handler):
@@ -102,7 +104,7 @@ class MockAssetContext:
             "%(levelname)s - %(name)s - %(message)s",
         )
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        std_logger.addHandler(handler)
 
         return logger
 
@@ -114,7 +116,10 @@ class MockAssetContext:
             message: Message to log
             level: Log level (DEBUG, INFO, WARNING, ERROR)
         """
-        getattr(self._logger, level.lower())(message)
+        resolved_level = level.lower()
+        if resolved_level == "warn":
+            resolved_level = "warning"
+        getattr(self._logger, resolved_level)(message)
 
     @property
     def logs(self) -> list[str]:

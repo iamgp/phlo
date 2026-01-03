@@ -96,7 +96,6 @@ phlo-api = { workspace = true }
 phlo-quality = { workspace = true }
 phlo-lineage = { workspace = true }
 phlo-alerting = { workspace = true }
-phlo-highlightio = { workspace = true }
 phlo-observatory = { workspace = true }
 phlo-postgres = { workspace = true }
 phlo-minio = { workspace = true }
@@ -123,7 +122,6 @@ dev = [
     "pyiceberg[s3,sql]>=0.10.0",
     "s3fs>=2025.9.0",
     "testcontainers-minio>=0.0.1rc1",
-    "highlight-io>=0.10.2",
 ]
 
 [tool.pytest.ini_options]
@@ -167,7 +165,6 @@ extra-paths = [
   "packages/phlo-dbt/src",
   "packages/phlo-dlt/src",
   "packages/phlo-grafana/src",
-  "packages/phlo-highlightio/src",
   "packages/phlo-hasura/src",
   "packages/phlo-iceberg/src",
   "packages/phlo-lineage/src",

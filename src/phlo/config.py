@@ -288,32 +288,6 @@ class Settings(BaseSettings):
         description="Optional log file path template (empty to disable)",
     )
 
-    # --- Highlight.io Configuration ---
-    phlo_highlight_enabled: bool = Field(
-        default=False,
-        description="Enable Highlight.io log export when configured",
-    )
-    phlo_highlight_project_id: str | None = Field(
-        default=None,
-        description="Highlight.io project ID",
-    )
-    phlo_highlight_environment: str | None = Field(
-        default=None,
-        description="Highlight.io environment name",
-    )
-    phlo_highlight_otlp_endpoint: str | None = Field(
-        default=None,
-        description="Custom Highlight.io OTLP endpoint override",
-    )
-    phlo_highlight_service_name: str | None = Field(
-        default=None,
-        description="Override Highlight.io service name",
-    )
-    phlo_highlight_debug: bool = Field(
-        default=False,
-        description="Enable Highlight.io SDK debug logging",
-    )
-
     # --- Computed Properties ---
     # Additional properties computed from the base settings
     @property
