@@ -7,7 +7,6 @@ Enables data preview, column profiling, and table metrics in Observatory.
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 import re
 from math import isfinite
@@ -18,7 +17,9 @@ import httpx
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["trino"])
 

@@ -1,13 +1,13 @@
 """Hasura metadata export, import and schema management."""
 
 import json
-import logging
 from pathlib import Path
 from typing import Any, Optional
 
 from phlo_hasura.client import HasuraClient
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HasuraMetadataSync:

@@ -7,7 +7,6 @@ orphan file cleanup, and table statistics collection for Iceberg tables.
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Annotated, Any
 
@@ -15,10 +14,11 @@ import dagster as dg
 from phlo.hooks import TelemetryEventContext, TelemetryEventEmitter
 from pydantic import Field
 
+from phlo.logging import get_logger
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.tables import expire_snapshots, get_table_stats, remove_orphan_files
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MaintenanceConfig(dg.Config):

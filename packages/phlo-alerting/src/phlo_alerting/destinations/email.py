@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional
 
+from phlo.logging import get_logger
 from phlo_alerting.manager import Alert, AlertDestination, AlertSeverity
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EmailAlertDestination(AlertDestination):

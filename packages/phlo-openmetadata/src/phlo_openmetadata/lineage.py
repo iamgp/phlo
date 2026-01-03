@@ -7,12 +7,12 @@ and publishes it to OpenMetadata for data discovery and impact analysis.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from phlo_lineage.graph import LineageGraph
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LineageExtractor:

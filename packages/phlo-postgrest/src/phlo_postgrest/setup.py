@@ -16,7 +16,6 @@ Usage:
         >>> setup_postgrest()
 """
 
-import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -24,7 +23,9 @@ from typing import Optional
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def get_db_connection(
@@ -198,4 +199,5 @@ def setup_postgrest(
 
 
 if __name__ == "__main__":
+    setup_logging()
     setup_postgrest()

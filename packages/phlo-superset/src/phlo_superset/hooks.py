@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import time
 
 import requests
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def add_trino_database() -> None:
@@ -101,9 +102,9 @@ def add_trino_database() -> None:
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(level=logging.INFO)
+    setup_logging()
 
     if len(sys.argv) > 1 and sys.argv[1] == "add-database":
         add_trino_database()
     else:
-        print("Usage: python -m phlo_superset.hooks add-database")
+        logger.info("Usage: python -m phlo_superset.hooks add-database")

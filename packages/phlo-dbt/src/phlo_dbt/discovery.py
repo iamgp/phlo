@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from phlo.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 # Common locations to search for dbt projects
 DEFAULT_SEARCH_PATHS = [
@@ -74,8 +75,8 @@ def get_dbt_project_dir() -> Path:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    setup_logging()
     projects = find_dbt_projects()
-    print(f"Discovered {len(projects)} dbt projects:")
-    for p in projects:
-        print(f"  - {p}")
+    logger.info("Discovered %s dbt projects:", len(projects))
+    for project in projects:
+        logger.info("  - %s", project)

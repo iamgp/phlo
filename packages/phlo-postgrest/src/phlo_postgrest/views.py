@@ -8,7 +8,6 @@ This module automates the generation of PostgREST API views from dbt models:
 """
 
 import json
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -17,8 +16,9 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 from phlo.config import get_settings
+from phlo.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

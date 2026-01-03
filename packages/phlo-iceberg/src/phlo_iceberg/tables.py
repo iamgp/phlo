@@ -13,6 +13,7 @@ import pyarrow.parquet as pq
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
+from phlo.logging import get_logger
 from phlo_iceberg.catalog import create_namespace, get_catalog
 
 # Suppress expected pyiceberg warning on first run (no rows to delete during merge)
@@ -21,6 +22,8 @@ warnings.filterwarnings(
     message="Delete operation did not match any records",
     category=UserWarning,
 )
+
+logger = get_logger(__name__)
 
 
 def ensure_table(
@@ -109,9 +112,6 @@ def append_to_table(
     new_columns = arrow_column_names - iceberg_column_names
 
     if new_columns:
-        import logging
-
-        logger = logging.getLogger(__name__)
         logger.warning(
             f"Arrow data has {len(new_columns)} columns not in Iceberg schema: {new_columns}. "
             f"These columns will be dropped. To include them, recreate the table."
@@ -141,9 +141,6 @@ def append_to_table(
     try:
         arrow_table = arrow_table.cast(target_schema)
     except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
         logger.warning(f"Could not cast arrow table to target schema: {e}")
 
     table.append(arrow_table)
@@ -181,9 +178,6 @@ def merge_to_table(
     unique_values_set = set(unique_values)
 
     if len(unique_values_set) < len(unique_values):
-        import logging
-
-        logger = logging.getLogger(__name__)
         duplicates_count = len(unique_values) - len(unique_values_set)
         logger.warning(
             f"{duplicates_count} duplicate values found in unique_key '{unique_key}' "
@@ -211,9 +205,6 @@ def merge_to_table(
     new_columns = arrow_column_names - iceberg_column_names
 
     if new_columns:
-        import logging
-
-        logger = logging.getLogger(__name__)
         logger.warning(
             f"Arrow data has {len(new_columns)} columns not in Iceberg schema: {new_columns}. "
             f"These columns will be dropped. To include them, recreate the table."
@@ -232,9 +223,6 @@ def merge_to_table(
     try:
         arrow_table = arrow_table.cast(target_schema)
     except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
         logger.warning(f"Could not cast arrow table to target schema: {e}")
 
     table.append(arrow_table)
@@ -277,7 +265,6 @@ def expire_snapshots(
     Raises:
         ValueError: If older_than_days <= 0, retain_last < 0, or table_name format invalid
     """
-    import logging
     from datetime import datetime, timedelta, timezone
 
     if older_than_days <= 0:
@@ -287,7 +274,6 @@ def expire_snapshots(
     if "." not in table_name:
         raise ValueError(f"table_name must be namespace.table format, got {table_name}")
 
-    logger = logging.getLogger(__name__)
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
 
@@ -335,7 +321,6 @@ def remove_orphan_files(
     Raises:
         ValueError: If older_than_days <= 0 or table_name format invalid
     """
-    import logging
     from datetime import datetime, timedelta, timezone
 
     if older_than_days <= 0:
@@ -343,7 +328,6 @@ def remove_orphan_files(
     if "." not in table_name:
         raise ValueError(f"table_name must be namespace.table format, got {table_name}")
 
-    logger = logging.getLogger(__name__)
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
 

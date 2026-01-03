@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import logging
 from types import SimpleNamespace
 
 import pandas as pd
 from pandera.typing import Series  # type: ignore[possibly-missing-import]
 from phlo_dlt.dlt_helpers import validate_with_pandera
 
+from phlo.logging import get_logger
 from phlo_quality.schemas import PhloSchema
 
 
@@ -24,7 +24,7 @@ def test_validate_with_pandera_only_coerces_datetime_columns(monkeypatch) -> Non
 
     monkeypatch.setattr(ExampleSchema, "validate", classmethod(_validate))
 
-    context = SimpleNamespace(log=logging.getLogger("phlo.tests.validate_with_pandera"))
+    context = SimpleNamespace(log=get_logger("phlo.tests.validate_with_pandera"))
     data = [{"created_at": "2024-01-01T00:00:00Z", "name": "2024-01-02"}]
 
     assert validate_with_pandera(context, data, ExampleSchema) is True

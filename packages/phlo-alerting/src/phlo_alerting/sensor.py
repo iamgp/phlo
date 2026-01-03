@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from dagster import DagsterEventType, sensor
 
+from phlo.logging import get_logger
 from phlo_alerting.manager import Alert, AlertSeverity, get_alert_manager
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @sensor(
