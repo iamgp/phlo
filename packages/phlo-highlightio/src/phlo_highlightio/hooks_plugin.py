@@ -63,8 +63,7 @@ class HighlightHookPlugin(HookPlugin):
                 otlp_endpoint=settings.phlo_highlight_otlp_endpoint or "",
                 instrument_logging=False,
                 log_level=_coerce_log_level(settings.phlo_log_level),
-                service_name=settings.phlo_highlight_service_name
-                or settings.phlo_log_service_name,
+                service_name=settings.phlo_highlight_service_name or settings.phlo_log_service_name,
                 environment=settings.phlo_highlight_environment or "",
                 debug=settings.phlo_highlight_debug,
             )

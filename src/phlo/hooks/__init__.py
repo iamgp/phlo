@@ -91,12 +91,12 @@ if TYPE_CHECKING:
         HookEvent,
         IngestionEvent,
         LineageEvent,
+        LogEvent,
         PublishEvent,
         QualityResultEvent,
         ServiceLifecycleEvent,
         TelemetryEvent,
         TransformEvent,
-        LogEvent,
     )
 
 

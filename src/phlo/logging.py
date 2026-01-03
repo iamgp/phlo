@@ -27,9 +27,9 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 _STANDARD_LOG_RECORD_FIELDS = set(
-    logging.LogRecord(name="", level=0, pathname="", lineno=0, msg="", args=(), exc_info=None)
-    .__dict__
-    .keys()
+    logging.LogRecord(
+        name="", level=0, pathname="", lineno=0, msg="", args=(), exc_info=None
+    ).__dict__.keys()
 )
 _CORRELATION_FIELDS = ("run_id", "asset_key", "job_name", "partition_key", "check_name")
 _ROUTER_ACTIVE = contextvars.ContextVar("phlo_log_router_active", default=False)
@@ -66,7 +66,9 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     log_format = resolved.log_format.lower()
     service_name = resolved.service_name
 
-    def add_service(_: Any, __: str, event_dict: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+    def add_service(
+        _: Any, __: str, event_dict: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
         event_dict.setdefault("service", service_name)
         return event_dict
 
@@ -129,7 +131,9 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     _LOGGING_CONFIGURED = True
 
 
-def get_logger(name: str | None = None, *, service: str | None = None) -> structlog.stdlib.BoundLogger:
+def get_logger(
+    name: str | None = None, *, service: str | None = None
+) -> structlog.stdlib.BoundLogger:
     """Return a structlog logger, configuring logging on first use."""
 
     if not _LOGGING_CONFIGURED:
