@@ -23,7 +23,7 @@
     
     
       
-        <title>6. Maintain explicit public exports and avoid print() in library code - Phlo Lakehouse Platform</title>
+        <title>Centralized Logging Layer Spec - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#6-maintain-explicit-public-exports-and-avoid-print-in-library-code" class="md-skip">
+        <a href="#centralized-logging-layer-spec" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              6. Maintain explicit public exports and avoid print() in library code
+              Centralized Logging Layer Spec
             
           </span>
         </div>
@@ -668,10 +668,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
+  <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Status
+        Overview
       
     </span>
   </a>
@@ -679,10 +679,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
+  <a href="#goals" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context
+        Goals
       
     </span>
   </a>
@@ -690,10 +690,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#non-goals" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
+        Non-Goals
       
     </span>
   </a>
@@ -701,10 +701,148 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#current-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        Current State
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposed-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Proposed Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-core-logging-api-phlo-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Core Logging API (phlo core)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-standard-log-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Standard Log Schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-middle-layer-log-router" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Middle Layer (Log Router)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-logging-backend-choice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Logging Backend Choice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-hook-based-log-sinks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Hook-Based Log Sinks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-dagster-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Dagster Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-typescript-alignment-observatory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. TypeScript Alignment (Observatory)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollout-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollout Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration &amp; Compatibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open Questions
       
     </span>
   </a>
@@ -728,30 +866,162 @@
 
 
 
-<h1 id="6-maintain-explicit-public-exports-and-avoid-print-in-library-code">6. Maintain explicit public exports and avoid print() in library code</h1>
-<p>Date: 2025-12-14</p>
-<h2 id="status">Status</h2>
-<p>Accepted</p>
-<h2 id="context">Context</h2>
-<p>Phlo is a library + CLI. For good developer ergonomics and type checking:</p>
+<h1 id="centralized-logging-layer-spec">Centralized Logging Layer Spec</h1>
+<h2 id="overview">Overview</h2>
+<p>Phlo currently emits logs in multiple ways (stdlib logging, Dagster <code>context.log</code>,
+ad-hoc telemetry events, and Pino in Observatory). This spec defines a centralized
+logging layer for Python packages that standardizes log shape, routes every log
+through a middle layer, and supports pluggable observability sinks (Loki/Alloy
+by default, with optional hook-based sinks).</p>
+<p>The design keeps logs visible even when optional packages are not installed and
+ensures packages can import either a setup function or a logger instance.</p>
+<h2 id="goals">Goals</h2>
 <ul>
-<li>The public API should be explicit (<code>__all__</code>) and stable.</li>
-<li>Import-time side effects should be minimized (lazy imports where appropriate).</li>
+<li>Provide a single, consistent logging API across Python packages.</li>
+<li>Standardize log schema and correlation fields across services.</li>
+<li>Route every log through a middle layer that can fan out to multiple sinks.</li>
+<li>Keep default behavior simple: JSON to stdout for Alloy/Loki collection.</li>
+<li>Enable optional sinks via hook plugins/packages.</li>
+<li>Keep compatibility with Dagster <code>context.log</code> and stdlib <code>logging</code>.</li>
 </ul>
-<p>Separately, <code>print()</code> in library modules creates noisy output and is hard to route/structure compared
-to standard logging.</p>
-<h2 id="decision">Decision</h2>
+<h2 id="non-goals">Non-Goals</h2>
 <ul>
-<li>Use explicit <code>__all__</code> exports for public modules and resources, with typed/lazy imports where
-  necessary.</li>
-<li>Replace non-CLI <code>print()</code> usage with structured logging (<code>phlo.logging.get_logger(__name__)</code>
-  and Dagster context logs where applicable).</li>
+<li>Replacing the existing Loki/Grafana stack or its UI.</li>
+<li>Full distributed tracing (future work; allow trace/span fields).</li>
+<li>Rewriting Observatory logging (align fields only).</li>
 </ul>
-<h2 id="consequences">Consequences</h2>
+<h2 id="current-state">Current State</h2>
 <ul>
-<li>basedpyright has a clearer view of the public surface area.</li>
-<li>Users get consistent logs that can be routed/filtered across environments.</li>
-<li>Some internal refactors are required to avoid import cycles while keeping exports explicit.</li>
+<li>Python packages use stdlib <code>logging.getLogger()</code> or Dagster <code>context.log</code>.</li>
+<li><code>src/phlo/logging.py</code> provides Dagster helpers but is not widely used.</li>
+<li><code>phlo-metrics</code> records hook-based telemetry events to JSONL.</li>
+<li><code>phlo-alerting</code> reacts to telemetry events.</li>
+<li>Observatory (TypeScript) uses Pino and logs to stdout.</li>
+</ul>
+<p>Gaps: no centralized configuration, inconsistent fields, no shared routing layer,
+no unified integration for external observability tools via plugins.</p>
+<h2 id="proposed-architecture">Proposed Architecture</h2>
+<h3 id="1-core-logging-api-phlo-core">1. Core Logging API (phlo core)</h3>
+<p>Create a core logging module that packages can import:</p>
+<ul>
+<li><code>setup_logging(settings: LoggingSettings | None = None) -&gt; None</code></li>
+<li><code>get_logger(name: str | None = None) -&gt; BoundLogger</code></li>
+<li><code>bind_context(**fields) -&gt; None</code> / <code>clear_context() -&gt; None</code></li>
+<li><code>dagster_logger(context) -&gt; BoundLogger</code> (binds correlation fields)</li>
+</ul>
+<p>Example usage in packages:</p>
+<pre><code class="language-python">from phlo.logging import setup_logging, get_logger
+
+setup_logging()
+logger = get_logger(__name__)
+logger.info(&quot;Service started&quot;, port=8080)
+</code></pre>
+<h3 id="2-standard-log-schema">2. Standard Log Schema</h3>
+<p>Every log entry must include these core fields:</p>
+<ul>
+<li><code>timestamp</code> (ISO-8601 UTC)</li>
+<li><code>level</code> (debug/info/warning/error/critical)</li>
+<li><code>message</code></li>
+<li><code>logger</code> (module/logger name)</li>
+<li><code>service</code> (phlo component name, e.g., <code>phlo-alerting</code>)</li>
+</ul>
+<p>Correlation fields (from ADR-0028):</p>
+<ul>
+<li><code>run_id</code></li>
+<li><code>asset_key</code></li>
+<li><code>job_name</code></li>
+<li><code>partition_key</code></li>
+<li><code>check_name</code></li>
+</ul>
+<p>Optional fields:</p>
+<ul>
+<li><code>event</code> (short machine-readable name)</li>
+<li><code>tags</code> (string map)</li>
+<li><code>exception</code> (serialized traceback)</li>
+<li><code>trace_id</code> / <code>span_id</code> (future tracing)</li>
+<li><code>process</code> / <code>thread</code> / <code>module</code> / <code>function</code> / <code>line</code></li>
+</ul>
+<h3 id="3-middle-layer-log-router">3. Middle Layer (Log Router)</h3>
+<p>Introduce a log router handler that receives every log record and forwards a
+normalized <code>LogEvent</code> to the hook bus:</p>
+<pre><code>stdlib logging / structlog
+          │
+          ▼
+  Phlo Log Router (logging.Handler)
+          │
+          ▼
+      HookBus
+          │
+    ┌─────┼──────────┐
+    ▼     ▼          ▼
+ stdout  metrics   custom
+ (JSON)  plugin    plugins
+</code></pre>
+<p>Implementation details:</p>
+<ul>
+<li>Add <code>LogEvent</code> to <code>phlo.hooks.events</code> with <code>event_type="log.record"</code>.</li>
+<li>Add a <code>LogRouterHandler</code> that transforms <code>LogRecord</code> -&gt; <code>LogEvent</code>.</li>
+<li>Use HookBus to dispatch to installed sink plugins.</li>
+<li>Keep stdout JSON as the default sink for Alloy/Loki.</li>
+</ul>
+<h3 id="4-logging-backend-choice">4. Logging Backend Choice</h3>
+<p>Use <code>structlog</code> on top of stdlib <code>logging</code>:</p>
+<ul>
+<li>Keeps compatibility with Dagster and third-party libraries.</li>
+<li>Supports structured JSON output with processors.</li>
+<li>Allows a single handler pipeline for routing.</li>
+</ul>
+<h3 id="5-hook-based-log-sinks">5. Hook-Based Log Sinks</h3>
+<p>Allow optional packages to register HookBus handlers for <code>log.record</code> events.
+These sinks can forward logs to external tools (APMs, alerting systems, or
+custom storage) without changing core logging code.</p>
+<h3 id="6-configuration">6. Configuration</h3>
+<p>Add logging settings to <code>phlo.config.settings</code>:</p>
+<ul>
+<li><code>phlo_log_level</code> (default: INFO)</li>
+<li><code>phlo_log_format</code> (json | console)</li>
+<li><code>phlo_log_router_enabled</code> (default: true)</li>
+<li><code>phlo_log_service_name</code> (default: phlo)</li>
+<li><code>phlo_log_file_template</code> (default: .phlo/logs/{YMD}.log, empty disables)</li>
+</ul>
+<p>Supported template placeholders (UTC):</p>
+<ul>
+<li><code>{YMD}</code> / <code>{YM}</code> / <code>{Y}</code> / <code>{YYYY}</code></li>
+<li><code>{M}</code> / <code>{MM}</code> / <code>{D}</code> / <code>{DD}</code></li>
+<li><code>{H}</code> / <code>{HM}</code> / <code>{HMS}</code></li>
+<li><code>{DATE}</code> (YYYY-MM-DD) / <code>{TIMESTAMP}</code> (YYYYMMDDHHMMSS)</li>
+</ul>
+<p>Allow overrides via env vars and <code>.phlo/.env(.local)</code>.</p>
+<h3 id="7-dagster-integration">7. Dagster Integration</h3>
+<ul>
+<li>Provide <code>dagster_logger(context)</code> that binds correlation fields from context.</li>
+<li>Ensure Dagster <code>context.log</code> output is still captured by the log router.</li>
+<li>Replace ad-hoc <code>context.log</code> usage with <code>dagster_logger</code> where possible.</li>
+</ul>
+<h3 id="8-typescript-alignment-observatory">8. TypeScript Alignment (Observatory)</h3>
+<ul>
+<li>Keep Pino, but align fields to the same schema (<code>service</code>, <code>event</code>,
+  correlation keys) so logs stay consistent across languages.</li>
+</ul>
+<h2 id="rollout-plan">Rollout Plan</h2>
+<ol>
+<li>Implement core <code>phlo.logging</code> API + <code>LogRouterHandler</code> + <code>LogEvent</code>.</li>
+<li>Wire <code>setup_logging()</code> into CLI entrypoints and services.</li>
+<li>Update packages to use <code>get_logger()</code> or <code>setup_logging()</code>.</li>
+<li>Update docs and examples.</li>
+</ol>
+<h2 id="migration-compatibility">Migration &amp; Compatibility</h2>
+<ul>
+<li>Continue to honor stdlib <code>logging</code> usage; logs will still flow through router.</li>
+<li>Existing telemetry log events remain unchanged; they are separate from
+  <code>log.record</code> but can be correlated via shared fields.</li>
+<li>Gradually migrate package code to <code>phlo.logging</code> helpers.</li>
+</ul>
+<h2 id="open-questions">Open Questions</h2>
+<ul>
+<li>Should <code>log.record</code> be emitted for every log level, or only INFO+ by default?</li>
+<li>Do we want to require JSON logs in all environments or allow console output for dev?</li>
+<li>Should file logging default to on in all environments, or only in local dev?</li>
 </ul>
 
 

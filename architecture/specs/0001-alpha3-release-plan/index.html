@@ -23,7 +23,7 @@
     
     
       
-        <title>6. Maintain explicit public exports and avoid print() in library code - Phlo Lakehouse Platform</title>
+        <title>Phlo 0.1.0-alpha.3 Release Plan - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#6-maintain-explicit-public-exports-and-avoid-print-in-library-code" class="md-skip">
+        <a href="#phlo-010-alpha3-release-plan" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              6. Maintain explicit public exports and avoid print() in library code
+              Phlo 0.1.0-alpha.3 Release Plan
             
           </span>
         </div>
@@ -668,10 +668,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
+  <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Status
+        Overview
       
     </span>
   </a>
@@ -679,10 +679,294 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
+  <a href="#1-release-infrastructure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context
+        1. Release Infrastructure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Release Infrastructure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-fix-release-please-prerelease-versioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Fix release-please Prerelease Versioning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-selective-package-publishing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Selective Package Publishing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-testing-and-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Testing and Quality
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Testing and Quality">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-fix-test-warnings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Fix Test Warnings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-auto-configure-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Auto-Configure Testing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Observability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Observability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-iceberg-table-maintenance-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Iceberg Table Maintenance Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Documentation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Documentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-full-documentation-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Full Documentation Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-blog-series-rewrite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Blog Series Rewrite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-testing-guide-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Testing Guide Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-security-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Security Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-observatory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Observatory
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Observatory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-observatory-installation-experience" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Observatory Installation Experience
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-quality-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Quality Checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Quality Checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-reconciliation-checks-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Reconciliation Checks Review
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#work-item-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work Item Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Work Item Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#critical-blocking-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critical (Blocking Release)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#low-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Low Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification Checklist
       
     </span>
   </a>
@@ -690,21 +974,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#post-release" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
+        Post-Release
       
     </span>
   </a>
@@ -728,31 +1001,251 @@
 
 
 
-<h1 id="6-maintain-explicit-public-exports-and-avoid-print-in-library-code">6. Maintain explicit public exports and avoid print() in library code</h1>
-<p>Date: 2025-12-14</p>
-<h2 id="status">Status</h2>
-<p>Accepted</p>
-<h2 id="context">Context</h2>
-<p>Phlo is a library + CLI. For good developer ergonomics and type checking:</p>
+<h1 id="phlo-010-alpha3-release-plan">Phlo 0.1.0-alpha.3 Release Plan</h1>
+<h2 id="overview">Overview</h2>
+<p>This document outlines the work required to release version 0.1.0-alpha.3, following the 0.1.0-alpha.2 release on December 26, 2025.</p>
+<p><strong>Target Version:</strong> 0.1.0-alpha.3
+<strong>Timeline:</strong> No fixed deadline; quality over speed
+<strong>Package Versioning:</strong> Fully independent (each package manages its own version)</p>
+<hr />
+<h2 id="1-release-infrastructure">1. Release Infrastructure</h2>
+<h3 id="11-fix-release-please-prerelease-versioning">1.1 Fix release-please Prerelease Versioning</h3>
+<p><strong>Priority:</strong> Critical (blocking release)
+<strong>Status:</strong> Needs investigation and fix</p>
+<p>The release-please workflow is not correctly incrementing alpha versions (e.g., alpha.2 -&gt; alpha.3). The current configuration uses:</p>
+<pre><code class="language-yaml">release-type: python
+prerelease: true
+prerelease-type: alpha
+</code></pre>
+<p><strong>Tasks:</strong></p>
 <ul>
-<li>The public API should be explicit (<code>__all__</code>) and stable.</li>
-<li>Import-time side effects should be minimized (lazy imports where appropriate).</li>
+<li>[ ] Investigate release-please v4 prerelease behavior with Python release type</li>
+<li>[ ] Consider switching to manifest-based configuration (<code>.release-please-manifest.json</code>) for finer control</li>
+<li>[ ] Test the fix locally before merging</li>
+<li>[ ] Document the working configuration</li>
 </ul>
-<p>Separately, <code>print()</code> in library modules creates noisy output and is hard to route/structure compared
-to standard logging.</p>
-<h2 id="decision">Decision</h2>
+<p><strong>Files:</strong></p>
 <ul>
-<li>Use explicit <code>__all__</code> exports for public modules and resources, with typed/lazy imports where
-  necessary.</li>
-<li>Replace non-CLI <code>print()</code> usage with structured logging (<code>phlo.logging.get_logger(__name__)</code>
-  and Dagster context logs where applicable).</li>
+<li><code>.github/workflows/release-please.yml</code></li>
+<li>Potentially add: <code>.release-please-manifest.json</code>, <code>release-please-config.json</code></li>
 </ul>
-<h2 id="consequences">Consequences</h2>
+<h3 id="12-selective-package-publishing">1.2 Selective Package Publishing</h3>
+<p><strong>Priority:</strong> High
+<strong>Status:</strong> Needs implementation</p>
+<p>The current <code>publish.yml</code> only builds the main <code>phlo</code> package. With 23+ workspace packages that version independently, we need selective publishing.</p>
+<p><strong>Tasks:</strong></p>
 <ul>
-<li>basedpyright has a clearer view of the public surface area.</li>
-<li>Users get consistent logs that can be routed/filtered across environments.</li>
-<li>Some internal refactors are required to avoid import cycles while keeping exports explicit.</li>
+<li>[ ] Modify publish workflow to detect which packages have changes</li>
+<li>[ ] Build and publish only changed packages</li>
+<li>[ ] Handle package dependency ordering (if phlo-core changes, dependents may need rebuild)</li>
+<li>[ ] Add dry-run mode for testing</li>
 </ul>
+<p><strong>Files:</strong></p>
+<ul>
+<li><code>.github/workflows/publish.yml</code></li>
+</ul>
+<hr />
+<h2 id="2-testing-and-quality">2. Testing and Quality</h2>
+<h3 id="21-fix-test-warnings">2.1 Fix Test Warnings</h3>
+<p><strong>Priority:</strong> High
+<strong>Status:</strong> Ready to implement</p>
+<p><strong>Task A: Remove pytest asyncio config warning</strong></p>
+<ul>
+<li>[ ] Remove or update <code>asyncio_default_fixture_loop_scope</code> in <code>pyproject.toml</code></li>
+</ul>
+<p><strong>Task B: Suppress pyiceberg Pydantic deprecation warnings</strong></p>
+<ul>
+<li>[ ] Add pytest warning filter for pyiceberg's Pydantic V2.12 deprecations</li>
+<li>[ ] Document that this is an upstream issue to track</li>
+</ul>
+<p><strong>Files:</strong></p>
+<ul>
+<li><code>pyproject.toml</code> (pytest.ini_options section)</li>
+</ul>
+<h3 id="22-auto-configure-testing">2.2 Auto-Configure Testing</h3>
+<p><strong>Priority:</strong> High
+<strong>Status:</strong> Needs testing</p>
+<p>The auto-configure feature (#119) needs validation across all core services.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Manual smoke test: Fresh install, run through quickstart</li>
+<li>[ ] Add automated integration tests for service configuration</li>
+<li>[ ] Docker Compose full-stack test</li>
+<li>[ ] Document any discovered edge cases</li>
+</ul>
+<p><strong>Services to test:</strong></p>
+<ul>
+<li>Dagster</li>
+<li>Postgres</li>
+<li>MinIO</li>
+<li>Nessie</li>
+<li>Trino</li>
+</ul>
+<hr />
+<h2 id="3-observability">3. Observability</h2>
+<h3 id="31-iceberg-table-maintenance-monitoring">3.1 Iceberg Table Maintenance Monitoring</h3>
+<p><strong>Priority:</strong> Medium
+<strong>Status:</strong> Needs implementation</p>
+<p>Add comprehensive observability for Iceberg table maintenance operations.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Add structured logging for maintenance operations (start/end/duration)</li>
+<li>[ ] Export Prometheus metrics for maintenance operations</li>
+<li>[ ] Surface maintenance status in Observatory UI</li>
+<li>[ ] Add error alerting for failed maintenance</li>
+</ul>
+<p><strong>Files:</strong></p>
+<ul>
+<li><code>packages/phlo-iceberg/</code></li>
+<li><code>packages/phlo-metrics/</code></li>
+<li><code>packages/phlo-observatory/</code></li>
+</ul>
+<hr />
+<h2 id="4-documentation">4. Documentation</h2>
+<h3 id="41-full-documentation-audit">4.1 Full Documentation Audit</h3>
+<p><strong>Priority:</strong> High
+<strong>Status:</strong> Needs review</p>
+<p>The README and other docs reference outdated patterns (basedpyright instead of ty, removed examples directory, etc.).</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Update README.md: Replace <code>basedpyright src/</code> with <code>ty check src/phlo</code></li>
+<li>[ ] Remove references to examples/ directory (moved to separate repo)</li>
+<li>[ ] Verify all doc links are valid</li>
+<li>[ ] Update developer guide with current tooling</li>
+<li>[ ] Review and update CLI reference for any changed commands</li>
+<li>[ ] Update configuration reference for new features (auto-configure, hooks, security)</li>
+</ul>
+<p><strong>Files to audit:</strong></p>
+<ul>
+<li><code>README.md</code></li>
+<li><code>docs/getting-started/installation.md</code></li>
+<li><code>docs/getting-started/quickstart.md</code></li>
+<li><code>docs/guides/developer-guide.md</code></li>
+<li><code>docs/reference/cli-reference.md</code></li>
+<li><code>docs/reference/configuration-reference.md</code></li>
+</ul>
+<h3 id="42-blog-series-rewrite">4.2 Blog Series Rewrite</h3>
+<p><strong>Priority:</strong> Medium
+<strong>Status:</strong> Needs full rewrite</p>
+<p>The 13-part blog series references deprecated patterns (DuckLake, old contracts module, etc.).</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Audit all blog posts for outdated content</li>
+<li>[ ] Rewrite posts to match current architecture</li>
+<li>[ ] Update code examples to use current APIs</li>
+<li>[ ] Consider consolidating posts if content overlaps</li>
+</ul>
+<p><strong>Files:</strong></p>
+<ul>
+<li><code>docs/blog/*.md</code></li>
+</ul>
+<h3 id="43-testing-guide-documentation">4.3 Testing Guide Documentation</h3>
+<p><strong>Priority:</strong> Medium
+<strong>Status:</strong> Needs creation</p>
+<p>The phlo-testing package references a <code>docs/TESTING_GUIDE.md</code> that needs to be created.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Create <code>docs/TESTING_GUIDE.md</code> with comprehensive testing patterns</li>
+<li>[ ] Reference phlo-testing package in main documentation</li>
+<li>[ ] Add examples for common testing scenarios</li>
+<li>[ ] Document local test mode usage</li>
+</ul>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>docs/TESTING_GUIDE.md</code></li>
+<li>Update: <code>docs/guides/developer-guide.md</code> (add testing section)</li>
+</ul>
+<h3 id="44-security-documentation">4.4 Security Documentation</h3>
+<p><strong>Priority:</strong> Low
+<strong>Status:</strong> Needs creation</p>
+<p>The enterprise security configuration feature (#117) should be documented as experimental.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Create security configuration documentation</li>
+<li>[ ] Mark features as experimental with appropriate warnings</li>
+<li>[ ] Document available security options</li>
+</ul>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>docs/reference/security-configuration.md</code></li>
+</ul>
+<hr />
+<h2 id="5-observatory">5. Observatory</h2>
+<h3 id="51-observatory-installation-experience">5.1 Observatory Installation Experience</h3>
+<p><strong>Priority:</strong> High
+<strong>Status:</strong> Needs verification</p>
+<p>Users should be able to start Observatory with:</p>
+<ol>
+<li><code>phlo observatory start</code> - dedicated command</li>
+<li><code>phlo services start</code> - included in services stack</li>
+</ol>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Verify <code>phlo observatory start</code> command works</li>
+<li>[ ] Verify Observatory is included in <code>phlo services start</code></li>
+<li>[ ] Document the installation experience</li>
+<li>[ ] Test with fresh install</li>
+</ul>
+<hr />
+<h2 id="6-quality-checks">6. Quality Checks</h2>
+<h3 id="61-reconciliation-checks-review">6.1 Reconciliation Checks Review</h3>
+<p><strong>Priority:</strong> Low
+<strong>Status:</strong> Needs evaluation</p>
+<p>Review the reconciliation checks in phlo-quality for edge cases or missing check types.</p>
+<p><strong>Tasks:</strong></p>
+<ul>
+<li>[ ] Audit existing check types</li>
+<li>[ ] Identify any missing common use cases</li>
+<li>[ ] Document available check types</li>
+</ul>
+<hr />
+<h2 id="work-item-summary">Work Item Summary</h2>
+<h3 id="critical-blocking-release">Critical (Blocking Release)</h3>
+<ol>
+<li>Fix release-please prerelease versioning</li>
+</ol>
+<h3 id="high-priority">High Priority</h3>
+<ol>
+<li>Fix pytest warnings (asyncio config, pyiceberg suppression)</li>
+<li>Test auto-configure across all services</li>
+<li>Full documentation audit</li>
+<li>Observatory installation verification</li>
+<li>Selective package publishing</li>
+</ol>
+<h3 id="medium-priority">Medium Priority</h3>
+<ol>
+<li>Iceberg maintenance monitoring (logging, metrics, UI)</li>
+<li>Blog series rewrite</li>
+<li>Testing guide documentation</li>
+</ol>
+<h3 id="low-priority">Low Priority</h3>
+<ol>
+<li>Security documentation (mark as experimental)</li>
+<li>Reconciliation checks review</li>
+</ol>
+<hr />
+<h2 id="verification-checklist">Verification Checklist</h2>
+<p>Before tagging alpha.3:</p>
+<ul>
+<li>[ ] All unit tests passing (583+ tests)</li>
+<li>[ ] No pytest warnings in output</li>
+<li>[ ] <code>ty check src/phlo</code> passes</li>
+<li>[ ] <code>ruff check src/</code> passes</li>
+<li>[ ] Fresh install smoke test succeeds</li>
+<li>[ ] <code>phlo services start</code> brings up all services</li>
+<li>[ ] <code>phlo observatory start</code> opens Observatory UI</li>
+<li>[ ] Documentation links are valid</li>
+<li>[ ] Release-please creates correct version bump</li>
+<li>[ ] PyPI publish workflow succeeds (dry run)</li>
+</ul>
+<hr />
+<h2 id="post-release">Post-Release</h2>
+<p>After alpha.3 is released:</p>
+<ol>
+<li>Monitor PyPI download metrics</li>
+<li>Track any user-reported issues</li>
+<li>Begin planning for beta.1 (feature freeze criteria)</li>
+</ol>
 
 
 
