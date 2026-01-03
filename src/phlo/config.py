@@ -269,6 +269,47 @@ class Settings(BaseSettings):
         default=10, description="Registry fetch timeout in seconds"
     )
 
+    # --- Logging Configuration ---
+    phlo_log_level: str = Field(default="INFO", description="Default log level for Phlo")
+    phlo_log_format: str = Field(
+        default="json",
+        description="Log format (json|console)",
+    )
+    phlo_log_router_enabled: bool = Field(
+        default=True,
+        description="Emit structured log events to the hook bus",
+    )
+    phlo_log_service_name: str = Field(
+        default="phlo",
+        description="Default service name for log records",
+    )
+
+    # --- Highlight.io Configuration ---
+    phlo_highlight_enabled: bool = Field(
+        default=False,
+        description="Enable Highlight.io log export when configured",
+    )
+    phlo_highlight_project_id: str | None = Field(
+        default=None,
+        description="Highlight.io project ID",
+    )
+    phlo_highlight_environment: str | None = Field(
+        default=None,
+        description="Highlight.io environment name",
+    )
+    phlo_highlight_otlp_endpoint: str | None = Field(
+        default=None,
+        description="Custom Highlight.io OTLP endpoint override",
+    )
+    phlo_highlight_service_name: str | None = Field(
+        default=None,
+        description="Override Highlight.io service name",
+    )
+    phlo_highlight_debug: bool = Field(
+        default=False,
+        description="Enable Highlight.io SDK debug logging",
+    )
+
     # --- Computed Properties ---
     # Additional properties computed from the base settings
     @property

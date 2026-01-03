@@ -111,3 +111,19 @@ class TelemetryEvent(HookEvent):
     level: str | None = None
     unit: str | None = None
     payload: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
+class LogEvent(HookEvent):
+    """Event emitted for structured log records."""
+
+    logger: str
+    level: str
+    message: str
+    service: str | None = None
+    run_id: str | None = None
+    asset_key: str | None = None
+    job_name: str | None = None
+    partition_key: str | None = None
+    check_name: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
