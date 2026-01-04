@@ -4,8 +4,7 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from dagster import AssetCheckSeverity
-from phlo_dbt.translator import CustomDbtTranslator
+from phlo_dbt.translator import DbtSpecTranslator
 
 from phlo_dbt.asset_checks import extract_dbt_asset_checks
 from phlo_quality.pandera_asset_checks import (
@@ -34,12 +33,13 @@ def test_pandera_contract_asset_check_fails_for_invalid_parquet(tmp_path) -> Non
     check = pandera_contract_asset_check_result(
         evaluation,
         partition_key="2025-01-01",
+        asset_key="demo",
         schema_class=DemoSchema,
         query_or_sql=f"parquet:{parquet_path}",
     )
     assert check.check_name == "pandera_contract"
     assert check.passed is False
-    assert check.severity == AssetCheckSeverity.ERROR
+    assert check.severity == "error"
     assert "failed_count" in check.metadata
     assert "total_count" in check.metadata
     assert "sample" in check.metadata
@@ -60,10 +60,10 @@ def test_pandera_contract_asset_check_passes_for_valid_parquet(tmp_path) -> None
 @pytest.mark.parametrize(
     ("tags", "expected_severity"),
     [
-        ([], AssetCheckSeverity.ERROR),
-        (["warn"], AssetCheckSeverity.WARN),
-        (["anomaly"], AssetCheckSeverity.WARN),
-        (["blocking"], AssetCheckSeverity.ERROR),
+        ([], "error"),
+        (["warn"], "warn"),
+        (["anomaly"], "warn"),
+        (["blocking"], "error"),
     ],
 )
 def test_dbt_test_results_emit_asset_checks_with_severity(tags, expected_severity) -> None:
@@ -96,12 +96,12 @@ def test_dbt_test_results_emit_asset_checks_with_severity(tags, expected_severit
     checks = extract_dbt_asset_checks(
         run_results,
         manifest,
-        translator=CustomDbtTranslator(),
+        translator=DbtSpecTranslator(),
         partition_key="2025-01-01",
     )
     assert len(checks) == 1
     check = checks[0]
-    assert check.asset_key.path == ["mrt_orders"]
+    assert check.asset_key == "mrt_orders"
     assert check.check_name == "dbt__not_null__mrt_orders"
     assert check.passed is False
     assert check.severity == expected_severity

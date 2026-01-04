@@ -29,7 +29,7 @@ This package is **fully auto-configured**:
 
 | Feature                | How It Works                                                         |
 | ---------------------- | -------------------------------------------------------------------- |
-| **Asset Registration** | Ingestion assets auto-registered with Dagster via entry points       |
+| **Asset Registration** | Ingestion assets published as capability specs via asset provider entry points |
 | **Lineage Events**     | Emits `ingestion.start`, `ingestion.end` events for lineage tracking |
 | **Schema Evolution**   | Automatically handles schema changes during ingestion                |
 | **Hook Integration**   | Events captured by alerting, metrics, and OpenMetadata plugins       |
@@ -61,12 +61,12 @@ def ingest_github_events():
 
 ### Running Ingestion
 
-Ingestion assets are automatically discovered and can be materialized via Dagster UI or CLI:
+Ingestion assets are automatically discovered and can be materialized via the active orchestrator:
 
 ```bash
-dagster asset materialize --select github_events
+phlo materialize dlt_github_events
 ```
 
 ## Entry Points
 
-- `phlo.plugins.dagster` - Provides `DltDagsterPlugin` for ingestion assets
+- `phlo.plugins.assets` - Provides `DltAssetProvider` for ingestion asset specs

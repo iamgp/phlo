@@ -22,9 +22,15 @@ from phlo_quality import (
     PatternCheck,
     RangeCheck,
     UniqueCheck,
+    clear_quality_checks,
     get_quality_checks,
     phlo_quality,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_quality_checks() -> None:
+    clear_quality_checks()
 
 
 class TestNullCheck:
@@ -370,12 +376,11 @@ class TestPhloQualityDecorator:
 
     def test_decorator_with_custom_asset_key(self):
         """Test decorator with custom asset key."""
-        from dagster import AssetKey
 
         @phlo_quality(
             table="test.table",
             checks=[NullCheck(columns=["id"])],
-            asset_key=AssetKey(["custom", "path"]),
+            asset_key="custom.path",
         )
         def custom_key_check():
             pass

@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-from datetime import timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-import dagster as dg
 from pandera.pandas import DataFrameModel
-from phlo_dagster.partitions import daily_partition
+from phlo.capabilities import (
+    AssetCheckSpec,
+    AssetSpec,
+    MaterializeResult,
+    PartitionSpec,
+    RunResult,
+    RunSpec,
+)
+from phlo.capabilities.runtime import RuntimeContext
 from phlo.exceptions import PhloConfigError
 from phlo_quality.pandera_asset_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
@@ -15,18 +21,15 @@ from phlo_quality.pandera_asset_checks import (
     evaluate_pandera_contract_parquet,
     pandera_contract_asset_check_result,
 )
-from phlo_iceberg.resource import IcebergResource
 
 from phlo_dlt.converter import pandera_to_iceberg
-from phlo_dlt.dlt_helpers import (
-    get_branch_from_context,
-)
+from phlo_dlt.dlt_helpers import get_branch_from_context
 from phlo_dlt.registry import TableConfig
 
-_INGESTION_ASSETS: list[Any] = []
+_INGESTION_ASSETS: list[AssetSpec] = []
 
 
-def get_ingestion_assets() -> list[Any]:
+def get_ingestion_assets() -> list[AssetSpec]:
     return list(_INGESTION_ASSETS)
 
 
@@ -90,6 +93,26 @@ def _default_merge_config(
     return config
 
 
+def _resolve_iceberg_resource(context: RuntimeContext) -> Any:
+    iceberg = None
+    resources = context.resources
+    if isinstance(resources, dict):
+        iceberg = resources.get("iceberg")
+    elif resources is not None:
+        iceberg = getattr(resources, "iceberg", None)
+    if iceberg is None:
+        try:
+            iceberg = context.get_resource("iceberg")
+        except Exception:
+            iceberg = None
+    if iceberg is None:
+        raise PhloConfigError(
+            message="Iceberg resource not available in runtime context",
+            suggestions=["Install phlo-iceberg or configure an Iceberg resource provider."],
+        )
+    return iceberg
+
+
 def phlo_ingestion(
     table_name: str,
     unique_key: str,
@@ -136,59 +159,42 @@ def phlo_ingestion(
     )
 
     def decorator(func: Callable[..., Any]) -> Any:
-        check_specs = None
+        check_specs: list[AssetCheckSpec] = []
         if validate and table_config.validation_schema is not None:
             check_specs = [
-                dg.AssetCheckSpec(
+                AssetCheckSpec(
                     name=PANDERA_CONTRACT_CHECK_NAME,
-                    asset=f"dlt_{table_config.table_name}",
+                    asset_key=f"dlt_{table_config.table_name}",
                     blocking=bool(strict_validation),
                     description=f"Pandera schema contract for {table_config.table_name}",
                 )
             ]
 
-        @dg.asset(
-            name=f"dlt_{table_config.table_name}",
-            group_name=group,
-            partitions_def=daily_partition,
-            description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
-            kinds={"dlt", "iceberg"},
-            check_specs=check_specs,
-            op_tags={"dagster/max_runtime": max_runtime_seconds},
-            retry_policy=dg.RetryPolicy(max_retries=max_retries, delay=retry_delay_seconds),
-            automation_condition=(dg.AutomationCondition.on_cron(cron) if cron else None),
-            freshness_policy=(
-                dg.FreshnessPolicy.time_window(
-                    warn_window=timedelta(hours=freshness_hours[0]),
-                    fail_window=timedelta(hours=freshness_hours[1]),
+        def run(runtime: RuntimeContext) -> Iterator[RunResult]:
+            partition_date = runtime.partition_key
+            if not partition_date:
+                raise PhloConfigError(
+                    message="Missing partition key for ingestion asset",
+                    suggestions=["Run the asset with a partition key (YYYY-MM-DD)."],
                 )
-                if freshness_hours
-                else None
-            ),
-        )
-        def wrapper(
-            context, iceberg: IcebergResource
-        ) -> Iterator[dg.AssetCheckResult | dg.MaterializeResult]:
-            partition_date = context.partition_key
-            f"{table_config.table_name}_{partition_date.replace('-', '_')}"
-            branch_name = get_branch_from_context(context)
-            run_id = context.run.run_id if hasattr(context, "run") else None
-            context.log.info(f"Starting ingestion for partition {partition_date}")
-            context.log.info(f"Ingesting to branch: {branch_name}")
-            context.log.info(f"Target table: {table_config.full_table_name}")
 
-            context.log.info("Calling user function to get DLT source...")
+            branch_name = get_branch_from_context(runtime)
+            run_id = runtime.run_id or "unknown"
+            logger = runtime.logger
+
+            logger.info(f"Starting ingestion for partition {partition_date}")
+            logger.info(f"Ingesting to branch: {branch_name}")
+            logger.info(f"Target table: {table_config.full_table_name}")
+
+            logger.info("Calling user function to get DLT source...")
             try:
-                # 1. Initialize Ingester (Orchestrator Independent)
                 from phlo_dlt.executor import DltIngester
 
-                # Wrap Dagster context's logger
-                # DltIngester expects an object with .info(), .warning() etc
-                # context.log in Dagster satisfies this.
+                iceberg = _resolve_iceberg_resource(runtime)
 
                 ingester = DltIngester(
-                    context=context,
-                    logger=context.log,
+                    context=runtime,
+                    logger=logger,
                     table_config=table_config,
                     iceberg_resource=iceberg,
                     dlt_source_func=func,
@@ -197,8 +203,6 @@ def phlo_ingestion(
                     merge_config=merge_cfg,
                 )
 
-                # 2. Run Ingestion
-                # DltIngester handles source execution, pipeline setup, parquet staging, and iceberg merge
                 result = ingester.run_ingestion(
                     partition_key=partition_date,
                     parameters={"branch_name": branch_name, "run_id": run_id},
@@ -216,17 +220,19 @@ def phlo_ingestion(
                         check_result = pandera_contract_asset_check_result(
                             evaluation,
                             partition_key=partition_date,
+                            asset_key=f"dlt_{table_config.table_name}",
                             schema_class=table_config.validation_schema,
                             query_or_sql="status:no_data",
                         )
                         yield check_result
-                    yield dg.MaterializeResult(
+                    yield MaterializeResult(
                         metadata={
                             "branch": branch_name,
-                            "partition_date": dg.MetadataValue.text(partition_date),
-                            "rows_loaded": dg.MetadataValue.int(0),
-                            "status": dg.MetadataValue.text("no_data"),
-                        }
+                            "partition_date": partition_date,
+                            "rows_loaded": 0,
+                            "status": "no_data",
+                        },
+                        status="no_data",
                     )
                     return
 
@@ -243,7 +249,7 @@ def phlo_ingestion(
                             schema_class=table_config.validation_schema,
                         )
                     except Exception as exc:
-                        context.log.error(f"Pandera contract evaluation failed: {exc}")
+                        logger.error(f"Pandera contract evaluation failed: {exc}")
                         evaluation = PanderaContractEvaluation(
                             passed=False,
                             failed_count=1,
@@ -254,39 +260,57 @@ def phlo_ingestion(
                     check_result = pandera_contract_asset_check_result(
                         evaluation,
                         partition_key=partition_date,
+                        asset_key=f"dlt_{table_config.table_name}",
                         schema_class=table_config.validation_schema,
                         query_or_sql=query_or_sql,
                     )
                     yield check_result
                     if strict_validation and not evaluation.passed:
-                        raise dg.Failure("Pandera contract validation failed")
+                        raise RuntimeError("Pandera contract validation failed")
 
-                # 3. Yield Results
-                # Ingester handles emission of Phlo events internally.
-                # We simply translate the IngestionResult to Dagster MaterializeResult
-
-                yield dg.MaterializeResult(
+                yield MaterializeResult(
                     metadata={
                         "branch": branch_name,
-                        "partition_date": dg.MetadataValue.text(partition_date),
-                        "rows_inserted": dg.MetadataValue.int(result.rows_inserted),
-                        "rows_deleted": dg.MetadataValue.int(result.rows_deleted),
-                        "unique_key": dg.MetadataValue.text(table_config.unique_key),
-                        "table_name": dg.MetadataValue.text(table_config.full_table_name),
-                        "dlt_elapsed_seconds": dg.MetadataValue.float(
-                            result.metadata.get("dlt_elapsed_seconds", 0.0)
-                        ),
-                        "total_elapsed_seconds": dg.MetadataValue.float(
-                            result.metadata.get("total_elapsed_seconds", 0.0)
-                        ),
-                    }
+                        "partition_date": partition_date,
+                        "rows_inserted": result.rows_inserted,
+                        "rows_deleted": result.rows_deleted,
+                        "unique_key": table_config.unique_key,
+                        "table_name": table_config.full_table_name,
+                        "dlt_elapsed_seconds": result.metadata.get("dlt_elapsed_seconds", 0.0),
+                        "total_elapsed_seconds": result.metadata.get("total_elapsed_seconds", 0.0),
+                    },
+                    status=result.status,
                 )
 
             except Exception:
-                # Ingester emits failure events before raising
                 raise
 
-        _INGESTION_ASSETS.append(wrapper)
-        return wrapper
+        asset_spec = AssetSpec(
+            key=f"dlt_{table_config.table_name}",
+            group=group,
+            description=func.__doc__ or f"Ingests {table_config.table_name} data to Iceberg",
+            kinds={"dlt", "iceberg"},
+            tags={"source": "dlt"},
+            metadata={
+                "table_name": table_config.table_name,
+                "unique_key": table_config.unique_key,
+                "group": table_config.group_name,
+            },
+            partitions=PartitionSpec(kind="daily"),
+            resources={"iceberg"},
+            run=RunSpec(
+                fn=run,
+                max_runtime_seconds=max_runtime_seconds,
+                max_retries=max_retries,
+                retry_delay_seconds=retry_delay_seconds,
+                cron=cron,
+                freshness_hours=freshness_hours,
+            ),
+            checks=check_specs,
+        )
+
+        _INGESTION_ASSETS.append(asset_spec)
+        setattr(func, "_phlo_table_config", table_config)
+        return func
 
     return decorator

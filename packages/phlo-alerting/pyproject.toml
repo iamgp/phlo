@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "phlo-alerting"
 version = "0.1.0"
-description = "Alerting destinations and sensors for Phlo"
+description = "Alerting destinations and hooks for Phlo"
 readme = {text = "Alerting support for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"
 authors = [
@@ -17,7 +17,6 @@ dependencies = [
     "click",
     "rich",
     "requests",
-    "dagster",
 ]
 
 [project.optional-dependencies]

@@ -264,12 +264,16 @@ class TestCatalogGenerator:
     def test_generate_catalog_files_with_catalog_plugin(self):
         """Test catalog file generation with a mock catalog plugin."""
         from phlo_trino.catalog_generator import generate_catalog_files
-        from phlo.plugins.base import TrinoCatalogPlugin, PluginMetadata
+        from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
-        class MockCatalog(TrinoCatalogPlugin):
+        class MockCatalog(CatalogPlugin):
             @property
             def metadata(self):
                 return PluginMetadata("mock", "1.0.0", "Mock catalog")
+
+            @property
+            def targets(self) -> list[str]:
+                return ["trino"]
 
             @property
             def catalog_name(self) -> str:

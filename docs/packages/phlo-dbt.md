@@ -4,7 +4,7 @@ dbt transformation integration for Phlo.
 
 ## Overview
 
-`phlo-dbt` integrates dbt (data build tool) with the Phlo lakehouse. It provides Dagster assets from dbt models, CLI commands, and automatic project discovery.
+`phlo-dbt` integrates dbt (data build tool) with the Phlo lakehouse. It provides asset specs from dbt models, CLI commands, and automatic project discovery.
 
 ## Installation
 
@@ -30,9 +30,9 @@ phlo plugin install dbt
 | Feature               | How It Works                                                            |
 | --------------------- | ----------------------------------------------------------------------- |
 | **Project Discovery** | Auto-discovers `dbt_project.yml` in workspace via `find_dbt_projects()` |
-| **Dagster Assets**    | Automatically creates Dagster assets from dbt models                    |
+| **Asset Specs**       | Automatically creates asset specs from dbt models                        |
 | **Lineage Events**    | Emits lineage events during model execution                             |
-| **Auto-Compile**      | Compiles dbt on Dagster startup via post_start hook                     |
+| **Auto-Compile**      | Compiles dbt on startup via post_start hook                             |
 
 ### Discovery Locations
 
@@ -151,12 +151,12 @@ GROUP BY 1, 2
 
 | Entry Point            | Plugin                                   |
 | ---------------------- | ---------------------------------------- |
-| `phlo.plugins.dagster` | `DbtDagsterPlugin` for asset definitions |
-| `phlo.plugins.cli`     | `dbt` CLI commands                       |
+| `phlo.plugins.assets` | `DbtAssetProvider` for asset specs       |
+| `phlo.plugins.cli`    | `dbt` CLI commands                       |
 
 ## Related Packages
 
-- [phlo-dagster](phlo-dagster.md) - Orchestration platform
+- [phlo-dagster](phlo-dagster.md) - Dagster adapter for capability specs
 - [phlo-trino](phlo-trino.md) - Query engine
 - [phlo-iceberg](phlo-iceberg.md) - Table format
 

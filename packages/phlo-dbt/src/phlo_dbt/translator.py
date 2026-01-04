@@ -5,8 +5,6 @@ from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 from typing import Any
 
-from dagster import AssetKey
-from dagster_dbt import DagsterDbtTranslator
 from phlo.config import config
 
 
@@ -108,8 +106,10 @@ def get_compiled_sql_from_resource_props(
     return truncated_sql, was_truncated, original_bytes, source
 
 
-class CustomDbtTranslator(DagsterDbtTranslator):
-    def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> AssetKey:
+class DbtSpecTranslator:
+    """Translate dbt manifest entries into orchestrator-agnostic spec fields."""
+
+    def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> str:
         resource_type = dbt_resource_props.get("resource_type")
         is_source = resource_type == "source" or (
             resource_type is None and "source_name" in dbt_resource_props
@@ -119,10 +119,10 @@ class CustomDbtTranslator(DagsterDbtTranslator):
             source_name = dbt_resource_props["source_name"]
             table_name = dbt_resource_props["name"]
             if source_name == "dagster_assets":
-                return AssetKey([f"dlt_{table_name}"])
-            return super().get_asset_key(dbt_resource_props)
+                return f"dlt_{table_name}"
+            return f"{source_name}.{table_name}"
 
-        return AssetKey(str(dbt_resource_props["name"]))
+        return str(dbt_resource_props["name"])
 
     def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
         model_name = str(dbt_resource_props.get("name", ""))
@@ -165,23 +165,22 @@ class CustomDbtTranslator(DagsterDbtTranslator):
         return "transform"
 
     def get_metadata(self, dbt_resource_props: Mapping[str, Any]) -> dict[str, Any]:
-        metadata: dict[str, Any] = dict(super().get_metadata(dbt_resource_props) or {})
-
+        metadata: dict[str, Any] = {}
         columns = dbt_resource_props.get("columns", {})
         if isinstance(columns, dict) and columns:
-            from dagster import TableColumn, TableSchema
-
-            table_columns = [
-                TableColumn(
-                    name=str(col_name),
-                    type=str(col_info.get("data_type", "unknown")),
-                    description=str(col_info.get("description", "")),
+            table_columns = []
+            for col_name, col_info in columns.items():
+                if not isinstance(col_info, dict):
+                    continue
+                table_columns.append(
+                    {
+                        "name": str(col_name),
+                        "type": str(col_info.get("data_type", "unknown")),
+                        "description": str(col_info.get("description", "")),
+                    }
                 )
-                for col_name, col_info in columns.items()
-                if isinstance(col_info, dict)
-            ]
             if table_columns:
-                metadata.setdefault("dagster/column_schema", TableSchema(columns=table_columns))
+                metadata["phlo/column_schema"] = table_columns
 
         max_bytes = _int_env("PHLO_DBT_COMPILED_SQL_MAX_BYTES", default=64_000)
         compiled_sql, was_truncated, original_bytes, source = get_compiled_sql_from_resource_props(

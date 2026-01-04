@@ -4,7 +4,7 @@ Dagster orchestration service for Phlo.
 
 ## Description
 
-Data orchestration platform for scheduling and monitoring data pipelines. Runs ingestion, transformation, and quality workflows.
+Data orchestration platform for scheduling and monitoring data pipelines. Translates capability specs into Dagster assets, checks, and resources.
 
 ## Installation
 
@@ -29,7 +29,7 @@ This package is **fully auto-configured**:
 
 | Feature                | How It Works                                                              |
 | ---------------------- | ------------------------------------------------------------------------- |
-| **Plugin Discovery**   | Auto-discovers Dagster extensions via `phlo.plugins.dagster` entry points |
+| **Adapter Discovery**  | Loads `phlo.plugins.orchestrators` and builds Dagster definitions         |
 | **dbt Compilation**    | Auto-compiles dbt on startup via post_start hook                          |
 | **Workflow Discovery** | Auto-discovers workflows in `workflows/` directory                        |
 | **Metrics Labels**     | Exposes Dagster metrics for Prometheus                                    |
@@ -43,13 +43,13 @@ hooks:
       command: dbt compile
 ```
 
-### Plugin Discovery
+### Capability Discovery
 
-Dagster extensions are auto-loaded:
+Capability providers are auto-loaded:
 
-- `@phlo_ingestion` assets from phlo-dlt
-- `IcebergResource` from phlo-iceberg
-- dbt assets from phlo-dbt
+- Asset specs from `phlo.plugins.assets`
+- Resource specs from `phlo.plugins.resources`
+- Check specs from `@phlo_quality`
 
 ## Usage
 
@@ -70,4 +70,5 @@ phlo services start --dev
 ## Entry Points
 
 - `phlo.plugins.services` - Provides `DagsterServicePlugin`, `DagsterDaemonServicePlugin`
+- `phlo.plugins.orchestrators` - Provides `DagsterOrchestratorAdapter`
 - `phlo.plugins.cli` - Provides Dagster CLI commands

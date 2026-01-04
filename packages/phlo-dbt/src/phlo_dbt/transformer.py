@@ -4,11 +4,9 @@ import json
 import os
 import subprocess
 import time
-from collections.abc import Mapping, Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, List, Optional, Dict
-
-from dagster import AssetKey
 
 from phlo.transformer import BaseTransformer, TransformationResult
 from phlo.hooks import (
@@ -19,7 +17,7 @@ from phlo.hooks import (
     TransformEventContext,
     TransformEventEmitter,
 )
-from phlo_dbt.translator import CustomDbtTranslator
+from phlo_dbt.translator import DbtSpecTranslator
 
 
 def _latest_project_mtime(dbt_project_path: Path) -> float:
@@ -98,15 +96,9 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
     return isinstance(manifest_payload, Mapping)
 
 
-def _asset_key_to_str(asset_key: AssetKey) -> str:
-    if hasattr(asset_key, "path") and asset_key.path:
-        return ".".join(str(part) for part in asset_key.path)
-    return str(asset_key)
-
-
 def _emit_dbt_lineage(
     manifest_path: Path,
-    translator: CustomDbtTranslator,
+    translator: DbtSpecTranslator,
     *,
     lineage_emitter: LineageEventEmitter,
     logger: Any,
@@ -138,7 +130,7 @@ def _emit_dbt_lineage(
             asset_key = translator.get_asset_key(props)
         except Exception:
             continue
-        asset_keys[str(unique_id)] = _asset_key_to_str(asset_key)
+        asset_keys[str(unique_id)] = str(asset_key)
 
     edges: list[tuple[str, str]] = []
     target_keys: list[str] = []
@@ -292,7 +284,7 @@ class DbtTransformer(BaseTransformer):
             # 3. Emit Lineage
             # We assume manifest is at target/manifest.json
             manifest_path = self.project_dir / "target" / "manifest.json"
-            translator = CustomDbtTranslator()  # Uses default config logic internally
+            translator = DbtSpecTranslator()
 
             _emit_dbt_lineage(
                 manifest_path,

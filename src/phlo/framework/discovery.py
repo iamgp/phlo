@@ -2,8 +2,8 @@
 User Workflow Discovery
 
 This module discovers and loads workflow files from a user's project directory.
-It dynamically imports Python modules which triggers decorator registration,
-then collects all registered assets, jobs, and schedules.
+It dynamically imports Python modules which triggers capability registration,
+then delegates to the active orchestrator adapter.
 """
 
 from __future__ import annotations
@@ -14,113 +14,59 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-import dagster as dg
-
+from phlo.capabilities.discovery import discover_capabilities
+from phlo.capabilities.registry import clear_capabilities, get_capability_registry
 from phlo.logging import get_logger
+from phlo.orchestrators import get_active_orchestrator
 
 logger = get_logger(__name__)
 
-# Suppress Dagster preview warnings for stable API usage
-warnings.filterwarnings(
-    "ignore",
-    message=".*is currently in preview.*",
-    category=UserWarning,
-)
+# Suppress preview warnings from orchestrators that emit them on import.
+warnings.filterwarnings("ignore", message=".*is currently in preview.*", category=UserWarning)
 
 
 def discover_user_workflows(
     workflows_path: Path | str,
     clear_registries: bool = False,
-) -> dg.Definitions:
+) -> Any:
     """
     Discover and load user workflow files from a directory.
 
-    This function scans the workflows directory for Python files, imports them
-    (which triggers @phlo_ingestion and @phlo_quality decorator registration),
-    and collects all registered Dagster assets and checks.
-
-    Args:
-        workflows_path: Path to workflows directory (e.g., "./workflows")
-        clear_registries: Whether to clear asset registries before discovery
-            (default: False). Set to True for testing.
-
-    Returns:
-        Dagster Definitions containing all discovered workflows
-
-    Example:
-        ```python
-        # Discover workflows in ./workflows directory
-        user_defs = discover_user_workflows(Path("./workflows"))
-
-        # Merge with core definitions
-        all_defs = Definitions.merge(core_defs, user_defs)
-        ```
-
-    Raises:
-        FileNotFoundError: If workflows_path doesn't exist
-        ImportError: If workflow modules fail to import
+    Imports workflow modules (which registers capability specs) and builds
+    orchestrator definitions using the active adapter.
     """
     workflows_path = Path(workflows_path)
+
+    if clear_registries:
+        _clear_capability_registries()
 
     if not workflows_path.exists():
         logger.warning(
             "Workflows directory not found: %s. No user workflows will be loaded.",
             workflows_path,
         )
-        return dg.Definitions()
-
-    if not workflows_path.is_dir():
+        imported_modules: list[Any] = []
+    elif not workflows_path.is_dir():
         raise ValueError(f"Workflows path must be a directory, got: {workflows_path}")
+    else:
+        logger.info(f"Discovering user workflows in: {workflows_path}")
+        parent_dir = workflows_path.parent.resolve()
+        if str(parent_dir) not in sys.path:
+            sys.path.insert(0, str(parent_dir))
+            logger.debug(f"Added to Python path: {parent_dir}")
+        imported_modules = _import_workflow_modules(workflows_path)
+        logger.info(f"Imported {len(imported_modules)} workflow modules from {workflows_path}")
 
-    logger.info(f"Discovering user workflows in: {workflows_path}")
+    # Discover provider plugins after modules are imported.
+    discover_capabilities()
 
-    # Optionally clear registries (useful for testing)
-    if clear_registries:
-        _clear_asset_registries()
-
-    # Add parent directory to Python path so imports work
-    parent_dir = workflows_path.parent.resolve()
-    if str(parent_dir) not in sys.path:
-        sys.path.insert(0, str(parent_dir))
-        logger.debug(f"Added to Python path: {parent_dir}")
-
-    # Import all workflow modules
-    imported_modules = _import_workflow_modules(workflows_path)
-
-    logger.info(f"Imported {len(imported_modules)} workflow modules from {workflows_path}")
-
-    plugin_defs = _collect_dagster_extension_definitions()
-    plugin_assets = list(plugin_defs.assets or [])
-    plugin_asset_keys = {key for asset in plugin_assets for key in asset.keys}
-
-    module_defs = (
-        dg.load_definitions_from_modules(imported_modules) if imported_modules else dg.Definitions()
+    registry = get_capability_registry()
+    adapter = get_active_orchestrator()
+    return adapter.build_definitions(
+        assets=registry.list_assets(),
+        checks=registry.list_checks(),
+        resources=registry.list_resources(),
     )
-    module_assets = list(module_defs.assets or [])
-    filtered_assets = [
-        asset for asset in module_assets if not asset.keys.issubset(plugin_asset_keys)
-    ]
-
-    if len(module_assets) != len(filtered_assets):
-        logger.info(
-            "Filtered %d duplicate assets from workflow modules",
-            len(module_assets) - len(filtered_assets),
-        )
-
-    module_defs = dg.Definitions(
-        assets=filtered_assets,
-        asset_checks=module_defs.asset_checks,
-        schedules=module_defs.schedules,
-        sensors=module_defs.sensors,
-        resources=module_defs.resources,
-        jobs=module_defs.jobs,
-    )
-
-    merged = dg.Definitions.merge(plugin_defs, module_defs)
-    merged = _ensure_core_resources(merged)
-    logger.info("Discovered %d assets from Dagster plugins", len(plugin_assets))
-    logger.info("Discovered %d assets from workflow modules", len(filtered_assets))
-    return merged
 
 
 def _import_workflow_modules(workflows_path: Path) -> list[Any]:
@@ -176,8 +122,13 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
     return imported_modules
 
 
-def _collect_dagster_extension_definitions() -> dg.Definitions:
+def _collect_dagster_extension_definitions() -> Any:
     from phlo.discovery import discover_plugins, get_global_registry
+
+    try:
+        import dagster as dg
+    except Exception:  # noqa: BLE001 - optional dependency
+        return None
 
     discover_plugins(plugin_type="dagster_extensions", auto_register=True)
     registry = get_global_registry()
@@ -195,7 +146,12 @@ def _collect_dagster_extension_definitions() -> dg.Definitions:
     return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
 
 
-def _ensure_core_resources(definitions: dg.Definitions) -> dg.Definitions:
+def _ensure_core_resources(definitions: Any) -> Any:
+    try:
+        import dagster as dg
+    except Exception:  # noqa: BLE001 - optional dependency
+        return definitions
+
     resources = dict(definitions.resources or {})
     if "trino" not in resources:
         trino_resource = _default_trino_resource()
@@ -214,17 +170,25 @@ def _default_trino_resource() -> Any | None:
     return TrinoResource()
 
 
-def _clear_asset_registries() -> None:
-    """
-    Clear all asset registries (for testing).
-
-    This clears the global registries that decorators append to,
-    allowing fresh discovery in test scenarios.
-    """
+def _clear_capability_registries() -> None:
+    """Clear capability registries (for testing)."""
     from phlo.discovery import discover_plugins, get_global_registry
 
+    clear_capabilities()
+    discover_plugins(plugin_type="asset_providers", auto_register=True)
     discover_plugins(plugin_type="dagster_extensions", auto_register=True)
     registry = get_global_registry()
+
+    for name in registry.list_asset_providers():
+        plugin = registry.get_asset_provider(name)
+        if plugin is None:
+            continue
+        clear_fn = getattr(plugin, "clear_registries", None)
+        if callable(clear_fn):
+            try:
+                clear_fn()
+            except Exception as exc:
+                logger.warning("Failed to clear registries for asset provider %s: %s", name, exc)
 
     for name in registry.list_dagster_extensions():
         plugin = registry.get_dagster_extension(name)

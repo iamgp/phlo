@@ -32,6 +32,9 @@ dagster-daemon = "phlo_dagster.plugin:DagsterDaemonServicePlugin"
 [project.entry-points."phlo.plugins.cli"]
 dagster = "phlo_dagster.cli_plugin:DagsterCliPlugin"
 
+[project.entry-points."phlo.plugins.orchestrators"]
+dagster = "phlo_dagster.adapter:DagsterOrchestratorAdapter"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
