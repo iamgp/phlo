@@ -40,7 +40,7 @@ from phlo_quality.checks import (
     UniqueCheck,
 )
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract, dbt_check_name
-from phlo_quality.decorator import get_quality_checks, phlo_quality
+from phlo_quality.decorator import clear_quality_checks, get_quality_checks, phlo_quality
 from phlo_quality.reconciliation import (
     AggregateConsistencyCheck,
     AggregateSpec,
@@ -54,6 +54,7 @@ __all__ = [
     # Decorator (use as @phlo_quality(...))
     "phlo_quality",
     "get_quality_checks",
+    "clear_quality_checks",
     # Base class
     "QualityCheck",
     # Quality checks

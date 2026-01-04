@@ -29,7 +29,7 @@ This package is **fully auto-configured**:
 
 | Feature                 | How It Works                                                                 |
 | ----------------------- | ---------------------------------------------------------------------------- |
-| **Catalog Discovery**   | Auto-generates catalog files from `phlo.plugins.trino_catalogs` entry points |
+| **Catalog Discovery**   | Auto-generates catalog files from `phlo.plugins.catalogs` entry points |
 | **Metrics Labels**      | Exposes Trino metrics for Prometheus                                         |
 | **Grafana Datasource**  | Auto-registers as Grafana datasource via labels                              |
 | **Superset Connection** | Auto-registered in Superset via Superset hook                                |
@@ -41,9 +41,11 @@ Trino catalog `.properties` files are generated from installed catalog plugins:
 ```python
 from phlo_trino.catalog_generator import generate_catalog_files
 
-# Discovers all TrinoCatalogPlugin instances and generates files
+# Discovers CatalogPlugin instances targeting "trino" and generates files
 generate_catalog_files("/path/to/trino/catalog/")
 ```
+
+Catalog plugins declare `targets` in code; Trino loads only those that target `trino`.
 
 ### Grafana Labels
 
@@ -73,3 +75,4 @@ phlo trino query "SELECT * FROM iceberg.bronze.users LIMIT 10"
 ## Entry Points
 
 - `phlo.plugins.services` - Provides `TrinoServicePlugin`
+- `phlo.plugins.resources` - Provides `TrinoResourceProvider`

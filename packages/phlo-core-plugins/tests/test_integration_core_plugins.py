@@ -138,27 +138,31 @@ class TestPluginDiscovery:
 
 
 # =============================================================================
-# TrinoCatalogPlugin Tests
+# CatalogPlugin Tests
 # =============================================================================
 
 
-class TestTrinoCatalogPlugin:
-    """Test TrinoCatalogPlugin base class."""
+class TestCatalogPlugin:
+    """Test CatalogPlugin base class."""
 
-    def test_trino_catalog_plugin_importable(self):
-        """Test TrinoCatalogPlugin is importable."""
-        from phlo.plugins.base import TrinoCatalogPlugin
+    def test_catalog_plugin_importable(self):
+        """Test CatalogPlugin is importable."""
+        from phlo.plugins.base import CatalogPlugin
 
-        assert TrinoCatalogPlugin is not None
+        assert CatalogPlugin is not None
 
-    def test_trino_catalog_plugin_interface(self):
-        """Test TrinoCatalogPlugin interface."""
-        from phlo.plugins.base import TrinoCatalogPlugin, PluginMetadata
+    def test_catalog_plugin_interface(self):
+        """Test CatalogPlugin interface."""
+        from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
-        class MockCatalog(TrinoCatalogPlugin):
+        class MockCatalog(CatalogPlugin):
             @property
             def metadata(self):
                 return PluginMetadata("mock", "1.0.0", "Mock catalog")
+
+            @property
+            def targets(self) -> list[str]:
+                return ["trino"]
 
             @property
             def catalog_name(self):
@@ -169,7 +173,7 @@ class TestTrinoCatalogPlugin:
 
         catalog = MockCatalog()
         assert catalog.catalog_name == "mock"
-        assert "connector.name=mock" in catalog.to_properties_file()
+        assert catalog.get_properties()["connector.name"] == "mock"
 
 
 # =============================================================================
@@ -232,10 +236,10 @@ class TestCorePluginsExports:
 
     def test_phlo_plugins_base_exports(self):
         """Test phlo.plugins.base exports expected classes."""
-        from phlo.plugins.base import PluginMetadata, TrinoCatalogPlugin
+        from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
         assert PluginMetadata is not None
-        assert TrinoCatalogPlugin is not None
+        assert CatalogPlugin is not None
 
     def test_phlo_plugins_hooks_exports(self):
         """Test phlo.plugins.hooks exports expected classes."""

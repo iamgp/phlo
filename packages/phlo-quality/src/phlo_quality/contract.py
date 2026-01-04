@@ -44,8 +44,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from dagster import MetadataValue
-
 PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
 
 
@@ -69,25 +67,29 @@ class QualityCheckContract:
     repro_sql: str | None = None
     sample: list[Any] | None = None
 
-    def to_dagster_metadata(self) -> dict[str, MetadataValue]:
-        metadata: dict[str, MetadataValue] = {
-            "source": MetadataValue.text(self.source),
-            "failed_count": MetadataValue.int(self.failed_count),
+    def to_metadata(self) -> dict[str, Any]:
+        metadata: dict[str, Any] = {
+            "source": self.source,
+            "failed_count": self.failed_count,
         }
 
         if self.partition_key is not None:
-            metadata["partition_key"] = MetadataValue.text(self.partition_key)
+            metadata["partition_key"] = self.partition_key
 
         if self.total_count is not None:
-            metadata["total_count"] = MetadataValue.int(self.total_count)
+            metadata["total_count"] = self.total_count
 
         if self.query_or_sql is not None:
-            metadata["query_or_sql"] = MetadataValue.text(self.query_or_sql)
+            metadata["query_or_sql"] = self.query_or_sql
 
         if self.repro_sql is not None:
-            metadata["repro_sql"] = MetadataValue.text(self.repro_sql)
+            metadata["repro_sql"] = self.repro_sql
 
         if self.sample is not None:
-            metadata["sample"] = MetadataValue.json(self.sample[:20])
+            metadata["sample"] = self.sample[:20]
 
         return metadata
+
+    def to_dagster_metadata(self) -> dict[str, Any]:
+        """Backwards-compatible alias for metadata consumers."""
+        return self.to_metadata()

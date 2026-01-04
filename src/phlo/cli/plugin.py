@@ -43,6 +43,10 @@ PLUGIN_TYPE_MAP = {
     "transforms": "transformations",
     "services": "services",
     "hooks": "hooks",
+    "assets": "asset_providers",
+    "resources": "resource_providers",
+    "orchestrators": "orchestrators",
+    "catalogs": "catalogs",
 }
 
 PLUGIN_TYPE_LABELS = {
@@ -51,6 +55,10 @@ PLUGIN_TYPE_LABELS = {
     "transformations": "Transforms",
     "services": "Services",
     "hooks": "Hooks",
+    "asset_providers": "Assets",
+    "resource_providers": "Resources",
+    "orchestrators": "Orchestrators",
+    "catalogs": "Catalogs",
 }
 
 PLUGIN_INTERNAL_TO_REGISTRY = {
@@ -59,6 +67,10 @@ PLUGIN_INTERNAL_TO_REGISTRY = {
     "transformations": "transform",
     "services": "service",
     "hooks": "hooks",
+    "asset_providers": "assets",
+    "resource_providers": "resources",
+    "orchestrators": "orchestrators",
+    "catalogs": "catalogs",
 }
 
 REGISTRY_TYPE_MAP = {
@@ -67,6 +79,10 @@ REGISTRY_TYPE_MAP = {
     "transforms": "transform",
     "services": "service",
     "hooks": "hooks",
+    "assets": "assets",
+    "resources": "resources",
+    "orchestrators": "orchestrators",
+    "catalogs": "catalogs",
 }
 
 
@@ -80,7 +96,20 @@ def plugin_group():
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms", "services", "hooks", "all"]),
+    type=click.Choice(
+        [
+            "sources",
+            "quality",
+            "transforms",
+            "services",
+            "hooks",
+            "assets",
+            "resources",
+            "orchestrators",
+            "catalogs",
+            "all",
+        ]
+    ),
     default="all",
     help="Filter by plugin type",
 )
@@ -132,7 +161,19 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["sources", "quality", "transforms", "services", "hooks"]),
+    type=click.Choice(
+        [
+            "sources",
+            "quality",
+            "transforms",
+            "services",
+            "hooks",
+            "assets",
+            "resources",
+            "orchestrators",
+            "catalogs",
+        ]
+    ),
     help="Plugin type (auto-detected if not specified)",
 )
 @click.option(
@@ -165,6 +206,8 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
                         plugin_type = "transforms"
                     elif ptype_key == "services":
                         plugin_type = "services"
+                    elif ptype_key == "catalogs":
+                        plugin_type = "catalogs"
                     break
 
         if not plugin_type:
@@ -177,6 +220,11 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
             "quality": "quality_checks",
             "transforms": "transformations",
             "services": "services",
+            "hooks": "hooks",
+            "assets": "asset_providers",
+            "resources": "resource_providers",
+            "orchestrators": "orchestrators",
+            "catalogs": "catalogs",
         }
         internal_type = type_mapping.get(plugin_type, plugin_type)
 
@@ -285,7 +333,19 @@ def check_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service", "hooks"]),
+    type=click.Choice(
+        [
+            "sources",
+            "quality",
+            "transforms",
+            "services",
+            "hooks",
+            "assets",
+            "resources",
+            "orchestrators",
+            "catalogs",
+        ]
+    ),
     help="Filter by plugin type",
 )
 @click.option(
@@ -306,6 +366,8 @@ def search_cmd(
 ):
     """Search plugin registry."""
     try:
+        if plugin_type:
+            plugin_type = REGISTRY_TYPE_MAP.get(plugin_type, plugin_type)
         results = search_plugins(
             query=query,
             plugin_type=plugin_type,
@@ -403,8 +465,20 @@ def update_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service", "hook"]),
-    default="source",
+    type=click.Choice(
+        [
+            "sources",
+            "quality",
+            "transforms",
+            "services",
+            "hooks",
+            "catalogs",
+            "assets",
+            "resources",
+            "orchestrators",
+        ]
+    ),
+    default="sources",
     help="Type of plugin to create",
 )
 @click.option(
@@ -418,9 +492,22 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
     Examples:
         phlo plugin create my-source              # Create source connector plugin
         phlo plugin create my-check --type quality # Create quality check plugin
-        phlo plugin create my-transform --type transform --path ./plugins/
+        phlo plugin create my-transform --type transforms --path ./plugins/
     """
     try:
+        type_aliases = {
+            "sources": "source",
+            "quality": "quality",
+            "transforms": "transform",
+            "services": "service",
+            "hooks": "hook",
+            "catalogs": "catalog",
+            "assets": "asset",
+            "resources": "resource",
+            "orchestrators": "orchestrator",
+        }
+        plugin_type = type_aliases.get(plugin_type, plugin_type)
+
         # Validate plugin name
         if not plugin_name or not all(c.isalnum() or c in "-_" for c in plugin_name):
             console.print("[red]Invalid plugin name. Use alphanumeric characters, - and _[/red]")
@@ -638,6 +725,10 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "transform": "TransformationPlugin",
         "service": "ServicePlugin",
         "hook": "HookPlugin",
+        "catalog": "CatalogPlugin",
+        "asset": "AssetProviderPlugin",
+        "resource": "ResourceProviderPlugin",
+        "orchestrator": "OrchestratorAdapterPlugin",
     }
     base_class = type_mapping[plugin_type]
 
@@ -647,6 +738,10 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "transform": "phlo.plugins.transforms",
         "service": "phlo.plugins.services",
         "hook": "phlo.plugins.hooks",
+        "catalog": "phlo.plugins.catalogs",
+        "asset": "phlo.plugins.assets",
+        "resource": "phlo.plugins.resources",
+        "orchestrator": "phlo.plugins.orchestrators",
     }[plugin_type]
 
     # Create __init__.py
@@ -672,6 +767,17 @@ __version__ = "0.1.0"
 
 from phlo.plugins import {base_class}, PluginMetadata
 '''
+
+    if plugin_type in {"asset", "resource", "orchestrator"}:
+        plugin_content += "\nfrom collections.abc import Iterable\n"
+        spec_imports: list[str]
+        if plugin_type == "resource":
+            spec_imports = ["ResourceSpec"]
+        elif plugin_type == "asset":
+            spec_imports = ["AssetCheckSpec", "AssetSpec"]
+        else:
+            spec_imports = ["AssetCheckSpec", "AssetSpec", "ResourceSpec"]
+        plugin_content += f"from phlo.capabilities.specs import {', '.join(spec_imports)}\n"
 
     if plugin_type == "hook":
         plugin_content += f'''
@@ -791,6 +897,54 @@ class {class_name}({base_class}):
             },
         }
 '''
+    elif plugin_type == "catalog":
+        plugin_content += '''
+    @property
+    def targets(self) -> list[str]:
+        """Return engine targets for this catalog."""
+        return ["trino"]
+
+    @property
+    def catalog_name(self) -> str:
+        """Return catalog name."""
+        return "example"
+
+    def get_properties(self) -> dict[str, str]:
+        """Return catalog properties."""
+        return {"connector.name": "example"}
+'''
+    elif plugin_type == "asset":
+        plugin_content += '''
+    def get_assets(self) -> Iterable[AssetSpec]:
+        """Return asset specs."""
+        # Add asset definitions here
+        return []
+
+    def get_checks(self) -> Iterable[AssetCheckSpec]:
+        """Return asset check specs."""
+        # Add asset checks here
+        return []
+'''
+    elif plugin_type == "resource":
+        plugin_content += '''
+    def get_resources(self) -> Iterable[ResourceSpec]:
+        """Return resource specs."""
+        # Add resource definitions here
+        return []
+'''
+    elif plugin_type == "orchestrator":
+        plugin_content += '''
+    def build_definitions(
+        self,
+        *,
+        assets: Iterable[AssetSpec],
+        checks: Iterable[AssetCheckSpec],
+        resources: Iterable[ResourceSpec],
+    ):
+        """Build orchestrator definitions from capability specs."""
+        # Implement orchestrator-specific translation here
+        raise NotImplementedError()
+'''
 
     (src_dir / "plugin.py").write_text(plugin_content)
 
@@ -882,11 +1036,14 @@ typeCheckingMode = "standard"
     (plugin_path / "pyproject.toml").write_text(pyproject_content)
 
     # Create README.md
-    accessor = (
-        "get_hook_plugin"
-        if plugin_type == "hook"
-        else f"get_{plugin_type.replace('transform', 'transformation')}"
-    )
+    accessor_map = {
+        "hook": "get_hook_plugin",
+        "source": "get_source_connector",
+        "quality": "get_quality_check",
+        "transform": "get_transformation",
+        "service": "get_service",
+    }
+    accessor = accessor_map.get(plugin_type, "get_plugin")
 
     readme_content = f"""# {plugin_name}
 
@@ -905,8 +1062,23 @@ from phlo.plugins import {accessor}
 from phlo_{module_name} import {class_name}
 
 plugin = {class_name}()
-# Use your plugin here
 ```
+"""
+    if accessor == "get_plugin":
+        internal_type = {
+            "catalog": "catalogs",
+            "asset": "asset_providers",
+            "resource": "resource_providers",
+            "orchestrator": "orchestrators",
+        }.get(plugin_type, plugin_type)
+        readme_content += f"""
+```python
+from phlo.plugins import get_plugin
+
+plugin = get_plugin("{internal_type}", "{plugin_name}")
+```
+"""
+    readme_content += """
 
 ## Development
 

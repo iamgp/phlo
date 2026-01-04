@@ -4,7 +4,7 @@ Data quality checks and validation for Phlo.
 
 ## Overview
 
-`phlo-quality` enables defining and executing data quality checks using the `@phlo_quality` decorator. Checks run as Dagster asset checks and results are emitted to alerting, metrics, and data catalog systems.
+`phlo-quality` enables defining and executing data quality checks using the `@phlo_quality` decorator. Checks emit capability specs that adapters translate into orchestrator-native checks.
 
 ## Installation
 
@@ -28,7 +28,7 @@ phlo plugin install quality
 | ----------------------- | --------------------------------------------------------- |
 | **Check Discovery**     | Quality workflows auto-discovered in `workflows/quality/` |
 | **Event Emission**      | Emits `quality.result` events to HookBus                  |
-| **Dagster Integration** | Checks run as Dagster asset checks                        |
+| **Adapter Integration** | Checks translate into orchestrator-native checks via adapters |
 | **Alerting**            | Failed checks auto-routed to alerting destinations        |
 
 ### Event Flow
@@ -148,7 +148,7 @@ See [Plugin Development Guide](../guides/plugin-development.md) for details.
 
 ## Related Packages
 
-- [phlo-dagster](phlo-dagster.md) - Orchestration platform
+- [phlo-dagster](phlo-dagster.md) - Dagster adapter for capability specs
 - [phlo-alerting](phlo-alerting.md) - Alert routing
 - [phlo-openmetadata](phlo-openmetadata.md) - Data catalog
 

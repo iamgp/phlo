@@ -4,7 +4,7 @@ Apache Iceberg catalog integration for Phlo.
 
 ## Description
 
-Provides PyIceberg resources for Dagster and Trino catalog configuration. Enables ACID transactions, schema evolution, and time travel on the data lakehouse.
+Provides PyIceberg resources for adapters and Trino catalog configuration. Enables ACID transactions, schema evolution, and time travel on the data lakehouse.
 
 ## Installation
 
@@ -33,31 +33,31 @@ Works out-of-the-box when MinIO and Nessie are running:
 
 | Feature                | How It Works                                                                     |
 | ---------------------- | -------------------------------------------------------------------------------- |
-| **Dagster Resource**   | `IcebergResource` auto-registered via entry points                               |
-| **Trino Catalogs**     | Registers `iceberg` and `iceberg_dev` catalogs via `phlo.plugins.trino_catalogs` |
+| **Resource Provider**  | `IcebergResource` published via capability specs                                 |
+| **Catalogs**           | Registers `iceberg` and `iceberg_dev` catalogs via `phlo.plugins.catalogs`       |
 | **Catalog Generation** | Catalog `.properties` files auto-generated at Trino startup                      |
 
-### Trino Catalog Entry Points
+### Catalog Entry Points
 
 ```toml
-[project.entry-points."phlo.plugins.trino_catalogs"]
+[project.entry-points."phlo.plugins.catalogs"]
 iceberg = "phlo_iceberg.catalog_plugin:IcebergCatalogPlugin"
 iceberg_dev = "phlo_iceberg.catalog_plugin:IcebergDevCatalogPlugin"
 ```
 
+Each catalog plugin declares `targets` in code (for example: `["trino"]`).
+
 ## Usage
 
-### Dagster Resource
+### Resource Usage
 
 ```python
-from dagster import asset
 from phlo_iceberg.resource import IcebergResource
 
-@asset
-def my_asset(iceberg: IcebergResource):
-    catalog = iceberg.load_catalog()
-    table = catalog.load_table("bronze.users")
-    return table.scan().to_pandas()
+iceberg = IcebergResource()
+catalog = iceberg.get_catalog()
+table = catalog.load_table("bronze.users")
+df = table.scan().to_pandas()
 ```
 
 ### Direct Usage
@@ -71,5 +71,5 @@ config = get_settings().get_pyiceberg_catalog_config("main")
 
 ## Entry Points
 
-- `phlo.plugins.dagster` - Provides `IcebergDagsterPlugin` with `IcebergResource`
-- `phlo.plugins.trino_catalogs` - Provides Iceberg catalog configurations
+- `phlo.plugins.resources` - Provides `IcebergResourceProvider`
+- `phlo.plugins.catalogs` - Provides Iceberg catalog configurations (targets: trino)

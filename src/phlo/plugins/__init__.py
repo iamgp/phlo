@@ -135,10 +135,14 @@ Plugins are loaded from installed Python packages only. Ensure you:
 from typing import TYPE_CHECKING
 
 from phlo.plugins.base import (
+    AssetProviderPlugin,
+    CatalogPlugin,
     IngestionEnginePlugin,
+    OrchestratorAdapterPlugin,
     Plugin,
     PluginMetadata,
     QualityCheckPlugin,
+    ResourceProviderPlugin,
     ServicePlugin,
     SourceConnectorPlugin,
     TransformationPlugin,
@@ -192,6 +196,10 @@ __all__ = [
     "ServicePlugin",
     "TransformationPlugin",
     "IngestionEnginePlugin",
+    "AssetProviderPlugin",
+    "CatalogPlugin",
+    "ResourceProviderPlugin",
+    "OrchestratorAdapterPlugin",
     "HookPlugin",
     "HookProvider",
     "HookHandler",

@@ -35,14 +35,14 @@ if packages_dir.exists():
 
 def _register_workspace_plugins() -> None:
     try:
-        from phlo_dlt.plugin import DltDagsterPlugin
+        from phlo_dlt.plugin import DltAssetProvider
 
         from phlo.discovery import get_global_registry
     except Exception:
         return
 
     registry = get_global_registry()
-    registry.register_dagster_extension(DltDagsterPlugin(), replace=True)
+    registry.register_asset_provider(DltAssetProvider(), replace=True)
 
 
 _register_workspace_plugins()
