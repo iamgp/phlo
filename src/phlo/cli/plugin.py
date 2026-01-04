@@ -451,7 +451,19 @@ def update_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service", "hook", "catalog"]),
+    type=click.Choice(
+        [
+            "source",
+            "quality",
+            "transform",
+            "service",
+            "hook",
+            "catalog",
+            "asset",
+            "resource",
+            "orchestrator",
+        ]
+    ),
     default="source",
     help="Type of plugin to create",
 )
@@ -687,6 +699,9 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "service": "ServicePlugin",
         "hook": "HookPlugin",
         "catalog": "CatalogPlugin",
+        "asset": "AssetProviderPlugin",
+        "resource": "ResourceProviderPlugin",
+        "orchestrator": "OrchestratorAdapterPlugin",
     }
     base_class = type_mapping[plugin_type]
 
@@ -697,6 +712,9 @@ def _create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path
         "service": "phlo.plugins.services",
         "hook": "phlo.plugins.hooks",
         "catalog": "phlo.plugins.catalogs",
+        "asset": "phlo.plugins.assets",
+        "resource": "phlo.plugins.resources",
+        "orchestrator": "phlo.plugins.orchestrators",
     }[plugin_type]
 
     # Create __init__.py
@@ -722,6 +740,23 @@ __version__ = "0.1.0"
 
 from phlo.plugins import {base_class}, PluginMetadata
 '''
+
+    if plugin_type in {"asset", "resource", "orchestrator"}:
+        plugin_content += """
+from collections.abc import Iterable
+
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
+"""
+        if plugin_type == "resource":
+            plugin_content = plugin_content.replace(
+                "from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec",
+                "from phlo.capabilities.specs import ResourceSpec",
+            )
+        if plugin_type == "asset":
+            plugin_content = plugin_content.replace(
+                "from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec",
+                "from phlo.capabilities.specs import AssetCheckSpec, AssetSpec",
+            )
 
     if plugin_type == "hook":
         plugin_content += f'''
@@ -857,6 +892,38 @@ class {class_name}({base_class}):
         """Return catalog properties."""
         return {"connector.name": "example"}
 '''
+    elif plugin_type == "asset":
+        plugin_content += '''
+    def get_assets(self) -> Iterable[AssetSpec]:
+        """Return asset specs."""
+        # Add asset definitions here
+        return []
+
+    def get_checks(self) -> Iterable[AssetCheckSpec]:
+        """Return asset check specs."""
+        # Add asset checks here
+        return []
+'''
+    elif plugin_type == "resource":
+        plugin_content += '''
+    def get_resources(self) -> Iterable[ResourceSpec]:
+        """Return resource specs."""
+        # Add resource definitions here
+        return []
+'''
+    elif plugin_type == "orchestrator":
+        plugin_content += '''
+    def build_definitions(
+        self,
+        *,
+        assets: Iterable[AssetSpec],
+        checks: Iterable[AssetCheckSpec],
+        resources: Iterable[ResourceSpec],
+    ):
+        """Build orchestrator definitions from capability specs."""
+        # Implement orchestrator-specific translation here
+        raise NotImplementedError()
+'''
 
     (src_dir / "plugin.py").write_text(plugin_content)
 
@@ -948,11 +1015,14 @@ typeCheckingMode = "standard"
     (plugin_path / "pyproject.toml").write_text(pyproject_content)
 
     # Create README.md
-    accessor = (
-        "get_hook_plugin"
-        if plugin_type == "hook"
-        else f"get_{plugin_type.replace('transform', 'transformation')}"
-    )
+    accessor_map = {
+        "hook": "get_hook_plugin",
+        "source": "get_source_connector",
+        "quality": "get_quality_check",
+        "transform": "get_transformation",
+        "service": "get_service",
+    }
+    accessor = accessor_map.get(plugin_type, "get_plugin")
 
     readme_content = f"""# {plugin_name}
 
@@ -971,8 +1041,23 @@ from phlo.plugins import {accessor}
 from phlo_{module_name} import {class_name}
 
 plugin = {class_name}()
-# Use your plugin here
 ```
+"""
+    if accessor == "get_plugin":
+        internal_type = {
+            "catalog": "catalogs",
+            "asset": "asset_providers",
+            "resource": "resource_providers",
+            "orchestrator": "orchestrators",
+        }.get(plugin_type, plugin_type)
+        readme_content += f"""
+```python
+from phlo.plugins import get_plugin
+
+plugin = get_plugin("{internal_type}", "{plugin_name}")
+```
+"""
+    readme_content += """
 
 ## Development
 
