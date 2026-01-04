@@ -168,6 +168,7 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo("  ├── phlo.yaml            # Project configuration with infrastructure")
         click.echo("  ├── pyproject.toml       # Project dependencies")
         click.echo("  ├── .env.example         # Local secrets template (copy to .phlo/.env.local)")
+        click.echo("  ├── .sqlfluff            # SQL linting configuration for dbt models")
         click.echo("  ├── workflows/           # Your workflow definitions")
         click.echo("  │   ├── ingestion/       # Data ingestion workflows")
         click.echo("  │   ├── schemas/         # Pandera validation schemas")
@@ -459,6 +460,41 @@ HASURA_ADMIN_SECRET=phlo-hasura-admin-secret
 GRAFANA_ADMIN_PASSWORD=admin
 """
     (project_dir / ".env.example").write_text(env_example_content)
+
+    # Create .sqlfluff (for linting dbt SQL models)
+    sqlfluff_content = """[sqlfluff]
+dialect = trino
+templater = jinja
+max_line_length = 120
+# Only exclude keywords-as-identifiers rule (requires column renames)
+exclude_rules = RF04
+
+[sqlfluff:templater:jinja]
+# Ignore undefined jinja variables in dbt
+ignore = templating
+
+[sqlfluff:rules]
+# Allow trailing commas
+allow_trailing_commas = True
+
+[sqlfluff:rules:layout.long_lines]
+# Increase line length limit
+max_line_length = 120
+
+[sqlfluff:rules:layout.indent]
+# Use 4 spaces for indentation
+indent_unit = space
+tab_space_size = 4
+
+[sqlfluff:rules:capitalisation.keywords]
+# SQL keywords should be lowercase
+capitalisation_policy = lower
+
+[sqlfluff:rules:aliasing.table]
+# Table aliases are required
+aliasing = explicit
+"""
+    (project_dir / ".sqlfluff").write_text(sqlfluff_content)
 
     # Create .gitignore
     gitignore_content = """.env
