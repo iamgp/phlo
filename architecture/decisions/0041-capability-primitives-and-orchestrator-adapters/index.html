@@ -23,7 +23,7 @@
     
     
       
-        <title>ADR 0036: Iceberg Maintenance Observability - Phlo Lakehouse Platform</title>
+        <title>ADR 0041: Capability Primitives and Orchestrator Adapters - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0036-iceberg-maintenance-observability" class="md-skip">
+        <a href="#adr-0041-capability-primitives-and-orchestrator-adapters" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0036: Iceberg Maintenance Observability
+              ADR 0041: Capability Primitives and Orchestrator Adapters
             
           </span>
         </div>
@@ -676,6 +676,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Status">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accepted
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -701,13 +718,124 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation" class="md-nav__link">
+  <a href="#proposed-apis-shapes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Implementation
+        Proposed APIs (Shapes)
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Proposed APIs (Shapes)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#capability-specs-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capability Specs (Core)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orchestrator-adapter-new-plugin-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrator Adapter (New Plugin Type)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#capability-providers-new-entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capability Providers (New Entry Points)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation Plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#phase-1-core-capability-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Core Capability Layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-orchestrator-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Orchestrator Adapter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-3-package-refactors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Package Refactors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-4-framework-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Framework Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-registry-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Registry + CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -751,10 +879,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
+  <a href="#migration-checklist" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verification
+        Migration Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open Questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
       
     </span>
   </a>
@@ -778,64 +928,151 @@
 
 
 
-<h1 id="adr-0036-iceberg-maintenance-observability">ADR 0036: Iceberg Maintenance Observability</h1>
+<h1 id="adr-0041-capability-primitives-and-orchestrator-adapters">ADR 0041: Capability Primitives and Orchestrator Adapters</h1>
 <h2 id="status">Status</h2>
-<p><strong>Proposed</strong></p>
+<h3 id="accepted">Accepted</h3>
 <h2 id="context">Context</h2>
-<p>Iceberg maintenance jobs live in <code>packages/phlo-iceberg/src/phlo_iceberg/maintenance.py</code> and run
-snapshot expiration, orphan file cleanup, and table statistics collection on a schedule. Today they
-emit human-readable log lines and return summary dicts, but they do not provide:</p>
+<p>Phlo has a unified plugin registry and multiple plugin types (services, sources, quality, transforms,
+hooks, Dagster extensions, CLI). Today, capability packages (ingestion, quality, dbt) build Dagster
+assets directly and import Dagster in core-facing modules. This creates tight coupling:</p>
 <ul>
-<li>Structured log fields for correlation (run, job, namespace, table, ref).</li>
-<li>Consistent metrics for durations, counts, and errors.</li>
-<li>Alerting when maintenance jobs fail.</li>
-<li>A surfaced maintenance status view in Observatory.</li>
+<li>Core <code>phlo</code> imports Dagster in <code>src/phlo/plugins/base.py</code>.</li>
+<li>Capability packages create Dagster assets directly (<code>phlo-dlt</code>, <code>phlo-quality</code>, <code>phlo-dbt</code>).</li>
+<li><code>phlo.framework.definitions</code> assumes Dagster is the orchestrator.</li>
 </ul>
-<p>The release plan calls for end-to-end observability of maintenance operations across logging,
-metrics, alerting, and UI.</p>
+<p>We want fully plug-and-play packages that can compose across different orchestrators (Dagster,
+Airflow, Prefect, etc.) without hard dependencies or direct imports.</p>
 <h2 id="decision">Decision</h2>
-<p>Implement first-class observability for Iceberg maintenance operations, aligned with ADR 0028
-(structured logging) and the hook-based telemetry pipeline.</p>
+<p>Introduce <strong>capability primitives</strong> in core (orchestrator-agnostic specs and protocols) and
+<strong>orchestrator adapters</strong> (pluggable translators that map capability specs to orchestrator
+definitions).</p>
+<p>Key elements:</p>
 <ol>
-<li><strong>Structured logging</strong>: emit start/end logs for each maintenance operation and per-table actions
-   with <code>extra</code> fields: <code>maintenance_op</code>, <code>namespace</code>, <code>table_name</code>, <code>ref</code>, <code>dry_run</code>, <code>run_id</code>,
-   <code>job_name</code>.</li>
-<li><strong>Telemetry events</strong>: use <code>TelemetryEventEmitter</code> to emit <code>telemetry.metric</code> and
-   <code>telemetry.log</code> events with tags: <code>maintenance=true</code>, <code>operation</code>, <code>namespace</code>, <code>ref</code>, and
-   optional <code>table</code> for log-level detail.</li>
-<li><strong>Prometheus metrics</strong>: aggregate telemetry into Prometheus counters/gauges/histograms using
-   <code>phlo-metrics</code>. Prometheus labels stay low-cardinality (operation, namespace, ref, status),
-   while table-level detail remains in logs/telemetry events.</li>
-<li><strong>Alerting</strong>: on maintenance job failure or non-zero error counts, send alerts via
-   <code>phlo-alerting</code> with run/job context.</li>
-<li><strong>Observatory status</strong>: expose last maintenance run status, duration, and key counters in the
-   Observatory UI from metrics/telemetry data.</li>
+<li><strong>Capability primitives</strong>: <code>AssetSpec</code>, <code>AssetCheckSpec</code>, <code>ResourceSpec</code>, <code>PartitionSpec</code>,
+   <code>ScheduleSpec</code>, <code>RunSpec</code>, and a shared <code>RuntimeContext</code> protocol.</li>
+<li><strong>Capability registry</strong>: discoverable providers for assets/resources/semantic models without
+   depending on an orchestrator.</li>
+<li><strong>Orchestrator adapter plugin</strong>: an entry-point group that translates capability specs into
+   orchestrator-specific definitions.</li>
+<li><strong>No Dagster imports in core</strong>: Dagster-specific APIs move to <code>phlo-dagster</code> adapter package.</li>
+<li><strong>Capability packages publish specs</strong>: <code>phlo-dlt</code>, <code>phlo-dbt</code>, <code>phlo-quality</code> emit specs and
+   use hook events instead of constructing Dagster assets directly.</li>
 </ol>
-<h2 id="implementation">Implementation</h2>
+<h2 id="proposed-apis-shapes">Proposed APIs (Shapes)</h2>
+<h3 id="capability-specs-core">Capability Specs (Core)</h3>
+<pre><code class="language-python">@dataclass(frozen=True)
+class AssetSpec:
+    key: str
+    group: str | None
+    description: str | None
+    kinds: set[str]
+    tags: dict[str, str]
+    partitions: PartitionSpec | None
+    checks: list[AssetCheckSpec]
+    run: RunSpec
+
+@dataclass(frozen=True)
+class RunSpec:
+    fn: Callable[[RuntimeContext], Iterable[RunResult]]
+    max_runtime_seconds: int | None
+    retries: int | None
+    retry_delay_seconds: int | None
+
+class RuntimeContext(Protocol):
+    run_id: str | None
+    partition_key: str | None
+    logger: Logger
+    tags: dict[str, str]
+    resources: dict[str, Any]
+</code></pre>
+<h3 id="orchestrator-adapter-new-plugin-type">Orchestrator Adapter (New Plugin Type)</h3>
+<pre><code class="language-python">class OrchestratorAdapterPlugin(Plugin, ABC):
+    @property
+    def name(self) -&gt; str: ...
+
+    def build_definitions(
+        self,
+        assets: list[AssetSpec],
+        resources: dict[str, ResourceSpec],
+    ) -&gt; Any: ...
+</code></pre>
+<h3 id="capability-providers-new-entry-points">Capability Providers (New Entry Points)</h3>
+<pre><code class="language-text">phlo.plugins.assets
+phlo.plugins.resources
+phlo.plugins.semantic
+phlo.plugins.orchestrators
+</code></pre>
+<h2 id="implementation-plan">Implementation Plan</h2>
+<h3 id="phase-1-core-capability-layer">Phase 1: Core Capability Layer</h3>
 <ul>
-<li>Add maintenance telemetry and structured logging to <code>phlo_dagster.iceberg_maintenance</code> for
-  <code>expire_table_snapshots</code>, <code>cleanup_orphan_files</code>, and <code>collect_table_stats</code>.</li>
-<li>Extend <code>phlo-metrics</code> to aggregate maintenance telemetry into Prometheus-compatible metrics.</li>
-<li>Trigger alerts through <code>phlo-alerting</code> when maintenance errors occur.</li>
-<li>Surface maintenance status in Observatory using the metrics API.</li>
+<li>Add capability spec types in <code>src/phlo/capabilities/</code>.</li>
+<li>Add <code>RuntimeContext</code> protocol and minimal helpers.</li>
+<li>Add registry + discovery for capability providers.</li>
+<li>Remove Dagster imports from <code>src/phlo/plugins/base.py</code>.</li>
+</ul>
+<h3 id="phase-2-orchestrator-adapter">Phase 2: Orchestrator Adapter</h3>
+<ul>
+<li>Create <code>OrchestratorAdapterPlugin</code> base type.</li>
+<li>Implement Dagster adapter in <code>phlo-dagster</code>:</li>
+<li>Translate <code>AssetSpec</code> -&gt; Dagster assets/checks/resources.</li>
+<li>Provide <code>build_definitions()</code> entry point.</li>
+</ul>
+<h3 id="phase-3-package-refactors">Phase 3: Package Refactors</h3>
+<ul>
+<li><code>phlo-dlt</code>: publish <code>AssetSpec</code> instead of Dagster assets.</li>
+<li><code>phlo-dbt</code>: publish <code>AssetSpec</code> and use <code>DbtTransformer</code> for execution.</li>
+<li><code>phlo-quality</code>: publish <code>AssetCheckSpec</code> using capability contract.</li>
+<li>Continue emitting hook events for lineage/quality/telemetry.</li>
+</ul>
+<h3 id="phase-4-framework-integration">Phase 4: Framework Integration</h3>
+<ul>
+<li>Replace <code>phlo.framework.definitions</code> Dagster-only path with:</li>
+<li>discover capability specs</li>
+<li>load active orchestrator adapter</li>
+<li>build orchestrator definitions</li>
+</ul>
+<h3 id="phase-5-registry-cli">Phase 5: Registry + CLI</h3>
+<ul>
+<li>Extend registry schema to include:</li>
+<li><code>hooks</code>, <code>orchestrator</code>, <code>assets</code>, <code>resources</code>, <code>semantic</code>, <code>observability</code>, <code>api</code>, <code>logging</code>, <code>bi</code></li>
+<li>Update <code>phlo plugin list/search</code> to recognize new types.</li>
 </ul>
 <h2 id="consequences">Consequences</h2>
 <h3 id="positive">Positive</h3>
 <ul>
-<li>Clear visibility into maintenance health, duration, and impact.</li>
-<li>Faster detection of failed or risky maintenance runs.</li>
-<li>Consistent observability pattern across Phlo operations.</li>
+<li>Capability packages are truly plug-and-play and orchestrator-agnostic.</li>
+<li>Core no longer depends on Dagster.</li>
+<li>Orchestrator integrations can be swapped cleanly.</li>
+<li>Better DX for package authors (clear, testable specs).</li>
 </ul>
 <h3 id="negative">Negative</h3>
 <ul>
-<li>Additional log volume and telemetry storage.</li>
-<li>Metrics aggregation work required in <code>phlo-metrics</code>.</li>
+<li>Additional surface area to maintain (capability specs + adapters).</li>
+<li>Migration work for existing packages.</li>
+<li>Requires a clear “active orchestrator” selection strategy.</li>
 </ul>
-<h2 id="verification">Verification</h2>
+<h2 id="migration-checklist">Migration Checklist</h2>
 <ul>
-<li>Run a maintenance job and confirm structured logs include maintenance fields.</li>
-<li>Verify Prometheus exposes maintenance metrics with low-cardinality labels.</li>
-<li>Trigger a failure and confirm an alert is sent and shown in Observatory.</li>
+<li>[ ] Add capability spec types + registry in core.</li>
+<li>[ ] Add orchestrator adapter plugin type + discovery.</li>
+<li>[ ] Implement Dagster adapter in <code>phlo-dagster</code>.</li>
+<li>[ ] Refactor <code>phlo-dlt</code> to emit <code>AssetSpec</code>.</li>
+<li>[ ] Refactor <code>phlo-quality</code> to emit <code>AssetCheckSpec</code>.</li>
+<li>[ ] Refactor <code>phlo-dbt</code> to emit <code>AssetSpec</code>.</li>
+<li>[ ] Update <code>phlo.framework.definitions</code> to use the adapter.</li>
+<li>[ ] Update registry schema + bundled registry data.</li>
+<li>[ ] Update <code>docs/guides/plugin-development.md</code> for new primitives.</li>
+<li>[ ] Add tests for adapter translation and capability discovery.</li>
+</ul>
+<h2 id="open-questions">Open Questions</h2>
+<p>Resolved:
+- Active orchestrator is selected via config (<code>PHLO_ORCHESTRATOR</code>), defaulting to <code>dagster</code>.
+- Multiple orchestrators are not supported in a single environment.
+- Asset specs should live in packages where possible; workflows focus on user-specific assets.</p>
+<h2 id="related">Related</h2>
+<ul>
+<li>ADR 0030: Unified Plugin System with Registry</li>
+<li>ADR 0033: Hook-Based Capability Plugins</li>
 </ul>
 
 

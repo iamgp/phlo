@@ -18,19 +18,19 @@
         
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>ADR 0036: Iceberg Maintenance Observability - Phlo Lakehouse Platform</title>
+        <title>Capability Primitives and Orchestrator Adapters - Phlo Lakehouse Platform</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -49,9 +49,9 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0036-iceberg-maintenance-observability" class="md-skip">
+        <a href="#capability-primitives-and-orchestrator-adapters" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0036: Iceberg Maintenance Observability
+              Capability Primitives and Orchestrator Adapters
             
           </span>
         </div>
@@ -233,7 +233,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -251,7 +251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -301,7 +301,7 @@
   
   
   
-    <a href="../../../getting-started/installation/" class="md-nav__link">
+    <a href="../../getting-started/installation/" class="md-nav__link">
       
   
   
@@ -367,7 +367,7 @@
   
   
   
-    <a href="../../../guides/developer-guide/" class="md-nav__link">
+    <a href="../developer-guide/" class="md-nav__link">
       
   
   
@@ -427,7 +427,7 @@
   
   
   
-    <a href="../../../setup/hasura/" class="md-nav__link">
+    <a href="../../setup/hasura/" class="md-nav__link">
       
   
   
@@ -495,7 +495,7 @@
   
   
   
-    <a href="../../../packages/" class="md-nav__link">
+    <a href="../../packages/" class="md-nav__link">
       
   
   
@@ -557,7 +557,7 @@
   
   
   
-    <a href="../../../reference/architecture/" class="md-nav__link">
+    <a href="../../reference/architecture/" class="md-nav__link">
       
   
   
@@ -615,7 +615,7 @@
   
   
   
-    <a href="../../../operations/operations-guide/" class="md-nav__link">
+    <a href="../../operations/operations-guide/" class="md-nav__link">
       
   
   
@@ -668,10 +668,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
+  <a href="#system-diagram" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Status
+        System diagram
       
     </span>
   </a>
@@ -679,10 +679,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
+  <a href="#why-capability-primitives" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context
+        Why capability primitives
       
     </span>
   </a>
@@ -690,10 +690,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#core-primitives-specs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
+        Core primitives (specs)
       
     </span>
   </a>
@@ -701,10 +701,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation" class="md-nav__link">
+  <a href="#runtime-context" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Implementation
+        Runtime context
       
     </span>
   </a>
@@ -712,22 +712,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#providers-and-adapters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        Providers and adapters
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Consequences">
+    <nav class="md-nav" aria-label="Providers and adapters">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
+  <a href="#asset-providers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Positive
+        Asset providers
       
     </span>
   </a>
@@ -735,10 +735,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
+  <a href="#resource-providers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative
+        Resource providers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#catalog-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog providers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orchestrator-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrator adapters
       
     </span>
   </a>
@@ -751,10 +773,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
+  <a href="#orchestrator-selection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verification
+        Orchestrator selection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-belongs-in-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What belongs in packages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#catalog-entry-points-how-engines-consume-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catalog entry points (how engines consume them)
       
     </span>
   </a>
@@ -778,65 +822,215 @@
 
 
 
-<h1 id="adr-0036-iceberg-maintenance-observability">ADR 0036: Iceberg Maintenance Observability</h1>
-<h2 id="status">Status</h2>
-<p><strong>Proposed</strong></p>
-<h2 id="context">Context</h2>
-<p>Iceberg maintenance jobs live in <code>packages/phlo-iceberg/src/phlo_iceberg/maintenance.py</code> and run
-snapshot expiration, orphan file cleanup, and table statistics collection on a schedule. Today they
-emit human-readable log lines and return summary dicts, but they do not provide:</p>
+<h1 id="capability-primitives-and-orchestrator-adapters">Capability Primitives and Orchestrator Adapters</h1>
+<p>Phlo packages are plug-and-play. Packages publish orchestrator-agnostic specs, and an
+orchestrator adapter (for example <code>phlo-dagster</code>) translates those specs into runtime
+assets, checks, and resources.</p>
+<p>This guide explains the primitives, how discovery works, and how to build new packages
+without importing any orchestrator libraries.</p>
+<h2 id="system-diagram">System diagram</h2>
+<pre><code class="language-text">┌──────────────────────────────────────────────────────────────────┐
+│                          Installed Packages                       │
+│  phlo-dlt   phlo-dbt   phlo-quality   phlo-iceberg   phlo-trino    │
+└──────────────────────────────────────────────────────────────────┘
+              │                       │
+              │ entry points           │ entry points
+              ▼                       ▼
+┌───────────────────────┐   ┌───────────────────────────┐
+│ Capability Providers  │   │ Catalog Providers         │
+│ phlo.plugins.assets   │   │ phlo.plugins.catalogs      │
+│ phlo.plugins.resources│   └───────────────────────────┘
+└───────────────────────┘               │
+              │                         │ catalog configs
+              │ specs                   ▼
+              ▼               ┌───────────────────────────┐
+┌───────────────────────┐     │ Catalog Generator         │
+│ Capability Registry   │     │ (per engine)              │
+│ (Asset/Check/Resource)│     └───────────────────────────┘
+└───────────────────────┘
+              │
+              │ active orchestrator
+              ▼
+┌───────────────────────┐
+│ Orchestrator Adapter  │
+│ phlo.plugins.orchestrators
+└───────────────────────┘
+              │
+              ▼
+┌───────────────────────┐
+│ Orchestrator Runtime  │
+│ (Dagster/Spark/etc.)  │
+└───────────────────────┘
+</code></pre>
+<h2 id="why-capability-primitives">Why capability primitives</h2>
 <ul>
-<li>Structured log fields for correlation (run, job, namespace, table, ref).</li>
-<li>Consistent metrics for durations, counts, and errors.</li>
-<li>Alerting when maintenance jobs fail.</li>
-<li>A surfaced maintenance status view in Observatory.</li>
+<li>Packages stay decoupled from specific orchestrators.</li>
+<li>The active orchestrator can change without rewriting package code.</li>
+<li>Packages can be installed in any order; adapters only activate when present.</li>
+<li>Specs are easy to test and document without runtime dependencies.</li>
 </ul>
-<p>The release plan calls for end-to-end observability of maintenance operations across logging,
-metrics, alerting, and UI.</p>
-<h2 id="decision">Decision</h2>
-<p>Implement first-class observability for Iceberg maintenance operations, aligned with ADR 0028
-(structured logging) and the hook-based telemetry pipeline.</p>
-<ol>
-<li><strong>Structured logging</strong>: emit start/end logs for each maintenance operation and per-table actions
-   with <code>extra</code> fields: <code>maintenance_op</code>, <code>namespace</code>, <code>table_name</code>, <code>ref</code>, <code>dry_run</code>, <code>run_id</code>,
-   <code>job_name</code>.</li>
-<li><strong>Telemetry events</strong>: use <code>TelemetryEventEmitter</code> to emit <code>telemetry.metric</code> and
-   <code>telemetry.log</code> events with tags: <code>maintenance=true</code>, <code>operation</code>, <code>namespace</code>, <code>ref</code>, and
-   optional <code>table</code> for log-level detail.</li>
-<li><strong>Prometheus metrics</strong>: aggregate telemetry into Prometheus counters/gauges/histograms using
-   <code>phlo-metrics</code>. Prometheus labels stay low-cardinality (operation, namespace, ref, status),
-   while table-level detail remains in logs/telemetry events.</li>
-<li><strong>Alerting</strong>: on maintenance job failure or non-zero error counts, send alerts via
-   <code>phlo-alerting</code> with run/job context.</li>
-<li><strong>Observatory status</strong>: expose last maintenance run status, duration, and key counters in the
-   Observatory UI from metrics/telemetry data.</li>
-</ol>
-<h2 id="implementation">Implementation</h2>
+<h2 id="core-primitives-specs">Core primitives (specs)</h2>
+<p>These live in <code>phlo.capabilities.specs</code> and are the stable protocol between packages
+and orchestrators.</p>
 <ul>
-<li>Add maintenance telemetry and structured logging to <code>phlo_dagster.iceberg_maintenance</code> for
-  <code>expire_table_snapshots</code>, <code>cleanup_orphan_files</code>, and <code>collect_table_stats</code>.</li>
-<li>Extend <code>phlo-metrics</code> to aggregate maintenance telemetry into Prometheus-compatible metrics.</li>
-<li>Trigger alerts through <code>phlo-alerting</code> when maintenance errors occur.</li>
-<li>Surface maintenance status in Observatory using the metrics API.</li>
+<li><code>AssetSpec</code>: Core asset definition. Includes <code>key</code>, <code>group</code>, <code>description</code>, <code>kinds</code>,
+  <code>tags</code>, <code>metadata</code>, <code>deps</code>, <code>resources</code>, <code>partitions</code>, <code>run</code>, and <code>checks</code>.</li>
+<li><code>AssetCheckSpec</code>: Describes a check attached to an asset. The <code>fn</code> is optional so
+  adapters can wire checks separately from assets.</li>
+<li><code>ResourceSpec</code>: Register a resource by name for adapters to inject.</li>
+<li><code>RunSpec</code>: Execution details for an asset, including the <code>fn</code> that runs it and
+  execution metadata (cron, retries, freshness).</li>
+<li><code>PartitionSpec</code>: Partitioning metadata (currently <code>kind</code> plus optional bounds).</li>
+<li><code>MaterializeResult</code> and <code>CheckResult</code>: Uniform outputs from asset/check functions.</li>
 </ul>
-<h2 id="consequences">Consequences</h2>
-<h3 id="positive">Positive</h3>
+<h2 id="runtime-context">Runtime context</h2>
+<p>Asset and check functions receive a <code>RuntimeContext</code>, which is implemented by the active
+orchestrator adapter. It provides:</p>
 <ul>
-<li>Clear visibility into maintenance health, duration, and impact.</li>
-<li>Faster detection of failed or risky maintenance runs.</li>
-<li>Consistent observability pattern across Phlo operations.</li>
+<li><code>run_id</code>, <code>partition_key</code>, <code>tags</code></li>
+<li><code>logger</code></li>
+<li><code>resources</code> and <code>get_resource(name)</code></li>
 </ul>
-<h3 id="negative">Negative</h3>
+<p>Do not rely on orchestrator-native context objects inside packages.</p>
+<h2 id="providers-and-adapters">Providers and adapters</h2>
+<h3 id="asset-providers">Asset providers</h3>
+<p>Asset providers return a list of <code>AssetSpec</code> objects.</p>
+<pre><code class="language-python">from phlo.capabilities import AssetSpec, PartitionSpec, RunSpec
+from phlo.plugins import AssetProviderPlugin, PluginMetadata
+
+
+class MyAssetProvider(AssetProviderPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(
+            name=&quot;my-assets&quot;,
+            version=&quot;0.1.0&quot;,
+            description=&quot;Asset specs for my domain&quot;,
+        )
+
+    def get_assets(self):
+        return [
+            AssetSpec(
+                key=&quot;my_asset&quot;,
+                group=&quot;demo&quot;,
+                description=&quot;Demo asset&quot;,
+                partitions=PartitionSpec(kind=&quot;daily&quot;),
+                run=RunSpec(fn=self.run_asset),
+            )
+        ]
+
+    def run_asset(self, context):
+        return []
+</code></pre>
+<p>Register via entry points:</p>
+<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.assets&quot;]
+my_assets = &quot;my_pkg.plugin:MyAssetProvider&quot;
+</code></pre>
+<h3 id="resource-providers">Resource providers</h3>
+<p>Resource providers return <code>ResourceSpec</code> objects.</p>
+<pre><code class="language-python">from phlo.capabilities import ResourceSpec
+from phlo.plugins import ResourceProviderPlugin, PluginMetadata
+
+
+class MyResourceProvider(ResourceProviderPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(
+            name=&quot;my-resources&quot;,
+            version=&quot;0.1.0&quot;,
+            description=&quot;Resources for my assets&quot;,
+        )
+
+    def get_resources(self):
+        return [
+            ResourceSpec(name=&quot;warehouse&quot;, resource=object()),
+        ]
+</code></pre>
+<p>Register via entry points:</p>
+<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.resources&quot;]
+my_resources = &quot;my_pkg.plugin:MyResourceProvider&quot;
+</code></pre>
+<h3 id="catalog-providers">Catalog providers</h3>
+<p>Catalog providers define catalog configuration for engines that need explicit
+catalog setup (files or programmatic settings).</p>
+<pre><code class="language-python">from phlo.plugins.base import CatalogPlugin, PluginMetadata
+
+
+class IcebergCatalog(CatalogPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(
+            name=&quot;iceberg&quot;,
+            version=&quot;0.1.0&quot;,
+            description=&quot;Iceberg catalog configuration&quot;,
+        )
+
+    @property
+    def targets(self) -&gt; list[str]:
+        return [&quot;trino&quot;]
+
+    @property
+    def catalog_name(self) -&gt; str:
+        return &quot;iceberg&quot;
+
+    def get_properties(self) -&gt; dict[str, str]:
+        return {&quot;connector.name&quot;: &quot;iceberg&quot;}
+</code></pre>
+<p>Register via entry points:</p>
+<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.catalogs&quot;]
+iceberg = &quot;my_pkg.catalog:IcebergCatalog&quot;
+</code></pre>
+<h3 id="orchestrator-adapters">Orchestrator adapters</h3>
+<p>Adapters translate specs into orchestrator-native definitions.</p>
+<pre><code class="language-python">from phlo.plugins import OrchestratorAdapterPlugin, PluginMetadata
+
+
+class MyOrchestrator(OrchestratorAdapterPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(
+            name=&quot;my-orchestrator&quot;,
+            version=&quot;0.1.0&quot;,
+            description=&quot;Adapter for My Orchestrator&quot;,
+        )
+
+    def build_definitions(self, *, assets, checks, resources):
+        return MyDefinitions(...)
+</code></pre>
+<p>Register via entry points:</p>
+<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.orchestrators&quot;]
+my_orchestrator = &quot;my_pkg.adapter:MyOrchestrator&quot;
+</code></pre>
+<h2 id="orchestrator-selection">Orchestrator selection</h2>
+<p>The active orchestrator is selected via <code>phlo_orchestrator</code> in configuration. The default
+is <code>dagster</code> when <code>phlo-dagster</code> is installed. Only one orchestrator is active per
+environment.</p>
+<h2 id="what-belongs-in-packages">What belongs in packages</h2>
+<p>Packages should only:</p>
 <ul>
-<li>Additional log volume and telemetry storage.</li>
-<li>Metrics aggregation work required in <code>phlo-metrics</code>.</li>
+<li>Emit <code>AssetSpec</code>, <code>AssetCheckSpec</code>, and <code>ResourceSpec</code>.</li>
+<li>Provide <code>CatalogPlugin</code> entries when an engine needs static catalog files.</li>
+<li>Use <code>RuntimeContext</code> only.</li>
+<li>Avoid importing orchestrator libraries.</li>
 </ul>
-<h2 id="verification">Verification</h2>
-<ul>
-<li>Run a maintenance job and confirm structured logs include maintenance fields.</li>
-<li>Verify Prometheus exposes maintenance metrics with low-cardinality labels.</li>
-<li>Trigger a failure and confirm an alert is sent and shown in Observatory.</li>
-</ul>
+<p>Orchestrator-specific utilities belong in the adapter package (for example
+<code>packages/phlo-dagster/</code>).</p>
+<h2 id="catalog-entry-points-how-engines-consume-them">Catalog entry points (how engines consume them)</h2>
+<p>Catalog providers supply a <strong>logical catalog config</strong>. Each engine adapter is
+responsible for serializing that config into its native format (files or
+programmatic settings).</p>
+<p>How it works:</p>
+<p>1) A package registers a catalog provider in <code>phlo.plugins.catalogs</code>.
+2) The provider declares <code>targets</code> (for example: <code>["trino"]</code>, <code>["spark"]</code>).
+3) The engine's service process calls a generator that filters catalogs by target.
+4) The generator serializes the config into the engine's native format.</p>
+<p>Example (Iceberg for Trino):</p>
+<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.catalogs&quot;]
+iceberg = &quot;phlo_iceberg.catalog_plugin:IcebergCatalogPlugin&quot;
+</code></pre>
+<p>The Trino service calls <code>phlo_trino.catalog_generator.generate_catalog_files(...)</code>,
+which loads <code>phlo.plugins.catalogs</code>, filters <code>targets=["trino"]</code>, and writes
+<code>.properties</code> files into Trino's catalog directory.</p>
 
 
 
@@ -888,10 +1082,10 @@ metrics, alerting, and UI.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

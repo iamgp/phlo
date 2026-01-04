@@ -736,10 +736,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#plugin-discovery" class="md-nav__link">
+  <a href="#capability-discovery" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Plugin Discovery
+        Capability Discovery
       
     </span>
   </a>
@@ -1578,10 +1578,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#plugin-discovery" class="md-nav__link">
+  <a href="#capability-discovery" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Plugin Discovery
+        Capability Discovery
       
     </span>
   </a>
@@ -1718,7 +1718,7 @@
 <h1 id="phlo-dagster">phlo-dagster</h1>
 <p>Data orchestration platform for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-dagster</code> provides the core data orchestration platform for scheduling, monitoring, and managing data pipelines. It runs ingestion, transformation, and quality workflows as Dagster assets.</p>
+<p><code>phlo-dagster</code> provides the core data orchestration platform for scheduling, monitoring, and managing data pipelines. It translates capability specs into Dagster assets, checks, and resources.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-dagster
 # or
@@ -1758,8 +1758,8 @@ phlo plugin install dagster
 </thead>
 <tbody>
 <tr>
-<td><strong>Plugin Discovery</strong></td>
-<td>Auto-discovers Dagster extensions via <code>phlo.plugins.dagster</code> entry points</td>
+<td><strong>Adapter Discovery</strong></td>
+<td>Loads <code>phlo.plugins.orchestrators</code> and builds Dagster definitions</td>
 </tr>
 <tr>
 <td><strong>dbt Compilation</strong></td>
@@ -1782,13 +1782,12 @@ phlo plugin install dagster
     - name: dbt-compile
       command: dbt compile
 </code></pre>
-<h3 id="plugin-discovery">Plugin Discovery</h3>
-<p>Dagster extensions are auto-loaded through the plugin system:</p>
+<h3 id="capability-discovery">Capability Discovery</h3>
+<p>Capability providers are auto-loaded through the plugin system:</p>
 <ul>
-<li><code>@phlo_ingestion</code> assets from phlo-dlt</li>
-<li><code>IcebergResource</code> from phlo-iceberg</li>
-<li>dbt assets from phlo-dbt</li>
-<li>Quality checks from phlo-quality</li>
+<li>Asset specs from <code>phlo.plugins.assets</code> (for example phlo-dlt, phlo-dbt)</li>
+<li>Resource specs from <code>phlo.plugins.resources</code> (for example phlo-iceberg, phlo-trino)</li>
+<li>Check specs from <code>@phlo_quality</code> and other packages</li>
 </ul>
 <h2 id="usage">Usage</h2>
 <h3 id="starting-the-service">Starting the Service</h3>
@@ -1849,11 +1848,10 @@ phlo materialize my_asset
 │  - Sensor polling                        │
 │  - Auto-materialization                  │
 ├──────────────────────────────────────────┤
-│         Phlo Plugin Extensions           │
-│  - DLT Ingestion                         │
-│  - dbt Transformations                   │
-│  - Quality Checks                        │
-│  - Iceberg Resources                     │
+│         Capability Providers             │
+│  - Asset specs                           │
+│  - Check specs                            │
+│  - Resource specs                        │
 └──────────────────────────────────────────┘
 </code></pre>
 <h2 id="entry-points">Entry Points</h2>
@@ -1868,6 +1866,10 @@ phlo materialize my_asset
 <tr>
 <td><code>phlo.plugins.services</code></td>
 <td><code>DagsterServicePlugin</code>, <code>DagsterDaemonServicePlugin</code></td>
+</tr>
+<tr>
+<td><code>phlo.plugins.orchestrators</code></td>
+<td><code>DagsterOrchestratorAdapter</code></td>
 </tr>
 <tr>
 <td><code>phlo.plugins.cli</code></td>

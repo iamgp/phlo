@@ -809,10 +809,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#trino-catalog-entry-points" class="md-nav__link">
+  <a href="#catalog-entry-points" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Trino Catalog Entry Points
+        Catalog Entry Points
       
     </span>
   </a>
@@ -837,10 +837,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#dagster-resource" class="md-nav__link">
+  <a href="#resource-usage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Dagster Resource
+        Resource Usage
       
     </span>
   </a>
@@ -1556,10 +1556,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#trino-catalog-entry-points" class="md-nav__link">
+  <a href="#catalog-entry-points" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Trino Catalog Entry Points
+        Catalog Entry Points
       
     </span>
   </a>
@@ -1584,10 +1584,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#dagster-resource" class="md-nav__link">
+  <a href="#resource-usage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Dagster Resource
+        Resource Usage
       
     </span>
   </a>
@@ -1696,7 +1696,7 @@
 <h1 id="phlo-iceberg">phlo-iceberg</h1>
 <p>Apache Iceberg catalog integration for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-iceberg</code> provides PyIceberg resources for Dagster and Trino catalog configuration. It enables ACID transactions, schema evolution, and time travel on the data lakehouse.</p>
+<p><code>phlo-iceberg</code> provides PyIceberg resources for adapters and Trino catalog configuration. It enables ACID transactions, schema evolution, and time travel on the data lakehouse.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-iceberg
 # or
@@ -1766,12 +1766,12 @@ phlo plugin install iceberg
 </thead>
 <tbody>
 <tr>
-<td><strong>Dagster Resource</strong></td>
-<td><code>IcebergResource</code> auto-registered via entry points</td>
+<td><strong>Resource Provider</strong></td>
+<td><code>IcebergResource</code> published via capability specs</td>
 </tr>
 <tr>
-<td><strong>Trino Catalogs</strong></td>
-<td>Registers <code>iceberg</code> and <code>iceberg_dev</code> catalogs via <code>phlo.plugins.trino_catalogs</code></td>
+<td><strong>Catalogs</strong></td>
+<td>Registers <code>iceberg</code> and <code>iceberg_dev</code> catalogs via <code>phlo.plugins.catalogs</code></td>
 </tr>
 <tr>
 <td><strong>Catalog Generation</strong></td>
@@ -1779,21 +1779,20 @@ phlo plugin install iceberg
 </tr>
 </tbody>
 </table>
-<h3 id="trino-catalog-entry-points">Trino Catalog Entry Points</h3>
-<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.trino_catalogs&quot;]
+<h3 id="catalog-entry-points">Catalog Entry Points</h3>
+<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.catalogs&quot;]
 iceberg = &quot;phlo_iceberg.catalog_plugin:IcebergCatalogPlugin&quot;
 iceberg_dev = &quot;phlo_iceberg.catalog_plugin:IcebergDevCatalogPlugin&quot;
 </code></pre>
+<p>Each catalog plugin declares <code>targets</code> in code (for example: <code>["trino"]</code>).</p>
 <h2 id="usage">Usage</h2>
-<h3 id="dagster-resource">Dagster Resource</h3>
-<pre><code class="language-python">from dagster import asset
-from phlo_iceberg.resource import IcebergResource
+<h3 id="resource-usage">Resource Usage</h3>
+<pre><code class="language-python">from phlo_iceberg.resource import IcebergResource
 
-@asset
-def my_asset(iceberg: IcebergResource):
-    catalog = iceberg.load_catalog()
-    table = catalog.load_table(&quot;bronze.users&quot;)
-    return table.scan().to_pandas()
+iceberg = IcebergResource()
+catalog = iceberg.get_catalog()
+table = catalog.load_table(&quot;bronze.users&quot;)
+df = table.scan().to_pandas()
 </code></pre>
 <h3 id="direct-usage">Direct Usage</h3>
 <pre><code class="language-python">from phlo.config import get_settings
@@ -1842,12 +1841,12 @@ SELECT * FROM iceberg.bronze.users FOR VERSION AS OF 123456789;
 </thead>
 <tbody>
 <tr>
-<td><code>phlo.plugins.dagster</code></td>
-<td><code>IcebergDagsterPlugin</code> with <code>IcebergResource</code></td>
+<td><code>phlo.plugins.resources</code></td>
+<td><code>IcebergResourceProvider</code></td>
 </tr>
 <tr>
-<td><code>phlo.plugins.trino_catalogs</code></td>
-<td>Iceberg catalog configurations</td>
+<td><code>phlo.plugins.catalogs</code></td>
+<td>Iceberg catalog configurations (targets: trino)</td>
 </tr>
 </tbody>
 </table>

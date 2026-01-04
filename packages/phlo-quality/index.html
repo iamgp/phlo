@@ -1718,7 +1718,7 @@
 <h1 id="phlo-quality">phlo-quality</h1>
 <p>Data quality checks and validation for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-quality</code> enables defining and executing data quality checks using the <code>@phlo_quality</code> decorator. Checks run as Dagster asset checks and results are emitted to alerting, metrics, and data catalog systems.</p>
+<p><code>phlo-quality</code> enables defining and executing data quality checks using the <code>@phlo_quality</code> decorator. Checks emit capability specs that adapters translate into orchestrator-native checks.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-quality
 # or
@@ -1760,8 +1760,8 @@ phlo plugin install quality
 <td>Emits <code>quality.result</code> events to HookBus</td>
 </tr>
 <tr>
-<td><strong>Dagster Integration</strong></td>
-<td>Checks run as Dagster asset checks</td>
+<td><strong>Adapter Integration</strong></td>
+<td>Checks translate into orchestrator-native checks via adapters</td>
 </tr>
 <tr>
 <td><strong>Alerting</strong></td>
@@ -1914,7 +1914,7 @@ class MyCustomCheck(QualityCheckPlugin):
 </table>
 <h2 id="related-packages">Related Packages</h2>
 <ul>
-<li><a href="../phlo-dagster/">phlo-dagster</a> - Orchestration platform</li>
+<li><a href="../phlo-dagster/">phlo-dagster</a> - Dagster adapter for capability specs</li>
 <li><a href="../phlo-alerting/">phlo-alerting</a> - Alert routing</li>
 <li><a href="../phlo-openmetadata/">phlo-openmetadata</a> - Data catalog</li>
 </ul>

@@ -1746,7 +1746,7 @@ phlo plugin install dlt
 <tbody>
 <tr>
 <td><strong>Asset Registration</strong></td>
-<td>Ingestion assets auto-registered with Dagster via entry points</td>
+<td>Ingestion assets published as capability specs via asset provider entry points</td>
 </tr>
 <tr>
 <td><strong>Lineage Events</strong></td>
@@ -1855,8 +1855,8 @@ def api_events(partition_date: str):
 )
 </code></pre>
 <h3 id="running-ingestion">Running Ingestion</h3>
-<pre><code class="language-bash"># Via Dagster CLI
-dagster asset materialize --select api_events
+<pre><code class="language-bash"># Via Phlo CLI
+phlo materialize dlt_api_events
 
 # Via Phlo CLI
 phlo materialize api_events --partition 2025-01-15
@@ -1884,14 +1884,14 @@ Iceberg Table (on Nessie branch)
 </thead>
 <tbody>
 <tr>
-<td><code>phlo.plugins.dagster</code></td>
-<td><code>DltDagsterPlugin</code> for ingestion assets</td>
+<td><code>phlo.plugins.assets</code></td>
+<td><code>DltAssetProvider</code> for ingestion specs</td>
 </tr>
 </tbody>
 </table>
 <h2 id="related-packages">Related Packages</h2>
 <ul>
-<li><a href="../phlo-dagster/">phlo-dagster</a> - Orchestration platform</li>
+<li><a href="../phlo-dagster/">phlo-dagster</a> - Dagster adapter for capability specs</li>
 <li><a href="../phlo-iceberg/">phlo-iceberg</a> - Iceberg table format</li>
 <li><a href="../phlo-quality/">phlo-quality</a> - Data validation</li>
 <li><a href="../phlo-nessie/">phlo-nessie</a> - Branch management</li>

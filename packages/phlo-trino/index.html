@@ -1734,7 +1734,7 @@ phlo plugin install trino
 <tbody>
 <tr>
 <td><strong>Catalog Discovery</strong></td>
-<td>Auto-generates catalog files from <code>phlo.plugins.trino_catalogs</code> entry points</td>
+<td>Auto-generates catalog files from <code>phlo.plugins.catalogs</code> entry points</td>
 </tr>
 <tr>
 <td><strong>Metrics Labels</strong></td>
@@ -1754,9 +1754,10 @@ phlo plugin install trino
 <p>Trino catalog <code>.properties</code> files are generated from installed catalog plugins:</p>
 <pre><code class="language-python">from phlo_trino.catalog_generator import generate_catalog_files
 
-# Discovers all TrinoCatalogPlugin instances and generates files
+# Discovers CatalogPlugin instances targeting &quot;trino&quot; and generates files
 generate_catalog_files(&quot;/path/to/trino/catalog/&quot;)
 </code></pre>
+<p>Catalog plugins declare <code>targets</code> in code; Trino loads only those that target <code>trino</code>.</p>
 <h3 id="default-catalogs">Default Catalogs</h3>
 <table>
 <thead>
@@ -1874,6 +1875,10 @@ results = cursor.fetchall()
 <tr>
 <td><code>phlo.plugins.services</code></td>
 <td><code>TrinoServicePlugin</code></td>
+</tr>
+<tr>
+<td><code>phlo.plugins.resources</code></td>
+<td><code>TrinoResourceProvider</code></td>
 </tr>
 </tbody>
 </table>

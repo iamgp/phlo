@@ -1752,7 +1752,7 @@
 <h1 id="phlo-dbt">phlo-dbt</h1>
 <p>dbt transformation integration for Phlo.</p>
 <h2 id="overview">Overview</h2>
-<p><code>phlo-dbt</code> integrates dbt (data build tool) with the Phlo lakehouse. It provides Dagster assets from dbt models, CLI commands, and automatic project discovery.</p>
+<p><code>phlo-dbt</code> integrates dbt (data build tool) with the Phlo lakehouse. It provides asset specs from dbt models, CLI commands, and automatic project discovery.</p>
 <h2 id="installation">Installation</h2>
 <pre><code class="language-bash">pip install phlo-dbt
 # or
@@ -1805,8 +1805,8 @@ phlo plugin install dbt
 <td>Auto-discovers <code>dbt_project.yml</code> in workspace via <code>find_dbt_projects()</code></td>
 </tr>
 <tr>
-<td><strong>Dagster Assets</strong></td>
-<td>Automatically creates Dagster assets from dbt models</td>
+<td><strong>Asset Specs</strong></td>
+<td>Automatically creates asset specs from dbt models</td>
 </tr>
 <tr>
 <td><strong>Lineage Events</strong></td>
@@ -1814,7 +1814,7 @@ phlo plugin install dbt
 </tr>
 <tr>
 <td><strong>Auto-Compile</strong></td>
-<td>Compiles dbt on Dagster startup via post_start hook</td>
+<td>Compiles dbt on startup via post_start hook</td>
 </tr>
 </tbody>
 </table>
@@ -1918,8 +1918,8 @@ GROUP BY 1, 2
 </thead>
 <tbody>
 <tr>
-<td><code>phlo.plugins.dagster</code></td>
-<td><code>DbtDagsterPlugin</code> for asset definitions</td>
+<td><code>phlo.plugins.assets</code></td>
+<td><code>DbtAssetProvider</code> for asset specs</td>
 </tr>
 <tr>
 <td><code>phlo.plugins.cli</code></td>
@@ -1929,7 +1929,7 @@ GROUP BY 1, 2
 </table>
 <h2 id="related-packages">Related Packages</h2>
 <ul>
-<li><a href="../phlo-dagster/">phlo-dagster</a> - Orchestration platform</li>
+<li><a href="../phlo-dagster/">phlo-dagster</a> - Dagster adapter for capability specs</li>
 <li><a href="../phlo-trino/">phlo-trino</a> - Query engine</li>
 <li><a href="../phlo-iceberg/">phlo-iceberg</a> - Table format</li>
 </ul>
