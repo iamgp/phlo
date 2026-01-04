@@ -221,6 +221,145 @@ def api_data(partition_date: str):
     })
 ```
 
+### DLT Helper Pattern (Recommended)
+
+When you have multiple ingestion workflows for the same API, **use dedicated helper functions** to reduce boilerplate and ensure consistency.
+
+**When to use helpers**:
+
+- Multiple workflows ingesting from the same API
+- Shared authentication, base URL, or pagination logic
+- Common query parameters or headers
+- Need to maintain consistency across workflows
+
+**Pattern: Dedicated Helper Module**:
+
+Create a helper module alongside your workflows:
+
+```
+workflows/ingestion/
+├── github/
+│   ├── __init__.py
+│   ├── helpers.py          # Dedicated helper for GitHub API
+│   ├── user_events.py
+│   ├── user_repos.py
+│   └── user_profile.py
+```
+
+**Helper implementation**:
+
+```python
+# workflows/ingestion/github/helpers.py
+"""Helper functions to reduce GitHub API boilerplate in this project.
+
+This is project-specific code to avoid repetition, not a phlo framework feature.
+"""
+
+import os
+from dlt.sources.rest_api import rest_api
+
+def github_api(resource: str, path: str, params: dict | None = None):
+    """
+    Helper to create DLT sources for GitHub API endpoints.
+
+    Reduces repetition across GitHub ingestion workflows in this project.
+
+    Args:
+        resource: DLT resource name
+        path: GitHub API path (can use {username} placeholder)
+        params: Query parameters
+
+    Returns:
+        DLT rest_api source
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    github_username = os.getenv("GITHUB_USERNAME")
+
+    return rest_api(
+        client={
+            "base_url": "https://api.github.com",
+            "paginator": "header_link",
+            "headers": {
+                "Authorization": f"Bearer {github_token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        },
+        resources=[{
+            "name": resource,
+            "endpoint": {
+                "path": path.replace("{username}", github_username),
+                "params": params or {},
+            },
+        }],
+    )
+```
+
+**Usage in workflows**:
+
+```python
+# workflows/ingestion/github/user_events.py
+from phlo_dlt import phlo_ingestion
+from workflows.ingestion.github.helpers import github_api
+from workflows.schemas.github import RawUserEvents
+
+@phlo_ingestion(
+    table_name="user_events",
+    unique_key="id",
+    validation_schema=RawUserEvents,
+    group="github",
+)
+def user_events(partition_date: str):
+    return github_api(
+        resource="events",
+        path="users/{username}/events",
+        params={"per_page": 100},
+    )
+```
+
+**Benefits**:
+
+- Single place to update API configuration (auth, headers, pagination)
+- Consistent error handling across all workflows
+- Easier testing and maintenance
+- Clear separation of API logic from workflow logic
+- Self-documenting through helper function signature
+
+**Anti-patterns to avoid**:
+
+Do NOT inline DLT configuration in every workflow:
+
+```python
+# BAD: Repetitive, hard to maintain
+@phlo_ingestion(...)
+def workflow_1(partition_date: str):
+    return rest_api({
+        "client": {"base_url": "...", "headers": {...}},
+        "resources": [...]
+    })
+
+@phlo_ingestion(...)
+def workflow_2(partition_date: str):
+    return rest_api({
+        "client": {"base_url": "...", "headers": {...}},  # Duplicated!
+        "resources": [...]
+    })
+```
+
+Do NOT use generic helpers for unrelated APIs:
+
+```python
+# BAD: Too generic, loses type safety and documentation
+def api_helper(base_url: str, resource: str):
+    return rest_api(...)
+```
+
+**See examples**:
+
+- GitHub helper: `phlo-examples/github/workflows/ingestion/github/helpers.py`
+- Pokemon helper: `phlo-examples/pokemon/workflows/ingestion/pokemon/helpers.py`
+- Nightscout helper: `phlo-examples/nightscout/workflows/ingestion/nightscout/helpers.py`
+
 **Custom Python Source**:
 
 ```python
