@@ -333,7 +333,19 @@ def check_cmd(output_json: bool):
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(["source", "quality", "transform", "service", "hooks", "catalog"]),
+    type=click.Choice(
+        [
+            "source",
+            "quality",
+            "transform",
+            "service",
+            "hooks",
+            "asset",
+            "resource",
+            "orchestrator",
+            "catalog",
+        ]
+    ),
     help="Filter by plugin type",
 )
 @click.option(
