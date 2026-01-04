@@ -173,7 +173,14 @@ def events_quality():
 
 ### 3. Schema-First Development
 
-Pandera schemas serve as the source of truth for data structure and quality:
+Pandera schemas serve as the source of truth for data structure and quality.
+
+**Two approaches for defining schemas**:
+
+1. **Manual Definition**: Write Pandera classes directly (full control)
+2. **dbt YAML Generation**: Auto-generate from dbt model YAML (single source of truth)
+
+#### Manual Schema Definition
 
 ```python
 import pandera as pa
@@ -209,6 +216,34 @@ class EventSchema(pa.DataFrameModel):
         coerce = True
 ```
 
+#### Schema Generation from dbt YAML
+
+**Reduce schema duplication** by generating Pandera schemas from dbt model YAML:
+
+```python
+from phlo_dbt.dbt_schema import dbt_model_to_pandera
+
+# Define schema once in dbt YAML, auto-generate Pandera
+FactGlucoseReadings = dbt_model_to_pandera(
+    "workflows/transforms/dbt/models/silver/fct_glucose_readings.yml",
+    "fct_glucose_readings"
+)
+```
+
+**How it works**:
+
+1. Define schema with dbt `data_tests` in YAML
+2. Call `dbt_model_to_pandera` to generate Pandera class
+3. dbt tests automatically become Pandera Field constraints:
+   - `not_null` → `nullable=False`
+   - `unique` → `unique=True`
+   - `accepted_values` → `isin=[...]`
+
+**When to use each approach**:
+
+- **Manual**: Raw layer schemas, complex validators, multi-column checks
+- **Generated**: Silver/gold layer schemas with dbt models (avoid duplication)
+
 **Benefits**:
 
 - Type safety at runtime
@@ -216,6 +251,7 @@ class EventSchema(pa.DataFrameModel):
 - Validation enforced automatically
 - Self-documenting data contracts
 - IDE autocomplete support
+- **50% less code** when using dbt YAML generation
 
 **Schema Conversion** (Pandera → Iceberg):
 
