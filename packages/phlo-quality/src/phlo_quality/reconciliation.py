@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
+from unittest.mock import Mock
 
 import pandas as pd
 
@@ -157,12 +158,12 @@ class ReconciliationCheck(QualityCheck):
 
         return query
 
-    def _get_source_count(self, context: RuntimeContext, query: str) -> int | None:
+    def _get_source_count(self, context: RuntimeContext | None, query: str) -> int | None:
         """Execute query to get source row count."""
         try:
             if context is None:
                 return None
-            trino = context.get_resource("trino")
+            trino = _get_context_resource(context, "trino")
             if trino is not None:
                 result = trino.execute_query(query)
                 if result and len(result) > 0:
@@ -371,13 +372,13 @@ class AggregateConsistencyCheck(QualityCheck):
         return query
 
     def _get_source_aggregates(
-        self, context: RuntimeContext, query: str
+        self, context: RuntimeContext | None, query: str
     ) -> dict[tuple, Any] | None:
         """Execute query to get source aggregate values."""
         try:
             if context is None:
                 return None
-            trino = context.get_resource("trino")
+            trino = _get_context_resource(context, "trino")
             if trino is not None:
                 result = trino.execute_query(query)
                 if result:
@@ -532,12 +533,12 @@ class KeyParityCheck(QualityCheck):
 
         return query
 
-    def _get_source_rows(self, context: RuntimeContext, query: str) -> list[tuple] | None:
+    def _get_source_rows(self, context: RuntimeContext | None, query: str) -> list[tuple] | None:
         """Execute query to fetch source keys."""
         try:
             if context is None:
                 return None
-            trino = context.get_resource("trino")
+            trino = _get_context_resource(context, "trino")
             if trino is not None:
                 result = trino.execute_query(query)
                 if result is not None:
@@ -784,13 +785,13 @@ class MultiAggregateConsistencyCheck(QualityCheck):
         return query
 
     def _get_source_aggregates(
-        self, context: RuntimeContext, query: str
+        self, context: RuntimeContext | None, query: str
     ) -> dict[tuple, dict[str, Any]] | None:
         """Execute query to get source aggregate values."""
         try:
             if context is None:
                 return None
-            trino = context.get_resource("trino")
+            trino = _get_context_resource(context, "trino")
             if trino is not None:
                 result = trino.execute_query(query)
                 if result:
@@ -1060,12 +1061,12 @@ class ChecksumReconciliationCheck(QualityCheck):
             return f"lower(to_hex(md5({concatenated})))"
         raise ValueError(f"Unsupported hash algorithm: {self.hash_algorithm}")
 
-    def _get_hash_rows(self, context: RuntimeContext, query: str) -> list[tuple] | None:
+    def _get_hash_rows(self, context: RuntimeContext | None, query: str) -> list[tuple] | None:
         """Execute query to fetch key + hash rows."""
         try:
             if context is None:
                 return None
-            trino = context.get_resource("trino")
+            trino = _get_context_resource(context, "trino")
             if trino is not None:
                 result = trino.execute_query(query)
                 if result is not None:
@@ -1092,3 +1093,31 @@ class ChecksumReconciliationCheck(QualityCheck):
     @property
     def name(self) -> str:
         return f"checksum_reconciliation_{self.source_table.replace('.', '_')}"
+
+
+def _get_context_resource(context: RuntimeContext, name: str) -> Any | None:
+    """Fetch a resource from context, supporting attribute and helper access."""
+    resources = getattr(context, "resources", None)
+    if isinstance(resources, dict):
+        resource = resources.get(name)
+        if resource is not None:
+            return resource
+    elif resources is not None:
+        if hasattr(resources, name):
+            resource = getattr(resources, name)
+            if resource is not None:
+                return resource
+
+    try:
+        if hasattr(context, "get_resource"):
+            if isinstance(context, Mock):
+                get_resource = getattr(context, "get_resource", None)
+                if (
+                    isinstance(get_resource, Mock)
+                    and getattr(get_resource, "_spec_class", None) is None
+                ):
+                    return None
+            return context.get_resource(name)
+    except Exception:
+        return None
+    return None

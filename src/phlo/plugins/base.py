@@ -6,10 +6,10 @@ These abstract base classes define the interfaces that plugins must implement.
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-import warnings
 from typing import Any, Callable, Iterable
 
 import click

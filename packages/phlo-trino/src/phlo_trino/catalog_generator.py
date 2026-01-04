@@ -57,7 +57,10 @@ def _filter_catalogs(catalogs: list[CatalogPlugin], target: str) -> list[Catalog
 def discover_trino_catalogs() -> list[CatalogPlugin]:
     """Discover Trino-compatible catalog plugins via entry points."""
     plugins = discover_plugins(plugin_type="catalogs", auto_register=False)
-    catalogs = list(plugins.get("catalogs", []))
+    catalogs: list[CatalogPlugin] = []
+    for plugin in plugins.get("catalogs", []):
+        if isinstance(plugin, CatalogPlugin):
+            catalogs.append(plugin)
 
     legacy_catalogs = _load_entry_points("phlo.plugins.trino_catalogs")
     if legacy_catalogs:
@@ -69,7 +72,8 @@ def discover_trino_catalogs() -> list[CatalogPlugin]:
     combined = catalogs + legacy_catalogs
     unique: dict[str, CatalogPlugin] = {}
     for catalog in combined:
-        unique.setdefault(catalog.catalog_name, catalog)
+        if catalog.catalog_name not in unique:
+            unique[catalog.catalog_name] = catalog
 
     return _filter_catalogs(list(unique.values()), "trino")
 

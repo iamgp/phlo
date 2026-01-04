@@ -212,7 +212,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             automation_condition=automation_condition,
             freshness_policy=freshness_policy,
         )
-        def _asset_fn(context: dg.AssetExecutionContext) -> Iterable[Any]:
+        def _asset_fn(context) -> Iterable[Any]:
             runtime = DagsterRuntime(context)
             results = spec.run.fn(runtime) if spec.run else []
             if results is None:
@@ -247,7 +247,7 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
             blocking=spec.blocking,
             description=spec.description,
         )
-        def _check_fn(context: dg.AssetExecutionContext) -> dg.AssetCheckResult:
+        def _check_fn(context) -> dg.AssetCheckResult:
             runtime = DagsterRuntime(context)
             result = spec.fn(runtime) if spec.fn else None
             if result is None:

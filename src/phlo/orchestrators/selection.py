@@ -17,6 +17,10 @@ def get_active_orchestrator(name: str | None = None) -> OrchestratorAdapterPlugi
     registry = get_global_registry()
     adapter = registry.get_orchestrator(orchestrator_name)
     if adapter is None:
+        if orchestrator_name == "dagster":
+            fallback = _load_dagster_adapter()
+            if fallback is not None:
+                return fallback
         raise PhloConfigError(
             message=f"Orchestrator adapter '{orchestrator_name}' is not installed.",
             suggestions=[
@@ -25,3 +29,12 @@ def get_active_orchestrator(name: str | None = None) -> OrchestratorAdapterPlugi
             ],
         )
     return adapter
+
+
+def _load_dagster_adapter() -> OrchestratorAdapterPlugin | None:
+    """Fallback to in-repo Dagster adapter when entry points are unavailable."""
+    try:
+        from phlo_dagster.adapter import DagsterOrchestratorAdapter
+    except Exception:
+        return None
+    return DagsterOrchestratorAdapter()
