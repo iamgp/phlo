@@ -10,14 +10,14 @@ from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
 @dataclass
 class CapabilityRegistry:
     assets: dict[str, AssetSpec] = field(default_factory=dict)
-    checks: list[AssetCheckSpec] = field(default_factory=list)
+    checks: dict[tuple[str, str], AssetCheckSpec] = field(default_factory=dict)
     resources: dict[str, ResourceSpec] = field(default_factory=dict)
 
     def register_asset(self, spec: AssetSpec) -> None:
         self.assets[spec.key] = spec
 
     def register_check(self, spec: AssetCheckSpec) -> None:
-        self.checks.append(spec)
+        self.checks[(spec.asset_key, spec.name)] = spec
 
     def register_resource(self, spec: ResourceSpec) -> None:
         self.resources[spec.name] = spec
@@ -26,7 +26,7 @@ class CapabilityRegistry:
         return list(self.assets.values())
 
     def list_checks(self) -> list[AssetCheckSpec]:
-        return list(self.checks)
+        return list(self.checks.values())
 
     def list_resources(self) -> list[ResourceSpec]:
         return list(self.resources.values())
