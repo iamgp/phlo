@@ -5,7 +5,10 @@ from __future__ import annotations
 from phlo.config import get_settings
 from phlo.discovery import discover_plugins, get_global_registry
 from phlo.exceptions import PhloConfigError
+from phlo.logging import get_logger
 from phlo.plugins.base import OrchestratorAdapterPlugin
+
+logger = get_logger(__name__)
 
 
 def get_active_orchestrator(name: str | None = None) -> OrchestratorAdapterPlugin:
@@ -35,6 +38,7 @@ def _load_dagster_adapter() -> OrchestratorAdapterPlugin | None:
     """Fallback to in-repo Dagster adapter when entry points are unavailable."""
     try:
         from phlo_dagster.adapter import DagsterOrchestratorAdapter
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 - optional dependency
+        logger.exception("Failed to import Dagster adapter fallback: %s", exc)
         return None
     return DagsterOrchestratorAdapter()
