@@ -492,8 +492,8 @@ class CatalogPlugin(Plugin, ABC):
     """
     Base class for engine-agnostic catalog plugins.
 
-    Catalog plugins define connector configurations that are
-    auto-discovered and generated into .properties files at startup.
+    Catalog plugins define logical catalog configuration that engine adapters
+    serialize into their native formats (files or programmatic config).
 
     Example:
         ```python
@@ -539,30 +539,23 @@ class CatalogPlugin(Plugin, ABC):
         """
         Return the catalog name.
 
-        This becomes the .properties filename and catalog name in the engine.
+        This becomes the catalog identifier in the engine.
         """
         pass
 
     @abstractmethod
-    def get_properties(self) -> dict[str, str]:
+    def get_properties(self) -> dict[str, Any]:
         """
-        Return catalog properties as key-value pairs.
+        Return catalog configuration as key-value pairs.
 
         Returns:
-            Dictionary of property name -> value
+            Dictionary of config key -> value
         """
         pass
 
     def supports_target(self, target: str) -> bool:
         """Return True if the catalog supports the requested engine target."""
         return target in self.targets
-
-    def to_properties_file(self) -> str:
-        """Convert properties to .properties file format."""
-        lines = []
-        for key, value in self.get_properties().items():
-            lines.append(f"{key}={value}")
-        return "\n".join(lines) + "\n"
 
 
 class TrinoCatalogPlugin(CatalogPlugin, ABC):

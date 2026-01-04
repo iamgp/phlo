@@ -74,6 +74,11 @@ def discover_trino_catalogs() -> list[CatalogPlugin]:
     return _filter_catalogs(list(unique.values()), "trino")
 
 
+def _to_properties_file(properties: dict[str, object]) -> str:
+    lines = [f"{key}={value}" for key, value in properties.items()]
+    return "\n".join(lines) + "\n"
+
+
 def generate_catalog_files(output_dir: str | Path | None = None) -> dict[str, Path]:
     """
     Generate Trino catalog .properties files from discovered plugins.
@@ -98,7 +103,7 @@ def generate_catalog_files(output_dir: str | Path | None = None) -> dict[str, Pa
         try:
             filename = f"{catalog.catalog_name}.properties"
             filepath = output_dir / filename
-            content = catalog.to_properties_file()
+            content = _to_properties_file(catalog.get_properties())
 
             filepath.write_text(content)
             generated[catalog.catalog_name] = filepath

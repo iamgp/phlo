@@ -152,8 +152,8 @@ my_resources = "my_pkg.plugin:MyResourceProvider"
 
 ### Catalog providers
 
-Catalog providers define static catalog configuration for engines that load files
-at startup (Trino, Spark).
+Catalog providers define catalog configuration for engines that need explicit
+catalog setup (files or programmatic settings).
 
 ```python
 from phlo.plugins.base import CatalogPlugin, PluginMetadata
@@ -233,17 +233,18 @@ Packages should only:
 Orchestrator-specific utilities belong in the adapter package (for example
 `packages/phlo-dagster/`).
 
-## Catalog entry points (why they write files)
+## Catalog entry points (how engines consume them)
 
-Some engines (Trino, Spark) load **static catalog files** at service startup.
-Those files are not runtime resources, so they live in a separate capability.
+Catalog providers supply a **logical catalog config**. Each engine adapter is
+responsible for serializing that config into its native format (files or
+programmatic settings).
 
 How it works:
 
 1) A package registers a catalog provider in `phlo.plugins.catalogs`.
 2) The provider declares `targets` (for example: `["trino"]`, `["spark"]`).
 3) The engine's service process calls a generator that filters catalogs by target.
-4) The generator writes files into the engine's config directory.
+4) The generator serializes the config into the engine's native format.
 
 Example (Iceberg for Trino):
 

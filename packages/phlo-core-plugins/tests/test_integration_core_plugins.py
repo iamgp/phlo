@@ -173,7 +173,7 @@ class TestCatalogPlugin:
 
         catalog = MockCatalog()
         assert catalog.catalog_name == "mock"
-        assert "connector.name=mock" in catalog.to_properties_file()
+        assert catalog.get_properties()["connector.name"] == "mock"
 
 
 # =============================================================================
