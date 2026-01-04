@@ -17,24 +17,11 @@ from phlo_iceberg.resource import IcebergResource
 from phlo_dlt.registry import TableConfig
 
 
-def get_branch_from_context(context) -> str:
+def get_branch_from_context(context: Any) -> str:
     tags = getattr(context, "tags", None) or {}
     branch = tags.get("branch")
     if isinstance(branch, str) and branch:
         return branch
-
-    run = getattr(context, "run", None)
-    if run is not None:
-        run_tags = getattr(run, "tags", {}) or {}
-        branch = run_tags.get("branch")
-        if isinstance(branch, str) and branch:
-            return branch
-
-    run_config = getattr(context, "run_config", {}) or {}
-    if isinstance(run_config, dict) and "branch_name" in run_config:
-        branch = run_config.get("branch_name")
-        if isinstance(branch, str) and branch:
-            return branch
 
     return "main"
 

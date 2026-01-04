@@ -12,7 +12,6 @@ from phlo.capabilities import (
     PartitionSpec,
     RunResult,
     RunSpec,
-    register_asset,
 )
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.exceptions import PhloConfigError
@@ -311,7 +310,6 @@ def phlo_ingestion(
         )
 
         _INGESTION_ASSETS.append(asset_spec)
-        register_asset(asset_spec)
         setattr(func, "_phlo_table_config", table_config)
         return func
 

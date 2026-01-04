@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, List, Optional
 
-from phlo.capabilities import AssetCheckSpec, CheckResult, register_check
+from phlo.capabilities import AssetCheckSpec, CheckResult, get_capability_registry, register_check
 from phlo.capabilities.runtime import RuntimeContext
 
 from phlo.hooks import (
@@ -22,8 +22,6 @@ from phlo_quality.checks import QualityCheck, QualityCheckResult, SchemaCheck
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
 from phlo_quality.partitioning import PartitionScope, apply_partition_scope, get_partition_key
 from phlo_quality.severity import severity_for_pandera_contract, severity_for_quality_check
-
-_QUALITY_CHECKS: list[Any] = []
 
 
 def phlo_quality(
@@ -303,7 +301,6 @@ def phlo_quality(
                 blocking=True,
                 description=f"Pandera schema contract for {table}",
             )
-            _QUALITY_CHECKS.append(pandera_spec)
             register_check(pandera_spec)
 
         if non_schema_checks:
@@ -546,7 +543,6 @@ def phlo_quality(
                 blocking=blocking,
                 description=description,
             )
-            _QUALITY_CHECKS.append(quality_spec)
             register_check(quality_spec)
 
         if schema_checks or non_schema_checks:
@@ -557,14 +553,16 @@ def phlo_quality(
     return decorator
 
 
-def get_quality_checks() -> list[Any]:
+def get_quality_checks() -> list[AssetCheckSpec]:
     """Get all asset check specs registered with @phlo_quality decorator."""
-    return _QUALITY_CHECKS.copy()
+    registry = get_capability_registry()
+    return registry.list_checks()
 
 
 def clear_quality_checks() -> None:
     """Clear registered quality check specs (useful for tests)."""
-    _QUALITY_CHECKS.clear()
+    registry = get_capability_registry()
+    registry.clear_checks()
 
 
 def _load_data_trino(context: RuntimeContext, query: str, trino: Any) -> Any:

@@ -9,7 +9,7 @@ without importing any orchestrator libraries.
 
 ## System diagram
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │                          Installed Packages                       │
 │  phlo-dlt   phlo-dbt   phlo-quality   phlo-iceberg   phlo-trino    │

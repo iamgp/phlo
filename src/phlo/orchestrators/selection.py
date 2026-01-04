@@ -38,7 +38,7 @@ def _load_dagster_adapter() -> OrchestratorAdapterPlugin | None:
     """Fallback to in-repo Dagster adapter when entry points are unavailable."""
     try:
         from phlo_dagster.adapter import DagsterOrchestratorAdapter
-    except Exception as exc:  # noqa: BLE001 - optional dependency
-        logger.exception("Failed to import Dagster adapter fallback: %s", exc)
+    except Exception:  # noqa: BLE001 - optional dependency
+        logger.exception("Failed to import Dagster adapter fallback")
         return None
     return DagsterOrchestratorAdapter()

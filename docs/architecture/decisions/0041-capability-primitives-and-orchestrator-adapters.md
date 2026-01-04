@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed**
+### Accepted
 
 ## Context
 
@@ -82,7 +82,7 @@ class OrchestratorAdapterPlugin(Plugin, ABC):
 
 ### Capability Providers (New Entry Points)
 
-```
+```text
 phlo.plugins.assets
 phlo.plugins.resources
 phlo.plugins.semantic

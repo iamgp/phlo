@@ -69,7 +69,7 @@ PLUGIN_INTERNAL_TO_REGISTRY = {
     "hooks": "hooks",
     "asset_providers": "assets",
     "resource_providers": "resources",
-    "orchestrators": "orchestrator",
+    "orchestrators": "orchestrators",
     "catalogs": "catalogs",
 }
 
@@ -81,7 +81,7 @@ REGISTRY_TYPE_MAP = {
     "hooks": "hooks",
     "assets": "assets",
     "resources": "resources",
-    "orchestrators": "orchestrator",
+    "orchestrators": "orchestrators",
     "catalogs": "catalogs",
 }
 
@@ -335,15 +335,15 @@ def check_cmd(output_json: bool):
     "plugin_type",
     type=click.Choice(
         [
-            "source",
+            "sources",
             "quality",
-            "transform",
-            "service",
+            "transforms",
+            "services",
             "hooks",
-            "asset",
-            "resource",
-            "orchestrator",
-            "catalog",
+            "assets",
+            "resources",
+            "orchestrators",
+            "catalogs",
         ]
     ),
     help="Filter by plugin type",
@@ -366,6 +366,8 @@ def search_cmd(
 ):
     """Search plugin registry."""
     try:
+        if plugin_type:
+            plugin_type = REGISTRY_TYPE_MAP.get(plugin_type, plugin_type)
         results = search_plugins(
             query=query,
             plugin_type=plugin_type,
@@ -465,18 +467,18 @@ def update_cmd(output_json: bool):
     "plugin_type",
     type=click.Choice(
         [
-            "source",
+            "sources",
             "quality",
-            "transform",
-            "service",
-            "hook",
-            "catalog",
-            "asset",
-            "resource",
-            "orchestrator",
+            "transforms",
+            "services",
+            "hooks",
+            "catalogs",
+            "assets",
+            "resources",
+            "orchestrators",
         ]
     ),
-    default="source",
+    default="sources",
     help="Type of plugin to create",
 )
 @click.option(
@@ -490,9 +492,22 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
     Examples:
         phlo plugin create my-source              # Create source connector plugin
         phlo plugin create my-check --type quality # Create quality check plugin
-        phlo plugin create my-transform --type transform --path ./plugins/
+        phlo plugin create my-transform --type transforms --path ./plugins/
     """
     try:
+        type_aliases = {
+            "sources": "source",
+            "quality": "quality",
+            "transforms": "transform",
+            "services": "service",
+            "hooks": "hook",
+            "catalogs": "catalog",
+            "assets": "asset",
+            "resources": "resource",
+            "orchestrators": "orchestrator",
+        }
+        plugin_type = type_aliases.get(plugin_type, plugin_type)
+
         # Validate plugin name
         if not plugin_name or not all(c.isalnum() or c in "-_" for c in plugin_name):
             console.print("[red]Invalid plugin name. Use alphanumeric characters, - and _[/red]")
@@ -754,21 +769,15 @@ from phlo.plugins import {base_class}, PluginMetadata
 '''
 
     if plugin_type in {"asset", "resource", "orchestrator"}:
-        plugin_content += """
-from collections.abc import Iterable
-
-from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
-"""
+        plugin_content += "\nfrom collections.abc import Iterable\n"
+        spec_imports: list[str]
         if plugin_type == "resource":
-            plugin_content = plugin_content.replace(
-                "from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec",
-                "from phlo.capabilities.specs import ResourceSpec",
-            )
-        if plugin_type == "asset":
-            plugin_content = plugin_content.replace(
-                "from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec",
-                "from phlo.capabilities.specs import AssetCheckSpec, AssetSpec",
-            )
+            spec_imports = ["ResourceSpec"]
+        elif plugin_type == "asset":
+            spec_imports = ["AssetCheckSpec", "AssetSpec"]
+        else:
+            spec_imports = ["AssetCheckSpec", "AssetSpec", "ResourceSpec"]
+        plugin_content += f"from phlo.capabilities.specs import {', '.join(spec_imports)}\n"
 
     if plugin_type == "hook":
         plugin_content += f'''

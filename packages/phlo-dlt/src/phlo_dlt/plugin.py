@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Iterable
 
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec
 from phlo.plugins.base import AssetProviderPlugin, PluginMetadata
 
 from phlo_dlt.decorator import get_ingestion_assets
@@ -17,10 +18,10 @@ class DltAssetProvider(AssetProviderPlugin):
             description="DLT-based ingestion engine for Phlo",
         )
 
-    def get_assets(self) -> list[Any]:
+    def get_assets(self) -> Iterable[AssetSpec]:
         return get_ingestion_assets()
 
-    def get_checks(self) -> list[Any]:
+    def get_checks(self) -> Iterable[AssetCheckSpec]:
         return []
 
     def clear_registries(self) -> None:

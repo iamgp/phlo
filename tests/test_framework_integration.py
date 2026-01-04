@@ -8,10 +8,13 @@ for user projects using Phlo as an installable package.
 import tempfile
 from pathlib import Path
 
+import pytest
 from dagster import Definitions
 
 from phlo.framework.definitions import build_definitions
 from phlo.framework.discovery import discover_user_workflows
+
+pytestmark = pytest.mark.integration
 
 
 def test_discover_empty_workflows_directory():

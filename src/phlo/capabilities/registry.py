@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
 
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
@@ -12,29 +13,41 @@ class CapabilityRegistry:
     assets: dict[str, AssetSpec] = field(default_factory=dict)
     checks: dict[tuple[str, str], AssetCheckSpec] = field(default_factory=dict)
     resources: dict[str, ResourceSpec] = field(default_factory=dict)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
-        self.assets[spec.key] = spec
+        with self._lock:
+            self.assets[spec.key] = spec
 
     def register_check(self, spec: AssetCheckSpec) -> None:
-        self.checks[(spec.asset_key, spec.name)] = spec
+        with self._lock:
+            self.checks[(spec.asset_key, spec.name)] = spec
 
     def register_resource(self, spec: ResourceSpec) -> None:
-        self.resources[spec.name] = spec
+        with self._lock:
+            self.resources[spec.name] = spec
 
     def list_assets(self) -> list[AssetSpec]:
-        return list(self.assets.values())
+        with self._lock:
+            return list(self.assets.values())
 
     def list_checks(self) -> list[AssetCheckSpec]:
-        return list(self.checks.values())
+        with self._lock:
+            return list(self.checks.values())
 
     def list_resources(self) -> list[ResourceSpec]:
-        return list(self.resources.values())
+        with self._lock:
+            return list(self.resources.values())
 
     def clear(self) -> None:
-        self.assets.clear()
-        self.checks.clear()
-        self.resources.clear()
+        with self._lock:
+            self.assets.clear()
+            self.checks.clear()
+            self.resources.clear()
+
+    def clear_checks(self) -> None:
+        with self._lock:
+            self.checks.clear()
 
 
 _GLOBAL_REGISTRY = CapabilityRegistry()

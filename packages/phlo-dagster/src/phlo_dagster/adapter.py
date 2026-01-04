@@ -104,9 +104,28 @@ class DagsterRuntime(RuntimeContext):
     @property
     def resources(self) -> dict[str, Any]:
         resources = getattr(self.context, "resources", None)
+        if resources is None:
+            return {}
         if isinstance(resources, dict):
             return dict(resources)
-        return {}
+        if hasattr(resources, "_asdict"):
+            return dict(resources._asdict())
+        if hasattr(resources, "__dict__"):
+            return {
+                name: value for name, value in vars(resources).items() if not name.startswith("_")
+            }
+        resource_map: dict[str, Any] = {}
+        for name in dir(resources):
+            if name.startswith("_"):
+                continue
+            try:
+                value = getattr(resources, name)
+            except Exception:
+                continue
+            if callable(value):
+                continue
+            resource_map[name] = value
+        return resource_map
 
     def get_resource(self, name: str) -> Any:
         return getattr(self.context.resources, name)

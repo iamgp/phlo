@@ -45,14 +45,10 @@
             "transform",
             "service",
             "hooks",
-            "orchestrator",
             "assets",
             "resources",
-            "semantic",
-            "observability",
-            "api",
-            "logging",
-            "bi"
+            "orchestrators",
+            "catalogs"
           ]
         },
         "package": {

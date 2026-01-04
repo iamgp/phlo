@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
-from unittest.mock import Mock
 
 import pandas as pd
 
@@ -1110,13 +1109,13 @@ def _get_context_resource(context: RuntimeContext, name: str) -> Any | None:
 
     try:
         if hasattr(context, "get_resource"):
-            if isinstance(context, Mock):
-                get_resource = getattr(context, "get_resource", None)
-                if (
-                    isinstance(get_resource, Mock)
-                    and getattr(get_resource, "_spec_class", None) is None
-                ):
-                    return None
+            get_resource = getattr(context, "get_resource", None)
+            if get_resource is None:
+                return None
+            if getattr(get_resource, "_spec_class", None) is None and hasattr(
+                get_resource, "mock_calls"
+            ):
+                return None
             return context.get_resource(name)
     except Exception:
         return None

@@ -29,7 +29,7 @@ phlo plugin install dlt
 
 | Feature                | How It Works                                                         |
 | ---------------------- | -------------------------------------------------------------------- |
-| **Asset Registration** | Ingestion assets published as capability specs via entry points      |
+| **Asset Registration** | Ingestion assets published as capability specs via asset provider entry points |
 | **Lineage Events**     | Emits `ingestion.start`, `ingestion.end` events for lineage tracking |
 | **Schema Evolution**   | Automatically handles schema changes during ingestion                |
 | **Hook Integration**   | Events captured by alerting, metrics, and OpenMetadata plugins       |

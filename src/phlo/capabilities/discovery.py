@@ -5,7 +5,6 @@ from __future__ import annotations
 from phlo.capabilities.registry import register_asset, register_check, register_resource
 from phlo.discovery import discover_plugins, get_global_registry
 from phlo.logging import get_logger
-from phlo.plugins.base import AssetProviderPlugin, ResourceProviderPlugin
 
 logger = get_logger(__name__)
 

@@ -79,7 +79,20 @@ def discover_trino_catalogs() -> list[CatalogPlugin]:
 
 
 def _to_properties_file(properties: dict[str, object]) -> str:
-    lines = [f"{key}={value}" for key, value in properties.items()]
+    def escape_value(value: object) -> str:
+        text = str(value)
+        text = text.replace("\\", "\\\\")
+        text = text.replace("\t", "\\t")
+        text = text.replace("\n", "\\n")
+        text = text.replace("\r", "\\r")
+        text = text.replace("\f", "\\f")
+        if text and text[0] in (" ", "\t", "#", "!"):
+            text = f"\\{text}"
+        text = text.replace("=", "\\=")
+        text = text.replace(":", "\\:")
+        return text
+
+    lines = [f"{escape_value(key)}={escape_value(value)}" for key, value in properties.items()]
     return "\n".join(lines) + "\n"
 
 
