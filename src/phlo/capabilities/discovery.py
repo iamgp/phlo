@@ -21,22 +21,20 @@ def discover_capabilities() -> None:
         plugin = registry.get_asset_provider(name)
         if plugin is None:
             continue
-        if isinstance(plugin, AssetProviderPlugin):
-            try:
-                for asset in plugin.get_assets():
-                    register_asset(asset)
-                for check in plugin.get_checks():
-                    register_check(check)
-            except Exception as exc:
-                logger.warning("Failed to load asset provider %s: %s", name, exc)
+        try:
+            for asset in plugin.get_assets():
+                register_asset(asset)
+            for check in plugin.get_checks():
+                register_check(check)
+        except Exception as exc:
+            logger.warning("Failed to load asset provider %s: %s", name, exc)
 
     for name in registry.list_resource_providers():
         plugin = registry.get_resource_provider(name)
         if plugin is None:
             continue
-        if isinstance(plugin, ResourceProviderPlugin):
-            try:
-                for resource in plugin.get_resources():
-                    register_resource(resource)
-            except Exception as exc:
-                logger.warning("Failed to load resource provider %s: %s", name, exc)
+        try:
+            for resource in plugin.get_resources():
+                register_resource(resource)
+        except Exception as exc:
+            logger.warning("Failed to load resource provider %s: %s", name, exc)
