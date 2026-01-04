@@ -4,24 +4,23 @@ These tests do not require a dbt manifest or running services.
 """
 
 import pytest
-from dagster import AssetKey
-from phlo_dbt.translator import CustomDbtTranslator
+from phlo_dbt.translator import DbtSpecTranslator
 
 
 def test_custom_dbt_translator_asset_key_model() -> None:
-    translator = CustomDbtTranslator()
+    translator = DbtSpecTranslator()
     asset_key = translator.get_asset_key(
         {"name": "stg_nightscout_entries", "resource_type": "model"}
     )
-    assert asset_key == AssetKey(["stg_nightscout_entries"])
+    assert asset_key == "stg_nightscout_entries"
 
 
 def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> None:
-    translator = CustomDbtTranslator()
+    translator = DbtSpecTranslator()
     asset_key = translator.get_asset_key(
         {"resource_type": "source", "source_name": "dagster_assets", "name": "entries"}
     )
-    assert asset_key == AssetKey(["dlt_entries"])
+    assert asset_key == "dlt_entries"
 
 
 @pytest.mark.parametrize(
@@ -34,7 +33,7 @@ def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> 
     ],
 )
 def test_custom_dbt_translator_group_name_prefers_folder(props: dict, expected: str) -> None:
-    translator = CustomDbtTranslator()
+    translator = DbtSpecTranslator()
     assert translator.get_group_name(props) == expected
 
 
@@ -49,12 +48,12 @@ def test_custom_dbt_translator_group_name_prefers_folder(props: dict, expected: 
     ],
 )
 def test_custom_dbt_translator_group_name_fallbacks(model_name: str, expected: str) -> None:
-    translator = CustomDbtTranslator()
+    translator = DbtSpecTranslator()
     assert translator.get_group_name({"name": model_name}) == expected
 
 
 def test_custom_dbt_translator_description_does_not_embed_compiled_sql_by_default() -> None:
-    translator = CustomDbtTranslator()
+    translator = DbtSpecTranslator()
     description = translator.get_description(
         {"name": "model_x", "description": "Doc", "compiled_code": "select 1 as x"}
     )
@@ -65,7 +64,7 @@ def test_custom_dbt_translator_metadata_compiled_sql_is_capped(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("PHLO_DBT_COMPILED_SQL_MAX_BYTES", "64")
-    translator = CustomDbtTranslator()
+    translator = DbtSpecTranslator()
 
     compiled_code = "select '" + ("x" * 10_000) + "' as big"
     metadata = translator.get_metadata({"name": "model_x", "compiled_code": compiled_code})

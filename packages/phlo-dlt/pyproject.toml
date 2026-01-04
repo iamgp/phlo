@@ -29,8 +29,8 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.entry-points."phlo.plugins.dagster"]
-dlt = "phlo_dlt.plugin:DltDagsterPlugin"
+[project.entry-points."phlo.plugins.assets"]
+dlt = "phlo_dlt.plugin:DltAssetProvider"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

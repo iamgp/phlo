@@ -11,11 +11,16 @@ from __future__ import annotations
 
 import platform
 from pathlib import Path
+from typing import Any
 
 import dagster as dg
 
 from phlo.config import get_settings
-from phlo.framework.discovery import discover_user_workflows
+from phlo.framework.discovery import (
+    _collect_dagster_extension_definitions,
+    _ensure_core_resources,
+    discover_user_workflows,
+)
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -71,7 +76,7 @@ def _default_executor() -> dg.ExecutorDefinition | None:
 
 def build_definitions(
     workflows_path: Path | str | None = None,
-) -> dg.Definitions:
+) -> Any:
     """
     Build Dagster definitions by merging user workflows with framework resources.
 
@@ -117,23 +122,26 @@ def build_definitions(
     # Discover user workflows
     try:
         user_defs = discover_user_workflows(workflows_path, clear_registries=True)
-        user_assets = list(user_defs.assets or [])
-        user_checks = list(user_defs.asset_checks or [])
+        user_assets = list(getattr(user_defs, "assets", []) or [])
+        user_checks = list(getattr(user_defs, "asset_checks", []) or [])
         logger.info("Discovered %d user assets, %d checks", len(user_assets), len(user_checks))
     except Exception as exc:
         logger.error(f"Failed to discover user workflows: {exc}", exc_info=True)
         user_defs = dg.Definitions()
 
-    # Definitions provided by installed Dagster extension plugins (and user modules)
+    orchestrator = settings.phlo_orchestrator
+    if orchestrator != "dagster":
+        return user_defs
+
+    dagster_defs = _collect_dagster_extension_definitions()
     definitions_to_merge = [user_defs]
+    if dagster_defs is not None:
+        definitions_to_merge.append(dagster_defs)
 
-    # Merge all definitions
     merged = dg.Definitions.merge(*definitions_to_merge)
+    merged = _ensure_core_resources(merged)
 
-    # Configure executor
     executor = _default_executor()
-
-    # Build final definitions - use explicit parameters instead of unpacking
     final_defs = dg.Definitions(
         assets=merged.assets,
         asset_checks=merged.asset_checks,

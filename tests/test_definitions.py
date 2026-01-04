@@ -16,6 +16,7 @@ class _Settings:
     phlo_force_in_process_executor: bool = False
     phlo_force_multiprocess_executor: bool = False
     phlo_host_platform: str | None = None
+    phlo_orchestrator: str = "dagster"
 
 
 def test_default_executor_honors_platform() -> None:

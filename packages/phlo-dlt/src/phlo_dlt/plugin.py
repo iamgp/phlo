@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Iterable
 
-from phlo.plugins.base import IngestionEnginePlugin, PluginMetadata
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec
+from phlo.plugins.base import AssetProviderPlugin, PluginMetadata
 
-from phlo_dlt.decorator import (
-    clear_ingestion_assets,
-    get_ingestion_assets,
-    phlo_ingestion,
-)
+from phlo_dlt.decorator import get_ingestion_assets
+from phlo_dlt.decorator import clear_ingestion_assets
 
 
-class DltDagsterPlugin(IngestionEnginePlugin):
+class DltAssetProvider(AssetProviderPlugin):
     @property
     def metadata(self) -> PluginMetadata:
         return PluginMetadata(
@@ -20,11 +18,11 @@ class DltDagsterPlugin(IngestionEnginePlugin):
             description="DLT-based ingestion engine for Phlo",
         )
 
-    def get_ingestion_assets(self) -> list[Any]:
+    def get_assets(self) -> Iterable[AssetSpec]:
         return get_ingestion_assets()
 
-    def get_ingestion_decorator(self) -> Callable[..., Any]:
-        return phlo_ingestion
+    def get_checks(self) -> Iterable[AssetCheckSpec]:
+        return []
 
     def clear_registries(self) -> None:
         clear_ingestion_assets()

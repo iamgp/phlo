@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import os
 
-from phlo.plugins.base import PluginMetadata, TrinoCatalogPlugin
+from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
 
-class IcebergCatalogPlugin(TrinoCatalogPlugin):
+class IcebergCatalogPlugin(CatalogPlugin):
     """Iceberg catalog with Nessie REST backend for Trino."""
 
     @property
@@ -18,6 +18,10 @@ class IcebergCatalogPlugin(TrinoCatalogPlugin):
             description="Iceberg catalog with Nessie REST backend",
             tags=["iceberg", "nessie", "lakehouse"],
         )
+
+    @property
+    def targets(self) -> list[str]:
+        return ["trino"]
 
     @property
     def catalog_name(self) -> str:
@@ -42,7 +46,7 @@ class IcebergCatalogPlugin(TrinoCatalogPlugin):
         }
 
 
-class IcebergDevCatalogPlugin(TrinoCatalogPlugin):
+class IcebergDevCatalogPlugin(CatalogPlugin):
     """Dev branch Iceberg catalog for Trino."""
 
     @property
@@ -53,6 +57,10 @@ class IcebergDevCatalogPlugin(TrinoCatalogPlugin):
             description="Iceberg dev branch catalog",
             tags=["iceberg", "nessie", "dev"],
         )
+
+    @property
+    def targets(self) -> list[str]:
+        return ["trino"]
 
     @property
     def catalog_name(self) -> str:

@@ -15,7 +15,6 @@ license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "phlo-quality>=0.1.0",
-    "dagster-dbt",
     "dbt-core",
     "dbt-trino",
     "dbt-postgres",
@@ -27,8 +26,8 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.entry-points."phlo.plugins.dagster"]
-dbt = "phlo_dbt.plugin:DbtDagsterPlugin"
+[project.entry-points."phlo.plugins.assets"]
+dbt = "phlo_dbt.plugin:DbtAssetProvider"
 
 [project.entry-points."phlo.plugins.cli"]
 dbt = "phlo_dbt.cli_plugin:DbtCliPlugin"

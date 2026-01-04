@@ -9,6 +9,7 @@ CHECK_CMD := scripts/run-parallel \
 	"py lint" "uv run ruff check ." \
 	"py format" "uv run ruff format --check ." \
 	"py typecheck" "uv run ty check" \
+	"py test" "uv run pytest -m 'not integration'" \
 	"ts lint" "$(NPM_OBSERVATORY) run lint" \
 	"ts format" "$(NPM_OBSERVATORY) run format -- --check ." \
 	"ts typecheck" "$(NPM_OBSERVATORY) exec tsc -- -p $(OBSERVATORY_DIR)/tsconfig.json --noEmit"

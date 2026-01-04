@@ -1,44 +1,24 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
 from typing import Any
 
-from dagster import AssetCheckResult, AssetCheckSeverity, AssetKey, MetadataValue
-from dagster_dbt import DagsterDbtTranslator
-
+from phlo.capabilities import CheckResult
 from phlo_quality.contract import QualityCheckContract, dbt_check_name
 from phlo_quality.severity import severity_for_dbt_test
-
-
-@dataclass(frozen=True, slots=True)
-class DbtTestCheck:
-    asset_key: AssetKey
-    check_name: str
-    passed: bool
-    severity: AssetCheckSeverity | None
-    metadata: dict[str, MetadataValue]
-
-    def to_asset_check_result(self) -> AssetCheckResult:
-        return AssetCheckResult(
-            asset_key=self.asset_key,
-            check_name=self.check_name,
-            passed=self.passed,
-            severity=self.severity,
-            metadata=self.metadata,
-        )
+from phlo_dbt.translator import DbtSpecTranslator
 
 
 def extract_dbt_asset_checks(
     run_results: Mapping[str, Any],
     manifest: Mapping[str, Any],
     *,
-    translator: DagsterDbtTranslator,
+    translator: DbtSpecTranslator,
     partition_key: str | None,
     max_sql_chars: int = 100_000,
-) -> list[AssetCheckResult]:
+) -> list[CheckResult]:
     nodes = manifest.get("nodes") or {}
-    checks: list[AssetCheckResult] = []
+    checks: list[CheckResult] = []
 
     for result in run_results.get("results", []) or []:
         unique_id = result.get("unique_id")
@@ -61,7 +41,7 @@ def extract_dbt_asset_checks(
             continue
 
         try:
-            asset_key = translator.get_asset_key(target_props)
+            asset_key_str = translator.get_asset_key(target_props)
         except Exception:
             continue
 
@@ -76,13 +56,14 @@ def extract_dbt_asset_checks(
         failures = _int_or_none(result.get("failures"))
         failed_count = 0 if passed else (failures if failures is not None else 1)
 
-        severity: AssetCheckSeverity | None
+        severity: str | None
         if passed:
             severity = None
         elif status == "fail":
-            severity = severity_for_dbt_test(test_type=test_type, tags=tags)
+            severity_label = severity_for_dbt_test(test_type=test_type, tags=tags)
+            severity = severity_label or "error"
         else:
-            severity = AssetCheckSeverity.ERROR
+            severity = "error"
 
         compiled_sql = _dbt_compiled_sql(test_props)
         compiled_sql = _truncate(compiled_sql, max_chars=max_sql_chars)
@@ -97,27 +78,27 @@ def extract_dbt_asset_checks(
             sample=_sample_for_result(result, passed=passed),
         )
 
-        metadata: dict[str, MetadataValue] = {
-            **contract.to_dagster_metadata(),
-            "status": MetadataValue.text(status or "unknown"),
-            "test_unique_id": MetadataValue.text(unique_id),
-            "test_type": MetadataValue.text(test_type),
-            "target_unique_id": MetadataValue.text(target_unique_id),
-            "target_name": MetadataValue.text(target_name),
+        metadata: dict[str, Any] = {
+            **contract.to_metadata(),
+            "status": status or "unknown",
+            "test_unique_id": unique_id,
+            "test_type": test_type,
+            "target_unique_id": target_unique_id,
+            "target_name": target_name,
         }
         if tags:
-            metadata["tags"] = MetadataValue.json(sorted(tags))
+            metadata["tags"] = sorted(tags)
         if failures is not None:
-            metadata["failed_rows"] = MetadataValue.int(failures)
+            metadata["failed_rows"] = failures
 
         checks.append(
-            DbtTestCheck(
-                asset_key=asset_key,
+            CheckResult(
+                asset_key=asset_key_str,
                 check_name=check_name,
                 passed=passed,
                 severity=severity,
                 metadata=metadata,
-            ).to_asset_check_result()
+            )
         )
 
     return checks

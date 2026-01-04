@@ -6,10 +6,10 @@ from typing import Any
 
 import pandas as pd
 import pandera.errors
-from dagster import AssetCheckResult, MetadataValue
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
 
+from phlo.capabilities.specs import CheckResult
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
 from phlo_quality.severity import severity_for_pandera_contract
 
@@ -89,9 +89,10 @@ def pandera_contract_asset_check_result(
     evaluation: PanderaContractEvaluation,
     *,
     partition_key: str | None,
+    asset_key: str,
     schema_class: type[DataFrameModel],
     query_or_sql: str,
-) -> AssetCheckResult:
+) -> CheckResult:
     contract = QualityCheckContract(
         source="pandera",
         partition_key=partition_key,
@@ -101,23 +102,18 @@ def pandera_contract_asset_check_result(
         repro_sql=None,
         sample=evaluation.sample,
     )
-    metadata: dict[str, MetadataValue] = {
-        **contract.to_dagster_metadata(),
-        "schema": MetadataValue.text(schema_class.__name__),
+    metadata: dict[str, Any] = {
+        **contract.to_metadata(),
+        "schema": schema_class.__name__,
     }
     if evaluation.error:
-        metadata["error"] = MetadataValue.text(evaluation.error)
+        metadata["error"] = evaluation.error
 
     severity = severity_for_pandera_contract(passed=evaluation.passed)
-    if severity is not None:
-        return AssetCheckResult(
-            passed=evaluation.passed,
-            check_name=PANDERA_CONTRACT_CHECK_NAME,
-            metadata=metadata,
-            severity=severity,
-        )
-    return AssetCheckResult(
+    return CheckResult(
         passed=evaluation.passed,
         check_name=PANDERA_CONTRACT_CHECK_NAME,
         metadata=metadata,
+        severity=severity,
+        asset_key=asset_key,
     )

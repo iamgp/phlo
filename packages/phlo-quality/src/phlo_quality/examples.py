@@ -184,7 +184,7 @@ def demo_decorator_benefits():
     """
     Demonstrate the benefits of @phlo_quality decorator.
 
-    BEFORE (Manual, ~40 lines of boilerplate):
+    BEFORE (Manual, ~40 lines of boilerplate, Dagster adapter example):
     ```python
     from dagster import AssetCheckResult, AssetKey, MetadataValue, asset_check
     import pandas as pd

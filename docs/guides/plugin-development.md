@@ -13,8 +13,14 @@ Phlo's plugin system allows you to extend the platform with custom functionality
 - **Dagster Extensions**: Add custom resources, sensors, or schedules
 - **CLI Extensions**: Add custom CLI commands
 - **Hook Plugins**: Subscribe to pipeline events without direct dependencies
+- **Asset Providers**: Publish orchestrator-agnostic asset specs
+- **Resource Providers**: Publish orchestrator-agnostic resource specs
+- **Orchestrator Adapters**: Translate capability specs into orchestrator definitions
 
 This guide walks through creating each type of plugin.
+
+For the orchestrator-agnostic spec model, read
+[Capability Primitives](capability-primitives.md) first.
 
 ## Plugin System Basics
 
@@ -40,9 +46,12 @@ Phlo uses Python entry points to automatically discover plugins:
 │     • phlo.plugins.sources           │
 │     • phlo.plugins.quality           │
 │     • phlo.plugins.transforms        │
-│     • phlo.plugins.dagster           │
+│     • phlo.plugins.dagster (legacy)  │
 │     • phlo.plugins.cli               │
 │     • phlo.plugins.hooks             │
+│     • phlo.plugins.assets            │
+│     • phlo.plugins.resources         │
+│     • phlo.plugins.orchestrators     │
 └──────────────────────────────────────┘
               │
               ▼
@@ -156,6 +165,75 @@ class MySemanticLayer(SemanticLayerProvider):
 ```
 
 Recommended: subscribe to `publish.end` events to refresh semantic models when marts update.
+
+## Asset Provider Plugins
+
+Asset providers publish orchestrator-agnostic asset specs that adapters translate into runtime
+definitions.
+
+```python
+from phlo.capabilities import AssetSpec, PartitionSpec, RunSpec
+from phlo.plugins import AssetProviderPlugin, PluginMetadata
+
+
+class MyAssetProvider(AssetProviderPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="my-assets",
+            version="0.1.0",
+            description="Asset specs for my domain",
+        )
+
+    def get_assets(self):
+        return [
+            AssetSpec(
+                key="my_asset",
+                group="demo",
+                description="Demo asset",
+                partitions=PartitionSpec(kind="daily"),
+                run=RunSpec(fn=self.run_asset),
+            )
+        ]
+
+    def run_asset(self, context):
+        return []
+```
+
+Register in `pyproject.toml`:
+
+```toml
+[project.entry-points."phlo.plugins.assets"]
+my_assets = "my_pkg.plugin:MyAssetProvider"
+```
+
+## Orchestrator Adapter Plugins
+
+Adapters translate capability specs into orchestrator-native definitions.
+
+```python
+from phlo.plugins import OrchestratorAdapterPlugin, PluginMetadata
+
+
+class MyOrchestrator(OrchestratorAdapterPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="my-orchestrator",
+            version="0.1.0",
+            description="Adapter for My Orchestrator",
+        )
+
+    def build_definitions(self, *, assets, checks, resources):
+        return MyDefinitions(...)
+```
+
+Register in `pyproject.toml`:
+
+```toml
+[project.entry-points."phlo.plugins.orchestrators"]
+my_orchestrator = "my_pkg.adapter:MyOrchestrator"
+```
 
 ## Developing a Source Connector Plugin
 

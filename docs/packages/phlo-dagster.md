@@ -4,7 +4,7 @@ Data orchestration platform for Phlo.
 
 ## Overview
 
-`phlo-dagster` provides the core data orchestration platform for scheduling, monitoring, and managing data pipelines. It runs ingestion, transformation, and quality workflows as Dagster assets.
+`phlo-dagster` provides the core data orchestration platform for scheduling, monitoring, and managing data pipelines. It translates capability specs into Dagster assets, checks, and resources.
 
 ## Installation
 
@@ -29,7 +29,7 @@ This package is **fully auto-configured**:
 
 | Feature                | How It Works                                                              |
 | ---------------------- | ------------------------------------------------------------------------- |
-| **Plugin Discovery**   | Auto-discovers Dagster extensions via `phlo.plugins.dagster` entry points |
+| **Adapter Discovery**  | Loads `phlo.plugins.orchestrators` and builds Dagster definitions         |
 | **dbt Compilation**    | Auto-compiles dbt on startup via post_start hook                          |
 | **Workflow Discovery** | Auto-discovers workflows in `workflows/` directory                        |
 | **Metrics Labels**     | Exposes Dagster metrics for Prometheus                                    |
@@ -45,14 +45,13 @@ hooks:
       command: dbt compile
 ```
 
-### Plugin Discovery
+### Capability Discovery
 
-Dagster extensions are auto-loaded through the plugin system:
+Capability providers are auto-loaded through the plugin system:
 
-- `@phlo_ingestion` assets from phlo-dlt
-- `IcebergResource` from phlo-iceberg
-- dbt assets from phlo-dbt
-- Quality checks from phlo-quality
+- Asset specs from `phlo.plugins.assets` (for example phlo-dlt, phlo-dbt)
+- Resource specs from `phlo.plugins.resources` (for example phlo-iceberg, phlo-trino)
+- Check specs from `@phlo_quality` and other packages
 
 ## Usage
 
@@ -110,20 +109,20 @@ phlo materialize my_asset
 │  - Sensor polling                        │
 │  - Auto-materialization                  │
 ├──────────────────────────────────────────┤
-│         Phlo Plugin Extensions           │
-│  - DLT Ingestion                         │
-│  - dbt Transformations                   │
-│  - Quality Checks                        │
-│  - Iceberg Resources                     │
+│         Capability Providers             │
+│  - Asset specs                           │
+│  - Check specs                            │
+│  - Resource specs                        │
 └──────────────────────────────────────────┘
 ```
 
 ## Entry Points
 
-| Entry Point             | Plugin                                               |
-| ----------------------- | ---------------------------------------------------- |
-| `phlo.plugins.services` | `DagsterServicePlugin`, `DagsterDaemonServicePlugin` |
-| `phlo.plugins.cli`      | Dagster CLI commands                                 |
+| Entry Point                  | Plugin                                               |
+| ---------------------------- | ---------------------------------------------------- |
+| `phlo.plugins.services`      | `DagsterServicePlugin`, `DagsterDaemonServicePlugin` |
+| `phlo.plugins.orchestrators` | `DagsterOrchestratorAdapter`                         |
+| `phlo.plugins.cli`           | Dagster CLI commands                                 |
 
 ## Related Packages
 

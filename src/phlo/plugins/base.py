@@ -6,14 +6,16 @@ These abstract base classes define the interfaces that plugins must implement.
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
 import click
-import dagster as dg
 import pandas as pd
+
+from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
 
 
 @dataclass
@@ -98,14 +100,14 @@ class DagsterExtensionPlugin(Plugin, ABC):
 
     These plugins contribute Dagster definitions (assets/resources/schedules/sensors/etc.)
     to the running Phlo instance.
-
-    This is the primary mechanism for first-party "capability" packages (e.g. ingestion engines,
-    catalogs, transform integrations) to auto-wire themselves into the lakehouse without living in
-    `phlo` core.
     """
 
-    def get_definitions(self) -> dg.Definitions:
+    def get_definitions(self) -> Any:
         """Return Dagster definitions to merge into the global Definitions."""
+        try:
+            import dagster as dg
+        except Exception as exc:  # noqa: BLE001 - optional dependency
+            raise RuntimeError("Dagster is required for DagsterExtensionPlugin") from exc
         return dg.Definitions()
 
     def get_exports(self) -> dict[str, Any]:
@@ -127,8 +129,7 @@ class IngestionEnginePlugin(DagsterExtensionPlugin, ABC):
     """
     Base class for ingestion engine capability plugins.
 
-    Ingestion engines expose a decorator for defining ingestion assets and
-    a registry of those assets for Dagster definitions.
+    Deprecated in favor of capability specs + orchestrator adapters.
     """
 
     @abstractmethod
@@ -140,14 +141,6 @@ class IngestionEnginePlugin(DagsterExtensionPlugin, ABC):
     def get_ingestion_decorator(self) -> Callable[..., Any]:
         """Return the decorator used to define ingestion assets."""
         raise NotImplementedError
-
-    def get_definitions(self) -> dg.Definitions:
-        """Return Dagster definitions for all registered ingestion assets."""
-        return dg.Definitions(assets=list(self.get_ingestion_assets()))
-
-    def get_exports(self) -> dict[str, Any]:
-        """Expose the ingestion decorator for `phlo` public API exports."""
-        return {"ingestion": self.get_ingestion_decorator()}
 
 
 class CliCommandPlugin(Plugin, ABC):
@@ -495,16 +488,16 @@ class TransformationPlugin(Plugin, ABC):
         return True
 
 
-class TrinoCatalogPlugin(Plugin, ABC):
+class CatalogPlugin(Plugin, ABC):
     """
-    Base class for Trino catalog plugins.
+    Base class for engine-agnostic catalog plugins.
 
-    Catalog plugins define Trino connector configurations that are
-    auto-discovered and generated into .properties files at startup.
+    Catalog plugins define logical catalog configuration that engine adapters
+    serialize into their native formats (files or programmatic config).
 
     Example:
         ```python
-        class IcebergCatalogPlugin(TrinoCatalogPlugin):
+        class IcebergCatalogPlugin(CatalogPlugin):
             @property
             def metadata(self) -> PluginMetadata:
                 return PluginMetadata(
@@ -512,6 +505,10 @@ class TrinoCatalogPlugin(Plugin, ABC):
                     version="1.0.0",
                     description="Iceberg catalog with Nessie backend",
                 )
+
+            @property
+            def targets(self) -> list[str]:
+                return ["trino", "spark"]
 
             @property
             def catalog_name(self) -> str:
@@ -528,27 +525,84 @@ class TrinoCatalogPlugin(Plugin, ABC):
 
     @property
     @abstractmethod
+    def targets(self) -> list[str]:
+        """
+        Return engine identifiers that can consume this catalog.
+
+        Examples: ["trino"], ["spark"], ["trino", "spark"].
+        """
+        pass
+
+    @property
+    @abstractmethod
     def catalog_name(self) -> str:
         """
         Return the catalog name.
 
-        This becomes the .properties filename and catalog name in Trino.
+        This becomes the catalog identifier in the engine.
         """
         pass
 
     @abstractmethod
-    def get_properties(self) -> dict[str, str]:
+    def get_properties(self) -> dict[str, Any]:
         """
-        Return catalog properties as key-value pairs.
+        Return catalog configuration as key-value pairs.
 
         Returns:
-            Dictionary of property name -> value
+            Dictionary of config key -> value
         """
         pass
 
-    def to_properties_file(self) -> str:
-        """Convert properties to .properties file format."""
-        lines = []
-        for key, value in self.get_properties().items():
-            lines.append(f"{key}={value}")
-        return "\n".join(lines) + "\n"
+    def supports_target(self, target: str) -> bool:
+        """Return True if the catalog supports the requested engine target."""
+        return target in self.targets
+
+
+class TrinoCatalogPlugin(CatalogPlugin, ABC):
+    """
+    Deprecated: use CatalogPlugin with targets=["trino"] instead.
+    """
+
+    def __init__(self) -> None:
+        warnings.warn(
+            "TrinoCatalogPlugin is deprecated; use CatalogPlugin with targets=['trino'].",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+    @property
+    def targets(self) -> list[str]:
+        return ["trino"]
+
+
+class AssetProviderPlugin(Plugin, ABC):
+    """Base class for capability plugins that provide asset specs."""
+
+    @abstractmethod
+    def get_assets(self) -> Iterable[AssetSpec]:
+        raise NotImplementedError
+
+    def get_checks(self) -> Iterable[AssetCheckSpec]:
+        return []
+
+
+class ResourceProviderPlugin(Plugin, ABC):
+    """Base class for plugins that provide resource specs."""
+
+    @abstractmethod
+    def get_resources(self) -> Iterable[ResourceSpec]:
+        raise NotImplementedError
+
+
+class OrchestratorAdapterPlugin(Plugin, ABC):
+    """Base class for orchestrator adapters."""
+
+    @abstractmethod
+    def build_definitions(
+        self,
+        *,
+        assets: Iterable[AssetSpec],
+        checks: Iterable[AssetCheckSpec],
+        resources: Iterable[ResourceSpec],
+    ) -> Any:
+        raise NotImplementedError

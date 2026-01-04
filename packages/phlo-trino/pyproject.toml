@@ -24,8 +24,8 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.entry-points."phlo.plugins.dagster"]
-trino = "phlo_trino.dagster_plugin:TrinoDagsterPlugin"
+[project.entry-points."phlo.plugins.resources"]
+trino = "phlo_trino.plugin:TrinoResourceProvider"
 
 [project.entry-points."phlo.plugins.services"]
 trino = "phlo_trino.plugin:TrinoServicePlugin"

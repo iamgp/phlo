@@ -154,6 +154,11 @@ class Settings(BaseSettings):
     # Settings for Dagster data orchestration platform
     # Dagster
     dagster_port: int = Field(default=10006, description="Dagster webserver port")
+    phlo_orchestrator: str = Field(
+        default="dagster",
+        validation_alias=AliasChoices("PHLO_ORCHESTRATOR", "PHLO_ORCHESTRATOR_NAME"),
+        description="Active orchestrator adapter name",
+    )
     phlo_force_in_process_executor: bool = Field(
         default=False, description="Force use of in-process executor"
     )
