@@ -363,7 +363,18 @@ phlo materialize my_data --partition 2025-01-15
 
 Schemas serve as the source of truth for data structure and validation.
 
-### Basic Schema
+### Schema Definition Approaches
+
+Phlo supports two approaches for defining Pandera schemas:
+
+1. **Manual Definition**: Write Pandera classes directly (full control, more verbose)
+2. **dbt YAML Generation**: Define schema in dbt model YAML, auto-generate Pandera (single source of truth)
+
+Choose the approach that best fits your use case (see decision guide below).
+
+### Approach 1: Manual Schema Definition
+
+Define Pandera schemas directly in Python for full control:
 
 ```python
 import pandera as pa
@@ -460,6 +471,260 @@ class MultiColumnSchema(pa.DataFrameModel):
     @pa.check("end_date")
     def end_after_start(cls, series):
         return series >= cls.start_date
+```
+
+### Approach 2: Generate Schemas from dbt YAML
+
+**Reduce schema duplication by 50%** - define your schema once in dbt YAML, auto-generate the Pandera schema.
+
+#### Why Use dbt YAML Generation?
+
+**Problem**: Manually writing both dbt schema tests AND Pandera schemas creates duplication and drift:
+
+```yaml
+# dbt model YAML - defines schema tests
+columns:
+  - name: glucose_mg_dl
+    data_tests:
+      - not_null
+      - accepted_values:
+          values: [70, 80, 90, 100, ...]
+```
+
+```python
+# Pandera schema - duplicates the same validation logic
+class FactGlucoseReadings(PhloSchema):
+    glucose_mg_dl: Series[int] = pa.Field(nullable=False, isin=[70, 80, 90, 100, ...])
+```
+
+**Solution**: Use `dbt_model_to_pandera` to generate Pandera schemas from dbt YAML:
+
+```python
+from pathlib import Path
+from phlo_dbt.dbt_schema import dbt_model_to_pandera
+
+# Point to your dbt model YAML
+_dbt_model_path = Path(__file__).parent.parent / "transforms/dbt/models/silver/fct_glucose_readings.yml"
+
+# Auto-generate Pandera schema from dbt YAML
+FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
+```
+
+**Benefits**:
+- Single source of truth (dbt YAML)
+- 50% less code to maintain
+- No schema drift between dbt and Pandera
+- dbt data_tests automatically become Pandera Field constraints
+- Works seamlessly with `@phlo_quality` decorator
+
+#### Step 1: Define Schema in dbt YAML
+
+Use dbt `data_tests` to define your validation rules:
+
+```yaml
+# workflows/transforms/dbt/models/silver/fct_glucose_readings.yml
+version: 2
+
+models:
+  - name: fct_glucose_readings
+    description: "Silver layer fact table for enriched glucose readings"
+    columns:
+      - name: entry_id
+        description: "Unique identifier for the glucose entry"
+        data_tests:
+          - not_null
+          - unique
+
+      - name: glucose_mg_dl
+        description: "Blood glucose level in mg/dL"
+        data_tests:
+          - not_null
+
+      - name: glucose_category
+        description: "Categorized glucose level"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - "hypoglycemia"
+                  - "in_range"
+                  - "hyperglycemia_mild"
+                  - "hyperglycemia_severe"
+
+      - name: hour_of_day
+        description: "Hour when reading was taken"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+                quote: false
+```
+
+**Supported dbt data_tests**:
+
+- `not_null` → `nullable=False`
+- `unique` → `unique=True`
+- `accepted_values` → `isin=[...]`
+- `dbt_expectations.expect_column_values_to_be_between` → `ge=`, `le=`
+- `dbt_utils.accepted_range` → `ge=`, `le=`
+
+#### Step 2: Generate Pandera Schema
+
+In your schemas file, generate the Pandera class:
+
+```python
+# workflows/schemas/nightscout.py
+from pathlib import Path
+from phlo_dbt.dbt_schema import dbt_model_to_pandera
+
+# Define path to dbt model YAML
+_dbt_model_path = (
+    Path(__file__).parent.parent
+    / "transforms"
+    / "dbt"
+    / "models"
+    / "silver"
+    / "fct_glucose_readings.yml"
+)
+
+# Generate Pandera schema from dbt YAML
+FactGlucoseReadings = dbt_model_to_pandera(
+    _dbt_model_path,
+    "fct_glucose_readings"  # Model name in YAML
+)
+
+# Optional: specify custom class name
+# FactGlucoseReadings = dbt_model_to_pandera(
+#     _dbt_model_path,
+#     "fct_glucose_readings",
+#     class_name="CustomClassName"
+# )
+```
+
+The generated schema automatically inherits from `PhloSchema` and includes all constraints from dbt tests.
+
+#### Step 3: Use with @phlo_quality
+
+The generated schema works seamlessly with quality checks:
+
+```python
+# workflows/quality/nightscout.py
+from phlo_quality import phlo_quality
+from phlo_quality.checks import SchemaCheck
+from workflows.schemas.nightscout import FactGlucoseReadings
+
+@phlo_quality(
+    table="silver.fct_glucose_readings",
+    checks=[
+        SchemaCheck(schema=FactGlucoseReadings)  # Uses auto-generated schema
+    ]
+)
+def glucose_quality():
+    pass
+```
+
+#### Type Inference
+
+Since dbt YAML doesn't specify types (they're in the SQL), `dbt_model_to_pandera` infers types using heuristics:
+
+**Column name patterns**:
+- `*_timestamp`, `*_date`, `*_at` → `datetime`
+- `*_id`, `id` → `str`
+- `*_count`, `*_amount`, `*_num`, `*_qty` → `int`
+- `*_pct`, `*_percent` → `float`
+
+**Test value patterns**:
+- `accepted_values` with all integers → `int`
+- `accepted_values` with all strings → `str`
+- `expect_column_values_to_be_between` with integers → `int`
+- `expect_column_values_to_be_between` with floats → `float`
+
+**Default**: `str` if no pattern matches
+
+#### When to Use dbt YAML Generation vs Manual Schemas
+
+**Use dbt YAML generation when**:
+- ✅ You have dbt transformations defining the schema
+- ✅ Schema is relatively simple (standard data_tests)
+- ✅ You want single source of truth in dbt
+- ✅ You want to reduce maintenance burden
+
+**Use manual Pandera schemas when**:
+- ✅ No dbt models (raw layer ingestion)
+- ✅ Complex custom validators needed
+- ✅ Multi-column checks required
+- ✅ Advanced Pandera features needed (custom checks, coercion strategies)
+
+**Common pattern** (as seen in nightscout example):
+```python
+# Raw layer - manual schema (no dbt model)
+class RawGlucoseEntries(PhloSchema):
+    _id: str = Field(unique=True)
+    sgv: int = Field(ge=1, le=1000)
+    # ... manual definition
+
+# Silver layer - generated from dbt YAML (single source of truth)
+FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
+
+# Gold layer - manual schema (complex aggregations)
+class FactDailyGlucoseMetrics(PhloSchema):
+    reading_date: datetime = Field(unique=True)
+    # ... manual definition with custom logic
+```
+
+#### Complete Example
+
+See the nightscout example for a production implementation:
+
+- dbt YAML: `/home/ubuntu/phlo/phlo-examples/nightscout/workflows/transforms/dbt/models/silver/fct_glucose_readings.yml`
+- Schema generation: `/home/ubuntu/phlo/phlo-examples/nightscout/workflows/schemas/nightscout.py`
+
+```python
+# From nightscout/workflows/schemas/nightscout.py
+"""Pandera schemas for Nightscout glucose data validation.
+
+Raw layer schemas are defined manually.
+Fact layer schema is GENERATED from dbt model YAML (single source of truth).
+"""
+
+from pathlib import Path
+from phlo_dbt.dbt_schema import dbt_model_to_pandera
+from phlo_quality.schemas import PhloSchema
+
+# =============================================================================
+# RAW LAYER - Manual schemas (internal, not published)
+# =============================================================================
+
+class RawGlucoseEntries(PhloSchema):
+    """Schema for raw Nightscout glucose entries from the API."""
+    _id: str = Field(unique=True)
+    sgv: int = Field(ge=1, le=1000)
+    # ... more fields
+
+# =============================================================================
+# FACT LAYER - Generated from dbt model YAML (single source of truth)
+# =============================================================================
+
+_dbt_model_path = (
+    Path(__file__).parent.parent
+    / "transforms"
+    / "dbt"
+    / "models"
+    / "silver"
+    / "fct_glucose_readings.yml"
+)
+FactGlucoseReadings = dbt_model_to_pandera(_dbt_model_path, "fct_glucose_readings")
+
+# =============================================================================
+# GOLD LAYER - Manual schema (complex aggregations)
+# =============================================================================
+
+class FactDailyGlucoseMetrics(PhloSchema):
+    """Schema for the fct_daily_glucose_metrics table (gold layer)."""
+    reading_date: datetime = Field(unique=True)
+    # ... complex aggregation fields
 ```
 
 ### Schema Conversion to Iceberg
