@@ -566,6 +566,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="3. Schema-First Development">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manual-schema-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Schema Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-generation-from-dbt-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Generation from dbt YAML
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1149,6 +1177,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="3. Schema-First Development">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manual-schema-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Schema Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-generation-from-dbt-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema Generation from dbt YAML
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1423,7 +1479,13 @@ def events_quality():
 <li>Partitioned runs scope checks to the run partition by default (using <code>_phlo_partition_date</code> unless overridden).</li>
 </ul>
 <h3 id="3-schema-first-development">3. Schema-First Development</h3>
-<p>Pandera schemas serve as the source of truth for data structure and quality:</p>
+<p>Pandera schemas serve as the source of truth for data structure and quality.</p>
+<p><strong>Two approaches for defining schemas</strong>:</p>
+<ol>
+<li><strong>Manual Definition</strong>: Write Pandera classes directly (full control)</li>
+<li><strong>dbt YAML Generation</strong>: Auto-generate from dbt model YAML (single source of truth)</li>
+</ol>
+<h4 id="manual-schema-definition">Manual Schema Definition</h4>
 <pre><code class="language-python">import pandera as pa
 from pandera.typing import Series
 
@@ -1456,6 +1518,30 @@ class EventSchema(pa.DataFrameModel):
         strict = True
         coerce = True
 </code></pre>
+<h4 id="schema-generation-from-dbt-yaml">Schema Generation from dbt YAML</h4>
+<p><strong>Reduce schema duplication</strong> by generating Pandera schemas from dbt model YAML:</p>
+<pre><code class="language-python">from phlo_dbt.dbt_schema import dbt_model_to_pandera
+
+# Define schema once in dbt YAML, auto-generate Pandera
+FactGlucoseReadings = dbt_model_to_pandera(
+    &quot;workflows/transforms/dbt/models/silver/fct_glucose_readings.yml&quot;,
+    &quot;fct_glucose_readings&quot;
+)
+</code></pre>
+<p><strong>How it works</strong>:</p>
+<ol>
+<li>Define schema with dbt <code>data_tests</code> in YAML</li>
+<li>Call <code>dbt_model_to_pandera</code> to generate Pandera class</li>
+<li>dbt tests automatically become Pandera Field constraints:</li>
+<li><code>not_null</code> → <code>nullable=False</code></li>
+<li><code>unique</code> → <code>unique=True</code></li>
+<li><code>accepted_values</code> → <code>isin=[...]</code></li>
+</ol>
+<p><strong>When to use each approach</strong>:</p>
+<ul>
+<li><strong>Manual</strong>: Raw layer schemas, complex validators, multi-column checks</li>
+<li><strong>Generated</strong>: Silver/gold layer schemas with dbt models (avoid duplication)</li>
+</ul>
 <p><strong>Benefits</strong>:</p>
 <ul>
 <li>Type safety at runtime</li>
@@ -1463,6 +1549,7 @@ class EventSchema(pa.DataFrameModel):
 <li>Validation enforced automatically</li>
 <li>Self-documenting data contracts</li>
 <li>IDE autocomplete support</li>
+<li><strong>50% less code</strong> when using dbt YAML generation</li>
 </ul>
 <p><strong>Schema Conversion</strong> (Pandera → Iceberg):</p>
 <pre><code class="language-python"># packages/phlo-dlt/src/phlo_dlt/converter.py
