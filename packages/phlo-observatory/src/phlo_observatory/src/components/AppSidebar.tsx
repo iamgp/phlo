@@ -1,15 +1,5 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import {
-  Activity,
-  Boxes,
-  Database,
-  GitBranch,
-  LayoutDashboard,
-  Settings,
-  Shield,
-  Table,
-  Terminal,
-} from 'lucide-react'
+import { Boxes, LayoutDashboard, Settings, Terminal } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import {
@@ -21,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { useObservatoryExtensions } from '@/extensions/registry'
 
 type NavItem = {
   to:
@@ -40,12 +31,6 @@ type NavItem = {
 const navItems: Array<NavItem> = [
   { to: '/', label: 'Dashboard', icon: <LayoutDashboard /> },
   { to: '/hub', label: 'Hub', icon: <Boxes /> },
-  { to: '/data', label: 'Data Explorer', icon: <Table /> },
-  { to: '/assets', label: 'Assets', icon: <Database /> },
-  { to: '/graph', label: 'Lineage Graph', icon: <GitBranch /> },
-  { to: '/branches', label: 'Branches', icon: <GitBranch /> },
-  { to: '/quality', label: 'Quality', icon: <Shield /> },
-  { to: '/logs', label: 'Logs', icon: <Activity /> },
   { to: '/settings', label: 'Settings', icon: <Settings /> },
 ]
 
@@ -55,6 +40,7 @@ export function AppSidebar() {
     select: (state) => state.location,
   })
   const { pathname, search } = routerState
+  const { navItems: extensionNavItems } = useObservatoryExtensions()
 
   // Track if we're in SQL mode (either via search param or data route with sql)
   const isSqlMode = search.tab === 'query' || !!search.sql
@@ -106,6 +92,24 @@ export function AppSidebar() {
               <span>SQL Query</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {extensionNavItems.length ? (
+            <div className="mt-2 border-t border-border pt-2">
+              {extensionNavItems.map((item) => (
+                <SidebarMenuItem key={item.to}>
+                  <SidebarMenuButton
+                    isActive={
+                      pathname === item.to || pathname.startsWith(`${item.to}/`)
+                    }
+                    tooltip={item.title}
+                    onClick={() => navigate({ to: item.to })}
+                  >
+                    <Boxes />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </div>
+          ) : null}
         </SidebarMenu>
       </SidebarContent>
 

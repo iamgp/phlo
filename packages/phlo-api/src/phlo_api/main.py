@@ -35,6 +35,7 @@ app.add_middleware(
 # Include Observatory API routers
 try:
     from phlo_api.observatory_api.dagster import router as dagster_router
+    from phlo_api.observatory_api.extensions import router as extensions_router
     from phlo_api.observatory_api.iceberg import router as iceberg_router
     from phlo_api.observatory_api.lineage import router as lineage_router
     from phlo_api.observatory_api.loki import router as loki_router
@@ -42,6 +43,7 @@ try:
     from phlo_api.observatory_api.nessie import router as nessie_router
     from phlo_api.observatory_api.quality import router as quality_router
     from phlo_api.observatory_api.search import router as search_router
+    from phlo_api.observatory_api.settings import router as settings_router
     from phlo_api.observatory_api.trino import router as trino_router
 
     app.include_router(trino_router, prefix="/api/trino")
@@ -53,6 +55,8 @@ try:
     app.include_router(lineage_router, prefix="/api/lineage")
     app.include_router(maintenance_router, prefix="/api/maintenance")
     app.include_router(search_router, prefix="/api/search")
+    app.include_router(extensions_router)
+    app.include_router(settings_router)
 except ImportError:
     # Routers not available (minimal install)
     pass

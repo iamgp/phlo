@@ -28,6 +28,7 @@ import {
   ObservatorySettingsProvider,
   useObservatorySettings,
 } from '@/hooks/useObservatorySettings'
+import { ObservatoryExtensionProvider } from '@/extensions/registry'
 import { cn } from '@/lib/utils'
 import { getSearchIndex } from '@/server/search.server'
 
@@ -68,7 +69,9 @@ function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ObservatorySettingsProvider>
-        <RootLayoutInner />
+        <ObservatoryExtensionProvider>
+          <RootLayoutInner />
+        </ObservatoryExtensionProvider>
       </ObservatorySettingsProvider>
     </QueryClientProvider>
   )

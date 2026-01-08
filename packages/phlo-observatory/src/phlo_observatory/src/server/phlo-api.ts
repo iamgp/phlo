@@ -60,6 +60,29 @@ export async function apiPost<T>(
 }
 
 /**
+ * Make a PUT request to phlo-api
+ */
+export async function apiPut<T>(
+  endpoint: string,
+  body?: unknown,
+  timeoutMs = 30000,
+): Promise<T> {
+  const response = await fetch(`${PHLO_API_URL}${endpoint}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`phlo-api error: ${response.status} ${text}`)
+  }
+
+  return response.json()
+}
+
+/**
  * Make a DELETE request to phlo-api
  */
 export async function apiDelete<T>(
