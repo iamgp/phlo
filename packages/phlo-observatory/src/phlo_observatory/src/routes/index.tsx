@@ -11,6 +11,11 @@ import {
   Wrench,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import type {
+  DagsterConnectionStatus,
+  HealthMetrics,
+} from '@/server/dagster.server'
+import type { MaintenanceStatusSnapshot } from '@/server/maintenance.server'
 import { Button } from '@/components/ui/button'
 import {
   Card,

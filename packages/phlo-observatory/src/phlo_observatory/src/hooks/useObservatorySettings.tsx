@@ -53,7 +53,9 @@ export function ObservatorySettingsProvider({
 
         setStored((current) => {
           if (current.source === 'localStorage') {
-            void putObservatorySettings({ data: { settings: current.settings } })
+            void putObservatorySettings({
+              data: { settings: current.settings },
+            })
             return current
           }
           const next = serverDefaults

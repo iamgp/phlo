@@ -10,11 +10,11 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from importlib.resources.abc import Traversable
 from typing import Any, Callable, Iterable
 
 import click
 import pandas as pd
-from importlib.resources.abc import Traversable
 
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
 from phlo.plugins.observatory import ObservatoryExtensionManifest

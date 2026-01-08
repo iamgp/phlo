@@ -1,14 +1,21 @@
-import type { ComponentType, ReactNode } from 'react'
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { createRoute, type AnyRoute, useRouter } from '@tanstack/react-router'
-
 import {
-  getObservatoryExtensions,
-  type ObservatoryExtension,
-  type ObservatoryExtensionNavItem,
-  type ObservatoryExtensionRoute,
-  type ObservatoryExtensionSlot,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { createRoute, useRouter } from '@tanstack/react-router'
+import type { ComponentType, ReactNode } from 'react'
+import type { AnyRoute } from '@tanstack/react-router'
+
+import type {
+  ObservatoryExtension,
+  ObservatoryExtensionNavItem,
+  ObservatoryExtensionRoute,
 } from '@/server/extensions.server'
+import { getObservatoryExtensions } from '@/server/extensions.server'
 
 export type ExtensionRouteContext = {
   createRoute: typeof createRoute
@@ -33,7 +40,9 @@ type ExtensionRegistryState = {
   slots: Record<string, Array<ComponentType>>
 }
 
-const ExtensionRegistryContext = createContext<ExtensionRegistryState | null>(null)
+const ExtensionRegistryContext = createContext<ExtensionRegistryState | null>(
+  null,
+)
 
 function uniqueNavItems(items: Array<ObservatoryExtensionNavItem>) {
   const seen = new Set<string>()
@@ -45,10 +54,16 @@ function uniqueNavItems(items: Array<ObservatoryExtensionNavItem>) {
   })
 }
 
-export function ObservatoryExtensionProvider({ children }: { children: ReactNode }) {
+export function ObservatoryExtensionProvider({
+  children,
+}: {
+  children: ReactNode
+}) {
   const router = useRouter()
   const [extensions, setExtensions] = useState<Array<ObservatoryExtension>>([])
-  const [navItems, setNavItems] = useState<Array<ObservatoryExtensionNavItem>>([])
+  const [navItems, setNavItems] = useState<Array<ObservatoryExtensionNavItem>>(
+    [],
+  )
   const [slots, setSlots] = useState<Record<string, Array<ComponentType>>>({})
   const registeredExtensions = useRef(new Set<string>())
 
@@ -79,8 +94,10 @@ export function ObservatoryExtensionProvider({ children }: { children: ReactNode
       )
       setNavItems(nextNavItems)
 
-      const rootRoute = router.options.routeTree
+      const rootRoute = router.options.routeTree as AnyRoute | undefined
       const nextRoutes: Array<AnyRoute> = []
+
+      if (!rootRoute) return
 
       for (const extension of entries) {
         const extensionName = extension.manifest.name
@@ -93,7 +110,9 @@ export function ObservatoryExtensionProvider({ children }: { children: ReactNode
         for (const route of routes) {
           try {
             const module = await import(/* @vite-ignore */ route.module)
-            const registerRoutes = module[route.export] as RegisterRoutesFn | undefined
+            const registerRoutes = module[route.export] as
+              | RegisterRoutesFn
+              | undefined
             if (typeof registerRoutes !== 'function') continue
             const result = registerRoutes({
               createRoute,
@@ -115,7 +134,9 @@ export function ObservatoryExtensionProvider({ children }: { children: ReactNode
         for (const slot of slotsToRegister) {
           try {
             const module = await import(/* @vite-ignore */ slot.module)
-            const registerSlotFn = module[slot.export] as RegisterSlotFn | undefined
+            const registerSlotFn = module[slot.export] as
+              | RegisterSlotFn
+              | undefined
             if (typeof registerSlotFn !== 'function') continue
             registerSlotFn({ register: registerSlot })
           } catch {
@@ -125,10 +146,10 @@ export function ObservatoryExtensionProvider({ children }: { children: ReactNode
       }
 
       if (nextRoutes.length) {
-        const nextRouteTree = router.options.routeTree.addChildren(nextRoutes)
+        const nextRouteTree = rootRoute.addChildren(nextRoutes)
         router.update({
           ...router.options,
-          routeTree: nextRouteTree,
+          routeTree: nextRouteTree as typeof router.options.routeTree,
         })
       }
     }

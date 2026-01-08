@@ -68,9 +68,9 @@ function buildQueryKey(
 export const checkLokiConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { lokiUrl?: string } = {}) => input)
-  .handler(async (): Promise<LokiConnectionStatus> => {
+  .handler(async ({ data }): Promise<LokiConnectionStatus> => {
     try {
-      const key = cacheKeys.lokiConnection(input.lokiUrl ?? 'default')
+      const key = cacheKeys.lokiConnection(data.lokiUrl ?? 'default')
       return await withCache(
         () => apiGet<LokiConnectionStatus>('/api/loki/connection'),
         key,
@@ -251,18 +251,24 @@ export const queryAssetLogs = createServerFn()
 export const getLogLabels = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { lokiUrl?: string } = {}) => input)
-  .handler(async (): Promise<{ labels: Array<string> } | { error: string }> => {
-    try {
-      const key = cacheKeys.lokiLabels(input.lokiUrl ?? 'default')
-      return await withCache(
-        () =>
-          apiGet<{ labels: Array<string> } | { error: string }>(
-            '/api/loki/labels',
-          ),
-        key,
-        cacheTTL.lokiLabels,
-      )
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
+  .handler(
+    async ({
+      data,
+    }): Promise<{ labels: Array<string> } | { error: string }> => {
+      try {
+        const key = cacheKeys.lokiLabels(data.lokiUrl ?? 'default')
+        return await withCache(
+          () =>
+            apiGet<{ labels: Array<string> } | { error: string }>(
+              '/api/loki/labels',
+            ),
+          key,
+          cacheTTL.lokiLabels,
+        )
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    },
+  )

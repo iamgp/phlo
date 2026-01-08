@@ -12,6 +12,7 @@ import type {
   MetadataValue,
   QualityCheck,
   QualityOverview,
+  RecentCheckExecution,
 } from './quality.types'
 import { authMiddleware } from '@/server/auth.server'
 import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
@@ -220,7 +221,7 @@ export const getQualityDashboard = createServerFn()
       | {
           overview: QualityOverview
           failingChecks: Array<QualityCheck>
-          recentExecutions: Array<object>
+          recentExecutions: Array<RecentCheckExecution>
           checks: Array<QualityCheck>
         }
       | { error: string }

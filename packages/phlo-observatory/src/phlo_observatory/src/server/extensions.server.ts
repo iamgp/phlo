@@ -26,8 +26,8 @@ export type ObservatoryExtensionManifest = {
     observatory_min: string
   }
   settings?: {
-    schema: Record<string, unknown>
-    defaults?: Record<string, unknown>
+    schema: Record<string, {}>
+    defaults?: Record<string, {}>
   }
   ui?: {
     routes?: Array<ObservatoryExtensionRoute>

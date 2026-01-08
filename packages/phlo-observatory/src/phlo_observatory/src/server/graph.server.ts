@@ -283,7 +283,7 @@ export const getAssetNeighbors = createServerFn()
     )
 
     return await withCache(
-      () => ({ nodes: filteredNodes, edges: filteredEdges }),
+      () => Promise.resolve({ nodes: filteredNodes, edges: filteredEdges }),
       cacheKeys.graphNeighbors(dagsterUrl, assetKey, direction, depth),
       cacheTTL.graphNeighbors,
     )
