@@ -342,9 +342,13 @@ async function parseServiceYaml(
  * Discover all services from service.yaml files
  */
 async function discoverServices(): Promise<Array<ServiceDefinition>> {
-  const cliServices = await discoverServicesFromCli()
-  if (cliServices.length > 0) {
-    return cliServices
+  const useCli = process.env.PHLO_USE_CLI_SERVICE_DISCOVERY === 'true'
+
+  if (useCli) {
+    const cliServices = await discoverServicesFromCli()
+    if (cliServices.length > 0) {
+      return cliServices
+    }
   }
 
   const packagesPath = getPackagesPath()
@@ -360,6 +364,13 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     }
   } catch (error) {
     console.error('Error discovering services:', error)
+  }
+
+  if (!useCli && services.length === 0) {
+    const cliServices = await discoverServicesFromCli()
+    if (cliServices.length > 0) {
+      return cliServices
+    }
   }
 
   return services.sort((a, b) => {
