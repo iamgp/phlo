@@ -14,6 +14,7 @@ import type {
   QualityOverview,
 } from './quality.types'
 import { authMiddleware } from '@/server/auth.server'
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
 export type {
@@ -98,8 +99,13 @@ export const getQualityOverview = createServerFn()
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<QualityOverview | { error: string }> => {
     try {
-      const result = await apiGet<ApiQualityOverview | { error: string }>(
-        '/api/quality/overview',
+      const result = await withCache(
+        () =>
+          apiGet<ApiQualityOverview | { error: string }>(
+            '/api/quality/overview',
+          ),
+        cacheKeys.qualityOverview(),
+        cacheTTL.qualityOverview,
       )
       if ('error' in result) return result
       return transformOverview(result)
@@ -122,8 +128,13 @@ export const getAssetChecks = createServerFn()
     }): Promise<Array<QualityCheck> | { error: string }> => {
       try {
         const keyPath = assetKey.join('/')
-        const result = await apiGet<Array<ApiQualityCheck> | { error: string }>(
-          `/api/quality/assets/${keyPath}/checks`,
+        const result = await withCache(
+          () =>
+            apiGet<Array<ApiQualityCheck> | { error: string }>(
+              `/api/quality/assets/${keyPath}/checks`,
+            ),
+          cacheKeys.qualityAssetChecks(keyPath),
+          cacheTTL.qualityAssetChecks,
         )
         if ('error' in result) return result
         return result.map(transformCheck)
@@ -154,11 +165,16 @@ export const getCheckHistory = createServerFn()
     }): Promise<Array<CheckExecution> | { error: string }> => {
       try {
         const keyPath = assetKey.join('/')
-        const result = await apiGet<
-          Array<ApiCheckExecution> | { error: string }
-        >(
-          `/api/quality/assets/${keyPath}/checks/${encodeURIComponent(checkName)}/history`,
-          { limit },
+        const result = await withCache(
+          () =>
+            apiGet<Array<ApiCheckExecution> | { error: string }>(
+              `/api/quality/assets/${keyPath}/checks/${encodeURIComponent(
+                checkName,
+              )}/history`,
+              { limit },
+            ),
+          cacheKeys.qualityCheckHistory(keyPath, checkName, limit),
+          cacheTTL.qualityCheckHistory,
         )
         if ('error' in result) return result
         return result.map(transformExecution)
@@ -178,8 +194,13 @@ export const getFailingChecks = createServerFn()
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
   .handler(async (): Promise<Array<QualityCheck> | { error: string }> => {
     try {
-      const result = await apiGet<Array<ApiQualityCheck> | { error: string }>(
-        '/api/quality/failing',
+      const result = await withCache(
+        () =>
+          apiGet<Array<ApiQualityCheck> | { error: string }>(
+            '/api/quality/failing',
+          ),
+        cacheKeys.qualityFailing(),
+        cacheTTL.qualityFailing,
       )
       if ('error' in result) return result
       return result.map(transformCheck)
@@ -205,25 +226,32 @@ export const getQualityDashboard = createServerFn()
       | { error: string }
     > => {
       try {
-        // Fetch overview and failing in parallel
-        const [overviewResult, failingResult] = await Promise.all([
-          apiGet<ApiQualityOverview | { error: string }>(
-            '/api/quality/overview',
-          ),
-          apiGet<Array<ApiQualityCheck> | { error: string }>(
-            '/api/quality/failing',
-          ),
-        ])
+        const cached = await withCache(
+          async () => {
+            const [overviewResult, failingResult] = await Promise.all([
+              apiGet<ApiQualityOverview | { error: string }>(
+                '/api/quality/overview',
+              ),
+              apiGet<Array<ApiQualityCheck> | { error: string }>(
+                '/api/quality/failing',
+              ),
+            ])
 
-        if ('error' in overviewResult) return overviewResult
-        if ('error' in failingResult) return failingResult
+            if ('error' in overviewResult) return overviewResult
+            if ('error' in failingResult) return failingResult
 
-        return {
-          overview: transformOverview(overviewResult),
-          failingChecks: failingResult.map(transformCheck),
-          recentExecutions: [],
-          checks: failingResult.map(transformCheck),
-        }
+            return {
+              overview: transformOverview(overviewResult),
+              failingChecks: failingResult.map(transformCheck),
+              recentExecutions: [],
+              checks: failingResult.map(transformCheck),
+            }
+          },
+          cacheKeys.qualityDashboard(),
+          cacheTTL.qualityDashboard,
+        )
+
+        return cached
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',

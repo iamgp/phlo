@@ -8,6 +8,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 
 const DEFAULT_DAGSTER_URL = 'http://localhost:3000/graphql'
 
@@ -124,71 +125,77 @@ export const getAssetGraph = createServerFn()
     const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
 
     try {
-      const response = await fetch(dagsterUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: ASSET_GRAPH_QUERY }),
-        signal: AbortSignal.timeout(15000),
-      })
+      return await withCache(
+        async () => {
+          const response = await fetch(dagsterUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: ASSET_GRAPH_QUERY }),
+            signal: AbortSignal.timeout(15000),
+          })
 
-      if (!response.ok) {
-        return { error: `HTTP ${response.status}: ${response.statusText}` }
-      }
-
-      const result = await response.json()
-
-      if (result.errors) {
-        return { error: result.errors[0]?.message || 'GraphQL error' }
-      }
-
-      const { assetsOrError } = result.data
-
-      if (assetsOrError.__typename === 'PythonError') {
-        return { error: assetsOrError.message }
-      }
-
-      const nodes: Array<GraphNode> = []
-      const edges: Array<GraphEdge> = []
-      const nodeMap = new Map<string, GraphNode>()
-
-      // First pass: create all nodes
-      for (const asset of assetsOrError.nodes) {
-        const keyPath = asset.key.path.join('/')
-        const node: GraphNode = {
-          id: asset.id,
-          keyPath,
-          key: asset.key.path,
-          label: asset.key.path[asset.key.path.length - 1] || keyPath,
-          description: asset.definition?.description,
-          computeKind: asset.definition?.computeKind,
-          groupName: asset.definition?.groupName,
-          layer: inferLayer(keyPath),
-          lastMaterialization: asset.assetMaterializations?.[0]?.timestamp,
-          upstreamCount: asset.definition?.dependencyKeys?.length || 0,
-          downstreamCount: asset.definition?.dependedByKeys?.length || 0,
-        }
-        nodes.push(node)
-        nodeMap.set(keyPath, node)
-      }
-
-      // Second pass: create edges from dependencyKeys
-      for (const asset of assetsOrError.nodes) {
-        const targetKeyPath = asset.key.path.join('/')
-        const dependencies = asset.definition?.dependencyKeys || []
-
-        for (const depKey of dependencies) {
-          const sourceKeyPath = depKey.path.join('/')
-          // Only add edge if both nodes exist
-          if (nodeMap.has(sourceKeyPath) && nodeMap.has(targetKeyPath)) {
-            edges.push({
-              source: sourceKeyPath,
-              target: targetKeyPath,
-            })
+          if (!response.ok) {
+            return { error: `HTTP ${response.status}: ${response.statusText}` }
           }
-        }
-      }
 
-      return { nodes, edges }
+          const result = await response.json()
+
+          if (result.errors) {
+            return { error: result.errors[0]?.message || 'GraphQL error' }
+          }
+
+          const { assetsOrError } = result.data
+
+          if (assetsOrError.__typename === 'PythonError') {
+            return { error: assetsOrError.message }
+          }
+
+          const nodes: Array<GraphNode> = []
+          const edges: Array<GraphEdge> = []
+          const nodeMap = new Map<string, GraphNode>()
+
+          // First pass: create all nodes
+          for (const asset of assetsOrError.nodes) {
+            const keyPath = asset.key.path.join('/')
+            const node: GraphNode = {
+              id: asset.id,
+              keyPath,
+              key: asset.key.path,
+              label: asset.key.path[asset.key.path.length - 1] || keyPath,
+              description: asset.definition?.description,
+              computeKind: asset.definition?.computeKind,
+              groupName: asset.definition?.groupName,
+              layer: inferLayer(keyPath),
+              lastMaterialization: asset.assetMaterializations?.[0]?.timestamp,
+              upstreamCount: asset.definition?.dependencyKeys?.length || 0,
+              downstreamCount: asset.definition?.dependedByKeys?.length || 0,
+            }
+            nodes.push(node)
+            nodeMap.set(keyPath, node)
+          }
+
+          // Second pass: create edges from dependencyKeys
+          for (const asset of assetsOrError.nodes) {
+            const targetKeyPath = asset.key.path.join('/')
+            const dependencies = asset.definition?.dependencyKeys || []
+
+            for (const depKey of dependencies) {
+              const sourceKeyPath = depKey.path.join('/')
+              // Only add edge if both nodes exist
+              if (nodeMap.has(sourceKeyPath) && nodeMap.has(targetKeyPath)) {
+                edges.push({
+                  source: sourceKeyPath,
+                  target: targetKeyPath,
+                })
+              }
+            }
+          }
+
+          return { nodes, edges }
+        },
+        cacheKeys.graphFull(dagsterUrl),
+        cacheTTL.graphFull,
+      )
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
@@ -209,6 +216,7 @@ export const getAssetNeighbors = createServerFn()
   )
   .handler(async ({ data }): Promise<AssetGraph | { error: string }> => {
     // First get the full graph
+    const dagsterUrl = resolveDagsterUrl(data.dagsterUrl)
     const fullGraph = await getAssetGraph({
       data: { dagsterUrl: data.dagsterUrl },
     })
@@ -274,7 +282,11 @@ export const getAssetNeighbors = createServerFn()
       (e) => includedNodes.has(e.source) && includedNodes.has(e.target),
     )
 
-    return { nodes: filteredNodes, edges: filteredEdges }
+    return await withCache(
+      () => ({ nodes: filteredNodes, edges: filteredEdges }),
+      cacheKeys.graphNeighbors(dagsterUrl, assetKey, direction, depth),
+      cacheTTL.graphNeighbors,
+    )
   })
 
 // Types for impact analysis

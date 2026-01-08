@@ -9,6 +9,13 @@ import viteTsConfigPaths from 'vite-tsconfig-paths'
 const config = defineConfig({
   server: {
     port: 3001,
+    allowedHosts: ['athena'],
+    host: true,
+    hmr: {
+      host: 'athena',
+      clientPort: 3003,
+      protocol: 'ws',
+    },
   },
   plugins: [
     devtools(),
