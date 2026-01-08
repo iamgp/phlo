@@ -29,6 +29,9 @@ dev = [
 [project.entry-points."phlo.plugins.cli"]
 quality = "phlo_quality.cli_plugin:QualityCliPlugin"
 
+[project.entry-points."phlo.plugins.observatory"]
+quality = "phlo_quality.observatory_plugin:QualityObservatoryExtension"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -39,6 +42,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 phlo_quality = [
     "schemas/**/*.py",
+    "observatory_assets/*",
 ]
 
 [tool.ruff]
