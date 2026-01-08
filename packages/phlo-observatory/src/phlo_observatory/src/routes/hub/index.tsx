@@ -4,9 +4,15 @@
  * Displays all Phlo services with their status and controls.
  */
 
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import {
+  Await,
+  Link,
+  createFileRoute,
+  defer,
+  useRouter,
+} from '@tanstack/react-router'
 import { Boxes, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
 import type { ServiceWithStatus } from '@/server/services.server'
 import { ServiceCard } from '@/components/hub/ServiceCard'
@@ -27,15 +33,23 @@ import {
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/hub/')({
-  loader: async () => {
-    const services = await getServices()
-    return { services }
-  },
+  loader: () => ({ services: defer(getServices()) }),
   component: HubPage,
 })
 
 function HubPage() {
   const { services } = Route.useLoaderData()
+
+  return (
+    <Suspense fallback={<LoadingState message="Loading services..." />}>
+      <Await promise={services}>
+        {(resolved) => <HubContent services={resolved} />}
+      </Await>
+    </Suspense>
+  )
+}
+
+function HubContent({ services }: { services: Array<ServiceWithStatus> }) {
   const router = useRouter()
   const [loadingServices, setLoadingServices] = useState<Set<string>>(new Set())
 
@@ -198,6 +212,14 @@ function HubPage() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+      {message}
     </div>
   )
 }

@@ -10,11 +10,6 @@ import {
   WifiOff,
   Wrench,
 } from 'lucide-react'
-import type {
-  DagsterConnectionStatus,
-  HealthMetrics,
-} from '@/server/dagster.server'
-import type { MaintenanceStatusSnapshot } from '@/server/maintenance.server'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,29 +27,12 @@ import {
 } from '@/server/dagster.server'
 import { getMaintenanceStatus as fetchMaintenanceStatus } from '@/server/maintenance.server'
 import { formatDateTime } from '@/utils/dateFormat'
-import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/')({
-  loader: async () => {
-    const settings = await getEffectiveObservatorySettings()
-    const dagsterUrl = settings.connections.dagsterGraphqlUrl
-    // Check connection and fetch metrics in parallel
-    const [connection, metrics, maintenance] = await Promise.all([
-      checkDagsterConnection({ data: { dagsterUrl } }),
-      getHealthMetrics({ data: { dagsterUrl } }),
-      fetchMaintenanceStatus({ data: {} }),
-    ])
-    return { connection, metrics, maintenance }
-  },
   component: Dashboard,
 })
 
 function Dashboard() {
-  const {
-    connection: initialConnection,
-    metrics: initialMetrics,
-    maintenance: initialMaintenance,
-  } = Route.useLoaderData()
   const { settings } = useObservatorySettings()
 
   // Real-time polling for health metrics
@@ -69,7 +47,7 @@ function Dashboard() {
       getHealthMetrics({
         data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
       }),
-    initialData: initialMetrics,
+    initialData: undefined,
   })
 
   // Also poll connection status (less frequently is fine since it's cached)
@@ -79,7 +57,7 @@ function Dashboard() {
       checkDagsterConnection({
         data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
       }),
-    initialData: initialConnection,
+    initialData: undefined,
   })
 
   const hasError = metrics && 'error' in metrics
@@ -87,7 +65,7 @@ function Dashboard() {
   const { data: maintenanceResponse } = useRealtimePolling({
     queryKey: ['maintenance-status'],
     queryFn: () => fetchMaintenanceStatus({ data: {} }),
-    initialData: initialMaintenance,
+    initialData: undefined,
   })
   const maintenanceData =
     maintenanceResponse && 'error' in maintenanceResponse
