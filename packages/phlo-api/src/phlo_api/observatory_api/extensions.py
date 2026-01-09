@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import shutil
+import tempfile
 from importlib.resources import as_file
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
 from phlo.discovery import discover_plugins, get_global_registry
@@ -54,8 +56,16 @@ def get_extension(name: str) -> dict[str, Any]:
     raise HTTPException(status_code=404, detail=f"Observatory extension not found: {name}")
 
 
+def _cleanup_temp_file(path: Path) -> None:
+    """Remove temporary file after response is sent."""
+    try:
+        path.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 @router.get("/extensions/{name}/assets/{asset_path:path}")
-def get_extension_asset(name: str, asset_path: str):
+def get_extension_asset(name: str, asset_path: str, background_tasks: BackgroundTasks):
     """Serve extension asset files."""
     extensions = _load_extensions()
     plugin = next((p for p in extensions if p.metadata.name == name), None)
@@ -75,7 +85,13 @@ def get_extension_asset(name: str, asset_path: str):
 
     try:
         with as_file(asset) as resolved:
-            return FileResponse(resolved)
+            temp_dir = Path(tempfile.mkdtemp())
+            temp_file = temp_dir / resolved.name
+            shutil.copy2(resolved, temp_file)
+
+        background_tasks.add_task(_cleanup_temp_file, temp_file)
+        background_tasks.add_task(lambda: temp_dir.rmdir())
+        return FileResponse(temp_file)
     except Exception as exc:
         logger.exception("Failed to serve extension asset")
         raise HTTPException(status_code=500, detail="Failed to serve asset") from exc

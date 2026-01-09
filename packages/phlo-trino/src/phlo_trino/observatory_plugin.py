@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from importlib import resources
+from importlib.abc import Traversable
 
 from phlo.plugins import PluginMetadata
 from phlo.plugins.base import ObservatoryExtensionPlugin
@@ -37,5 +38,5 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
         )
 
     @property
-    def asset_root(self):
+    def asset_root(self) -> Traversable:
         return resources.files("phlo_trino").joinpath("observatory_assets")

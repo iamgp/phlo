@@ -63,8 +63,6 @@ export const getObservatoryExtensions = createServerFn().handler(
   async (): Promise<Array<ObservatoryExtension>> => {
     const response = await apiGet<ObservatoryExtensionResponse>(
       '/api/observatory/extensions',
-      undefined,
-      200,
     )
 
     return response.extensions.map((entry) => {

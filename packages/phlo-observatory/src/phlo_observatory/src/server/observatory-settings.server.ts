@@ -9,11 +9,7 @@ export type ObservatorySettingsResponse = {
 
 export const getObservatorySettings = createServerFn().handler(
   async (): Promise<ObservatorySettingsResponse> => {
-    return apiGet<ObservatorySettingsResponse>(
-      '/api/observatory/settings',
-      undefined,
-      200,
-    )
+    return apiGet<ObservatorySettingsResponse>('/api/observatory/settings')
   },
 )
 
@@ -23,6 +19,5 @@ export const putObservatorySettings = createServerFn()
     return apiPut<ObservatorySettingsResponse>(
       '/api/observatory/settings',
       data,
-      200,
     )
   })

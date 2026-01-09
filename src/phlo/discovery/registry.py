@@ -553,6 +553,10 @@ class PluginRegistry:
             has_targets = hasattr(plugin, "targets")
             has_properties = hasattr(plugin, "get_properties") and callable(plugin.get_properties)
             return has_catalog and has_targets and has_properties
+        elif isinstance(plugin, ObservatoryExtensionPlugin):
+            has_manifest = hasattr(plugin, "manifest")
+            has_asset_root = hasattr(plugin, "asset_root")
+            return has_manifest and has_asset_root
 
         return True
 

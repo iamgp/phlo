@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from importlib import resources
+from importlib.abc import Traversable
 
 from phlo.plugins import PluginMetadata
 from phlo.plugins.base import ObservatoryExtensionPlugin
@@ -37,5 +38,5 @@ class LineageObservatoryExtension(ObservatoryExtensionPlugin):
         )
 
     @property
-    def asset_root(self):
+    def asset_root(self) -> Traversable:
         return resources.files("phlo_lineage").joinpath("observatory_assets")
