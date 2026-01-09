@@ -149,7 +149,8 @@ export function ObservatoryExtensionProvider({
         const nextRouteTree = rootRoute.addChildren(nextRoutes)
         router.update({
           ...router.options,
-          routeTree: nextRouteTree as typeof router.options.routeTree,
+          routeTree:
+            nextRouteTree as unknown as typeof router.options.routeTree,
         })
       }
     }
