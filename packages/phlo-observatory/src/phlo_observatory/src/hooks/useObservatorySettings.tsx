@@ -36,7 +36,10 @@ export function ObservatorySettingsProvider({
 
   useEffect(() => {
     let active = true
-    Promise.all([getObservatorySettingsDefaults(), getObservatorySettings()])
+    Promise.all([
+      getObservatorySettingsDefaults(),
+      getObservatorySettings({ data: {} }),
+    ])
       .then(([serverDefaults, serverSettings]) => {
         if (!active) return
         setDefaults(serverDefaults)
