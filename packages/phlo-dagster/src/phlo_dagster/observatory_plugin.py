@@ -7,7 +7,12 @@ from importlib.abc import Traversable
 
 from phlo.plugins import PluginMetadata
 from phlo.plugins.base import ObservatoryExtensionPlugin
-from phlo.plugins.observatory import ObservatoryExtensionManifest
+from phlo.plugins.observatory import (
+    ObservatoryExtensionCompatibility,
+    ObservatoryExtensionManifest,
+    ObservatoryExtensionNavItem,
+    ObservatoryExtensionUI,
+)
 
 
 class DagsterObservatoryExtension(ObservatoryExtensionPlugin):
@@ -26,15 +31,10 @@ class DagsterObservatoryExtension(ObservatoryExtensionPlugin):
         return ObservatoryExtensionManifest(
             name="dagster",
             version="0.1.0",
-            compat={"observatory_min": "0.1.0"},
-            ui={
-                "nav": [
-                    {
-                        "title": "Assets",
-                        "to": "/assets",
-                    }
-                ]
-            },
+            compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
+            ui=ObservatoryExtensionUI(
+                nav=[ObservatoryExtensionNavItem(title="Assets", to="/assets")]
+            ),
         )
 
     @property

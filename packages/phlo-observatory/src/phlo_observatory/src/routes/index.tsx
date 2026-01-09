@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { ExtensionSlot } from '@/extensions/registry'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { formatTimeSince, useRealtimePolling } from '@/hooks/useRealtimePolling'
 import {
@@ -154,6 +155,8 @@ function Dashboard() {
             status={getMaintenanceHealthStatus(maintenanceData)}
           />
         </div>
+
+        <ExtensionSlot slotId="dashboard.after-cards" className="mb-6" />
 
         {/* Placeholder Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

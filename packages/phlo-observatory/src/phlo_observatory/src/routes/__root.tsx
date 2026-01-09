@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import * as React from 'react'
 
 import appCss from '../styles.css?url'
 import type { ResolvedTheme, ThemeMode } from '@/components/ThemeToggle'
@@ -31,6 +31,14 @@ import {
 import { ObservatoryExtensionProvider } from '@/extensions/registry'
 import { cn } from '@/lib/utils'
 import { getSearchIndex } from '@/server/search.server'
+
+const { useEffect, useState } = React
+
+if (typeof window !== 'undefined') {
+  ;(
+    globalThis as typeof globalThis & { __phloReact?: typeof React }
+  ).__phloReact = React
+}
 
 // Create a stable QueryClient for React Query
 const queryClient = new QueryClient({

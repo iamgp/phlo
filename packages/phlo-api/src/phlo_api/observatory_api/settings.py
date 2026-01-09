@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import psycopg2
 from anyio.to_thread import run_sync
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from phlo.config import get_settings
 from phlo.logging import get_logger
+from phlo.settings import SettingsScope, get_settings_service
 
 logger = get_logger(__name__)
 
@@ -26,66 +25,31 @@ class ObservatorySettingsResponse(BaseModel):
     updated_at: str | None
 
 
-def _settings_db_url() -> str:
-    settings = get_settings()
-    return settings.observatory_settings_db_url or settings.get_postgres_connection_string()
-
-
-def _ensure_table(conn) -> None:
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS observatory_settings (
-                id INTEGER PRIMARY KEY,
-                settings JSONB NOT NULL,
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-            """
-        )
-        conn.commit()
+OBSERVATORY_SETTINGS_NAMESPACE = "observatory.core"
 
 
 def _fetch_settings_sync() -> ObservatorySettingsResponse:
-    with psycopg2.connect(_settings_db_url()) as conn:
-        _ensure_table(conn)
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT settings, updated_at
-                FROM observatory_settings
-                WHERE id = 1
-                """
-            )
-            row = cursor.fetchone()
-            if not row:
-                return ObservatorySettingsResponse(settings=None, updated_at=None)
-            settings, updated_at = row
-            return ObservatorySettingsResponse(
-                settings=settings,
-                updated_at=updated_at.isoformat() if updated_at else None,
-            )
+    service = get_settings_service()
+    record = service.get(SettingsScope.GLOBAL, OBSERVATORY_SETTINGS_NAMESPACE)
+    if not record:
+        return ObservatorySettingsResponse(settings=None, updated_at=None)
+    return ObservatorySettingsResponse(
+        settings=record.settings,
+        updated_at=record.updated_at,
+    )
 
 
 def _upsert_settings_sync(payload: ObservatorySettingsPayload) -> ObservatorySettingsResponse:
-    with psycopg2.connect(_settings_db_url()) as conn:
-        _ensure_table(conn)
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO observatory_settings (id, settings, updated_at)
-                VALUES (1, %s, NOW())
-                ON CONFLICT (id)
-                DO UPDATE SET settings = EXCLUDED.settings, updated_at = NOW()
-                RETURNING settings, updated_at
-                """,
-                (payload.settings,),
-            )
-            settings, updated_at = cursor.fetchone()
-            conn.commit()
-            return ObservatorySettingsResponse(
-                settings=settings,
-                updated_at=updated_at.isoformat() if updated_at else None,
-            )
+    service = get_settings_service()
+    record = service.put(
+        SettingsScope.GLOBAL,
+        OBSERVATORY_SETTINGS_NAMESPACE,
+        payload.settings,
+    )
+    return ObservatorySettingsResponse(
+        settings=record.settings,
+        updated_at=record.updated_at,
+    )
 
 
 @router.get("/settings", response_model=ObservatorySettingsResponse)

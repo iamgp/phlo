@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.metadata
+import re
 import shutil
 import tempfile
 from importlib.resources import as_file
@@ -23,11 +25,19 @@ router = APIRouter(prefix="/api/observatory", tags=["observatory"])
 def _load_extensions() -> list[ObservatoryExtensionPlugin]:
     discover_plugins(plugin_type="observatory_extensions", auto_register=True)
     registry = get_global_registry()
+    observatory_version = _get_observatory_version()
     extensions = []
     for name in registry.list_observatory_extensions():
         plugin = registry.get_observatory_extension(name)
-        if plugin:
-            extensions.append(plugin)
+        if not plugin:
+            continue
+        if not _is_compatible(plugin, observatory_version):
+            logger.warning(
+                "Skipping incompatible Observatory extension: %s",
+                plugin.metadata.name,
+            )
+            continue
+        extensions.append(plugin)
     return extensions
 
 
@@ -37,6 +47,31 @@ def _extension_payload(plugin: ObservatoryExtensionPlugin) -> dict[str, Any]:
         "manifest": manifest.model_dump(),
         "assets_base_path": f"/api/observatory/extensions/{plugin.metadata.name}/assets",
     }
+
+
+def _get_observatory_version() -> str | None:
+    try:
+        return importlib.metadata.version("phlo-observatory")
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def _parse_version(value: str) -> tuple[int, ...]:
+    parts = re.split(r"[.+-]", value)
+    numbers: list[int] = []
+    for part in parts:
+        if not part.isdigit():
+            break
+        numbers.append(int(part))
+    return tuple(numbers) if numbers else (0,)
+
+
+def _is_compatible(plugin: ObservatoryExtensionPlugin, observatory_version: str | None) -> bool:
+    if not observatory_version:
+        return True
+    manifest = plugin.get_manifest()
+    required = manifest.compat.observatory_min
+    return _parse_version(observatory_version) >= _parse_version(required)
 
 
 @router.get("/extensions")

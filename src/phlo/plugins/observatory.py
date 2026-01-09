@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,7 @@ class ObservatoryExtensionSettings(BaseModel):
 
     schema: dict[str, Any]
     defaults: dict[str, Any] = Field(default_factory=dict)
+    scope: Literal["global", "extension"] = "extension"
 
 
 class ObservatoryExtensionRoute(BaseModel):
@@ -43,12 +44,20 @@ class ObservatoryExtensionSlot(BaseModel):
     export: str = "registerSlot"
 
 
+class ObservatoryExtensionSettingsPanel(BaseModel):
+    """Settings panel registration entry for an extension."""
+
+    module: str
+    export: str = "registerSettings"
+
+
 class ObservatoryExtensionUI(BaseModel):
     """UI contributions for an extension."""
 
     routes: list[ObservatoryExtensionRoute] = Field(default_factory=list)
     nav: list[ObservatoryExtensionNavItem] = Field(default_factory=list)
     slots: list[ObservatoryExtensionSlot] = Field(default_factory=list)
+    settings: list[ObservatoryExtensionSettingsPanel] = Field(default_factory=list)
 
 
 class ObservatoryExtensionManifest(BaseModel):

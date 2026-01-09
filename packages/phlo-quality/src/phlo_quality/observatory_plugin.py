@@ -7,7 +7,12 @@ from importlib.abc import Traversable
 
 from phlo.plugins import PluginMetadata
 from phlo.plugins.base import ObservatoryExtensionPlugin
-from phlo.plugins.observatory import ObservatoryExtensionManifest
+from phlo.plugins.observatory import (
+    ObservatoryExtensionCompatibility,
+    ObservatoryExtensionManifest,
+    ObservatoryExtensionNavItem,
+    ObservatoryExtensionUI,
+)
 
 
 class QualityObservatoryExtension(ObservatoryExtensionPlugin):
@@ -26,15 +31,10 @@ class QualityObservatoryExtension(ObservatoryExtensionPlugin):
         return ObservatoryExtensionManifest(
             name="quality",
             version="0.1.0",
-            compat={"observatory_min": "0.1.0"},
-            ui={
-                "nav": [
-                    {
-                        "title": "Quality",
-                        "to": "/quality",
-                    }
-                ]
-            },
+            compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
+            ui=ObservatoryExtensionUI(
+                nav=[ObservatoryExtensionNavItem(title="Quality", to="/quality")]
+            ),
         )
 
     @property

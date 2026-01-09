@@ -19,6 +19,11 @@ export type ObservatoryExtensionSlot = {
   export: string
 }
 
+export type ObservatoryExtensionSettings = {
+  module: string
+  export: string
+}
+
 export type ObservatoryExtensionManifest = {
   name: string
   version: string
@@ -26,15 +31,15 @@ export type ObservatoryExtensionManifest = {
     observatory_min: string
   }
   settings?: {
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     schema: Record<string, {}>
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     defaults?: Record<string, {}>
+    scope?: 'global' | 'extension'
   }
   ui?: {
     routes?: Array<ObservatoryExtensionRoute>
     nav?: Array<ObservatoryExtensionNavItem>
     slots?: Array<ObservatoryExtensionSlot>
+    settings?: Array<ObservatoryExtensionSettings>
   }
 }
 
@@ -83,6 +88,10 @@ export const getObservatoryExtensions = createServerFn().handler(
               slots: entry.manifest.ui.slots?.map((slot) => ({
                 ...slot,
                 module: withAssetUrl(basePath, slot.module),
+              })),
+              settings: entry.manifest.ui.settings?.map((setting) => ({
+                ...setting,
+                module: withAssetUrl(basePath, setting.module),
               })),
             }
           : undefined,

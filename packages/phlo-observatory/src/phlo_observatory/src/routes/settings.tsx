@@ -3,10 +3,17 @@ import { useEffect, useMemo, useState } from 'react'
 
 import type { ObservatorySettings } from '@/lib/observatorySettings'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { useObservatoryExtensions } from '@/extensions/registry'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import {
   clearCacheEndpoint,
@@ -28,10 +35,21 @@ type CacheStats = {
 function SettingsPage() {
   const { settings, defaults, setSettings, resetToDefaults } =
     useObservatorySettings()
+  const { settingsSections } = useObservatoryExtensions()
   const [draft, setDraft] = useState<ObservatorySettings>(settings)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<CacheStats | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
+  const orderedSettingsSections = useMemo(
+    () =>
+      [...settingsSections].sort((a, b) => {
+        const orderA = a.order ?? 0
+        const orderB = b.order ?? 0
+        if (orderA !== orderB) return orderA - orderB
+        return a.title.localeCompare(b.title)
+      }),
+    [settingsSections],
+  )
   const isDirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(settings),
     [draft, settings],
@@ -341,6 +359,27 @@ function SettingsPage() {
             </Field>
           </CardContent>
         </Card>
+
+        {orderedSettingsSections.length ? (
+          <div className="space-y-4">
+            {orderedSettingsSections.map((section) => {
+              const SectionComponent = section.component
+              return (
+                <Card key={section.id}>
+                  <CardHeader>
+                    <CardTitle>{section.title}</CardTitle>
+                    {section.description ? (
+                      <CardDescription>{section.description}</CardDescription>
+                    ) : null}
+                  </CardHeader>
+                  <CardContent>
+                    <SectionComponent />
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        ) : null}
 
         <Card>
           <CardHeader>

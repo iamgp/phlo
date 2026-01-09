@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { ExtensionSlot } from '@/extensions/registry'
 import {
   getServices,
   restartService,
@@ -190,6 +191,8 @@ function HubContent({ services }: { services: Array<ServiceWithStatus> }) {
             color="text-red-400"
           />
         </div>
+
+        <ExtensionSlot slotId="hub.after-stats" className="mb-6" />
 
         {/* Services by Category */}
         {sortedCategories.map((category) => (

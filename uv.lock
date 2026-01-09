@@ -32,6 +32,7 @@ members = [
     "phlo-minio",
     "phlo-nessie",
     "phlo-observatory",
+    "phlo-observatory-example",
     "phlo-openmetadata",
     "phlo-pgweb",
     "phlo-postgres",
@@ -2484,6 +2485,7 @@ dependencies = [
     { name = "duckdb" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "jsonschema" },
     { name = "pandas" },
     { name = "pandera" },
     { name = "psycopg2-binary" },
@@ -2545,6 +2547,7 @@ requires-dist = [
     { name = "duckdb", specifier = ">=0.9.0" },
     { name = "fastapi", specifier = ">=0.127.0" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jsonschema", specifier = ">=4.23.0" },
     { name = "pandas" },
     { name = "pandera" },
     { name = "phlo-core-plugins", marker = "extra == 'defaults'", editable = "packages/phlo-core-plugins" },
@@ -3021,6 +3024,11 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "phlo-observatory-example"
+version = "0.1.0"
+source = { editable = "packages/phlo-observatory-example" }
 
 [[package]]
 name = "phlo-openmetadata"

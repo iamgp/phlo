@@ -7,7 +7,12 @@ from importlib.abc import Traversable
 
 from phlo.plugins import PluginMetadata
 from phlo.plugins.base import ObservatoryExtensionPlugin
-from phlo.plugins.observatory import ObservatoryExtensionManifest
+from phlo.plugins.observatory import (
+    ObservatoryExtensionCompatibility,
+    ObservatoryExtensionManifest,
+    ObservatoryExtensionNavItem,
+    ObservatoryExtensionUI,
+)
 
 
 class LokiObservatoryExtension(ObservatoryExtensionPlugin):
@@ -26,15 +31,8 @@ class LokiObservatoryExtension(ObservatoryExtensionPlugin):
         return ObservatoryExtensionManifest(
             name="loki",
             version="0.1.0",
-            compat={"observatory_min": "0.1.0"},
-            ui={
-                "nav": [
-                    {
-                        "title": "Logs",
-                        "to": "/logs",
-                    }
-                ]
-            },
+            compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
+            ui=ObservatoryExtensionUI(nav=[ObservatoryExtensionNavItem(title="Logs", to="/logs")]),
         )
 
     @property

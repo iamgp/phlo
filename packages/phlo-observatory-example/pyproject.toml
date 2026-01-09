@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phlo-observatory-example"
+version = "0.1.0"
+description = "Example Observatory extension plugin"
+readme = {text = "Example Observatory extension for Phlo.", content-type = "text/plain"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Phlo Team", email = "team@phlo.dev"},
+]
+license = {text = "MIT"}
+dependencies = []
+
+[project.entry-points."phlo.plugins.observatory"]
+example = "phlo_observatory_example.observatory_plugin:ExampleObservatoryExtension"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+phlo_observatory_example = [
+    "observatory_assets/*",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

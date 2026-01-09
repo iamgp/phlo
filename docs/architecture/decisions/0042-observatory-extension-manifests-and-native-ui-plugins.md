@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed**
+**Accepted**
 
 ## Context
 
@@ -34,6 +34,7 @@ compat:
 settings:
   schema: JSONSchema
   defaults: object
+  scope: global | extension
 ui:
   routes:
     - path: /extensions/<name>/...
@@ -46,6 +47,9 @@ ui:
     - slot_id: string
       module: <asset_url>
       export: registerSlot
+  settings:
+    - module: <asset_url>
+      export: registerSettings
 ```
 
 ### 2. Discovery + API surface
@@ -116,4 +120,3 @@ phlo plugin list --type observatory
 curl http://localhost:4000/api/observatory/extensions
 curl http://localhost:3001/extensions/<name>/...
 ```
-
