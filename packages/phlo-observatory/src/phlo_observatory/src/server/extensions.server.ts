@@ -26,7 +26,9 @@ export type ObservatoryExtensionManifest = {
     observatory_min: string
   }
   settings?: {
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     schema: Record<string, {}>
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     defaults?: Record<string, {}>
   }
   ui?: {
@@ -68,24 +70,26 @@ export const getObservatoryExtensions = createServerFn().handler(
     return response.extensions.map((entry) => {
       const basePath = entry.assets_base_path
       const assetsBaseUrl = `${PHLO_API_URL}${basePath}`
-      const ui = entry.manifest.ui
 
-      if (ui?.routes) {
-        ui.routes = ui.routes.map((route) => ({
-          ...route,
-          module: withAssetUrl(basePath, route.module),
-        }))
-      }
-
-      if (ui?.slots) {
-        ui.slots = ui.slots.map((slot) => ({
-          ...slot,
-          module: withAssetUrl(basePath, slot.module),
-        }))
+      const manifest: ObservatoryExtensionManifest = {
+        ...entry.manifest,
+        ui: entry.manifest.ui
+          ? {
+              ...entry.manifest.ui,
+              routes: entry.manifest.ui.routes?.map((route) => ({
+                ...route,
+                module: withAssetUrl(basePath, route.module),
+              })),
+              slots: entry.manifest.ui.slots?.map((slot) => ({
+                ...slot,
+                module: withAssetUrl(basePath, slot.module),
+              })),
+            }
+          : undefined,
       }
 
       return {
-        manifest: entry.manifest,
+        manifest,
         assetsBasePath: basePath,
         assetsBaseUrl,
       }

@@ -56,10 +56,10 @@ def get_extension(name: str) -> dict[str, Any]:
     raise HTTPException(status_code=404, detail=f"Observatory extension not found: {name}")
 
 
-def _cleanup_temp_file(path: Path) -> None:
-    """Remove temporary file after response is sent."""
+def _cleanup_temp_dir(dir_path: Path) -> None:
+    """Remove temporary directory and contents after response is sent."""
     try:
-        path.unlink(missing_ok=True)
+        shutil.rmtree(dir_path, ignore_errors=True)
     except Exception:
         pass
 
@@ -76,11 +76,14 @@ def get_extension_asset(name: str, asset_path: str, background_tasks: Background
         raise HTTPException(status_code=404, detail="Asset path required")
 
     path = PurePosixPath(asset_path)
-    if ".." in path.parts:
+    if path.is_absolute() or ".." in path.parts:
         raise HTTPException(status_code=400, detail="Invalid asset path")
 
     asset = plugin.asset_root.joinpath(*path.parts)
-    if not asset.is_file():
+    try:
+        if not asset.is_file():
+            raise HTTPException(status_code=404, detail="Asset not found")
+    except (AttributeError, OSError):
         raise HTTPException(status_code=404, detail="Asset not found")
 
     try:
@@ -89,8 +92,7 @@ def get_extension_asset(name: str, asset_path: str, background_tasks: Background
             temp_file = temp_dir / resolved.name
             shutil.copy2(resolved, temp_file)
 
-        background_tasks.add_task(_cleanup_temp_file, temp_file)
-        background_tasks.add_task(lambda: temp_dir.rmdir())
+        background_tasks.add_task(_cleanup_temp_dir, temp_dir)
         return FileResponse(temp_file)
     except Exception as exc:
         logger.exception("Failed to serve extension asset")
