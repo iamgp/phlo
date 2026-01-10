@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0](https://github.com/iamgp/phlo/compare/v0.3.0...v0.4.0) (2026-01-04)
+
+
+### Features
+
+* introduce capability primitives and orchestrator adapters ([#150](https://github.com/iamgp/phlo/issues/150)) ([c22975e](https://github.com/iamgp/phlo/commit/c22975e6938c701ee70ddc2971ce63cb6fd7cc73))
+* **logging:** logging improvements ([#149](https://github.com/iamgp/phlo/issues/149)) ([c548132](https://github.com/iamgp/phlo/commit/c5481329959e9ec1a4e85ff76c9f72100c05abea))
+* move dbt project under workflows ([#146](https://github.com/iamgp/phlo/issues/146)) ([0eabde9](https://github.com/iamgp/phlo/commit/0eabde9673da6489dca66207b8e3a145f16e898b))
+
+
+### Bug Fixes
+
+* **deps:** update observatory-js ([#115](https://github.com/iamgp/phlo/issues/115)) ([2db7893](https://github.com/iamgp/phlo/commit/2db78932ead0808432f140fd3e4244321e3bbdbb))
+* **deps:** update observatory-js ([#154](https://github.com/iamgp/phlo/issues/154)) ([22f4552](https://github.com/iamgp/phlo/commit/22f455269218eeb4c4efa8943380dd9d00f292f1))
+
+
+### Documentation
+
+* refresh AGENTS guidance ([#144](https://github.com/iamgp/phlo/issues/144)) ([a34a88e](https://github.com/iamgp/phlo/commit/a34a88e75793e103d417b91e9bd58b01e18e14be))
+
 ## [0.3.0](https://github.com/iamgp/phlo/compare/v0.2.0...v0.3.0) (2026-01-02)
 
 
