@@ -1,4 +1,10 @@
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import {
+  Await,
+  Link,
+  createFileRoute,
+  defer,
+  useRouter,
+} from '@tanstack/react-router'
 import {
   AlertTriangle,
   CheckCircle,
@@ -11,7 +17,7 @@ import {
   Shield,
   XCircle,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type {
   QualityCheck,
@@ -43,18 +49,43 @@ import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { formatDate, formatDateTime } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/quality/')({
-  loader: async () => {
-    const settings = await getEffectiveObservatorySettings()
-    const result = await getQualityDashboard({
-      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
-    })
-    return { data: result }
-  },
+  loader: () => ({ data: defer(loadQualityDashboard()) }),
   component: QualityDashboard,
 })
 
+async function loadQualityDashboard() {
+  const settings = await getEffectiveObservatorySettings()
+  return getQualityDashboard({
+    data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+  })
+}
+
 function QualityDashboard() {
   const { data } = Route.useLoaderData()
+
+  return (
+    <Suspense
+      fallback={<LoadingState message="Loading quality dashboard..." />}
+    >
+      <Await promise={data}>
+        {(resolved) => <QualityDashboardContent data={resolved} />}
+      </Await>
+    </Suspense>
+  )
+}
+
+function QualityDashboardContent({
+  data,
+}: {
+  data:
+    | {
+        overview: QualityOverview
+        failingChecks: Array<QualityCheck>
+        recentExecutions: Array<RecentCheckExecution>
+        checks: Array<QualityCheck>
+      }
+    | { error: string }
+}) {
   const router = useRouter()
 
   const hasError = 'error' in data
@@ -244,6 +275,21 @@ function QualityDashboard() {
             </Card>
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <Clock className="w-6 h-6 mx-auto mb-3 opacity-60" />
+            {message}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

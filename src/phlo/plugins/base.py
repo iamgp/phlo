@@ -10,12 +10,14 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from importlib.resources.abc import Traversable
 from typing import Any, Callable, Iterable
 
 import click
 import pandas as pd
 
 from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
+from phlo.plugins.observatory import ObservatoryExtensionManifest
 
 
 @dataclass
@@ -123,6 +125,33 @@ class DagsterExtensionPlugin(Plugin, ABC):
         Clear any global registries used by this plugin (primarily for module reload and tests).
         """
         return None
+
+
+class ObservatoryExtensionPlugin(Plugin, ABC):
+    """
+    Base class for Observatory UI extension plugins.
+
+    Extensions provide a manifest and a static asset root that the Observatory UI can load
+    at runtime.
+    """
+
+    @property
+    @abstractmethod
+    def manifest(self) -> ObservatoryExtensionManifest | dict[str, Any]:
+        """Return the extension manifest or a raw manifest dict."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def asset_root(self) -> Traversable:
+        """Return the root directory that contains the extension assets."""
+        raise NotImplementedError
+
+    def get_manifest(self) -> ObservatoryExtensionManifest:
+        """Return a validated manifest instance."""
+        if isinstance(self.manifest, ObservatoryExtensionManifest):
+            return self.manifest
+        return ObservatoryExtensionManifest.model_validate(self.manifest)
 
 
 class IngestionEnginePlugin(DagsterExtensionPlugin, ABC):

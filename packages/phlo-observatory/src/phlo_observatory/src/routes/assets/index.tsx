@@ -1,6 +1,11 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  Await,
+  createFileRoute,
+  defer,
+  useNavigate,
+} from '@tanstack/react-router'
 import { ArrowRight, Clock, Database, Layers, Search } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import type { Asset } from '@/server/dagster.server'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -11,18 +16,34 @@ import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 import { formatDate } from '@/utils/dateFormat'
 
 export const Route = createFileRoute('/assets/')({
-  loader: async () => {
-    const settings = await getEffectiveObservatorySettings()
-    const assets = await getAssets({
-      data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
-    })
-    return { assets }
+  loader: () => {
+    const assets = getEffectiveObservatorySettings().then((settings) =>
+      getAssets({
+        data: { dagsterUrl: settings.connections.dagsterGraphqlUrl },
+      }),
+    )
+    return { assets: defer(assets) }
   },
   component: AssetsPage,
 })
 
 function AssetsPage() {
   const { assets } = Route.useLoaderData()
+
+  return (
+    <Suspense fallback={<LoadingState message="Loading assets..." />}>
+      <Await promise={assets}>
+        {(resolved) => <AssetsContent assets={resolved} />}
+      </Await>
+    </Suspense>
+  )
+}
+
+function AssetsContent({
+  assets,
+}: {
+  assets: Array<Asset> | { error: string }
+}) {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -178,6 +199,14 @@ function AssetsPage() {
           </div>
         </div>
       </main>
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+      {message}
     </div>
   )
 }

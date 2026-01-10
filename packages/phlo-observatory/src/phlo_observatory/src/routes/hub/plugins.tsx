@@ -4,8 +4,9 @@
  * Displays installed and available plugins.
  */
 
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Await, Link, createFileRoute, defer } from '@tanstack/react-router'
 import { Boxes, CircleCheck, Package } from 'lucide-react'
+import { Suspense } from 'react'
 
 import type { PluginInfo } from '@/server/plugins.server'
 import { getAvailablePlugins } from '@/server/plugins.server'
@@ -21,15 +22,29 @@ import {
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/hub/plugins')({
-  loader: async () => {
-    const { installed, available } = await getAvailablePlugins()
-    return { installed, available }
-  },
+  loader: () => ({ data: defer(getAvailablePlugins()) }),
   component: PluginsPage,
 })
 
 function PluginsPage() {
-  const { installed, available } = Route.useLoaderData()
+  const { data } = Route.useLoaderData()
+
+  return (
+    <Suspense fallback={<LoadingState message="Loading plugins..." />}>
+      <Await promise={data}>
+        {(resolved) => <PluginsContent {...resolved} />}
+      </Await>
+    </Suspense>
+  )
+}
+
+function PluginsContent({
+  installed,
+  available,
+}: {
+  installed: Array<PluginInfo>
+  available: Array<PluginInfo>
+}) {
   const installedByType = groupByType(installed)
   const availableByType = groupByType(available)
 
@@ -79,6 +94,14 @@ function PluginsPage() {
         <Section title="Installed Plugins" pluginsByType={installedByType} />
         <Section title="Registry Plugins" pluginsByType={availableByType} />
       </div>
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+      {message}
     </div>
   )
 }

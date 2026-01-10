@@ -7,6 +7,25 @@ const TABLE_LIST_TTL_MS = 5 * 60 * 1000
 const TABLE_SCHEMA_TTL_MS = 10 * 60 * 1000
 const ASSET_LIST_TTL_MS = 2 * 60 * 1000
 const SEARCH_INDEX_TTL_MS = 5 * 60 * 1000
+const SERVICES_TTL_MS = 5 * 1000
+const DAGSTER_HEALTH_TTL_MS = 5 * 1000
+const DAGSTER_CONNECTION_TTL_MS = 10 * 1000
+const NESSIE_CONNECTION_TTL_MS = 10 * 1000
+const NESSIE_BRANCHES_TTL_MS = 10 * 1000
+const NESSIE_BRANCH_TTL_MS = 10 * 1000
+const NESSIE_COMMITS_TTL_MS = 5 * 1000
+const NESSIE_CONTENTS_TTL_MS = 5 * 1000
+const NESSIE_DIFF_TTL_MS = 5 * 1000
+const LOKI_LABELS_TTL_MS = 10 * 1000
+const LOKI_QUERY_TTL_MS = 5 * 1000
+const MAINTENANCE_STATUS_TTL_MS = 10 * 1000
+const QUALITY_OVERVIEW_TTL_MS = 10 * 1000
+const QUALITY_FAILING_TTL_MS = 5 * 1000
+const QUALITY_DASHBOARD_TTL_MS = 5 * 1000
+const QUALITY_ASSET_CHECKS_TTL_MS = 10 * 1000
+const QUALITY_CHECK_HISTORY_TTL_MS = 10 * 1000
+const GRAPH_FULL_TTL_MS = 10 * 1000
+const GRAPH_NEIGHBORS_TTL_MS = 10 * 1000
 const MAX_CACHE_ENTRIES = 1000
 
 interface CacheEntry<T> {
@@ -165,6 +184,66 @@ export const cacheKeys = {
 
   searchIndex: (dagsterUrl: string, trinoUrl: string) =>
     `search:index:${normalizeUrl(dagsterUrl)}:${normalizeUrl(trinoUrl)}`,
+
+  services: () => 'services:list',
+
+  dagsterHealth: (dagsterUrl: string) =>
+    `dagster:health:${normalizeUrl(dagsterUrl)}`,
+
+  dagsterConnection: (dagsterUrl: string) =>
+    `dagster:connection:${normalizeUrl(dagsterUrl)}`,
+
+  nessieConnection: (nessieUrl: string) =>
+    `nessie:connection:${normalizeUrl(nessieUrl)}`,
+
+  nessieBranches: (nessieUrl: string) =>
+    `nessie:branches:${normalizeUrl(nessieUrl)}`,
+
+  nessieBranch: (nessieUrl: string, branch: string) =>
+    `nessie:branch:${normalizeUrl(nessieUrl)}:${branch}`,
+
+  nessieCommits: (nessieUrl: string, branch: string, limit: number) =>
+    `nessie:commits:${normalizeUrl(nessieUrl)}:${branch}:${limit}`,
+
+  nessieContents: (
+    nessieUrl: string,
+    branch: string,
+    prefix: string | undefined,
+  ) => `nessie:contents:${normalizeUrl(nessieUrl)}:${branch}:${prefix ?? ''}`,
+
+  nessieDiff: (nessieUrl: string, fromBranch: string, toBranch: string) =>
+    `nessie:diff:${normalizeUrl(nessieUrl)}:${fromBranch}:${toBranch}`,
+
+  lokiConnection: (lokiUrl: string) =>
+    `loki:connection:${normalizeUrl(lokiUrl)}`,
+
+  lokiLabels: (lokiUrl: string) => `loki:labels:${normalizeUrl(lokiUrl)}`,
+
+  lokiQuery: (lokiUrl: string, queryKey: string) =>
+    `loki:query:${normalizeUrl(lokiUrl)}:${queryKey}`,
+
+  maintenanceStatus: () => 'maintenance:status',
+
+  qualityOverview: () => 'quality:overview',
+
+  qualityFailing: () => 'quality:failing',
+
+  qualityDashboard: () => 'quality:dashboard',
+
+  qualityAssetChecks: (assetKey: string) => `quality:checks:${assetKey}`,
+
+  qualityCheckHistory: (assetKey: string, checkName: string, limit: number) =>
+    `quality:history:${assetKey}:${checkName}:${limit}`,
+
+  graphFull: (dagsterUrl: string) => `graph:full:${normalizeUrl(dagsterUrl)}`,
+
+  graphNeighbors: (
+    dagsterUrl: string,
+    assetKey: string,
+    direction: string,
+    depth: number,
+  ) =>
+    `graph:neighbors:${normalizeUrl(dagsterUrl)}:${assetKey}:${direction}:${depth}`,
 }
 
 export const cacheTTL = {
@@ -172,6 +251,25 @@ export const cacheTTL = {
   tableSchema: TABLE_SCHEMA_TTL_MS,
   assets: ASSET_LIST_TTL_MS,
   searchIndex: SEARCH_INDEX_TTL_MS,
+  services: SERVICES_TTL_MS,
+  dagsterHealth: DAGSTER_HEALTH_TTL_MS,
+  dagsterConnection: DAGSTER_CONNECTION_TTL_MS,
+  nessieConnection: NESSIE_CONNECTION_TTL_MS,
+  nessieBranches: NESSIE_BRANCHES_TTL_MS,
+  nessieBranch: NESSIE_BRANCH_TTL_MS,
+  nessieCommits: NESSIE_COMMITS_TTL_MS,
+  nessieContents: NESSIE_CONTENTS_TTL_MS,
+  nessieDiff: NESSIE_DIFF_TTL_MS,
+  lokiLabels: LOKI_LABELS_TTL_MS,
+  lokiQuery: LOKI_QUERY_TTL_MS,
+  maintenanceStatus: MAINTENANCE_STATUS_TTL_MS,
+  qualityOverview: QUALITY_OVERVIEW_TTL_MS,
+  qualityFailing: QUALITY_FAILING_TTL_MS,
+  qualityDashboard: QUALITY_DASHBOARD_TTL_MS,
+  qualityAssetChecks: QUALITY_ASSET_CHECKS_TTL_MS,
+  qualityCheckHistory: QUALITY_CHECK_HISTORY_TTL_MS,
+  graphFull: GRAPH_FULL_TTL_MS,
+  graphNeighbors: GRAPH_NEIGHBORS_TTL_MS,
   default: DEFAULT_TTL_MS,
 }
 

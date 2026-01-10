@@ -47,6 +47,7 @@ PLUGIN_TYPE_MAP = {
     "resources": "resource_providers",
     "orchestrators": "orchestrators",
     "catalogs": "catalogs",
+    "observatory": "observatory_extensions",
 }
 
 PLUGIN_TYPE_LABELS = {
@@ -59,6 +60,7 @@ PLUGIN_TYPE_LABELS = {
     "resource_providers": "Resources",
     "orchestrators": "Orchestrators",
     "catalogs": "Catalogs",
+    "observatory_extensions": "Observatory Extensions",
 }
 
 PLUGIN_INTERNAL_TO_REGISTRY = {
@@ -71,6 +73,7 @@ PLUGIN_INTERNAL_TO_REGISTRY = {
     "resource_providers": "resources",
     "orchestrators": "orchestrators",
     "catalogs": "catalogs",
+    "observatory_extensions": "observatory",
 }
 
 REGISTRY_TYPE_MAP = {
@@ -83,6 +86,7 @@ REGISTRY_TYPE_MAP = {
     "resources": "resources",
     "orchestrators": "orchestrators",
     "catalogs": "catalogs",
+    "observatory": "observatory",
 }
 
 
@@ -107,6 +111,7 @@ def plugin_group():
             "resources",
             "orchestrators",
             "catalogs",
+            "observatory",
             "all",
         ]
     ),
@@ -172,6 +177,7 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
             "resources",
             "orchestrators",
             "catalogs",
+            "observatory",
         ]
     ),
     help="Plugin type (auto-detected if not specified)",
@@ -206,6 +212,8 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
                         plugin_type = "transforms"
                     elif ptype_key == "services":
                         plugin_type = "services"
+                    elif ptype_key == "observatory_extensions":
+                        plugin_type = "observatory"
                     elif ptype_key == "catalogs":
                         plugin_type = "catalogs"
                     break
@@ -225,6 +233,7 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
             "resources": "resource_providers",
             "orchestrators": "orchestrators",
             "catalogs": "catalogs",
+            "observatory": "observatory_extensions",
         }
         internal_type = type_mapping.get(plugin_type, plugin_type)
 

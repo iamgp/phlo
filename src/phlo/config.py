@@ -37,6 +37,11 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("PHLO_LINEAGE_DB_URL", "DAGSTER_PG_DB_CONNECTION_STRING"),
         description="PostgreSQL DSN for the row-level lineage store",
     )
+    observatory_settings_db_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PHLO_OBSERVATORY_SETTINGS_DB_URL"),
+        description="PostgreSQL DSN for Observatory settings storage",
+    )
 
     # --- Storage Configuration ---
     # Settings for MinIO S3-compatible object storage

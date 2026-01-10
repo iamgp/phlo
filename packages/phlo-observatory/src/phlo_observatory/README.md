@@ -9,6 +9,14 @@ npm install
 npm run start
 ```
 
+## Dev Host Configuration
+
+Vite dev server host settings can be overridden via environment variables:
+
+- `DEV_HOST`: server host (default: `localhost`)
+- `DEV_HMR_HOST`: HMR host (default: `DEV_HOST`)
+- `DEV_ALLOWED_HOSTS`: comma-separated allowed hosts (default: `DEV_HOST`)
+
 # Building For Production
 
 To build this application for production:
