@@ -47,7 +47,7 @@ export async function apiPost<T>(
   const response = await fetch(`${PHLO_API_URL}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   })
 
@@ -70,7 +70,7 @@ export async function apiPut<T>(
   const response = await fetch(`${PHLO_API_URL}${endpoint}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   })
 
