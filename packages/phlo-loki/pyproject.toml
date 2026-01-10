@@ -26,6 +26,9 @@ dev = [
 [project.entry-points."phlo.plugins.services"]
 loki = "phlo_loki.plugin:LokiServicePlugin"
 
+[project.entry-points."phlo.plugins.observatory"]
+loki = "phlo_loki.observatory_plugin:LokiObservatoryExtension"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -34,7 +37,11 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_loki = ['service.yaml', 'loki-config.yml']
+phlo_loki = [
+    "service.yaml",
+    "loki-config.yml",
+    "observatory_assets/*",
+]
 
 [tool.ruff]
 line-length = 100

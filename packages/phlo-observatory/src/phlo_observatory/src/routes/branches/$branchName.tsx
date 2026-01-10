@@ -1,4 +1,10 @@
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import {
+  Await,
+  Link,
+  createFileRoute,
+  defer,
+  useRouter,
+} from '@tanstack/react-router'
 import {
   ArrowLeft,
   Clock,
@@ -9,7 +15,7 @@ import {
   RefreshCw,
   Table2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import type { Branch, LogEntry } from '@/server/nessie.server'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -34,25 +40,27 @@ import {
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
 
 export const Route = createFileRoute('/branches/$branchName')({
-  loader: async ({
-    params,
-  }): Promise<{
-    branch: Branch | { error: string }
-    commits: Array<LogEntry> | { error: string }
-    contents: Array<object> | { error: string }
-  }> => {
-    const settings = await getEffectiveObservatorySettings()
-    const nessieUrl = settings.connections.nessieUrl
-    const branchName = decodeURIComponent(params.branchName)
-    const [branch, commits, contents] = await Promise.all([
-      getBranch({ data: { branchName, nessieUrl } }),
-      getCommits({ data: { branch: branchName, limit: 50, nessieUrl } }),
-      getContents({ data: { branch: branchName, nessieUrl } }),
-    ])
-    return { branch, commits, contents }
-  },
+  loader: ({ params }) => ({
+    data: defer(loadBranchDetails(params.branchName)),
+  }),
   component: BranchDetailPage,
 })
+
+async function loadBranchDetails(branchName: string): Promise<{
+  branch: Branch | { error: string }
+  commits: Array<LogEntry> | { error: string }
+  contents: Array<object> | { error: string }
+}> {
+  const settings = await getEffectiveObservatorySettings()
+  const nessieUrl = settings.connections.nessieUrl
+  const decodedBranchName = decodeURIComponent(branchName)
+  const [branch, commits, contents] = await Promise.all([
+    getBranch({ data: { branchName: decodedBranchName, nessieUrl } }),
+    getCommits({ data: { branch: decodedBranchName, limit: 50, nessieUrl } }),
+    getContents({ data: { branch: decodedBranchName, nessieUrl } }),
+  ])
+  return { branch, commits, contents }
+}
 
 interface ContentEntry {
   name: { elements: Array<string> }
@@ -61,7 +69,30 @@ interface ContentEntry {
 
 function BranchDetailPage() {
   const { branchName } = Route.useParams()
-  const { branch, commits, contents } = Route.useLoaderData()
+  const { data } = Route.useLoaderData()
+
+  return (
+    <Suspense fallback={<LoadingState message="Loading branch details..." />}>
+      <Await promise={data}>
+        {(resolved) => (
+          <BranchDetailContent branchName={branchName} {...resolved} />
+        )}
+      </Await>
+    </Suspense>
+  )
+}
+
+function BranchDetailContent({
+  branchName,
+  branch,
+  commits,
+  contents,
+}: {
+  branchName: string
+  branch: Branch | { error: string }
+  commits: Array<LogEntry> | { error: string }
+  contents: Array<object> | { error: string }
+}) {
   const router = useRouter()
   const { settings } = useObservatorySettings()
   const [activeTab, setActiveTab] = useState<
@@ -225,6 +256,21 @@ function BranchDetailPage() {
             </TabsContent>
           </Card>
         </Tabs>
+      </div>
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <Clock className="w-6 h-6 mx-auto mb-3 opacity-60" />
+            {message}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

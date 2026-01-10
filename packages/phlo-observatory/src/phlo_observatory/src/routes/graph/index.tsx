@@ -4,12 +4,17 @@
  * Interactive visualization of asset dependencies using React Flow.
  */
 
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import {
+  Await,
+  createFileRoute,
+  defer,
+  useNavigate,
+} from '@tanstack/react-router'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { z } from 'zod'
 
 import { AlertCircle, Filter } from 'lucide-react'
-import type { GraphNode } from '@/server/graph.server'
+import type { GraphEdge, GraphNode } from '@/server/graph.server'
 import { GraphCanvas, GraphLegend } from '@/components/GraphCanvas'
 import { NodeInfoPanel } from '@/components/NodeInfoPanel'
 import { Badge } from '@/components/ui/badge'
@@ -26,31 +31,54 @@ const graphSearchSchema = z.object({
 export const Route = createFileRoute('/graph/')({
   validateSearch: graphSearchSchema,
   loaderDeps: ({ search }) => ({ focus: search.focus, depth: search.depth }),
-  loader: async ({ deps: { focus, depth } }) => {
-    const settings = await getEffectiveObservatorySettings()
-    const dagsterUrl = settings.connections.dagsterGraphqlUrl
-    if (focus) {
-      // Load focused subgraph
-      const graph = await getAssetNeighbors({
-        data: {
-          assetKey: focus,
-          direction: 'both',
-          depth: depth ?? 2,
-          dagsterUrl,
-        },
-      })
-      return { graph, focusedAsset: focus }
-    } else {
-      // Load full graph
-      const graph = await getAssetGraph({ data: { dagsterUrl } })
-      return { graph, focusedAsset: undefined }
-    }
-  },
+  loader: ({ deps: { focus, depth } }) => ({
+    data: defer(loadGraph(focus, depth)),
+  }),
   component: GraphPage,
 })
 
+async function loadGraph(focus?: string, depth?: number) {
+  const settings = await getEffectiveObservatorySettings()
+  const dagsterUrl = settings.connections.dagsterGraphqlUrl
+  if (focus) {
+    const graph = await getAssetNeighbors({
+      data: {
+        assetKey: focus,
+        direction: 'both',
+        depth: depth ?? 2,
+        dagsterUrl,
+      },
+    })
+    return { graph, focusedAsset: focus }
+  }
+  const graph = await getAssetGraph({ data: { dagsterUrl } })
+  return { graph, focusedAsset: undefined }
+}
+
 function GraphPage() {
-  const { graph, focusedAsset: initialFocus } = Route.useLoaderData()
+  const { data } = Route.useLoaderData()
+
+  return (
+    <Suspense fallback={<LoadingState message="Loading lineage graph..." />}>
+      <Await promise={data}>
+        {(resolved) => <GraphContent {...resolved} />}
+      </Await>
+    </Suspense>
+  )
+}
+
+function GraphContent({
+  graph,
+  focusedAsset: initialFocus,
+}: {
+  graph:
+    | {
+        nodes: Array<GraphNode>
+        edges: Array<GraphEdge>
+      }
+    | { error: string }
+  focusedAsset?: string
+}) {
   const navigate = useNavigate()
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
 
@@ -182,6 +210,14 @@ function GraphPage() {
           onFocusGraph={handleFocusGraph}
         />
       )}
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="flex h-full items-center justify-center text-muted-foreground">
+      {message}
     </div>
   )
 }

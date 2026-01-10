@@ -32,6 +32,9 @@ lineage = "phlo_lineage.cli_plugin:LineageCliPlugin"
 [project.entry-points."phlo.plugins.hooks"]
 lineage = "phlo_lineage.hooks_plugin:LineageHookPlugin"
 
+[project.entry-points."phlo.plugins.observatory"]
+lineage = "phlo_lineage.observatory_plugin:LineageObservatoryExtension"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -42,6 +45,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 phlo_lineage = [
     "sql/*.sql",
+    "observatory_assets/*",
 ]
 
 [tool.ruff]

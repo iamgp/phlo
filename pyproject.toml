@@ -42,6 +42,7 @@ dependencies = [
     "httpx>=0.28.1",
     "fastapi>=0.127.0",
     "structlog>=25.5.0",
+    "jsonschema>=4.23.0",
 ]
 
 [project.optional-dependencies]
@@ -104,6 +105,7 @@ phlo-trino = { workspace = true }
 phlo-openmetadata = { workspace = true }
 phlo-metrics = { workspace = true }
 phlo-testing = { workspace = true }
+phlo-observatory-example = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -172,6 +174,7 @@ extra-paths = [
   "packages/phlo-metrics/src",
   "packages/phlo-minio/src",
   "packages/phlo-nessie/src",
+  "packages/phlo-observatory-example/src",
   "packages/phlo-observatory/src",
   "packages/phlo-openmetadata/src",
   "packages/phlo-pgweb/src",

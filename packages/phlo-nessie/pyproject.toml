@@ -31,6 +31,9 @@ nessie = "phlo_nessie.plugin:NessieServicePlugin"
 [project.entry-points."phlo.plugins.cli"]
 nessie = "phlo_nessie.cli_plugin:NessieCliPlugin"
 
+[project.entry-points."phlo.plugins.observatory"]
+nessie = "phlo_nessie.observatory_plugin:NessieObservatoryExtension"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -39,7 +42,10 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_nessie = ["service.yaml"]
+phlo_nessie = [
+    "service.yaml",
+    "observatory_assets/*",
+]
 
 [tool.ruff]
 line-length = 100

@@ -18,6 +18,7 @@ from phlo.plugins.base import (
     CatalogPlugin,
     CliCommandPlugin,
     DagsterExtensionPlugin,
+    ObservatoryExtensionPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
@@ -37,6 +38,7 @@ ENTRY_POINT_GROUPS = {
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
     "dagster_extensions": "phlo.plugins.dagster",
+    "observatory_extensions": "phlo.plugins.observatory",
     "cli_commands": "phlo.plugins.cli",
     "hooks": "phlo.plugins.hooks",
     "catalogs": "phlo.plugins.catalogs",
@@ -112,6 +114,7 @@ def discover_plugins(
                 "transformations": [],
                 "services": [],
                 "dagster_extensions": [],
+                "observatory_extensions": [],
                 "cli_commands": [],
                 "hooks": [],
                 "catalogs": [],
@@ -126,6 +129,7 @@ def discover_plugins(
             "transformations": [],
             "services": [],
             "dagster_extensions": [],
+            "observatory_extensions": [],
             "cli_commands": [],
             "hooks": [],
             "catalogs": [],
@@ -188,6 +192,7 @@ def discover_plugins(
                         "transformations": TransformationPlugin,
                         "services": ServicePlugin,
                         "dagster_extensions": DagsterExtensionPlugin,
+                        "observatory_extensions": ObservatoryExtensionPlugin,
                         "cli_commands": CliCommandPlugin,
                         "hooks": HookPlugin,
                         "catalogs": CatalogPlugin,
@@ -223,6 +228,8 @@ def discover_plugins(
                             registry.register_service(plugin, replace=True)
                         elif ptype == "dagster_extensions":
                             registry.register_dagster_extension(plugin, replace=True)
+                        elif ptype == "observatory_extensions":
+                            registry.register_observatory_extension(plugin, replace=True)
                         elif ptype == "cli_commands":
                             registry.register_cli_command_plugin(plugin, replace=True)
                         elif ptype == "hooks":
@@ -315,6 +322,8 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
         return registry.get_service(name)
     elif plugin_type == "dagster_extensions":
         return registry.get_dagster_extension(name)
+    elif plugin_type == "observatory_extensions":
+        return registry.get_observatory_extension(name)
     elif plugin_type == "cli_commands":
         return registry.get_cli_command_plugin(name)
     elif plugin_type == "hooks":
@@ -477,6 +486,8 @@ def validate_plugins() -> dict[str, list[str]]:
                 plugin = registry.get_service(name)
             elif plugin_type == "dagster_extensions":
                 plugin = registry.get_dagster_extension(name)
+            elif plugin_type == "observatory_extensions":
+                plugin = registry.get_observatory_extension(name)
             elif plugin_type == "cli_commands":
                 plugin = registry.get_cli_command_plugin(name)
             elif plugin_type == "hooks":

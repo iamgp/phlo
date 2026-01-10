@@ -4,8 +4,15 @@
  * This layout route handles the shared sidebar with table browser.
  * Tables are loaded once here and passed to child routes via context.
  */
-import { Outlet, createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  Await,
+  Outlet,
+  createFileRoute,
+  defer,
+  useNavigate,
+} from '@tanstack/react-router'
 import { Database } from 'lucide-react'
+import { Suspense } from 'react'
 
 import type { IcebergTable } from '@/server/iceberg.server'
 import { BranchSelector } from '@/components/data/BranchSelector'
@@ -15,31 +22,31 @@ import { getTables } from '@/server/iceberg.server'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/data/$branchName')({
-  loader: async ({ params }) => {
-    const branch = decodeURIComponent(params.branchName)
-    const settings = await getEffectiveObservatorySettings()
-    const tables = await getTables({
-      data: {
-        branch,
-        catalog: settings.defaults.catalog,
-        preferredSchema: settings.defaults.schema,
-        trinoUrl: settings.connections.trinoUrl,
-        timeoutMs: settings.query.timeoutMs,
-      },
-    })
-    return { tables }
-  },
+  loader: ({ params }) => ({
+    data: defer(loadTables(params.branchName)),
+  }),
   component: DataExplorerLayout,
 })
+
+async function loadTables(branchName: string) {
+  const branch = decodeURIComponent(branchName)
+  const settings = await getEffectiveObservatorySettings()
+  return getTables({
+    data: {
+      branch,
+      catalog: settings.defaults.catalog,
+      preferredSchema: settings.defaults.schema,
+      trinoUrl: settings.connections.trinoUrl,
+      timeoutMs: settings.query.timeoutMs,
+    },
+  })
+}
 
 function DataExplorerLayout() {
   const navigate = useNavigate()
   const { branchName } = Route.useParams()
-  const { tables } = Route.useLoaderData()
+  const { data } = Route.useLoaderData()
   const decodedBranchName = decodeURIComponent(branchName)
-
-  const hasError = 'error' in tables
-  const tableList = hasError ? [] : tables
 
   // Navigate to URL-based route when table is selected
   const handleTableSelect = (selectedTable: IcebergTable) => {
@@ -95,11 +102,21 @@ function DataExplorerLayout() {
         </div>
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-hidden">
-            <TableBrowserVirtualized
-              tables={tableList}
-              error={hasError ? (tables as { error: string }).error : null}
-              onSelectTable={handleTableSelect}
-            />
+            <Suspense fallback={<LoadingState message="Loading tables..." />}>
+              <Await promise={data}>
+                {(tables) => {
+                  const hasError = 'error' in tables
+                  const tableList = hasError ? [] : tables
+                  return (
+                    <TableBrowserVirtualized
+                      tables={tableList}
+                      error={hasError ? tables.error : null}
+                      onSelectTable={handleTableSelect}
+                    />
+                  )
+                }}
+              </Await>
+            </Suspense>
           </div>
           {/* Saved Queries Panel */}
           <div className="border-t border-border p-2">
@@ -110,6 +127,14 @@ function DataExplorerLayout() {
 
       {/* Main content area - rendered by child route */}
       <Outlet />
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="p-4 text-center text-muted-foreground text-sm">
+      {message}
     </div>
   )
 }

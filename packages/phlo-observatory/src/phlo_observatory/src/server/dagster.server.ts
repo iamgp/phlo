@@ -8,6 +8,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
 // Types
@@ -153,9 +154,14 @@ function transformAssetDetails(a: ApiAssetDetails): AssetDetails {
 export const checkDagsterConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
-  .handler(async (): Promise<DagsterConnectionStatus> => {
+  .handler(async ({ data }): Promise<DagsterConnectionStatus> => {
     try {
-      return await apiGet<DagsterConnectionStatus>('/api/dagster/connection')
+      const key = cacheKeys.dagsterConnection(data.dagsterUrl ?? 'default')
+      return await withCache(
+        () => apiGet<DagsterConnectionStatus>('/api/dagster/connection'),
+        key,
+        cacheTTL.dagsterConnection,
+      )
     } catch (error) {
       return {
         connected: false,
@@ -170,10 +176,14 @@ export const checkDagsterConnection = createServerFn()
 export const getHealthMetrics = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
-  .handler(async (): Promise<HealthMetrics | { error: string }> => {
+  .handler(async ({ data }): Promise<HealthMetrics | { error: string }> => {
     try {
-      const result = await apiGet<ApiHealthMetrics | { error: string }>(
-        '/api/dagster/health',
+      const key = cacheKeys.dagsterHealth(data.dagsterUrl ?? 'default')
+      const result = await withCache(
+        () =>
+          apiGet<ApiHealthMetrics | { error: string }>('/api/dagster/health'),
+        key,
+        cacheTTL.dagsterHealth,
       )
       if ('error' in result) return result
       return {
@@ -196,10 +206,14 @@ export const getHealthMetrics = createServerFn()
 export const getAssets = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { dagsterUrl?: string } = {}) => input)
-  .handler(async (): Promise<Array<Asset> | { error: string }> => {
+  .handler(async ({ data }): Promise<Array<Asset> | { error: string }> => {
     try {
-      const result = await apiGet<Array<ApiAsset> | { error: string }>(
-        '/api/dagster/assets',
+      const key = cacheKeys.assets(data.dagsterUrl ?? 'default')
+      const result = await withCache(
+        () =>
+          apiGet<Array<ApiAsset> | { error: string }>('/api/dagster/assets'),
+        key,
+        cacheTTL.assets,
       )
       if ('error' in result) return result
       return result.map(transformAsset)
