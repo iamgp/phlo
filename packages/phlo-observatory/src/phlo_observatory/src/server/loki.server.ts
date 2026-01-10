@@ -8,6 +8,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
 // Types
@@ -52,15 +53,29 @@ function transformLogEntry(e: ApiLogEntry): LogEntry {
   }
 }
 
+function buildQueryKey(
+  parts: Record<string, string | number | undefined>,
+): string {
+  return Object.entries(parts)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&')
+}
+
 /**
  * Check if Loki is reachable
  */
 export const checkLokiConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { lokiUrl?: string } = {}) => input)
-  .handler(async (): Promise<LokiConnectionStatus> => {
+  .handler(async ({ data }): Promise<LokiConnectionStatus> => {
     try {
-      return await apiGet<LokiConnectionStatus>('/api/loki/connection')
+      const key = cacheKeys.lokiConnection(data.lokiUrl ?? 'default')
+      return await withCache(
+        () => apiGet<LokiConnectionStatus>('/api/loki/connection'),
+        key,
+        cacheTTL.lokiLabels,
+      )
     } catch (error) {
       return {
         connected: false,
@@ -92,20 +107,35 @@ export const queryLogs = createServerFn()
   )
   .handler(async ({ data }): Promise<LogQueryResult | { error: string }> => {
     try {
-      const result = await apiGet<ApiLogQueryResult | { error: string }>(
-        '/api/loki/query',
-        {
-          start: data.start,
-          end: data.end,
-          run_id: data.runId,
-          asset_key: data.assetKey,
-          job: data.job,
-          partition_key: data.partitionKey,
-          check_name: data.checkName,
-          level: data.level,
-          service: data.service,
-          limit: data.limit,
-        },
+      const queryKey = buildQueryKey({
+        start: data.start,
+        end: data.end,
+        runId: data.runId,
+        assetKey: data.assetKey,
+        job: data.job,
+        partitionKey: data.partitionKey,
+        checkName: data.checkName,
+        level: data.level,
+        service: data.service,
+        limit: data.limit,
+      })
+      const key = cacheKeys.lokiQuery(data.lokiUrl ?? 'default', queryKey)
+      const result = await withCache(
+        () =>
+          apiGet<ApiLogQueryResult | { error: string }>('/api/loki/query', {
+            start: data.start,
+            end: data.end,
+            run_id: data.runId,
+            asset_key: data.assetKey,
+            job: data.job,
+            partition_key: data.partitionKey,
+            check_name: data.checkName,
+            level: data.level,
+            service: data.service,
+            limit: data.limit,
+          }),
+        key,
+        cacheTTL.lokiQuery,
       )
 
       if ('error' in result) return result
@@ -132,28 +162,35 @@ export const queryRunLogs = createServerFn()
       timeoutMs?: number
     }) => input,
   )
-  .handler(
-    async ({
-      data: { runId, level, limit = 500 },
-    }): Promise<LogQueryResult | { error: string }> => {
-      try {
-        const result = await apiGet<ApiLogQueryResult | { error: string }>(
-          `/api/loki/runs/${encodeURIComponent(runId)}`,
-          { level, limit },
-        )
+  .handler(async ({ data }): Promise<LogQueryResult | { error: string }> => {
+    try {
+      const queryKey = buildQueryKey({
+        runId: data.runId,
+        level: data.level,
+        limit: data.limit ?? 500,
+      })
+      const key = cacheKeys.lokiQuery(data.lokiUrl ?? 'default', queryKey)
+      const result = await withCache(
+        () =>
+          apiGet<ApiLogQueryResult | { error: string }>(
+            `/api/loki/runs/${encodeURIComponent(data.runId)}`,
+            { level: data.level, limit: data.limit ?? 500 },
+          ),
+        key,
+        cacheTTL.lokiQuery,
+      )
 
-        if ('error' in result) return result
-        return {
-          entries: result.entries.map(transformLogEntry),
-          hasMore: result.has_more,
-        }
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
+      if ('error' in result) return result
+      return {
+        entries: result.entries.map(transformLogEntry),
+        hasMore: result.has_more,
       }
-    },
-  )
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  })
 
 /**
  * Query logs for a specific asset
@@ -171,33 +208,42 @@ export const queryAssetLogs = createServerFn()
       timeoutMs?: number
     }) => input,
   )
-  .handler(
-    async ({
-      data: { assetKey, partitionKey, level, hoursBack = 24, limit = 200 },
-    }): Promise<LogQueryResult | { error: string }> => {
-      try {
-        const result = await apiGet<ApiLogQueryResult | { error: string }>(
-          `/api/loki/assets/${encodeURIComponent(assetKey)}`,
-          {
-            partition_key: partitionKey,
-            level,
-            hours_back: hoursBack,
-            limit,
-          },
-        )
+  .handler(async ({ data }): Promise<LogQueryResult | { error: string }> => {
+    try {
+      const queryKey = buildQueryKey({
+        assetKey: data.assetKey,
+        partitionKey: data.partitionKey,
+        level: data.level,
+        hoursBack: data.hoursBack ?? 24,
+        limit: data.limit ?? 200,
+      })
+      const key = cacheKeys.lokiQuery(data.lokiUrl ?? 'default', queryKey)
+      const result = await withCache(
+        () =>
+          apiGet<ApiLogQueryResult | { error: string }>(
+            `/api/loki/assets/${encodeURIComponent(data.assetKey)}`,
+            {
+              partition_key: data.partitionKey,
+              level: data.level,
+              hours_back: data.hoursBack ?? 24,
+              limit: data.limit ?? 200,
+            },
+          ),
+        key,
+        cacheTTL.lokiQuery,
+      )
 
-        if ('error' in result) return result
-        return {
-          entries: result.entries.map(transformLogEntry),
-          hasMore: result.has_more,
-        }
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
+      if ('error' in result) return result
+      return {
+        entries: result.entries.map(transformLogEntry),
+        hasMore: result.has_more,
       }
-    },
-  )
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  })
 
 /**
  * Get available log labels
@@ -205,12 +251,24 @@ export const queryAssetLogs = createServerFn()
 export const getLogLabels = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { lokiUrl?: string } = {}) => input)
-  .handler(async (): Promise<{ labels: Array<string> } | { error: string }> => {
-    try {
-      return await apiGet<{ labels: Array<string> } | { error: string }>(
-        '/api/loki/labels',
-      )
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : 'Unknown error' }
-    }
-  })
+  .handler(
+    async ({
+      data,
+    }): Promise<{ labels: Array<string> } | { error: string }> => {
+      try {
+        const key = cacheKeys.lokiLabels(data.lokiUrl ?? 'default')
+        return await withCache(
+          () =>
+            apiGet<{ labels: Array<string> } | { error: string }>(
+              '/api/loki/labels',
+            ),
+          key,
+          cacheTTL.lokiLabels,
+        )
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      }
+    },
+  )

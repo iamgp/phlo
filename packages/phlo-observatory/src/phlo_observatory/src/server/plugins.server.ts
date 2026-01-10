@@ -16,7 +16,7 @@ const registryUrl =
 
 export interface PluginInfo {
   name: string
-  type: 'source' | 'quality' | 'transform' | 'service'
+  type: 'source' | 'quality' | 'transform' | 'service' | 'observatory'
   version: string
   description?: string
   author?: string

@@ -8,6 +8,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiDelete, apiGet, apiPost } from '@/server/phlo-api'
 
 // Types for Nessie data structures
@@ -85,9 +86,14 @@ function transformLogEntry(e: ApiLogEntry): LogEntry {
 export const checkNessieConnection = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async (): Promise<NessieConfig> => {
+  .handler(async ({ data }): Promise<NessieConfig> => {
     try {
-      const result = await apiGet<ApiConnectionStatus>('/api/nessie/connection')
+      const key = cacheKeys.nessieConnection(data.nessieUrl ?? 'default')
+      const result = await withCache(
+        () => apiGet<ApiConnectionStatus>('/api/nessie/connection'),
+        key,
+        cacheTTL.nessieConnection,
+      )
       return {
         connected: result.connected,
         error: result.error,
@@ -107,10 +113,13 @@ export const checkNessieConnection = createServerFn()
 export const getBranches = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { nessieUrl?: string } = {}) => input)
-  .handler(async (): Promise<Array<Branch> | { error: string }> => {
+  .handler(async ({ data }): Promise<Array<Branch> | { error: string }> => {
     try {
-      return await apiGet<Array<Branch> | { error: string }>(
-        '/api/nessie/branches',
+      const key = cacheKeys.nessieBranches(data.nessieUrl ?? 'default')
+      return await withCache(
+        () => apiGet<Array<Branch> | { error: string }>('/api/nessie/branches'),
+        key,
+        cacheTTL.nessieBranches,
       )
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Unknown error' }
@@ -123,19 +132,26 @@ export const getBranches = createServerFn()
 export const getBranch = createServerFn()
   .middleware([authMiddleware])
   .inputValidator((input: { branchName: string; nessieUrl?: string }) => input)
-  .handler(
-    async ({ data: { branchName } }): Promise<Branch | { error: string }> => {
-      try {
-        return await apiGet<Branch | { error: string }>(
-          `/api/nessie/branches/${encodeURIComponent(branchName)}`,
-        )
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
+  .handler(async ({ data }): Promise<Branch | { error: string }> => {
+    try {
+      const key = cacheKeys.nessieBranch(
+        data.nessieUrl ?? 'default',
+        data.branchName,
+      )
+      return await withCache(
+        () =>
+          apiGet<Branch | { error: string }>(
+            `/api/nessie/branches/${encodeURIComponent(data.branchName)}`,
+          ),
+        key,
+        cacheTTL.nessieBranch,
+      )
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
-    },
-  )
+    }
+  })
 
 /**
  * Get commit history for a branch
@@ -145,25 +161,31 @@ export const getCommits = createServerFn()
   .inputValidator(
     (input: { branch: string; limit?: number; nessieUrl?: string }) => input,
   )
-  .handler(
-    async ({
-      data: { branch, limit = 50 },
-    }): Promise<Array<LogEntry> | { error: string }> => {
-      try {
-        const result = await apiGet<Array<ApiLogEntry> | { error: string }>(
-          `/api/nessie/branches/${encodeURIComponent(branch)}/history`,
-          { limit },
-        )
+  .handler(async ({ data }): Promise<Array<LogEntry> | { error: string }> => {
+    try {
+      const key = cacheKeys.nessieCommits(
+        data.nessieUrl ?? 'default',
+        data.branch,
+        data.limit ?? 50,
+      )
+      const result = await withCache(
+        () =>
+          apiGet<Array<ApiLogEntry> | { error: string }>(
+            `/api/nessie/branches/${encodeURIComponent(data.branch)}/history`,
+            { limit: data.limit ?? 50 },
+          ),
+        key,
+        cacheTTL.nessieCommits,
+      )
 
-        if ('error' in result) return result
-        return result.map(transformLogEntry)
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
+      if ('error' in result) return result
+      return result.map(transformLogEntry)
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
-    },
-  )
+    }
+  })
 
 /**
  * Get contents (tables) at a specific branch/ref
@@ -173,22 +195,28 @@ export const getContents = createServerFn()
   .inputValidator(
     (input: { branch: string; prefix?: string; nessieUrl?: string }) => input,
   )
-  .handler(
-    async ({
-      data: { branch, prefix },
-    }): Promise<Array<object> | { error: string }> => {
-      try {
-        return await apiGet<Array<object> | { error: string }>(
-          `/api/nessie/branches/${encodeURIComponent(branch)}/entries`,
-          { prefix },
-        )
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
+  .handler(async ({ data }): Promise<Array<object> | { error: string }> => {
+    try {
+      const key = cacheKeys.nessieContents(
+        data.nessieUrl ?? 'default',
+        data.branch,
+        data.prefix,
+      )
+      return await withCache(
+        () =>
+          apiGet<Array<object> | { error: string }>(
+            `/api/nessie/branches/${encodeURIComponent(data.branch)}/entries`,
+            { prefix: data.prefix },
+          ),
+        key,
+        cacheTTL.nessieContents,
+      )
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
-    },
-  )
+    }
+  })
 
 /**
  * Compare two branches (diff)
@@ -199,21 +227,29 @@ export const compareBranches = createServerFn()
     (input: { fromBranch: string; toBranch: string; nessieUrl?: string }) =>
       input,
   )
-  .handler(
-    async ({
-      data: { fromBranch, toBranch },
-    }): Promise<object | { error: string }> => {
-      try {
-        return await apiGet<object>(
-          `/api/nessie/diff/${encodeURIComponent(fromBranch)}/${encodeURIComponent(toBranch)}`,
-        )
-      } catch (error) {
-        return {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }
+  .handler(async ({ data }): Promise<object | { error: string }> => {
+    try {
+      const key = cacheKeys.nessieDiff(
+        data.nessieUrl ?? 'default',
+        data.fromBranch,
+        data.toBranch,
+      )
+      return await withCache(
+        () =>
+          apiGet<object>(
+            `/api/nessie/diff/${encodeURIComponent(data.fromBranch)}/${encodeURIComponent(
+              data.toBranch,
+            )}`,
+          ),
+        key,
+        cacheTTL.nessieDiff,
+      )
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
-    },
-  )
+    }
+  })
 
 /**
  * Create a new branch

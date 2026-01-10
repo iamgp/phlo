@@ -12,6 +12,7 @@ from phlo.plugins.base import (
     CatalogPlugin,
     CliCommandPlugin,
     DagsterExtensionPlugin,
+    ObservatoryExtensionPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
@@ -38,6 +39,7 @@ class PluginRegistry:
         self._transformations: dict[str, TransformationPlugin] = {}
         self._services: dict[str, ServicePlugin] = {}
         self._dagster_extensions: dict[str, DagsterExtensionPlugin] = {}
+        self._observatory_extensions: dict[str, ObservatoryExtensionPlugin] = {}
         self._cli_commands: dict[str, CliCommandPlugin] = {}
         self._hooks: dict[str, HookPlugin] = {}
         self._assets: dict[str, AssetProviderPlugin] = {}
@@ -155,6 +157,27 @@ class PluginRegistry:
 
         self._dagster_extensions[name] = plugin
         self._all_plugins[f"dagster:{name}"] = plugin
+
+    def register_observatory_extension(
+        self, plugin: ObservatoryExtensionPlugin, replace: bool = False
+    ) -> None:
+        """
+        Register an Observatory extension plugin.
+
+        Args:
+            plugin: Observatory extension plugin instance
+            replace: Whether to replace existing plugin with same name
+        """
+        name = plugin.metadata.name
+
+        if name in self._observatory_extensions and not replace:
+            raise ValueError(
+                f"Observatory extension plugin '{name}' is already registered. "
+                f"Use replace=True to overwrite."
+            )
+
+        self._observatory_extensions[name] = plugin
+        self._all_plugins[f"observatory:{name}"] = plugin
 
     def register_cli_command_plugin(self, plugin: CliCommandPlugin, replace: bool = False) -> None:
         """Register a CLI command plugin."""
@@ -281,6 +304,10 @@ class PluginRegistry:
         """Get a Dagster extension plugin by name."""
         return self._dagster_extensions.get(name)
 
+    def get_observatory_extension(self, name: str) -> ObservatoryExtensionPlugin | None:
+        """Get an Observatory extension plugin by name."""
+        return self._observatory_extensions.get(name)
+
     def get_cli_command_plugin(self, name: str) -> CliCommandPlugin | None:
         """Get a CLI command plugin by name."""
         return self._cli_commands.get(name)
@@ -345,6 +372,10 @@ class PluginRegistry:
         """List all registered Dagster extension plugins."""
         return list(self._dagster_extensions.keys())
 
+    def list_observatory_extensions(self) -> list[str]:
+        """List all registered Observatory extension plugins."""
+        return list(self._observatory_extensions.keys())
+
     def list_cli_command_plugins(self) -> list[str]:
         """List all registered CLI command plugins."""
         return list(self._cli_commands.keys())
@@ -382,6 +413,7 @@ class PluginRegistry:
             "transformations": self.list_transformations(),
             "services": self.list_services(),
             "dagster_extensions": self.list_dagster_extensions(),
+            "observatory_extensions": self.list_observatory_extensions(),
             "cli_commands": self.list_cli_command_plugins(),
             "hooks": self.list_hook_plugins(),
             "asset_providers": self.list_asset_providers(),
@@ -397,6 +429,7 @@ class PluginRegistry:
         self._transformations.clear()
         self._services.clear()
         self._dagster_extensions.clear()
+        self._observatory_extensions.clear()
         self._cli_commands.clear()
         self._hooks.clear()
         self._assets.clear()
@@ -438,6 +471,8 @@ class PluginRegistry:
             plugin = self.get_transformation(name)
         elif plugin_type == "services":
             plugin = self.get_service(name)
+        elif plugin_type == "observatory_extensions":
+            plugin = self.get_observatory_extension(name)
         elif plugin_type == "hooks":
             plugin = self.get_hook_plugin(name)
         elif plugin_type == "asset_providers":
@@ -518,6 +553,10 @@ class PluginRegistry:
             has_targets = hasattr(plugin, "targets")
             has_properties = hasattr(plugin, "get_properties") and callable(plugin.get_properties)
             return has_catalog and has_targets and has_properties
+        elif isinstance(plugin, ObservatoryExtensionPlugin):
+            has_manifest = hasattr(plugin, "manifest")
+            has_asset_root = hasattr(plugin, "asset_root")
+            return has_manifest and has_asset_root
 
         return True
 

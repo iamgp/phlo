@@ -6,9 +6,23 @@ import { nitro } from 'nitro/vite'
 import { defineConfig } from 'vite'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 
+const devHost = process.env.DEV_HOST ?? 'localhost'
+const devHmrHost = process.env.DEV_HMR_HOST ?? devHost
+const devAllowedHosts = (process.env.DEV_ALLOWED_HOSTS ?? devHost)
+  .split(',')
+  .map((host) => host.trim())
+  .filter(Boolean)
+
 const config = defineConfig({
   server: {
     port: 3001,
+    allowedHosts: devAllowedHosts,
+    host: devHost,
+    hmr: {
+      host: devHmrHost,
+      clientPort: 3003,
+      protocol: 'ws',
+    },
   },
   plugins: [
     devtools(),

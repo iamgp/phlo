@@ -7,6 +7,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
+import { cacheKeys, cacheTTL, withCache } from '@/server/cache'
 import { apiGet } from '@/server/phlo-api'
 
 export interface MaintenanceOperationStatus {
@@ -82,9 +83,14 @@ export const getMaintenanceStatus = createServerFn()
   .inputValidator((input: Record<string, never> = {}) => input)
   .handler(async (): Promise<MaintenanceStatusSnapshot | { error: string }> => {
     try {
-      const result = await apiGet<
-        ApiMaintenanceStatusSnapshot | { error: string }
-      >('/api/maintenance/status')
+      const result = await withCache(
+        () =>
+          apiGet<ApiMaintenanceStatusSnapshot | { error: string }>(
+            '/api/maintenance/status',
+          ),
+        cacheKeys.maintenanceStatus(),
+        cacheTTL.maintenanceStatus,
+      )
       if ('error' in result) return result
       return {
         lastUpdated: result.last_updated,

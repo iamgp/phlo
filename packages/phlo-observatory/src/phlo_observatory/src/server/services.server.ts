@@ -18,9 +18,17 @@ import { authMiddleware } from '@/server/auth.server'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
-const phloCommand = process.env.PHLO_CLI_COMMAND ?? 'uv run phlo'
+const phloCommand = process.env.PHLO_CLI_COMMAND ?? 'phlo'
 const phloProjectPath = process.env.PHLO_PROJECT_PATH
 const envFilePath = process.env.ENV_FILE_PATH
+const servicesCacheTtlMs = Number(
+  process.env.PHLO_SERVICES_CACHE_TTL_MS ?? 5000,
+)
+
+let servicesCache: {
+  timestamp: number
+  data: Array<ServiceWithStatus>
+} | null = null
 
 const serviceMetadata: Record<
   string,
@@ -334,9 +342,13 @@ async function parseServiceYaml(
  * Discover all services from service.yaml files
  */
 async function discoverServices(): Promise<Array<ServiceDefinition>> {
-  const cliServices = await discoverServicesFromCli()
-  if (cliServices.length > 0) {
-    return cliServices
+  const useCli = process.env.PHLO_USE_CLI_SERVICE_DISCOVERY === 'true'
+
+  if (useCli) {
+    const cliServices = await discoverServicesFromCli()
+    if (cliServices.length > 0) {
+      return cliServices
+    }
   }
 
   const packagesPath = getPackagesPath()
@@ -352,6 +364,13 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     }
   } catch (error) {
     console.error('Error discovering services:', error)
+  }
+
+  if (!useCli && services.length === 0) {
+    const cliServices = await discoverServicesFromCli()
+    if (cliServices.length > 0) {
+      return cliServices
+    }
   }
 
   return services.sort((a, b) => {
@@ -484,6 +503,7 @@ async function runPhloCommand(args: Array<string>): Promise<void> {
     ...execOptions,
     timeout: 120000,
   })
+  servicesCache = null
 }
 
 /**
@@ -576,6 +596,11 @@ export const getDockerStatus = createServerFn().handler(
  */
 export const getServices = createServerFn().handler(
   async (): Promise<Array<ServiceWithStatus>> => {
+    const now = Date.now()
+    if (servicesCache && now - servicesCache.timestamp < servicesCacheTtlMs) {
+      return servicesCache.data
+    }
+
     // Load data in parallel
     const [services, containers, envValues, nativeProcesses] =
       await Promise.all([
@@ -592,55 +617,54 @@ export const getServices = createServerFn().handler(
     }
 
     // Merge services with status and env values
-    return (
-      services
-        // Hide one-shot init containers from the Hub (they run once and exit successfully).
-        .filter((service) => service.name !== 'minio-setup')
-        .map((service) => {
-          // Update env vars with actual values from env files
-          const enrichedEnvVars = service.envVars.map((ev) => ({
-            ...ev,
-            value: envValues[ev.name] ?? ev.value,
-          }))
+    const data = services
+      // Hide one-shot init containers from the Hub (they run once and exit successfully).
+      .filter((service) => service.name !== 'minio-setup')
+      .map((service) => {
+        // Update env vars with actual values from env files
+        const enrichedEnvVars = service.envVars.map((ev) => ({
+          ...ev,
+          value: envValues[ev.name] ?? ev.value,
+        }))
 
-          // Also update port descriptions with actual values
-          const enrichedPorts = service.ports.map((port) => {
-            if (port.description && envValues[port.description]) {
-              return {
-                ...port,
-                host: parseInt(envValues[port.description], 10) || port.host,
-              }
+        // Also update port descriptions with actual values
+        const enrichedPorts = service.ports.map((port) => {
+          if (port.description && envValues[port.description]) {
+            return {
+              ...port,
+              host: parseInt(envValues[port.description], 10) || port.host,
             }
-            return port
-          })
-
-          const firstPort = enrichedPorts[0]
-          const url = firstPort
-            ? `http://localhost:${firstPort.host}`
-            : undefined
-
-          const dockerStatus = containerMap.get(service.name) || null
-          const native = nativeProcesses[service.name]
-          const nativeStatus: DockerContainerStatus | null =
-            native && isPidRunning(native.pid)
-              ? {
-                  name: `native:${service.name}`,
-                  service: service.name,
-                  status: 'running',
-                  health: 'native',
-                  ports: undefined,
-                }
-              : null
-
-          return {
-            ...service,
-            ports: enrichedPorts,
-            envVars: enrichedEnvVars,
-            url,
-            containerStatus: nativeStatus ?? dockerStatus,
           }
+          return port
         })
-    )
+
+        const firstPort = enrichedPorts[0]
+        const url = firstPort ? `http://localhost:${firstPort.host}` : undefined
+
+        const dockerStatus = containerMap.get(service.name) || null
+        const native = nativeProcesses[service.name]
+        const nativeStatus: DockerContainerStatus | null =
+          native && isPidRunning(native.pid)
+            ? {
+                name: `native:${service.name}`,
+                service: service.name,
+                status: 'running',
+                health: 'native',
+                ports: undefined,
+              }
+            : null
+
+        return {
+          ...service,
+          ports: enrichedPorts,
+          envVars: enrichedEnvVars,
+          url,
+          containerStatus: nativeStatus ?? dockerStatus,
+        }
+      })
+
+    servicesCache = { timestamp: now, data }
+    return data
   },
 )
 
@@ -695,6 +719,7 @@ export const startService = createServerFn()
           }
         }
 
+        servicesCache = null
         return { success: true }
       } catch (error) {
         return {
@@ -735,6 +760,7 @@ export const stopService = createServerFn()
           }
         }
 
+        servicesCache = null
         return { success: true }
       } catch (error) {
         return {
@@ -783,6 +809,7 @@ export const restartService = createServerFn()
           }
         }
 
+        servicesCache = null
         return { success: true }
       } catch (error) {
         return {

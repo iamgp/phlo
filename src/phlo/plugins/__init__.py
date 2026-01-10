@@ -138,6 +138,7 @@ from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
     IngestionEnginePlugin,
+    ObservatoryExtensionPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     PluginMetadata,
@@ -148,6 +149,7 @@ from phlo.plugins.base import (
     TransformationPlugin,
 )
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
+from phlo.plugins.observatory import ObservatoryExtensionManifest
 from phlo.plugins.semantic import SemanticLayerProvider, SemanticModel
 
 if TYPE_CHECKING:
@@ -200,6 +202,8 @@ __all__ = [
     "CatalogPlugin",
     "ResourceProviderPlugin",
     "OrchestratorAdapterPlugin",
+    "ObservatoryExtensionPlugin",
+    "ObservatoryExtensionManifest",
     "HookPlugin",
     "HookProvider",
     "HookHandler",

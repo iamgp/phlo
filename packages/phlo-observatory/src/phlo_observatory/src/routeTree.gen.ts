@@ -19,6 +19,7 @@ import { Route as DataIndexRouteImport } from './routes/data/index'
 import { Route as BranchesIndexRouteImport } from './routes/branches/index'
 import { Route as AssetsIndexRouteImport } from './routes/assets/index'
 import { Route as HubPluginsRouteImport } from './routes/hub/plugins'
+import { Route as ExtensionsExtensionNameRouteImport } from './routes/extensions/$extensionName'
 import { Route as DataBranchNameRouteImport } from './routes/data/$branchName'
 import { Route as BranchesBranchNameRouteImport } from './routes/branches/$branchName'
 import { Route as AssetsAssetIdRouteImport } from './routes/assets/$assetId'
@@ -77,6 +78,11 @@ const HubPluginsRoute = HubPluginsRouteImport.update({
   path: '/hub/plugins',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExtensionsExtensionNameRoute = ExtensionsExtensionNameRouteImport.update({
+  id: '/extensions/$extensionName',
+  path: '/extensions/$extensionName',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DataBranchNameRoute = DataBranchNameRouteImport.update({
   id: '/data/$branchName',
   path: '/data/$branchName',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
+  '/extensions/$extensionName': typeof ExtensionsExtensionNameRoute
   '/hub/plugins': typeof HubPluginsRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
+  '/extensions/$extensionName': typeof ExtensionsExtensionNameRoute
   '/hub/plugins': typeof HubPluginsRoute
   '/assets': typeof AssetsIndexRoute
   '/branches': typeof BranchesIndexRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/assets/$assetId': typeof AssetsAssetIdRoute
   '/branches/$branchName': typeof BranchesBranchNameRoute
   '/data/$branchName': typeof DataBranchNameRouteWithChildren
+  '/extensions/$extensionName': typeof ExtensionsExtensionNameRoute
   '/hub/plugins': typeof HubPluginsRoute
   '/assets/': typeof AssetsIndexRoute
   '/branches/': typeof BranchesIndexRoute
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/assets/$assetId'
     | '/branches/$branchName'
     | '/data/$branchName'
+    | '/extensions/$extensionName'
     | '/hub/plugins'
     | '/assets'
     | '/branches'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/assets/$assetId'
     | '/branches/$branchName'
+    | '/extensions/$extensionName'
     | '/hub/plugins'
     | '/assets'
     | '/branches'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/assets/$assetId'
     | '/branches/$branchName'
     | '/data/$branchName'
+    | '/extensions/$extensionName'
     | '/hub/plugins'
     | '/assets/'
     | '/branches/'
@@ -238,6 +250,7 @@ export interface RootRouteChildren {
   AssetsAssetIdRoute: typeof AssetsAssetIdRoute
   BranchesBranchNameRoute: typeof BranchesBranchNameRoute
   DataBranchNameRoute: typeof DataBranchNameRouteWithChildren
+  ExtensionsExtensionNameRoute: typeof ExtensionsExtensionNameRoute
   HubPluginsRoute: typeof HubPluginsRoute
   AssetsIndexRoute: typeof AssetsIndexRoute
   BranchesIndexRoute: typeof BranchesIndexRoute
@@ -318,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/hub/plugins'
       fullPath: '/hub/plugins'
       preLoaderRoute: typeof HubPluginsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/extensions/$extensionName': {
+      id: '/extensions/$extensionName'
+      path: '/extensions/$extensionName'
+      fullPath: '/extensions/$extensionName'
+      preLoaderRoute: typeof ExtensionsExtensionNameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data/$branchName': {
@@ -407,6 +427,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssetsAssetIdRoute: AssetsAssetIdRoute,
   BranchesBranchNameRoute: BranchesBranchNameRoute,
   DataBranchNameRoute: DataBranchNameRouteWithChildren,
+  ExtensionsExtensionNameRoute: ExtensionsExtensionNameRoute,
   HubPluginsRoute: HubPluginsRoute,
   AssetsIndexRoute: AssetsIndexRoute,
   BranchesIndexRoute: BranchesIndexRoute,

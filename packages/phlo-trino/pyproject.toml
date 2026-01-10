@@ -30,6 +30,9 @@ trino = "phlo_trino.plugin:TrinoResourceProvider"
 [project.entry-points."phlo.plugins.services"]
 trino = "phlo_trino.plugin:TrinoServicePlugin"
 
+[project.entry-points."phlo.plugins.observatory"]
+trino = "phlo_trino.observatory_plugin:TrinoObservatoryExtension"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -38,7 +41,11 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-phlo_trino = ["service.yaml", "catalog/*.properties"]
+phlo_trino = [
+    "service.yaml",
+    "catalog/*.properties",
+    "observatory_assets/*",
+]
 
 [tool.ruff]
 line-length = 100

@@ -35,6 +35,9 @@ dagster = "phlo_dagster.cli_plugin:DagsterCliPlugin"
 [project.entry-points."phlo.plugins.orchestrators"]
 dagster = "phlo_dagster.adapter:DagsterOrchestratorAdapter"
 
+[project.entry-points."phlo.plugins.observatory"]
+dagster = "phlo_dagster.observatory_plugin:DagsterObservatoryExtension"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -49,6 +52,7 @@ phlo_dagster = [
     "Dockerfile",
     "entrypoint.sh",
     "templates/*.yaml",
+    "observatory_assets/*",
 ]
 
 [tool.ruff]

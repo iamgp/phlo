@@ -4,9 +4,15 @@
  * Displays all Phlo services with their status and controls.
  */
 
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import {
+  Await,
+  Link,
+  createFileRoute,
+  defer,
+  useRouter,
+} from '@tanstack/react-router'
 import { Boxes, CheckCircle, Loader2, RefreshCw, XCircle } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
 import type { ServiceWithStatus } from '@/server/services.server'
 import { ServiceCard } from '@/components/hub/ServiceCard'
@@ -18,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { ExtensionSlot } from '@/extensions/registry'
 import {
   getServices,
   restartService,
@@ -27,15 +34,23 @@ import {
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/hub/')({
-  loader: async () => {
-    const services = await getServices()
-    return { services }
-  },
+  loader: () => ({ services: defer(getServices()) }),
   component: HubPage,
 })
 
 function HubPage() {
   const { services } = Route.useLoaderData()
+
+  return (
+    <Suspense fallback={<LoadingState message="Loading services..." />}>
+      <Await promise={services}>
+        {(resolved) => <HubContent services={resolved} />}
+      </Await>
+    </Suspense>
+  )
+}
+
+function HubContent({ services }: { services: Array<ServiceWithStatus> }) {
   const router = useRouter()
   const [loadingServices, setLoadingServices] = useState<Set<string>>(new Set())
 
@@ -177,6 +192,8 @@ function HubPage() {
           />
         </div>
 
+        <ExtensionSlot slotId="hub.after-stats" className="mb-6" />
+
         {/* Services by Category */}
         {sortedCategories.map((category) => (
           <div key={category} className="mb-8">
@@ -198,6 +215,15 @@ function HubPage() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="h-full flex items-center justify-center gap-2 text-sm text-muted-foreground">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      {message}
     </div>
   )
 }

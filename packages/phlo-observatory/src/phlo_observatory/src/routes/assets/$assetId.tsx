@@ -1,4 +1,10 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  Await,
+  Link,
+  createFileRoute,
+  defer,
+  useNavigate,
+} from '@tanstack/react-router'
 import {
   Calendar,
   Clock,
@@ -13,7 +19,7 @@ import {
   Table as TableIcon,
   Terminal,
 } from 'lucide-react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import type { Asset, AssetDetails } from '@/server/dagster.server'
 import type { QualityCheck } from '@/server/quality.server'
 import type { ReactNode } from 'react'
@@ -47,40 +53,59 @@ import { formatDate, formatDateTime } from '@/utils/dateFormat'
 import { getEffectiveObservatorySettings } from '@/utils/effectiveSettings'
 
 export const Route = createFileRoute('/assets/$assetId')({
-  loader: async ({ params }) => {
-    const settings = await getEffectiveObservatorySettings()
-    const dagsterUrl = settings.connections.dagsterGraphqlUrl
-    // Load all assets for the sidebar
-    const assets = await getAssets({ data: { dagsterUrl } })
-
-    // Load the selected asset details
-    const asset = await getAssetDetails({
-      data: { assetKey: params.assetId.split('/'), dagsterUrl },
-    })
-
-    // Fetch checks but don't fail the whole page if it errors
-    let checks: Array<QualityCheck> | { error: string } = {
-      error: 'Not loaded',
-    }
-    try {
-      checks = await getAssetChecks({
-        data: { assetKey: params.assetId.split('/'), dagsterUrl },
-      })
-    } catch {
-      // Quality checks are optional, don't block page load
-      checks = { error: 'Failed to load checks' }
-    }
-
-    return { assets, asset, checks }
-  },
+  loader: ({ params }) => ({ data: defer(loadAssetDetails(params.assetId)) }),
   component: AssetDetailPage,
 })
+
+async function loadAssetDetails(assetId: string): Promise<{
+  assets: Array<Asset> | { error: string }
+  asset: AssetDetails | { error: string }
+  checks: Array<QualityCheck> | { error: string }
+}> {
+  const settings = await getEffectiveObservatorySettings()
+  const dagsterUrl = settings.connections.dagsterGraphqlUrl
+  const assetKey = assetId.split('/')
+  const assets = await getAssets({ data: { dagsterUrl } })
+  const asset = await getAssetDetails({ data: { assetKey, dagsterUrl } })
+
+  let checks: Array<QualityCheck> | { error: string } = {
+    error: 'Not loaded',
+  }
+  try {
+    checks = await getAssetChecks({ data: { assetKey, dagsterUrl } })
+  } catch {
+    checks = { error: 'Failed to load checks' }
+  }
+
+  return { assets, asset, checks }
+}
 
 type Tab = 'overview' | 'journey' | 'data' | 'quality' | 'logs'
 
 function AssetDetailPage() {
-  const { assets, asset, checks } = Route.useLoaderData()
+  const { data } = Route.useLoaderData()
   const params = Route.useParams()
+
+  return (
+    <Suspense fallback={<LoadingState message="Loading asset..." />}>
+      <Await promise={data}>
+        {(resolved) => <AssetDetailContent params={params} {...resolved} />}
+      </Await>
+    </Suspense>
+  )
+}
+
+function AssetDetailContent({
+  params,
+  assets,
+  asset,
+  checks,
+}: {
+  params: { assetId: string }
+  assets: Array<Asset> | { error: string }
+  asset: AssetDetails | { error: string }
+  checks: Array<QualityCheck> | { error: string }
+}) {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [searchQuery, setSearchQuery] = useState('')
@@ -277,6 +302,21 @@ function AssetDetailPage() {
           )}
         </div>
       </main>
+    </div>
+  )
+}
+
+function LoadingState({ message }: { message: string }) {
+  return (
+    <div className="h-full overflow-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <Clock className="w-6 h-6 mx-auto mb-3 opacity-60" />
+            {message}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
