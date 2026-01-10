@@ -14,6 +14,8 @@ from phlo.plugins.observatory import (
     ObservatoryExtensionUI,
 )
 
+VERSION = "0.1.0"
+
 
 class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
     """Observatory extension metadata for Trino data explorer UI."""
@@ -22,7 +24,7 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
     def metadata(self) -> PluginMetadata:
         return PluginMetadata(
             name="trino",
-            version="0.1.0",
+            version=VERSION,
             description="Observatory UI extension for Trino data explorer",
         )
 
@@ -30,7 +32,7 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
     def manifest(self) -> ObservatoryExtensionManifest:
         return ObservatoryExtensionManifest(
             name="trino",
-            version="0.1.0",
+            version=VERSION,
             compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
             ui=ObservatoryExtensionUI(
                 nav=[ObservatoryExtensionNavItem(title="Data Explorer", to="/extensions/trino")]
