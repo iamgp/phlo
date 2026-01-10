@@ -47,6 +47,38 @@ ENTRY_POINT_GROUPS = {
     "orchestrators": "phlo.plugins.orchestrators",
 }
 
+# Maps plugin type to registry registration method name
+_PLUGIN_REGISTER_METHODS = {
+    "source_connectors": "register_source_connector",
+    "quality_checks": "register_quality_check",
+    "transformations": "register_transformation",
+    "services": "register_service",
+    "dagster_extensions": "register_dagster_extension",
+    "observatory_extensions": "register_observatory_extension",
+    "cli_commands": "register_cli_command_plugin",
+    "hooks": "register_hook_plugin",
+    "catalogs": "register_catalog",
+    "asset_providers": "register_asset_provider",
+    "resource_providers": "register_resource_provider",
+    "orchestrators": "register_orchestrator",
+}
+
+# Maps plugin type to registry getter method name
+_PLUGIN_GETTER_METHODS = {
+    "source_connectors": "get_source_connector",
+    "quality_checks": "get_quality_check",
+    "transformations": "get_transformation",
+    "services": "get_service",
+    "dagster_extensions": "get_dagster_extension",
+    "observatory_extensions": "get_observatory_extension",
+    "cli_commands": "get_cli_command_plugin",
+    "hooks": "get_hook_plugin",
+    "catalogs": "get_catalog",
+    "asset_providers": "get_asset_provider",
+    "resource_providers": "get_resource_provider",
+    "orchestrators": "get_orchestrator",
+}
+
 
 def _is_plugin_allowed(plugin_name: str) -> bool:
     """
@@ -215,33 +247,11 @@ def discover_plugins(
                         f"Successfully loaded plugin: {plugin.metadata.name} v{plugin.metadata.version}"
                     )
 
-                    # Auto-register if requested
                     if auto_register:
                         registry = get_global_registry()
-                        if ptype == "source_connectors":
-                            registry.register_source_connector(plugin, replace=True)
-                        elif ptype == "quality_checks":
-                            registry.register_quality_check(plugin, replace=True)
-                        elif ptype == "transformations":
-                            registry.register_transformation(plugin, replace=True)
-                        elif ptype == "services":
-                            registry.register_service(plugin, replace=True)
-                        elif ptype == "dagster_extensions":
-                            registry.register_dagster_extension(plugin, replace=True)
-                        elif ptype == "observatory_extensions":
-                            registry.register_observatory_extension(plugin, replace=True)
-                        elif ptype == "cli_commands":
-                            registry.register_cli_command_plugin(plugin, replace=True)
-                        elif ptype == "hooks":
-                            registry.register_hook_plugin(plugin, replace=True)
-                        elif ptype == "catalogs":
-                            registry.register_catalog(plugin, replace=True)
-                        elif ptype == "asset_providers":
-                            registry.register_asset_provider(plugin, replace=True)
-                        elif ptype == "resource_providers":
-                            registry.register_resource_provider(plugin, replace=True)
-                        elif ptype == "orchestrators":
-                            registry.register_orchestrator(plugin, replace=True)
+                        register_method = _PLUGIN_REGISTER_METHODS.get(ptype)
+                        if register_method:
+                            getattr(registry, register_method)(plugin, replace=True)
 
                 except Exception as exc:
                     logger.error(
@@ -310,35 +320,12 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
             data = plugin.fetch_data(config={...})
         ```
     """
-    registry = get_global_registry()
-
-    if plugin_type == "source_connectors":
-        return registry.get_source_connector(name)
-    elif plugin_type == "quality_checks":
-        return registry.get_quality_check(name)
-    elif plugin_type == "transformations":
-        return registry.get_transformation(name)
-    elif plugin_type == "services":
-        return registry.get_service(name)
-    elif plugin_type == "dagster_extensions":
-        return registry.get_dagster_extension(name)
-    elif plugin_type == "observatory_extensions":
-        return registry.get_observatory_extension(name)
-    elif plugin_type == "cli_commands":
-        return registry.get_cli_command_plugin(name)
-    elif plugin_type == "hooks":
-        return registry.get_hook_plugin(name)
-    elif plugin_type == "asset_providers":
-        return registry.get_asset_provider(name)
-    elif plugin_type == "resource_providers":
-        return registry.get_resource_provider(name)
-    elif plugin_type == "orchestrators":
-        return registry.get_orchestrator(name)
-    elif plugin_type == "catalogs":
-        return registry.get_catalog(name)
-    else:
+    getter_method = _PLUGIN_GETTER_METHODS.get(plugin_type)
+    if not getter_method:
         logger.warning(f"Unknown plugin type: {plugin_type}")
         return None
+    registry = get_global_registry()
+    return getattr(registry, getter_method)(name)
 
 
 def get_source_connector(name: str) -> SourceConnectorPlugin | None:
@@ -474,33 +461,12 @@ def validate_plugins() -> dict[str, list[str]]:
     invalid = []
 
     for plugin_type, plugin_names in all_plugins.items():
+        getter_method = _PLUGIN_GETTER_METHODS.get(plugin_type)
+        if not getter_method:
+            continue
+        getter = getattr(registry, getter_method)
         for name in plugin_names:
-            plugin = None
-            if plugin_type == "source_connectors":
-                plugin = registry.get_source_connector(name)
-            elif plugin_type == "quality_checks":
-                plugin = registry.get_quality_check(name)
-            elif plugin_type == "transformations":
-                plugin = registry.get_transformation(name)
-            elif plugin_type == "services":
-                plugin = registry.get_service(name)
-            elif plugin_type == "dagster_extensions":
-                plugin = registry.get_dagster_extension(name)
-            elif plugin_type == "observatory_extensions":
-                plugin = registry.get_observatory_extension(name)
-            elif plugin_type == "cli_commands":
-                plugin = registry.get_cli_command_plugin(name)
-            elif plugin_type == "hooks":
-                plugin = registry.get_hook_plugin(name)
-            elif plugin_type == "asset_providers":
-                plugin = registry.get_asset_provider(name)
-            elif plugin_type == "resource_providers":
-                plugin = registry.get_resource_provider(name)
-            elif plugin_type == "orchestrators":
-                plugin = registry.get_orchestrator(name)
-            elif plugin_type == "catalogs":
-                plugin = registry.get_catalog(name)
-
+            plugin = getter(name)
             if plugin and registry.validate_plugin(plugin):
                 valid.append(f"{plugin_type}:{name}")
             else:

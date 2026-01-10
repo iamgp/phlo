@@ -51,9 +51,9 @@ def _get_extension_scope_schema_defaults(
         raise HTTPException(status_code=404, detail=f"Observatory extension not found: {name}")
     manifest = extension.get_manifest()
     if not manifest.settings:
-        return (SettingsScope.EXTENSION, None, None)
-    scope = SettingsScope.GLOBAL if manifest.settings.scope == "global" else SettingsScope.EXTENSION
-    return (scope, manifest.settings.schema, manifest.settings.defaults)
+        return SettingsScope.EXTENSION, None, None
+    scope = SettingsScope(manifest.settings.scope)
+    return scope, manifest.settings.schema, manifest.settings.defaults
 
 
 def _extension_namespace(name: str) -> str:

@@ -298,8 +298,7 @@ def suggest_similar_field_names(
 
     if similar:
         return [f"Did you mean '{field}'?" for field in similar]
-    else:
-        return [f"Available fields: {', '.join(valid_fields)}"]
+    return [f"Available fields: {', '.join(valid_fields)}"]
 
 
 def format_field_list(fields: List[str]) -> str:

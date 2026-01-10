@@ -89,6 +89,19 @@ REGISTRY_TYPE_MAP = {
     "observatory": "observatory",
 }
 
+# Maps CLI type names to singular scaffold type names
+SCAFFOLD_TYPE_MAP = {
+    "sources": "source",
+    "quality": "quality",
+    "transforms": "transform",
+    "services": "service",
+    "hooks": "hook",
+    "catalogs": "catalog",
+    "assets": "asset",
+    "resources": "resource",
+    "orchestrators": "orchestrator",
+}
+
 
 @click.group(name="plugin")
 def plugin_group():
@@ -201,41 +214,18 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
         all_plugins = list_plugins()
 
         # Auto-detect plugin type if not specified
+        internal_to_display = {v: k for k, v in PLUGIN_TYPE_MAP.items()}
         if not plugin_type:
             for ptype_key, names in all_plugins.items():
                 if plugin_name in names:
-                    if ptype_key == "source_connectors":
-                        plugin_type = "sources"
-                    elif ptype_key == "quality_checks":
-                        plugin_type = "quality"
-                    elif ptype_key == "transformations":
-                        plugin_type = "transforms"
-                    elif ptype_key == "services":
-                        plugin_type = "services"
-                    elif ptype_key == "observatory_extensions":
-                        plugin_type = "observatory"
-                    elif ptype_key == "catalogs":
-                        plugin_type = "catalogs"
+                    plugin_type = internal_to_display.get(ptype_key)
                     break
 
         if not plugin_type:
             console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
             sys.exit(1)
 
-        # Map display names to internal names
-        type_mapping = {
-            "sources": "source_connectors",
-            "quality": "quality_checks",
-            "transforms": "transformations",
-            "services": "services",
-            "hooks": "hooks",
-            "assets": "asset_providers",
-            "resources": "resource_providers",
-            "orchestrators": "orchestrators",
-            "catalogs": "catalogs",
-            "observatory": "observatory_extensions",
-        }
-        internal_type = type_mapping.get(plugin_type, plugin_type)
+        internal_type = PLUGIN_TYPE_MAP.get(plugin_type, plugin_type)
 
         info = get_plugin_info(internal_type, plugin_name)
 
@@ -504,18 +494,7 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
         phlo plugin create my-transform --type transforms --path ./plugins/
     """
     try:
-        type_aliases = {
-            "sources": "source",
-            "quality": "quality",
-            "transforms": "transform",
-            "services": "service",
-            "hooks": "hook",
-            "catalogs": "catalog",
-            "assets": "asset",
-            "resources": "resource",
-            "orchestrators": "orchestrator",
-        }
-        plugin_type = type_aliases.get(plugin_type, plugin_type)
+        plugin_type = SCAFFOLD_TYPE_MAP.get(plugin_type, plugin_type)
 
         # Validate plugin name
         if not plugin_name or not all(c.isalnum() or c in "-_" for c in plugin_name):
