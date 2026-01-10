@@ -3029,6 +3029,12 @@ provides-extras = ["dev"]
 name = "phlo-observatory-example"
 version = "0.1.0"
 source = { editable = "packages/phlo-observatory-example" }
+dependencies = [
+    { name = "phlo" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "phlo", editable = "." }]
 
 [[package]]
 name = "phlo-openmetadata"

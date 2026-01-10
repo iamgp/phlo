@@ -25,6 +25,69 @@ class ObservatorySettingsResponse(BaseModel):
     updated_at: str | None
 
 
+OBSERVATORY_SETTINGS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["version", "connections", "defaults", "query", "ui"],
+    "properties": {
+        "version": {"type": "integer", "enum": [1]},
+        "connections": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["dagsterGraphqlUrl", "trinoUrl", "nessieUrl"],
+            "properties": {
+                "dagsterGraphqlUrl": {"type": "string", "minLength": 1},
+                "trinoUrl": {"type": "string", "minLength": 1},
+                "nessieUrl": {"type": "string", "minLength": 1},
+            },
+        },
+        "defaults": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["branch", "catalog", "schema"],
+            "properties": {
+                "branch": {"type": "string", "minLength": 1},
+                "catalog": {"type": "string", "minLength": 1},
+                "schema": {"type": "string", "minLength": 1},
+            },
+        },
+        "query": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["readOnlyMode", "defaultLimit", "maxLimit", "timeoutMs"],
+            "properties": {
+                "readOnlyMode": {"type": "boolean"},
+                "defaultLimit": {"type": "integer", "minimum": 1, "maximum": 100000},
+                "maxLimit": {"type": "integer", "minimum": 1, "maximum": 100000},
+                "timeoutMs": {"type": "integer", "minimum": 1000, "maximum": 300000},
+            },
+        },
+        "ui": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["density", "dateFormat"],
+            "properties": {
+                "density": {"type": "string", "enum": ["comfortable", "compact"]},
+                "dateFormat": {"type": "string", "enum": ["iso", "local"]},
+            },
+        },
+        "auth": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"token": {"type": "string"}},
+        },
+        "realtime": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["enabled", "intervalMs"],
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "intervalMs": {"type": "integer", "minimum": 1000, "maximum": 60000},
+            },
+        },
+    },
+}
+
 OBSERVATORY_SETTINGS_NAMESPACE = "observatory.core"
 
 
@@ -45,6 +108,7 @@ def _upsert_settings_sync(payload: ObservatorySettingsPayload) -> ObservatorySet
         SettingsScope.GLOBAL,
         OBSERVATORY_SETTINGS_NAMESPACE,
         payload.settings,
+        schema=OBSERVATORY_SETTINGS_SCHEMA,
     )
     return ObservatorySettingsResponse(
         settings=record.settings,

@@ -31,6 +31,7 @@ class SettingsService:
 
     def __init__(self, db_url: str) -> None:
         self._db_url = db_url
+        self._table_ensured = False
 
     def get(self, scope: SettingsScope, namespace: str) -> SettingsRecord | None:
         with psycopg2.connect(self._db_url) as conn:
@@ -94,6 +95,8 @@ class SettingsService:
             raise ValueError(str(exc)) from exc
 
     def _ensure_table(self, conn) -> None:
+        if self._table_ensured:
+            return
         with conn.cursor() as cursor:
             cursor.execute(
                 """
@@ -107,6 +110,7 @@ class SettingsService:
                 """
             )
             conn.commit()
+        self._table_ensured = True
 
 
 @lru_cache(maxsize=1)

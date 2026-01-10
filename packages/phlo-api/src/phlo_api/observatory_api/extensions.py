@@ -6,6 +6,8 @@ import importlib.metadata
 import re
 import shutil
 import tempfile
+import threading
+import time
 from importlib.resources import as_file
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -21,8 +23,20 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/observatory", tags=["observatory"])
 
+_CACHE_TTL_SECONDS = 5.0
+_cache_lock = threading.Lock()
+_cached_extensions: list[ObservatoryExtensionPlugin] | None = None
+_cache_timestamp: float | None = None
+
 
 def _load_extensions() -> list[ObservatoryExtensionPlugin]:
+    global _cached_extensions, _cache_timestamp
+    now = time.monotonic()
+    with _cache_lock:
+        if _cached_extensions is not None and _cache_timestamp is not None:
+            if now - _cache_timestamp < _CACHE_TTL_SECONDS:
+                return _cached_extensions
+
     discover_plugins(plugin_type="observatory_extensions", auto_register=True)
     registry = get_global_registry()
     observatory_version = _get_observatory_version()
@@ -38,6 +52,11 @@ def _load_extensions() -> list[ObservatoryExtensionPlugin]:
             )
             continue
         extensions.append(plugin)
+
+    with _cache_lock:
+        _cached_extensions = extensions
+        _cache_timestamp = now
+
     return extensions
 
 

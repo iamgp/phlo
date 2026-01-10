@@ -221,7 +221,8 @@ function HubContent({ services }: { services: Array<ServiceWithStatus> }) {
 
 function LoadingState({ message }: { message: string }) {
   return (
-    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+    <div className="h-full flex items-center justify-center gap-2 text-sm text-muted-foreground">
+      <Loader2 className="h-4 w-4 animate-spin" />
       {message}
     </div>
   )

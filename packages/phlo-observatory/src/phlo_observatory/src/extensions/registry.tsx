@@ -48,8 +48,8 @@ export type ExtensionSettingsSection = {
 
 export type SettingsRegistry = {
   register: (section: ExtensionSettingsSection) => void
-  loadSettings: () => Promise<Record<string, {}>>
-  saveSettings: (settings: Record<string, {}>) => Promise<void>
+  loadSettings: () => Promise<Record<string, unknown>>
+  saveSettings: (settings: Record<string, unknown>) => Promise<void>
   scope: 'global' | 'extension'
 }
 
@@ -117,7 +117,16 @@ export function ObservatoryExtensionProvider({
       let entries: Array<ObservatoryExtension>
       try {
         entries = await getObservatoryExtensions()
-      } catch {
+      } catch (error) {
+        console.error(
+          'Failed to load Observatory extensions via getObservatoryExtensions',
+          error,
+        )
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            'Observatory extensions failed to load; check phlo-api and extension manifests.',
+          )
+        }
         return
       }
       if (!active) return
@@ -162,7 +171,13 @@ export function ObservatoryExtensionProvider({
             } else if (result) {
               nextRoutes.push(result)
             }
-          } catch {
+          } catch (error) {
+            console.debug('Failed to register extension routes', {
+              extensionName,
+              module: route.module,
+              export: route.export,
+              error,
+            })
             continue
           }
         }
@@ -196,7 +211,7 @@ export function ObservatoryExtensionProvider({
               })
               return response.settings ?? {}
             }
-            const saveSettings = async (settings: Record<string, {}>) => {
+            const saveSettings = async (settings: Record<string, unknown>) => {
               await putExtensionSettings({
                 data: { name: extensionName, settings },
               })

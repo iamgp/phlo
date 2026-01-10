@@ -37,12 +37,15 @@ function ExtensionPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    let aborted = false
+
     const load = async () => {
       let target = routeEntry
 
       if (!target) {
         try {
           const extensions = await getObservatoryExtensions()
+          if (aborted) return
           const extension = extensions.find(
             (entry) => entry.manifest.name === extensionName,
           )
@@ -53,6 +56,7 @@ function ExtensionPage() {
             routes.find((route) => route.path.startsWith(`${expected}/`)) ??
             routes[0]
         } catch (error) {
+          if (aborted) return
           const message =
             error instanceof Error
               ? error.message
@@ -63,6 +67,7 @@ function ExtensionPage() {
       }
 
       if (!target) {
+        if (aborted) return
         setState({
           status: 'error',
           message: 'No extension route registered.',
@@ -70,10 +75,12 @@ function ExtensionPage() {
         return
       }
 
+      if (aborted) return
       setState({ status: 'loading' })
 
       try {
         const module = await import(/* @vite-ignore */ target.module)
+        if (aborted) return
         const registerRoutes = module[target.export] as
           | ((ctx: {
               createRoute: typeof createRoute
@@ -82,6 +89,7 @@ function ExtensionPage() {
           | undefined
 
         if (typeof registerRoutes !== 'function') {
+          if (aborted) return
           setState({
             status: 'error',
             message: 'Extension route export missing or invalid.',
@@ -100,6 +108,7 @@ function ExtensionPage() {
         const Component = match?.options?.component
 
         if (!Component) {
+          if (aborted) return
           setState({
             status: 'error',
             message: 'Extension route component not found.',
@@ -107,8 +116,10 @@ function ExtensionPage() {
           return
         }
 
+        if (aborted) return
         setState({ status: 'ready', Component })
       } catch (error) {
+        if (aborted) return
         const message =
           error instanceof Error ? error.message : 'Failed to load extension.'
         setState({ status: 'error', message })
@@ -116,6 +127,10 @@ function ExtensionPage() {
     }
 
     void load()
+
+    return () => {
+      aborted = true
+    }
   }, [extensionName, routeEntry])
 
   if (state.status === 'ready') {

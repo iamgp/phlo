@@ -26,7 +26,7 @@ Add `ObservatoryExtensionPlugin` in `src/phlo/plugins/base.py`.
 
 Manifest (versioned contract):
 
-```
+```yaml
 name: string
 version: string
 compat:
@@ -115,7 +115,7 @@ UI loads extension ES modules at runtime:
 
 ## Verification
 
-```
+```shell
 phlo plugin list --type observatory
 curl http://localhost:4000/api/observatory/extensions
 curl http://localhost:3001/extensions/<name>/...

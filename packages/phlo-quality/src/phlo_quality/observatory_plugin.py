@@ -33,7 +33,7 @@ class QualityObservatoryExtension(ObservatoryExtensionPlugin):
             version="0.1.0",
             compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
             ui=ObservatoryExtensionUI(
-                nav=[ObservatoryExtensionNavItem(title="Quality", to="/quality")]
+                nav=[ObservatoryExtensionNavItem(title="Quality", to="/extensions/quality")]
             ),
         )
 

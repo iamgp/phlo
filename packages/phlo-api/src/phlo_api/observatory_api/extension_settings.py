@@ -17,6 +17,8 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/observatory", tags=["observatory"])
 
+_plugins_discovered = False
+
 
 class ExtensionSettingsPayload(BaseModel):
     settings: dict[str, Any]
@@ -28,9 +30,17 @@ class ExtensionSettingsResponse(BaseModel):
 
 
 def _get_extension(name: str) -> ObservatoryExtensionPlugin | None:
-    discover_plugins(plugin_type="observatory_extensions", auto_register=True)
+    _ensure_plugins_discovered()
     registry = get_global_registry()
     return registry.get_observatory_extension(name)
+
+
+def _ensure_plugins_discovered() -> None:
+    global _plugins_discovered
+    if _plugins_discovered:
+        return
+    discover_plugins(plugin_type="observatory_extensions", auto_register=True)
+    _plugins_discovered = True
 
 
 def _get_extension_scope_schema_defaults(
@@ -43,7 +53,7 @@ def _get_extension_scope_schema_defaults(
     if not manifest.settings:
         return (SettingsScope.EXTENSION, None, None)
     scope = SettingsScope.GLOBAL if manifest.settings.scope == "global" else SettingsScope.EXTENSION
-    return (scope, manifest.settings.schema, manifest.settings.defaults or None)
+    return (scope, manifest.settings.schema, manifest.settings.defaults)
 
 
 def _extension_namespace(name: str) -> str:

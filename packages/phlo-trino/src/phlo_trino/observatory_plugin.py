@@ -33,7 +33,7 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
             version="0.1.0",
             compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
             ui=ObservatoryExtensionUI(
-                nav=[ObservatoryExtensionNavItem(title="Data Explorer", to="/data")]
+                nav=[ObservatoryExtensionNavItem(title="Data Explorer", to="/extensions/trino")]
             ),
         )
 

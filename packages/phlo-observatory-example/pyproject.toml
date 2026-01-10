@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "phlo-observatory-example"
@@ -12,22 +12,17 @@ authors = [
     {name = "Phlo Team", email = "team@phlo.dev"},
 ]
 license = {text = "MIT"}
-dependencies = []
+dependencies = ["phlo>=0.1.0"]
 
 [project.entry-points."phlo.plugins.observatory"]
 example = "phlo_observatory_example.observatory_plugin:ExampleObservatoryExtension"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = true
+[tool.hatch.build.targets.wheel]
+packages = ["src/phlo_observatory_example"]
+include = ["src/phlo_observatory_example/observatory_assets/*"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-phlo_observatory_example = [
-    "observatory_assets/*",
-]
+[tool.hatch.build.targets.sdist]
+include = ["src/phlo_observatory_example/observatory_assets/*"]
 
 [tool.ruff]
 line-length = 100

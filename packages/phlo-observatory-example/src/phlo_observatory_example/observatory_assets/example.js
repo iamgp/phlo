@@ -14,12 +14,16 @@ export function registerHubSlot({ register }) {
   register(HubNote)
 }
 
+const settingsApi = { loadSettings: null, saveSettings: null }
+
 export function registerSettings({ register, loadSettings, saveSettings }) {
+  settingsApi.loadSettings = loadSettings
+  settingsApi.saveSettings = saveSettings
   register({
     id: 'example-settings',
     title: 'Example Extension',
     description: 'Demonstrates extension settings panels.',
-    component: () => ExampleSettings({ loadSettings, saveSettings }),
+    component: ExampleSettings,
   })
 }
 
@@ -35,12 +39,17 @@ function HubNote() {
   return 'Extension slot: hub.after-stats.'
 }
 
-function ExampleSettings({ loadSettings, saveSettings }) {
+function ExampleSettings() {
   const React = typeof globalThis !== 'undefined' ? globalThis.__phloReact : null
   if (!React) return 'React is not available for extension settings.'
 
   const { useEffect, useState } = React
   const el = React.createElement
+  const loadSettingsFn = settingsApi.loadSettings
+  const saveSettingsFn = settingsApi.saveSettings
+  if (!loadSettingsFn || !saveSettingsFn) {
+    return 'Settings API is not available for this extension.'
+  }
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [enabled, setEnabled] = useState(false)
@@ -48,7 +57,7 @@ function ExampleSettings({ loadSettings, saveSettings }) {
 
   useEffect(() => {
     let active = true
-    loadSettings()
+    loadSettingsFn()
       .then((data) => {
         if (!active) return
         setEnabled(Boolean(data.enabled))
@@ -63,12 +72,12 @@ function ExampleSettings({ loadSettings, saveSettings }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [loadSettingsFn])
 
   const handleSave = async () => {
     setStatus(null)
     try {
-      await saveSettings({ enabled, message })
+      await saveSettingsFn({ enabled, message })
       setStatus('Saved.')
     } catch {
       setStatus('Save failed.')
