@@ -270,37 +270,40 @@ def _describe_trino_table(trino: Any, source_table_ref: str) -> list[tuple[str, 
     return columns
 
 
+_TRINO_TO_PG_SIMPLE: dict[str, str] = {
+    "timestamptz": "timestamptz",
+    "varchar": "text",
+    "char": "text",
+    "string": "text",
+    "bigint": "bigint",
+    "integer": "integer",
+    "int": "integer",
+    "smallint": "smallint",
+    "double": "double precision",
+    "double precision": "double precision",
+    "real": "real",
+    "boolean": "boolean",
+    "date": "date",
+    "timestamp": "timestamp",
+    "numeric": "numeric",
+}
+
+_TRINO_JSON_TYPES = {"json", "array", "map", "row"}
+
+
 def _trino_type_to_postgres(column: str, trino_type: str) -> tuple[str, str]:
     """Map a Trino column type to a Postgres type and select expression."""
-
     column_ref = _quote_trino_identifier(column, was_quoted=True)
     normalized = trino_type.lower()
     base = normalized.split("(")[0].strip()
+
     if "timestamp" in normalized and "time zone" in normalized:
         return "timestamptz", column_ref
-    if base == "timestamptz":
-        return "timestamptz", column_ref
-    if base in {"varchar", "char", "string"}:
-        return "text", column_ref
-    if base in {"bigint"}:
-        return "bigint", column_ref
-    if base in {"integer", "int"}:
-        return "integer", column_ref
-    if base in {"smallint"}:
-        return "smallint", column_ref
-    if base in {"double", "double precision"}:
-        return "double precision", column_ref
-    if base in {"real"}:
-        return "real", column_ref
-    if base in {"boolean"}:
-        return "boolean", column_ref
-    if base in {"date"}:
-        return "date", column_ref
-    if base == "timestamp":
-        return "timestamp", column_ref
-    if base.startswith("decimal") or base == "numeric":
+    if base in _TRINO_TO_PG_SIMPLE:
+        return _TRINO_TO_PG_SIMPLE[base], column_ref
+    if base.startswith("decimal"):
         return "numeric", column_ref
-    if base in {"json", "array", "map", "row"}:
+    if base in _TRINO_JSON_TYPES:
         return "jsonb", f"CAST({column_ref} AS JSON)"
     return "text", f"CAST({column_ref} AS VARCHAR)"
 

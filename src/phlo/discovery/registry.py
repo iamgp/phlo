@@ -450,6 +450,21 @@ class PluginRegistry:
         """Check if a plugin is registered (key format: 'type:name')."""
         return key in self._all_plugins
 
+    _GETTER_METHODS: dict[str, str] = {
+        "source_connectors": "get_source_connector",
+        "quality_checks": "get_quality_check",
+        "transformations": "get_transformation",
+        "services": "get_service",
+        "dagster_extensions": "get_dagster_extension",
+        "observatory_extensions": "get_observatory_extension",
+        "cli_commands": "get_cli_command_plugin",
+        "hooks": "get_hook_plugin",
+        "catalogs": "get_catalog",
+        "asset_providers": "get_asset_provider",
+        "resource_providers": "get_resource_provider",
+        "orchestrators": "get_orchestrator",
+    }
+
     def get_plugin_metadata(self, plugin_type: str, name: str) -> dict | None:
         """
         Get metadata for a plugin by type and name.
@@ -462,28 +477,10 @@ class PluginRegistry:
         Returns:
             Dictionary with plugin metadata or None if not found
         """
-        plugin = None
-        if plugin_type == "source_connectors":
-            plugin = self.get_source_connector(name)
-        elif plugin_type == "quality_checks":
-            plugin = self.get_quality_check(name)
-        elif plugin_type == "transformations":
-            plugin = self.get_transformation(name)
-        elif plugin_type == "services":
-            plugin = self.get_service(name)
-        elif plugin_type == "observatory_extensions":
-            plugin = self.get_observatory_extension(name)
-        elif plugin_type == "hooks":
-            plugin = self.get_hook_plugin(name)
-        elif plugin_type == "asset_providers":
-            plugin = self.get_asset_provider(name)
-        elif plugin_type == "resource_providers":
-            plugin = self.get_resource_provider(name)
-        elif plugin_type == "orchestrators":
-            plugin = self.get_orchestrator(name)
-        elif plugin_type == "catalogs":
-            plugin = self.get_catalog(name)
-
+        getter_name = self._GETTER_METHODS.get(plugin_type)
+        if not getter_name:
+            return None
+        plugin = getattr(self, getter_name)(name)
         if not plugin:
             return None
 

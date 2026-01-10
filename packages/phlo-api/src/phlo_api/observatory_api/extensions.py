@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import itertools
 import re
 import shutil
 import tempfile
@@ -77,12 +78,8 @@ def _get_observatory_version() -> str | None:
 
 def _parse_version(value: str) -> tuple[int, ...]:
     parts = re.split(r"[.+-]", value)
-    numbers: list[int] = []
-    for part in parts:
-        if not part.isdigit():
-            break
-        numbers.append(int(part))
-    return tuple(numbers) if numbers else (0,)
+    numbers = tuple(int(p) for p in itertools.takewhile(str.isdigit, parts))
+    return numbers or (0,)
 
 
 def _is_compatible(plugin: ObservatoryExtensionPlugin, observatory_version: str | None) -> bool:
@@ -104,18 +101,15 @@ def list_extensions() -> dict[str, list[dict[str, Any]]]:
 def get_extension(name: str) -> dict[str, Any]:
     """Get a single Observatory extension manifest."""
     extensions = _load_extensions()
-    for plugin in extensions:
-        if plugin.metadata.name == name:
-            return _extension_payload(plugin)
-    raise HTTPException(status_code=404, detail=f"Observatory extension not found: {name}")
+    plugin = next((p for p in extensions if p.metadata.name == name), None)
+    if not plugin:
+        raise HTTPException(status_code=404, detail=f"Observatory extension not found: {name}")
+    return _extension_payload(plugin)
 
 
 def _cleanup_temp_dir(dir_path: Path) -> None:
     """Remove temporary directory and contents after response is sent."""
-    try:
-        shutil.rmtree(dir_path, ignore_errors=True)
-    except Exception:
-        pass
+    shutil.rmtree(dir_path, ignore_errors=True)
 
 
 @router.get("/extensions/{name}/assets/{asset_path:path}")
