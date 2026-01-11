@@ -174,10 +174,10 @@ def search_plugins(
     if query:
         query_lower = query.lower()
         plugins = [
-            p for p in plugins
+            p
+            for p in plugins
             if any(
-                query_lower in text.lower()
-                for text in (p.name, p.description, p.package, *p.tags)
+                query_lower in text.lower() for text in (p.name, p.description, p.package, *p.tags)
             )
         ]
 

@@ -111,10 +111,12 @@ class NativeProcessManager:
         # Build environment
         env = os.environ.copy()
         if dev_env := dev_config.get("environment"):
-            env.update({
-                k: self._expand_env_vars(v, env) if isinstance(v, str) else str(v)
-                for k, v in dev_env.items()
-            })
+            env.update(
+                {
+                    k: self._expand_env_vars(v, env) if isinstance(v, str) else str(v)
+                    for k, v in dev_env.items()
+                }
+            )
         if env_overrides:
             env.update({k: self._expand_env_vars(v, env) for k, v in env_overrides.items()})
 

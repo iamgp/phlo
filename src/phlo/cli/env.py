@@ -125,6 +125,3 @@ def _select_services(
     ]
 
     return default_services + profile_services + inline_services
-
-
-

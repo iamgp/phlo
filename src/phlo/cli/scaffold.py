@@ -79,9 +79,6 @@ def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
     return list({f.name: f for f in fields if f.name}.values())
 
 
-
-
-
 def create_ingestion_workflow(
     domain: str,
     table_name: str,
@@ -142,11 +139,13 @@ def create_ingestion_workflow(
         domain_init.write_text(f'"""Domain: {domain}"""\n')
 
     # Generate schema file
-    type_import_lines = sorted({
-        f"from {mod} import {sym}"
-        for f in field_specs
-        if (imp := _TYPE_IMPORTS[f.type_name]) and (mod := imp[0]) and (sym := imp[1])
-    })
+    type_import_lines = sorted(
+        {
+            f"from {mod} import {sym}"
+            for f in field_specs
+            if (imp := _TYPE_IMPORTS[f.type_name]) and (mod := imp[0]) and (sym := imp[1])
+        }
+    )
     type_imports = "\n".join(type_import_lines)
     if type_imports:
         type_imports = f"{type_imports}\n\n"

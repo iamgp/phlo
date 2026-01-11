@@ -55,9 +55,6 @@ description: "{description}"
 """
 
 
-
-
-
 def _get_env_overrides(config: dict) -> dict[str, object]:
     env_overrides = config.get("env", {})
     return env_overrides if isinstance(env_overrides, dict) else {}
@@ -171,20 +168,19 @@ __all__ = ["get_project_config", "get_project_name", "find_dagster_container"]
 def _normalize_hook_entries(hooks: object) -> list[dict[str, object]]:
     if hooks is None:
         return []
-    if isinstance(hooks, list):
-        entries: list[dict[str, object]] = []
-        for item in hooks:
-            if isinstance(item, dict):
-                # Cast to proper type for type checker
-                entries.append({str(k): v for k, v in item.items()})
-            elif isinstance(item, list):
-                entries.append({"command": item})
-            elif isinstance(item, str):
-                entries.append({"command": [item]})
-        return entries
     if isinstance(hooks, dict):
         return [{str(k): v for k, v in hooks.items()}]
-    return []
+    if not isinstance(hooks, list):
+        return []
+    entries: list[dict[str, object]] = []
+    for item in hooks:
+        if isinstance(item, dict):
+            entries.append({str(k): v for k, v in item.items()})
+        elif isinstance(item, list):
+            entries.append({"command": item})
+        elif isinstance(item, str):
+            entries.append({"command": [item]})
+    return entries
 
 
 def _format_hook_command(command: object, substitutions: dict[str, str]) -> list[str]:
