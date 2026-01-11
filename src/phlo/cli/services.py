@@ -26,6 +26,7 @@ from phlo.cli._services.utils import (
     find_dagster_container,
     get_project_config,
     get_project_name,
+    parse_env_file,
 )
 from phlo.discovery import ServiceDefinition
 
@@ -54,20 +55,7 @@ description: "{description}"
 """
 
 
-def _parse_env_file(path: Path) -> dict[str, str]:
-    if not path.exists():
-        return {}
-    values: dict[str, str] = {}
-    try:
-        for line in path.read_text().splitlines():
-            trimmed = line.strip()
-            if not trimmed or trimmed.startswith("#") or "=" not in trimmed:
-                continue
-            key, value = trimmed.split("=", 1)
-            values[key] = value
-    except OSError:
-        return {}
-    return values
+
 
 
 def _get_env_overrides(config: dict) -> dict[str, object]:
@@ -101,17 +89,11 @@ def resolve_phlo_package_dir(path: Path) -> Path | None:
     - a repo root containing `src/phlo`
     - a `src/` directory containing `phlo/`
     """
-    candidates = [
-        path,
-        path / "src" / "phlo",
-        path / "phlo",
-    ]
-
-    for candidate in candidates:
-        if candidate.is_dir() and (candidate / "__init__.py").is_file():
-            return candidate
-
-    return None
+    candidates = (path, path / "src" / "phlo", path / "phlo")
+    return next(
+        (c for c in candidates if c.is_dir() and (c / "__init__.py").is_file()),
+        None,
+    )
 
 
 def relpath_from_phlo_dir(path: Path) -> str:
@@ -614,7 +596,7 @@ def init(
     # Generate .env + .env.local
     env_file = phlo_dir / ".env"
     env_local_file = phlo_dir / ".env.local"
-    existing_env_local = _parse_env_file(env_local_file)
+    existing_env_local = parse_env_file(env_local_file)
     env_content = composer.generate_env(services_to_install, env_overrides=env_overrides)
     env_local_content = composer.generate_env_local(
         services_to_install,
@@ -1773,7 +1755,7 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
     # Regenerate .env + .env.local
     env_file = phlo_dir / ".env"
     env_local_file = phlo_dir / ".env.local"
-    existing_env_local = _parse_env_file(env_local_file)
+    existing_env_local = parse_env_file(env_local_file)
     env_content = composer.generate_env(services_to_install, env_overrides=env_overrides)
     env_local_content = composer.generate_env_local(
         services_to_install,

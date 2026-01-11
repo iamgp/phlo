@@ -140,35 +140,9 @@ def discover_plugins(
         # Check if plugins are enabled
         if not settings.plugins_enabled:
             logger.info("Plugin system is disabled")
-            return {
-                "source_connectors": [],
-                "quality_checks": [],
-                "transformations": [],
-                "services": [],
-                "dagster_extensions": [],
-                "observatory_extensions": [],
-                "cli_commands": [],
-                "hooks": [],
-                "catalogs": [],
-                "asset_providers": [],
-                "resource_providers": [],
-                "orchestrators": [],
-            }
+            return {k: [] for k in ENTRY_POINT_GROUPS}
 
-        discovered: dict[str, list[Plugin]] = {
-            "source_connectors": [],
-            "quality_checks": [],
-            "transformations": [],
-            "services": [],
-            "dagster_extensions": [],
-            "observatory_extensions": [],
-            "cli_commands": [],
-            "hooks": [],
-            "catalogs": [],
-            "asset_providers": [],
-            "resource_providers": [],
-            "orchestrators": [],
-        }
+        discovered: dict[str, list[Plugin]] = {k: [] for k in ENTRY_POINT_GROUPS}
 
         # Determine which plugin types to discover
         types_to_discover = [plugin_type] if plugin_type else list(ENTRY_POINT_GROUPS.keys())

@@ -512,15 +512,9 @@ class PluginRegistry:
 
         try:
             metadata = plugin.metadata
-            if not isinstance(metadata, object):
-                return False
-
             # Check required metadata fields
-            required_fields = ["name", "version"]
-            for field in required_fields:
-                if not hasattr(metadata, field):
-                    return False
-
+            if not all(hasattr(metadata, f) for f in ("name", "version")):
+                return False
         except Exception:
             return False
 

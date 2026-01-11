@@ -259,15 +259,11 @@ def _describe_trino_table(trino: Any, source_table_ref: str) -> list[tuple[str, 
     with trino.cursor() as cursor:
         cursor.execute(f"DESCRIBE {source_table_ref}")
         rows = cursor.fetchall()
-    columns: list[tuple[str, str, str]] = []
-    for row in rows:
-        if not row or len(row) < 2:
-            continue
-        name = str(row[0])
-        trino_type = str(row[1])
-        pg_type, expr = _trino_type_to_postgres(name, trino_type)
-        columns.append((name, pg_type, expr))
-    return columns
+    return [
+        (str(row[0]), *_trino_type_to_postgres(str(row[0]), str(row[1])))
+        for row in rows
+        if row and len(row) >= 2
+    ]
 
 
 _TRINO_TO_PG_SIMPLE: dict[str, str] = {

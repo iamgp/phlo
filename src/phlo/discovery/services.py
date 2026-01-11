@@ -4,6 +4,7 @@ Service Discovery Module
 Discovers and loads service definitions from installed plugins and optional directories.
 """
 
+from collections import deque
 from dataclasses import dataclass, field
 from importlib.util import find_spec
 from pathlib import Path
@@ -112,17 +113,8 @@ class ServiceDefinition:
                   - trino
         """
         # Build compose section from inline config
-        compose: dict[str, Any] = {}
-        if config.get("ports"):
-            compose["ports"] = config["ports"]
-        if config.get("environment"):
-            compose["environment"] = config["environment"]
-        if config.get("volumes"):
-            compose["volumes"] = config["volumes"]
-        if config.get("command"):
-            compose["command"] = config["command"]
-        if config.get("healthcheck"):
-            compose["healthcheck"] = config["healthcheck"]
+        compose_keys = ("ports", "environment", "volumes", "command", "healthcheck")
+        compose = {k: config[k] for k in compose_keys if config.get(k)}
 
         return cls(
             name=name,
@@ -167,20 +159,11 @@ class ServiceDiscovery:
         if self.services_dir and self.services_dir.exists():
             # Search for service.yaml files in all subdirectories
             for yaml_path in self.services_dir.rglob("*.yaml"):
-                # Skip schema files
+                # Skip schema files and non-service files
                 if ".schema" in str(yaml_path):
                     continue
-
-                # Skip non-service files
-                if yaml_path.name not in ("service.yaml",) and not yaml_path.name.endswith(
-                    "-daemon.yaml"
-                ):
-                    # Also load companion services like minio-setup.yaml, dagster-daemon.yaml
-                    if not any(
-                        yaml_path.name.endswith(suffix)
-                        for suffix in ("-setup.yaml", "-daemon.yaml")
-                    ):
-                        continue
+                if not self._is_service_yaml(yaml_path.name):
+                    continue
 
                 try:
                     service = ServiceDefinition.from_yaml(yaml_path)
@@ -214,6 +197,11 @@ class ServiceDiscovery:
             except KeyError as exc:
                 logger.warning("Service plugin %s missing field: %s", name, exc)
 
+    @staticmethod
+    def _is_service_yaml(filename: str) -> bool:
+        """Check if filename is a recognized service YAML pattern."""
+        return filename == "service.yaml" or filename.endswith(("-setup.yaml", "-daemon.yaml"))
+
     def _load_companion_service_files(self, source_path: Path | None) -> None:
         """Load companion service YAMLs (e.g., *-setup.yaml, *-daemon.yaml) from a package."""
         if not source_path or not source_path.exists():
@@ -223,7 +211,7 @@ class ServiceDiscovery:
             filename = yaml_path.name
             if filename == "service.yaml":
                 continue
-            if not (filename.endswith("-setup.yaml") or filename.endswith("-daemon.yaml")):
+            if not filename.endswith(("-setup.yaml", "-daemon.yaml")):
                 continue
             try:
                 service = ServiceDefinition.from_yaml(yaml_path)
@@ -295,11 +283,11 @@ class ServiceDiscovery:
                     in_degree[service.name] += 1
 
         # Kahn's algorithm for topological sort
-        queue = [name for name, degree in in_degree.items() if degree == 0]
+        queue = deque(name for name, degree in in_degree.items() if degree == 0)
         result: list[str] = []
 
         while queue:
-            node = queue.pop(0)
+            node = queue.popleft()
             result.append(node)
 
             for neighbor in graph[node]:
