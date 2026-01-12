@@ -19,7 +19,7 @@ from phlo.logging import get_logger
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ServiceDefinition:
     """Represents a parsed service.yaml definition."""
 

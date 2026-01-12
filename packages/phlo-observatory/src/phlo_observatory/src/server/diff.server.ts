@@ -13,6 +13,21 @@ import { authMiddleware } from '@/server/auth.server'
 import { analyzeSQLTransformation } from '@/utils/sqlParser'
 
 /**
+ * Compute summary counts from column diffs
+ */
+function computeDiffSummary(columnDiffs: Array<ColumnDiff>) {
+  return {
+    addedCount: columnDiffs.filter((d) => d.changeType === 'added').length,
+    removedCount: columnDiffs.filter((d) => d.changeType === 'removed').length,
+    renamedCount: columnDiffs.filter((d) => d.changeType === 'renamed').length,
+    transformedCount: columnDiffs.filter((d) => d.changeType === 'transformed')
+      .length,
+    unchangedCount: columnDiffs.filter((d) => d.changeType === 'unchanged')
+      .length,
+  }
+}
+
+/**
  * Column change type for diff display
  */
 export type ColumnChangeType =
@@ -264,18 +279,7 @@ export const getStageDiff = createServerFn()
     }
 
     // Compute summary
-    const summary = {
-      addedCount: columnDiffs.filter((d) => d.changeType === 'added').length,
-      removedCount: columnDiffs.filter((d) => d.changeType === 'removed')
-        .length,
-      renamedCount: columnDiffs.filter((d) => d.changeType === 'renamed')
-        .length,
-      transformedCount: columnDiffs.filter(
-        (d) => d.changeType === 'transformed',
-      ).length,
-      unchangedCount: columnDiffs.filter((d) => d.changeType === 'unchanged')
-        .length,
-    }
+    const summary = computeDiffSummary(columnDiffs)
 
     return {
       transformType: analysis.transformType,
@@ -328,15 +332,7 @@ export const getSimpleStageDiff = createServerFn()
       }
     }
 
-    const summary = {
-      addedCount: columnDiffs.filter((d) => d.changeType === 'added').length,
-      removedCount: columnDiffs.filter((d) => d.changeType === 'removed')
-        .length,
-      renamedCount: 0,
-      transformedCount: 0,
-      unchangedCount: columnDiffs.filter((d) => d.changeType === 'unchanged')
-        .length,
-    }
+    const summary = computeDiffSummary(columnDiffs)
 
     return {
       transformType: 'ONE_TO_ONE',

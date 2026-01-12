@@ -9,11 +9,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Optional
-
-if TYPE_CHECKING:
-    from phlo_openmetadata.openmetadata import OpenMetadataClient
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 from phlo.logging import get_logger
 from phlo_quality.checks import (
@@ -26,7 +24,42 @@ from phlo_quality.checks import (
     UniqueCheck,
 )
 
+if TYPE_CHECKING:
+    from phlo_openmetadata.openmetadata import OpenMetadataClient
+
+T = TypeVar("T")
+
 logger = get_logger(__name__)
+
+
+def _publish_items(
+    items: list[T],
+    publish_fn: Callable[[T], None],
+    item_name_fn: Callable[[T], str],
+    context: str,
+) -> dict[str, int]:
+    """
+    Generic publish loop with error handling and stats tracking.
+
+    Args:
+        items: Items to publish
+        publish_fn: Function to call for each item (should raise on failure)
+        item_name_fn: Function to get display name for logging
+        context: Context string for error messages
+
+    Returns:
+        Dict with 'created' and 'failed' counts
+    """
+    stats = {"created": 0, "failed": 0}
+    for item in items:
+        try:
+            publish_fn(item)
+            logger.info(f"Published {context}: {item_name_fn(item)}")
+            stats["created"] += 1
+        except Exception as e:
+            logger.error(f"Failed to publish {context} {item_name_fn(item)}: {e}")
+            stats["failed"] += 1
+    return stats
 
 
 class QualityCheckMapper:
@@ -368,32 +401,27 @@ class QualityCheckPublisher:
         Returns:
             Dictionary with publication statistics
         """
-        stats = {"created": 0, "failed": 0}
 
-        for check in checks:
-            try:
-                test_def = QualityCheckMapper.map_check_to_openmetadata_test_definition(
-                    check, table_fqn
-                )
+        def publish(check: Any) -> None:
+            test_def = QualityCheckMapper.map_check_to_openmetadata_test_definition(
+                check, table_fqn
+            )
+            self.om_client.create_test_definition(
+                test_name=test_def["name"],
+                test_type=test_def.get("testType"),
+                description=test_def.get("description"),
+                entity_type=test_def.get("entityType"),
+                parameter_definition=test_def.get("parameterDefinition"),
+                test_platforms=test_def.get("testPlatforms"),
+            )
 
-                # Create test definition (idempotent)
-                self.om_client.create_test_definition(
-                    test_name=test_def["name"],
-                    test_type=test_def.get("testType"),
-                    description=test_def.get("description"),
-                    entity_type=test_def.get("entityType"),
-                    parameter_definition=test_def.get("parameterDefinition"),
-                    test_platforms=test_def.get("testPlatforms"),
-                )
+        def get_name(check: Any) -> str:
+            test_def = QualityCheckMapper.map_check_to_openmetadata_test_definition(
+                check, table_fqn
+            )
+            return test_def["name"]
 
-                logger.info(f"Published test definition: {test_def['name']}")
-                stats["created"] += 1
-
-            except Exception as e:
-                logger.error(f"Failed to publish test definition for {table_fqn}: {e}")
-                stats["failed"] += 1
-
-        return stats
+        return _publish_items(checks, publish, get_name, "test definition")
 
     def publish_test_cases(
         self,
@@ -412,34 +440,24 @@ class QualityCheckPublisher:
         Returns:
             Dictionary with publication statistics
         """
-        stats = {"created": 0, "failed": 0}
 
-        for check in checks:
-            try:
-                test_case = QualityCheckMapper.map_check_to_test_case(
-                    check, table_fqn, test_suite_name
-                )
+        def publish(check: Any) -> None:
+            test_case = QualityCheckMapper.map_check_to_test_case(check, table_fqn, test_suite_name)
+            self.om_client.create_test_case(
+                test_case_name=test_case["name"],
+                table_fqn=table_fqn,
+                test_definition_name=test_case["testDefinition"]["name"],
+                parameters={p["name"]: p["value"] for p in test_case.get("parameterValues", [])},
+                description=test_case.get("description"),
+                entity_link=test_case.get("entityLink"),
+                test_suite_name=test_case.get("testSuite", {}).get("name"),
+            )
 
-                self.om_client.create_test_case(
-                    test_case_name=test_case["name"],
-                    table_fqn=table_fqn,
-                    test_definition_name=test_case["testDefinition"]["name"],
-                    parameters={
-                        p["name"]: p["value"] for p in test_case.get("parameterValues", [])
-                    },
-                    description=test_case.get("description"),
-                    entity_link=test_case.get("entityLink"),
-                    test_suite_name=test_case.get("testSuite", {}).get("name"),
-                )
+        def get_name(check: Any) -> str:
+            test_case = QualityCheckMapper.map_check_to_test_case(check, table_fqn, test_suite_name)
+            return test_case["name"]
 
-                logger.info(f"Published test case: {test_case['name']}")
-                stats["created"] += 1
-
-            except Exception as e:
-                logger.error(f"Failed to publish test case for {table_fqn}: {e}")
-                stats["failed"] += 1
-
-        return stats
+        return _publish_items(checks, publish, get_name, "test case")
 
     def publish_test_results(
         self,
@@ -502,29 +520,21 @@ class QualityCheckPublisher:
         Returns:
             Dictionary with publication statistics
         """
-        stats = {"created": 0, "failed": 0}
 
-        for dbt_test in dbt_tests:
-            try:
-                test_case = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, table_fqn)
+        def publish(dbt_test: dict[str, Any]) -> None:
+            test_case = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, table_fqn)
+            self.om_client.create_test_case(
+                test_case_name=test_case["name"],
+                table_fqn=table_fqn,
+                test_definition_name=test_case["testDefinition"]["name"],
+                parameters={p["name"]: p["value"] for p in test_case.get("parameterValues", [])},
+                description=test_case.get("description"),
+                entity_link=test_case.get("entityLink"),
+                test_suite_name=test_case.get("testSuite", {}).get("name"),
+            )
 
-                self.om_client.create_test_case(
-                    test_case_name=test_case["name"],
-                    table_fqn=table_fqn,
-                    test_definition_name=test_case["testDefinition"]["name"],
-                    parameters={
-                        p["name"]: p["value"] for p in test_case.get("parameterValues", [])
-                    },
-                    description=test_case.get("description"),
-                    entity_link=test_case.get("entityLink"),
-                    test_suite_name=test_case.get("testSuite", {}).get("name"),
-                )
+        def get_name(dbt_test: dict[str, Any]) -> str:
+            test_case = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, table_fqn)
+            return test_case["name"]
 
-                logger.info(f"Published dbt test case: {test_case['name']}")
-                stats["created"] += 1
-
-            except Exception as e:
-                logger.error(f"Failed to publish dbt test for {table_fqn}: {e}")
-                stats["failed"] += 1
-
-        return stats
+        return _publish_items(dbt_tests, publish, get_name, "dbt test case")

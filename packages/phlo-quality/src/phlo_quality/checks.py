@@ -22,6 +22,20 @@ MetricValue = int | float | dict[str, Any] | None
 Metadata = dict[str, Any]
 
 
+def extract_sample_rows(
+    df: pd.DataFrame,
+    mask: pd.Series,
+    columns: list[str],
+    max_rows: int = 20,
+) -> list[dict[str, Any]]:
+    """Extract sample rows matching a condition for error reporting."""
+    rows = df.loc[mask, columns].head(max_rows)
+    return [
+        {"row_index": idx if isinstance(idx, int) else str(idx), **row.to_dict()}
+        for idx, row in rows.iterrows()
+    ]
+
+
 @dataclass
 class QualityCheckResult:
     """Result from executing a quality check."""
@@ -113,12 +127,7 @@ class NullCheck(QualityCheck):
                 )
 
                 if not sample_rows:
-                    mask = df[column].isna()
-                    rows = df.loc[mask, self.columns].head(20)
-                    sample_rows = [
-                        {"row_index": idx if isinstance(idx, int) else str(idx), **row.to_dict()}
-                        for idx, row in rows.iterrows()
-                    ]
+                    sample_rows = extract_sample_rows(df, df[column].isna(), self.columns)
 
         passed = len(failures) == 0
 
@@ -227,12 +236,7 @@ class RangeCheck(QualityCheck):
                 "violation_percentage": float(violation_pct),
                 "out_of_range": int(violation_count),
                 "threshold": self.allow_threshold,
-                "sample_rows": [
-                    {"row_index": idx if isinstance(idx, int) else str(idx), self.column: value}
-                    for idx, value in df.loc[violations[violations].index, self.column]
-                    .head(20)
-                    .items()
-                ],
+                "sample_rows": extract_sample_rows(df, violations, [self.column]),
             },
             failure_message=failure_msg,
         )

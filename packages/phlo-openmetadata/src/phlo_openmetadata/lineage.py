@@ -7,12 +7,33 @@ and publishes it to OpenMetadata for data discovery and impact analysis.
 
 from __future__ import annotations
 
-from typing import Any
+from functools import wraps
+from typing import Any, Callable, ParamSpec, TypeVar
 
 from phlo_lineage.graph import LineageGraph
 from phlo.logging import get_logger
 
 logger = get_logger(__name__)
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callable[P, R | None]]:
+    """Decorator that catches exceptions and logs them with context."""
+
+    def decorator(fn: Callable[P, R]) -> Callable[P, R | None]:
+        @wraps(fn)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
+            try:
+                return fn(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"Failed to extract {source_name} lineage: {e}")
+                return None
+
+        return wrapper
+
+    return decorator
 
 
 class LineageExtractor:
@@ -26,6 +47,7 @@ class LineageExtractor:
         """Initialize lineage extractor."""
         self.graph = LineageGraph()
 
+    @log_extraction_errors("Dagster")
     def extract_from_dagster(self, context: Any) -> None:
         """
         Extract lineage from Dagster context.
@@ -33,35 +55,32 @@ class LineageExtractor:
         Args:
             context: Dagster context with run and asset information
         """
-        try:
-            if not hasattr(context, "get_asset_materialization_events"):
-                logger.warning(
-                    "Unsupported Dagster execution context for lineage extraction. "
-                    "Expected an ExecuteInProcessResult-like object with "
-                    "get_asset_materialization_events()."
-                )
-                return
+        if not hasattr(context, "get_asset_materialization_events"):
+            logger.warning(
+                "Unsupported Dagster execution context for lineage extraction. "
+                "Expected an ExecuteInProcessResult-like object with "
+                "get_asset_materialization_events()."
+            )
+            return
 
-            events = context.get_asset_materialization_events()
-            if not isinstance(events, list):
-                logger.warning("Dagster context returned unexpected materialization events type")
-                return
+        events = context.get_asset_materialization_events()
+        if not isinstance(events, list):
+            logger.warning("Dagster context returned unexpected materialization events type")
+            return
 
-            for event in events:
-                asset_key = getattr(event, "asset_key", None)
-                if asset_key is None:
-                    continue
-                if hasattr(asset_key, "path") and asset_key.path:
-                    asset_name = asset_key.path[-1]
-                else:
-                    asset_name = str(asset_key)
-                self.graph.add_asset(asset_name, asset_type="unknown")
+        for event in events:
+            asset_key = getattr(event, "asset_key", None)
+            if asset_key is None:
+                continue
+            if hasattr(asset_key, "path") and asset_key.path:
+                asset_name = asset_key.path[-1]
+            else:
+                asset_name = str(asset_key)
+            self.graph.add_asset(asset_name, asset_type="unknown")
 
-            logger.info(f"Extracted {len(self.graph.assets)} assets from Dagster materializations")
+        logger.info(f"Extracted {len(self.graph.assets)} assets from Dagster materializations")
 
-        except Exception as e:
-            logger.error(f"Failed to extract Dagster lineage: {e}")
-
+    @log_extraction_errors("dbt")
     def extract_from_dbt_manifest(self, manifest: dict[str, Any]) -> None:
         """
         Extract lineage from dbt manifest.json.
@@ -69,45 +88,42 @@ class LineageExtractor:
         Args:
             manifest: Parsed dbt manifest dictionary
         """
-        try:
-            for unique_id, node in manifest.get("nodes", {}).items():
-                if unique_id.startswith("model."):
-                    model_name = node.get("name")
-                    self.graph.add_asset(
-                        model_name,
-                        asset_type="transform",
-                        status="unknown",
-                    )
-
-            for unique_id, source in manifest.get("sources", {}).items():
-                source_name = f"{source.get('source_name')}.{source.get('name')}"
+        for unique_id, node in manifest.get("nodes", {}).items():
+            if unique_id.startswith("model."):
+                model_name = node.get("name")
                 self.graph.add_asset(
-                    source_name,
-                    asset_type="ingestion",
+                    model_name,
+                    asset_type="transform",
                     status="unknown",
                 )
 
-            for unique_id, node in manifest.get("nodes", {}).items():
-                if unique_id.startswith("model."):
-                    model_name = node.get("name")
-
-                    for dep_id in node.get("depends_on", {}).get("nodes", []):
-                        if dep_id.startswith("model."):
-                            dep_name = manifest["nodes"][dep_id].get("name")
-                            self.graph.add_edge(dep_name, model_name)
-                        elif dep_id.startswith("source."):
-                            source = manifest.get("sources", {}).get(dep_id, {})
-                            source_name = f"{source.get('source_name')}.{source.get('name')}"
-                            self.graph.add_edge(source_name, model_name)
-
-            logger.info(
-                f"Extracted {len(self.graph.assets)} assets and "
-                f"{sum(len(v) for v in self.graph.edges.values())} edges from dbt"
+        for unique_id, source in manifest.get("sources", {}).items():
+            source_name = f"{source.get('source_name')}.{source.get('name')}"
+            self.graph.add_asset(
+                source_name,
+                asset_type="ingestion",
+                status="unknown",
             )
 
-        except Exception as e:
-            logger.error(f"Failed to extract dbt lineage: {e}")
+        for unique_id, node in manifest.get("nodes", {}).items():
+            if unique_id.startswith("model."):
+                model_name = node.get("name")
 
+                for dep_id in node.get("depends_on", {}).get("nodes", []):
+                    if dep_id.startswith("model."):
+                        dep_name = manifest["nodes"][dep_id].get("name")
+                        self.graph.add_edge(dep_name, model_name)
+                    elif dep_id.startswith("source."):
+                        source = manifest.get("sources", {}).get(dep_id, {})
+                        source_name = f"{source.get('source_name')}.{source.get('name')}"
+                        self.graph.add_edge(source_name, model_name)
+
+        logger.info(
+            f"Extracted {len(self.graph.assets)} assets and "
+            f"{sum(len(v) for v in self.graph.edges.values())} edges from dbt"
+        )
+
+    @log_extraction_errors("Iceberg")
     def extract_from_iceberg(
         self,
         nessie_tables: dict[str, list[dict[str, Any]]],
@@ -118,22 +134,18 @@ class LineageExtractor:
         Args:
             nessie_tables: Dictionary of namespace -> tables from Nessie
         """
-        try:
-            for namespace, tables in nessie_tables.items():
-                for table in tables:
-                    table_name = table.get("name")
-                    full_name = f"{namespace}.{table_name}"
+        for namespace, tables in nessie_tables.items():
+            for table in tables:
+                table_name = table.get("name")
+                full_name = f"{namespace}.{table_name}"
 
-                    self.graph.add_asset(
-                        full_name,
-                        asset_type="ingestion",
-                        status="unknown",
-                    )
+                self.graph.add_asset(
+                    full_name,
+                    asset_type="ingestion",
+                    status="unknown",
+                )
 
-            logger.info(f"Extracted {len(self.graph.assets)} tables from Iceberg catalog")
-
-        except Exception as e:
-            logger.error(f"Failed to extract Iceberg lineage: {e}")
+        logger.info(f"Extracted {len(self.graph.assets)} tables from Iceberg catalog")
 
     def build_publishing_lineage(
         self,

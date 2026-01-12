@@ -806,8 +806,8 @@ class {class_name}({base_class}):
         # Add cleanup logic here
 '''
 
-    if plugin_type == "source":
-        plugin_content += '''
+    _PLUGIN_TYPE_TEMPLATES = {
+        "source": '''
     def fetch_data(self, config: dict):
         """Fetch data from source."""
         # Implement your data fetching logic here
@@ -817,16 +817,14 @@ class {class_name}({base_class}):
         """Get source schema."""
         # Return schema or None
         return None
-'''
-    elif plugin_type == "quality":
-        plugin_content += '''
+''',
+        "quality": '''
     def create_check(self, **kwargs):
         """Create quality check instance."""
         # Implement your quality check creation logic here
         raise NotImplementedError()
-'''
-    elif plugin_type == "transform":
-        plugin_content += '''
+''',
+        "transform": '''
     def transform(self, df, config: dict):
         """Transform dataframe."""
         # Implement your transformation logic here
@@ -841,9 +839,8 @@ class {class_name}({base_class}):
         """Validate transformation configuration."""
         # Add config validation logic here
         return True
-'''
-    elif plugin_type == "service":
-        plugin_content += '''
+''',
+        "service": '''
     @property
     def service_definition(self) -> dict:
         """Return service definition."""
@@ -853,9 +850,8 @@ class {class_name}({base_class}):
                 "image": "your-service:latest",
             },
         }
-'''
-    elif plugin_type == "catalog":
-        plugin_content += '''
+''',
+        "catalog": '''
     @property
     def targets(self) -> list[str]:
         """Return engine targets for this catalog."""
@@ -869,9 +865,8 @@ class {class_name}({base_class}):
     def get_properties(self) -> dict[str, str]:
         """Return catalog properties."""
         return {"connector.name": "example"}
-'''
-    elif plugin_type == "asset":
-        plugin_content += '''
+''',
+        "asset": '''
     def get_assets(self) -> Iterable[AssetSpec]:
         """Return asset specs."""
         # Add asset definitions here
@@ -881,16 +876,14 @@ class {class_name}({base_class}):
         """Return asset check specs."""
         # Add asset checks here
         return []
-'''
-    elif plugin_type == "resource":
-        plugin_content += '''
+''',
+        "resource": '''
     def get_resources(self) -> Iterable[ResourceSpec]:
         """Return resource specs."""
         # Add resource definitions here
         return []
-'''
-    elif plugin_type == "orchestrator":
-        plugin_content += '''
+''',
+        "orchestrator": '''
     def build_definitions(
         self,
         *,
@@ -901,7 +894,10 @@ class {class_name}({base_class}):
         """Build orchestrator definitions from capability specs."""
         # Implement orchestrator-specific translation here
         raise NotImplementedError()
-'''
+''',
+    }
+
+    plugin_content += _PLUGIN_TYPE_TEMPLATES.get(plugin_type, "")
 
     (src_dir / "plugin.py").write_text(plugin_content)
 

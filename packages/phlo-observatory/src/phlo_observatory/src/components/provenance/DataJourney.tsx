@@ -7,20 +7,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-} from '@xyflow/react'
+import { Background, Controls, MarkerType, ReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Database, GitBranch, Loader2 } from 'lucide-react'
+import { GitBranch, Loader2 } from 'lucide-react'
 
 import type { GraphNode } from '@/server/graph.server'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
-import { Badge } from '@/components/ui/badge'
+import type { Edge, Node } from '@xyflow/react'
+
+import { journeyNodeTypes } from '@/components/flow/nodeTypes'
 import { cn } from '@/lib/utils'
 import { getAssetNeighbors } from '@/server/graph.server'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
@@ -29,50 +23,6 @@ import { formatDate } from '@/utils/dateFormat'
 interface DataJourneyProps {
   assetKey: string
   className?: string
-}
-
-// Custom node component for journey visualization
-function JourneyNode({ data }: NodeProps) {
-  const isCurrent = data.isCurrent as boolean
-  const computeKind = data.computeKind as string | undefined
-  const lastMaterialized = data.lastMaterialized as string | undefined
-
-  return (
-    <div
-      className={cn(
-        'px-4 py-3 border border-border border-l-4 bg-card shadow-sm',
-        'transition-colors hover:bg-muted/50',
-        isCurrent
-          ? 'border-l-primary ring-2 ring-primary/40'
-          : 'border-l-border',
-      )}
-    >
-      <Handle type="target" position={Position.Left} className="!bg-border" />
-
-      <div className="flex items-center gap-2 mb-1">
-        <Database
-          className={cn(
-            'w-4 h-4',
-            isCurrent ? 'text-primary' : 'text-muted-foreground',
-          )}
-        />
-        <span className="font-medium text-sm">{data.label as string}</span>
-      </div>
-
-      <div className="flex items-center gap-2 text-xs">
-        {computeKind && <Badge variant="outline">{computeKind}</Badge>}
-        {lastMaterialized && (
-          <span className="text-muted-foreground">{lastMaterialized}</span>
-        )}
-      </div>
-
-      <Handle type="source" position={Position.Right} className="!bg-border" />
-    </div>
-  )
-}
-
-const nodeTypes = {
-  journey: JourneyNode,
 }
 
 export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
@@ -248,7 +198,7 @@ export function DataJourney({ assetKey, className = '' }: DataJourneyProps) {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        nodeTypes={nodeTypes}
+        nodeTypes={journeyNodeTypes}
         onInit={onInit}
         fitView
         fitViewOptions={{ padding: 0.3 }}

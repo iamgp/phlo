@@ -22,11 +22,12 @@ from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
 from phlo.logging import get_logger
+from phlo.utils import compact_dict
 
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class OpenMetadataColumn:
     """Represents a column in OpenMetadata."""
 
@@ -46,7 +47,7 @@ class OpenMetadataColumn:
         return {k: v for k, v in asdict(self).items() if v is not None}
 
 
-@dataclass
+@dataclass(slots=True)
 class OpenMetadataTable:
     """Represents a table entity in OpenMetadata."""
 
@@ -61,26 +62,21 @@ class OpenMetadataTable:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict, converting columns to dicts."""
-        data = {
-            "name": self.name,
-            "tableType": self.tableType,
-        }
-        if self.description:
-            data["description"] = self.description
-        if self.columns:
-            data["columns"] = [col.to_dict() for col in self.columns]
-        if self.owner:
-            data["owner"] = self.owner
-        if self.tags:
-            data["tags"] = self.tags
-        if self.sourceUrl:
-            data["sourceUrl"] = self.sourceUrl
-        if self.location:
-            data["location"] = self.location
-        return data
+        return compact_dict(
+            {
+                "name": self.name,
+                "tableType": self.tableType,
+                "description": self.description,
+                "columns": [col.to_dict() for col in self.columns] if self.columns else None,
+                "owner": self.owner,
+                "tags": self.tags,
+                "sourceUrl": self.sourceUrl,
+                "location": self.location,
+            }
+        )
 
 
-@dataclass
+@dataclass(slots=True)
 class OpenMetadataLineageEdge:
     """Represents a lineage edge in OpenMetadata."""
 
@@ -90,10 +86,13 @@ class OpenMetadataLineageEdge:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict for API submission."""
-        data = {"fromEntity": self.fromEntity, "toEntity": self.toEntity}
-        if self.description:
-            data["description"] = self.description
-        return data
+        return compact_dict(
+            {
+                "fromEntity": self.fromEntity,
+                "toEntity": self.toEntity,
+                "description": self.description,
+            }
+        )
 
 
 class OpenMetadataClient:

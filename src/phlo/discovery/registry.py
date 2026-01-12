@@ -140,6 +140,24 @@ class PluginRegistry:
         """Register a catalog plugin."""
         self._register_plugin("catalogs", plugin, replace)
 
+    def get(self, plugin_type: str, name: str) -> Plugin | None:
+        """Get a plugin by type and name."""
+        config = _TYPE_CONFIG.get(plugin_type)
+        if not config:
+            return None
+        return getattr(self, config[0]).get(name)
+
+    def list(self, plugin_type: str) -> list[str]:
+        """List all plugins of a given type."""
+        config = _TYPE_CONFIG.get(plugin_type)
+        if not config:
+            return []
+        return list(getattr(self, config[0]).keys())
+
+    def register(self, plugin_type: str, plugin: Plugin, replace: bool = False) -> None:
+        """Register a plugin of any type (alias for _register_plugin)."""
+        self._register_plugin(plugin_type, plugin, replace)
+
     def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
         """Get a source connector plugin by name."""
         return self._sources.get(name)
@@ -238,35 +256,12 @@ class PluginRegistry:
 
     def list_all_plugins(self) -> dict[str, list[str]]:
         """List all registered plugins by type."""
-        return {
-            "source_connectors": self.list_source_connectors(),
-            "quality_checks": self.list_quality_checks(),
-            "transformations": self.list_transformations(),
-            "services": self.list_services(),
-            "dagster_extensions": self.list_dagster_extensions(),
-            "observatory_extensions": self.list_observatory_extensions(),
-            "cli_commands": self.list_cli_command_plugins(),
-            "hooks": self.list_hook_plugins(),
-            "asset_providers": self.list_asset_providers(),
-            "resource_providers": self.list_resource_providers(),
-            "orchestrators": self.list_orchestrators(),
-            "catalogs": self.list_catalogs(),
-        }
+        return {ptype: self.list(ptype) for ptype in _TYPE_CONFIG}
 
     def clear(self) -> None:
         """Clear all registered plugins."""
-        self._sources.clear()
-        self._quality_checks.clear()
-        self._transformations.clear()
-        self._services.clear()
-        self._dagster_extensions.clear()
-        self._observatory_extensions.clear()
-        self._cli_commands.clear()
-        self._hooks.clear()
-        self._assets.clear()
-        self._resources.clear()
-        self._orchestrators.clear()
-        self._catalogs.clear()
+        for config in _TYPE_CONFIG.values():
+            getattr(self, config[0]).clear()
         self._all_plugins.clear()
 
     def iter_plugins(self) -> list[Plugin]:
@@ -281,21 +276,6 @@ class PluginRegistry:
         """Check if a plugin is registered (key format: 'type:name')."""
         return key in self._all_plugins
 
-    _GETTER_METHODS: dict[str, str] = {
-        "source_connectors": "get_source_connector",
-        "quality_checks": "get_quality_check",
-        "transformations": "get_transformation",
-        "services": "get_service",
-        "dagster_extensions": "get_dagster_extension",
-        "observatory_extensions": "get_observatory_extension",
-        "cli_commands": "get_cli_command_plugin",
-        "hooks": "get_hook_plugin",
-        "catalogs": "get_catalog",
-        "asset_providers": "get_asset_provider",
-        "resource_providers": "get_resource_provider",
-        "orchestrators": "get_orchestrator",
-    }
-
     def get_plugin_metadata(self, plugin_type: str, name: str) -> dict | None:
         """
         Get metadata for a plugin by type and name.
@@ -308,10 +288,7 @@ class PluginRegistry:
         Returns:
             Dictionary with plugin metadata or None if not found
         """
-        getter_name = self._GETTER_METHODS.get(plugin_type)
-        if not getter_name:
-            return None
-        plugin = getattr(self, getter_name)(name)
+        plugin = self.get(plugin_type, name)
         if not plugin:
             return None
 
