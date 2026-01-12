@@ -12,7 +12,6 @@ from phlo.plugins.base import (
     CatalogPlugin,
     CliCommandPlugin,
     DagsterExtensionPlugin,
-    HookPlugin,
     ObservatoryExtensionPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
@@ -22,6 +21,7 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.hooks import HookPlugin
 
 _TYPE_CONFIG = {
     "source_connectors": ("_sources", "source", "Source connector"),

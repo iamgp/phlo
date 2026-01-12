@@ -195,6 +195,7 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
                 console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
                 sys.exit(1)
 
+        assert plugin_type is not None
         internal_type = plugin_type
 
         info = get_plugin_info(internal_type, plugin_name)

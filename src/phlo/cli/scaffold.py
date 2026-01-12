@@ -50,6 +50,7 @@ def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
         return []
 
     fields: list[FieldSpec] = []
+    seen: set[str] = set()
     for raw in raw_specs:
         raw = raw.strip()
         if not raw:
@@ -62,21 +63,23 @@ def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
         name = _to_snake_case(name)
         type_part = type_part.strip().lower()
 
-        nullable = True
+        nullable = False
         if type_part.endswith("?"):
             nullable = True
             type_part = type_part[:-1]
         elif type_part.endswith("!"):
-            nullable = False
             type_part = type_part[:-1]
 
         if type_part not in _TYPE_IMPORTS:
             allowed = ", ".join(sorted(_TYPE_IMPORTS.keys()))
             raise ValueError(f"Invalid field type '{type_part}' for '{name}'. Allowed: {allowed}")
 
+        if not name or name in seen:
+            continue
+        seen.add(name)
         fields.append(FieldSpec(name=name, type_name=type_part, nullable=nullable))
 
-    return list({f.name: f for f in fields if f.name}.values())
+    return fields
 
 
 def create_ingestion_workflow(
