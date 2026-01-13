@@ -23,6 +23,21 @@ from phlo.plugins.base import (
 )
 from phlo.plugins.hooks import HookPlugin
 
+_TYPE_CONFIG = {
+    "source_connectors": ("_sources", "source", "Source connector"),
+    "quality_checks": ("_quality_checks", "quality", "Quality check"),
+    "transformations": ("_transformations", "transformation", "Transformation"),
+    "services": ("_services", "service", "Service"),
+    "dagster_extensions": ("_dagster_extensions", "dagster", "Dagster extension"),
+    "observatory_extensions": ("_observatory_extensions", "observatory", "Observatory extension"),
+    "cli_commands": ("_cli_commands", "cli", "CLI command"),
+    "hooks": ("_hooks", "hooks", "Hook"),
+    "asset_providers": ("_assets", "assets", "Asset provider"),
+    "resource_providers": ("_resources", "resources", "Resource provider"),
+    "orchestrators": ("_orchestrators", "orchestrators", "Orchestrator"),
+    "catalogs": ("_catalogs", "catalogs", "Catalog"),
+}
+
 
 class PluginRegistry:
     """
@@ -48,256 +63,115 @@ class PluginRegistry:
         self._catalogs: dict[str, CatalogPlugin] = {}
         self._all_plugins: dict[str, Plugin] = {}
 
+    def _register_plugin(self, plugin_type: str, plugin: Plugin, replace: bool = False) -> None:
+        """Register a plugin of any type."""
+        config = _TYPE_CONFIG.get(plugin_type)
+        if not config:
+            raise ValueError(f"Unknown plugin type: {plugin_type}")
+
+        dict_name, key_prefix, type_label = config
+        plugin_dict = getattr(self, dict_name)
+        name = plugin.metadata.name
+
+        if name in plugin_dict and not replace:
+            raise ValueError(
+                f"{type_label} plugin '{name}' is already registered. "
+                f"Use replace=True to overwrite."
+            )
+
+        plugin_dict[name] = plugin
+        self._all_plugins[f"{key_prefix}:{name}"] = plugin
+
     def register_source_connector(
         self, plugin: SourceConnectorPlugin, replace: bool = False
     ) -> None:
-        """
-        Register a source connector plugin.
-
-        Args:
-            plugin: Source connector plugin instance
-            replace: Whether to replace existing plugin with same name
-
-        Raises:
-            ValueError: If plugin with same name exists and replace=False
-        """
-        name = plugin.metadata.name
-
-        if name in self._sources and not replace:
-            raise ValueError(
-                f"Source connector plugin '{name}' is already registered. "
-                f"Use replace=True to overwrite."
-            )
-
-        self._sources[name] = plugin
-        self._all_plugins[f"source:{name}"] = plugin
+        """Register a source connector plugin."""
+        self._register_plugin("source_connectors", plugin, replace)
 
     def register_quality_check(self, plugin: QualityCheckPlugin, replace: bool = False) -> None:
-        """
-        Register a quality check plugin.
-
-        Args:
-            plugin: Quality check plugin instance
-            replace: Whether to replace existing plugin with same name
-
-        Raises:
-            ValueError: If plugin with same name exists and replace=False
-        """
-        name = plugin.metadata.name
-
-        if name in self._quality_checks and not replace:
-            raise ValueError(
-                f"Quality check plugin '{name}' is already registered. "
-                f"Use replace=True to overwrite."
-            )
-
-        self._quality_checks[name] = plugin
-        self._all_plugins[f"quality:{name}"] = plugin
+        """Register a quality check plugin."""
+        self._register_plugin("quality_checks", plugin, replace)
 
     def register_transformation(self, plugin: TransformationPlugin, replace: bool = False) -> None:
-        """
-        Register a transformation plugin.
-
-        Args:
-            plugin: Transformation plugin instance
-            replace: Whether to replace existing plugin with same name
-
-        Raises:
-            ValueError: If plugin with same name exists and replace=False
-        """
-        name = plugin.metadata.name
-
-        if name in self._transformations and not replace:
-            raise ValueError(
-                f"Transformation plugin '{name}' is already registered. "
-                f"Use replace=True to overwrite."
-            )
-
-        self._transformations[name] = plugin
-        self._all_plugins[f"transformation:{name}"] = plugin
+        """Register a transformation plugin."""
+        self._register_plugin("transformations", plugin, replace)
 
     def register_service(self, plugin: ServicePlugin, replace: bool = False) -> None:
-        """
-        Register a service plugin.
-
-        Args:
-            plugin: Service plugin instance
-            replace: Whether to replace existing plugin with same name
-
-        Raises:
-            ValueError: If plugin with same name exists and replace=False
-        """
-        name = plugin.metadata.name
-
-        if name in self._services and not replace:
-            raise ValueError(
-                f"Service plugin '{name}' is already registered. Use replace=True to overwrite."
-            )
-
-        self._services[name] = plugin
-        self._all_plugins[f"service:{name}"] = plugin
+        """Register a service plugin."""
+        self._register_plugin("services", plugin, replace)
 
     def register_dagster_extension(
         self, plugin: DagsterExtensionPlugin, replace: bool = False
     ) -> None:
-        """
-        Register a Dagster extension plugin.
-
-        Args:
-            plugin: Dagster extension plugin instance
-            replace: Whether to replace existing plugin with same name
-        """
-        name = plugin.metadata.name
-
-        if name in self._dagster_extensions and not replace:
-            raise ValueError(
-                f"Dagster extension plugin '{name}' is already registered. "
-                f"Use replace=True to overwrite."
-            )
-
-        self._dagster_extensions[name] = plugin
-        self._all_plugins[f"dagster:{name}"] = plugin
+        """Register a Dagster extension plugin."""
+        self._register_plugin("dagster_extensions", plugin, replace)
 
     def register_observatory_extension(
         self, plugin: ObservatoryExtensionPlugin, replace: bool = False
     ) -> None:
-        """
-        Register an Observatory extension plugin.
-
-        Args:
-            plugin: Observatory extension plugin instance
-            replace: Whether to replace existing plugin with same name
-        """
-        name = plugin.metadata.name
-
-        if name in self._observatory_extensions and not replace:
-            raise ValueError(
-                f"Observatory extension plugin '{name}' is already registered. "
-                f"Use replace=True to overwrite."
-            )
-
-        self._observatory_extensions[name] = plugin
-        self._all_plugins[f"observatory:{name}"] = plugin
+        """Register an Observatory extension plugin."""
+        self._register_plugin("observatory_extensions", plugin, replace)
 
     def register_cli_command_plugin(self, plugin: CliCommandPlugin, replace: bool = False) -> None:
         """Register a CLI command plugin."""
-        name = plugin.metadata.name
-        if name in self._cli_commands and not replace:
-            raise ValueError(
-                f"CLI command plugin '{name}' is already registered. Use replace=True to overwrite."
-            )
-        self._cli_commands[name] = plugin
-        self._all_plugins[f"cli:{name}"] = plugin
+        self._register_plugin("cli_commands", plugin, replace)
 
     def register_hook_plugin(self, plugin: HookPlugin, replace: bool = False) -> None:
         """Register a hook plugin."""
-        name = plugin.metadata.name
-        if name in self._hooks and not replace:
-            raise ValueError(
-                f"Hook plugin '{name}' is already registered. Use replace=True to overwrite."
-            )
-        self._hooks[name] = plugin
-        self._all_plugins[f"hooks:{name}"] = plugin
+        self._register_plugin("hooks", plugin, replace)
 
     def register_asset_provider(self, plugin: AssetProviderPlugin, replace: bool = False) -> None:
         """Register an asset provider plugin."""
-        name = plugin.metadata.name
-        if name in self._assets and not replace:
-            raise ValueError(
-                f"Asset provider plugin '{name}' is already registered. Use replace=True to overwrite."
-            )
-        self._assets[name] = plugin
-        self._all_plugins[f"assets:{name}"] = plugin
+        self._register_plugin("asset_providers", plugin, replace)
 
     def register_resource_provider(
         self, plugin: ResourceProviderPlugin, replace: bool = False
     ) -> None:
         """Register a resource provider plugin."""
-        name = plugin.metadata.name
-        if name in self._resources and not replace:
-            raise ValueError(
-                f"Resource provider plugin '{name}' is already registered. Use replace=True to overwrite."
-            )
-        self._resources[name] = plugin
-        self._all_plugins[f"resources:{name}"] = plugin
+        self._register_plugin("resource_providers", plugin, replace)
 
     def register_orchestrator(
         self, plugin: OrchestratorAdapterPlugin, replace: bool = False
     ) -> None:
         """Register an orchestrator adapter plugin."""
-        name = plugin.metadata.name
-        if name in self._orchestrators and not replace:
-            raise ValueError(
-                f"Orchestrator plugin '{name}' is already registered. Use replace=True to overwrite."
-            )
-        self._orchestrators[name] = plugin
-        self._all_plugins[f"orchestrators:{name}"] = plugin
+        self._register_plugin("orchestrators", plugin, replace)
 
     def register_catalog(self, plugin: CatalogPlugin, replace: bool = False) -> None:
-        """
-        Register a catalog plugin.
+        """Register a catalog plugin."""
+        self._register_plugin("catalogs", plugin, replace)
 
-        Args:
-            plugin: Catalog plugin instance
-            replace: Whether to replace existing plugin with same name
+    def get(self, plugin_type: str, name: str) -> Plugin | None:
+        """Get a plugin by type and name."""
+        config = _TYPE_CONFIG.get(plugin_type)
+        if not config:
+            return None
+        return getattr(self, config[0]).get(name)
 
-        Raises:
-            ValueError: If plugin with same name exists and replace=False
-        """
-        name = plugin.metadata.name
-        if name in self._catalogs and not replace:
-            raise ValueError(
-                f"Catalog plugin '{name}' is already registered. Use replace=True to overwrite."
-            )
-        self._catalogs[name] = plugin
-        self._all_plugins[f"catalogs:{name}"] = plugin
+    def list(self, plugin_type: str) -> list[str]:
+        """List all plugins of a given type."""
+        config = _TYPE_CONFIG.get(plugin_type)
+        if not config:
+            return []
+        return list(getattr(self, config[0]).keys())
+
+    def register(self, plugin_type: str, plugin: Plugin, replace: bool = False) -> None:
+        """Register a plugin of any type (alias for _register_plugin)."""
+        self._register_plugin(plugin_type, plugin, replace)
 
     def get_source_connector(self, name: str) -> SourceConnectorPlugin | None:
-        """
-        Get a source connector plugin by name.
-
-        Args:
-            name: Plugin name
-
-        Returns:
-            SourceConnectorPlugin instance or None if not found
-        """
+        """Get a source connector plugin by name."""
         return self._sources.get(name)
 
     def get_quality_check(self, name: str) -> QualityCheckPlugin | None:
-        """
-        Get a quality check plugin by name.
-
-        Args:
-            name: Plugin name
-
-        Returns:
-            QualityCheckPlugin instance or None if not found
-        """
+        """Get a quality check plugin by name."""
         return self._quality_checks.get(name)
 
     def get_transformation(self, name: str) -> TransformationPlugin | None:
-        """
-        Get a transformation plugin by name.
-
-        Args:
-            name: Plugin name
-
-        Returns:
-            TransformationPlugin instance or None if not found
-        """
+        """Get a transformation plugin by name."""
         return self._transformations.get(name)
 
     def get_service(self, name: str) -> ServicePlugin | None:
-        """
-        Get a service plugin by name.
-
-        Args:
-            name: Plugin name
-
-        Returns:
-            ServicePlugin instance or None if not found
-        """
+        """Get a service plugin by name."""
         return self._services.get(name)
 
     def get_dagster_extension(self, name: str) -> DagsterExtensionPlugin | None:
@@ -333,39 +207,19 @@ class PluginRegistry:
         return self._catalogs.get(name)
 
     def list_source_connectors(self) -> list[str]:
-        """
-        List all registered source connector plugins.
-
-        Returns:
-            List of plugin names
-        """
+        """List all registered source connector plugins."""
         return list(self._sources.keys())
 
     def list_quality_checks(self) -> list[str]:
-        """
-        List all registered quality check plugins.
-
-        Returns:
-            List of plugin names
-        """
+        """List all registered quality check plugins."""
         return list(self._quality_checks.keys())
 
     def list_transformations(self) -> list[str]:
-        """
-        List all registered transformation plugins.
-
-        Returns:
-            List of plugin names
-        """
+        """List all registered transformation plugins."""
         return list(self._transformations.keys())
 
     def list_services(self) -> list[str]:
-        """
-        List all registered service plugins.
-
-        Returns:
-            List of plugin names
-        """
+        """List all registered service plugins."""
         return list(self._services.keys())
 
     def list_dagster_extensions(self) -> list[str]:
@@ -401,41 +255,13 @@ class PluginRegistry:
         return list(self._catalogs.keys())
 
     def list_all_plugins(self) -> dict[str, list[str]]:
-        """
-        List all registered plugins by type.
-
-        Returns:
-            Dictionary mapping plugin type to list of plugin names
-        """
-        return {
-            "source_connectors": self.list_source_connectors(),
-            "quality_checks": self.list_quality_checks(),
-            "transformations": self.list_transformations(),
-            "services": self.list_services(),
-            "dagster_extensions": self.list_dagster_extensions(),
-            "observatory_extensions": self.list_observatory_extensions(),
-            "cli_commands": self.list_cli_command_plugins(),
-            "hooks": self.list_hook_plugins(),
-            "asset_providers": self.list_asset_providers(),
-            "resource_providers": self.list_resource_providers(),
-            "orchestrators": self.list_orchestrators(),
-            "catalogs": self.list_catalogs(),
-        }
+        """List all registered plugins by type."""
+        return {ptype: self.list(ptype) for ptype in _TYPE_CONFIG}
 
     def clear(self) -> None:
         """Clear all registered plugins."""
-        self._sources.clear()
-        self._quality_checks.clear()
-        self._transformations.clear()
-        self._services.clear()
-        self._dagster_extensions.clear()
-        self._observatory_extensions.clear()
-        self._cli_commands.clear()
-        self._hooks.clear()
-        self._assets.clear()
-        self._resources.clear()
-        self._orchestrators.clear()
-        self._catalogs.clear()
+        for config in _TYPE_CONFIG.values():
+            getattr(self, config[0]).clear()
         self._all_plugins.clear()
 
     def iter_plugins(self) -> list[Plugin]:
@@ -462,28 +288,7 @@ class PluginRegistry:
         Returns:
             Dictionary with plugin metadata or None if not found
         """
-        plugin = None
-        if plugin_type == "source_connectors":
-            plugin = self.get_source_connector(name)
-        elif plugin_type == "quality_checks":
-            plugin = self.get_quality_check(name)
-        elif plugin_type == "transformations":
-            plugin = self.get_transformation(name)
-        elif plugin_type == "services":
-            plugin = self.get_service(name)
-        elif plugin_type == "observatory_extensions":
-            plugin = self.get_observatory_extension(name)
-        elif plugin_type == "hooks":
-            plugin = self.get_hook_plugin(name)
-        elif plugin_type == "asset_providers":
-            plugin = self.get_asset_provider(name)
-        elif plugin_type == "resource_providers":
-            plugin = self.get_resource_provider(name)
-        elif plugin_type == "orchestrators":
-            plugin = self.get_orchestrator(name)
-        elif plugin_type == "catalogs":
-            plugin = self.get_catalog(name)
-
+        plugin = self.get(plugin_type, name)
         if not plugin:
             return None
 
@@ -515,15 +320,9 @@ class PluginRegistry:
 
         try:
             metadata = plugin.metadata
-            if not isinstance(metadata, object):
-                return False
-
             # Check required metadata fields
-            required_fields = ["name", "version"]
-            for field in required_fields:
-                if not hasattr(metadata, field):
-                    return False
-
+            if not all(hasattr(metadata, f) for f in ("name", "version")):
+                return False
         except Exception:
             return False
 

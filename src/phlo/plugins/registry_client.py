@@ -46,23 +46,21 @@ def _is_cache_valid(now: float, ttl_seconds: int) -> bool:
 
 
 def _normalize_registry(registry: dict[str, Any]) -> list[RegistryPlugin]:
-    plugins = []
-    for name, info in registry.get("plugins", {}).items():
-        plugins.append(
-            RegistryPlugin(
-                name=name,
-                type=info.get("type", ""),
-                package=info.get("package", ""),
-                version=info.get("version", ""),
-                description=info.get("description", ""),
-                author=info.get("author", ""),
-                homepage=info.get("homepage"),
-                tags=list(info.get("tags", [])),
-                verified=bool(info.get("verified", False)),
-                core=bool(info.get("core", False)),
-            )
+    return [
+        RegistryPlugin(
+            name=name,
+            type=info.get("type", ""),
+            package=info.get("package", ""),
+            version=info.get("version", ""),
+            description=info.get("description", ""),
+            author=info.get("author", ""),
+            homepage=info.get("homepage"),
+            tags=list(info.get("tags", [])),
+            verified=bool(info.get("verified", False)),
+            core=bool(info.get("core", False)),
         )
-    return plugins
+        for name, info in registry.get("plugins", {}).items()
+    ]
 
 
 def _load_registry_from_package() -> dict[str, Any]:
@@ -175,16 +173,12 @@ def search_plugins(
 
     if query:
         query_lower = query.lower()
-
-        def matches(plugin: RegistryPlugin) -> bool:
-            if query_lower in plugin.name.lower():
-                return True
-            if query_lower in plugin.description.lower():
-                return True
-            if query_lower in plugin.package.lower():
-                return True
-            return any(query_lower in tag.lower() for tag in plugin.tags)
-
-        plugins = [plugin for plugin in plugins if matches(plugin)]
+        plugins = [
+            p
+            for p in plugins
+            if any(
+                query_lower in text.lower() for text in (p.name, p.description, p.package, *p.tags)
+            )
+        ]
 
     return plugins

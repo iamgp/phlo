@@ -9,6 +9,8 @@ Provides commands to:
 - Create scaffolding for new plugins
 """
 
+from __future__ import annotations
+
 import importlib.metadata
 import json
 import subprocess
@@ -17,6 +19,7 @@ from pathlib import Path
 from typing import Optional
 
 import click
+from packaging.version import Version
 from rich.console import Console
 from rich.table import Table
 
@@ -27,13 +30,8 @@ from phlo.plugins import (
     list_plugins,
     validate_plugins,
 )
-from phlo.plugins.registry_client import (
-    get_plugin as get_registry_plugin,
-)
-from phlo.plugins.registry_client import (
-    list_registry_plugins,
-    search_plugins,
-)
+from phlo.plugins.registry_client import get_plugin as get_registry_plugin
+from phlo.plugins.registry_client import list_registry_plugins, search_plugins
 
 console = Console()
 
@@ -50,20 +48,7 @@ PLUGIN_TYPE_MAP = {
     "observatory": "observatory_extensions",
 }
 
-PLUGIN_TYPE_LABELS = {
-    "source_connectors": "Sources",
-    "quality_checks": "Quality Checks",
-    "transformations": "Transforms",
-    "services": "Services",
-    "hooks": "Hooks",
-    "asset_providers": "Assets",
-    "resource_providers": "Resources",
-    "orchestrators": "Orchestrators",
-    "catalogs": "Catalogs",
-    "observatory_extensions": "Observatory Extensions",
-}
-
-PLUGIN_INTERNAL_TO_REGISTRY = {
+INTERNAL_TO_REGISTRY_TYPE = {
     "source_connectors": "source",
     "quality_checks": "quality",
     "transformations": "transform",
@@ -76,17 +61,16 @@ PLUGIN_INTERNAL_TO_REGISTRY = {
     "observatory_extensions": "observatory",
 }
 
-REGISTRY_TYPE_MAP = {
+SCAFFOLD_TYPE_MAP = {
     "sources": "source",
     "quality": "quality",
     "transforms": "transform",
     "services": "service",
-    "hooks": "hooks",
-    "assets": "assets",
-    "resources": "resources",
-    "orchestrators": "orchestrators",
-    "catalogs": "catalogs",
-    "observatory": "observatory",
+    "hooks": "hook",
+    "catalogs": "catalog",
+    "assets": "asset",
+    "resources": "resource",
+    "orchestrators": "orchestrator",
 }
 
 
@@ -204,38 +188,17 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
         if not plugin_type:
             for ptype_key, names in all_plugins.items():
                 if plugin_name in names:
-                    if ptype_key == "source_connectors":
-                        plugin_type = "sources"
-                    elif ptype_key == "quality_checks":
-                        plugin_type = "quality"
-                    elif ptype_key == "transformations":
-                        plugin_type = "transforms"
-                    elif ptype_key == "services":
-                        plugin_type = "services"
-                    elif ptype_key == "observatory_extensions":
-                        plugin_type = "observatory"
-                    elif ptype_key == "catalogs":
-                        plugin_type = "catalogs"
+                    plugin_type = ptype_key
                     break
 
-        if not plugin_type:
-            console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
-            sys.exit(1)
+            if not plugin_type:
+                console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
+                sys.exit(1)
 
-        # Map display names to internal names
-        type_mapping = {
-            "sources": "source_connectors",
-            "quality": "quality_checks",
-            "transforms": "transformations",
-            "services": "services",
-            "hooks": "hooks",
-            "assets": "asset_providers",
-            "resources": "resource_providers",
-            "orchestrators": "orchestrators",
-            "catalogs": "catalogs",
-            "observatory": "observatory_extensions",
-        }
-        internal_type = type_mapping.get(plugin_type, plugin_type)
+        assert plugin_type is not None
+
+        # Translate CLI type to internal type if specified via --type
+        internal_type = PLUGIN_TYPE_MAP.get(plugin_type, plugin_type)
 
         info = get_plugin_info(internal_type, plugin_name)
 
@@ -376,7 +339,7 @@ def search_cmd(
     """Search plugin registry."""
     try:
         if plugin_type:
-            plugin_type = REGISTRY_TYPE_MAP.get(plugin_type, plugin_type)
+            plugin_type = INTERNAL_TO_REGISTRY_TYPE.get(plugin_type, plugin_type)
         results = search_plugins(
             query=query,
             plugin_type=plugin_type,
@@ -504,18 +467,7 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
         phlo plugin create my-transform --type transforms --path ./plugins/
     """
     try:
-        type_aliases = {
-            "sources": "source",
-            "quality": "quality",
-            "transforms": "transform",
-            "services": "service",
-            "hooks": "hook",
-            "catalogs": "catalog",
-            "assets": "asset",
-            "resources": "resource",
-            "orchestrators": "orchestrator",
-        }
-        plugin_type = type_aliases.get(plugin_type, plugin_type)
+        plugin_type = SCAFFOLD_TYPE_MAP.get(plugin_type, plugin_type)
 
         # Validate plugin name
         if not plugin_name or not all(c.isalnum() or c in "-_" for c in plugin_name):
@@ -599,7 +551,7 @@ def _collect_installed_plugins(plugin_type: str) -> list[dict]:
         installed.append(
             {
                 "name": info["name"],
-                "type": PLUGIN_INTERNAL_TO_REGISTRY.get(plugin_key, plugin_key),
+                "type": INTERNAL_TO_REGISTRY_TYPE.get(plugin_key, plugin_key),
                 "version": info["version"],
                 "description": info.get("description", ""),
                 "author": info.get("author", ""),
@@ -644,7 +596,9 @@ def _collect_installed_plugins(plugin_type: str) -> list[dict]:
 def _collect_registry_plugins(plugin_type: str) -> list[dict]:
     registry_plugins = list_registry_plugins()
     if plugin_type != "all":
-        registry_type = REGISTRY_TYPE_MAP.get(plugin_type)
+        # Translate CLI type to internal type first, then to registry type
+        internal_type = PLUGIN_TYPE_MAP.get(plugin_type, plugin_type)
+        registry_type = INTERNAL_TO_REGISTRY_TYPE.get(internal_type)
         registry_plugins = [plugin for plugin in registry_plugins if plugin.type == registry_type]
     return [_registry_plugin_to_dict(plugin) for plugin in registry_plugins]
 
@@ -681,8 +635,6 @@ def _get_installed_version(package: str) -> str | None:
 
 def _version_tuple(version: str) -> tuple:
     try:
-        from packaging.version import Version
-
         return (0, Version(version))
     except Exception:
         parts = []
@@ -858,8 +810,8 @@ class {class_name}({base_class}):
         # Add cleanup logic here
 '''
 
-    if plugin_type == "source":
-        plugin_content += '''
+    _PLUGIN_TYPE_TEMPLATES = {
+        "source": '''
     def fetch_data(self, config: dict):
         """Fetch data from source."""
         # Implement your data fetching logic here
@@ -869,16 +821,14 @@ class {class_name}({base_class}):
         """Get source schema."""
         # Return schema or None
         return None
-'''
-    elif plugin_type == "quality":
-        plugin_content += '''
+''',
+        "quality": '''
     def create_check(self, **kwargs):
         """Create quality check instance."""
         # Implement your quality check creation logic here
         raise NotImplementedError()
-'''
-    elif plugin_type == "transform":
-        plugin_content += '''
+''',
+        "transform": '''
     def transform(self, df, config: dict):
         """Transform dataframe."""
         # Implement your transformation logic here
@@ -893,9 +843,8 @@ class {class_name}({base_class}):
         """Validate transformation configuration."""
         # Add config validation logic here
         return True
-'''
-    elif plugin_type == "service":
-        plugin_content += '''
+''',
+        "service": '''
     @property
     def service_definition(self) -> dict:
         """Return service definition."""
@@ -905,9 +854,8 @@ class {class_name}({base_class}):
                 "image": "your-service:latest",
             },
         }
-'''
-    elif plugin_type == "catalog":
-        plugin_content += '''
+''',
+        "catalog": '''
     @property
     def targets(self) -> list[str]:
         """Return engine targets for this catalog."""
@@ -921,9 +869,8 @@ class {class_name}({base_class}):
     def get_properties(self) -> dict[str, str]:
         """Return catalog properties."""
         return {"connector.name": "example"}
-'''
-    elif plugin_type == "asset":
-        plugin_content += '''
+''',
+        "asset": '''
     def get_assets(self) -> Iterable[AssetSpec]:
         """Return asset specs."""
         # Add asset definitions here
@@ -933,16 +880,14 @@ class {class_name}({base_class}):
         """Return asset check specs."""
         # Add asset checks here
         return []
-'''
-    elif plugin_type == "resource":
-        plugin_content += '''
+''',
+        "resource": '''
     def get_resources(self) -> Iterable[ResourceSpec]:
         """Return resource specs."""
         # Add resource definitions here
         return []
-'''
-    elif plugin_type == "orchestrator":
-        plugin_content += '''
+''',
+        "orchestrator": '''
     def build_definitions(
         self,
         *,
@@ -953,7 +898,10 @@ class {class_name}({base_class}):
         """Build orchestrator definitions from capability specs."""
         # Implement orchestrator-specific translation here
         raise NotImplementedError()
-'''
+''',
+    }
+
+    plugin_content += _PLUGIN_TYPE_TEMPLATES.get(plugin_type, "")
 
     (src_dir / "plugin.py").write_text(plugin_content)
 

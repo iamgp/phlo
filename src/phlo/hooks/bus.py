@@ -120,10 +120,8 @@ class HookBus:
             event_asset_keys = _event_asset_keys(event)
             if not event_asset_keys or not filters.asset_keys.intersection(event_asset_keys):
                 return False
-        if filters.tags:
-            for key, value in filters.tags.items():
-                if event.tags.get(key) != value:
-                    return False
+        if filters.tags and not all(event.tags.get(k) == v for k, v in filters.tags.items()):
+            return False
         return True
 
 

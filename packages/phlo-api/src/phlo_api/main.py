@@ -9,6 +9,8 @@ This FastAPI service provides endpoints for Observatory to:
 
 from __future__ import annotations
 
+import importlib
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -16,6 +18,8 @@ from typing import Any
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Phlo API",
@@ -32,38 +36,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Observatory API routers
-try:
-    from phlo_api.observatory_api.dagster import router as dagster_router
-    from phlo_api.observatory_api.extension_settings import (
-        router as extension_settings_router,
-    )
-    from phlo_api.observatory_api.extensions import router as extensions_router
-    from phlo_api.observatory_api.iceberg import router as iceberg_router
-    from phlo_api.observatory_api.lineage import router as lineage_router
-    from phlo_api.observatory_api.loki import router as loki_router
-    from phlo_api.observatory_api.maintenance import router as maintenance_router
-    from phlo_api.observatory_api.nessie import router as nessie_router
-    from phlo_api.observatory_api.quality import router as quality_router
-    from phlo_api.observatory_api.search import router as search_router
-    from phlo_api.observatory_api.settings import router as settings_router
-    from phlo_api.observatory_api.trino import router as trino_router
+# Auto-discover and register Observatory API routers
+_OBSERVATORY_ROUTERS = [
+    ("trino", "/api/trino"),
+    ("iceberg", "/api/iceberg"),
+    ("dagster", "/api/dagster"),
+    ("nessie", "/api/nessie"),
+    ("quality", "/api/quality"),
+    ("loki", "/api/loki"),
+    ("lineage", "/api/lineage"),
+    ("maintenance", "/api/maintenance"),
+    ("search", "/api/search"),
+]
 
-    app.include_router(trino_router, prefix="/api/trino")
-    app.include_router(iceberg_router, prefix="/api/iceberg")
-    app.include_router(dagster_router, prefix="/api/dagster")
-    app.include_router(nessie_router, prefix="/api/nessie")
-    app.include_router(quality_router, prefix="/api/quality")
-    app.include_router(loki_router, prefix="/api/loki")
-    app.include_router(lineage_router, prefix="/api/lineage")
-    app.include_router(maintenance_router, prefix="/api/maintenance")
-    app.include_router(search_router, prefix="/api/search")
-    app.include_router(extensions_router)
-    app.include_router(extension_settings_router)
-    app.include_router(settings_router)
-except ImportError:
-    # Routers not available (minimal install)
-    pass
+_OBSERVATORY_ROUTERS_NO_PREFIX = [
+    "extensions",
+    "extension_settings",
+    "settings",
+]
+
+
+def _register_observatory_routers() -> None:
+    """Register Observatory API routers if available."""
+    # Combine routers with prefix and without prefix into single iterable
+    all_routers = [
+        *_OBSERVATORY_ROUTERS,
+        *((name, None) for name in _OBSERVATORY_ROUTERS_NO_PREFIX),
+    ]
+
+    for name, prefix in all_routers:
+        try:
+            module = importlib.import_module(f"phlo_api.observatory_api.{name}")
+            router = getattr(module, "router", None)
+            if router:
+                if prefix is not None:
+                    app.include_router(router, prefix=prefix)
+                else:
+                    app.include_router(router)
+        except ImportError as e:
+            logger.debug("Failed to import observatory router %s: %s", name, e)
+
+
+_register_observatory_routers()
 
 
 def get_project_path() -> Path:
