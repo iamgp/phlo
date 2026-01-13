@@ -744,6 +744,35 @@ Orchestration keeps pipelines running. But are they running _correctly_?
 
 See you there!
 
+## Common Issues
+
+- **Dagster UI shows no assets**
+
+```bash
+phlo services logs dagster-webserver
+```
+
+Fix: resolve import errors and restart the webserver.
+
+- **Schedules or sensors not firing**
+
+```bash
+phlo services logs dagster-daemon
+```
+
+Fix: restart the daemon after fixing schedule or sensor errors.
+
+- **Materializations fail at runtime**
+
+```bash
+phlo materialize <asset_name>
+```
+
+Fix: check asset configuration and dependencies in the logs.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 **Dagster provides**:

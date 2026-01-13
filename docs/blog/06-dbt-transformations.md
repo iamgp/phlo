@@ -615,6 +615,35 @@ We have ingestion and transformation. Now: **Who runs this, and when?**
 
 See you there!
 
+## Common Issues
+
+- **dbt project not found in the expected location**
+
+```bash
+ls workflows/transforms/dbt
+```
+
+Fix: move the dbt project under `workflows/transforms/dbt/`.
+
+- **profiles.yml not found or wrong target**
+
+```bash
+cat workflows/transforms/dbt/profiles/profiles.yml
+```
+
+Fix: ensure the `profiles/` directory exists and targets match services.
+
+- **dbt cannot connect to Trino**
+
+```bash
+docker exec dagster-webserver dbt debug
+```
+
+Fix: verify Trino is running and the connection settings match.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 **dbt provides**:

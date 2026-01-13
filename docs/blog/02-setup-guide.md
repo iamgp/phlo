@@ -425,71 +425,55 @@ LIMIT 24
 
 Congratulations! You've visualized real glucose data from a lakehouse.
 
-## Troubleshooting
+## Common Issues
 
-### Services Won't Start
+- **Services fail to start**
 
 ```bash
-# Check service status
-phlo services status
-
-# View specific service logs
+phlo services list --json
 phlo services logs postgres
-phlo services logs dagster
-
-# Restart all services
-phlo services restart
 ```
 
-### Out of Disk Space
+Fix: resolve Docker errors, then run `phlo services start`.
+
+- **Out of disk space**
 
 ```bash
-# Clean up Docker resources
 docker system prune
 docker volume prune
-
-# Reset services (WARNING: deletes all data)
-phlo services reset
 ```
 
-### Nessie Connection Error
+Fix: reclaim space or move Docker storage to a larger disk.
+
+- **Nessie connection errors**
 
 ```bash
-# Check service status
-phlo services status
-
-# View Nessie logs
 phlo services logs nessie
-
-# Verify Nessie is healthy
 curl http://localhost:19120/api/v2/config
 ```
 
-### Trino Can't Find Iceberg Connector
+Fix: restart Nessie and confirm port 19120 is free.
+
+- **Trino cannot find Iceberg catalog**
 
 ```bash
-# Check Trino logs
 phlo services logs trino
-
-# Verify catalog is configured (once Trino is running)
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino \
-  --execute "SHOW CATALOGS;"
-
-# Should output:
-# catalog
-# ─────────
-# iceberg
-# system
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
 
-### Dagster Assets Not Appearing
+Fix: wait for Trino startup and ensure `iceberg` is configured.
+
+- **Dagster assets do not appear**
 
 ```bash
-# Restart Dagster services
-phlo services restart dagster
-
-# Wait 10 seconds, refresh http://localhost:3000
+phlo services logs dagster-webserver
+phlo services logs dagster-daemon
 ```
+
+Fix: restart Dagster services after fixing errors in the logs.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
 
 ## What's Next?
 

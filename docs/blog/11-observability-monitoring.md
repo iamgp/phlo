@@ -876,6 +876,37 @@ $ phlo metrics export --format json --period 7d | \
 
 ---
 
+## Common Issues
+
+- **Observatory UI not loading**
+
+```bash
+phlo services logs observatory
+curl http://localhost:3001
+```
+
+Fix: restart Observatory and confirm port 3001 is reachable.
+
+- **Dashboards show no metrics**
+
+```bash
+phlo services logs grafana
+phlo services logs prometheus
+```
+
+Fix: verify metrics exporters are running and Grafana data sources are configured.
+
+- **Logs not appearing in the UI**
+
+```bash
+phlo services logs loki
+```
+
+Fix: confirm log shipping configuration and restart Loki if needed.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 Phlo's observability stack provides:

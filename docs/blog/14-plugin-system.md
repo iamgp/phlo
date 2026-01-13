@@ -925,6 +925,35 @@ class PhloConfig:
     ]
 ```
 
+## Common Issues
+
+- **Plugins not discovered**
+
+```bash
+phlo plugin list --type assets
+```
+
+Fix: confirm the package is installed and entry points are registered.
+
+- **Entry point group is incorrect**
+
+```bash
+uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
+```
+
+Fix: update `pyproject.toml` to use the correct group names.
+
+- **Plugin import errors at startup**
+
+```bash
+uv run python -c "import phlo_plugins"
+```
+
+Fix: fix missing dependencies or module paths in the plugin package.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 The plugin system lets you extend Phlo without modifying core code:

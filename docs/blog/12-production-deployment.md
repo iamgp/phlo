@@ -964,6 +964,35 @@ aws cloudwatch put-metric-alarm \
   --comparison-operator GreaterThanThreshold
 ```
 
+## Common Issues
+
+- **Default credentials still in use**
+
+```bash
+rg -n "changeme|admin" .phlo/.env .phlo/.env.local
+```
+
+Fix: rotate credentials and reload services.
+
+- **Services exposed on public interfaces**
+
+```bash
+ss -ltn
+```
+
+Fix: bind services to private interfaces and configure firewalls.
+
+- **Configuration changes not applied**
+
+```bash
+cat .phlo/.env
+```
+
+Fix: update `.phlo/.env.local` and restart services to apply changes.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 Production deployment with Phlo:

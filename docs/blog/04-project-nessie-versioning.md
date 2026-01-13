@@ -699,6 +699,36 @@ Next: How does data actually get into this system?
 
 See you then!
 
+## Common Issues
+
+- **Nessie API not reachable**
+
+```bash
+phlo services logs nessie
+curl http://localhost:19120/api/v2/config
+```
+
+Fix: start services and confirm Nessie is on port 19120.
+
+- **Branch operations fail in SQL**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
+```
+
+Fix: set the session branch before running queries.
+
+- **Trino queries show stale data after merges**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW TABLES FROM iceberg.bronze;"
+```
+
+Fix: verify you are querying the expected branch and schema.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 **Project Nessie**:

@@ -633,6 +633,35 @@ To extend this example:
 The pattern remains:
 **Ingest → Validate → Transform → Publish → Monitor**
 
+## Common Issues
+
+- **Ingestion assets do not run**
+
+```bash
+phlo materialize dlt_glucose_entries
+```
+
+Fix: confirm the asset name and check Dagster logs.
+
+- **dbt models fail to build**
+
+```bash
+docker exec dagster-webserver dbt run --select model_name
+```
+
+Fix: verify the model names and dbt profiles configuration.
+
+- **Dashboards show no data**
+
+```bash
+phlo services logs postgres
+```
+
+Fix: confirm marts are loaded and the dashboard points at Postgres.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 You now understand:

@@ -750,6 +750,35 @@ Data is now in the lakehouse. Next: **Transform it with dbt and Trino**.
 
 See you there!
 
+## Common Issues
+
+- **Import errors for `phlo_ingestion`**
+
+```bash
+uv run python -c "from phlo_dlt.decorator import phlo_ingestion; print(phlo_ingestion)"
+```
+
+Fix: ensure `phlo-dlt` is installed in the active environment.
+
+- **Pipeline fails due to missing credentials**
+
+```bash
+rg -n "API|TOKEN|SECRET" .phlo/.env .phlo/.env.local
+```
+
+Fix: add required secrets to `.phlo/.env.local` and restart services.
+
+- **Ingestion asset does not materialize**
+
+```bash
+phlo materialize dlt_glucose_entries
+```
+
+Fix: confirm the asset name and inspect Dagster logs for errors.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 **Phlo's Ingestion with @phlo_ingestion**:

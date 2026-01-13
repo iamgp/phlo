@@ -409,6 +409,35 @@ Iceberg gives us time travel. Nessie adds **branching** on top.
 
 We'll explore that in the next post.
 
+## Common Issues
+
+- **Iceberg catalog missing in Trino**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+```
+
+Fix: restart Trino and confirm the `iceberg` catalog is configured.
+
+- **Schema or table not found**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SCHEMAS FROM iceberg;"
+```
+
+Fix: verify the schema names and run ingestion before querying.
+
+- **Nessie branch not applied in SQL session**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
+```
+
+Fix: set `SET SESSION iceberg.nessie_reference_name = 'main';` before queries.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 Apache Iceberg:

@@ -814,6 +814,35 @@ GROUP BY 1
 ORDER BY 3 DESC;
 ```
 
+## Common Issues
+
+- **Import errors for `phlo_quality`**
+
+```bash
+uv run python -c "from phlo_quality.decorator import phlo_quality; print(phlo_quality)"
+```
+
+Fix: ensure `phlo-quality` is installed in the active environment.
+
+- **Checks fail due to schema or column mismatches**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "DESCRIBE iceberg.silver.fct_glucose_readings;"
+```
+
+Fix: align Pandera schemas with the actual table columns.
+
+- **CustomSQLCheck returns non-boolean results**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SELECT 1 AS ok LIMIT 1;"
+```
+
+Fix: ensure the SQL returns boolean values per row.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Summary
 
 Phlo uses **three-layer validation**:

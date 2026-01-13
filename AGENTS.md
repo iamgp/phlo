@@ -122,6 +122,8 @@ docker exec dagster-webserver dbt compile
 - dbt profiles live at `workflows/transforms/dbt/profiles/profiles.yml` (profiles dir, not root).
 - `phlo_quality` docs: use `allow_threshold`, `timestamp_column`, and `CustomSQLCheck(name_, expected, sql FROM data)`.
 - Plugin docs: entry point groups live in `src/phlo/discovery/plugins.py` (sources, quality, transforms, services, catalogs, assets, resources, orchestrators, hooks, observatory, cli, dagster).
+- Observatory extension docs: reference manifest models in `src/phlo/plugins/observatory.py` and example plugin in `packages/phlo-observatory-example/src/phlo_observatory_example/observatory_plugin.py`.
+- Blog posts should include a Common Issues section before Summary/Next Steps with 3-5 diagnostics and a link to `docs/operations/troubleshooting.md`.
 
 ## Gotchas
 - `phlo services` has no `open` command; use direct service URLs.

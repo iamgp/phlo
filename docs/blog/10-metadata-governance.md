@@ -547,52 +547,36 @@ models:
         description: Categorized as hypoglycemia, in_range, or hyperglycemia
 ```
 
-## Troubleshooting
+## Common Issues
 
-### OpenMetadata UI Not Loading
+- **OpenMetadata UI not loading**
 
 ```bash
-# Check service health
 make health-catalog
-
-# Check logs
 docker logs openmetadata-server
-docker logs openmetadata-mysql
+```
+
+Fix: wait for the server to finish migrations, then refresh the UI.
+
+- **Search returns no results**
+
+```bash
 docker logs openmetadata-elasticsearch
 ```
 
-### Search Not Working
+Fix: re-run the search indexing job from the OpenMetadata UI.
 
-**Symptom:**
-
-- Explore page shows: "Search failed due to Elasticsearch exception"
-- Global search returns no results
-
-**Solution:**
-
-1. Go to **Settings → OpenMetadata → Search**
-2. Click on **SearchIndexingApplication**
-3. Click **Run Now**
-4. **IMPORTANT:** Enable "Recreate Indexes" toggle
-5. Click **Submit**
-6. Wait 1-2 minutes for completion
-
-### Trino Connection Failed
-
-Ensure Trino is running:
+- **Trino connection failed in OpenMetadata**
 
 ```bash
 make health
-
-# Start Trino if not running
-make up-query
-```
-
-Check connection from OpenMetadata container:
-
-```bash
 docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ```
+
+Fix: start Trino and update the service connection details.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
 
 ## Data Contracts: Formalizing Data Agreements
 

@@ -273,6 +273,36 @@ This blog series walks through:
 
 Each post includes hands-on examples and code you can run.
 
+## Common Issues
+
+- **Nessie or Trino examples fail to run**
+
+```bash
+phlo services start
+curl http://localhost:19120/api/v2/config
+```
+
+Fix: start services and confirm Nessie is reachable on port 19120.
+
+- **Trino reports `Catalog iceberg not found`**
+
+```bash
+docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+```
+
+Fix: restart Trino and confirm the `iceberg` catalog is configured.
+
+- **Mermaid diagrams do not render locally**
+
+```bash
+uv run mkdocs serve
+```
+
+Fix: preview with MkDocs or view the post on GitHub.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+
 ## Next Steps
 
 Ready to build? In Part 2, we'll:
