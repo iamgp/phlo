@@ -127,6 +127,7 @@ docker exec dagster-webserver dbt compile
 - Blog post code fences should include an Expected output block; use a short text output for commands or "No output" for definitions/configuration.
 - Mermaid diagrams in blog posts should include an Expected output block and a short diagram lead-in.
 - Blog posts should include a See Also section linking 2-3 related posts plus a relevant reference doc, and a short prerequisite callout near the top.
+- Blog README index should list all 16 posts with read times, status, persona learning paths, and search guidance.
 
 ## Gotchas
 - `phlo services` has no `open` command; use direct service URLs.

@@ -2,7 +2,7 @@
 
 A comprehensive, hands-on guide to building a production-ready data lakehouse using Phlo.
 
-This 12-part series walks through:
+This 16-part series walks through:
 
 - Fundamental concepts of data lakehouses
 - Setting up Phlo step-by-step
@@ -15,6 +15,10 @@ This 12-part series walks through:
 - Metadata and governance
 - Observability and monitoring
 - Production deployment
+- Capability primitives and runtime specs
+- Plugin system and extensibility
+- Observatory extensions
+- Building custom packages
 
 Each post includes:
 
@@ -72,6 +76,8 @@ phlo services start --profile catalog
 
 For detailed setup instructions, see [Part 2: Getting Started](02-setup-guide.md).
 
+Short on time? Jump to [Part 2: Getting Started](02-setup-guide.md).
+
 ## Prerequisites
 
 **System Requirements:**
@@ -97,24 +103,33 @@ Don't worry if you're missing some skills - the series is designed to teach you 
 
 ## Blog Posts
 
-| #   | Title                                                          | Topics                                         | Time   |
-| --- | -------------------------------------------------------------- | ---------------------------------------------- | ------ |
-| 1   | [What is a Data Lakehouse?](01-intro-data-lakehouse.md)        | Architecture, Iceberg, Nessie, overview        | 15 min |
-| 2   | [Getting Started—Setup Guide](02-setup-guide.md)               | Installation, services, first pipeline         | 50 min |
-| 3   | [Apache Iceberg—Table Format](03-apache-iceberg-explained.md)  | Snapshots, schema evolution, time travel       | 20 min |
-| 4   | [Project Nessie—Git for Data](04-project-nessie-versioning.md) | Branching, versioning, governance              | 15 min |
-| 5   | [Data Ingestion Patterns](05-data-ingestion.md)                | DLT, PyIceberg, merge strategies, validation   | 22 min |
-| 6   | [dbt Transformations](06-dbt-transformations.md)               | Models, testing, layers, best practices        | 22 min |
-| 7   | [Dagster Orchestration](07-orchestration-dagster.md)           | Assets, partitions, scheduling, monitoring     | 20 min |
-| 8   | [Real-World Example](08-real-world-example.md)                 | Complete glucose pipeline, end-to-end          | 25 min |
-| 9   | [Data Quality with Pandera](09-data-quality-with-pandera.md)   | Schemas, validation, asset checks              | 20 min |
-| 10  | [Metadata and Governance](10-metadata-governance.md)           | OpenMetadata, data contracts, schema evolution | 25 min |
-| 11  | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, alerting, lineage, debugging          | 25 min |
-| 12  | [Production Deployment](12-production-deployment.md)           | Infrastructure config, Kubernetes, HA, scaling | 35 min |
-| 14  | [Extending Phlo with Plugins](14-plugin-system.md)             | Custom sources, quality checks, transforms     | 20 min |
+| #   | Title                                                          | Topics                                         | Time   | Status        |
+| --- | -------------------------------------------------------------- | ---------------------------------------------- | ------ | ------------- |
+| 1   | [What is a Data Lakehouse?](01-intro-data-lakehouse.md)        | Architecture, Iceberg, Nessie, overview        | 15 min | Needs review  |
+| 2   | [Getting Started—Setup Guide](02-setup-guide.md)               | Installation, services, first pipeline         | 20 min | Up to date    |
+| 3   | [Apache Iceberg—Table Format](03-apache-iceberg-explained.md)  | Snapshots, schema evolution, time travel       | 20 min | Needs review  |
+| 4   | [Project Nessie—Git for Data](04-project-nessie-versioning.md) | Branching, versioning, governance              | 15 min | Needs review  |
+| 5   | [Data Ingestion Patterns](05-data-ingestion.md)                | DLT, PyIceberg, merge strategies, validation   | 20 min | Up to date    |
+| 6   | [dbt Transformations](06-dbt-transformations.md)               | Models, testing, layers, best practices        | 20 min | Up to date    |
+| 7   | [Dagster Orchestration](07-orchestration-dagster.md)           | Assets, partitions, scheduling, monitoring     | 20 min | Needs review  |
+| 8   | [Real-World Example](08-real-world-example.md)                 | Complete glucose pipeline, end-to-end          | 20 min | Needs review  |
+| 9   | [Data Quality with Pandera](09-data-quality-with-pandera.md)   | Schemas, validation, asset checks              | 20 min | Up to date    |
+| 10  | [Metadata and Governance](10-metadata-governance.md)           | OpenMetadata, data contracts, schema evolution | 20 min | Needs review  |
+| 11  | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, alerting, lineage, debugging          | 20 min | Needs review  |
+| 12  | [Production Deployment](12-production-deployment.md)           | Infrastructure config, Kubernetes, HA, scaling | 20 min | Needs review  |
+| 13  | [Capability Primitives](13-capability-primitives.md)           | AssetSpec, RunSpec, runtime context            | 15 min | Up to date    |
+| 14  | [Extending Phlo with Plugins](14-plugin-system.md)             | Custom sources, quality checks, transforms     | 20 min | Up to date    |
+| 15  | [Observatory Extensions](15-observatory-extensions.md)         | Extension manifests, UI hooks, APIs            | 15 min | Up to date    |
+| 16  | [Building Custom Packages](16-building-custom-packages.md)     | Assets, resources, entry points                | 15 min | Up to date    |
 
-**Total content**: ~8,000 lines, 275+ KB of educational material
-**Estimated reading time**: 4.5-6 hours (complete series)
+**Total content**: 16 posts, ~8,000 lines, 275+ KB of educational material
+**Estimated reading time**: 4-5 hours (complete series)
+
+## Find Posts Fast
+
+- Use the Topics column above to scan for keywords.
+- Browser find (Ctrl/Cmd+F) works well for "Iceberg", "Dagster", "dbt".
+- GitHub search: `path:docs/blog/ <keyword>` for focused results.
 
 ## Phlo Architecture
 
@@ -225,38 +240,33 @@ graph TB
 
 1. Read [Part 1](01-intro-data-lakehouse.md) (architecture concepts)
 2. Follow [Part 2](02-setup-guide.md) setup (hands-on)
-3. Skim [Part 8](08-real-world-example.md) (see it working)
-4. Deep dive [Parts 3-7](03-apache-iceberg-explained.md) (technical details)
-5. Skim [Part 9](09-data-quality-with-pandera.md) (why validation matters)
+3. Read [Part 3](03-apache-iceberg-explained.md) (core storage)
+4. [Part 5](05-data-ingestion.md) (ingestion flow)
+5. [Part 6](06-dbt-transformations.md) (SQL transforms)
+6. [Part 7](07-orchestration-dagster.md) (orchestration)
+7. [Part 8](08-real-world-example.md) (end-to-end example)
 
 **Time**: 2-3 hours reading + setup
 
-### Path 2: Data Engineer
+### Path 2: Experienced Engineer
 
 **Goal**: Learn new tools and patterns
 
-1. Skim [Part 1](01-intro-data-lakehouse.md) (context)
-2. [Part 2](02-setup-guide.md) setup
-3. [Part 3](03-apache-iceberg-explained.md) (Iceberg deep dive)
-4. [Part 4](04-project-nessie-versioning.md) (Nessie concepts)
-5. [Parts 5-7](05-data-ingestion.md) (implementation)
-6. [Part 8](08-real-world-example.md) (patterns)
-7. [Part 9](09-data-quality-with-pandera.md) (validation)
-8. [Part 11](11-observability-monitoring.md) (monitoring)
+1. [Part 2](02-setup-guide.md) setup
+2. [Part 13](13-capability-primitives.md) (specs and runtime)
+3. [Part 7](07-orchestration-dagster.md) (orchestration)
+4. [Parts 9-12](09-data-quality-with-pandera.md) (quality, metadata, observability, prod)
 
-**Time**: 3 hours reading + hands-on
+**Time**: 2-3 hours reading + hands-on
 
-### Path 3: Architect/Decision Maker
+### Path 3: Architect/Evaluator
 
 **Goal**: Evaluate Phlo for your organization
 
 1. [Part 1](01-intro-data-lakehouse.md) (comparison to alternatives)
-2. [Part 3](03-apache-iceberg-explained.md) (open standards benefits)
-3. [Part 4](04-project-nessie-versioning.md) (governance story)
-4. [Part 8](08-real-world-example.md) (production patterns)
-5. [Part 10](10-metadata-governance.md) (governance and compliance)
-6. [Part 12](12-production-deployment.md) (scaling and HA)
-7. [Architecture Guide](../reference/architecture.md) (deployment options)
+2. [Part 13](13-capability-primitives.md) (system model)
+3. [Parts 10-12](10-metadata-governance.md) (governance, monitoring, prod)
+4. [Architecture Guide](../reference/architecture.md) (deployment options)
 
 **Time**: 2 hours reading
 
