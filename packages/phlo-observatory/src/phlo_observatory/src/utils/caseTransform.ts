@@ -27,9 +27,13 @@ function isSpecialObject(obj: unknown): boolean {
   )
 }
 
+/** Keys that could cause prototype pollution and should be filtered out */
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 /**
  * Recursively convert all keys in an object from snake_case to camelCase
  * Preserves special objects (Date, Map, Set, RegExp, ArrayBuffer, TypedArrays)
+ * Filters out dangerous keys that could cause prototype pollution
  */
 export function camelizeKeys<T>(obj: unknown): T {
   if (Array.isArray(obj)) {
@@ -42,10 +46,9 @@ export function camelizeKeys<T>(obj: unknown): T {
     }
 
     return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
-        snakeToCamel(key),
-        camelizeKeys(value),
-      ]),
+      Object.entries(obj as Record<string, unknown>)
+        .filter(([key]) => !DANGEROUS_KEYS.has(key))
+        .map(([key, value]) => [snakeToCamel(key), camelizeKeys(value)]),
     ) as T
   }
 

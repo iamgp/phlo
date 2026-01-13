@@ -12,28 +12,24 @@ import { authMiddleware } from '@/server/auth.server'
 
 import { analyzeSQLTransformation } from '@/utils/sqlParser'
 
+/** Maps changeType to accumulator key */
+const CHANGE_TYPE_TO_KEY: Record<ColumnChangeType, string> = {
+  added: 'addedCount',
+  removed: 'removedCount',
+  renamed: 'renamedCount',
+  transformed: 'transformedCount',
+  unchanged: 'unchangedCount',
+}
+
 /**
  * Compute summary counts from column diffs
  */
 function computeDiffSummary(columnDiffs: Array<ColumnDiff>) {
   return columnDiffs.reduce(
     (acc, d) => {
-      switch (d.changeType) {
-        case 'added':
-          acc.addedCount++
-          break
-        case 'removed':
-          acc.removedCount++
-          break
-        case 'renamed':
-          acc.renamedCount++
-          break
-        case 'transformed':
-          acc.transformedCount++
-          break
-        case 'unchanged':
-          acc.unchangedCount++
-          break
+      const key = CHANGE_TYPE_TO_KEY[d.changeType]
+      if (key && key in acc) {
+        acc[key as keyof typeof acc]++
       }
       return acc
     },

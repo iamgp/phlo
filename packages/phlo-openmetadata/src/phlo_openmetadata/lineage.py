@@ -19,17 +19,17 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callable[P, R | None]]:
-    """Decorator that catches exceptions and logs them with context."""
+def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Decorator that logs exceptions with context and re-raises them."""
 
-    def decorator(fn: Callable[P, R]) -> Callable[P, R | None]:
+    def decorator(fn: Callable[P, R]) -> Callable[P, R]:
         @wraps(fn)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
                 return fn(*args, **kwargs)
             except Exception as e:
                 logger.error(f"Failed to extract {source_name} lineage: {e}")
-                return None
+                raise
 
         return wrapper
 
@@ -91,6 +91,9 @@ class LineageExtractor:
         for unique_id, node in manifest.get("nodes", {}).items():
             if unique_id.startswith("model."):
                 model_name = node.get("name")
+                if not model_name:
+                    logger.warning(f"Missing model name for node: {unique_id}")
+                    continue
                 self.graph.add_asset(
                     model_name,
                     asset_type="transform",
@@ -98,7 +101,12 @@ class LineageExtractor:
                 )
 
         for unique_id, source in manifest.get("sources", {}).items():
-            source_name = f"{source.get('source_name')}.{source.get('name')}"
+            src_name_part = source.get("source_name") or ""
+            tbl_name_part = source.get("name") or ""
+            source_name = f"{src_name_part}.{tbl_name_part}".strip(".")
+            if not source_name:
+                logger.warning(f"Missing source name for entry: {unique_id}")
+                continue
             self.graph.add_asset(
                 source_name,
                 asset_type="ingestion",
@@ -111,6 +119,9 @@ class LineageExtractor:
         for unique_id, node in nodes.items():
             if unique_id.startswith("model."):
                 model_name = node.get("name")
+                if not model_name:
+                    logger.warning(f"Missing model name for node: {unique_id}")
+                    continue
 
                 for dep_id in node.get("depends_on", {}).get("nodes", []):
                     if dep_id.startswith("model."):
@@ -126,8 +137,11 @@ class LineageExtractor:
                         if source is None:
                             logger.warning(f"Missing source node: {dep_id}")
                             continue
-                        source_name = f"{source.get('source_name')}.{source.get('name')}"
-                        self.graph.add_edge(source_name, model_name)
+                        src_name_part = source.get("source_name") or ""
+                        tbl_name_part = source.get("name") or ""
+                        source_name = f"{src_name_part}.{tbl_name_part}".strip(".")
+                        if source_name:
+                            self.graph.add_edge(source_name, model_name)
 
         logger.info(
             f"Extracted {len(self.graph.assets)} assets and "
@@ -148,6 +162,9 @@ class LineageExtractor:
         for namespace, tables in nessie_tables.items():
             for table in tables:
                 table_name = table.get("name")
+                if not table_name:
+                    logger.debug(f"Skipping table with missing name in namespace: {namespace}")
+                    continue
                 full_name = f"{namespace}.{table_name}"
 
                 self.graph.add_asset(

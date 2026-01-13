@@ -21,12 +21,14 @@ export interface JourneyNodeData {
 }
 
 export function JourneyNode({ data }: NodeProps) {
-  const nodeData = data as JourneyNodeData
-  const isCurrent = nodeData.isCurrent
-  const computeKind = nodeData.computeKind
-  const lastMaterialized = nodeData.lastMaterialized
-  const assetKey = nodeData.assetKey
-  const onSelect = nodeData.onSelect
+  const {
+    label,
+    isCurrent,
+    computeKind,
+    lastMaterialized,
+    assetKey,
+    onSelect,
+  } = data as JourneyNodeData
 
   const isClickable = onSelect && assetKey
 
@@ -78,9 +80,7 @@ export function JourneyNode({ data }: NodeProps) {
               isCurrent ? 'text-primary' : 'text-muted-foreground',
             )}
           />
-          <span className="font-medium text-sm text-foreground">
-            {nodeData.label}
-          </span>
+          <span className="font-medium text-sm text-foreground">{label}</span>
         </div>
 
         <div className="flex items-center gap-2 text-xs">

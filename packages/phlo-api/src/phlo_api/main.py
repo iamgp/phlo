@@ -60,7 +60,7 @@ def _register_observatory_routers() -> None:
     """Register Observatory API routers if available."""
     # Combine routers with prefix and without prefix into single iterable
     all_routers = [
-        *((name, prefix) for name, prefix in _OBSERVATORY_ROUTERS),
+        *_OBSERVATORY_ROUTERS,
         *((name, None) for name in _OBSERVATORY_ROUTERS_NO_PREFIX),
     ]
 
