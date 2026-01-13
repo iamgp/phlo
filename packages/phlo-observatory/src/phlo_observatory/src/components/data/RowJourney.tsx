@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import {
-  Background,
-  Controls,
-  Handle,
-  MarkerType,
-  Position,
-  ReactFlow,
-} from '@xyflow/react'
+import { Background, Controls, MarkerType, ReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
   AlertCircle,
@@ -22,8 +15,10 @@ import { Highlight, themes } from 'prism-react-renderer'
 
 import type { ContributingRowsPageResult } from '@/server/contributing.server'
 import type { DataRow } from '@/server/trino.server'
-import type { Edge, Node, NodeProps } from '@xyflow/react'
+import type { Edge, Node } from '@xyflow/react'
 
+import type { JourneyNodeData } from '@/components/flow/nodeTypes'
+import { journeyNodeTypes } from '@/components/flow/nodeTypes'
 import { ObservatoryTable } from '@/components/data/ObservatoryTable'
 import { StageDiff } from '@/components/data/StageDiff'
 import { Badge } from '@/components/ui/badge'
@@ -37,7 +32,6 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useObservatorySettings } from '@/hooks/useObservatorySettings'
-import { cn } from '@/lib/utils'
 import {
   getContributingRowsPage,
   getContributingRowsQuery,
@@ -53,17 +47,6 @@ interface RowJourneyProps {
   className?: string
   onQuerySource?: (query: string) => void
 }
-
-interface AssetNodeData {
-  label: string
-  isCurrent: boolean
-  computeKind?: string
-  assetKey: string
-  onSelect: (assetKey: string) => void
-  [key: string]: unknown // Allow index signature for React Flow
-}
-
-type JourneyNodeType = Node<AssetNodeData, 'journey'>
 
 interface NodeDetails {
   sql?: string
@@ -95,53 +78,6 @@ function extractTransformationSql(asset: {
   }
 
   return undefined
-}
-
-// Simple node component - click to select
-function JourneyNode({ data }: NodeProps<JourneyNodeType>) {
-  const isCurrent = data.isCurrent
-  const assetKey = data.assetKey
-  const onSelect = data.onSelect
-
-  return (
-    <div
-      onClick={() => onSelect(assetKey)}
-      className={cn(
-        'border-2 transition-colors cursor-pointer bg-card',
-        isCurrent
-          ? 'border-primary shadow-sm ring-1 ring-primary/20'
-          : 'border-border hover:border-primary/50 hover:bg-muted/50',
-      )}
-    >
-      <Handle type="target" position={Position.Left} className="!bg-border" />
-
-      <div className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Database
-            className={cn(
-              'w-4 h-4',
-              isCurrent ? 'text-primary' : 'text-muted-foreground',
-            )}
-          />
-          <span className="font-medium text-sm text-foreground">
-            {data.label}
-          </span>
-        </div>
-
-        {data.computeKind ? (
-          <Badge variant="secondary" className="mt-2 text-xs">
-            {String(data.computeKind)}
-          </Badge>
-        ) : null}
-      </div>
-
-      <Handle type="source" position={Position.Right} className="!bg-border" />
-    </div>
-  )
-}
-
-const nodeTypes = {
-  journey: JourneyNode,
 }
 
 // Detail panel component shown below the flow
@@ -827,7 +763,7 @@ export function RowJourney({
             computeKind: node.computeKind,
             assetKey: node.keyPath,
             onSelect: handleNodeSelect,
-          } as AssetNodeData,
+          } as JourneyNodeData,
         })
       })
     }
@@ -885,7 +821,7 @@ export function RowJourney({
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          nodeTypes={nodeTypes}
+          nodeTypes={journeyNodeTypes}
           onInit={onInit}
           fitView
           fitViewOptions={{ padding: 0.3 }}

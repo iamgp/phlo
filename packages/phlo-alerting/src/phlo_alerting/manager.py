@@ -21,7 +21,7 @@ class AlertSeverity(str, Enum):
     CRITICAL = "critical"
 
 
-@dataclass
+@dataclass(slots=True)
 class Alert:
     """Alert payload."""
 

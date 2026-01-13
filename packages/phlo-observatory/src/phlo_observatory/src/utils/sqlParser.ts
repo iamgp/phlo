@@ -5,6 +5,70 @@
  * for tracing data through the pipeline.
  */
 
+// SQL parsing regex patterns
+const PATTERNS = {
+  /** Match SELECT ... FROM clause */
+  SELECT_FROM: /SELECT\s+(.*?)\s+FROM/is,
+  /** Match column alias with AS keyword */
+  ALIAS_AS: /^(.*?)\s+AS\s+(\w+)$/i,
+  /** Match column alias with space (no AS) */
+  ALIAS_SPACE: /^(.*?)\s+(\w+)$/,
+  /** Match single-line SQL comment */
+  SINGLE_LINE_COMMENT: /--.*$/gm,
+  /** Match multi-line SQL comment */
+  MULTI_LINE_COMMENT: /\/\*[\s\S]*?\*\//g,
+  /** Match dbt Jinja ref (global flag for exec loop) */
+  DBT_REF: /\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi,
+  /** Match dbt Jinja source (global flag for exec loop) */
+  DBT_SOURCE:
+    /\{\{\s*source\s*\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi,
+} as const
+
+/** SQL keywords that should not be treated as aliases */
+const SQL_KEYWORDS = new Set([
+  'from',
+  'where',
+  'group',
+  'order',
+  'having',
+  'limit',
+  'offset',
+  'union',
+  'intersect',
+  'except',
+  'join',
+  'inner',
+  'outer',
+  'left',
+  'right',
+  'full',
+  'cross',
+  'on',
+  'and',
+  'or',
+  'not',
+  'in',
+  'is',
+  'null',
+  'true',
+  'false',
+  'case',
+  'when',
+  'then',
+  'else',
+  'end',
+  'as',
+  'asc',
+  'desc',
+  'distinct',
+  'all',
+  'between',
+  'like',
+  'exists',
+  'select',
+  'by',
+])
+
 export interface ColumnMapping {
   targetColumn: string // Column name in the output (e.g., "activity_date")
   sourceExpression: string // Original expression (e.g., "DATE(created_at)")
@@ -49,9 +113,9 @@ function stripSqlComments(sql: string): string {
   return (
     sql
       // Remove block comments /* ... */
-      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(PATTERNS.MULTI_LINE_COMMENT, '')
       // Remove line comments -- ...
-      .replace(/--.*$/gm, '')
+      .replace(PATTERNS.SINGLE_LINE_COMMENT, '')
       // Clean up excessive whitespace
       .replace(/\n{2,}/g, '\n')
       .trim()
@@ -68,7 +132,7 @@ export function parseColumnMappings(sql: string): Array<ColumnMapping> {
   const cleanedSql = stripSqlComments(sql)
 
   // Extract SELECT clause (basic approach)
-  const selectMatch = cleanedSql.match(/SELECT\s+(.*?)\s+FROM/is)
+  const selectMatch = cleanedSql.match(PATTERNS.SELECT_FROM)
   if (!selectMatch) return mappings
 
   const selectClause = selectMatch[1]
@@ -80,7 +144,7 @@ export function parseColumnMappings(sql: string): Array<ColumnMapping> {
     const trimmed = col.trim()
 
     // Check for alias (AS keyword)
-    const asMatch = trimmed.match(/^(.*?)\s+AS\s+(\w+)$/i)
+    const asMatch = trimmed.match(PATTERNS.ALIAS_AS)
     if (asMatch) {
       const sourceExpr = asMatch[1].trim()
       const targetCol = asMatch[2].trim()
@@ -95,7 +159,7 @@ export function parseColumnMappings(sql: string): Array<ColumnMapping> {
     }
 
     // Check for alias (space without AS)
-    const spaceMatch = trimmed.match(/^(.*?)\s+(\w+)$/)
+    const spaceMatch = trimmed.match(PATTERNS.ALIAS_SPACE)
     if (spaceMatch && !isKeyword(spaceMatch[2])) {
       const sourceExpr = spaceMatch[1].trim()
       const targetCol = spaceMatch[2].trim()
@@ -209,30 +273,7 @@ function extractTransformation(expr: string): string | undefined {
  * Check if a word is a SQL keyword
  */
 function isKeyword(word: string): boolean {
-  const keywords = [
-    'SELECT',
-    'FROM',
-    'WHERE',
-    'JOIN',
-    'LEFT',
-    'RIGHT',
-    'INNER',
-    'OUTER',
-    'ON',
-    'AND',
-    'OR',
-    'NOT',
-    'NULL',
-    'AS',
-    'DISTINCT',
-    'GROUP',
-    'ORDER',
-    'BY',
-    'HAVING',
-    'LIMIT',
-    'OFFSET',
-  ]
-  return keywords.includes(word.toUpperCase())
+  return SQL_KEYWORDS.has(word.toLowerCase())
 }
 
 /**
@@ -248,8 +289,9 @@ export function extractSourceTables(sql: string): Array<string> {
   // Remove EXTRACT(...FROM...) to avoid false matches
   const cleanedSql = sql.replace(/EXTRACT\s*\([^)]*FROM[^)]*\)/gi, '')
 
-  // Pattern for dbt ref(): {{ ref('table_name') }}
-  const refPattern = /\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi
+  // Use PATTERNS for dbt ref(): {{ ref('table_name') }}
+  // Create new RegExp instances to reset lastIndex for global patterns
+  const refPattern = new RegExp(PATTERNS.DBT_REF.source, 'gi')
   let match
   while ((match = refPattern.exec(cleanedSql)) !== null) {
     const tableName = match[1]
@@ -258,9 +300,8 @@ export function extractSourceTables(sql: string): Array<string> {
     }
   }
 
-  // Pattern for dbt source(): {{ source('source_name', 'table_name') }}
-  const sourcePattern =
-    /\{\{\s*source\s*\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi
+  // Use PATTERNS for dbt source(): {{ source('source_name', 'table_name') }}
+  const sourcePattern = new RegExp(PATTERNS.DBT_SOURCE.source, 'gi')
   while ((match = sourcePattern.exec(cleanedSql)) !== null) {
     const tableName = match[1]
     if (tableName && !tables.includes(tableName)) {

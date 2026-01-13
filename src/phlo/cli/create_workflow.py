@@ -99,12 +99,7 @@ def create_workflow(
 def _find_project_root() -> Path | None:
     """Find the project root directory."""
     current = Path.cwd()
-
-    for path in [current] + list(current.parents):
-        if (path / "workflows").exists():
-            return path
-
-    return None
+    return next((p for p in [current, *current.parents] if (p / "workflows").exists()), None)
 
 
 def _prompt_ingestion_config(config: dict[str, Any]) -> dict[str, Any]:

@@ -119,25 +119,11 @@ class ComposeGenerator:
         # Compose configuration
         compose = service.compose
 
-        if compose.get("restart"):
-            config["restart"] = compose["restart"]
-        else:
-            config["restart"] = "unless-stopped"
+        config["restart"] = compose.get("restart", "unless-stopped")
 
-        if compose.get("user"):
-            config["user"] = compose["user"]
-
-        if compose.get("container_name"):
-            config["container_name"] = compose["container_name"]
-
-        if compose.get("labels"):
-            config["labels"] = compose["labels"]
-
-        if compose.get("environment"):
-            config["environment"] = compose["environment"]
-
-        if compose.get("ports"):
-            config["ports"] = compose["ports"]
+        for key in ("user", "container_name", "labels", "environment", "ports"):
+            if compose.get(key):
+                config[key] = compose[key]
 
         if compose.get("volumes"):
             config["volumes"] = list(compose["volumes"])  # Copy to avoid mutation
@@ -223,17 +209,12 @@ class ComposeGenerator:
         # Environment: merge (user takes precedence)
         if user_override.get("environment"):
             config.setdefault("environment", {})
-            if isinstance(config["environment"], dict):
-                config["environment"].update(user_override["environment"])
-            elif isinstance(config["environment"], list):
+            if isinstance(config["environment"], list):
                 # Convert list format to dict then merge
-                env_dict = {}
-                for item in config["environment"]:
-                    if "=" in item:
-                        k, v = item.split("=", 1)
-                        env_dict[k] = v
-                env_dict.update(user_override["environment"])
-                config["environment"] = env_dict
+                config["environment"] = dict(
+                    item.split("=", 1) for item in config["environment"] if "=" in item
+                )
+            config["environment"].update(user_override["environment"])
 
         # Volumes: append
         if user_override.get("volumes"):
@@ -242,10 +223,9 @@ class ComposeGenerator:
 
         # Depends on: replace
         if user_override.get("depends_on"):
-            depends_config = {}
-            for dep in user_override["depends_on"]:
-                depends_config[dep] = {"condition": "service_started"}
-            config["depends_on"] = depends_config
+            config["depends_on"] = {
+                dep: {"condition": "service_started"} for dep in user_override["depends_on"]
+            }
 
         # Command: replace
         if user_override.get("command"):

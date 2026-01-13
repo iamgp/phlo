@@ -12,6 +12,7 @@ from typing import Any
 import click
 import yaml
 
+from phlo.cli._services.utils import parse_env_file
 from phlo.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.services import ComposeGenerator
 
@@ -64,7 +65,7 @@ def export_env(include_secrets: bool, output: Path | None, _format: str) -> None
 
     if include_secrets:
         env_local_path = Path.cwd() / ".phlo" / ".env.local"
-        existing_env_local = _parse_env_file(env_local_path)
+        existing_env_local = parse_env_file(env_local_path)
         env_local_content = composer.generate_env_local(
             services_to_install,
             env_overrides=env_overrides,
@@ -124,19 +125,3 @@ def _select_services(
     ]
 
     return default_services + profile_services + inline_services
-
-
-def _parse_env_file(path: Path) -> dict[str, str]:
-    if not path.exists():
-        return {}
-    values: dict[str, str] = {}
-    try:
-        for line in path.read_text().splitlines():
-            trimmed = line.strip()
-            if not trimmed or trimmed.startswith("#") or "=" not in trimmed:
-                continue
-            key, value = trimmed.split("=", 1)
-            values[key] = value
-    except OSError:
-        return {}
-    return values

@@ -111,20 +111,16 @@ class NativeProcessManager:
         # Build environment
         env = os.environ.copy()
         if dev_env := dev_config.get("environment"):
-            for key, value in dev_env.items():
-                if isinstance(value, str):
-                    env[key] = self._expand_env_vars(value, env)
-                else:
-                    env[key] = str(value)
+            env.update(
+                {
+                    k: self._expand_env_vars(v, env) if isinstance(v, str) else str(v)
+                    for k, v in dev_env.items()
+                }
+            )
         if env_overrides:
-            for key, value in env_overrides.items():
-                env[key] = self._expand_env_vars(value, env)
+            env.update({k: self._expand_env_vars(v, env) for k, v in env_overrides.items()})
 
-        expanded_command: list[str] = []
-        for arg in command:
-            if isinstance(arg, str):
-                expanded_command.append(self._expand_env_vars(arg, env))
-        command = expanded_command
+        command = [self._expand_env_vars(arg, env) for arg in command if isinstance(arg, str)]
 
         # Resolve working directory
         cwd_template = dev_config.get("cwd", ".")
