@@ -124,6 +124,8 @@ docker exec dagster-webserver dbt compile
 - Plugin docs: entry point groups live in `src/phlo/discovery/plugins.py` (sources, quality, transforms, services, catalogs, assets, resources, orchestrators, hooks, observatory, cli, dagster).
 - Observatory extension docs: reference manifest models in `src/phlo/plugins/observatory.py` and example plugin in `packages/phlo-observatory-example/src/phlo_observatory_example/observatory_plugin.py`.
 - Blog posts should include a Common Issues section before Summary/Next Steps with 3-5 diagnostics and a link to `docs/operations/troubleshooting.md`.
+- Blog post code fences should include an Expected output block; use a short text output for commands or "No output" for definitions/configuration.
+- Blog posts should include a See Also section linking 2-3 related posts plus a relevant reference doc, and a short prerequisite callout near the top.
 
 ## Gotchas
 - `phlo services` has no `open` command; use direct service URLs.

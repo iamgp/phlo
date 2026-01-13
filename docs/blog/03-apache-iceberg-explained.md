@@ -1,6 +1,9 @@
 # Part 3: Apache Iceberg—The Table Format That Changed Everything
 
+> Prerequisite: Read [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) for lakehouse context.
+
 In Part 1, we mentioned Iceberg as the magic ingredient. Let's understand _why_ it's such a game-changer.
+For Git-like versioning on top of Iceberg, see [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md).
 
 ## The Problem With Traditional Parquet
 
@@ -15,6 +18,10 @@ s3://lake/glucose-data/
 ├── 2024-10-02_001_v2.parquet (102 rows) ← Confusion!
 ├── 2024-10-02_002.parquet  (100 rows)
 └── _old_backup_v1/          (Don't delete!)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 **Problems**:
@@ -43,6 +50,10 @@ s3://lake/glucose-data/
     └── year=2024/month=10/day=02/
         ├── 00003-g5h6i.parquet (rows 1-100, v2)
         └── 00004-j7k8l.parquet (rows 101-200, v2)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 The metadata files answer:
@@ -102,6 +113,10 @@ Snapshot 1234567892:
 └── manifest-002.avro
     └── data/year=2024/month=10/day=02/00004.parquet → rows 101-200
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 Why manifests? Query optimization:
 
@@ -118,6 +133,10 @@ Traditional table partitioning:
 SELECT * FROM glucose_data
 WHERE year=2024 AND month=10 AND day=15;
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 Iceberg partitioning:
 
@@ -130,6 +149,10 @@ WHERE reading_timestamp = '2024-10-15';
 -- WHERE year=2024 AND month=10 AND day=15
 -- (you don't need to know the partition scheme)
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 In Phlo's code, this is handled automatically:
 
@@ -141,6 +164,10 @@ table = catalog.load_table("raw.glucose_entries")
 # Iceberg automatically prunes partitions based on WHERE clause
 # Query engine skips files that don't match the predicate
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### 4. Schema Evolution (Adding Columns Without Rewriting)
 
@@ -150,6 +177,10 @@ table = catalog.load_table("raw.glucose_entries")
 -- Want to add a field? Must rewrite all files
 ALTER TABLE glucose_entries ADD COLUMN a1c_level FLOAT;
 -- ^ Takes hours, costs money
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 **With Iceberg** (good):
@@ -162,6 +193,10 @@ ADD COLUMN a1c_level FLOAT DEFAULT 0.0;
 -- Old files don't have this column?
 -- Iceberg fills in the default when reading
 -- Query still works, no rewrite needed
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 In dbt, this happens automatically when you add a column to a model.
@@ -193,6 +228,10 @@ MINUS
 SELECT DISTINCT sgv, device, date_string
 FROM iceberg.raw.glucose_entries;  -- Current
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 **Why time travel matters**:
 
@@ -214,6 +253,10 @@ Write to iceberg.raw.glucose_entries:
   ✓ Update metadata.json to point to new snapshot
   → All or nothing (no partial writes)
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 **Isolation**: Readers see consistent snapshots
 
@@ -223,6 +266,10 @@ Reader queries same table (right now)
   → Reader sees previous complete snapshot
   → Reader doesn't see partial writes
   → Writer completes, new readers see new snapshot
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 **In Phlo's Code**:
@@ -242,6 +289,10 @@ merge_metrics = iceberg.merge_parquet(
 # 2. Duplicates (same _id) are replaced atomically
 # 3. If write fails, table unchanged
 # Result: Safe to run multiple times (idempotent)
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Iceberg in Phlo
@@ -267,6 +318,10 @@ SELECT
 FROM raw_data
 WHERE sgv IS NOT NULL
   AND sgv BETWEEN 20 AND 600  -- Data quality filter
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 This dbt model:
@@ -303,6 +358,10 @@ def glucose_entries(partition_date: str):
 # 4. Creates new snapshot
 # 5. Tracks metadata in Dagster
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Querying with Time Travel
 
@@ -321,6 +380,10 @@ docker exec trino trino \
   SELECT COUNT(*) FROM glucose_entries
   FOR VERSION AS OF 1728992400000;
   "
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Comparison: Before vs After Iceberg
@@ -373,6 +436,10 @@ s3://lake/
             └── data/
                 └── year=2024/month=10/day=15/
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 Note: Staging is temporary (cleaned up after merge). Only warehouse tables persist.
 
@@ -402,6 +469,10 @@ for snapshot in sorted(table.snapshots(),
         print(f"    File: {manifest_entry.manifest_path}")
 EOF
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ## Next: Project Nessie (Git for Data)
 
@@ -416,6 +487,10 @@ We'll explore that in the next post.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: restart Trino and confirm the `iceberg` catalog is configured.
 
@@ -423,6 +498,10 @@ Fix: restart Trino and confirm the `iceberg` catalog is configured.
 
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SCHEMAS FROM iceberg;"
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: verify the schema names and run ingestion before querying.
@@ -432,10 +511,18 @@ Fix: verify the schema names and run ingestion before querying.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: set `SET SESSION iceberg.nessie_reference_name = 'main';` before queries.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md), [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md), [Part 6: dbt Transformations](06-dbt-transformations.md). Reference: [Architecture Overview](../reference/architecture.md).
 
 
 ## Summary

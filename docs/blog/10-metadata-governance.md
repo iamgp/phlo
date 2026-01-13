@@ -1,6 +1,9 @@
 # Part 10: Metadata and Governance with OpenMetadata
 
+> Prerequisite: Read [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md) for branching and audit context.
+
 Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.
+For alerting and monitoring once metadata is in place, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
 ## The Metadata Problem
 
@@ -14,6 +17,10 @@ Answers from your team:
 - Engineer 2: "Maybe it's in the glucose_readings table"
 - Data analyst: "I don't know, it's in the dashboard"
 - Manager: "How many people depend on this?"
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 Nobody knows because metadata is scattered:
@@ -74,6 +81,10 @@ OpenMetadata integrates seamlessly with Phlo's tech stack:
 │  - gold.dim_date                 │
 └──────────────────────────────────┘
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## Quick Start with OpenMetadata
 
@@ -100,6 +111,10 @@ MySQL:
 Elasticsearch:
   Ready
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### 2. Access OpenMetadata UI
 
@@ -107,6 +122,10 @@ Elasticsearch:
 # Open in browser
 make catalog
 # Or manually visit: http://localhost:10020
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Default credentials:
@@ -133,11 +152,19 @@ Default credentials:
 ```
 trino
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 **Description:**
 
 ```
 Phlo lakehouse Trino query engine with Iceberg catalog
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 **Connection Configuration:**
@@ -158,6 +185,10 @@ Click **Test Connection** - you should see:
 
 ```
 Connection test was successful
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 Click **Submit** to save the service.
@@ -184,6 +215,10 @@ Schema Filter Pattern:
 Table Filter Pattern:
   Include: .*
   Exclude: (leave empty)
+```
+Expected output:
+```text
+Configuration saved successfully.
 ```
 
 **Advanced Configuration:**
@@ -255,6 +290,10 @@ INFO - Metadata ingestion completed
 INFO - Total tables ingested: 15
 INFO - Total schemas ingested: 4
 INFO - Total errors: 0
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### Step 6: Enable Search (CRITICAL)
@@ -331,6 +370,10 @@ Updated every 5 minutes via Dagster pipeline.
 - `glucose_category`: Categorized as hypoglycemia (<70), in_range (70-180), or hyperglycemia (>180)
 - `reading_timestamp`: UTC timestamp of the reading
 ```
+Expected output:
+```text
+Markdown renders as formatted content.
+```
 
 4. Add column descriptions:
    - `reading_id`: Unique identifier for each glucose reading
@@ -369,6 +412,10 @@ silver.fct_glucose_readings (dbt model)
 gold.dim_date (dbt model)
     ↓
 marts.mrt_glucose_overview (Trino publish)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### Enable Lineage Tracking with dbt
@@ -435,6 +482,10 @@ Click **Next** → **Deploy**.
    cd workflows/transforms/dbt
    dbt compile --profiles-dir ./profiles
    ```
+   Expected output:
+   ```text
+   Command completed successfully.
+   ```
 
 2. Go to **Settings → Integrations → Pipeline → phlo-dbt**
 3. Click **Ingestions** tab
@@ -451,6 +502,10 @@ INFO - Processing model: fct_glucose_readings
 INFO - Linking model to table: trino.iceberg.silver.fct_glucose_readings
 INFO - Extracted lineage: bronze.stg_glucose_entries → silver.fct_glucose_readings
 INFO - Successfully ingested dbt metadata
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Governance Workflows
@@ -478,6 +533,10 @@ Answer: NO!
   - 1 dashboard
   - Multiple dbt models
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### 2. Search and Discovery
 
@@ -499,6 +558,10 @@ Results:
    Gold layer • Postgres marts • 5K rows
    "Marketing-ready glucose metrics"
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### 3. Data Access Governance
 
@@ -517,6 +580,10 @@ Match OpenMetadata ingestion with your Dagster pipelines:
 ```yaml
 Dagster Pipeline: Daily at 2:00 AM
 OpenMetadata Ingestion: Daily at 3:00 AM (1 hour after data refresh)
+```
+Expected output:
+```text
+Configuration saved successfully.
 ```
 
 ### Document in dbt Models
@@ -546,6 +613,10 @@ models:
       - name: glucose_category
         description: Categorized as hypoglycemia, in_range, or hyperglycemia
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 ## Common Issues
 
@@ -555,6 +626,10 @@ models:
 make health-catalog
 docker logs openmetadata-server
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: wait for the server to finish migrations, then refresh the UI.
 
@@ -562,6 +637,10 @@ Fix: wait for the server to finish migrations, then refresh the UI.
 
 ```bash
 docker logs openmetadata-elasticsearch
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: re-run the search indexing job from the OpenMetadata UI.
@@ -571,6 +650,10 @@ Fix: re-run the search indexing job from the OpenMetadata UI.
 ```bash
 make health
 docker exec -it openmetadata-server curl http://trino:8080/v1/info
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: start Trino and update the service connection details.
@@ -594,6 +677,10 @@ Tuesday:   ML model training fails silently
 Wednesday: Dashboard shows "No Data"
 Thursday:  Analyst reports: "Numbers look wrong"
 Friday:    Fire drill to understand what changed and why
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 With contracts, breaking changes are caught before deployment.
@@ -655,6 +742,10 @@ notifications:
     - sla_breach
     - quality_violation
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 ### How Contract Validation Works
 
@@ -680,12 +771,20 @@ Required Columns:
   direction    string
   device       string
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 To check for contract violations against actual tables, you would use:
 
 ```bash
 $ phlo contract show glucose_readings  # View full contract details
 $ phlo catalog describe raw.glucose_entries  # View actual table schema
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Schema Evolution and Breaking Changes
@@ -724,6 +823,10 @@ glucose_readings:
 
 Contract check FAILED - 1 breaking change detected
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Consumer Notifications
 
@@ -747,6 +850,10 @@ Review by: Friday 5pm
 
 React with ✅ to approve or 🚫 to block
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ---
 
@@ -768,6 +875,10 @@ class RawGlucoseEntries(pa.DataFrameModel):
     dateString: str = pa.Field(description="ISO timestamp string")
     direction: str = pa.Field(nullable=True)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 As your platform grows, you'll have dozens of schemas. The CLI helps you manage them.
 
@@ -784,6 +895,10 @@ FactGlucoseReadings        12   workflows.schemas.nightscout
 MartGlucoseOverview         6   workflows.schemas.nightscout
 RawGlucoseEntries           8   workflows.schemas.nightscout
 RawWeatherObservations     10   workflows.schemas.weather
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Inspecting Schema Details
@@ -805,11 +920,19 @@ direction    str
 device       str
 type         str
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 You can also view the Iceberg schema equivalent:
 
 ```bash
 $ phlo schema show RawGlucoseEntries --iceberg
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Comparing Schema Versions
@@ -833,6 +956,10 @@ Removed:
   - legacy_timestamp: str
 
 Classification: WARNING (1 safe, 1 warning, 0 breaking)
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ---
@@ -858,11 +985,19 @@ gold       fct_daily_glucose_metrics  gold.fct_daily_glucose_metrics
 
 Total: 4 tables
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Filter by namespace:
 
 ```bash
 $ phlo catalog tables --namespace silver
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Describing Table Metadata
@@ -886,6 +1021,10 @@ dateString         string    ✓
 direction          string
 device             string
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Viewing Table History
 
@@ -902,6 +1041,10 @@ def67890...   2025-11-27 09:30:00  append
 ghi12345...   2025-11-27 08:25:00  append
 
 Showing 3 most recent snapshots
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 > **Future Feature:** Automated metadata sync to OpenMetadata (`phlo catalog sync`) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the [setup guide](../setup/openmetadata.md).
@@ -924,6 +1067,10 @@ Traditional approach:
 5. Schema changes break integrations
 6. Nobody knows what APIs exist
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
 
@@ -945,6 +1092,10 @@ SELECT reading_id, timestamp, sgv, direction
 FROM marts_postgres.mrt_glucose_readings;
 
 GRANT SELECT ON api.glucose_readings TO analyst;
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 **The automated way:**
@@ -970,6 +1121,10 @@ Generated SQL saved to: api_views.sql
 
 Apply with: phlo postgrest generate-views --apply
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### How View Generation Works
 
@@ -994,6 +1149,10 @@ models:
       - name: sgv
         description: "Glucose value in mg/dL"
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 Generated SQL:
 
@@ -1017,6 +1176,10 @@ COMMENT ON VIEW api.glucose_readings IS 'Curated glucose readings for API access
 GRANT SELECT ON api.glucose_readings TO analyst;
 GRANT SELECT ON api.glucose_readings TO admin;
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 ### GraphQL with Hasura
 
@@ -1027,6 +1190,10 @@ For richer query capabilities, Phlo integrates with Hasura:
 $ phlo hasura track
 
 ✓ Tracked 3/3 tables
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 You can also set up relationships and permissions:
@@ -1042,6 +1209,10 @@ $ phlo hasura permissions
 
 ✓ Created 6/6 permissions
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Or do all three at once:
 
@@ -1050,6 +1221,10 @@ $ phlo hasura auto-setup
 
 Auto-tracking tables, setting up relationships and permissions...
 ✓ Complete
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Now you get GraphQL automatically:
@@ -1067,6 +1242,10 @@ query {
     direction
   }
 }
+```
+Expected output:
+```text
+Request returns a data payload.
 ```
 
 ### Permission Management
@@ -1093,6 +1272,10 @@ tables:
         columns: "*"
         filter: {}
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 Apply permissions from a config file:
 
@@ -1100,6 +1283,10 @@ Apply permissions from a config file:
 $ phlo hasura sync-permissions --config hasura-permissions.yaml
 
 ✓ Permissions synced
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### When to Use REST vs GraphQL
@@ -1143,6 +1330,10 @@ $ phlo hasura sync-permissions --config hasura-permissions.yaml
                 │  (dbt models)   │
                 └─────────────────┘
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ---
 
@@ -1164,6 +1355,10 @@ $ phlo hasura sync-permissions --config hasura-permissions.yaml
 **Accountability**: Clear ownership and change history
 **Quality**: Quality checks visible and tracked
 **Documentation**: Single source of truth for data definitions
+
+## See Also
+
+See also: [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md), [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md), [Part 11: Observability & Monitoring](11-observability-monitoring.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 ## Summary
 

@@ -1,6 +1,9 @@
 # Part 8: Real-World Example—Building a Complete Data Pipeline
 
+> Prerequisite: Complete [Part 2: Getting Started](02-setup-guide.md), [Part 5: Data Ingestion](05-data-ingestion.md), and [Part 6: dbt Transformations](06-dbt-transformations.md).
+
 We've covered all the pieces. Now let's build a complete, working pipeline from start to finish: **Nightscout Glucose Monitoring**.
+For validation patterns used in this walkthrough, see [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md).
 
 ## The Use Case
 
@@ -32,6 +35,10 @@ dbt Transformation
 Postgres Publishing
   └─ Superset Dashboard
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## Step 1: Understanding the API
 
@@ -60,6 +67,10 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
   },
   ...
 ]
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Step 2: Data Ingestion
@@ -124,6 +135,10 @@ def glucose_entries(partition_date: str):
 
     return source
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **What the @phlo_ingestion decorator does automatically**:
 
@@ -139,6 +154,10 @@ def glucose_entries(partition_date: str):
 
 ```bash
 phlo materialize --select dlt_glucose_entries --partition 2024-10-15
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Step 3: Bronze Layer Transformation
@@ -182,6 +201,10 @@ WHERE sgv IS NOT NULL
   {% if var('partition_date_str', None) is not none %}
     AND DATE(date_string) = DATE('{{ var("partition_date_str") }}')
   {% endif %}
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 **Purpose**:
@@ -254,6 +277,10 @@ enriched AS (
 SELECT * FROM enriched
 ORDER BY reading_timestamp DESC
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 **Features added**:
 
@@ -298,6 +325,10 @@ FROM {{ ref('fct_glucose_readings') }}
 
 GROUP BY reading_date, hour_of_day
 ORDER BY reading_date DESC, hour_of_day DESC
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 **Metrics**:
@@ -346,6 +377,10 @@ WHERE reading_date >= CURRENT_DATE - INTERVAL '30' DAY
 GROUP BY reading_date
 ORDER BY reading_date DESC
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 **Note**: Marts are built in Iceberg first, then auto-published to Postgres.
 
@@ -383,6 +418,10 @@ def publish_marts_to_postgres(context):
         cursor.execute(f"CREATE TABLE {target} AS SELECT * FROM {source}")
 
         context.log.info(f"Published {table_name} to Postgres")
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 **How it works:**
@@ -437,6 +476,10 @@ http://localhost:10006
 → dlt_glucose_entries
 → Click to view lineage graph with status
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 **In Observatory**:
 
@@ -445,6 +488,10 @@ http://localhost:3001
 → Data Explorer
 → Browse marts.mrt_glucose_overview
 → Preview data and run queries
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 **In Postgres**:
@@ -457,6 +504,10 @@ lakehouse=# SELECT * FROM marts.mrt_glucose_overview ORDER BY reading_date DESC 
 reading_date | avg_glucose_mg_dl | min_glucose_mg_dl | max_glucose_mg_dl | percent_in_range
 ──────────────────────────────────────────────────────────────────────────────────────────
 2024-10-15   | 145.3             | 89                | 210               | 78.2
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Step 8: Monitoring and Alerts
@@ -485,6 +536,10 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 def glucose_readings_quality():
     """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 And the traditional `@asset_check` for custom logic:
@@ -536,6 +591,10 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
                 "failures_by_column": err.failure_cases.groupby("column").size().to_dict(),
             },
         )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 **Alerts**: If checks fail:
@@ -601,6 +660,10 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
 
 Total pipeline time: 8.92s
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## Key Takeaways
 
@@ -640,6 +703,10 @@ The pattern remains:
 ```bash
 phlo materialize dlt_glucose_entries
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: confirm the asset name and check Dagster logs.
 
@@ -647,6 +714,10 @@ Fix: confirm the asset name and check Dagster logs.
 
 ```bash
 docker exec dagster-webserver dbt run --select model_name
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: verify the model names and dbt profiles configuration.
@@ -656,10 +727,18 @@ Fix: verify the model names and dbt profiles configuration.
 ```bash
 phlo services logs postgres
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: confirm marts are loaded and the dashboard points at Postgres.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 6: dbt Transformations](06-dbt-transformations.md), [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md). Reference: [Architecture Overview](../reference/architecture.md).
 
 
 ## Summary

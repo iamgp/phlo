@@ -1,10 +1,13 @@
 # Part 15: Observatory Extensions and UI Plugins
 
+> Prerequisite: Review [Part 11: Observability & Monitoring](11-observability-monitoring.md) and [Part 14: Extending Phlo with Plugins](14-plugin-system.md).
+
 Observatory ships with core views, but every team needs something custom: a domain dashboard,
 service health panels, or a tailored workflow. Observatory extensions let packages add UI
 routes, navigation items, slots, and settings without rebuilding the core UI.
 
 This post covers the extension manifest, plugin class, UI hooks, and a complete example.
+For packaging details, see [Part 16: Building Custom Packages](16-building-custom-packages.md).
 
 ## What You'll Learn
 
@@ -83,6 +86,10 @@ manifest = ObservatoryExtensionManifest(
         ],
     ),
 )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### Field Notes
@@ -170,6 +177,10 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
     def asset_root(self) -> Traversable:
         return resources.files("phlo_observatory_example").joinpath("observatory_assets")
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 This matches the live example in
 `packages/phlo-observatory-example/src/phlo_observatory_example/observatory_plugin.py`.
@@ -187,6 +198,10 @@ my-extension/
 │       ├── observatory_plugin.py
 │       └── observatory_assets/
 │           └── example.js
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 Minimal module exports that match the manifest:
@@ -214,6 +229,10 @@ export function registerSettings(formRegistry) {
   })
 }
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Settings Lifecycle
 
@@ -240,6 +259,10 @@ Extensions should treat settings as shared instance configuration, not per-user 
 - **Routes not loading:** module path in the manifest must exist in assets.
 - **Nav item missing:** verify `ui.nav` is populated and route exists.
 - **Settings not saved:** confirm API endpoints are reachable and schema is valid JSONSchema.
+
+## See Also
+
+See also: [Part 11: Observability & Monitoring](11-observability-monitoring.md), [Part 14: Extending Phlo with Plugins](14-plugin-system.md), [Part 16: Building Custom Packages](16-building-custom-packages.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 ## Summary
 

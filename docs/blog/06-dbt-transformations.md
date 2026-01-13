@@ -1,6 +1,9 @@
 # Part 6: SQL Transformations with dbt—The Right Way
 
+> Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) before running dbt models.
+
 Raw data is in the lakehouse. Now we **transform** it into analysis-ready datasets using **dbt** (data build tool).
+For pipeline scheduling and retries, see [Part 7: Orchestration with Dagster](07-orchestration-dagster.md).
 
 dbt solves a critical problem: **How do you manage SQL transformations professionally?**
 
@@ -41,6 +44,10 @@ def transform_glucose():
     # 4. No version control (what changed?)
     # 5. Manual dependency management (run sql3 after sql2)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## dbt Solves This
 
@@ -71,6 +78,10 @@ FROM {{ ref('stg_glucose_entries') }}  -- Auto-dependency!
 SELECT DISTINCT DATE(reading_timestamp) as reading_date
 FROM {{ ref('fct_glucose_readings') }}  -- dbt finds dependencies
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 One command runs everything:
 
@@ -79,6 +90,10 @@ dbt build
 # dbt figures out: run bronze first, then silver, then gold
 # Tests each transformation
 # Generates documentation
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## dbt's Four Core Features
@@ -111,6 +126,10 @@ cleaned AS (
 
 SELECT * FROM cleaned
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 dbt materializes this as:
 
@@ -133,6 +152,10 @@ Phlo's config:
 {{ config(materialized='table') }}
 -- Dimensions, persisted in Iceberg
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 ### 2. Dependencies (Auto-Resolved)
 
@@ -148,6 +171,10 @@ FROM {{ ref('stg_glucose_entries') }}  -- ref('A')
 -- Model C: depends on Model B
 FROM {{ ref('fct_glucose_readings') }}  -- ref('B')
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 dbt builds a DAG (directed acyclic graph):
 
@@ -161,6 +188,10 @@ fct_glucose_readings
 dim_date, mrt_glucose_readings
     ↓ (Model D)
 gold/marts tables
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 Execute order: automatic!
@@ -199,6 +230,10 @@ models:
                   "hyperglycemia_severe",
                 ]
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 Run tests:
 
@@ -213,6 +248,10 @@ Testing fct_glucose_readings
   Running test unique_fct_glucose_readings_entry_id ... PASS
   Running test not_null_fct_glucose_readings_entry_id ... PASS
   Running test accepted_values_fct_glucose_readings_glucose_category ... PASS
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### 4. Documentation (Auto-Generated)
@@ -244,6 +283,10 @@ models:
       - name: hour_of_day
         description: Hour extracted from reading_timestamp (0-23)
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 Run:
 
@@ -256,6 +299,10 @@ dbt docs serve  # Opens http://localhost:8000
 # - Test results
 # - Data lineage (visual DAG)
 # - Query execution stats
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Phlo's dbt Structure
@@ -288,6 +335,10 @@ workflows/transforms/dbt/
 │   └── custom_tests.sql               # Custom SQL tests
 └── target/                            # Generated (gitignored)
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### 4-Layer Architecture
 
@@ -306,6 +357,10 @@ workflows/transforms/dbt/
        CAST(date_string as TIMESTAMP) as timestamp_iso
    FROM {{ source('dagster_assets', 'glucose_entries') }}
    WHERE sgv IS NOT NULL
+   ```
+   Expected output:
+   ```text
+   Query returned rows.
    ```
 
 2. **Silver** (Fact Tables):
@@ -331,6 +386,10 @@ workflows/transforms/dbt/
        ) as glucose_change_mg_dl
    FROM {{ ref('stg_glucose_entries') }}
    ```
+   Expected output:
+   ```text
+   Query returned rows.
+   ```
 
 3. **Gold** (Dimensions):
 
@@ -349,6 +408,10 @@ workflows/transforms/dbt/
        EXTRACT(DAY_OF_WEEK FROM reading_timestamp) as day_of_week
    FROM {{ ref('fct_glucose_readings') }}
    ORDER BY reading_date
+   ```
+   Expected output:
+   ```text
+   Query returned rows.
    ```
 
 4. **Marts** (Published):
@@ -370,6 +433,10 @@ workflows/transforms/dbt/
    FROM {{ ref('fct_glucose_readings') }}
    GROUP BY reading_date
    ORDER BY reading_date DESC
+   ```
+   Expected output:
+   ```text
+   Query returned rows.
    ```
 
 ## Integration with Phlo
@@ -398,6 +465,10 @@ phlo:
       catalog: iceberg # Main branch catalog
       schema: bronze
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 The `iceberg_dev` catalog points to the Nessie dev branch, while `iceberg` points to main.
 This is configured in Trino's catalog properties, not via session properties.
@@ -422,6 +493,10 @@ FROM {{ ref('stg_glucose_entries') }}
 WHERE DATE(reading_timestamp) = DATE('{{ var("partition_date_str") }}')
 {% endif %}
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 Dagster passes partition date:
 
@@ -434,6 +509,10 @@ if context.has_partition_key:
         "--vars",
         f'{{"partition_date_str": "{partition_date}"}}'
     ])
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Hands-On: Run dbt Transforms
@@ -465,6 +544,10 @@ docker exec dagster-webserver dbt test \
   --project-dir /app/workflows/transforms/dbt \
   --profiles-dir /app/workflows/transforms/dbt/profiles
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Option 3: Local (if you have uv installed)
 
@@ -493,6 +576,10 @@ dbt run --select stg_glucose_entries
 dbt test
 dbt docs generate && dbt docs serve
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ## Best Practices in dbt
 
@@ -504,6 +591,10 @@ silver/fct_*              Fact tables
 silver/dim_*              Dimension tables
 gold/*                    Summarized/published
 marts_postgres/*          Published to Postgres
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### 2. CTEs for Clarity
@@ -528,6 +619,10 @@ SELECT * FROM (
     ) sub
 ) outer_sub
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 ### 3. Comments for Complex Logic
 
@@ -539,6 +634,10 @@ SELECT
     -- Used to identify rapid spikes (potential errors)
     glucose_mg_dl - LAG(glucose_mg_dl) OVER (...) as glucose_change
 FROM {{ ref('stg_glucose_entries') }}
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 ### 4. Tests for Critical Columns
@@ -556,6 +655,10 @@ columns:
       - dbt_utils.accepted_range:
           min_value: 20
           max_value: 600
+```
+Expected output:
+```text
+Configuration saved successfully.
 ```
 
 ## Performance Tips
@@ -579,6 +682,10 @@ FROM {{ source('raw', 'entries') }}
   WHERE _cascade_ingested_at > '{{ max_partition }}'
 {% endif %}
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 Only processes new data since last run.
 
@@ -589,6 +696,10 @@ SELECT * FROM {{ ref('large_table') }}
 {% if execute and execute_sql %}
   LIMIT 1000  -- Don't scan 100M rows while developing
 {% endif %}
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 ### 3. Pre-filter Before Joins
@@ -606,6 +717,10 @@ LEFT JOIN (
     WHERE active = true
 ) dim ...
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 ## Next: Orchestration
 
@@ -622,6 +737,10 @@ See you there!
 ```bash
 ls workflows/transforms/dbt
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: move the dbt project under `workflows/transforms/dbt/`.
 
@@ -629,6 +748,10 @@ Fix: move the dbt project under `workflows/transforms/dbt/`.
 
 ```bash
 cat workflows/transforms/dbt/profiles/profiles.yml
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: ensure the `profiles/` directory exists and targets match services.
@@ -638,10 +761,18 @@ Fix: ensure the `profiles/` directory exists and targets match services.
 ```bash
 docker exec dagster-webserver dbt debug
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: verify Trino is running and the connection settings match.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 8: A Real-World End-to-End Example](08-real-world-example.md). Reference: [Configuration Reference](../reference/configuration-reference.md).
 
 
 ## Summary

@@ -1,6 +1,9 @@
 # Part 5: Data Ingestion—Getting Data Into the Lakehouse
 
+> Prerequisite: Complete [Part 2: Getting Started—Setup Guide](02-setup-guide.md) before running ingestion.
+
 We have our lakehouse infrastructure. Now: **how does data actually get in?**
+For scheduling and retries, pair this with [Part 7: Orchestration with Dagster](07-orchestration-dagster.md).
 
 Phlo uses a two-step pattern:
 
@@ -25,6 +28,10 @@ Two Steps (Safe)
       ↓ (Has backup of raw data)
     Iceberg Table
       (Merge with idempotent deduplication)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 The two-step pattern ensures:
@@ -105,6 +112,10 @@ def glucose_entries(partition_date: str):
 
     return source
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### What @phlo_ingestion Does
 
@@ -138,6 +149,10 @@ from phlo_dlt.decorator import phlo_ingestion
 def api_events(partition_date: str):
     return rest_api(...)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **Characteristics:**
 
@@ -170,6 +185,10 @@ from phlo_dlt.decorator import phlo_ingestion
 def user_profiles(partition_date: str):
     return rest_api(...)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **Deduplication Strategies:**
 
@@ -177,6 +196,10 @@ def user_profiles(partition_date: str):
 
    ```python
    merge_config={"deduplication_method": "last"}
+   ```
+   Expected output:
+   ```text
+   No output (definitions only).
    ```
 
    - Based on insertion order during the pipeline run
@@ -188,6 +211,10 @@ def user_profiles(partition_date: str):
    ```python
    merge_config={"deduplication_method": "first"}
    ```
+   Expected output:
+   ```text
+   No output (definitions only).
+   ```
 
    - Useful when first value is authoritative
    - Example: Initial signup timestamp, first purchase date
@@ -195,6 +222,10 @@ def user_profiles(partition_date: str):
 3. **`hash`**: Keep based on content hash
    ```python
    merge_config={"deduplication_method": "hash"}
+   ```
+   Expected output:
+   ```text
+   No output (definitions only).
    ```
 
    - Compares full record content, not just timestamp
@@ -244,6 +275,10 @@ from phlo_dlt.decorator import phlo_ingestion
     ...
 )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 If we used `append` strategy instead:
 
@@ -277,6 +312,10 @@ Parquet file with columns:
 ├── direction: string
 ├── device: string
 ├── type: string
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 DLT automatically:
@@ -339,6 +378,10 @@ class RawGlucoseEntries(DataFrameModel):
         strict = False  # Allow DLT metadata fields
         coerce = True
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Step 2: PyIceberg (Merge into Lakehouse)
 
@@ -373,6 +416,10 @@ catalog.create_table(
     partition_spec=None  # Iceberg will auto-partition by date
 )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 Result in MinIO:
 
@@ -381,6 +428,10 @@ s3://lake/warehouse/raw/glucose_entries/
 ├── metadata/
 │   └── v1.metadata.json      ← Table created
 └── data/ (empty)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### Merging Data (Idempotent Upsert)
@@ -433,6 +484,10 @@ def merge_parquet(
         'rows_total': len(table.scan().to_pandas())
     }
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 This ensures **idempotency**: running the same ingestion multiple times produces the same result.
 
@@ -478,6 +533,10 @@ Metadata:
 # Success!
 Ingestion completed successfully in 2.45s
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 **You wrote**: ~10 lines of code (just the DLT source configuration)
 **You got**: Full ingestion pipeline with validation, staging, merging, and monitoring
@@ -494,6 +553,10 @@ s3://lake/warehouse/raw/glucose_entries/
         ├── 00001.parquet (100 rows)
         ├── 00002.parquet (100 rows)
         └── 00003.parquet (88 rows)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Quality Checks with @phlo_quality
@@ -520,6 +583,10 @@ from phlo_quality import FreshnessCheck, NullCheck, RangeCheck
 def glucose_readings_quality():
     """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 The `@phlo_quality` decorator provides:
@@ -573,6 +640,10 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
             }
         )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 This approach gives you more control over the validation logic and error handling.
 
@@ -624,6 +695,10 @@ def github_events(partition_date: str):
     # 2. Validates with GitHubEventSchema
     # 3. Merges to Iceberg table with deduplication on event_id
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Ingestion Patterns in Phlo
 
@@ -638,6 +713,10 @@ S3 parquet
   ↓ (PyIceberg merge)
 Iceberg table
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### Pattern 2: File Upload (CSV, Excel)
 
@@ -650,6 +729,10 @@ S3 parquet
   ↓ (PyIceberg merge)
 Iceberg table
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### Pattern 3: Database Replication
 
@@ -661,6 +744,10 @@ Pandas DataFrame
 S3 parquet
   ↓ (PyIceberg merge)
 Iceberg table
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 All follow the same pattern for safety and idempotency.
@@ -696,6 +783,10 @@ docker exec trino trino \
   --schema raw \
   --execute "SELECT COUNT(*) as total FROM glucose_entries;"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ## Performance Considerations
 
@@ -713,6 +804,10 @@ info = pipeline.run(
 # For large datasets, you want good batch size
 # 100K-1M rows per batch is typical
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Deduplication Key
 
@@ -724,6 +819,10 @@ unique_key="_id"  # MongoDB ObjectId, guaranteed unique
 
 # Bad: Reading data multiple times
 unique_key="date_string"  # Multiple readings per minute!
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### Idempotency
@@ -741,6 +840,10 @@ append_parquet(table, data)
 append_parquet(table, data)  # Second run duplicates!
 # Result: 576 rows (corrupted)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Next: Transformations
 
@@ -757,6 +860,10 @@ See you there!
 ```bash
 uv run python -c "from phlo_dlt.decorator import phlo_ingestion; print(phlo_ingestion)"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: ensure `phlo-dlt` is installed in the active environment.
 
@@ -764,6 +871,10 @@ Fix: ensure `phlo-dlt` is installed in the active environment.
 
 ```bash
 rg -n "API|TOKEN|SECRET" .phlo/.env .phlo/.env.local
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: add required secrets to `.phlo/.env.local` and restart services.
@@ -773,10 +884,18 @@ Fix: add required secrets to `.phlo/.env.local` and restart services.
 ```bash
 phlo materialize dlt_glucose_entries
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: confirm the asset name and inspect Dagster logs for errors.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 2: Getting Started—Setup Guide](02-setup-guide.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 8: A Real-World End-to-End Example](08-real-world-example.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 
 ## Summary

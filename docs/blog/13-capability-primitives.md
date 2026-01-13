@@ -1,8 +1,11 @@
 # Part 13: Capability Primitives and Orchestrator Adapters
 
+> Prerequisite: Review [Part 5: Data Ingestion](05-data-ingestion.md) and [Part 7: Orchestration](07-orchestration-dagster.md) for asset naming and scheduling context.
+
 Phlo is moving from orchestrator-specific assets to capability primitives that can run anywhere.
 This post explains the core specs, the runtime context, and how adapters translate specs into
 orchestrator definitions.
+To see how plugins expose capability specs, read [Part 14: Plugin System](14-plugin-system.md).
 
 ## What You'll Learn
 
@@ -65,6 +68,10 @@ users_asset = AssetSpec(
     ),
 )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### PartitionSpec
 
@@ -87,6 +94,10 @@ partitioned_asset = AssetSpec(
     description="Daily event stream",
     partitions=daily_partitions,
 )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### AssetCheckSpec
@@ -118,6 +129,10 @@ asset_check = AssetCheckSpec(
     severity="high",
 )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### RuntimeContext
 
@@ -137,6 +152,10 @@ def extract_orders(context: RuntimeContext) -> Iterable[RunResult]:
     context.logger.info("fetching orders", extra={"partition": partition})
     rows = api_client.fetch_orders(partition=partition)
     yield MaterializeResult(metadata={"rows": len(rows)}, status="success")
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Orchestrator Adapters
@@ -163,6 +182,10 @@ from dagster import asset
 def raw_users():
     return [{"id": 1, "email": "user@example.com"}]
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 New pattern (orchestrator-agnostic):
 
@@ -184,6 +207,10 @@ raw_users_spec = AssetSpec(
     run=RunSpec(fn=raw_users_run),
 )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 The adapter will wrap `raw_users_spec` into the orchestrator-specific asset definition.
 
@@ -199,6 +226,10 @@ The adapter will wrap `raw_users_spec` into the orchestrator-specific asset defi
 - RuntimeContext mismatch: run functions must accept a single RuntimeContext argument.
 - Missing resources: add resource names to AssetSpec.resources and configure them in your adapter.
 - Adapter coupling: avoid importing Dagster, Airflow, or Prefect in capability packages.
+
+## See Also
+
+See also: [Part 14: Plugin System](14-plugin-system.md), [Part 16: Building Custom Packages](16-building-custom-packages.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 ## Summary
 

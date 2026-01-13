@@ -1,6 +1,9 @@
 # Part 14: Extending Phlo with Plugins
 
+> Prerequisite: Review [Part 13: Capability Primitives](13-capability-primitives.md) to understand AssetSpec and ResourceSpec.
+
 You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialized validation rule, or a domain-specific transformation?
+For full package scaffolding, see [Part 16: Building Custom Packages](16-building-custom-packages.md).
 
 That's where the plugin system comes in.
 
@@ -13,6 +16,10 @@ Week 1:  "Phlo is great! It has everything we need."
 Week 4:  "Can we add a Salesforce source?"
 Week 8:  "We need a custom quality check for our business rules."
 Week 12: "The finance team wants a specific transformation pattern."
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 Without plugins, you'd fork the codebase or hack around limitations. With plugins, you extend Phlo cleanly.
@@ -83,6 +90,10 @@ When Phlo starts, it scans for installed packages that declare entry points:
 │  Orchestrators: [dagster_adapter]                           │
 └─────────────────────────────────────────────────────────────┘
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 This means:
 
@@ -152,6 +163,10 @@ class MarketingAssets(AssetProviderPlugin):
             )
         ]
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Example: Resource Provider Plugin
 
@@ -177,6 +192,10 @@ class WarehouseResources(ResourceProviderPlugin):
 
     def get_resources(self) -> Iterable[ResourceSpec]:
         return [ResourceSpec(name="warehouse", resource=build_warehouse_client())]
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 Orchestrator adapters (for example, `phlo-dagster`) load these specs and
@@ -205,6 +224,10 @@ my-plugin/
     ├── test_source.py
     ├── test_quality.py
     └── test_transform.py
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### Step 2: Source Plugin Implementation
@@ -346,6 +369,10 @@ class JSONPlaceholderSource(SourceConnectorPlugin):
 
         return True
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Step 3: Entry Points Registration
 
@@ -392,6 +419,10 @@ ui_extension = "phlo_example.observatory:OpsUIExtension"
 [project.entry-points."phlo.plugins.cli"]
 ops_cli = "phlo_example.cli:OpsCliPlugin"
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 ### Step 4: Install and Use
 
@@ -402,6 +433,10 @@ pip install -e .
 
 # Verify it's discovered
 phlo plugin list
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Now use it in your pipeline:
@@ -420,6 +455,10 @@ config = {
 
 for post in source.fetch_data(config):
     print(post)
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Creating a Quality Check Plugin
@@ -553,6 +592,10 @@ class ThresholdCheck(QualityCheck):
         bound_str = ",".join(bounds) if bounds else "unbounded"
         return f"threshold_check({self.column},{bound_str})"
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **Usage:**
 
@@ -574,6 +617,10 @@ check = plugin.create_check(
 result = check.execute(df)
 print(f"Passed: {result.passed}")
 print(f"Violations: {result.metric_value['violations']} / {result.metric_value['total']}")
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Creating a Transform Plugin
@@ -681,6 +728,10 @@ class UppercaseTransformPlugin(TransformationPlugin):
 
         return True
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **Usage:**
 
@@ -738,6 +789,10 @@ $ phlo plugin list --type assets
 # Output as JSON
 $ phlo plugin list --json
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Get Plugin Details
 
@@ -762,6 +817,10 @@ $ phlo plugin info uppercase --type transforms
 # JSON output
 $ phlo plugin info jsonplaceholder --json
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Validate Plugins
 
@@ -779,6 +838,10 @@ All plugins are valid!
 
 # JSON output
 $ phlo plugin check --json
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Create New Plugin Scaffold
@@ -805,6 +868,10 @@ $ phlo plugin create my-transform --type transform
 # Specify custom path
 $ phlo plugin create my-plugin --type source --path ./plugins/my-plugin
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 The scaffold creates a complete package structure:
 
@@ -820,6 +887,10 @@ phlo-plugin-my-api-source/
 └── tests/
     ├── __init__.py
     └── test_plugin.py       # Test suite
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Best Practices
@@ -839,6 +910,10 @@ class CRMSource(SourceConnectorPlugin):
     def fetch_hubspot(self): ...
     def fetch_dynamics(self): ...
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### 2. Handle Errors Gracefully
 
@@ -855,6 +930,10 @@ def fetch_data(self, config: dict) -> Iterator[dict]:
     except httpx.RequestError as e:
         raise PluginError(f"Network error: {e}")
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### 3. Include Metadata
 
@@ -870,6 +949,10 @@ def metadata(self) -> PluginMetadata:
         author="Data Platform Team",
         documentation_url="https://docs.yourcompany.com/plugins/salesforce",
     )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### 4. Write Tests
@@ -893,6 +976,10 @@ def test_invalid_resource_handled():
     with pytest.raises(PluginError):
         list(source.fetch_data({"resource": "invalid"}))
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### 5. Version Your Plugins
 
@@ -903,6 +990,10 @@ Use semantic versioning. Breaking changes = major version bump.
 version = "2.0.0"  # Breaking: changed config schema
 version = "1.1.0"  # Feature: added new resource type
 version = "1.0.1"  # Fix: handled edge case
+```
+Expected output:
+```text
+Configuration saved successfully.
 ```
 
 ## Plugin Security
@@ -924,6 +1015,10 @@ class PhloConfig:
         "internal_*",  # Allow all internal plugins
     ]
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Common Issues
 
@@ -931,6 +1026,10 @@ class PhloConfig:
 
 ```bash
 phlo plugin list --type assets
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: confirm the package is installed and entry points are registered.
@@ -940,6 +1039,10 @@ Fix: confirm the package is installed and entry points are registered.
 ```bash
 uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: update `pyproject.toml` to use the correct group names.
 
@@ -948,10 +1051,18 @@ Fix: update `pyproject.toml` to use the correct group names.
 ```bash
 uv run python -c "import phlo_plugins"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: fix missing dependencies or module paths in the plugin package.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 13: Capability Primitives](13-capability-primitives.md), [Part 15: Observatory Extensions](15-observatory-extensions.md), [Part 16: Building Custom Packages](16-building-custom-packages.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 
 ## Summary
@@ -1002,6 +1113,10 @@ source = get_source_connector('jsonplaceholder')
 for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
     print(post['title'])
 "
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 **Actual Files to Study:**

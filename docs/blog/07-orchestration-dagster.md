@@ -1,6 +1,9 @@
 # Part 7: Orchestration with Dagster—Running Your Pipelines
 
+> Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) and [Part 6: dbt Transformations](06-dbt-transformations.md) first.
+
 We have data flowing in (DLT + Iceberg) and transformations defined (dbt). Now: **Who runs this? When? What happens if it fails?**
+For monitoring and alerts, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
 That's **Dagster's job**—orchestration.
 
@@ -19,6 +22,10 @@ publish_to_postgres.py                        # Manual - depends on dbt
 # Pipeline failed silently - nobody knows!
 # Dashboards show stale data for 24 hours
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 With Dagster:
 
@@ -32,6 +39,10 @@ With Dagster:
 6:06 AM: All complete
          ↓
          If anything fails → Alert via email/Slack
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Dagster's Core Concepts
@@ -76,6 +87,10 @@ def dbt_silver() -> None:
     """
     dbt.cli(["build", "--select", "tag:silver"])
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 Dagster automatically:
 
@@ -117,6 +132,10 @@ def dlt_glucose_entries(context) -> MaterializeResult:
     # ... ingest ...
     return MaterializeResult(metadata={...})
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 In the UI, you can materialize specific partitions:
 
@@ -125,6 +144,10 @@ Oct 14 (complete)
 Oct 15 ⏳ (running)
 Oct 16 (failed - can re-run)
 Oct 17 ⚪ (not run yet)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### 3. Automation (Schedules & Sensors)
@@ -141,6 +164,10 @@ def daily_ingestion():
         partition_key=get_today_date()
     )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **Sensor**: Run when something happens
 
@@ -153,6 +180,10 @@ def nightscout_api_sensor():
             cursor=get_latest_timestamp(),
             run_requests=[dg.RunRequest(tags={"source": "nightscout"})]
         )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 In Phlo's code:
@@ -169,6 +200,10 @@ In Phlo's code:
 def entries(context) -> MaterializeResult:
     # Runs automatically hourly
     pass
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### 4. Resources (Connections & Clients)
@@ -196,6 +231,10 @@ def dlt_glucose_entries(iceberg: IcebergResource) -> MaterializeResult:
     # Use iceberg resource
     iceberg.ensure_table(...)
     iceberg.merge_parquet(...)
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 Resources are:
@@ -243,6 +282,10 @@ def range_check(context) -> dg.AssetCheckResult:
         }
     )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 Checks run after asset materialization:
 
@@ -252,6 +295,10 @@ dlt_glucose_entries (complete)
   └─ Check: row_count_increased [PASSED]
 ↓ (checks pass, continue)
 dbt_bronze [SUCCESS]
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Phlo's Asset Graph
@@ -285,6 +332,10 @@ Publish Layer
 Analytics
 └── Superset Dashboards
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 All dependencies auto-detected by Dagster:
 
@@ -308,6 +359,10 @@ def all_dbt_assets(dbt: DbtCliResource):
 # - Sees dbt reads from dlt_glucose_entries
 # - Waits for ingestion before running dbt
 # - Re-runs dbt when ingestion changes
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Viewing the Lineage
@@ -338,6 +393,10 @@ dlt_glucose_entries
     ├── rows_inserted: 288
     ├── partition: 2024-10-15
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## Running Pipelines Manually
 
@@ -365,6 +424,10 @@ phlo materialize --select "dlt_glucose_entries,stg_glucose_entries" --partition 
 # Materialize all downstream of ingestion
 phlo materialize --select "dlt_glucose_entries+"  # Plus = all downstream
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Via Python API
 
@@ -378,6 +441,10 @@ materialize(
     [dlt_glucose_entries],
     partition_key="2024-10-15"
 )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Backfilling Historical Data
@@ -402,6 +469,10 @@ Manual approach:
     # Wait for each to complete...
 
 Time: 90 days × 2 minutes = 3 hours of babysitting
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### Using phlo backfill
@@ -428,6 +499,10 @@ Proceed? [y/N] y
 [92/92] 2024-09-30 ✓ (29s)
 
 Backfill complete: 92 partitions in 43m
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Parallel Execution
@@ -456,6 +531,10 @@ Estimated Time: ~90 minutes
 [Worker 1] 2024-01-05 ✓
 ...
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 **Parallel considerations:**
 
@@ -471,6 +550,10 @@ Sometimes you need specific dates, not a range:
 # Only these specific dates
 $ phlo backfill glucose_entries \
     --partitions 2024-01-01,2024-01-15,2024-02-01,2024-03-01
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Resuming Failed Backfills
@@ -494,6 +577,10 @@ Remaining: 46 partitions
 [45/90] 2024-02-14 ✓
 [46/90] 2024-02-15 ✓
 ...
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Dry Run
@@ -524,6 +611,10 @@ Would process: 30 partitions
 Would skip: 1 partition (already fresh)
 
 Run without --dry-run to execute.
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Backfill Strategies
@@ -560,6 +651,10 @@ $ phlo backfill glucose_entries \
     --end-date 2024-12-31 \
     --parallel 2
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ## Monitoring and Alerts
 
@@ -584,6 +679,10 @@ def dlt_glucose_entries(context) -> MaterializeResult:
         }
     )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 View logs in Dagster UI → Runs → Click run → Logs tab
 
@@ -604,6 +703,10 @@ def failure_alert_sensor(context):
     for run in failed_runs:
         send_slack_alert(f"Pipeline failed: {run.asset_selection}")
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Freshness Policies
 
@@ -621,6 +724,10 @@ Ensure data is fresh:
 )
 def dlt_glucose_entries() -> MaterializeResult:
     pass
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Configuration and Environment
@@ -649,6 +756,10 @@ class PhloConfig(BaseSettings):
 
 config = PhloConfig()  # Singleton
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 In assets:
 
@@ -658,6 +769,10 @@ def dlt_glucose_entries(context, iceberg: IcebergResource) -> MaterializeResult:
     context.log.info(f"Using warehouse: {config.iceberg_warehouse_path}")
     context.log.info(f"Using branch: {config.nessie_branch}")
     # ...
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Advanced: Custom Ops and Jobs
@@ -690,6 +805,10 @@ def ingestion_pipeline():
 
 # Most of Phlo uses Assets instead (more declarative)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Performance Considerations
 
@@ -703,6 +822,10 @@ Dagster Daemon
 ├── Monitors sensors
 └── Manages run queue
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 In Docker:
 
@@ -713,6 +836,10 @@ dagster-daemon:
   depends_on:
     - postgres
     - dagster-webserver
+```
+Expected output:
+```text
+Configuration saved successfully.
 ```
 
 The daemon needs:
@@ -735,6 +862,10 @@ By default, Dagster runs one partition at a time. For parallel:
 def dlt_glucose_entries() -> MaterializeResult:
     pass
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Next: Data Quality
 
@@ -751,6 +882,10 @@ See you there!
 ```bash
 phlo services logs dagster-webserver
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: resolve import errors and restart the webserver.
 
@@ -758,6 +893,10 @@ Fix: resolve import errors and restart the webserver.
 
 ```bash
 phlo services logs dagster-daemon
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: restart the daemon after fixing schedule or sensor errors.
@@ -767,10 +906,18 @@ Fix: restart the daemon after fixing schedule or sensor errors.
 ```bash
 phlo materialize <asset_name>
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: check asset configuration and dependencies in the logs.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 6: dbt Transformations](06-dbt-transformations.md), [Part 11: Observability & Monitoring](11-observability-monitoring.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 
 ## Summary

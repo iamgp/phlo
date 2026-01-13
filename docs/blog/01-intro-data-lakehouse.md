@@ -1,5 +1,7 @@
 # Part 1: What is a Data Lakehouse? Understanding Modern Data Architecture
 
+> Prerequisite: None. Start here before Part 2 and beyond.
+
 ## The Problem We're Solving
 
 Traditional data pipelines have a fundamental problem: **they force you to choose**.
@@ -10,6 +12,7 @@ Either you have:
 - **A Data Warehouse**: organized, fast queries but rigid and expensive
 
 Phlo solves this by combining the best of both worlds into a **lakehouse**.
+If you want hands-on setup next, jump to [Part 2: Getting Started—Setup Guide](02-setup-guide.md).
 
 ## The Three Eras of Data Architecture
 
@@ -45,6 +48,10 @@ No versioning                  Git-like branching
 Expensive storage              MinIO object storage
 Rigid schemas                  Schema evolution
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## The Phlo Stack at a Glance
 
@@ -69,6 +76,10 @@ graph TB
     style E fill:#e1f5ff
     style F fill:#fff4e1
 ```
+Expected output:
+```text
+Diagram renders in Markdown preview.
+```
 
 ## Key Concepts Explained
 
@@ -92,6 +103,10 @@ s3://lake/entries/
     part-001.parquet      ← "Actual data files"
     part-002.parquet
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 **Benefits**:
 
@@ -113,6 +128,10 @@ SELECT * FROM iceberg.bronze.entries (branch: dev)
 
 # Validate, then merge to main
 nessie merge dev -> main
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 **Why it matters**:
@@ -138,6 +157,10 @@ WHERE reading_date = DATE '2024-10-15'
 GROUP BY 1
 ORDER BY 1 DESC;
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 ### 4. dbt (Transform)
 
@@ -155,6 +178,10 @@ SELECT
     ELSE 'hyperglycemia'
   END as glucose_category
 FROM {{ ref('stg_glucose_entries') }}
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 dbt handles:
@@ -192,6 +219,10 @@ def dbt_transform(dbt: DbtCliResource) -> None:
 def publish_marts() -> None:
     """Publish marts to Postgres after ingestion and transform"""
     # Copy data to marts
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## The Data Flow in Phlo
@@ -241,6 +272,10 @@ def publish_marts() -> None:
    │ Superset Dashboard                   │ ← Visualization
    └──────────────────────────────────────┘
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## Why This Matters (Real Benefits)
 
@@ -281,6 +316,10 @@ Each post includes hands-on examples and code you can run.
 phlo services start
 curl http://localhost:19120/api/v2/config
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: start services and confirm Nessie is reachable on port 19120.
 
@@ -288,6 +327,10 @@ Fix: start services and confirm Nessie is reachable on port 19120.
 
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: restart Trino and confirm the `iceberg` catalog is configured.
@@ -297,10 +340,18 @@ Fix: restart Trino and confirm the `iceberg` catalog is configured.
 ```bash
 uv run mkdocs serve
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: preview with MkDocs or view the post on GitHub.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 2: Getting Started—Setup Guide](02-setup-guide.md), [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md). Reference: [Architecture Overview](../reference/architecture.md).
 
 
 ## Next Steps

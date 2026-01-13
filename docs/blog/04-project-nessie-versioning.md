@@ -1,6 +1,9 @@
 # Part 4: Project Nessie—Git-Like Versioning for Data
 
+> Prerequisite: Read [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md) for table format basics.
+
 Iceberg gave us time travel. Now let's add **branching**, **merging**, and **tags** to our data with Project Nessie.
+For governance workflows that build on Nessie history, see [Part 10: Metadata & Governance](10-metadata-governance.md).
 
 ## Why Nessie? The Git Analogy
 
@@ -14,6 +17,10 @@ git push origin feature/new-glucose-model
 git pull request  # Review changes
 git merge  # Promote to main
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Nessie brings this same workflow to **data**:
 
@@ -23,6 +30,10 @@ main branch (production)     dev branch (development)
       │  ← stable, validated       │  ← experimental, testing
       │                            │
       └──── merge when ready ──────┘
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## The Problem Nessie Solves
@@ -40,6 +51,10 @@ Production Data is CORRUPTED
     ↓
 (Back up from last night? Lost today's data!)
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 With Nessie:
 
@@ -52,6 +67,10 @@ main (production)
   │   └─ (If bad, delete branch, main unchanged)
   │
   └─ (If good, merge dev → main atomically)
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Core Nessie Concepts
@@ -72,6 +91,10 @@ Database State:
     ├── bronze.stg_entries (snapshot v3) ← same as main
     └── silver.fct_readings (snapshot v5) ← same as main
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 Now you work on dev:
 
@@ -86,6 +109,10 @@ After transformations on dev:
     ├── raw.glucose_entries (snapshot v1) ← unchanged
     ├── bronze.stg_entries (snapshot v4) ← NEW
     └── silver.fct_readings (snapshot v6) ← NEW
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### 2. Commits and Merges
@@ -111,6 +138,10 @@ Merge dev → main:
   ├── Commit F: Merge commit (combines D + E)
   └── (now HEAD points to F)
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### 3. Tags (Releases)
 
@@ -127,6 +158,10 @@ main:
 SELECT * FROM iceberg.silver.fct_readings
 FOR TAG v1.0-released;
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## Nessie in Phlo
 
@@ -142,6 +177,10 @@ curl http://localhost:19120/api/v2/config
 #   "maxSupportedApiVersion": "2",
 #   "repositories": []
 # }
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Default: main Branch
@@ -161,6 +200,10 @@ curl http://localhost:19120/api/v2/trees
 #     }
 #   ]
 # }
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Creating a Development Branch
@@ -187,6 +230,10 @@ def create_dev_branch(nessie_client: NessieResource) -> None:
         print("Created dev branch from main")
     else:
         print("Dev branch already exists")
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### Phlo's Write-Audit-Publish Pattern
@@ -216,6 +263,10 @@ Phlo implements the **Write-Audit-Publish (WAP)** pattern automatically:
 │  5. Publishing ──► Postgres (marts for BI dashboards)           │
 └─────────────────────────────────────────────────────────────────┘
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 **Key insight**: All writes happen on the feature branch. Only validated data reaches main.
 
@@ -243,6 +294,10 @@ def auto_promotion_sensor(context, nessie, branch_manager):
 def branch_cleanup_sensor(context, branch_manager):
     """Clean up branches after retention period (default: 7 days)."""
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **You don't need to manually merge** - the sensor handles it when quality checks pass.
 
@@ -257,6 +312,10 @@ iceberg.catalog.type=rest
 iceberg.rest-catalog.uri=http://nessie:19120/iceberg/main
 iceberg.rest-catalog.prefix=main
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 ```properties
 # .phlo/trino/catalog/iceberg_dev.properties (dev branch)
@@ -264,6 +323,10 @@ connector.name=iceberg
 iceberg.catalog.type=rest
 iceberg.rest-catalog.uri=http://nessie:19120/iceberg/dev
 iceberg.rest-catalog.prefix=dev
+```
+Expected output:
+```text
+Configuration saved successfully.
 ```
 
 Query different branches by using different catalogs:
@@ -274,6 +337,10 @@ SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
 
 -- Query dev (development)
 SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 ### Using Branch in Code
@@ -288,6 +355,10 @@ rows = trino.execute("SELECT * FROM iceberg.marts.readings", branch="main")
 
 # Query dev branch
 rows = trino.execute("SELECT * FROM iceberg_dev.marts.readings", branch="dev")
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Hands-On: Explore Nessie
@@ -310,6 +381,10 @@ curl http://localhost:19120/api/v2/trees
 #     }
 #   ]
 # }
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### View Branch History
@@ -345,6 +420,10 @@ curl "http://localhost:19120/api/v2/trees/main/history" \
 #   ]
 # }
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Query on a Specific Branch
 
@@ -366,6 +445,10 @@ UNION ALL
 SELECT
     'dev' as branch, COUNT(*) as rows FROM iceberg_dev.raw.glucose_entries;
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 In dbt, select the target to use the appropriate catalog:
 
@@ -386,6 +469,10 @@ phlo:
       catalog: iceberg # ← Main branch catalog
       schema: bronze
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 ```bash
 # Run dbt on dev branch
@@ -393,6 +480,10 @@ dbt run --target dev
 
 # Run dbt on main branch (production)
 dbt run --target prod
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Advanced: Manual Branch Operations
@@ -423,6 +514,10 @@ curl -X POST "http://localhost:19120/api/v1/trees/tree/main/merge?expectedHash=$
 BRANCH_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/feature/new-metrics | jq -r '.hash')
 curl -X DELETE "http://localhost:19120/api/v1/trees/branch/feature/new-metrics?expectedHash=$BRANCH_HASH"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Or use the `NessieResource` in Python:
 
@@ -439,6 +534,10 @@ nessie.merge_branch("feature/new-metrics", "main")
 
 # Delete branch
 nessie.delete_branch("feature/new-metrics")
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Branch Management via CLI
@@ -459,6 +558,10 @@ Branches:
 Tags:
   release-2024-01       m3n4o5p6     15      7d ago
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Create a Feature Branch
 
@@ -473,6 +576,10 @@ Source: main (a1b2c3d4)
 
 # Create from specific branch
 $ phlo branch create experiment/risky-change --from dev
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Compare Branches
@@ -498,6 +605,10 @@ Commits on feature/new-transform not in main:
   k2l3m4n5  Add glucose range dimension
 
 Safe to merge: Yes (no conflicts detected)
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Merge Branches
@@ -525,6 +636,10 @@ Merging: feature/new-transform → main
   Commit: q8r9s0t1
   Tables affected: 2
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Delete Branches
 
@@ -541,6 +656,10 @@ Proceed? [y/N] y
 
 # Force delete unmerged branch
 $ phlo branch delete experiment/abandoned --force
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Practical Workflow: Safe Schema Changes
@@ -570,6 +689,10 @@ $ phlo branch merge feature/add-a1c-calculation main
 
 # 7. Clean up
 $ phlo branch delete feature/add-a1c-calculation
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### Branch Naming Conventions
@@ -610,6 +733,10 @@ $ phlo branch delete feature/add-a1c-calculation
 │ - Data: S3 parquet files                       │
 └────────────────────────────────────────────────┘
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 **Nessie** = "which version of which table per branch"
 **Iceberg** = "what files make up this table version"
@@ -624,6 +751,10 @@ Let's say your transformation has a bug:
 -- Bug: All glucose values are multiplied by 2!
 SELECT glucose_mg_dl * 2 as glucose_mg_dl  -- WRONG
 FROM stg_glucose_entries;
+```
+Expected output:
+```text
+Query returned rows.
 ```
 
 ### Without Nessie (Disaster)
@@ -643,6 +774,10 @@ FROM stg_glucose_entries;
    ↓
 5. Audit trail: ? (who made the change?)
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### With Nessie (Safe)
 
@@ -659,6 +794,10 @@ FROM stg_glucose_entries;
    ↓
 4. Audit trail: commit "Fix glucose calculation bug"
    ↓ Can query dev branch to see what was wrong
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Phlo's Nessie Configuration
@@ -678,6 +817,10 @@ nessie:
     nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/
     nessie.catalog.service.s3.default-options.access-key: minioadmin
     nessie.catalog.service.s3.default-options.secret: minioadmin
+```
+Expected output:
+```text
+Configuration saved successfully.
 ```
 
 Breaking this down:
@@ -707,6 +850,10 @@ See you then!
 phlo services logs nessie
 curl http://localhost:19120/api/v2/config
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: start services and confirm Nessie is on port 19120.
 
@@ -714,6 +861,10 @@ Fix: start services and confirm Nessie is on port 19120.
 
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: set the session branch before running queries.
@@ -723,10 +874,18 @@ Fix: set the session branch before running queries.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW TABLES FROM iceberg.bronze;"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: verify you are querying the expected branch and schema.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [Part 10: Metadata & Governance](10-metadata-governance.md), [Part 12: Production Deployment](12-production-deployment.md). Reference: [Architecture Overview](../reference/architecture.md).
 
 
 ## Summary

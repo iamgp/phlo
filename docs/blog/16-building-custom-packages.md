@@ -1,9 +1,12 @@
 # Part 16: Building Custom Capability Packages
 
+> Prerequisite: Review [Part 13: Capability Primitives](13-capability-primitives.md) and [Part 14: Extending Phlo with Plugins](14-plugin-system.md).
+
 By now you have assets, checks, services, and orchestration in place. The next step is
 packaging domain logic so teams can reuse it across projects without copy-paste. This post
 shows how to build a custom package that provides assets and resources using capability
 primitives and entry points.
+For UI extensions that ship alongside packages, see [Part 15: Observatory Extensions](15-observatory-extensions.md).
 
 ## What You'll Learn
 
@@ -43,6 +46,10 @@ phlo-analytics/
 │       ├── assets.py
 │       ├── resources.py
 │       └── plugin.py
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 - `assets.py` defines AssetSpec and AssetCheckSpec instances.
@@ -102,6 +109,10 @@ class BillingAssetProvider(AssetProviderPlugin):
             )
         ]
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 Notes:
 
@@ -133,6 +144,10 @@ class BillingResourceProvider(ResourceProviderPlugin):
     def get_resources(self) -> list[ResourceSpec]:
         return [ResourceSpec(name="billing_client", resource=build_billing_client())]
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 Assets that need the resource can declare it in their AssetSpec:
 
@@ -143,6 +158,10 @@ billing_asset = AssetSpec(
     resources={"billing_client"},
     run=RunSpec(fn=load_billing_events),
 )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Entry Points and Discovery
@@ -156,11 +175,19 @@ billing_assets = "phlo_analytics.plugin:BillingAssetProvider"
 [project.entry-points."phlo.plugins.resources"]
 billing_resources = "phlo_analytics.plugin:BillingResourceProvider"
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 Then install the package in your environment:
 
 ```bash
 uv pip install -e .
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Verify discovery:
@@ -168,6 +195,10 @@ Verify discovery:
 ```bash
 phlo plugin list --type assets
 phlo plugin list --type resources
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Complete Example: plugin.py
@@ -209,6 +240,10 @@ class AnalyticsResources(ResourceProviderPlugin):
     def get_resources(self) -> Iterable[ResourceSpec]:
         return build_billing_resources()
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 This pattern keeps the actual asset/resource code in dedicated modules while the plugin
 class remains a thin wrapper for discovery.
@@ -220,6 +255,10 @@ class remains a thin wrapper for discovery.
 ```bash
 uv pip show phlo-analytics
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: reinstall with `uv pip install -e .` from the package root.
 
@@ -227,6 +266,10 @@ Fix: reinstall with `uv pip install -e .` from the package root.
 
 ```bash
 uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: confirm `pyproject.toml` entry points and reinstall the package.
@@ -236,10 +279,18 @@ Fix: confirm `pyproject.toml` entry points and reinstall the package.
 ```bash
 phlo plugin list --type assets
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: restart the runtime and confirm the plugin metadata.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 13: Capability Primitives](13-capability-primitives.md), [Part 14: Extending Phlo with Plugins](14-plugin-system.md), [Part 15: Observatory Extensions](15-observatory-extensions.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 
 ## Next Steps

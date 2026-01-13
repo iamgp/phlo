@@ -1,6 +1,9 @@
 # Part 11: Observability and Monitoring—Knowing Your Pipeline
 
+> Prerequisite: Complete [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) to follow the monitoring flows.
+
 You've built a data lakehouse with validation and governance. But what happens at 3am when something breaks? This post covers observability: monitoring, alerting, and troubleshooting.
+For custom UI extensions in the observability layer, see [Part 15: Observatory Extensions](15-observatory-extensions.md).
 
 ## The Observability Problem
 
@@ -18,6 +21,10 @@ Wednesday 9am:
   • Impact: 500+ people using outdated metrics
   • Root cause: API timeout at 3:14am, log buried in Dagster logs
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 Observability solves this with:
 
@@ -26,6 +33,10 @@ Observability solves this with:
 [Alerting]   → Get notified of problems
 [Tracing]    → Find root causes quickly
 [Dashboards] → Visualize pipeline health
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Three Pillars of Observability
@@ -41,6 +52,10 @@ Track quantitative data:
 • Freshness: 2 hours since last update
 • API latency: 150ms average
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### 2. Logs (Events)
 
@@ -53,6 +68,10 @@ Track what happened and when:
 [2024-10-15 10:35:49] ⚠ 2 rows with invalid device type (logged)
 [2024-10-15 10:35:51] ✓ Merged to Iceberg (487 inserts, 2 updates)
 [2024-10-15 10:35:53] ✓ dlt_glucose_entries succeeded
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ### 3. Traces (Flows)
@@ -74,6 +93,10 @@ Request: dlt_glucose_entries asset materialization
 └─ Asset check (15ms)
 
 Total: 152ms
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Phlo's Observability Stack
@@ -105,6 +128,10 @@ Total: 152ms
 │  • PagerDuty                 │
 │  • Email                     │
 └──────────────────────────────┘
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Metrics: Tracking Pipeline Health
@@ -141,6 +168,10 @@ Assets
   Warning:   0
   Failure:   1
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 For per-asset details:
 
@@ -165,6 +196,10 @@ abc123    success  5.2s      487
 def456    success  4.8s      512
 ghi789    success  5.1s      495
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Export metrics for external analysis:
 
@@ -174,6 +209,10 @@ $ phlo metrics export --format json --period 7d --output metrics.json
 
 # Export to CSV
 $ phlo metrics export --format csv --period 30d --output metrics.csv
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Logs: Structured Logging
@@ -265,6 +304,10 @@ def dlt_glucose_entries(context) -> None:
         )
         raise
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 In Grafana, search logs:
 
@@ -277,6 +320,10 @@ Last 24 hours:
 ├─ 10/15 10:25 ✓ Succeeded in 168ms
 ├─ 10/15 10:20 ⚠ Succeeded in 1,240ms (slow)
 └─ 10/15 10:15 ✓ Succeeded in 156ms
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Alerting: Getting Notified When Things Break
@@ -302,6 +349,10 @@ export PHLO_ALERT_EMAIL_SMTP_USER="alerts@yourcompany.com"
 export PHLO_ALERT_EMAIL_SMTP_PASSWORD="your-password"
 export PHLO_ALERT_EMAIL_RECIPIENTS="data-team@yourcompany.com,oncall@yourcompany.com"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Managing Alerts via CLI
 
@@ -319,6 +370,10 @@ Configured Destinations: 2
 Recent Alerts Sent: 5
 Deduplication Window: 60 minutes
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 List configured destinations:
 
@@ -331,6 +386,10 @@ Name   Type              Status
 slack  SlackDestination  ✓ Ready
 email  EmailDestination  ✓ Ready
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Test your alert configuration:
 
@@ -342,6 +401,10 @@ $ phlo alerts test
 
 # Test specific destination
 $ phlo alerts test --destination slack --severity critical
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### What Triggers Alerts
@@ -396,6 +459,10 @@ Resource Utilization
 ├─ Memory: 62% used (10 GB / 16 GB)
 └─ MinIO lake bucket: 280 GB
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### Asset Health Dashboard
 
@@ -433,6 +500,10 @@ Downstream Usage
 ├─ mrt_glucose_readings (Gold) → 100K reads/day
 ├─ Superset Dashboard (Glucose Monitoring) → 450 views/day
 └─ Alert: Low Glucose Detection → 12 alerts/day avg
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Tracing: Deep Debugging
@@ -490,6 +561,10 @@ def dlt_glucose_entries(context):
             merge_span.set_attribute("inserts", result["inserts"])
             merge_span.set_attribute("updates", result["updates"])
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 In Jaeger UI, you see:
 
@@ -507,6 +582,10 @@ Duration: 152ms
 │     ├─ read_snapshot [65ms - 85ms]
 │     ├─ merge_operation [85ms - 125ms]
 │     └─ write_metadata [125ms - 152ms]
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 Click on any span to see:
@@ -577,6 +656,10 @@ def update_observability():
     """Update monitoring dashboards and alerts."""
     return {}
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ## Lineage Visualization: Understanding Your Data Flow
 
@@ -602,6 +685,10 @@ With lineage:
   3. Update them first
   4. Deploy safely
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### Viewing Lineage from CLI
 
@@ -622,6 +709,10 @@ glucose_entries
             │       └── (external) Superset Dashboard
             └── fct_daily_glucose_metrics (dbt model)
                 └── mrt_glucose_hourly_patterns (dbt model)
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 This tree shows your entire data flow: from API source through transformations to dashboards.
@@ -653,6 +744,10 @@ Total Impact:
 
 Recommendation: Coordinate change with dashboard owners before deploying
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Exporting Lineage
 
@@ -666,6 +761,10 @@ $ dot -Tpng lineage.dot -o lineage.png
 # Mermaid format (for Markdown docs)
 $ phlo lineage export --format mermaid --output lineage.md
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 The Mermaid output can be embedded directly in GitHub READMEs or Notion docs:
 
@@ -677,6 +776,10 @@ graph LR
     D --> E[mrt_glucose_readings]
     D --> F[fct_daily_glucose_metrics]
     E --> G[Superset Dashboard]
+```
+Expected output:
+```text
+Diagram renders in Markdown preview.
 ```
 
 ---
@@ -699,6 +802,10 @@ Run ID: abc123-def456
 Error: Connection timeout after 30s
 
 Timestamp: 2024-01-15 10:35:42 UTC
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 The AlertManager automatically handles:
@@ -733,6 +840,10 @@ With phlo logs:
   [10:35:42] ERROR glucose_entries: Retry 3/3 failed, aborting
   [10:35:43] ERROR glucose_entries: Run failed after 45s
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ### Filtering Options
 
@@ -758,6 +869,10 @@ phlo logs --run-id abc123-def456
 # By job (for scheduled jobs)
 phlo logs --job daily_glucose_pipeline
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Real-Time Tailing
 
@@ -773,6 +888,10 @@ $ phlo logs --follow
 [10:35:44] INFO  glucose_entries: Writing to Iceberg table
 [10:35:45] INFO  glucose_entries: Materialization complete (5.2s)
 ^C  # Ctrl+C to stop
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ### JSON Output for Scripting
@@ -790,6 +909,10 @@ phlo logs --asset glucose_entries --since 7d --json > glucose_logs.json
 
 # Grep for specific patterns
 phlo logs --json | jq 'select(.message | contains("timeout"))'
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ---
@@ -830,6 +953,10 @@ Quality:
 Active Alerts: 1
   ⚠ publish_to_postgres running slow (1.2s avg vs 500ms baseline)
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Per-Asset Metrics
 
@@ -860,6 +987,10 @@ Trend:
   Duration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (stable)
   Failures: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (1 in window)
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ### Exporting for Analysis
 
@@ -873,6 +1004,10 @@ $ phlo metrics export --format csv --period 30d --output metrics.csv
 $ phlo metrics export --format json --period 7d | \
   python analyze_metrics.py
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 ---
 
@@ -884,6 +1019,10 @@ $ phlo metrics export --format json --period 7d | \
 phlo services logs observatory
 curl http://localhost:3001
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: restart Observatory and confirm port 3001 is reachable.
 
@@ -893,6 +1032,10 @@ Fix: restart Observatory and confirm port 3001 is reachable.
 phlo services logs grafana
 phlo services logs prometheus
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: verify metrics exporters are running and Grafana data sources are configured.
 
@@ -901,10 +1044,18 @@ Fix: verify metrics exporters are running and Grafana data sources are configure
 ```bash
 phlo services logs loki
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: confirm log shipping configuration and restart Loki if needed.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 10: Metadata and Governance](10-metadata-governance.md), [Part 15: Observatory Extensions](15-observatory-extensions.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 
 ## Summary

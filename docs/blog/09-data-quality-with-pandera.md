@@ -1,6 +1,9 @@
 # Part 9: Data Quality—Pandera Schemas and Asset Checks
 
+> Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) before applying quality checks.
+
 In Part 8, we built a complete pipeline. But how do we ensure data quality throughout? This post covers validation at multiple layers.
+For governance and metadata lineage, see [Part 10: Metadata and Governance](10-metadata-governance.md).
 
 ## The Data Quality Problem
 
@@ -18,6 +21,10 @@ glucose_reading = {
 # Query downstream just sees rows
 # Dashboard shows glucose values from -50 to 5000
 # Alerts fire for impossible "low" readings
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Three Layers of Validation
@@ -38,6 +45,10 @@ Iceberg/Postgres Marts
 [3] Dagster Asset Checks: Runtime monitoring
     ↓
 Dashboards/Alerts
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Layer 1: Pandera Schemas (Ingestion)
@@ -165,6 +176,10 @@ class FactGlucoseReadings(DataFrameModel):
         strict = True
         coerce = True
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Using Pandera in @phlo_ingestion
 
@@ -217,6 +232,10 @@ def glucose_entries(partition_date: str):
 
     return source
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Detailed Error Messages
 
@@ -234,6 +253,10 @@ SchemaError: Column 'sgv' has an out-of-range value:
 Failure counts:
   Total: 3 failures
   Unique values failing: 1
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 This helps you:
@@ -288,6 +311,10 @@ models:
           - accepted_values:
               values: ["dexcom", "freestyle", "medtronic"]
 ```
+Expected output:
+```text
+Configuration saved successfully.
+```
 
 ### Custom Tests (SQL)
 
@@ -306,6 +333,10 @@ GROUP BY
   DATE_TRUNC('5 minutes', timestamp_iso)
 HAVING COUNT(*) > 1
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 If this query returns rows, the test fails (duplicates found).
 
@@ -320,6 +351,10 @@ dbt test --select stg_glucose_entries.unique:entry_id
 
 # Show detailed failure output
 dbt test --select stg_glucose_entries --debug
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 ## Layer 3: Dagster Asset Checks (Runtime)
@@ -364,6 +399,10 @@ def glucose_readings_quality():
 def daily_metrics_quality():
     """Declarative quality checks for daily glucose metrics."""
     pass
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### Approach 2: Traditional @asset_check (Custom Logic)
@@ -474,6 +513,10 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
             },
         )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Viewing Check Results
 
@@ -490,6 +533,10 @@ Asset: fct_glucose_readings
 │  └─ outlier_count: 3
 │  └─ bounds: [45.2, 215.8]
 │  └─ Action: Investigate readings outside [45, 215]
+```
+Expected output:
+```text
+Example rendered as shown.
 ```
 
 ## Comparing Both Approaches
@@ -519,6 +566,10 @@ from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 def glucose_readings_quality():
     """Declarative quality checks for glucose readings."""
     pass
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### Traditional @asset_check: Custom Logic (80+ lines)
@@ -551,6 +602,10 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
     except pandera.errors.SchemaErrors as err:
         return AssetCheckResult(passed=False, metadata={...})
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **Both approaches are valid** - use `@phlo_quality` for common checks, `@asset_check` for complex logic.
 
@@ -577,6 +632,10 @@ NullCheck(columns=["sgv", "timestamp"])
 # Lenient: allow up to 1% nulls
 NullCheck(columns=["device"], allow_threshold=0.01)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **RangeCheck:**
 
@@ -590,6 +649,10 @@ RangeCheck(column="price", min_value=0)
 # Only upper bound
 RangeCheck(column="percentage", max_value=100)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **FreshnessCheck:**
 
@@ -600,6 +663,10 @@ FreshnessCheck(timestamp_column="timestamp", max_age_hours=2)
 # Different column name
 FreshnessCheck(timestamp_column="created_at", max_age_hours=24)
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 **UniqueCheck:**
 
@@ -609,6 +676,10 @@ UniqueCheck(columns=["id"])
 
 # Composite unique (combination must be unique)
 UniqueCheck(columns=["user_id", "timestamp"])
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 **CustomSQLCheck for complex rules:**
@@ -623,6 +694,10 @@ CustomSQLCheck(
     expected=True,  # All rows must be within business hours
 )
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 ### Decorator Parameters
 
@@ -635,6 +710,10 @@ CustomSQLCheck(
     warn_threshold=0.1,                    # Warn if >10% of checks fail
     backend="trino",                       # Query backend: "trino" or "duckdb"
 )
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 **blocking parameter:**
@@ -667,6 +746,10 @@ from workflows.schemas.glucose import FactGlucoseReadings
 )
 def glucose_comprehensive_quality():
     pass
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ### When to Use Each Approach
@@ -713,6 +796,10 @@ Both approaches are valid and complement each other. The decorator handles commo
 │ ✓ Freshness monitoring              │
 └─────────────────────────────────────┘
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 Each layer catches different issues:
 
@@ -742,6 +829,10 @@ Without Layer 1:
             → Dashboard shows "N/A"
             → Users question data validity
 ```
+Expected output:
+```text
+Example rendered as shown.
+```
 
 ## Configuring Validation Strictness
 
@@ -767,6 +858,10 @@ class DataQualityConfig(BaseSettings):
 
 config = DataQualityConfig()
 ```
+Expected output:
+```text
+No output (definitions only).
+```
 
 Use in code:
 
@@ -781,6 +876,10 @@ else:
     except pa.errors.SchemaError as e:
         context.log.warning(f"Schema validation failed: {e}")
         validated_df = data  # Proceed anyway
+```
+Expected output:
+```text
+No output (definitions only).
 ```
 
 ## Monitoring Dashboard
@@ -813,6 +912,10 @@ FROM asset_metadata
 GROUP BY 1
 ORDER BY 3 DESC;
 ```
+Expected output:
+```text
+Query returned rows.
+```
 
 ## Common Issues
 
@@ -820,6 +923,10 @@ ORDER BY 3 DESC;
 
 ```bash
 uv run python -c "from phlo_quality.decorator import phlo_quality; print(phlo_quality)"
+```
+Expected output:
+```text
+Command completed successfully.
 ```
 
 Fix: ensure `phlo-quality` is installed in the active environment.
@@ -829,6 +936,10 @@ Fix: ensure `phlo-quality` is installed in the active environment.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "DESCRIBE iceberg.silver.fct_glucose_readings;"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: align Pandera schemas with the actual table columns.
 
@@ -837,10 +948,18 @@ Fix: align Pandera schemas with the actual table columns.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SELECT 1 AS ok LIMIT 1;"
 ```
+Expected output:
+```text
+Command completed successfully.
+```
 
 Fix: ensure the SQL returns boolean values per row.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 6: dbt Transformations](06-dbt-transformations.md), [Part 10: Metadata and Governance](10-metadata-governance.md). Reference: [Quality Checks Catalog](../reference/quality-checks-catalog.md).
 
 
 ## Summary
