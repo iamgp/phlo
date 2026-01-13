@@ -120,6 +120,7 @@ docker exec dagster-webserver dbt compile
 - Service port defaults in docs should match `packages/*/src/*/service.yaml` (and generated `.phlo/.env`).
 - Ingestion docs should import `phlo_ingestion` from `phlo_dlt.decorator`.
 - dbt profiles live at `workflows/transforms/dbt/profiles/profiles.yml` (profiles dir, not root).
+- `phlo_quality` docs: use `allow_threshold`, `timestamp_column`, and `CustomSQLCheck(name_, expected, sql FROM data)`.
 
 ## Gotchas
 - `phlo services` has no `open` command; use direct service URLs.

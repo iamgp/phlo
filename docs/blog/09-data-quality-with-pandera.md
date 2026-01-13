@@ -333,8 +333,7 @@ For common checks (null, range, freshness), use the `@phlo_quality` decorator to
 ```python
 # File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
-import phlo
-from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 
 @phlo_quality(
     table="silver.fct_glucose_readings",
@@ -342,7 +341,7 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
         RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
         RangeCheck(column="hour_of_day", min_value=0, max_value=23),
-        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+        FreshnessCheck(timestamp_column="reading_timestamp", max_age_hours=24),
     ],
     group="nightscout",
     blocking=True,
@@ -504,8 +503,7 @@ Best for standard checks - reduces boilerplate by 70-80%:
 ```python
 # File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
-import phlo
-from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 
 @phlo_quality(
     table="silver.fct_glucose_readings",
@@ -513,7 +511,7 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
         RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
         RangeCheck(column="hour_of_day", min_value=0, max_value=23),
-        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+        FreshnessCheck(timestamp_column="reading_timestamp", max_age_hours=24),
     ],
     group="nightscout",
     blocking=True,
@@ -560,24 +558,24 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
 
 | Check Type       | Purpose                  | Parameters                         |
 | ---------------- | ------------------------ | ---------------------------------- |
-| `NullCheck`      | Verify no nulls          | `columns`, `tolerance` (% allowed) |
-| `RangeCheck`     | Verify numeric bounds    | `column`, `min_value`, `max_value` |
-| `FreshnessCheck` | Verify data recency      | `column`, `max_age_hours`          |
-| `UniqueCheck`    | Verify uniqueness        | `columns` (can be composite)       |
-| `CountCheck`     | Verify row count         | `min_count`, `max_count`           |
+| `NullCheck`      | Verify no nulls          | `columns`, `allow_threshold`       |
+| `RangeCheck`     | Verify numeric bounds    | `column`, `min_value`, `max_value`, `allow_threshold` |
+| `FreshnessCheck` | Verify data recency      | `timestamp_column`, `max_age_hours` |
+| `UniqueCheck`    | Verify uniqueness        | `columns`, `allow_threshold`       |
+| `CountCheck`     | Verify row count         | `min_rows`, `max_rows`             |
 | `SchemaCheck`    | Validate against Pandera | `schema` (DataFrameModel class)    |
-| `CustomSQLCheck` | Run arbitrary SQL        | `sql`, `expected_result`           |
+| `CustomSQLCheck` | Run arbitrary SQL        | `name_`, `sql`, `expected`, `allow_threshold` |
 
 ### Check Parameters in Detail
 
-**NullCheck with tolerance:**
+**NullCheck with allow_threshold:**
 
 ```python
 # Strict: no nulls allowed
 NullCheck(columns=["sgv", "timestamp"])
 
 # Lenient: allow up to 1% nulls
-NullCheck(columns=["device"], tolerance=0.01)
+NullCheck(columns=["device"], allow_threshold=0.01)
 ```
 
 **RangeCheck:**
@@ -597,10 +595,10 @@ RangeCheck(column="percentage", max_value=100)
 
 ```python
 # Data must be less than 2 hours old
-FreshnessCheck(column="timestamp", max_age_hours=2)
+FreshnessCheck(timestamp_column="timestamp", max_age_hours=2)
 
 # Different column name
-FreshnessCheck(column="created_at", max_age_hours=24)
+FreshnessCheck(timestamp_column="created_at", max_age_hours=24)
 ```
 
 **UniqueCheck:**
@@ -617,13 +615,12 @@ UniqueCheck(columns=["user_id", "timestamp"])
 
 ```python
 CustomSQLCheck(
-    name="business_hours_only",
+    name_="business_hours_only",
     sql="""
-        SELECT COUNT(*) as violations
-        FROM {table}
-        WHERE HOUR(timestamp) < 6 OR HOUR(timestamp) > 22
+        SELECT (HOUR(timestamp) >= 6 AND HOUR(timestamp) <= 22) AS is_valid
+        FROM data
     """,
-    expected_result=0,  # Zero violations expected
+    expected=True,  # All rows must be within business hours
 )
 ```
 
@@ -665,7 +662,7 @@ from workflows.schemas.glucose import FactGlucoseReadings
         SchemaCheck(schema=FactGlucoseReadings),
 
         # Plus additional runtime checks
-        FreshnessCheck(column="timestamp", max_age_hours=2),
+        FreshnessCheck(timestamp_column="timestamp", max_age_hours=2),
     ],
 )
 def glucose_comprehensive_quality():
