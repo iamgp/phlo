@@ -36,6 +36,27 @@ Expected output:
 Example rendered as shown.
 ```
 
+### Nessie Branching Flow (Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Nessie
+    participant Iceberg
+
+    User->>Nessie: Create branch dev
+    Nessie-->>User: Branch hash
+    User->>Iceberg: Write data on dev
+    Iceberg->>Nessie: Commit metadata
+    Nessie-->>User: Commit hash
+    User->>Nessie: Merge dev -> main
+    Nessie-->>User: Merge commit
+```
+Expected output:
+```text
+Diagram renders in Markdown preview.
+```
+
 ## The Problem Nessie Solves
 
 Without versioning, data work looks like:

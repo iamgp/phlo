@@ -95,6 +95,20 @@ Expected output:
 Example rendered as shown.
 ```
 
+### Plugin Discovery Flow (Diagram)
+
+```mermaid
+flowchart TB
+    Environment[Python environment] --> EntryPoints[Entry point scan]
+    EntryPoints --> Registry[Plugin registry]
+    Registry --> Plugins[Plugin instances]
+    Plugins --> Specs[Capability specs]
+```
+Expected output:
+```text
+Diagram renders in Markdown preview.
+```
+
 This means:
 
 - No manual registration required

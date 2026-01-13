@@ -45,6 +45,20 @@ Expected output:
 Example rendered as shown.
 ```
 
+### Asset Dependency Graph (Diagram)
+
+```mermaid
+flowchart LR
+    Scheduler[Dagster scheduler] --> Ingest[dlt_glucose_entries]
+    Ingest --> Bronze[dbt_bronze]
+    Bronze --> Silver[dbt_silver]
+    Silver --> Publish[publish_postgres]
+```
+Expected output:
+```text
+Diagram renders in Markdown preview.
+```
+
 ## Dagster's Core Concepts
 
 ### 1. Assets (Declarative Data Dependencies)

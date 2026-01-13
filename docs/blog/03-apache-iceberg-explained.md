@@ -63,6 +63,22 @@ The metadata files answer:
 - "What schema is this data?" → snap-5678.avro
 - "Are these writes in conflict?" → atomic metadata updates
 
+### Iceberg Metadata Flow (Diagram)
+
+```mermaid
+flowchart TB
+    Writer[Write operation] --> Metadata["v*.metadata.json"]
+    Metadata --> Snapshots["Snapshot metadata"]
+    Snapshots --> Manifests["Manifest lists"]
+    Manifests --> DataFiles["Parquet data files"]
+    Reader[Query engine] --> Metadata
+    Reader --> DataFiles
+```
+Expected output:
+```text
+Diagram renders in Markdown preview.
+```
+
 ## Core Iceberg Concepts
 
 ### 1. Snapshots (Immutable Versions)

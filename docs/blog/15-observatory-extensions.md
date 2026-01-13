@@ -37,6 +37,29 @@ Key ideas:
 - Assets are served from the package via `asset_root`.
 - Settings are stored server-side via the API, not local storage.
 
+### Extension Load Sequence (Diagram)
+
+```mermaid
+sequenceDiagram
+    participant UI as Observatory UI
+    participant API as Phlo API
+    participant Plugin as Extension Plugin
+    participant Assets as Extension Assets
+
+    UI->>API: GET /api/extensions
+    API->>Plugin: load manifest
+    Plugin-->>API: manifest + asset_root
+    API-->>UI: manifest list
+    UI->>API: GET /extensions/assets/example.js
+    API->>Assets: read asset from package
+    Assets-->>API: js bundle
+    API-->>UI: js bundle
+```
+Expected output:
+```text
+Diagram renders in Markdown preview.
+```
+
 ## Extension Manifest Model
 
 Manifest models live in `src/phlo/plugins/observatory.py`.

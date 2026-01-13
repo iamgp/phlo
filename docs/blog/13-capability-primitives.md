@@ -30,6 +30,21 @@ they cannot be reused in other orchestrators. The new model is:
 - Core discovers and composes those specs
 - Adapters translate specs to a specific orchestrator at runtime
 
+### Capability Spec Flow (Diagram)
+
+```mermaid
+flowchart LR
+    Package[Capability package] --> Specs[AssetSpec + ResourceSpec + AssetCheckSpec]
+    Specs --> Core[Phlo capability registry]
+    Core --> Adapter[Orchestrator adapter]
+    Adapter --> Orchestrator[Dagster / Airflow / Prefect]
+    Orchestrator --> Runtime[RuntimeContext]
+```
+Expected output:
+```text
+Diagram renders in Markdown preview.
+```
+
 ## The Core Spec Types
 
 Capability specs live in `src/phlo/capabilities/specs.py`. Each spec captures a small, explicit
