@@ -114,6 +114,15 @@ docker exec dagster-webserver dbt compile
 - GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.
 - Examples: `gh issue view <url> --comments -R owner/repo`, `gh pr view <url> --comments --files -R owner/repo`.
 
+# Docs Blog
+
+## Patterns
+- Service port defaults in docs should match `packages/*/src/*/service.yaml` (and generated `.phlo/.env`).
+
+## Gotchas
+- `phlo services` has no `open` command; use direct service URLs.
+- `phlo services status` has no `--json`; use `phlo services list --json`.
+
 ## Flow & Runtime
 
 - Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).
