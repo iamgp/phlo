@@ -264,6 +264,9 @@ dbt docs serve  # Opens http://localhost:8000
 
 ```
 workflows/transforms/dbt/
+├── dbt_project.yml                   # Project config
+├── profiles/
+│   └── profiles.yml                  # Connection config
 ├── models/
 │   ├── sources.yml         # External data sources (raw Iceberg tables)
 │   ├── bronze/
@@ -283,8 +286,7 @@ workflows/transforms/dbt/
 │       └── *.sql
 ├── tests/
 │   └── custom_tests.sql               # Custom SQL tests
-├── profiles.yml                       # Connection config
-└── dbt_project.yml                   # Project config
+└── target/                            # Generated (gitignored)
 ```
 
 ### 4-Layer Architecture
@@ -377,7 +379,7 @@ workflows/transforms/dbt/
 Nessie branching is configured via different Trino catalogs:
 
 ```yaml
-# profiles.yml
+# workflows/transforms/dbt/profiles/profiles.yml
 phlo:
   target: dev # development by default
 
@@ -424,7 +426,7 @@ WHERE DATE(reading_timestamp) = DATE('{{ var("partition_date_str") }}')
 Dagster passes partition date:
 
 ```python
-# From workflows/transform/dbt.py
+# From packages/phlo-dbt/src/phlo_dbt/transformer.py
 
 if context.has_partition_key:
     partition_date = context.partition_key
