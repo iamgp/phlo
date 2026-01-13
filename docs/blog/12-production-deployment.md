@@ -1026,7 +1026,7 @@ docker-compose --profile all up -d
 
 ---
 
-**Next**: [Part 13 - Plugin System](13-plugin-system.md) - Extend Phlo with custom plugins
+**Next**: [Part 14 - Plugin System](14-plugin-system.md) - Extend Phlo with custom plugins
 
 **Series**:
 

@@ -121,6 +121,7 @@ docker exec dagster-webserver dbt compile
 - Ingestion docs should import `phlo_ingestion` from `phlo_dlt.decorator`.
 - dbt profiles live at `workflows/transforms/dbt/profiles/profiles.yml` (profiles dir, not root).
 - `phlo_quality` docs: use `allow_threshold`, `timestamp_column`, and `CustomSQLCheck(name_, expected, sql FROM data)`.
+- Plugin docs: entry point groups live in `src/phlo/discovery/plugins.py` (sources, quality, transforms, services, catalogs, assets, resources, orchestrators, hooks, observatory, cli, dagster).
 
 ## Gotchas
 - `phlo services` has no `open` command; use direct service URLs.

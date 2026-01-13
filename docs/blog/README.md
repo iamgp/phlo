@@ -111,7 +111,7 @@ Don't worry if you're missing some skills - the series is designed to teach you 
 | 10  | [Metadata and Governance](10-metadata-governance.md)           | OpenMetadata, data contracts, schema evolution | 25 min |
 | 11  | [Observability and Monitoring](11-observability-monitoring.md) | Metrics, alerting, lineage, debugging          | 25 min |
 | 12  | [Production Deployment](12-production-deployment.md)           | Infrastructure config, Kubernetes, HA, scaling | 35 min |
-| 13  | [Extending Phlo with Plugins](13-plugin-system.md)             | Custom sources, quality checks, transforms     | 20 min |
+| 14  | [Extending Phlo with Plugins](14-plugin-system.md)             | Custom sources, quality checks, transforms     | 20 min |
 
 **Total content**: ~8,000 lines, 275+ KB of educational material
 **Estimated reading time**: 4.5-6 hours (complete series)
@@ -288,7 +288,7 @@ graph TB
 
 ### Extensibility
 
-- [Part 13](13-plugin-system.md): Building custom sources, quality checks, and transforms
+- [Part 14](14-plugin-system.md): Building custom sources, quality checks, and transforms
 
 ## Tools Reference
 
