@@ -12,6 +12,37 @@ import { authMiddleware } from '@/server/auth.server'
 
 import { analyzeSQLTransformation } from '@/utils/sqlParser'
 
+/** Maps changeType to accumulator key */
+const CHANGE_TYPE_TO_KEY: Record<ColumnChangeType, string> = {
+  added: 'addedCount',
+  removed: 'removedCount',
+  renamed: 'renamedCount',
+  transformed: 'transformedCount',
+  unchanged: 'unchangedCount',
+}
+
+/**
+ * Compute summary counts from column diffs
+ */
+function computeDiffSummary(columnDiffs: Array<ColumnDiff>) {
+  return columnDiffs.reduce(
+    (acc, d) => {
+      const key = CHANGE_TYPE_TO_KEY[d.changeType]
+      if (key && key in acc) {
+        acc[key as keyof typeof acc]++
+      }
+      return acc
+    },
+    {
+      addedCount: 0,
+      removedCount: 0,
+      renamedCount: 0,
+      transformedCount: 0,
+      unchangedCount: 0,
+    },
+  )
+}
+
 /**
  * Column change type for diff display
  */
@@ -264,18 +295,7 @@ export const getStageDiff = createServerFn()
     }
 
     // Compute summary
-    const summary = {
-      addedCount: columnDiffs.filter((d) => d.changeType === 'added').length,
-      removedCount: columnDiffs.filter((d) => d.changeType === 'removed')
-        .length,
-      renamedCount: columnDiffs.filter((d) => d.changeType === 'renamed')
-        .length,
-      transformedCount: columnDiffs.filter(
-        (d) => d.changeType === 'transformed',
-      ).length,
-      unchangedCount: columnDiffs.filter((d) => d.changeType === 'unchanged')
-        .length,
-    }
+    const summary = computeDiffSummary(columnDiffs)
 
     return {
       transformType: analysis.transformType,
@@ -328,15 +348,7 @@ export const getSimpleStageDiff = createServerFn()
       }
     }
 
-    const summary = {
-      addedCount: columnDiffs.filter((d) => d.changeType === 'added').length,
-      removedCount: columnDiffs.filter((d) => d.changeType === 'removed')
-        .length,
-      renamedCount: 0,
-      transformedCount: 0,
-      unchangedCount: columnDiffs.filter((d) => d.changeType === 'unchanged')
-        .length,
-    }
+    const summary = computeDiffSummary(columnDiffs)
 
     return {
       transformType: 'ONE_TO_ONE',

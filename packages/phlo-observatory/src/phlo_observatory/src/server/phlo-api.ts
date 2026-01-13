@@ -7,14 +7,24 @@
 
 const PHLO_API_URL = process.env.PHLO_API_URL || 'http://localhost:4000'
 
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
+
+interface RequestOptions {
+  method?: HttpMethod
+  params?: Record<string, string | number | boolean | undefined>
+  body?: unknown
+  timeoutMs?: number
+}
+
 /**
- * Make a GET request to phlo-api
+ * Internal request handler - all HTTP methods go through here
  */
-export async function apiGet<T>(
+async function request<T>(
   endpoint: string,
-  params?: Record<string, string | number | boolean | undefined>,
-  timeoutMs = 30000,
+  options: RequestOptions = {},
 ): Promise<T> {
+  const { method = 'GET', params, body, timeoutMs = 30000 } = options
+
   const url = new URL(`${PHLO_API_URL}${endpoint}`)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -25,6 +35,10 @@ export async function apiGet<T>(
   }
 
   const response = await fetch(url.toString(), {
+    method,
+    headers:
+      body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(timeoutMs),
   })
 
@@ -34,6 +48,17 @@ export async function apiGet<T>(
   }
 
   return response.json()
+}
+
+/**
+ * Make a GET request to phlo-api
+ */
+export async function apiGet<T>(
+  endpoint: string,
+  params?: Record<string, string | number | boolean | undefined>,
+  timeoutMs = 30000,
+): Promise<T> {
+  return request<T>(endpoint, { params, timeoutMs })
 }
 
 /**
@@ -44,19 +69,7 @@ export async function apiPost<T>(
   body?: unknown,
   timeoutMs = 30000,
 ): Promise<T> {
-  const response = await fetch(`${PHLO_API_URL}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`phlo-api error: ${response.status} ${text}`)
-  }
-
-  return response.json()
+  return request<T>(endpoint, { method: 'POST', body, timeoutMs })
 }
 
 /**
@@ -67,19 +80,7 @@ export async function apiPut<T>(
   body?: unknown,
   timeoutMs = 30000,
 ): Promise<T> {
-  const response = await fetch(`${PHLO_API_URL}${endpoint}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`phlo-api error: ${response.status} ${text}`)
-  }
-
-  return response.json()
+  return request<T>(endpoint, { method: 'PUT', body, timeoutMs })
 }
 
 /**
@@ -90,22 +91,5 @@ export async function apiDelete<T>(
   params?: Record<string, string>,
   timeoutMs = 30000,
 ): Promise<T> {
-  const url = new URL(`${PHLO_API_URL}${endpoint}`)
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      url.searchParams.set(key, value)
-    }
-  }
-
-  const response = await fetch(url.toString(), {
-    method: 'DELETE',
-    signal: AbortSignal.timeout(timeoutMs),
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`phlo-api error: ${response.status} ${text}`)
-  }
-
-  return response.json()
+  return request<T>(endpoint, { method: 'DELETE', params, timeoutMs })
 }

@@ -361,17 +361,15 @@ def _extract_message_and_extra(
 
 
 def _build_metadata(record: logging.LogRecord, extra: dict[str, Any]) -> dict[str, Any]:
-    metadata = dict(extra)
-    metadata.update(
-        {
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-            "pathname": record.pathname,
-            "process": record.process,
-            "thread": record.thread,
-        }
-    )
+    metadata = {
+        **extra,
+        "module": record.module,
+        "function": record.funcName,
+        "line": record.lineno,
+        "pathname": record.pathname,
+        "process": record.process,
+        "thread": record.thread,
+    }
     if record.exc_info:
         metadata["exception"] = "".join(traceback.format_exception(*record.exc_info))
     return metadata

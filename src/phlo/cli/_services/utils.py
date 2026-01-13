@@ -9,6 +9,23 @@ from phlo.cli._services.command import run_command
 from phlo.cli._services.containers import dagster_container_candidates, select_first_existing
 
 
+def parse_env_file(path: Path) -> dict[str, str]:
+    """Parse a .env file into a dict of key=value pairs."""
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    try:
+        for line in path.read_text().splitlines():
+            trimmed = line.strip()
+            if not trimmed or trimmed.startswith("#") or "=" not in trimmed:
+                continue
+            key, value = trimmed.split("=", 1)
+            values[key] = value
+    except OSError:
+        return {}
+    return values
+
+
 def get_project_config() -> dict:
     """Load phlo.yaml configuration."""
     config_path = Path.cwd() / "phlo.yaml"

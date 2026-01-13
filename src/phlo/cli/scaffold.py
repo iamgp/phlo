@@ -50,6 +50,7 @@ def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
         return []
 
     fields: list[FieldSpec] = []
+    seen: set[str] = set()
     for raw in raw_specs:
         raw = raw.strip()
         if not raw:
@@ -62,41 +63,23 @@ def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
         name = _to_snake_case(name)
         type_part = type_part.strip().lower()
 
-        nullable = True
+        nullable = False
         if type_part.endswith("?"):
             nullable = True
             type_part = type_part[:-1]
         elif type_part.endswith("!"):
-            nullable = False
             type_part = type_part[:-1]
 
         if type_part not in _TYPE_IMPORTS:
             allowed = ", ".join(sorted(_TYPE_IMPORTS.keys()))
             raise ValueError(f"Invalid field type '{type_part}' for '{name}'. Allowed: {allowed}")
 
+        if not name or name in seen:
+            continue
+        seen.add(name)
         fields.append(FieldSpec(name=name, type_name=type_part, nullable=nullable))
 
-    seen: set[str] = set()
-    deduped: list[FieldSpec] = []
-    for field in fields:
-        if not field.name or field.name in seen:
-            continue
-        seen.add(field.name)
-        deduped.append(field)
-
-    return deduped
-
-
-def _series_type(type_name: str) -> str:
-    mapping = {
-        "str": "str",
-        "int": "int",
-        "float": "float",
-        "bool": "bool",
-        "datetime": "datetime",
-        "date": "date",
-    }
-    return mapping[type_name]
+    return fields
 
 
 def create_ingestion_workflow(
@@ -145,14 +128,7 @@ def create_ingestion_workflow(
     test_file = test_dir / f"test_{domain_snake}_{table_snake}.py"
 
     # Check if files already exist
-    existing = []
-    if schema_file.exists():
-        existing.append(str(schema_file))
-    if asset_file.exists():
-        existing.append(str(asset_file))
-    if test_file.exists():
-        existing.append(str(test_file))
-
+    existing = [str(f) for f in (schema_file, asset_file, test_file) if f.exists()]
     if existing:
         raise FileExistsError("Files already exist:\n" + "\n".join(f"  - {f}" for f in existing))
 
@@ -166,14 +142,14 @@ def create_ingestion_workflow(
         domain_init.write_text(f'"""Domain: {domain}"""\n')
 
     # Generate schema file
-    type_import_lines: list[str] = []
-    for field in field_specs:
-        import_spec = _TYPE_IMPORTS[field.type_name]
-        if import_spec is not None:
-            module, symbol = import_spec
-            type_import_lines.append(f"from {module} import {symbol}")
-
-    type_imports = "\n".join(sorted(set(type_import_lines)))
+    type_import_lines = sorted(
+        {
+            f"from {mod} import {sym}"
+            for f in field_specs
+            if (imp := _TYPE_IMPORTS[f.type_name]) and (mod := imp[0]) and (sym := imp[1])
+        }
+    )
+    type_imports = "\n".join(type_import_lines)
     if type_imports:
         type_imports = f"{type_imports}\n\n"
 
@@ -184,8 +160,7 @@ def create_ingestion_workflow(
         if field.name == unique_key:
             continue
         schema_fields_lines.append(
-            f"    {field.name}: Series[{_series_type(field.type_name)}] = "
-            f"pa.Field(nullable={field.nullable})"
+            f"    {field.name}: Series[{field.type_name}] = pa.Field(nullable={field.nullable})"
         )
 
     schema_fields = "\n".join(schema_fields_lines)

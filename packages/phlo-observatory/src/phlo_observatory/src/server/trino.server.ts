@@ -9,6 +9,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { authMiddleware } from '@/server/auth.server'
 import { apiGet, apiPost } from '@/server/phlo-api'
+import { camelizeKeys } from '@/utils/caseTransform'
 
 // Types for Trino responses
 export interface TrinoConnectionStatus {
@@ -93,13 +94,7 @@ interface ApiQueryResult extends ApiDataPreviewResult {
 
 // Transform functions
 function transformPreviewResult(r: ApiDataPreviewResult): DataPreviewResult {
-  return {
-    columns: r.columns,
-    columnTypes: r.column_types,
-    rows: r.rows,
-    totalRows: r.total_rows,
-    hasMore: r.has_more,
-  }
+  return camelizeKeys<DataPreviewResult>(r)
 }
 
 /**
@@ -111,11 +106,7 @@ export const checkTrinoConnection = createServerFn()
   .handler(async (): Promise<TrinoConnectionStatus> => {
     try {
       const result = await apiGet<ApiConnectionStatus>('/api/trino/connection')
-      return {
-        connected: result.connected,
-        error: result.error,
-        clusterVersion: result.cluster_version,
-      }
+      return camelizeKeys<TrinoConnectionStatus>(result)
     } catch (error) {
       return {
         connected: false,
@@ -196,15 +187,7 @@ export const profileColumn = createServerFn()
         )
 
         if ('error' in result) return result
-        return {
-          column: result.column,
-          type: result.type,
-          nullCount: result.null_count,
-          nullPercentage: result.null_percentage,
-          distinctCount: result.distinct_count,
-          minValue: result.min_value,
-          maxValue: result.max_value,
-        }
+        return camelizeKeys<ColumnProfile>(result)
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -239,10 +222,7 @@ export const getTableMetrics = createServerFn()
         )
 
         if ('error' in result) return result
-        return {
-          rowCount: result.row_count,
-          sizeBytes: result.size_bytes,
-        }
+        return camelizeKeys<TableMetrics>(result)
       } catch (error) {
         return {
           error: error instanceof Error ? error.message : 'Unknown error',
