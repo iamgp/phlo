@@ -2,6 +2,18 @@
 
 > Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) before applying quality checks.
 
+## What You'll Learn
+
+- How Pandera schemas validate ingestion data
+- How asset checks enforce rules in Dagster
+- How to use built-in checks (Range, Freshness, Null)
+- How to wire quality checks into production pipelines
+
+## Prerequisites
+
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- Optional: [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) for asset checks context.
+
 In Part 8, we built a complete pipeline. But how do we ensure data quality throughout? This post covers validation at multiple layers.
 For governance and metadata lineage, see [Part 10: Metadata and Governance](10-metadata-governance.md).
 
@@ -917,6 +929,13 @@ Expected output:
 Query returned rows.
 ```
 
+## Hands-On Exercise: Add a New Check
+
+1. Add a `RangeCheck` to the glucose asset for a realistic max value.
+2. Trigger `phlo materialize dlt_glucose_entries`.
+3. Confirm the check result in Dagster.
+4. Fix any violations in the source data or schema.
+
 ## Common Issues
 
 - **Import errors for `phlo_quality`**
@@ -976,6 +995,7 @@ This ensures:
 - Transforms execute correctly
 - Production issues are caught quickly
 
-**Next**: [Part 10: Metadata and Governance with OpenMetadata](10-metadata-governance.md)
+## Next Steps
 
-See you there!
+- Continue with [Part 10: Metadata and Governance with OpenMetadata](10-metadata-governance.md).
+- Review observability tooling in [Part 11: Observability & Monitoring](11-observability-monitoring.md).

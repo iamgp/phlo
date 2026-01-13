@@ -2,6 +2,18 @@
 
 > Prerequisite: Complete [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) to follow the monitoring flows.
 
+## What You'll Learn
+
+- How Phlo collects metrics, logs, and traces
+- How to set alerting thresholds for pipeline health
+- How to use Dagster and Observatory for incident response
+- How observability connects to governance and quality
+
+## Prerequisites
+
+- [Part 7: Orchestration with Dagster](07-orchestration-dagster.md)
+- Optional: [Part 10: Metadata and Governance](10-metadata-governance.md) for lineage context.
+
 You've built a data lakehouse with validation and governance. But what happens at 3am when something breaks? This post covers observability: monitoring, alerting, and troubleshooting.
 For custom UI extensions in the observability layer, see [Part 15: Observatory Extensions](15-observatory-extensions.md).
 
@@ -1011,6 +1023,13 @@ Command completed successfully.
 
 ---
 
+## Hands-On Exercise: Simulate an Alert
+
+1. Stop one service: `phlo services stop trino`.
+2. Confirm the alert condition in Dagster or Observatory logs.
+3. Restart the service: `phlo services start trino`.
+4. Verify the alert clears and metrics recover.
+
 ## Common Issues
 
 - **Observatory UI not loading**
@@ -1076,6 +1095,7 @@ Combined, you have:
 
 All accessible through simple CLI commands that integrate with your existing workflows.
 
-**Next**: [Part 12: Production Deployment and Scaling](12-production-deployment.md)
+## Next Steps
 
-See you there!
+- Continue with [Part 12: Production Deployment and Scaling](12-production-deployment.md).
+- Explore custom extensions in [Part 15: Observatory Extensions](15-observatory-extensions.md).

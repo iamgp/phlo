@@ -2,6 +2,18 @@
 
 > Prerequisite: Read [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md) for table format basics.
 
+## What You'll Learn
+
+- How Nessie adds branching and tags to Iceberg tables
+- How to use branches for safe experimentation
+- How merges promote data to production
+- How Nessie fits governance workflows
+
+## Prerequisites
+
+- [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md)
+- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) to run commands locally.
+
 Iceberg gave us time travel. Now let's add **branching**, **merging**, and **tags** to our data with Project Nessie.
 For governance workflows that build on Nessie history, see [Part 10: Metadata & Governance](10-metadata-governance.md).
 
@@ -382,7 +394,7 @@ Expected output:
 No output (definitions only).
 ```
 
-## Hands-On: Explore Nessie
+## Hands-On Exercise: Explore Nessie
 
 ### List All Branches
 
@@ -926,5 +938,10 @@ See also: [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [P
 - `branch_cleanup_sensor` - Cleans up old branches after retention period
 - Catalog-based branching: `iceberg` (main) vs `iceberg_dev` (dev)
 - All writes happen on feature branch - only validated data reaches main
+
+## Next Steps
+
+- Learn how data is transformed on top of Nessie in [Part 6: dbt Transformations](06-dbt-transformations.md).
+- See governance workflows that build on branches in [Part 10: Metadata & Governance](10-metadata-governance.md).
 
 **Next**: [Part 5: Data Ingestion—Getting Data Into the Lakehouse](05-data-ingestion.md)

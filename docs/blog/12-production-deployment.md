@@ -2,6 +2,18 @@
 
 > Prerequisite: Complete [Part 2: Getting Started](02-setup-guide.md) and [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
+## What You'll Learn
+
+- How to move from local Docker to production deployments
+- How to scale storage, compute, and orchestration safely
+- How to harden security, backups, and access control
+- How to operate Phlo with SLAs
+
+## Prerequisites
+
+- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- [Part 11: Observability & Monitoring](11-observability-monitoring.md)
+
 You've built, tested, and monitored your data lakehouse. Now let's deploy it to production and scale it reliably.
 For governance and access control policy foundations, see [Part 10: Metadata and Governance](10-metadata-governance.md).
 
@@ -1107,6 +1119,13 @@ Expected output:
 Command completed successfully.
 ```
 
+## Hands-On Exercise: Create a Deployment Checklist
+
+1. List the services you will deploy (Nessie, MinIO, Trino, Dagster, Postgres).
+2. Define backup strategy and retention for each stateful service.
+3. Set SLAs for ingestion latency and freshness.
+4. Identify one security control to add (IAM, network policy, secrets manager).
+
 ## Common Issues
 
 - **Default credentials still in use**
@@ -1184,6 +1203,11 @@ Production deployment with Phlo:
 - Set up SSL/TLS certificates
 - Configure firewall rules and VPC
 - Change all default passwords in `.phlo/.env.local`
+
+## Next Steps
+
+- Review plugin extensibility in [Part 14: Plugin System](14-plugin-system.md).
+- Build observability customizations in [Part 15: Observatory Extensions](15-observatory-extensions.md).
 - Enable audit logging
 
 🔮 **Future (Kubernetes)**:

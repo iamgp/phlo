@@ -2,6 +2,18 @@
 
 > Prerequisite: Review [Part 13: Capability Primitives](13-capability-primitives.md) to understand AssetSpec and ResourceSpec.
 
+## What You'll Learn
+
+- How Phlo discovers plugins via entry points
+- Which plugin types map to capability providers
+- How to register assets, resources, and checks
+- How plugins integrate with orchestrators
+
+## Prerequisites
+
+- [Part 13: Capability Primitives](13-capability-primitives.md)
+- Optional: [Part 16: Building Custom Packages](16-building-custom-packages.md) for scaffolding.
+
 You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialized validation rule, or a domain-specific transformation?
 For full package scaffolding, see [Part 16: Building Custom Packages](16-building-custom-packages.md).
 
@@ -1034,6 +1046,13 @@ Expected output:
 No output (definitions only).
 ```
 
+## Hands-On Exercise: Register a Plugin
+
+1. Add an entry point for a sample plugin in `pyproject.toml`.
+2. Run `phlo plugins list` to confirm discovery.
+3. Enable the plugin and re-run `phlo plugins list --enabled`.
+4. Verify assets or resources are registered in Dagster.
+
 ## Common Issues
 
 - **Plugins not discovered**
@@ -1186,3 +1205,8 @@ Command completed successfully.
 14. **Plugin system** ← You are here
 
 Happy plugin development!
+
+## Next Steps
+
+- Build observability integrations in [Part 15: Observatory Extensions](15-observatory-extensions.md).
+- Scaffold full packages in [Part 16: Building Custom Packages](16-building-custom-packages.md).

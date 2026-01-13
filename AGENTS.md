@@ -128,6 +128,7 @@ docker exec dagster-webserver dbt compile
 - Mermaid diagrams in blog posts should include an Expected output block and a short diagram lead-in.
 - Blog posts should include a See Also section linking 2-3 related posts plus a relevant reference doc, and a short prerequisite callout near the top.
 - Blog README index should list all 16 posts with read times, status, persona learning paths, and search guidance.
+- Blog posts should include sections for What You'll Learn, Prerequisites, Hands-On Exercise, Summary, and Next Steps (in that order around Common Issues/See Also).
 
 ## Gotchas
 - `phlo services` has no `open` command; use direct service URLs.

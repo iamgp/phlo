@@ -2,6 +2,18 @@
 
 > Prerequisite: Read [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md) for branching and audit context.
 
+## What You'll Learn
+
+- Why metadata and governance are critical for trust
+- How OpenMetadata models ownership, lineage, and quality
+- How Phlo publishes assets into the catalog
+- How to use metadata for operational decisions
+
+## Prerequisites
+
+- [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md)
+- Optional: [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md) for validation context.
+
 Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.
 For alerting and monitoring once metadata is in place, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
@@ -617,6 +629,13 @@ Expected output:
 ```text
 Configuration saved successfully.
 ```
+
+## Hands-On Exercise: Trace a Dataset
+
+1. Open OpenMetadata and search for `silver.fct_glucose_readings`.
+2. Open the lineage tab and identify upstream sources.
+3. Assign an owner and add a short description.
+4. Add a tag (e.g., `pii-free`) to the dataset.
 
 ## Common Issues
 
@@ -1373,6 +1392,7 @@ OpenMetadata provides:
 
 Integrated with dbt, Dagster, and Iceberg, OpenMetadata becomes your data OS.
 
-**Next**: [Part 11: Observability and Monitoring](11-observability-monitoring.md)
+## Next Steps
 
-See you there!
+- Continue with [Part 11: Observability and Monitoring](11-observability-monitoring.md).
+- Review production hardening in [Part 12: Production Deployment](12-production-deployment.md).

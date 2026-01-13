@@ -2,6 +2,18 @@
 
 > Prerequisite: None. Start here before Part 2 and beyond.
 
+## What You'll Learn
+
+- Why lakehouse architecture replaces lake/warehouse tradeoffs
+- How Iceberg, Nessie, Trino, and MinIO work together
+- How Phlo maps ingestion, storage, and analytics layers
+- Where to go next for hands-on setup
+
+## Prerequisites
+
+- None. Start here.
+- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) if you want to run services now.
+
 ## The Problem We're Solving
 
 Traditional data pipelines have a fundamental problem: **they force you to choose**.
@@ -289,7 +301,7 @@ Example rendered as shown.
 | Time travel    | Not available             | Query any past state         |
 | Data quality   | Ad-hoc testing            | Built-in (Iceberg snapshots) |
 
-## What You'll Learn in This Series
+## Series Roadmap
 
 This blog series walks through:
 
@@ -307,6 +319,13 @@ This blog series walks through:
 12. **Part 12**: Production deployment and scaling
 
 Each post includes hands-on examples and code you can run.
+
+## Hands-On Exercise: Map Your Stack
+
+1. List your current data sources (APIs, databases, files).
+2. Pick one storage system you would use for raw data (S3/MinIO/local).
+3. Identify one query engine and one analytics destination you already use.
+4. Compare your list to the Phlo stack diagram above.
 
 ## Common Issues
 
@@ -353,6 +372,11 @@ See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnos
 
 See also: [Part 2: Getting Started—Setup Guide](02-setup-guide.md), [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md). Reference: [Architecture Overview](../reference/architecture.md).
 
+## Summary
+
+Phlo combines open table formats, version control, and low-cost storage into a
+single, flexible lakehouse architecture. You now have the mental model for how
+the components fit together and why the tradeoffs matter.
 
 ## Next Steps
 

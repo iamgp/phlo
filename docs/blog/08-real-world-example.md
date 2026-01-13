@@ -2,6 +2,19 @@
 
 > Prerequisite: Complete [Part 2: Getting Started](02-setup-guide.md), [Part 5: Data Ingestion](05-data-ingestion.md), and [Part 6: dbt Transformations](06-dbt-transformations.md).
 
+## What You'll Learn
+
+- How the ingestion, dbt, and publishing layers fit together
+- How to configure end-to-end assets for a real dataset
+- How to validate data quality during the pipeline
+- How to visualize outputs in Superset
+
+## Prerequisites
+
+- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- [Part 6: dbt Transformations](06-dbt-transformations.md)
+
 We've covered all the pieces. Now let's build a complete, working pipeline from start to finish: **Nightscout Glucose Monitoring**.
 For validation patterns used in this walkthrough, see [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md).
 
@@ -683,18 +696,12 @@ This is real-world data engineering:
 - Publish for consumption (Postgres, dashboards)
 - Monitor quality (tests, checks, alerts)
 
-## Next Steps
+## Hands-On Exercise: Extend the Pipeline
 
-To extend this example:
-
-1. **Add more data sources**: GitHub, Fitbit, weather, etc.
-2. **Advanced analytics**: Anomaly detection, forecasting
-3. **Real-time alerts**: Slack notifications for hypoglycemia
-4. **Retention policies**: Archive old data, keep recent data hot
-5. **ML integration**: Predict glucose trends
-
-The pattern remains:
-**Ingest → Validate → Transform → Publish → Monitor**
+1. Add one new source (GitHub, Fitbit, or weather) to the ingestion workflow.
+2. Create a new dbt model to join it to `silver.fct_glucose_readings`.
+3. Publish a new mart table to Postgres.
+4. Build a simple Superset chart using the new data.
 
 ## Common Issues
 
@@ -756,4 +763,7 @@ Time to build your own pipelines!
 
 See the [main docs](../index.md) for API references, troubleshooting, and production deployment guides.
 
-**Next**: [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md)
+## Next Steps
+
+- Continue with [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md).
+- Review governance patterns in [Part 10: Metadata & Governance](10-metadata-governance.md).

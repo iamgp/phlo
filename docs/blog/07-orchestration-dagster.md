@@ -2,6 +2,18 @@
 
 > Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) and [Part 6: dbt Transformations](06-dbt-transformations.md) first.
 
+## What You'll Learn
+
+- How Dagster orchestrates ingestion, transforms, and publishing
+- How assets and sensors map to Phlo workflows
+- How to trigger jobs and inspect runs
+- How orchestration ties into monitoring and alerts
+
+## Prerequisites
+
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- [Part 6: dbt Transformations](06-dbt-transformations.md)
+
 We have data flowing in (DLT + Iceberg) and transformations defined (dbt). Now: **Who runs this? When? What happens if it fails?**
 For monitoring and alerts, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
@@ -881,13 +893,12 @@ Expected output:
 No output (definitions only).
 ```
 
-## Next: Data Quality
+## Hands-On Exercise: Trigger a Run
 
-Orchestration keeps pipelines running. But are they running _correctly_?
-
-**Part 8: Data Quality and Testing**
-
-See you there!
+1. Open Dagster UI at `http://localhost:3000`.
+2. Navigate to the `glucose_pipeline` asset group.
+3. Launch a run and watch asset materializations.
+4. Inspect logs for one asset to confirm inputs and outputs.
 
 ## Common Issues
 
@@ -955,4 +966,7 @@ See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 6: dbt Transform
 
 **Key Pattern**: Declare assets, Dagster handles orchestration.
 
-**Next**: [Part 8: Real-World Example—Building a Complete Data Pipeline](08-real-world-example.md)
+## Next Steps
+
+- Continue with [Part 8: Real-World Example—Building a Complete Data Pipeline](08-real-world-example.md).
+- Review monitoring in [Part 11: Observability & Monitoring](11-observability-monitoring.md).

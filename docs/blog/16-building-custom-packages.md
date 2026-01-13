@@ -248,6 +248,13 @@ No output (definitions only).
 This pattern keeps the actual asset/resource code in dedicated modules while the plugin
 class remains a thin wrapper for discovery.
 
+## Hands-On Exercise: Scaffold a Package
+
+1. Create a new package directory with `pyproject.toml`.
+2. Add an `AssetProviderPlugin` implementation.
+3. Register entry points under `phlo.assets` and `phlo.resources`.
+4. Run `phlo plugins list` to confirm discovery.
+
 ## Common Issues
 
 - **Package not installed in the environment**
@@ -291,6 +298,12 @@ See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnos
 ## See Also
 
 See also: [Part 13: Capability Primitives](13-capability-primitives.md), [Part 14: Extending Phlo with Plugins](14-plugin-system.md), [Part 15: Observatory Extensions](15-observatory-extensions.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+
+## Summary
+
+Custom capability packages let teams ship reusable assets and resources with clear
+entry points and versioned releases. Use AssetProviderPlugin and ResourceProviderPlugin
+to keep domain logic centralized and discoverable across projects.
 
 
 ## Next Steps

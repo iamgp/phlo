@@ -2,6 +2,18 @@
 
 > Prerequisite: Complete [Part 2: Getting Started—Setup Guide](02-setup-guide.md) before running ingestion.
 
+## What You'll Learn
+
+- How Phlo uses DLT for extraction and staging
+- How ingestion assets map to Iceberg tables
+- How schemas and partitions are defined
+- How to validate ingestion runs end to end
+
+## Prerequisites
+
+- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- Optional: [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) for scheduling context.
+
 We have our lakehouse infrastructure. Now: **how does data actually get in?**
 For scheduling and retries, pair this with [Part 7: Orchestration with Dagster](07-orchestration-dagster.md).
 
@@ -752,7 +764,7 @@ Example rendered as shown.
 
 All follow the same pattern for safety and idempotency.
 
-## Hands-On: Trace an Ingestion
+## Hands-On Exercise: Trace an Ingestion
 
 ```bash
 # Run ingestion and watch the flow
@@ -940,4 +952,7 @@ The `@phlo_ingestion` decorator simplifies data ingestion by handling:
 - Or use traditional `@asset_check` for custom validation logic
 - Both integrate with Dagster's asset check system
 
-**Next**: [Part 6: SQL Transformations with dbt—The Right Way](06-dbt-transformations.md)
+## Next Steps
+
+- Continue with [Part 6: SQL Transformations with dbt—The Right Way](06-dbt-transformations.md).
+- Add quality checks in [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md).

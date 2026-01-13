@@ -2,6 +2,18 @@
 
 > Prerequisite: Read [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) for lakehouse context.
 
+## What You'll Learn
+
+- Why Iceberg fixes Parquet table management pain
+- How snapshots, manifests, and metadata enable time travel
+- How Iceberg enables partition evolution and schema changes
+- Where Iceberg fits in the Phlo stack
+
+## Prerequisites
+
+- [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md)
+- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) to run the examples locally.
+
 In Part 1, we mentioned Iceberg as the magic ingredient. Let's understand _why_ it's such a game-changer.
 For Git-like versioning on top of Iceberg, see [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md).
 
@@ -459,7 +471,7 @@ Example rendered as shown.
 
 Note: Staging is temporary (cleaned up after merge). Only warehouse tables persist.
 
-## Hands-On: Explore Snapshots
+## Hands-On Exercise: Explore Snapshots
 
 ```bash
 # Use Python to explore snapshots
@@ -558,4 +570,7 @@ Phlo uses Iceberg to ensure:
 - Reliable transformations (atomic snapshots)
 - Data governance (audit trail via time travel)
 
-**Next**: [Part 4: Project Nessie—Git-Like Versioning for Data](04-project-nessie-versioning.md)
+## Next Steps
+
+- Continue with [Part 4: Project Nessie—Git-Like Versioning for Data](04-project-nessie-versioning.md).
+- See how Iceberg powers dbt models in [Part 6: dbt Transformations](06-dbt-transformations.md).

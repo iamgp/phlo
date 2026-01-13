@@ -2,12 +2,12 @@
 
 > Prerequisite: Read [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) for core concepts.
 
-In this post, we'll get Phlo running on your machine. By the end, you'll have:
+## What You'll Learn
 
-- All services running (Postgres, MinIO, Nessie, Trino, Dagster)
-- Sample data ingested
-- Your first data pipeline executed
-- A dashboard showing results
+- Bootstrap a new Phlo project with `phlo init`
+- Initialize and start the service stack
+- Ingest sample data and materialize assets
+- Verify results in Dagster and Observatory
 
 New to lakehouse architecture? Skim [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) before setup.
 
@@ -521,6 +521,13 @@ Query returned rows.
 
 Congratulations! You've visualized real glucose data from a lakehouse.
 
+## Hands-On Exercise: Re-run the Pipeline
+
+1. Stop services: `phlo services stop`.
+2. Restart services: `phlo services start`.
+3. Re-materialize a subset: `phlo materialize --select tag:daily`.
+4. Confirm in Dagster that the run succeeded and assets updated.
+
 ## Common Issues
 
 - **Services fail to start**
@@ -643,4 +650,7 @@ You've successfully:
 
 In Part 3, we'll dive deep into **Apache Iceberg**—the magic that makes this lakehouse work.
 
-**Next**: [Part 3: Apache Iceberg—The Table Format That Changed Everything](03-apache-iceberg-explained.md)
+## Next Steps
+
+- Continue with [Part 3: Apache Iceberg—The Table Format That Changed Everything](03-apache-iceberg-explained.md).
+- Jump to ingestion specifics in [Part 5: Data Ingestion](05-data-ingestion.md).
