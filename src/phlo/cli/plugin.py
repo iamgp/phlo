@@ -196,7 +196,9 @@ def info_cmd(plugin_name: str, plugin_type: Optional[str], output_json: bool):
                 sys.exit(1)
 
         assert plugin_type is not None
-        internal_type = plugin_type
+
+        # Translate CLI type to internal type if specified via --type
+        internal_type = PLUGIN_TYPE_MAP.get(plugin_type, plugin_type)
 
         info = get_plugin_info(internal_type, plugin_name)
 
@@ -594,7 +596,9 @@ def _collect_installed_plugins(plugin_type: str) -> list[dict]:
 def _collect_registry_plugins(plugin_type: str) -> list[dict]:
     registry_plugins = list_registry_plugins()
     if plugin_type != "all":
-        registry_type = INTERNAL_TO_REGISTRY_TYPE.get(plugin_type)
+        # Translate CLI type to internal type first, then to registry type
+        internal_type = PLUGIN_TYPE_MAP.get(plugin_type, plugin_type)
+        registry_type = INTERNAL_TO_REGISTRY_TYPE.get(internal_type)
         registry_plugins = [plugin for plugin in registry_plugins if plugin.type == registry_type]
     return [_registry_plugin_to_dict(plugin) for plugin in registry_plugins]
 

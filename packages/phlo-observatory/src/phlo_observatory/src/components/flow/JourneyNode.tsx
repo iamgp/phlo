@@ -31,14 +31,25 @@ export function JourneyNode({ data }: NodeProps) {
   const isClickable = onSelect && assetKey
 
   const handleClick = () => {
-    if (isClickable) {
+    if (isClickable && assetKey != null) {
       onSelect(assetKey)
+    }
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault()
+      handleClick()
     }
   }
 
   return (
     <div
       onClick={isClickable ? handleClick : undefined}
+      onKeyDown={isClickable ? handleKeyDown : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      aria-current={isCurrent ? 'true' : undefined}
       className={cn(
         'border bg-card transition-colors',
         isClickable ? 'cursor-pointer' : '',

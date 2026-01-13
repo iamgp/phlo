@@ -105,16 +105,27 @@ class LineageExtractor:
                 status="unknown",
             )
 
-        for unique_id, node in manifest.get("nodes", {}).items():
+        nodes = manifest.get("nodes", {})
+        sources = manifest.get("sources", {})
+
+        for unique_id, node in nodes.items():
             if unique_id.startswith("model."):
                 model_name = node.get("name")
 
                 for dep_id in node.get("depends_on", {}).get("nodes", []):
                     if dep_id.startswith("model."):
-                        dep_name = manifest["nodes"][dep_id].get("name")
-                        self.graph.add_edge(dep_name, model_name)
+                        dep_node = nodes.get(dep_id)
+                        if dep_node is None:
+                            logger.warning(f"Missing dependency node: {dep_id}")
+                            continue
+                        dep_name = dep_node.get("name")
+                        if dep_name:
+                            self.graph.add_edge(dep_name, model_name)
                     elif dep_id.startswith("source."):
-                        source = manifest.get("sources", {}).get(dep_id, {})
+                        source = sources.get(dep_id)
+                        if source is None:
+                            logger.warning(f"Missing source node: {dep_id}")
+                            continue
                         source_name = f"{source.get('source_name')}.{source.get('name')}"
                         self.graph.add_edge(source_name, model_name)
 

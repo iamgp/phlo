@@ -9,6 +9,8 @@ This FastAPI service provides endpoints for Observatory to:
 
 from __future__ import annotations
 
+import importlib
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -16,6 +18,8 @@ from typing import Any
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Phlo API",
@@ -54,25 +58,23 @@ _OBSERVATORY_ROUTERS_NO_PREFIX = [
 
 def _register_observatory_routers() -> None:
     """Register Observatory API routers if available."""
-    import importlib
+    # Combine routers with prefix and without prefix into single iterable
+    all_routers = [
+        *((name, prefix) for name, prefix in _OBSERVATORY_ROUTERS),
+        *((name, None) for name in _OBSERVATORY_ROUTERS_NO_PREFIX),
+    ]
 
-    for name, prefix in _OBSERVATORY_ROUTERS:
+    for name, prefix in all_routers:
         try:
             module = importlib.import_module(f"phlo_api.observatory_api.{name}")
             router = getattr(module, "router", None)
             if router:
-                app.include_router(router, prefix=prefix)
-        except ImportError:
-            pass
-
-    for name in _OBSERVATORY_ROUTERS_NO_PREFIX:
-        try:
-            module = importlib.import_module(f"phlo_api.observatory_api.{name}")
-            router = getattr(module, "router", None)
-            if router:
-                app.include_router(router)
-        except ImportError:
-            pass
+                if prefix is not None:
+                    app.include_router(router, prefix=prefix)
+                else:
+                    app.include_router(router)
+        except ImportError as e:
+            logger.debug("Failed to import observatory router %s: %s", name, e)
 
 
 _register_observatory_routers()

@@ -401,11 +401,14 @@ class QualityCheckPublisher:
         Returns:
             Dictionary with publication statistics
         """
+        # Pre-map all checks to avoid duplicate mapping
+        mapped_defs = [
+            (check, QualityCheckMapper.map_check_to_openmetadata_test_definition(check, table_fqn))
+            for check in checks
+        ]
 
-        def publish(check: Any) -> None:
-            test_def = QualityCheckMapper.map_check_to_openmetadata_test_definition(
-                check, table_fqn
-            )
+        def publish(item: tuple[Any, dict[str, Any]]) -> None:
+            _check, test_def = item
             self.om_client.create_test_definition(
                 test_name=test_def["name"],
                 test_type=test_def.get("testType"),
@@ -415,13 +418,11 @@ class QualityCheckPublisher:
                 test_platforms=test_def.get("testPlatforms"),
             )
 
-        def get_name(check: Any) -> str:
-            test_def = QualityCheckMapper.map_check_to_openmetadata_test_definition(
-                check, table_fqn
-            )
+        def get_name(item: tuple[Any, dict[str, Any]]) -> str:
+            _check, test_def = item
             return test_def["name"]
 
-        return _publish_items(checks, publish, get_name, "test definition")
+        return _publish_items(mapped_defs, publish, get_name, "test definition")
 
     def publish_test_cases(
         self,
@@ -440,9 +441,14 @@ class QualityCheckPublisher:
         Returns:
             Dictionary with publication statistics
         """
+        # Pre-map all checks to avoid duplicate mapping
+        mapped_cases = [
+            (check, QualityCheckMapper.map_check_to_test_case(check, table_fqn, test_suite_name))
+            for check in checks
+        ]
 
-        def publish(check: Any) -> None:
-            test_case = QualityCheckMapper.map_check_to_test_case(check, table_fqn, test_suite_name)
+        def publish(item: tuple[Any, dict[str, Any]]) -> None:
+            _check, test_case = item
             self.om_client.create_test_case(
                 test_case_name=test_case["name"],
                 table_fqn=table_fqn,
@@ -453,11 +459,11 @@ class QualityCheckPublisher:
                 test_suite_name=test_case.get("testSuite", {}).get("name"),
             )
 
-        def get_name(check: Any) -> str:
-            test_case = QualityCheckMapper.map_check_to_test_case(check, table_fqn, test_suite_name)
+        def get_name(item: tuple[Any, dict[str, Any]]) -> str:
+            _check, test_case = item
             return test_case["name"]
 
-        return _publish_items(checks, publish, get_name, "test case")
+        return _publish_items(mapped_cases, publish, get_name, "test case")
 
     def publish_test_results(
         self,
@@ -520,9 +526,14 @@ class QualityCheckPublisher:
         Returns:
             Dictionary with publication statistics
         """
+        # Pre-map all dbt tests to avoid duplicate mapping
+        mapped_tests = [
+            (dbt_test, QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, table_fqn))
+            for dbt_test in dbt_tests
+        ]
 
-        def publish(dbt_test: dict[str, Any]) -> None:
-            test_case = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, table_fqn)
+        def publish(item: tuple[dict[str, Any], dict[str, Any]]) -> None:
+            _dbt_test, test_case = item
             self.om_client.create_test_case(
                 test_case_name=test_case["name"],
                 table_fqn=table_fqn,
@@ -533,8 +544,8 @@ class QualityCheckPublisher:
                 test_suite_name=test_case.get("testSuite", {}).get("name"),
             )
 
-        def get_name(dbt_test: dict[str, Any]) -> str:
-            test_case = QualityCheckMapper.map_dbt_test_to_openmetadata(dbt_test, table_fqn)
+        def get_name(item: tuple[dict[str, Any], dict[str, Any]]) -> str:
+            _dbt_test, test_case = item
             return test_case["name"]
 
-        return _publish_items(dbt_tests, publish, get_name, "dbt test case")
+        return _publish_items(mapped_tests, publish, get_name, "dbt test case")

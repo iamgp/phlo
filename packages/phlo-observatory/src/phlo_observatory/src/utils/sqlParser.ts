@@ -13,27 +13,15 @@ const PATTERNS = {
   ALIAS_AS: /^(.*?)\s+AS\s+(\w+)$/i,
   /** Match column alias with space (no AS) */
   ALIAS_SPACE: /^(.*?)\s+(\w+)$/,
-  /** Match table.column reference */
-  TABLE_COLUMN: /^(?:(\w+)\.)?(\w+)$/,
-  /** Match function call like FUNC(...) */
-  FUNCTION_CALL: /^(\w+)\s*\(/,
-  /** Match CASE expression */
-  CASE_EXPR: /^CASE\b/i,
-  /** Match COALESCE function */
-  COALESCE: /^COALESCE\s*\(/i,
-  /** Match NULLIF function */
-  NULLIF: /^NULLIF\s*\(/i,
-  /** Match CAST expression */
-  CAST: /^CAST\s*\(/i,
   /** Match single-line SQL comment */
   SINGLE_LINE_COMMENT: /--.*$/gm,
   /** Match multi-line SQL comment */
   MULTI_LINE_COMMENT: /\/\*[\s\S]*?\*\//g,
-  /** Match dbt Jinja ref */
-  DBT_REF: /\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/,
-  /** Match dbt Jinja source */
+  /** Match dbt Jinja ref (global flag for exec loop) */
+  DBT_REF: /\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi,
+  /** Match dbt Jinja source (global flag for exec loop) */
   DBT_SOURCE:
-    /\{\{\s*source\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)\s*\}\}/,
+    /\{\{\s*source\s*\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi,
 } as const
 
 /** SQL keywords that should not be treated as aliases */
@@ -301,8 +289,9 @@ export function extractSourceTables(sql: string): Array<string> {
   // Remove EXTRACT(...FROM...) to avoid false matches
   const cleanedSql = sql.replace(/EXTRACT\s*\([^)]*FROM[^)]*\)/gi, '')
 
-  // Pattern for dbt ref(): {{ ref('table_name') }}
-  const refPattern = /\{\{\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi
+  // Use PATTERNS for dbt ref(): {{ ref('table_name') }}
+  // Create new RegExp instances to reset lastIndex for global patterns
+  const refPattern = new RegExp(PATTERNS.DBT_REF.source, 'gi')
   let match
   while ((match = refPattern.exec(cleanedSql)) !== null) {
     const tableName = match[1]
@@ -311,9 +300,8 @@ export function extractSourceTables(sql: string): Array<string> {
     }
   }
 
-  // Pattern for dbt source(): {{ source('source_name', 'table_name') }}
-  const sourcePattern =
-    /\{\{\s*source\s*\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)\s*\}\}/gi
+  // Use PATTERNS for dbt source(): {{ source('source_name', 'table_name') }}
+  const sourcePattern = new RegExp(PATTERNS.DBT_SOURCE.source, 'gi')
   while ((match = sourcePattern.exec(cleanedSql)) !== null) {
     const tableName = match[1]
     if (tableName && !tables.includes(tableName)) {

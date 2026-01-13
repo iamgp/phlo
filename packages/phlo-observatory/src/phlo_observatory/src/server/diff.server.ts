@@ -16,15 +16,35 @@ import { analyzeSQLTransformation } from '@/utils/sqlParser'
  * Compute summary counts from column diffs
  */
 function computeDiffSummary(columnDiffs: Array<ColumnDiff>) {
-  return {
-    addedCount: columnDiffs.filter((d) => d.changeType === 'added').length,
-    removedCount: columnDiffs.filter((d) => d.changeType === 'removed').length,
-    renamedCount: columnDiffs.filter((d) => d.changeType === 'renamed').length,
-    transformedCount: columnDiffs.filter((d) => d.changeType === 'transformed')
-      .length,
-    unchangedCount: columnDiffs.filter((d) => d.changeType === 'unchanged')
-      .length,
-  }
+  return columnDiffs.reduce(
+    (acc, d) => {
+      switch (d.changeType) {
+        case 'added':
+          acc.addedCount++
+          break
+        case 'removed':
+          acc.removedCount++
+          break
+        case 'renamed':
+          acc.renamedCount++
+          break
+        case 'transformed':
+          acc.transformedCount++
+          break
+        case 'unchanged':
+          acc.unchangedCount++
+          break
+      }
+      return acc
+    },
+    {
+      addedCount: 0,
+      removedCount: 0,
+      renamedCount: 0,
+      transformedCount: 0,
+      unchangedCount: 0,
+    },
+  )
 }
 
 /**
