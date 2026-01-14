@@ -259,10 +259,6 @@ from phlo_dlt.decorator import phlo_ingestion
     ...
 )
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 If we used `append` strategy instead:
 
@@ -296,10 +292,6 @@ Parquet file with columns:
 ├── direction: string
 ├── device: string
 ├── type: string
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 DLT automatically:
@@ -362,10 +354,6 @@ class RawGlucoseEntries(DataFrameModel):
         strict = False  # Allow DLT metadata fields
         coerce = True
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ## Step 2: PyIceberg (Merge into Lakehouse)
 
@@ -400,10 +388,6 @@ catalog.create_table(
     partition_spec=None  # Iceberg will auto-partition by date
 )
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 Result in MinIO:
 
@@ -412,10 +396,6 @@ s3://lake/warehouse/raw/glucose_entries/
 ├── metadata/
 │   └── v1.metadata.json      ← Table created
 └── data/ (empty)
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Merging Data (Idempotent Upsert)
@@ -467,10 +447,6 @@ def merge_parquet(
         'rows_deleted': result['deleted'],
         'rows_total': len(table.scan().to_pandas())
     }
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 This ensures **idempotency**: running the same ingestion multiple times produces the same result.
@@ -535,10 +511,6 @@ s3://lake/warehouse/raw/glucose_entries/
         ├── 00002.parquet (100 rows)
         └── 00003.parquet (88 rows)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ## Quality Checks with @phlo_quality
 
@@ -564,10 +536,6 @@ from phlo_quality import FreshnessCheck, NullCheck, RangeCheck
 def glucose_readings_quality():
     """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 The `@phlo_quality` decorator provides:
@@ -789,10 +757,6 @@ merge_parquet(table, data, unique_key="_id")  # Second run does nothing
 append_parquet(table, data)
 append_parquet(table, data)  # Second run duplicates!
 # Result: 576 rows (corrupted)
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Next: Transformations

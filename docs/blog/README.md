@@ -123,12 +123,12 @@ Don't worry if you're missing some skills - the series is designed to teach you 
 | 16  | [Building Custom Packages](16-building-custom-packages.md)     | Assets, resources, entry points                | 15 min | Up to date    |
 
 **Total content**: 16 posts, ~8,000 lines, 275+ KB of educational material
-**Estimated reading time**: 4-5 hours (complete series)
+**Estimated reading time**: 4–5 hours (complete series)
 
 ## Find Posts Fast
 
 - Use the Topics column above to scan for keywords.
-- Browser find (Ctrl/Cmd+F) works well for "Iceberg", "Dagster", "dbt".
+- Use your browser's find feature (Ctrl/Cmd+F) to search for "Iceberg", "Dagster", "dbt".
 - GitHub search: `path:docs/blog/ <keyword>` for focused results.
 
 ## Phlo Architecture

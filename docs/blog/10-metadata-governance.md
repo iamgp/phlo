@@ -21,7 +21,7 @@ For alerting and monitoring once metadata is in place, see [Part 11: Observabili
 
 Without metadata tracking:
 
-```
+```text
 Tuesday 3pm: Someone asks "Where did this dataset come from?"
 
 Answers from your team:
@@ -29,10 +29,6 @@ Answers from your team:
 - Engineer 2: "Maybe it's in the glucose_readings table"
 - Data analyst: "I don't know, it's in the dashboard"
 - Manager: "How many people depend on this?"
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 Nobody knows because metadata is scattered:
@@ -70,7 +66,7 @@ OpenMetadata integrates seamlessly with Phlo's tech stack:
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │         OpenMetadata Server (UI)           │
 │         http://localhost:10020              │
@@ -93,10 +89,6 @@ OpenMetadata integrates seamlessly with Phlo's tech stack:
 │  - gold.dim_date                 │
 └──────────────────────────────────┘
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ## Quick Start with OpenMetadata
 
@@ -112,7 +104,7 @@ make health-catalog
 
 Expected output:
 
-```
+```text
 === Data Catalog Health Check ===
 OpenMetadata:
   Ready
@@ -122,10 +114,6 @@ MySQL:
   Ready
 Elasticsearch:
   Ready
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### 2. Access OpenMetadata UI
@@ -156,25 +144,9 @@ Default credentials:
 
 ### Step 2: Configure Trino Connection
 
-**Service Name:**
+**Service Name:** `trino`
 
-```
-trino
-```
-Expected output:
-```text
-Example rendered as shown.
-```
-
-**Description:**
-
-```
-Phlo lakehouse Trino query engine with Iceberg catalog
-```
-Expected output:
-```text
-Example rendered as shown.
-```
+**Description:** Phlo lakehouse Trino query engine with Iceberg catalog
 
 **Connection Configuration:**
 
@@ -192,12 +164,8 @@ Click on **Basic** authentication type, then configure:
 
 Click **Test Connection** - you should see:
 
-```
-Connection test was successful
-```
-Expected output:
 ```text
-Example rendered as shown.
+Connection test was successful
 ```
 
 Click **Submit** to save the service.
@@ -224,10 +192,6 @@ Schema Filter Pattern:
 Table Filter Pattern:
   Include: .*
   Exclude: (leave empty)
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 **Advanced Configuration:**
@@ -299,10 +263,6 @@ INFO - Metadata ingestion completed
 INFO - Total tables ingested: 15
 INFO - Total schemas ingested: 4
 INFO - Total errors: 0
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Step 6: Enable Search (CRITICAL)
@@ -379,18 +339,14 @@ Updated every 5 minutes via Dagster pipeline.
 - `glucose_category`: Categorized as hypoglycemia (<70), in_range (70-180), or hyperglycemia (>180)
 - `reading_timestamp`: UTC timestamp of the reading
 ```
-Expected output:
-```text
-Markdown renders as formatted content.
-```
 
-4. Add column descriptions:
+3. Add column descriptions:
    - `reading_id`: Unique identifier for each glucose reading
    - `glucose_mg_dl`: Glucose value in mg/dL (validated range: 20-600)
    - `glucose_category`: Categorized glucose level
    - `reading_timestamp`: When the reading was taken (UTC)
 
-5. Click **Save**
+4. Click **Save**
 
 ### Add Tags
 
@@ -411,7 +367,7 @@ Markdown renders as formatted content.
 
 OpenMetadata can show visual lineage graphs:
 
-```
+```text
 raw.glucose_entries
     ↓
 bronze.stg_glucose_entries (dbt model)
@@ -421,10 +377,6 @@ silver.fct_glucose_readings (dbt model)
 gold.dim_date (dbt model)
     ↓
 marts.mrt_glucose_overview (Trino publish)
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Enable Lineage Tracking with dbt
@@ -499,7 +451,7 @@ Click **Next** → **Deploy**.
 
 Expected output:
 
-```
+```text
 INFO - Starting dbt metadata ingestion
 INFO - Reading manifest from /dbt/target/manifest.json
 INFO - Found 12 dbt models
@@ -507,10 +459,6 @@ INFO - Processing model: fct_glucose_readings
 INFO - Linking model to table: trino.iceberg.silver.fct_glucose_readings
 INFO - Extracted lineage: bronze.stg_glucose_entries → silver.fct_glucose_readings
 INFO - Successfully ingested dbt metadata
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Governance Workflows
@@ -521,7 +469,7 @@ Question: "Can I delete the `raw.glucose_entries` table?"
 
 You can use the `phlo lineage impact` command (see Part 11) or check OpenMetadata:
 
-```
+```text
 raw.glucose_entries
 ├─ Downstream: bronze.stg_glucose_entries
 │  ├─ Downstream: silver.fct_glucose_readings
@@ -538,14 +486,10 @@ Answer: NO!
   - 1 dashboard
   - Multiple dbt models
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### 2. Search and Discovery
 
-```
+```text
 OpenMetadata Search: "glucose"
 
 Results:
@@ -562,10 +506,6 @@ Results:
 3. mrt_glucose_overview (Dataset)
    Gold layer • Postgres marts • 5K rows
    "Marketing-ready glucose metrics"
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### 3. Data Access Governance
@@ -585,10 +525,6 @@ Match OpenMetadata ingestion with your Dagster pipelines:
 ```yaml
 Dagster Pipeline: Daily at 2:00 AM
 OpenMetadata Ingestion: Daily at 3:00 AM (1 hour after data refresh)
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 ### Document in dbt Models
@@ -617,10 +553,6 @@ models:
               max_value: 600
       - name: glucose_category
         description: Categorized as hypoglycemia, in_range, or hyperglycemia
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 ## Hands-On Exercise: Trace a Dataset
@@ -672,7 +604,7 @@ As data platforms grow, informal agreements break down. The ML team assumes gluc
 
 ### The Problem Contracts Solve
 
-```
+```text
 Without contracts:
 
 Monday:    Engineer adds new column, removes old one
@@ -680,10 +612,6 @@ Tuesday:   ML model training fails silently
 Wednesday: Dashboard shows "No Data"
 Thursday:  Analyst reports: "Numbers look wrong"
 Friday:    Fire drill to understand what changed and why
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 With contracts, breaking changes are caught before deployment.
@@ -744,10 +672,6 @@ notifications:
     - schema_change_proposed
     - sla_breach
     - quality_violation
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 ### How Contract Validation Works
@@ -844,10 +768,6 @@ Review by: Friday 5pm
 
 React with ✅ to approve or 🚫 to block
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ---
 
@@ -868,10 +788,6 @@ class RawGlucoseEntries(pa.DataFrameModel):
     sgv: int = pa.Field(ge=20, le=600, description="Glucose in mg/dL")
     dateString: str = pa.Field(description="ISO timestamp string")
     direction: str = pa.Field(nullable=True)
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 As your platform grows, you'll have dozens of schemas. The CLI helps you manage them.
@@ -1027,7 +943,7 @@ Your data platform isn't just for analysts running SQL. Applications, mobile app
 
 ### The API Layer Problem
 
-```
+```text
 Traditional approach:
 
 1. Data team builds mart table
@@ -1036,10 +952,6 @@ Traditional approach:
 4. Manual sync between dbt model and API
 5. Schema changes break integrations
 6. Nobody knows what APIs exist
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
@@ -1062,10 +974,6 @@ SELECT reading_id, timestamp, sgv, direction
 FROM marts_postgres.mrt_glucose_readings;
 
 GRANT SELECT ON api.glucose_readings TO analyst;
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 **The automated way:**
@@ -1116,10 +1024,6 @@ models:
       - name: sgv
         description: "Glucose value in mg/dL"
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 Generated SQL:
 
@@ -1142,10 +1046,6 @@ COMMENT ON VIEW api.glucose_readings IS 'Curated glucose readings for API access
 -- Permissions from tags
 GRANT SELECT ON api.glucose_readings TO analyst;
 GRANT SELECT ON api.glucose_readings TO admin;
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 ### GraphQL with Hasura
@@ -1201,10 +1101,6 @@ query {
   }
 }
 ```
-Expected output:
-```text
-Request returns a data payload.
-```
 
 ### Permission Management
 
@@ -1229,10 +1125,6 @@ tables:
       admin:
         columns: "*"
         filter: {}
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 Apply permissions from a config file:

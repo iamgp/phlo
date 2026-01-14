@@ -599,10 +599,6 @@ def update_observability():
     """Update monitoring dashboards and alerts."""
     return {}
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ## Lineage Visualization: Understanding Your Data Flow
 
@@ -627,10 +623,6 @@ With lineage:
   2. See all 6 downstream dependencies
   3. Update them first
   4. Deploy safely
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Viewing Lineage from CLI
@@ -711,10 +703,6 @@ graph LR
     D --> F[fct_daily_glucose_metrics]
     E --> G[Superset Dashboard]
 ```
-Expected output:
-```text
-Diagram renders in Markdown preview.
-```
 
 ---
 
@@ -736,10 +724,6 @@ Run ID: abc123-def456
 Error: Connection timeout after 30s
 
 Timestamp: 2024-01-15 10:35:42 UTC
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 The AlertManager automatically handles:

@@ -220,10 +220,6 @@ MINUS
 SELECT DISTINCT sgv, device, date_string
 FROM iceberg.raw.glucose_entries;  -- Current
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 **Why time travel matters**:
 
@@ -245,10 +241,6 @@ Write to iceberg.raw.glucose_entries:
   ✓ Update metadata.json to point to new snapshot
   → All or nothing (no partial writes)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 **Isolation**: Readers see consistent snapshots
 
@@ -258,10 +250,6 @@ Reader queries same table (right now)
   → Reader sees previous complete snapshot
   → Reader doesn't see partial writes
   → Writer completes, new readers see new snapshot
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 **In Phlo's Code**:

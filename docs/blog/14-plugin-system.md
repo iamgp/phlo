@@ -29,10 +29,6 @@ Week 4:  "Can we add a Salesforce source?"
 Week 8:  "We need a custom quality check for our business rules."
 Week 12: "The finance team wants a specific transformation pattern."
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 Without plugins, you'd fork the codebase or hack around limitations. With plugins, you extend Phlo cleanly.
 
@@ -102,10 +98,6 @@ When Phlo starts, it scans for installed packages that declare entry points:
 │  Orchestrators: [dagster_adapter]                           │
 └─────────────────────────────────────────────────────────────┘
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### Plugin Discovery Flow (Diagram)
 
@@ -115,10 +107,6 @@ flowchart TB
     EntryPoints --> Registry[Plugin registry]
     Registry --> Plugins[Plugin instances]
     Plugins --> Specs[Capability specs]
-```
-Expected output:
-```text
-Diagram renders in Markdown preview.
 ```
 
 This means:
@@ -189,10 +177,6 @@ class MarketingAssets(AssetProviderPlugin):
             )
         ]
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### Example: Resource Provider Plugin
 
@@ -218,10 +202,6 @@ class WarehouseResources(ResourceProviderPlugin):
 
     def get_resources(self) -> Iterable[ResourceSpec]:
         return [ResourceSpec(name="warehouse", resource=build_warehouse_client())]
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 Orchestrator adapters (for example, `phlo-dagster`) load these specs and
@@ -250,10 +230,6 @@ my-plugin/
     ├── test_source.py
     ├── test_quality.py
     └── test_transform.py
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Step 2: Source Plugin Implementation
@@ -395,10 +371,6 @@ class JSONPlaceholderSource(SourceConnectorPlugin):
 
         return True
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### Step 3: Entry Points Registration
 
@@ -445,10 +417,6 @@ ui_extension = "phlo_example.observatory:OpsUIExtension"
 [project.entry-points."phlo.plugins.cli"]
 ops_cli = "phlo_example.cli:OpsCliPlugin"
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 ### Step 4: Install and Use
 
@@ -478,10 +446,6 @@ config = {
 
 for post in source.fetch_data(config):
     print(post)
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Creating a Quality Check Plugin
@@ -1025,7 +989,7 @@ uv run python -c "import phlo_plugins"
 ```
 
 
-Fix: fix missing dependencies or module paths in the plugin package.
+Fix: fix missing dependencies or module paths, and reinstall the plugin package.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
 
