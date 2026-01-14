@@ -364,10 +364,7 @@ dbt test --select stg_glucose_entries.unique:entry_id
 # Show detailed failure output
 dbt test --select stg_glucose_entries --debug
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Layer 3: Dagster Asset Checks (Runtime)
 
@@ -943,10 +940,7 @@ Query returned rows.
 ```bash
 uv run python -c "from phlo_quality.decorator import phlo_quality; print(phlo_quality)"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: ensure `phlo-quality` is installed in the active environment.
 
@@ -955,10 +949,7 @@ Fix: ensure `phlo-quality` is installed in the active environment.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "DESCRIBE iceberg.silver.fct_glucose_readings;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: align Pandera schemas with the actual table columns.
 
@@ -967,10 +958,7 @@ Fix: align Pandera schemas with the actual table columns.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SELECT 1 AS ok LIMIT 1;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: ensure the SQL returns boolean values per row.
 

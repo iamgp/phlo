@@ -141,10 +141,7 @@ SELECT * FROM iceberg.bronze.entries (branch: dev)
 # Validate, then merge to main
 nessie merge dev -> main
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 **Why it matters**:
 
@@ -335,10 +332,7 @@ Each post includes hands-on examples and code you can run.
 phlo services start
 curl http://localhost:19120/api/v2/config
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: start services and confirm Nessie is reachable on port 19120.
 
@@ -347,10 +341,7 @@ Fix: start services and confirm Nessie is reachable on port 19120.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: restart Trino and confirm the `iceberg` catalog is configured.
 
@@ -359,10 +350,7 @@ Fix: restart Trino and confirm the `iceberg` catalog is configured.
 ```bash
 uv run mkdocs serve
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: preview with MkDocs or view the post on GitHub.
 

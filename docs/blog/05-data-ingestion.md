@@ -545,10 +545,7 @@ Metadata:
 # Success!
 Ingestion completed successfully in 2.45s
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 **You wrote**: ~10 lines of code (just the DLT source configuration)
 **You got**: Full ingestion pipeline with validation, staging, merging, and monitoring
@@ -795,10 +792,7 @@ docker exec trino trino \
   --schema raw \
   --execute "SELECT COUNT(*) as total FROM glucose_entries;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Performance Considerations
 
@@ -872,10 +866,7 @@ See you there!
 ```bash
 uv run python -c "from phlo_dlt.decorator import phlo_ingestion; print(phlo_ingestion)"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: ensure `phlo-dlt` is installed in the active environment.
 
@@ -884,10 +875,7 @@ Fix: ensure `phlo-dlt` is installed in the active environment.
 ```bash
 rg -n "API|TOKEN|SECRET" .phlo/.env .phlo/.env.local
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: add required secrets to `.phlo/.env.local` and restart services.
 
@@ -896,10 +884,7 @@ Fix: add required secrets to `.phlo/.env.local` and restart services.
 ```bash
 phlo materialize dlt_glucose_entries
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: confirm the asset name and inspect Dagster logs for errors.
 

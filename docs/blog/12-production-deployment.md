@@ -139,10 +139,7 @@ phlo services init
 # Copy secrets template
 cp .env.example .phlo/.env.local
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Based on the actual `.env.example`, here are the critical production settings:
 
@@ -205,10 +202,7 @@ GRAFANA_ADMIN_PASSWORD=<SECURE_PASSWORD>
 OPENMETADATA_ADMIN_PASSWORD=<SECURE_PASSWORD>
 OPENMETADATA_MYSQL_PASSWORD=<SECURE_PASSWORD>
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Step 1b: Infrastructure Configuration (phlo.yaml)
 
@@ -349,10 +343,7 @@ docker ps
 # - ml-platform-dagster-webserver-1 (port 12006)
 # - ml-platform-postgres-1 (port 12000)
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 #### Configuration Loading
 
@@ -439,10 +430,7 @@ git commit -m "Add infrastructure configuration"
 # But NOT .phlo/.env.local (contains secrets)
 echo ".phlo/.env.local" >> .gitignore
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 **5. Use different configs per environment:**
 
@@ -451,10 +439,7 @@ phlo.yaml              # Base configuration
 phlo.staging.yaml      # Staging overrides
 phlo.production.yaml   # Production overrides
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 #### Service Discovery
 
@@ -494,10 +479,7 @@ phlo k8s generate --config phlo.yaml
 # - Port mappings from phlo.yaml
 # - Resource limits from phlo.yaml
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 This ensures consistency between Docker Compose (dev) and Kubernetes (prod).
 
@@ -526,10 +508,7 @@ docker-compose --profile all up -d
 # Check service health
 docker-compose ps
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 The actual `docker-compose.yml` includes:
 
@@ -555,10 +534,7 @@ MINIO_API_PORT=9000  # Or S3 endpoint
 # Keep Dagster, Trino, Nessie containerized with docker-compose
 docker-compose up -d dagster-webserver dagster-daemon trino nessie
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Step 3: Verify Service Health
 
@@ -582,10 +558,7 @@ docker-compose logs -f nessie
 # Grafana (with observability profile): http://localhost:10016
 # OpenMetadata (with catalog profile): http://localhost:10020
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Step 4: Storage Configuration (Production S3)
 
@@ -618,10 +591,7 @@ AWS_ACCESS_KEY_ID=<your-access-key>
 AWS_SECRET_ACCESS_KEY=<your-secret-key>
 AWS_REGION=us-east-1
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Step 5: Observability Stack
 
@@ -639,10 +609,7 @@ docker-compose --profile observability up -d
 # Prometheus metrics: http://localhost:10013
 # Loki logs: Accessible via Grafana data source
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 The observability stack includes:
 
@@ -790,10 +757,7 @@ kubectl apply -f k8s/nessie-deployment.yaml
 # Monitor rollout
 kubectl rollout status deployment/dagster-webserver -n dagster
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Scaling Strategies
 
@@ -806,10 +770,7 @@ kubectl set resources deployment dagster-compute \
   --limits=cpu=4000m,memory=16Gi \
   -n dagster
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Horizontal Scaling (More Machines)
 
@@ -822,10 +783,7 @@ kubectl set env deployment/dagster-compute \
   DAGSTER_K8S_INSTANCE_CONFIG_WORKERS=10 \
   -n dagster
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Autoscaling
 
@@ -900,10 +858,7 @@ aws rds restore-db-instance-to-point-in-time \
   --target-db-instance-identifier phlo-prod-restored \
   --restore-time 2024-10-15T10:30:00Z
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Service Redundancy
 
@@ -944,10 +899,7 @@ aws s3api put-bucket-replication \
   --bucket phlo-prod-lake \
   --replication-configuration file://replication.json
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 **Future: Kubernetes Backup Automation**
 
@@ -993,10 +945,7 @@ EOF
 
 kubectl apply -f k8s/backup-cronjob.yaml
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Cost Optimization
 
@@ -1081,10 +1030,7 @@ docker-compose --profile observability up -d
 # Query logs with Loki
 # Available via Grafana Explore interface
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Grafana dashboards are pre-provisioned in `.phlo/grafana/dashboards/`:
 
@@ -1114,10 +1060,7 @@ aws cloudwatch put-metric-alarm \
   --threshold 1 \
   --comparison-operator GreaterThanThreshold
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Hands-On Exercise: Create a Deployment Checklist
 
@@ -1133,10 +1076,7 @@ Command completed successfully.
 ```bash
 rg -n "changeme|admin" .phlo/.env .phlo/.env.local
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: rotate credentials and reload services.
 
@@ -1145,10 +1085,7 @@ Fix: rotate credentials and reload services.
 ```bash
 ss -ltn
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: bind services to private interfaces and configure firewalls.
 
@@ -1157,10 +1094,7 @@ Fix: bind services to private interfaces and configure firewalls.
 ```bash
 cat .phlo/.env
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: update `.phlo/.env.local` and restart services to apply changes.
 
@@ -1235,10 +1169,7 @@ docker-compose --profile all up -d
 # Superset: http://localhost:10007
 # OpenMetadata: http://localhost:10020
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ---
 

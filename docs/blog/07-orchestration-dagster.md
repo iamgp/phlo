@@ -34,10 +34,7 @@ publish_to_postgres.py                        # Manual - depends on dbt
 # Pipeline failed silently - nobody knows!
 # Dashboards show stale data for 24 hours
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 With Dagster:
 
@@ -450,10 +447,7 @@ phlo materialize --select "dlt_glucose_entries,stg_glucose_entries" --partition 
 # Materialize all downstream of ingestion
 phlo materialize --select "dlt_glucose_entries+"  # Plus = all downstream
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Via Python API
 
@@ -526,10 +520,7 @@ Proceed? [y/N] y
 
 Backfill complete: 92 partitions in 43m
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Parallel Execution
 
@@ -557,10 +548,7 @@ Estimated Time: ~90 minutes
 [Worker 1] 2024-01-05 ✓
 ...
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 **Parallel considerations:**
 
@@ -577,10 +565,7 @@ Sometimes you need specific dates, not a range:
 $ phlo backfill glucose_entries \
     --partitions 2024-01-01,2024-01-15,2024-02-01,2024-03-01
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Resuming Failed Backfills
 
@@ -604,10 +589,7 @@ Remaining: 46 partitions
 [46/90] 2024-02-15 ✓
 ...
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Dry Run
 
@@ -638,10 +620,7 @@ Would skip: 1 partition (already fresh)
 
 Run without --dry-run to execute.
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Backfill Strategies
 
@@ -677,10 +656,7 @@ $ phlo backfill glucose_entries \
     --end-date 2024-12-31 \
     --parallel 2
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Monitoring and Alerts
 
@@ -907,10 +883,7 @@ No output (definitions only).
 ```bash
 phlo services logs dagster-webserver
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: resolve import errors and restart the webserver.
 
@@ -919,10 +892,7 @@ Fix: resolve import errors and restart the webserver.
 ```bash
 phlo services logs dagster-daemon
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: restart the daemon after fixing schedule or sensor errors.
 
@@ -931,10 +901,7 @@ Fix: restart the daemon after fixing schedule or sensor errors.
 ```bash
 phlo materialize <asset_name>
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: check asset configuration and dependencies in the logs.
 

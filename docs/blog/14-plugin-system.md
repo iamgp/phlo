@@ -460,10 +460,7 @@ pip install -e .
 # Verify it's discovered
 phlo plugin list
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Now use it in your pipeline:
 
@@ -815,10 +812,7 @@ $ phlo plugin list --type assets
 # Output as JSON
 $ phlo plugin list --json
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Get Plugin Details
 
@@ -843,10 +837,7 @@ $ phlo plugin info uppercase --type transforms
 # JSON output
 $ phlo plugin info jsonplaceholder --json
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Validate Plugins
 
@@ -865,10 +856,7 @@ All plugins are valid!
 # JSON output
 $ phlo plugin check --json
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Create New Plugin Scaffold
 
@@ -894,10 +882,7 @@ $ phlo plugin create my-transform --type transform
 # Specify custom path
 $ phlo plugin create my-plugin --type source --path ./plugins/my-plugin
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 The scaffold creates a complete package structure:
 
@@ -1060,10 +1045,7 @@ No output (definitions only).
 ```bash
 phlo plugin list --type assets
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: confirm the package is installed and entry points are registered.
 
@@ -1072,10 +1054,7 @@ Fix: confirm the package is installed and entry points are registered.
 ```bash
 uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: update `pyproject.toml` to use the correct group names.
 
@@ -1084,10 +1063,7 @@ Fix: update `pyproject.toml` to use the correct group names.
 ```bash
 uv run python -c "import phlo_plugins"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: fix missing dependencies or module paths in the plugin package.
 
@@ -1147,10 +1123,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
     print(post['title'])
 "
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 **Actual Files to Study:**
 

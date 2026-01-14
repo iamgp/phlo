@@ -135,10 +135,7 @@ Example rendered as shown.
 make catalog
 # Or manually visit: http://localhost:10020
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Default credentials:
 
@@ -494,10 +491,6 @@ Click **Next** → **Deploy**.
    cd workflows/transforms/dbt
    dbt compile --profiles-dir ./profiles
    ```
-   Expected output:
-   ```text
-   Command completed successfully.
-   ```
 
 2. Go to **Settings → Integrations → Pipeline → phlo-dbt**
 3. Click **Ingestions** tab
@@ -645,10 +638,7 @@ Configuration saved successfully.
 make health-catalog
 docker logs openmetadata-server
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: wait for the server to finish migrations, then refresh the UI.
 
@@ -657,10 +647,7 @@ Fix: wait for the server to finish migrations, then refresh the UI.
 ```bash
 docker logs openmetadata-elasticsearch
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: re-run the search indexing job from the OpenMetadata UI.
 
@@ -670,10 +657,7 @@ Fix: re-run the search indexing job from the OpenMetadata UI.
 make health
 docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: start Trino and update the service connection details.
 
@@ -790,10 +774,7 @@ Required Columns:
   direction    string
   device       string
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 To check for contract violations against actual tables, you would use:
 
@@ -801,10 +782,7 @@ To check for contract violations against actual tables, you would use:
 $ phlo contract show glucose_readings  # View full contract details
 $ phlo catalog describe raw.glucose_entries  # View actual table schema
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Schema Evolution and Breaking Changes
 
@@ -842,10 +820,7 @@ glucose_readings:
 
 Contract check FAILED - 1 breaking change detected
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Consumer Notifications
 
@@ -915,10 +890,7 @@ MartGlucoseOverview         6   workflows.schemas.nightscout
 RawGlucoseEntries           8   workflows.schemas.nightscout
 RawWeatherObservations     10   workflows.schemas.weather
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Inspecting Schema Details
 
@@ -939,20 +911,14 @@ direction    str
 device       str
 type         str
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 You can also view the Iceberg schema equivalent:
 
 ```bash
 $ phlo schema show RawGlucoseEntries --iceberg
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Comparing Schema Versions
 
@@ -976,10 +942,7 @@ Removed:
 
 Classification: WARNING (1 safe, 1 warning, 0 breaking)
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ---
 
@@ -1004,20 +967,14 @@ gold       fct_daily_glucose_metrics  gold.fct_daily_glucose_metrics
 
 Total: 4 tables
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Filter by namespace:
 
 ```bash
 $ phlo catalog tables --namespace silver
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Describing Table Metadata
 
@@ -1040,10 +997,7 @@ dateString         string    ✓
 direction          string
 device             string
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Viewing Table History
 
@@ -1061,10 +1015,7 @@ ghi12345...   2025-11-27 08:25:00  append
 
 Showing 3 most recent snapshots
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 > **Future Feature:** Automated metadata sync to OpenMetadata (`phlo catalog sync`) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the [setup guide](../setup/openmetadata.md).
 
@@ -1140,10 +1091,7 @@ Generated SQL saved to: api_views.sql
 
 Apply with: phlo postgrest generate-views --apply
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### How View Generation Works
 
@@ -1210,10 +1158,7 @@ $ phlo hasura track
 
 ✓ Tracked 3/3 tables
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 You can also set up relationships and permissions:
 
@@ -1228,10 +1173,7 @@ $ phlo hasura permissions
 
 ✓ Created 6/6 permissions
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Or do all three at once:
 
@@ -1241,10 +1183,7 @@ $ phlo hasura auto-setup
 Auto-tracking tables, setting up relationships and permissions...
 ✓ Complete
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Now you get GraphQL automatically:
 
@@ -1303,10 +1242,7 @@ $ phlo hasura sync-permissions --config hasura-permissions.yaml
 
 ✓ Permissions synced
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### When to Use REST vs GraphQL
 

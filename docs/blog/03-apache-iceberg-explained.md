@@ -409,10 +409,7 @@ docker exec trino trino \
   FOR VERSION AS OF 1728992400000;
   "
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Comparison: Before vs After Iceberg
 
@@ -497,10 +494,7 @@ for snapshot in sorted(table.snapshots(),
         print(f"    File: {manifest_entry.manifest_path}")
 EOF
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Next: Project Nessie (Git for Data)
 
@@ -515,10 +509,7 @@ We'll explore that in the next post.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: restart Trino and confirm the `iceberg` catalog is configured.
 
@@ -527,10 +518,7 @@ Fix: restart Trino and confirm the `iceberg` catalog is configured.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SCHEMAS FROM iceberg;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: verify the schema names and run ingestion before querying.
 
@@ -539,10 +527,7 @@ Fix: verify the schema names and run ingestion before querying.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: set `SET SESSION iceberg.nessie_reference_name = 'main';` before queries.
 

@@ -180,10 +180,7 @@ Assets
   Warning:   0
   Failure:   1
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 For per-asset details:
 
@@ -208,10 +205,7 @@ abc123    success  5.2s      487
 def456    success  4.8s      512
 ghi789    success  5.1s      495
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Export metrics for external analysis:
 
@@ -222,10 +216,7 @@ $ phlo metrics export --format json --period 7d --output metrics.json
 # Export to CSV
 $ phlo metrics export --format csv --period 30d --output metrics.csv
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Logs: Structured Logging
 
@@ -361,10 +352,7 @@ export PHLO_ALERT_EMAIL_SMTP_USER="alerts@yourcompany.com"
 export PHLO_ALERT_EMAIL_SMTP_PASSWORD="your-password"
 export PHLO_ALERT_EMAIL_RECIPIENTS="data-team@yourcompany.com,oncall@yourcompany.com"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Managing Alerts via CLI
 
@@ -382,10 +370,7 @@ Configured Destinations: 2
 Recent Alerts Sent: 5
 Deduplication Window: 60 minutes
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 List configured destinations:
 
@@ -398,10 +383,7 @@ Name   Type              Status
 slack  SlackDestination  ✓ Ready
 email  EmailDestination  ✓ Ready
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Test your alert configuration:
 
@@ -414,10 +396,7 @@ $ phlo alerts test
 # Test specific destination
 $ phlo alerts test --destination slack --severity critical
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### What Triggers Alerts
 
@@ -722,10 +701,7 @@ glucose_entries
             └── fct_daily_glucose_metrics (dbt model)
                 └── mrt_glucose_hourly_patterns (dbt model)
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 This tree shows your entire data flow: from API source through transformations to dashboards.
 
@@ -756,10 +732,7 @@ Total Impact:
 
 Recommendation: Coordinate change with dashboard owners before deploying
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Exporting Lineage
 
@@ -773,10 +746,7 @@ $ dot -Tpng lineage.dot -o lineage.png
 # Mermaid format (for Markdown docs)
 $ phlo lineage export --format mermaid --output lineage.md
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 The Mermaid output can be embedded directly in GitHub READMEs or Notion docs:
 
@@ -881,10 +851,7 @@ phlo logs --run-id abc123-def456
 # By job (for scheduled jobs)
 phlo logs --job daily_glucose_pipeline
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Real-Time Tailing
 
@@ -901,10 +868,7 @@ $ phlo logs --follow
 [10:35:45] INFO  glucose_entries: Materialization complete (5.2s)
 ^C  # Ctrl+C to stop
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### JSON Output for Scripting
 
@@ -922,10 +886,7 @@ phlo logs --asset glucose_entries --since 7d --json > glucose_logs.json
 # Grep for specific patterns
 phlo logs --json | jq 'select(.message | contains("timeout"))'
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ---
 
@@ -965,10 +926,7 @@ Quality:
 Active Alerts: 1
   ⚠ publish_to_postgres running slow (1.2s avg vs 500ms baseline)
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Per-Asset Metrics
 
@@ -999,10 +957,7 @@ Trend:
   Duration: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (stable)
   Failures: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (1 in window)
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Exporting for Analysis
 
@@ -1016,10 +971,7 @@ $ phlo metrics export --format csv --period 30d --output metrics.csv
 $ phlo metrics export --format json --period 7d | \
   python analyze_metrics.py
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ---
 
@@ -1038,10 +990,7 @@ Command completed successfully.
 phlo services logs observatory
 curl http://localhost:3001
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: restart Observatory and confirm port 3001 is reachable.
 
@@ -1051,10 +1000,7 @@ Fix: restart Observatory and confirm port 3001 is reachable.
 phlo services logs grafana
 phlo services logs prometheus
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: verify metrics exporters are running and Grafana data sources are configured.
 
@@ -1063,10 +1009,7 @@ Fix: verify metrics exporters are running and Grafana data sources are configure
 ```bash
 phlo services logs loki
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: confirm log shipping configuration and restart Loki if needed.
 

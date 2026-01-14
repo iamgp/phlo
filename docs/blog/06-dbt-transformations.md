@@ -103,10 +103,7 @@ dbt build
 # Tests each transformation
 # Generates documentation
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## dbt's Four Core Features
 
@@ -261,10 +258,7 @@ Testing fct_glucose_readings
   Running test not_null_fct_glucose_readings_entry_id ... PASS
   Running test accepted_values_fct_glucose_readings_glucose_category ... PASS
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### 4. Documentation (Auto-Generated)
 
@@ -312,10 +306,7 @@ dbt docs serve  # Opens http://localhost:8000
 # - Data lineage (visual DAG)
 # - Query execution stats
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Phlo's dbt Structure
 
@@ -556,10 +547,7 @@ docker exec dagster-webserver dbt test \
   --project-dir /app/workflows/transforms/dbt \
   --profiles-dir /app/workflows/transforms/dbt/profiles
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Option 3: Local (if you have uv installed)
 
@@ -588,10 +576,7 @@ dbt run --select stg_glucose_entries
 dbt test
 dbt docs generate && dbt docs serve
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Best Practices in dbt
 
@@ -749,10 +734,7 @@ See you there!
 ```bash
 ls workflows/transforms/dbt
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: move the dbt project under `workflows/transforms/dbt/`.
 
@@ -761,10 +743,7 @@ Fix: move the dbt project under `workflows/transforms/dbt/`.
 ```bash
 cat workflows/transforms/dbt/profiles/profiles.yml
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: ensure the `profiles/` directory exists and targets match services.
 
@@ -773,10 +752,7 @@ Fix: ensure the `profiles/` directory exists and targets match services.
 ```bash
 docker exec dagster-webserver dbt debug
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: verify Trino is running and the connection settings match.
 

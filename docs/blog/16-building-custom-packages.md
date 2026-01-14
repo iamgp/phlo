@@ -185,10 +185,7 @@ Then install the package in your environment:
 ```bash
 uv pip install -e .
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Verify discovery:
 
@@ -196,10 +193,7 @@ Verify discovery:
 phlo plugin list --type assets
 phlo plugin list --type resources
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Complete Example: plugin.py
 
@@ -262,10 +256,7 @@ class remains a thin wrapper for discovery.
 ```bash
 uv pip show phlo-analytics
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: reinstall with `uv pip install -e .` from the package root.
 
@@ -274,10 +265,7 @@ Fix: reinstall with `uv pip install -e .` from the package root.
 ```bash
 uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: confirm `pyproject.toml` entry points and reinstall the package.
 
@@ -286,10 +274,7 @@ Fix: confirm `pyproject.toml` entry points and reinstall the package.
 ```bash
 phlo plugin list --type assets
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: restart the runtime and confirm the plugin metadata.
 

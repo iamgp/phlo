@@ -29,10 +29,7 @@ git push origin feature/new-glucose-model
 git pull request  # Review changes
 git merge  # Promote to main
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Nessie brings this same workflow to **data**:
 
@@ -211,10 +208,7 @@ curl http://localhost:19120/api/v2/config
 #   "repositories": []
 # }
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Default: main Branch
 
@@ -234,10 +228,7 @@ curl http://localhost:19120/api/v2/trees
 #   ]
 # }
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Creating a Development Branch
 
@@ -415,10 +406,7 @@ curl http://localhost:19120/api/v2/trees
 #   ]
 # }
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### View Branch History
 
@@ -453,10 +441,7 @@ curl "http://localhost:19120/api/v2/trees/main/history" \
 #   ]
 # }
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Query on a Specific Branch
 
@@ -514,10 +499,7 @@ dbt run --target dev
 # Run dbt on main branch (production)
 dbt run --target prod
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Advanced: Manual Branch Operations
 
@@ -547,10 +529,7 @@ curl -X POST "http://localhost:19120/api/v1/trees/tree/main/merge?expectedHash=$
 BRANCH_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/feature/new-metrics | jq -r '.hash')
 curl -X DELETE "http://localhost:19120/api/v1/trees/branch/feature/new-metrics?expectedHash=$BRANCH_HASH"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Or use the `NessieResource` in Python:
 
@@ -591,10 +570,7 @@ Branches:
 Tags:
   release-2024-01       m3n4o5p6     15      7d ago
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Create a Feature Branch
 
@@ -610,10 +586,7 @@ Source: main (a1b2c3d4)
 # Create from specific branch
 $ phlo branch create experiment/risky-change --from dev
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Compare Branches
 
@@ -639,10 +612,7 @@ Commits on feature/new-transform not in main:
 
 Safe to merge: Yes (no conflicts detected)
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Merge Branches
 
@@ -669,10 +639,7 @@ Merging: feature/new-transform → main
   Commit: q8r9s0t1
   Tables affected: 2
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Delete Branches
 
@@ -690,10 +657,7 @@ Proceed? [y/N] y
 # Force delete unmerged branch
 $ phlo branch delete experiment/abandoned --force
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Practical Workflow: Safe Schema Changes
 
@@ -723,10 +687,7 @@ $ phlo branch merge feature/add-a1c-calculation main
 # 7. Clean up
 $ phlo branch delete feature/add-a1c-calculation
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Branch Naming Conventions
 
@@ -883,10 +844,7 @@ See you then!
 phlo services logs nessie
 curl http://localhost:19120/api/v2/config
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: start services and confirm Nessie is on port 19120.
 
@@ -895,10 +853,7 @@ Fix: start services and confirm Nessie is on port 19120.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: set the session branch before running queries.
 
@@ -907,10 +862,7 @@ Fix: set the session branch before running queries.
 ```bash
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW TABLES FROM iceberg.bronze;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: verify you are querying the expected branch and schema.
 

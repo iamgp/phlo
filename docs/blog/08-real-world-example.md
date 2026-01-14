@@ -81,10 +81,7 @@ curl "https://gwp-diabetes.fly.dev/api/v1/entries.json" \
   ...
 ]
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Step 2: Data Ingestion
 
@@ -168,10 +165,7 @@ No output (definitions only).
 ```bash
 phlo materialize --select dlt_glucose_entries --partition 2024-10-15
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Step 3: Bronze Layer Transformation
 
@@ -518,10 +512,7 @@ reading_date | avg_glucose_mg_dl | min_glucose_mg_dl | max_glucose_mg_dl | perce
 ──────────────────────────────────────────────────────────────────────────────────────────
 2024-10-15   | 145.3             | 89                | 210               | 78.2
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Step 8: Monitoring and Alerts
 
@@ -710,10 +701,7 @@ This is real-world data engineering:
 ```bash
 phlo materialize dlt_glucose_entries
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: confirm the asset name and check Dagster logs.
 
@@ -722,10 +710,7 @@ Fix: confirm the asset name and check Dagster logs.
 ```bash
 docker exec dagster-webserver dbt run --select model_name
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: verify the model names and dbt profiles configuration.
 
@@ -734,10 +719,7 @@ Fix: verify the model names and dbt profiles configuration.
 ```bash
 phlo services logs postgres
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: confirm marts are loaded and the dashboard points at Postgres.
 

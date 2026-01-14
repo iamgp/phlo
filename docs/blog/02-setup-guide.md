@@ -22,10 +22,6 @@ New to lakehouse architecture? Skim [Part 1: What is a Data Lakehouse?](01-intro
    docker --version
    docker compose --version
    ```
-   Expected output:
-   ```text
-   Command completed successfully.
-   ```
 
    [Install Docker](https://docs.docker.com/get-docker/) if you don't have it
 
@@ -35,10 +31,6 @@ New to lakehouse architecture? Skim [Part 1: What is a Data Lakehouse?](01-intro
    # Install uv (10x faster than pip)
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
-   Expected output:
-   ```text
-   Command completed successfully.
-   ```
 
 3. **Python 3.11+** with Phlo installed
    ```bash
@@ -46,10 +38,6 @@ New to lakehouse architecture? Skim [Part 1: What is a Data Lakehouse?](01-intro
    uv pip install phlo[defaults]
    # or with pip
    pip install phlo[defaults]
-   ```
-   Expected output:
-   ```text
-   Command completed successfully.
    ```
 
 ### System Requirements
@@ -76,20 +64,14 @@ cd my-lakehouse
 # - workflows/ (your data pipelines)
 # - workflows/transforms/dbt/ (dbt models)
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Then initialize infra (generates `.phlo/.env` and `.phlo/.env.local`):
 
 ```bash
 phlo services init
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### What's in phlo.yaml?
 
@@ -171,10 +153,7 @@ Phlo uses a modular architecture. Install the core framework, then add services 
 # Install Phlo with all default services at once
 uv pip install phlo[defaults]
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 This installs:
 
@@ -209,10 +188,7 @@ uv add phlo-dbt
 # Add data quality
 uv add phlo-quality
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 This modular approach lets you:
 
@@ -235,10 +211,7 @@ uv add phlo-openmetadata
 # Add Observatory UI (web interface)
 uv add phlo-observatory
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Step 3: Start Services
 
@@ -251,10 +224,7 @@ phlo services start
 # View service status
 phlo services status
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Option B: Start Specific Services
 
@@ -265,10 +235,7 @@ phlo services start --service postgres --service dagster
 # Add more services later
 phlo services start --service trino --service observatory
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### Verify Services Are Running
 
@@ -282,20 +249,14 @@ phlo services logs -f
 # Or for a specific service
 phlo services logs dagster
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 If any show errors, check logs:
 
 ```bash
 phlo services logs dagster
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Step 4: Access the Services
 
@@ -307,10 +268,7 @@ http://localhost:3000  # Dagster
 http://localhost:3001  # Observatory
 http://localhost:9001  # MinIO Console
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 | Service       | URL / Port                                      | Purpose             |
 | ------------- | ----------------------------------------------- | ------------------- |
@@ -366,10 +324,7 @@ phlo services logs dagster
 # Watch asset progress in Dagster UI (it updates live)
 # Open http://localhost:3000
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 The ingestion does:
 
@@ -455,10 +410,7 @@ duckdb
 -- Connect to MinIO data
 D SELECT COUNT(*) FROM read_parquet('s3://lake/warehouse/silver/fct_glucose_readings/**/*.parquet');
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Step 6: Explore with Observatory
 
@@ -469,10 +421,7 @@ Phlo includes Observatory, a web UI for exploring your lakehouse.
 ```bash
 http://localhost:3001
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ### 6b: Explore Data
 
@@ -536,10 +485,7 @@ Congratulations! You've visualized real glucose data from a lakehouse.
 phlo services list --json
 phlo services logs postgres
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: resolve Docker errors, then run `phlo services start`.
 
@@ -549,10 +495,7 @@ Fix: resolve Docker errors, then run `phlo services start`.
 docker system prune
 docker volume prune
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: reclaim space or move Docker storage to a larger disk.
 
@@ -562,10 +505,7 @@ Fix: reclaim space or move Docker storage to a larger disk.
 phlo services logs nessie
 curl http://localhost:19120/api/v2/config
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: restart Nessie and confirm port 19120 is free.
 
@@ -575,10 +515,7 @@ Fix: restart Nessie and confirm port 19120 is free.
 phlo services logs trino
 docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: wait for Trino startup and ensure `iceberg` is configured.
 
@@ -588,10 +525,7 @@ Fix: wait for Trino startup and ensure `iceberg` is configured.
 phlo services logs dagster-webserver
 phlo services logs dagster-daemon
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Fix: restart Dagster services after fixing errors in the logs.
 
@@ -624,20 +558,14 @@ curl http://localhost:8080/v1/info         # Trino
 curl http://localhost:19120/api/v2/config  # Nessie
 curl http://localhost:3000/graphql         # Dagster
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 Or run the CLI check:
 
 ```bash
 phlo services list --json
 ```
-Expected output:
-```text
-Command completed successfully.
-```
+
 
 ## Summary
 
