@@ -668,6 +668,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-metadata-problem" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1023,52 +1045,24 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
+  <a href="#hands-on-exercise-trace-a-dataset" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#openmetadata-ui-not-loading" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        OpenMetadata UI Not Loading
+        Hands-On Exercise: Trace a Dataset
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#search-not-working" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search Not Working
+        Common Issues
       
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#trino-connection-failed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Trino Connection Failed
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1372,10 +1366,32 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#summary" class="md-nav__link">
     <span class="md-ellipsis">
       
         Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
       
     </span>
   </a>
@@ -1400,10 +1416,26 @@
 
 
 <h1 id="part-10-metadata-and-governance-with-openmetadata">Part 10: Metadata and Governance with OpenMetadata</h1>
-<p>Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.</p>
+<blockquote>
+<p>Prerequisite: Read <a href="../04-project-nessie-versioning/">Part 4: Project Nessie Versioning</a> for branching and audit context.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>Why metadata and governance are critical for trust</li>
+<li>How OpenMetadata models ownership, lineage, and quality</li>
+<li>How Phlo publishes assets into the catalog</li>
+<li>How to use metadata for operational decisions</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><a href="../04-project-nessie-versioning/">Part 4: Project Nessie Versioning</a></li>
+<li>Optional: <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a> for validation context.</li>
+</ul>
+<p>Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.
+For alerting and monitoring once metadata is in place, see <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>.</p>
 <h2 id="the-metadata-problem">The Metadata Problem</h2>
 <p>Without metadata tracking:</p>
-<pre><code>Tuesday 3pm: Someone asks &quot;Where did this dataset come from?&quot;
+<pre><code class="language-text">Tuesday 3pm: Someone asks &quot;Where did this dataset come from?&quot;
 
 Answers from your team:
 - Engineer 1: &quot;I think Nightscout API?&quot;
@@ -1444,7 +1476,7 @@ Answers from your team:
 <li><strong>Open source</strong> - No licensing costs</li>
 </ul>
 <h2 id="architecture">Architecture</h2>
-<pre><code>┌─────────────────────────────────────────────┐
+<pre><code class="language-text">┌─────────────────────────────────────────────┐
 │         OpenMetadata Server (UI)           │
 │         http://localhost:10020              │
 └─────────────┬───────────────────────────────┘
@@ -1475,7 +1507,7 @@ make up-catalog
 make health-catalog
 </code></pre>
 <p>Expected output:</p>
-<pre><code>=== Data Catalog Health Check ===
+<pre><code class="language-text">=== Data Catalog Health Check ===
 OpenMetadata:
   Ready
   UI: http://localhost:10020
@@ -1508,12 +1540,8 @@ make catalog
 <li>Click <strong>Next</strong></li>
 </ol>
 <h3 id="step-2-configure-trino-connection">Step 2: Configure Trino Connection</h3>
-<p><strong>Service Name:</strong></p>
-<pre><code>trino
-</code></pre>
-<p><strong>Description:</strong></p>
-<pre><code>Phlo lakehouse Trino query engine with Iceberg catalog
-</code></pre>
+<p><strong>Service Name:</strong> <code>trino</code></p>
+<p><strong>Description:</strong> Phlo lakehouse Trino query engine with Iceberg catalog</p>
 <p><strong>Connection Configuration:</strong></p>
 <p>Click on <strong>Basic</strong> authentication type, then configure:</p>
 <table>
@@ -1556,7 +1584,7 @@ make catalog
 <p>Port Note: Trino runs on port <code>8080</code> inside the Docker network. The external host port <code>10005</code> is only for accessing Trino from your laptop. OpenMetadata uses the internal port <code>8080</code>.</p>
 </blockquote>
 <p>Click <strong>Test Connection</strong> - you should see:</p>
-<pre><code>Connection test was successful
+<pre><code class="language-text">Connection test was successful
 </code></pre>
 <p>Click <strong>Submit</strong> to save the service.</p>
 <h3 id="step-3-configure-metadata-ingestion-pipeline">Step 3: Configure Metadata Ingestion Pipeline</h3>
@@ -1778,7 +1806,7 @@ Updated every 5 minutes via Dagster pipeline.
 </ol>
 <h2 id="data-lineage">Data Lineage</h2>
 <p>OpenMetadata can show visual lineage graphs:</p>
-<pre><code>raw.glucose_entries
+<pre><code class="language-text">raw.glucose_entries
     ↓
 bronze.stg_glucose_entries (dbt model)
     ↓
@@ -1897,7 +1925,7 @@ marts.mrt_glucose_overview (Trino publish)
 <li>Click <strong>Run</strong> (play button)</li>
 </ol>
 <p>Expected output:</p>
-<pre><code>INFO - Starting dbt metadata ingestion
+<pre><code class="language-text">INFO - Starting dbt metadata ingestion
 INFO - Reading manifest from /dbt/target/manifest.json
 INFO - Found 12 dbt models
 INFO - Processing model: fct_glucose_readings
@@ -1909,7 +1937,7 @@ INFO - Successfully ingested dbt metadata
 <h3 id="1-impact-analysis">1. Impact Analysis</h3>
 <p>Question: "Can I delete the <code>raw.glucose_entries</code> table?"</p>
 <p>You can use the <code>phlo lineage impact</code> command (see Part 11) or check OpenMetadata:</p>
-<pre><code>raw.glucose_entries
+<pre><code class="language-text">raw.glucose_entries
 ├─ Downstream: bronze.stg_glucose_entries
 │  ├─ Downstream: silver.fct_glucose_readings
 │  │  ├─ Downstream: gold.mrt_glucose_overview
@@ -1926,7 +1954,7 @@ Answer: NO!
   - Multiple dbt models
 </code></pre>
 <h3 id="2-search-and-discovery">2. Search and Discovery</h3>
-<pre><code>OpenMetadata Search: &quot;glucose&quot;
+<pre><code class="language-text">OpenMetadata Search: &quot;glucose&quot;
 
 Results:
 ────────
@@ -1980,46 +2008,40 @@ models:
       - name: glucose_category
         description: Categorized as hypoglycemia, in_range, or hyperglycemia
 </code></pre>
-<h2 id="troubleshooting">Troubleshooting</h2>
-<h3 id="openmetadata-ui-not-loading">OpenMetadata UI Not Loading</h3>
-<pre><code class="language-bash"># Check service health
-make health-catalog
-
-# Check logs
-docker logs openmetadata-server
-docker logs openmetadata-mysql
-docker logs openmetadata-elasticsearch
-</code></pre>
-<h3 id="search-not-working">Search Not Working</h3>
-<p><strong>Symptom:</strong></p>
-<ul>
-<li>Explore page shows: "Search failed due to Elasticsearch exception"</li>
-<li>Global search returns no results</li>
-</ul>
-<p><strong>Solution:</strong></p>
+<h2 id="hands-on-exercise-trace-a-dataset">Hands-On Exercise: Trace a Dataset</h2>
 <ol>
-<li>Go to <strong>Settings → OpenMetadata → Search</strong></li>
-<li>Click on <strong>SearchIndexingApplication</strong></li>
-<li>Click <strong>Run Now</strong></li>
-<li><strong>IMPORTANT:</strong> Enable "Recreate Indexes" toggle</li>
-<li>Click <strong>Submit</strong></li>
-<li>Wait 1-2 minutes for completion</li>
+<li>Open OpenMetadata and search for <code>silver.fct_glucose_readings</code>.</li>
+<li>Open the lineage tab and identify upstream sources.</li>
+<li>Assign an owner and add a short description.</li>
+<li>Add a tag (e.g., <code>pii-free</code>) to the dataset.</li>
 </ol>
-<h3 id="trino-connection-failed">Trino Connection Failed</h3>
-<p>Ensure Trino is running:</p>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>OpenMetadata UI not loading</strong></li>
+</ul>
+<pre><code class="language-bash">make health-catalog
+docker logs openmetadata-server
+</code></pre>
+<p>Fix: wait for the server to finish migrations, then refresh the UI.</p>
+<ul>
+<li><strong>Search returns no results</strong></li>
+</ul>
+<pre><code class="language-bash">docker logs openmetadata-elasticsearch
+</code></pre>
+<p>Fix: re-run the search indexing job from the OpenMetadata UI.</p>
+<ul>
+<li><strong>Trino connection failed in OpenMetadata</strong></li>
+</ul>
 <pre><code class="language-bash">make health
-
-# Start Trino if not running
-make up-query
+docker exec -it openmetadata-server curl http://trino:8080/v1/info
 </code></pre>
-<p>Check connection from OpenMetadata container:</p>
-<pre><code class="language-bash">docker exec -it openmetadata-server curl http://trino:8080/v1/info
-</code></pre>
+<p>Fix: start Trino and update the service connection details.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
 <h2 id="data-contracts-formalizing-data-agreements">Data Contracts: Formalizing Data Agreements</h2>
 <p>As data platforms grow, informal agreements break down. The ML team assumes glucose readings update hourly. The analytics team expects certain columns to never be null. The reporting system depends on specific value ranges. When someone changes the schema or update frequency, things break.</p>
 <p><strong>Data contracts</strong> formalize these agreements between data producers (your pipelines) and data consumers (dashboards, ML models, downstream teams).</p>
 <h3 id="the-problem-contracts-solve">The Problem Contracts Solve</h3>
-<pre><code>Without contracts:
+<pre><code class="language-text">Without contracts:
 
 Monday:    Engineer adds new column, removes old one
 Tuesday:   ML model training fails silently
@@ -2320,7 +2342,7 @@ Showing 3 most recent snapshots
 <h2 id="exposing-data-via-apis">Exposing Data via APIs</h2>
 <p>Your data platform isn't just for analysts running SQL. Applications, mobile apps, and external partners often need API access to your curated datasets.</p>
 <h3 id="the-api-layer-problem">The API Layer Problem</h3>
-<pre><code>Traditional approach:
+<pre><code class="language-text">Traditional approach:
 
 1. Data team builds mart table
 2. Backend team builds REST endpoint
@@ -2551,6 +2573,8 @@ tables:
 <strong>Accountability</strong>: Clear ownership and change history
 <strong>Quality</strong>: Quality checks visible and tracked
 <strong>Documentation</strong>: Single source of truth for data definitions</p>
+<h2 id="see-also">See Also</h2>
+<p>See also: <a href="../04-project-nessie-versioning/">Part 4: Project Nessie Versioning</a>, <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a>, <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>. Reference: <a href="../../reference/phlo-api/">Phlo API Reference</a>.</p>
 <h2 id="summary">Summary</h2>
 <p>OpenMetadata provides:</p>
 <ol>
@@ -2562,8 +2586,11 @@ tables:
 <li><strong>Impact</strong>: See what breaks when data changes</li>
 </ol>
 <p>Integrated with dbt, Dagster, and Iceberg, OpenMetadata becomes your data OS.</p>
-<p><strong>Next</strong>: <a href="../11-observability-monitoring/">Part 11: Observability and Monitoring</a></p>
-<p>See you there!</p>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Continue with <a href="../11-observability-monitoring/">Part 11: Observability and Monitoring</a>.</li>
+<li>Review production hardening in <a href="../12-production-deployment/">Part 12: Production Deployment</a>.</li>
+</ul>
 
 
 

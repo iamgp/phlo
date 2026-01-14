@@ -223,6 +223,24 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
+<a class="md-nav__link" href="#what-youll-learn">
+<span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#prerequisites">
+<span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#the-problem-were-solving">
 <span class="md-ellipsis">
       
@@ -366,10 +384,46 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#what-youll-learn-in-this-series">
+<a class="md-nav__link" href="#series-roadmap">
 <span class="md-ellipsis">
       
-        What You'll Learn in This Series
+        Series Roadmap
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#hands-on-exercise-map-your-stack">
+<span class="md-ellipsis">
+      
+        Hands-On Exercise: Map Your Stack
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#common-issues">
+<span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#see-also">
+<span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#summary">
+<span class="md-ellipsis">
+      
+        Summary
       
     </span>
 </a>
@@ -391,6 +445,21 @@
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
 <h1 id="part-1-what-is-a-data-lakehouse-understanding-modern-data-architecture">Part 1: What is a Data Lakehouse? Understanding Modern Data Architecture</h1>
+<blockquote>
+<p>Prerequisite: None. Start here before Part 2 and beyond.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>Why lakehouse architecture replaces lake/warehouse tradeoffs</li>
+<li>How Iceberg, Nessie, Trino, and MinIO work together</li>
+<li>How Phlo maps ingestion, storage, and analytics layers</li>
+<li>Where to go next for hands-on setup</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>None. Start here.</li>
+<li>Optional: <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a> if you want to run services now.</li>
+</ul>
 <h2 id="the-problem-were-solving">The Problem We're Solving</h2>
 <p>Traditional data pipelines have a fundamental problem: <strong>they force you to choose</strong>.</p>
 <p>Either you have:</p>
@@ -398,7 +467,8 @@
 <li><strong>A Data Lake</strong>: cheap, flexible storage but chaotic and hard to query</li>
 <li><strong>A Data Warehouse</strong>: organized, fast queries but rigid and expensive</li>
 </ul>
-<p>Phlo solves this by combining the best of both worlds into a <strong>lakehouse</strong>.</p>
+<p>Phlo solves this by combining the best of both worlds into a <strong>lakehouse</strong>.
+If you want hands-on setup next, jump to <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a>.</p>
 <h2 id="the-three-eras-of-data-architecture">The Three Eras of Data Architecture</h2>
 <h3 id="era-1-the-data-warehouse-1990s-2010s">Era 1: The Data Warehouse (1990s-2010s)</h3>
 <ul>
@@ -646,7 +716,7 @@ def publish_marts() -&gt; None:
 </tr>
 </tbody>
 </table>
-<h2 id="what-youll-learn-in-this-series">What You'll Learn in This Series</h2>
+<h2 id="series-roadmap">Series Roadmap</h2>
 <p>This blog series walks through:</p>
 <ol>
 <li><strong>Part 1</strong> (this): Architecture overview</li>
@@ -663,6 +733,40 @@ def publish_marts() -&gt; None:
 <li><strong>Part 12</strong>: Production deployment and scaling</li>
 </ol>
 <p>Each post includes hands-on examples and code you can run.</p>
+<h2 id="hands-on-exercise-map-your-stack">Hands-On Exercise: Map Your Stack</h2>
+<ol>
+<li>List your current data sources (APIs, databases, files).</li>
+<li>Pick one storage system you would use for raw data (S3/MinIO/local).</li>
+<li>Identify one query engine and one analytics destination you already use.</li>
+<li>Compare your list to the Phlo stack diagram above.</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>Nessie or Trino examples fail to run</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services start
+curl http://localhost:19120/api/v2/config
+</code></pre>
+<p>Fix: start services and confirm Nessie is reachable on port 19120.</p>
+<ul>
+<li><strong>Trino reports <code>Catalog iceberg not found</code></strong></li>
+</ul>
+<pre><code class="language-bash">docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+</code></pre>
+<p>Fix: restart Trino and confirm the <code>iceberg</code> catalog is configured.</p>
+<ul>
+<li><strong>Mermaid diagrams do not render locally</strong></li>
+</ul>
+<pre><code class="language-bash">uv run mkdocs serve
+</code></pre>
+<p>Fix: preview with MkDocs or view the post on GitHub.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
+<h2 id="see-also">See Also</h2>
+<p>See also: <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a>, <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg Explained</a>, <a href="../04-project-nessie-versioning/">Part 4: Project Nessie Versioning</a>. Reference: <a href="../../reference/architecture/">Architecture Overview</a>.</p>
+<h2 id="summary">Summary</h2>
+<p>Phlo combines open table formats, version control, and low-cost storage into a
+single, flexible lakehouse architecture. You now have the mental model for how
+the components fit together and why the tradeoffs matter.</p>
 <h2 id="next-steps">Next Steps</h2>
 <p>Ready to build? In Part 2, we'll:</p>
 <ul>

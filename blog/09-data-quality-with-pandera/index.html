@@ -668,6 +668,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-data-quality-problem" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -995,10 +1017,54 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hands-on-exercise-add-a-new-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hands-On Exercise: Add a New Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#summary" class="md-nav__link">
     <span class="md-ellipsis">
       
         Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
       
     </span>
   </a>
@@ -1023,7 +1089,23 @@
 
 
 <h1 id="part-9-data-qualitypandera-schemas-and-asset-checks">Part 9: Data Quality—Pandera Schemas and Asset Checks</h1>
-<p>In Part 8, we built a complete pipeline. But how do we ensure data quality throughout? This post covers validation at multiple layers.</p>
+<blockquote>
+<p>Prerequisite: Complete <a href="../05-data-ingestion/">Part 5: Data Ingestion</a> before applying quality checks.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>How Pandera schemas validate ingestion data</li>
+<li>How asset checks enforce rules in Dagster</li>
+<li>How to use built-in checks (Range, Freshness, Null)</li>
+<li>How to wire quality checks into production pipelines</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><a href="../05-data-ingestion/">Part 5: Data Ingestion</a></li>
+<li>Optional: <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a> for asset checks context.</li>
+</ul>
+<p>In Part 8, we built a complete pipeline. But how do we ensure data quality throughout? This post covers validation at multiple layers.
+For governance and metadata lineage, see <a href="../10-metadata-governance/">Part 10: Metadata and Governance</a>.</p>
 <h2 id="the-data-quality-problem">The Data Quality Problem</h2>
 <p>Without validation, bad data silently propagates:</p>
 <pre><code class="language-python"># This data is... problematic
@@ -1316,8 +1398,7 @@ dbt test --select stg_glucose_entries --debug
 <p>For common checks (null, range, freshness), use the <code>@phlo_quality</code> decorator to reduce boilerplate by 70-80%:</p>
 <pre><code class="language-python"># File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
-import phlo
-from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 
 @phlo_quality(
     table=&quot;silver.fct_glucose_readings&quot;,
@@ -1325,7 +1406,7 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
         NullCheck(columns=[&quot;entry_id&quot;, &quot;glucose_mg_dl&quot;, &quot;reading_timestamp&quot;]),
         RangeCheck(column=&quot;glucose_mg_dl&quot;, min_value=20, max_value=600),
         RangeCheck(column=&quot;hour_of_day&quot;, min_value=0, max_value=23),
-        FreshnessCheck(column=&quot;reading_timestamp&quot;, max_age_hours=24),
+        FreshnessCheck(timestamp_column=&quot;reading_timestamp&quot;, max_age_hours=24),
     ],
     group=&quot;nightscout&quot;,
     blocking=True,
@@ -1473,8 +1554,7 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -&gt; AssetC
 <p>Best for standard checks - reduces boilerplate by 70-80%:</p>
 <pre><code class="language-python"># File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
-import phlo
-from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 
 @phlo_quality(
     table=&quot;silver.fct_glucose_readings&quot;,
@@ -1482,7 +1562,7 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
         NullCheck(columns=[&quot;entry_id&quot;, &quot;glucose_mg_dl&quot;, &quot;reading_timestamp&quot;]),
         RangeCheck(column=&quot;glucose_mg_dl&quot;, min_value=20, max_value=600),
         RangeCheck(column=&quot;hour_of_day&quot;, min_value=0, max_value=23),
-        FreshnessCheck(column=&quot;reading_timestamp&quot;, max_age_hours=24),
+        FreshnessCheck(timestamp_column=&quot;reading_timestamp&quot;, max_age_hours=24),
     ],
     group=&quot;nightscout&quot;,
     blocking=True,
@@ -1532,27 +1612,27 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -&gt; AssetC
 <tr>
 <td><code>NullCheck</code></td>
 <td>Verify no nulls</td>
-<td><code>columns</code>, <code>tolerance</code> (% allowed)</td>
+<td><code>columns</code>, <code>allow_threshold</code></td>
 </tr>
 <tr>
 <td><code>RangeCheck</code></td>
 <td>Verify numeric bounds</td>
-<td><code>column</code>, <code>min_value</code>, <code>max_value</code></td>
+<td><code>column</code>, <code>min_value</code>, <code>max_value</code>, <code>allow_threshold</code></td>
 </tr>
 <tr>
 <td><code>FreshnessCheck</code></td>
 <td>Verify data recency</td>
-<td><code>column</code>, <code>max_age_hours</code></td>
+<td><code>timestamp_column</code>, <code>max_age_hours</code></td>
 </tr>
 <tr>
 <td><code>UniqueCheck</code></td>
 <td>Verify uniqueness</td>
-<td><code>columns</code> (can be composite)</td>
+<td><code>columns</code>, <code>allow_threshold</code></td>
 </tr>
 <tr>
 <td><code>CountCheck</code></td>
 <td>Verify row count</td>
-<td><code>min_count</code>, <code>max_count</code></td>
+<td><code>min_rows</code>, <code>max_rows</code></td>
 </tr>
 <tr>
 <td><code>SchemaCheck</code></td>
@@ -1562,17 +1642,17 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -&gt; AssetC
 <tr>
 <td><code>CustomSQLCheck</code></td>
 <td>Run arbitrary SQL</td>
-<td><code>sql</code>, <code>expected_result</code></td>
+<td><code>name_</code>, <code>sql</code>, <code>expected</code>, <code>allow_threshold</code></td>
 </tr>
 </tbody>
 </table>
 <h3 id="check-parameters-in-detail">Check Parameters in Detail</h3>
-<p><strong>NullCheck with tolerance:</strong></p>
+<p><strong>NullCheck with allow_threshold:</strong></p>
 <pre><code class="language-python"># Strict: no nulls allowed
 NullCheck(columns=[&quot;sgv&quot;, &quot;timestamp&quot;])
 
 # Lenient: allow up to 1% nulls
-NullCheck(columns=[&quot;device&quot;], tolerance=0.01)
+NullCheck(columns=[&quot;device&quot;], allow_threshold=0.01)
 </code></pre>
 <p><strong>RangeCheck:</strong></p>
 <pre><code class="language-python"># Both bounds
@@ -1586,10 +1666,10 @@ RangeCheck(column=&quot;percentage&quot;, max_value=100)
 </code></pre>
 <p><strong>FreshnessCheck:</strong></p>
 <pre><code class="language-python"># Data must be less than 2 hours old
-FreshnessCheck(column=&quot;timestamp&quot;, max_age_hours=2)
+FreshnessCheck(timestamp_column=&quot;timestamp&quot;, max_age_hours=2)
 
 # Different column name
-FreshnessCheck(column=&quot;created_at&quot;, max_age_hours=24)
+FreshnessCheck(timestamp_column=&quot;created_at&quot;, max_age_hours=24)
 </code></pre>
 <p><strong>UniqueCheck:</strong></p>
 <pre><code class="language-python"># Single column unique
@@ -1599,14 +1679,15 @@ UniqueCheck(columns=[&quot;id&quot;])
 UniqueCheck(columns=[&quot;user_id&quot;, &quot;timestamp&quot;])
 </code></pre>
 <p><strong>CustomSQLCheck for complex rules:</strong></p>
-<pre><code class="language-python">CustomSQLCheck(
-    name=&quot;business_hours_only&quot;,
+<pre><code class="language-python"># &quot;data&quot; is a placeholder for the table/dataframe passed via the @phlo_quality decorator's table parameter
+CustomSQLCheck(
+    name_=&quot;business_hours_only&quot;,
     sql=&quot;&quot;&quot;
-        SELECT COUNT(*) as violations
-        FROM {table}
-        WHERE HOUR(timestamp) &lt; 6 OR HOUR(timestamp) &gt; 22
+        SELECT (HOUR(timestamp) &gt;= 6 AND HOUR(timestamp) &lt;= 22) AS is_valid
+        FROM data
     &quot;&quot;&quot;,
-    expected_result=0,  # Zero violations expected
+    expected=True,  # All rows must be within business hours
+    allow_threshold=0.0,  # No failures allowed
 )
 </code></pre>
 <h3 id="decorator-parameters">Decorator Parameters</h3>
@@ -1641,7 +1722,7 @@ from workflows.schemas.glucose import FactGlucoseReadings
         SchemaCheck(schema=FactGlucoseReadings),
 
         # Plus additional runtime checks
-        FreshnessCheck(column=&quot;timestamp&quot;, max_age_hours=2),
+        FreshnessCheck(timestamp_column=&quot;timestamp&quot;, max_age_hours=2),
     ],
 )
 def glucose_comprehensive_quality():
@@ -1805,6 +1886,35 @@ FROM asset_metadata
 GROUP BY 1
 ORDER BY 3 DESC;
 </code></pre>
+<h2 id="hands-on-exercise-add-a-new-check">Hands-On Exercise: Add a New Check</h2>
+<ol>
+<li>Add a <code>RangeCheck</code> to the glucose asset for a realistic max value.</li>
+<li>Trigger <code>phlo materialize dlt_glucose_entries</code>.</li>
+<li>Confirm the check result in Dagster.</li>
+<li>Fix any violations in the source data or schema.</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>Import errors for <code>phlo_quality</code></strong></li>
+</ul>
+<pre><code class="language-bash">uv run python -c &quot;from phlo_quality.decorator import phlo_quality; print(phlo_quality)&quot;
+</code></pre>
+<p>Fix: ensure <code>phlo-quality</code> is installed in the active environment.</p>
+<ul>
+<li><strong>Checks fail due to schema or column mismatches</strong></li>
+</ul>
+<pre><code class="language-bash">docker exec -i &quot;$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)&quot; trino --execute &quot;DESCRIBE iceberg.silver.fct_glucose_readings;&quot;
+</code></pre>
+<p>Fix: align Pandera schemas with the actual table columns.</p>
+<ul>
+<li><strong>CustomSQLCheck returns non-boolean results</strong></li>
+</ul>
+<pre><code class="language-bash">docker exec -i &quot;$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)&quot; trino --execute &quot;SELECT 1 AS ok LIMIT 1;&quot;
+</code></pre>
+<p>Fix: ensure the SQL returns boolean values per row.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
+<h2 id="see-also">See Also</h2>
+<p>See also: <a href="../05-data-ingestion/">Part 5: Data Ingestion</a>, <a href="../06-dbt-transformations/">Part 6: dbt Transformations</a>, <a href="../10-metadata-governance/">Part 10: Metadata and Governance</a>. Reference: <a href="../../reference/quality-checks-catalog/">Quality Checks Catalog</a>.</p>
 <h2 id="summary">Summary</h2>
 <p>Phlo uses <strong>three-layer validation</strong>:</p>
 <ol>
@@ -1818,8 +1928,11 @@ ORDER BY 3 DESC;
 <li>Transforms execute correctly</li>
 <li>Production issues are caught quickly</li>
 </ul>
-<p><strong>Next</strong>: <a href="../10-metadata-governance/">Part 10: Metadata and Governance with OpenMetadata</a></p>
-<p>See you there!</p>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Continue with <a href="../10-metadata-governance/">Part 10: Metadata and Governance with OpenMetadata</a>.</li>
+<li>Review observability tooling in <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>.</li>
+</ul>
 
 
 

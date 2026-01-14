@@ -668,6 +668,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -719,10 +730,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#whats-in-phloyaml-env" class="md-nav__link">
+  <a href="#whats-in-phloyaml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What's in phlo.yaml (env:)?
+        What's in phlo.yaml?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-in-phloenv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's in .phlo/.env?
       
     </span>
   </a>
@@ -990,74 +1012,35 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
+  <a href="#hands-on-exercise-re-run-the-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Troubleshooting">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#services-wont-start" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Services Won't Start
+        Hands-On Exercise: Re-run the Pipeline
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#out-of-disk-space" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Out of Disk Space
+        Common Issues
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#nessie-connection-error" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Nessie Connection Error
+        See Also
       
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#trino-cant-find-iceberg-connector" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Trino Can't Find Iceberg Connector
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dagster-assets-not-appearing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dagster Assets Not Appearing
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1094,6 +1077,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1112,12 +1106,15 @@
 
 
 <h1 id="part-2-getting-started-with-phlosetup-guide">Part 2: Getting Started with Phlo—Setup Guide</h1>
-<p>In this post, we'll get Phlo running on your machine. By the end, you'll have:</p>
+<blockquote>
+<p>Prerequisite: Read <a href="../01-intro-data-lakehouse/">Part 1: What is a Data Lakehouse?</a> for core concepts.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
 <ul>
-<li>All services running (Postgres, MinIO, Nessie, Trino, Dagster)</li>
-<li>Sample data ingested</li>
-<li>Your first data pipeline executed</li>
-<li>A dashboard showing results</li>
+<li>Bootstrap a new Phlo project with <code>phlo init</code></li>
+<li>Initialize and start the service stack</li>
+<li>Ingest sample data and materialize assets</li>
+<li>Verify results in Dagster and Observatory</li>
 </ul>
 <h2 id="prerequisites">Prerequisites</h2>
 <h3 id="what-you-need">What You Need</h3>
@@ -1190,15 +1187,35 @@ cd my-lakehouse
 <p>Then initialize infra (generates <code>.phlo/.env</code> and <code>.phlo/.env.local</code>):</p>
 <pre><code class="language-bash">phlo services init
 </code></pre>
-<h3 id="whats-in-phloyaml-env">What's in phlo.yaml (env:)?</h3>
-<pre><code class="language-yaml">env:
-  # Ports (all on 10xxx range)
-  POSTGRES_PORT: 10000
-  MINIO_API_PORT: 10001
-  MINIO_CONSOLE_PORT: 10002
-  NESSIE_PORT: 10003
-  TRINO_PORT: 10005
-  DAGSTER_PORT: 10006
+<h3 id="whats-in-phloyaml">What's in phlo.yaml?</h3>
+<pre><code class="language-yaml">name: my-lakehouse
+description: &quot;my-lakehouse data workflows&quot;
+
+# infrastructure:
+#   services:
+#     postgres:
+#       host: custom-host
+#
+# env:
+#   POSTGRES_PORT: 5432
+#   MINIO_API_PORT: 9000
+#   MINIO_CONSOLE_PORT: 9001
+#   NESSIE_PORT: 19120
+#   TRINO_PORT: 8080
+#   DAGSTER_PORT: 3000
+#   OBSERVATORY_PORT: 3001
+#
+# Secrets belong in .phlo/.env.local
+</code></pre>
+<h3 id="whats-in-phloenv">What's in .phlo/.env?</h3>
+<pre><code class="language-env"># Non-secret defaults generated by `phlo services init`
+POSTGRES_PORT=5432
+MINIO_API_PORT=9000
+MINIO_CONSOLE_PORT=9001
+NESSIE_PORT=19120
+TRINO_PORT=8080
+DAGSTER_PORT=3000
+OBSERVATORY_PORT=3001
 </code></pre>
 <h3 id="whats-in-phloenvlocal">What's in .phlo/.env.local?</h3>
 <pre><code class="language-env"># Database
@@ -1305,23 +1322,23 @@ phlo services logs dagster
 </code></pre>
 <h2 id="step-4-access-the-services">Step 4: Access the Services</h2>
 <p>Each service runs on its own port:</p>
-<pre><code class="language-bash"># Open services in browser
-phlo services open dagster
-phlo services open observatory
-phlo services open minio
+<pre><code class="language-bash"># Open services in your browser
+http://localhost:3000  # Dagster
+http://localhost:3001  # Observatory
+http://localhost:9001  # MinIO Console
 </code></pre>
 <table>
 <thead>
 <tr>
 <th>Service</th>
-<th>URL</th>
+<th>URL / Port</th>
 <th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Dagster</td>
-<td>http://localhost:10006</td>
+<td>http://localhost:3000</td>
 <td>Orchestration UI</td>
 </tr>
 <tr>
@@ -1331,30 +1348,35 @@ phlo services open minio
 </tr>
 <tr>
 <td>Trino</td>
-<td>http://localhost:10005</td>
-<td>Query engine UI</td>
+<td>http://localhost:8080</td>
+<td>Query engine API</td>
 </tr>
 <tr>
 <td>MinIO Console</td>
-<td>http://localhost:10002</td>
-<td>Object storage</td>
+<td>http://localhost:9001</td>
+<td>Object storage UI</td>
 </tr>
 <tr>
 <td>PostgreSQL</td>
-<td>http://localhost:10000</td>
+<td>localhost:5432</td>
 <td>Database</td>
 </tr>
 <tr>
 <td>Nessie</td>
-<td>http://localhost:10003</td>
+<td>http://localhost:19120</td>
 <td>Catalog API</td>
+</tr>
+<tr>
+<td>MinIO API</td>
+<td>http://localhost:9000</td>
+<td>S3 API</td>
 </tr>
 </tbody>
 </table>
 <h2 id="step-5-first-data-ingestion">Step 5: First Data Ingestion</h2>
 <p>Now let's ingest some real glucose monitoring data and run the pipeline.</p>
 <h3 id="5a-trigger-data-ingestion">5a: Trigger Data Ingestion</h3>
-<p>Open <strong>Dagster</strong> at http://localhost:10006</p>
+<p>Open <strong>Dagster</strong> at http://localhost:3000</p>
 <p>You should see the asset graph:</p>
 <pre><code>glucose_entries
   ↓
@@ -1377,7 +1399,7 @@ phlo services logs -f
 phlo services logs dagster
 
 # Watch asset progress in Dagster UI (it updates live)
-# Open http://localhost:10006
+# Open http://localhost:3000
 </code></pre>
 <p>The ingestion does:</p>
 <ol>
@@ -1421,7 +1443,7 @@ postgres_marts ⏳ (waiting)
 <li>View schema, preview data, and run queries</li>
 </ol>
 <p><strong>Option 2: Trino CLI</strong></p>
-<pre><code class="language-bash">docker exec -it trino trino \
+<pre><code class="language-bash">docker exec -i &quot;$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)&quot; trino \
   --catalog iceberg \
   --schema silver \
   --execute &quot;SELECT COUNT(*) as row_count FROM fct_glucose_readings;&quot;
@@ -1441,8 +1463,7 @@ D SELECT COUNT(*) FROM read_parquet('s3://lake/warehouse/silver/fct_glucose_read
 <h2 id="step-6-explore-with-observatory">Step 6: Explore with Observatory</h2>
 <p>Phlo includes Observatory, a web UI for exploring your lakehouse.</p>
 <h3 id="6a-open-observatory">6a: Open Observatory</h3>
-<pre><code class="language-bash">phlo services open observatory
-# Opens http://localhost:3001
+<pre><code class="language-bash">http://localhost:3001
 </code></pre>
 <h3 id="6b-explore-data">6b: Explore Data</h3>
 <ol>
@@ -1484,55 +1505,52 @@ LIMIT 24
 <li>Click <strong>Save Chart</strong></li>
 </ol>
 <p>Congratulations! You've visualized real glucose data from a lakehouse.</p>
-<h2 id="troubleshooting">Troubleshooting</h2>
-<h3 id="services-wont-start">Services Won't Start</h3>
-<pre><code class="language-bash"># Check service status
-phlo services status
-
-# View specific service logs
+<h2 id="hands-on-exercise-re-run-the-pipeline">Hands-On Exercise: Re-run the Pipeline</h2>
+<ol>
+<li>Stop services: <code>phlo services stop</code>.</li>
+<li>Restart services: <code>phlo services start</code>.</li>
+<li>Re-materialize a subset: <code>phlo materialize --select tag:daily</code>.</li>
+<li>Confirm in Dagster that the run succeeded and assets updated.</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>Services fail to start</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services list --json
 phlo services logs postgres
-phlo services logs dagster
-
-# Restart all services
-phlo services restart
 </code></pre>
-<h3 id="out-of-disk-space">Out of Disk Space</h3>
-<pre><code class="language-bash"># Clean up Docker resources
-docker system prune
+<p>Fix: resolve Docker errors, then run <code>phlo services start</code>.</p>
+<ul>
+<li><strong>Out of disk space</strong></li>
+</ul>
+<pre><code class="language-bash">docker system prune
 docker volume prune
-
-# Reset services (WARNING: deletes all data)
-phlo services reset
 </code></pre>
-<h3 id="nessie-connection-error">Nessie Connection Error</h3>
-<pre><code class="language-bash"># Check Nessie status
-phlo services status nessie
-
-# View Nessie logs
-phlo services logs nessie
-
-# Verify Nessie is healthy
-curl http://localhost:10003/api/v1/config
+<p>Fix: reclaim space or move Docker storage to a larger disk.</p>
+<ul>
+<li><strong>Nessie connection errors</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services logs nessie
+curl http://localhost:19120/api/v2/config
 </code></pre>
-<h3 id="trino-cant-find-iceberg-connector">Trino Can't Find Iceberg Connector</h3>
-<pre><code class="language-bash"># Check Trino logs
-phlo services logs trino
-
-# Verify catalog is configured (once Trino is running)
-docker exec trino trino --execute &quot;SHOW CATALOGS;&quot;
-
-# Should output:
-# catalog
-# ─────────
-# iceberg
-# system
+<p>Fix: restart Nessie and confirm port 19120 is free.</p>
+<ul>
+<li><strong>Trino cannot find Iceberg catalog</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services logs trino
+docker exec -i &quot;$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)&quot; trino --execute &quot;SHOW CATALOGS;&quot;
 </code></pre>
-<h3 id="dagster-assets-not-appearing">Dagster Assets Not Appearing</h3>
-<pre><code class="language-bash"># Restart Dagster services
-phlo services restart dagster
-
-# Wait 10 seconds, refresh http://localhost:10006
+<p>Fix: wait for Trino startup and ensure <code>iceberg</code> is configured.</p>
+<ul>
+<li><strong>Dagster assets do not appear</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services logs dagster-webserver
+phlo services logs dagster-daemon
 </code></pre>
+<p>Fix: restart Dagster services after fixing errors in the logs.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
+<h2 id="see-also">See Also</h2>
+<p>See also: <a href="../01-intro-data-lakehouse/">Part 1: What is a Data Lakehouse?</a>, <a href="../05-data-ingestion/">Part 5: Data Ingestion with DLT</a>, <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a>. Reference: <a href="../../reference/cli-reference/">CLI Reference</a>.</p>
 <h2 id="whats-next">What's Next?</h2>
 <p>You now have a working lakehouse! Next steps:</p>
 <ol>
@@ -1547,12 +1565,12 @@ phlo services restart dagster
 phlo services status
 
 # Or use the health endpoint
-curl http://localhost:10005/v1/info     # Trino
-curl http://localhost:10003/api/v1/config  # Nessie
-curl http://localhost:10006/graphql     # Dagster
+curl http://localhost:8080/v1/info         # Trino
+curl http://localhost:19120/api/v2/config  # Nessie
+curl http://localhost:3000/graphql         # Dagster
 </code></pre>
 <p>Or run the CLI check:</p>
-<pre><code class="language-bash">phlo services status --json
+<pre><code class="language-bash">phlo services list --json
 </code></pre>
 <h2 id="summary">Summary</h2>
 <p>You've successfully:</p>
@@ -1563,7 +1581,11 @@ curl http://localhost:10006/graphql     # Dagster
 <li>Created a dashboard</li>
 </ul>
 <p>In Part 3, we'll dive deep into <strong>Apache Iceberg</strong>—the magic that makes this lakehouse work.</p>
-<p><strong>Next</strong>: <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg—The Table Format That Changed Everything</a></p>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Continue with <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg—The Table Format That Changed Everything</a>.</li>
+<li>Jump to ingestion specifics in <a href="../05-data-ingestion/">Part 5: Data Ingestion</a>.</li>
+</ul>
 
 
 

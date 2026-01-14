@@ -263,6 +263,15 @@
 </a>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="#find-posts-fast">
+<span class="md-ellipsis">
+      
+        Find Posts Fast
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#phlo-architecture">
 <span class="md-ellipsis">
       
@@ -291,19 +300,19 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#path-2-data-engineer">
+<a class="md-nav__link" href="#path-2-experienced-engineer">
 <span class="md-ellipsis">
       
-        Path 2: Data Engineer
+        Path 2: Experienced Engineer
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#path-3-architectdecision-maker">
+<a class="md-nav__link" href="#path-3-architectevaluator">
 <span class="md-ellipsis">
       
-        Path 3: Architect/Decision Maker
+        Path 3: Architect/Evaluator
       
     </span>
 </a>
@@ -459,7 +468,7 @@
 <article class="md-content__inner md-typeset">
 <h1 id="phlo-blog-series-modern-data-engineering">Phlo Blog Series: Modern Data Engineering</h1>
 <p>A comprehensive, hands-on guide to building a production-ready data lakehouse using Phlo.</p>
-<p>This 12-part series walks through:</p>
+<p>This 16-part series walks through:</p>
 <ul>
 <li>Fundamental concepts of data lakehouses</li>
 <li>Setting up Phlo step-by-step</li>
@@ -472,6 +481,10 @@
 <li>Metadata and governance</li>
 <li>Observability and monitoring</li>
 <li>Production deployment</li>
+<li>Capability primitives and runtime specs</li>
+<li>Plugin system and extensibility</li>
+<li>Observatory extensions</li>
+<li>Building custom packages</li>
 </ul>
 <p>Each post includes:</p>
 <ul>
@@ -521,6 +534,7 @@ uv add phlo-openmetadata
 phlo services start --profile catalog
 </code></pre>
 <p>For detailed setup instructions, see <a href="02-setup-guide/">Part 2: Getting Started</a>.</p>
+<p>Short on time? Jump to <a href="02-setup-guide/">Part 2: Getting Started</a>.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <p><strong>System Requirements:</strong></p>
 <ul>
@@ -550,6 +564,7 @@ phlo services start --profile catalog
 <th>Title</th>
 <th>Topics</th>
 <th>Time</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
@@ -558,83 +573,123 @@ phlo services start --profile catalog
 <td><a href="01-intro-data-lakehouse/">What is a Data Lakehouse?</a></td>
 <td>Architecture, Iceberg, Nessie, overview</td>
 <td>15 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>2</td>
 <td><a href="02-setup-guide/">Getting Started—Setup Guide</a></td>
 <td>Installation, services, first pipeline</td>
-<td>50 min</td>
+<td>20 min</td>
+<td>Up to date</td>
 </tr>
 <tr>
 <td>3</td>
 <td><a href="03-apache-iceberg-explained/">Apache Iceberg—Table Format</a></td>
 <td>Snapshots, schema evolution, time travel</td>
 <td>20 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>4</td>
 <td><a href="04-project-nessie-versioning/">Project Nessie—Git for Data</a></td>
 <td>Branching, versioning, governance</td>
 <td>15 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>5</td>
 <td><a href="05-data-ingestion/">Data Ingestion Patterns</a></td>
 <td>DLT, PyIceberg, merge strategies, validation</td>
-<td>22 min</td>
+<td>20 min</td>
+<td>Up to date</td>
 </tr>
 <tr>
 <td>6</td>
 <td><a href="06-dbt-transformations/">dbt Transformations</a></td>
 <td>Models, testing, layers, best practices</td>
-<td>22 min</td>
+<td>20 min</td>
+<td>Up to date</td>
 </tr>
 <tr>
 <td>7</td>
 <td><a href="07-orchestration-dagster/">Dagster Orchestration</a></td>
 <td>Assets, partitions, scheduling, monitoring</td>
 <td>20 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>8</td>
 <td><a href="08-real-world-example/">Real-World Example</a></td>
 <td>Complete glucose pipeline, end-to-end</td>
-<td>25 min</td>
+<td>20 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>9</td>
 <td><a href="09-data-quality-with-pandera/">Data Quality with Pandera</a></td>
 <td>Schemas, validation, asset checks</td>
 <td>20 min</td>
+<td>Up to date</td>
 </tr>
 <tr>
 <td>10</td>
 <td><a href="10-metadata-governance/">Metadata and Governance</a></td>
 <td>OpenMetadata, data contracts, schema evolution</td>
-<td>25 min</td>
+<td>20 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>11</td>
 <td><a href="11-observability-monitoring/">Observability and Monitoring</a></td>
 <td>Metrics, alerting, lineage, debugging</td>
-<td>25 min</td>
+<td>20 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>12</td>
 <td><a href="12-production-deployment/">Production Deployment</a></td>
 <td>Infrastructure config, Kubernetes, HA, scaling</td>
-<td>35 min</td>
+<td>20 min</td>
+<td>Needs review</td>
 </tr>
 <tr>
 <td>13</td>
-<td><a href="13-plugin-system/">Extending Phlo with Plugins</a></td>
+<td><a href="13-capability-primitives/">Capability Primitives</a></td>
+<td>AssetSpec, RunSpec, runtime context</td>
+<td>15 min</td>
+<td>Up to date</td>
+</tr>
+<tr>
+<td>14</td>
+<td><a href="14-plugin-system/">Extending Phlo with Plugins</a></td>
 <td>Custom sources, quality checks, transforms</td>
 <td>20 min</td>
+<td>Up to date</td>
+</tr>
+<tr>
+<td>15</td>
+<td><a href="15-observatory-extensions/">Observatory Extensions</a></td>
+<td>Extension manifests, UI hooks, APIs</td>
+<td>15 min</td>
+<td>Up to date</td>
+</tr>
+<tr>
+<td>16</td>
+<td><a href="16-building-custom-packages/">Building Custom Packages</a></td>
+<td>Assets, resources, entry points</td>
+<td>15 min</td>
+<td>Up to date</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Total content</strong>: ~8,000 lines, 275+ KB of educational material
-<strong>Estimated reading time</strong>: 4.5-6 hours (complete series)</p>
+<p><strong>Total content</strong>: 16 posts, ~8,000 lines, 275+ KB of educational material
+<strong>Estimated reading time</strong>: 4–5 hours (complete series)</p>
+<h2 id="find-posts-fast">Find Posts Fast</h2>
+<ul>
+<li>Use the Topics column above to scan for keywords.</li>
+<li>Use your browser's find feature (Ctrl/Cmd+F) to search for "Iceberg", "Dagster", "dbt".</li>
+<li>GitHub search: <code>path:docs/blog/ &lt;keyword&gt;</code> for focused results.</li>
+</ul>
 <h2 id="phlo-architecture">Phlo Architecture</h2>
 <p>Here's how all the pieces fit together:</p>
 <div class="mermaid">graph TB
@@ -738,33 +793,28 @@ phlo services start --profile catalog
 <ol>
 <li>Read <a href="01-intro-data-lakehouse/">Part 1</a> (architecture concepts)</li>
 <li>Follow <a href="02-setup-guide/">Part 2</a> setup (hands-on)</li>
-<li>Skim <a href="08-real-world-example/">Part 8</a> (see it working)</li>
-<li>Deep dive <a href="03-apache-iceberg-explained/">Parts 3-7</a> (technical details)</li>
-<li>Skim <a href="09-data-quality-with-pandera/">Part 9</a> (why validation matters)</li>
+<li>Read <a href="03-apache-iceberg-explained/">Part 3</a> (core storage)</li>
+<li><a href="05-data-ingestion/">Part 5</a> (ingestion flow)</li>
+<li><a href="06-dbt-transformations/">Part 6</a> (SQL transforms)</li>
+<li><a href="07-orchestration-dagster/">Part 7</a> (orchestration)</li>
+<li><a href="08-real-world-example/">Part 8</a> (end-to-end example)</li>
 </ol>
 <p><strong>Time</strong>: 2-3 hours reading + setup</p>
-<h3 id="path-2-data-engineer">Path 2: Data Engineer</h3>
+<h3 id="path-2-experienced-engineer">Path 2: Experienced Engineer</h3>
 <p><strong>Goal</strong>: Learn new tools and patterns</p>
 <ol>
-<li>Skim <a href="01-intro-data-lakehouse/">Part 1</a> (context)</li>
 <li><a href="02-setup-guide/">Part 2</a> setup</li>
-<li><a href="03-apache-iceberg-explained/">Part 3</a> (Iceberg deep dive)</li>
-<li><a href="04-project-nessie-versioning/">Part 4</a> (Nessie concepts)</li>
-<li><a href="05-data-ingestion/">Parts 5-7</a> (implementation)</li>
-<li><a href="08-real-world-example/">Part 8</a> (patterns)</li>
-<li><a href="09-data-quality-with-pandera/">Part 9</a> (validation)</li>
-<li><a href="11-observability-monitoring/">Part 11</a> (monitoring)</li>
+<li><a href="13-capability-primitives/">Part 13</a> (specs and runtime)</li>
+<li><a href="07-orchestration-dagster/">Part 7</a> (orchestration)</li>
+<li><a href="09-data-quality-with-pandera/">Parts 9-12</a> (quality, metadata, observability, prod)</li>
 </ol>
-<p><strong>Time</strong>: 3 hours reading + hands-on</p>
-<h3 id="path-3-architectdecision-maker">Path 3: Architect/Decision Maker</h3>
+<p><strong>Time</strong>: 2-3 hours reading + hands-on</p>
+<h3 id="path-3-architectevaluator">Path 3: Architect/Evaluator</h3>
 <p><strong>Goal</strong>: Evaluate Phlo for your organization</p>
 <ol>
 <li><a href="01-intro-data-lakehouse/">Part 1</a> (comparison to alternatives)</li>
-<li><a href="03-apache-iceberg-explained/">Part 3</a> (open standards benefits)</li>
-<li><a href="04-project-nessie-versioning/">Part 4</a> (governance story)</li>
-<li><a href="08-real-world-example/">Part 8</a> (production patterns)</li>
-<li><a href="10-metadata-governance/">Part 10</a> (governance and compliance)</li>
-<li><a href="12-production-deployment/">Part 12</a> (scaling and HA)</li>
+<li><a href="13-capability-primitives/">Part 13</a> (system model)</li>
+<li><a href="10-metadata-governance/">Parts 10-12</a> (governance, monitoring, prod)</li>
 <li><a href="../reference/architecture/">Architecture Guide</a> (deployment options)</li>
 </ol>
 <p><strong>Time</strong>: 2 hours reading</p>
@@ -795,7 +845,7 @@ phlo services start --profile catalog
 </ul>
 <h3 id="extensibility">Extensibility</h3>
 <ul>
-<li><a href="13-plugin-system/">Part 13</a>: Building custom sources, quality checks, and transforms</li>
+<li><a href="14-plugin-system/">Part 14</a>: Building custom sources, quality checks, and transforms</li>
 </ul>
 <h2 id="tools-reference">Tools Reference</h2>
 <p>Each tool has dedicated coverage:</p>

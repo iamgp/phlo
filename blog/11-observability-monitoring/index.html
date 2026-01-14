@@ -223,6 +223,24 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
+<a class="md-nav__link" href="#what-youll-learn">
+<span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#prerequisites">
+<span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#the-observability-problem">
 <span class="md-ellipsis">
       
@@ -570,10 +588,46 @@
 </nav>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="#hands-on-exercise-simulate-an-alert">
+<span class="md-ellipsis">
+      
+        Hands-On Exercise: Simulate an Alert
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#common-issues">
+<span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#see-also">
+<span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="#summary">
 <span class="md-ellipsis">
       
         Summary
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#next-steps">
+<span class="md-ellipsis">
+      
+        Next Steps
       
     </span>
 </a>
@@ -586,7 +640,23 @@
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
 <h1 id="part-11-observability-and-monitoringknowing-your-pipeline">Part 11: Observability and Monitoring—Knowing Your Pipeline</h1>
-<p>You've built a data lakehouse with validation and governance. But what happens at 3am when something breaks? This post covers observability: monitoring, alerting, and troubleshooting.</p>
+<blockquote>
+<p>Prerequisite: Complete <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a> to follow the monitoring flows.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>How Phlo collects metrics, logs, and traces</li>
+<li>How to set alerting thresholds for pipeline health</li>
+<li>How to use Dagster and Observatory for incident response</li>
+<li>How observability connects to governance and quality</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a></li>
+<li>Optional: <a href="../10-metadata-governance/">Part 10: Metadata and Governance</a> for lineage context.</li>
+</ul>
+<p>You've built a data lakehouse with validation and governance. But what happens at 3am when something breaks? This post covers observability: monitoring, alerting, and troubleshooting.
+For custom UI extensions in the observability layer, see <a href="../15-observatory-extensions/">Part 15: Observatory Extensions</a>.</p>
 <h2 id="the-observability-problem">The Observability Problem</h2>
 <p>Without proper monitoring, failures hide:</p>
 <pre><code>Tuesday 3am:
@@ -1347,6 +1417,37 @@ $ phlo metrics export --format json --period 7d | \
   python analyze_metrics.py
 </code></pre>
 <hr/>
+<h2 id="hands-on-exercise-simulate-an-alert">Hands-On Exercise: Simulate an Alert</h2>
+<ol>
+<li>Stop one service: <code>phlo services stop trino</code>.</li>
+<li>Confirm the alert condition in Dagster or Observatory logs.</li>
+<li>Restart the service: <code>phlo services start trino</code>.</li>
+<li>Verify the alert clears and metrics recover.</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>Observatory UI not loading</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services logs observatory
+curl http://localhost:3001
+</code></pre>
+<p>Fix: restart Observatory and confirm port 3001 is reachable.</p>
+<ul>
+<li><strong>Dashboards show no metrics</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services logs grafana
+phlo services logs prometheus
+</code></pre>
+<p>Fix: verify metrics exporters are running and Grafana data sources are configured.</p>
+<ul>
+<li><strong>Logs not appearing in the UI</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services logs loki
+</code></pre>
+<p>Fix: confirm log shipping configuration and restart Loki if needed.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
+<h2 id="see-also">See Also</h2>
+<p>See also: <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a>, <a href="../10-metadata-governance/">Part 10: Metadata and Governance</a>, <a href="../15-observatory-extensions/">Part 15: Observatory Extensions</a>. Reference: <a href="../../reference/phlo-api/">Phlo API Reference</a>.</p>
 <h2 id="summary">Summary</h2>
 <p>Phlo's observability stack provides:</p>
 <p><strong>Metrics</strong>: Track what's happening via <code>phlo metrics</code> (execution time, throughput, quality)
@@ -1361,8 +1462,11 @@ $ phlo metrics export --format json --period 7d | \
 <li><strong>Confidence</strong>: Deploy with safety nets and impact analysis in place</li>
 </ul>
 <p>All accessible through simple CLI commands that integrate with your existing workflows.</p>
-<p><strong>Next</strong>: <a href="../12-production-deployment/">Part 12: Production Deployment and Scaling</a></p>
-<p>See you there!</p>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Continue with <a href="../12-production-deployment/">Part 12: Production Deployment and Scaling</a>.</li>
+<li>Explore custom extensions in <a href="../15-observatory-extensions/">Part 15: Observatory Extensions</a>.</li>
+</ul>
 </article>
 </div>
 <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>

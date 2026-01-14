@@ -668,6 +668,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-use-case" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -930,10 +952,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#hands-on-exercise-extend-the-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Hands-On Exercise: Extend the Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
       
     </span>
   </a>
@@ -945,6 +989,17 @@
     <span class="md-ellipsis">
       
         Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
       
     </span>
   </a>
@@ -969,7 +1024,24 @@
 
 
 <h1 id="part-8-real-world-examplebuilding-a-complete-data-pipeline">Part 8: Real-World Example—Building a Complete Data Pipeline</h1>
-<p>We've covered all the pieces. Now let's build a complete, working pipeline from start to finish: <strong>Nightscout Glucose Monitoring</strong>.</p>
+<blockquote>
+<p>Prerequisite: Complete <a href="../02-setup-guide/">Part 2: Getting Started</a>, <a href="../05-data-ingestion/">Part 5: Data Ingestion</a>, and <a href="../06-dbt-transformations/">Part 6: dbt Transformations</a>.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>How the ingestion, dbt, and publishing layers fit together</li>
+<li>How to configure end-to-end assets for a real dataset</li>
+<li>How to validate data quality during the pipeline</li>
+<li>How to visualize outputs in Superset</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a></li>
+<li><a href="../05-data-ingestion/">Part 5: Data Ingestion</a></li>
+<li><a href="../06-dbt-transformations/">Part 6: dbt Transformations</a></li>
+</ul>
+<p>We've covered all the pieces. Now let's build a complete, working pipeline from start to finish: <strong>Nightscout Glucose Monitoring</strong>.
+For validation patterns used in this walkthrough, see <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a>.</p>
 <h2 id="the-use-case">The Use Case</h2>
 <p><strong>Nightscout</strong> is an open-source glucose monitoring system used by people with diabetes. It sends glucose readings every 5 minutes to a cloud API.</p>
 <p><strong>Goal</strong>: Build analytics to understand:</p>
@@ -1523,17 +1595,35 @@ Total pipeline time: 8.92s
 <li>Publish for consumption (Postgres, dashboards)</li>
 <li>Monitor quality (tests, checks, alerts)</li>
 </ul>
-<h2 id="next-steps">Next Steps</h2>
-<p>To extend this example:</p>
+<h2 id="hands-on-exercise-extend-the-pipeline">Hands-On Exercise: Extend the Pipeline</h2>
 <ol>
-<li><strong>Add more data sources</strong>: GitHub, Fitbit, weather, etc.</li>
-<li><strong>Advanced analytics</strong>: Anomaly detection, forecasting</li>
-<li><strong>Real-time alerts</strong>: Slack notifications for hypoglycemia</li>
-<li><strong>Retention policies</strong>: Archive old data, keep recent data hot</li>
-<li><strong>ML integration</strong>: Predict glucose trends</li>
+<li>Add one new source (GitHub, Fitbit, or weather) to the ingestion workflow.</li>
+<li>Create a new dbt model to join it to <code>silver.fct_glucose_readings</code>.</li>
+<li>Publish a new mart table to Postgres.</li>
+<li>Build a simple Superset chart using the new data.</li>
 </ol>
-<p>The pattern remains:
-<strong>Ingest → Validate → Transform → Publish → Monitor</strong></p>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>Ingestion assets do not run</strong></li>
+</ul>
+<pre><code class="language-bash">phlo materialize dlt_glucose_entries
+</code></pre>
+<p>Fix: confirm the asset name and check Dagster logs.</p>
+<ul>
+<li><strong>dbt models fail to build</strong></li>
+</ul>
+<pre><code class="language-bash">docker exec dagster-webserver dbt run --select model_name
+</code></pre>
+<p>Fix: verify the model names and dbt profiles configuration.</p>
+<ul>
+<li><strong>Dashboards show no data</strong></li>
+</ul>
+<pre><code class="language-bash">phlo services logs postgres
+</code></pre>
+<p>Fix: confirm marts are loaded and the dashboard points at Postgres.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
+<h2 id="see-also">See Also</h2>
+<p>See also: <a href="../05-data-ingestion/">Part 5: Data Ingestion</a>, <a href="../06-dbt-transformations/">Part 6: dbt Transformations</a>, <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a>. Reference: <a href="../../reference/architecture/">Architecture Overview</a>.</p>
 <h2 id="summary">Summary</h2>
 <p>You now understand:</p>
 <ul>
@@ -1546,7 +1636,11 @@ Total pipeline time: 8.92s
 </ul>
 <p>Time to build your own pipelines!</p>
 <p>See the <a href="../../">main docs</a> for API references, troubleshooting, and production deployment guides.</p>
-<p><strong>Next</strong>: <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a></p>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Continue with <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a>.</li>
+<li>Review governance patterns in <a href="../10-metadata-governance/">Part 10: Metadata &amp; Governance</a>.</li>
+</ul>
 
 
 

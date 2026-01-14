@@ -668,6 +668,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#development-vs-production" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1028,6 +1050,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hands-on-exercise-create-a-deployment-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hands-On Exercise: Create a Deployment Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#summary" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1060,6 +1115,23 @@
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Next Steps">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#quick-start" class="md-nav__link">
@@ -1095,7 +1167,23 @@
 
 
 <h1 id="part-12-production-deployment-and-scaling">Part 12: Production Deployment and Scaling</h1>
-<p>You've built, tested, and monitored your data lakehouse. Now let's deploy it to production and scale it reliably.</p>
+<blockquote>
+<p>Prerequisite: Complete <a href="../02-setup-guide/">Part 2: Getting Started</a> and <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>How to move from local Docker to production deployments</li>
+<li>How to scale storage, compute, and orchestration safely</li>
+<li>How to harden security, backups, and access control</li>
+<li>How to operate Phlo with SLAs</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a></li>
+<li><a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a></li>
+</ul>
+<p>You've built, tested, and monitored your data lakehouse. Now let's deploy it to production and scale it reliably.
+For governance and access control policy foundations, see <a href="../10-metadata-governance/">Part 10: Metadata and Governance</a>.</p>
 <h2 id="development-vs-production">Development vs Production</h2>
 <p>What differs between your laptop and production:</p>
 <table>
@@ -1970,6 +2058,35 @@ aws cloudwatch put-metric-alarm \
   --threshold 1 \
   --comparison-operator GreaterThanThreshold
 </code></pre>
+<h2 id="hands-on-exercise-create-a-deployment-checklist">Hands-On Exercise: Create a Deployment Checklist</h2>
+<ol>
+<li>List the services you will deploy (Nessie, MinIO, Trino, Dagster, Postgres).</li>
+<li>Define backup strategy and retention for each stateful service.</li>
+<li>Set SLAs for ingestion latency and freshness.</li>
+<li>Identify one security control to add (IAM, network policy, secrets manager).</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>Default credentials still in use</strong></li>
+</ul>
+<pre><code class="language-bash">rg -n &quot;changeme|admin&quot; .phlo/.env .phlo/.env.local
+</code></pre>
+<p>Fix: rotate credentials and reload services.</p>
+<ul>
+<li><strong>Services exposed on public interfaces</strong></li>
+</ul>
+<pre><code class="language-bash">ss -ltn
+</code></pre>
+<p>Fix: bind services to private interfaces and configure firewalls.</p>
+<ul>
+<li><strong>Configuration changes not applied</strong></li>
+</ul>
+<pre><code class="language-bash">cat .phlo/.env
+</code></pre>
+<p>Fix: update <code>.phlo/.env.local</code> and restart services to apply changes.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
+<h2 id="see-also">See Also</h2>
+<p>See also: <a href="../02-setup-guide/">Part 2: Getting Started</a>, <a href="../10-metadata-governance/">Part 10: Metadata and Governance</a>, <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>. Reference: <a href="../../reference/configuration-reference/">Configuration Reference</a>.</p>
 <h2 id="summary">Summary</h2>
 <p>Production deployment with Phlo:</p>
 <h3 id="current-implementation-docker-compose">Current Implementation (Docker Compose)</h3>
@@ -1997,6 +2114,11 @@ aws cloudwatch put-metric-alarm \
 <li>Set up SSL/TLS certificates</li>
 <li>Configure firewall rules and VPC</li>
 <li>Change all default passwords in <code>.phlo/.env.local</code></li>
+</ul>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Review plugin extensibility in <a href="../14-plugin-system/">Part 14: Plugin System</a>.</li>
+<li>Build observability customizations in <a href="../15-observatory-extensions/">Part 15: Observatory Extensions</a>.</li>
 <li>Enable audit logging</li>
 </ul>
 <p>🔮 <strong>Future (Kubernetes)</strong>:</p>
@@ -2023,7 +2145,7 @@ docker-compose --profile all up -d
 # OpenMetadata: http://localhost:10020
 </code></pre>
 <hr />
-<p><strong>Next</strong>: <a href="../13-plugin-system/">Part 13 - Plugin System</a> - Extend Phlo with custom plugins</p>
+<p><strong>Next</strong>: <a href="../14-plugin-system/">Part 14 - Plugin System</a> - Extend Phlo with custom plugins</p>
 <p><strong>Series</strong>:</p>
 <ol>
 <li>Data Lakehouse concepts</li>

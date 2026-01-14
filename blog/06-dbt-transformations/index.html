@@ -668,6 +668,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-problem-without-dbt" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -829,15 +851,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#hands-on-run-dbt-transforms" class="md-nav__link">
+  <a href="#hands-on-exercise-run-dbt-transforms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Hands-On: Run dbt Transforms
+        Hands-On Exercise: Run dbt Transforms
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Hands-On: Run dbt Transforms">
+    <nav class="md-nav" aria-label="Hands-On Exercise: Run dbt Transforms">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1001,10 +1023,43 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#summary" class="md-nav__link">
     <span class="md-ellipsis">
       
         Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
       
     </span>
   </a>
@@ -1029,7 +1084,23 @@
 
 
 <h1 id="part-6-sql-transformations-with-dbtthe-right-way">Part 6: SQL Transformations with dbt—The Right Way</h1>
-<p>Raw data is in the lakehouse. Now we <strong>transform</strong> it into analysis-ready datasets using <strong>dbt</strong> (data build tool).</p>
+<blockquote>
+<p>Prerequisite: Complete <a href="../05-data-ingestion/">Part 5: Data Ingestion</a> before running dbt models.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>How dbt models map to Phlo medallion layers</li>
+<li>How to run dbt in the <code>workflows/transforms/dbt/</code> project</li>
+<li>How tests and docs keep transformations reliable</li>
+<li>How dbt outputs feed downstream analytics</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li><a href="../05-data-ingestion/">Part 5: Data Ingestion</a></li>
+<li>Optional: <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a> to run services.</li>
+</ul>
+<p>Raw data is in the lakehouse. Now we <strong>transform</strong> it into analysis-ready datasets using <strong>dbt</strong> (data build tool).
+For pipeline scheduling and retries, see <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a>.</p>
 <p>dbt solves a critical problem: <strong>How do you manage SQL transformations professionally?</strong></p>
 <h2 id="the-problem-without-dbt">The Problem Without dbt</h2>
 <pre><code class="language-python"># Without dbt: SQL in Python files (nightmare)
@@ -1249,6 +1320,9 @@ dbt docs serve  # Opens http://localhost:8000
 <h2 id="phlos-dbt-structure">Phlo's dbt Structure</h2>
 <h3 id="directory-layout">Directory Layout</h3>
 <pre><code>workflows/transforms/dbt/
+├── dbt_project.yml                   # Project config
+├── profiles/
+│   └── profiles.yml                  # Connection config
 ├── models/
 │   ├── sources.yml         # External data sources (raw Iceberg tables)
 │   ├── bronze/
@@ -1268,8 +1342,7 @@ dbt docs serve  # Opens http://localhost:8000
 │       └── *.sql
 ├── tests/
 │   └── custom_tests.sql               # Custom SQL tests
-├── profiles.yml                       # Connection config
-└── dbt_project.yml                   # Project config
+└── target/                            # Generated (gitignored)
 </code></pre>
 <h3 id="4-layer-architecture">4-Layer Architecture</h3>
 <ol>
@@ -1364,7 +1437,7 @@ dbt docs serve  # Opens http://localhost:8000
 <h2 id="integration-with-phlo">Integration with Phlo</h2>
 <h3 id="connection-configuration">Connection Configuration</h3>
 <p>Nessie branching is configured via different Trino catalogs:</p>
-<pre><code class="language-yaml"># profiles.yml
+<pre><code class="language-yaml"># workflows/transforms/dbt/profiles/profiles.yml
 phlo:
   target: dev # development by default
 
@@ -1403,7 +1476,7 @@ WHERE DATE(reading_timestamp) = DATE('{{ var(&quot;partition_date_str&quot;) }}'
 {% endif %}
 </code></pre>
 <p>Dagster passes partition date:</p>
-<pre><code class="language-python"># From workflows/transform/dbt.py
+<pre><code class="language-python"># From packages/phlo-dbt/src/phlo_dbt/transformer.py
 
 if context.has_partition_key:
     partition_date = context.partition_key
@@ -1412,7 +1485,7 @@ if context.has_partition_key:
         f'{{&quot;partition_date_str&quot;: &quot;{partition_date}&quot;}}'
     ])
 </code></pre>
-<h2 id="hands-on-run-dbt-transforms">Hands-On: Run dbt Transforms</h2>
+<h2 id="hands-on-exercise-run-dbt-transforms">Hands-On Exercise: Run dbt Transforms</h2>
 <h3 id="option-1-via-dagster-ui">Option 1: Via Dagster UI</h3>
 <ol>
 <li>Open http://localhost:10006</li>
@@ -1555,6 +1628,33 @@ LEFT JOIN (
 <p>We have ingestion and transformation. Now: <strong>Who runs this, and when?</strong></p>
 <p><strong>Part 7: Orchestration with Dagster</strong></p>
 <p>See you there!</p>
+<h2 id="common-issues">Common Issues</h2>
+<ul>
+<li><strong>dbt project not found in the expected location</strong></li>
+</ul>
+<pre><code class="language-bash">ls workflows/transforms/dbt
+</code></pre>
+<p>Fix: move the dbt project under <code>workflows/transforms/dbt/</code>.</p>
+<ul>
+<li><strong>profiles.yml not found or wrong target</strong></li>
+</ul>
+<pre><code class="language-bash">cat workflows/transforms/dbt/profiles/profiles.yml
+</code></pre>
+<p>Fix: ensure the <code>profiles/</code> directory exists and targets match services.</p>
+<ul>
+<li><strong>dbt cannot connect to Trino</strong></li>
+</ul>
+<pre><code class="language-bash">docker exec dagster-webserver dbt debug
+</code></pre>
+<p>Fix: verify Trino is running and the connection settings match.</p>
+<p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../05-data-ingestion/">Part 5: Data Ingestion</a></li>
+<li><a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a></li>
+<li><a href="../08-real-world-example/">Part 8: A Real-World End-to-End Example</a></li>
+<li><a href="../../reference/configuration-reference/">Configuration Reference</a></li>
+</ul>
 <h2 id="summary">Summary</h2>
 <p><strong>dbt provides</strong>:</p>
 <ul>
@@ -1572,7 +1672,11 @@ LEFT JOIN (
 <li>Marts: Published to Postgres for BI</li>
 </ul>
 <p><strong>Key Pattern</strong>: Define models as SQL files, dbt handles orchestration and testing.</p>
-<p><strong>Next</strong>: <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster—Running Your Pipelines</a></p>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li>Continue with <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster—Running Your Pipelines</a>.</li>
+<li>See the end-to-end walk-through in <a href="../08-real-world-example/">Part 8: A Real-World End-to-End Example</a>.</li>
+</ul>
 
 
 
