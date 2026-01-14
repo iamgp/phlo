@@ -41,10 +41,6 @@ Two Steps (Safe)
     Iceberg Table
       (Merge with idempotent deduplication)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 The two-step pattern ensures:
 
@@ -124,10 +120,6 @@ def glucose_entries(partition_date: str):
 
     return source
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### What @phlo_ingestion Does
 
@@ -161,10 +153,6 @@ from phlo_dlt.decorator import phlo_ingestion
 def api_events(partition_date: str):
     return rest_api(...)
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 **Characteristics:**
 
@@ -197,10 +185,6 @@ from phlo_dlt.decorator import phlo_ingestion
 def user_profiles(partition_date: str):
     return rest_api(...)
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 **Deduplication Strategies:**
 
@@ -208,10 +192,6 @@ No output (definitions only).
 
    ```python
    merge_config={"deduplication_method": "last"}
-   ```
-   Expected output:
-   ```text
-   No output (definitions only).
    ```
 
    - Based on insertion order during the pipeline run
@@ -223,10 +203,6 @@ No output (definitions only).
    ```python
    merge_config={"deduplication_method": "first"}
    ```
-   Expected output:
-   ```text
-   No output (definitions only).
-   ```
 
    - Useful when first value is authoritative
    - Example: Initial signup timestamp, first purchase date
@@ -234,10 +210,6 @@ No output (definitions only).
 3. **`hash`**: Keep based on content hash
    ```python
    merge_config={"deduplication_method": "hash"}
-   ```
-   Expected output:
-   ```text
-   No output (definitions only).
    ```
 
    - Compares full record content, not just timestamp
@@ -649,10 +621,6 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
             }
         )
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 This approach gives you more control over the validation logic and error handling.
 
@@ -704,10 +672,6 @@ def github_events(partition_date: str):
     # 2. Validates with GitHubEventSchema
     # 3. Merges to Iceberg table with deduplication on event_id
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ## Ingestion Patterns in Phlo
 
@@ -721,10 +685,6 @@ Python dict
 S3 parquet
   ↓ (PyIceberg merge)
 Iceberg table
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Pattern 2: File Upload (CSV, Excel)

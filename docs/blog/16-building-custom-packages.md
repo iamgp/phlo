@@ -47,10 +47,6 @@ phlo-analytics/
 │       ├── resources.py
 │       └── plugin.py
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 - `assets.py` defines AssetSpec and AssetCheckSpec instances.
 - `resources.py` builds clients and returns ResourceSpec definitions.
@@ -109,10 +105,6 @@ class BillingAssetProvider(AssetProviderPlugin):
             )
         ]
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 Notes:
 
@@ -144,10 +136,6 @@ class BillingResourceProvider(ResourceProviderPlugin):
     def get_resources(self) -> list[ResourceSpec]:
         return [ResourceSpec(name="billing_client", resource=build_billing_client())]
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 Assets that need the resource can declare it in their AssetSpec:
 
@@ -158,10 +146,6 @@ billing_asset = AssetSpec(
     resources={"billing_client"},
     run=RunSpec(fn=load_billing_events),
 )
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Entry Points and Discovery
@@ -174,10 +158,6 @@ billing_assets = "phlo_analytics.plugin:BillingAssetProvider"
 
 [project.entry-points."phlo.plugins.resources"]
 billing_resources = "phlo_analytics.plugin:BillingResourceProvider"
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 Then install the package in your environment:
@@ -234,10 +214,6 @@ class AnalyticsResources(ResourceProviderPlugin):
     def get_resources(self) -> Iterable[ResourceSpec]:
         return build_billing_resources()
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 This pattern keeps the actual asset/resource code in dedicated modules while the plugin
 class remains a thin wrapper for discovery.
@@ -246,7 +222,7 @@ class remains a thin wrapper for discovery.
 
 1. Create a new package directory with `pyproject.toml`.
 2. Add an `AssetProviderPlugin` implementation.
-3. Register entry points under `phlo.assets` and `phlo.resources`.
+3. Register entry points under `phlo.plugins.assets` and `phlo.plugins.resources`.
 4. Run `phlo plugins list` to confirm discovery.
 
 ## Common Issues

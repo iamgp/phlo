@@ -26,8 +26,8 @@ For packaging details, see [Part 16: Building Custom Packages](16-building-custo
 ## Why Extensions Exist
 
 Observatory runs as a web app with static routes at build time. Extensions solve this by
-loading UI modules at runtime. A plugin publishes a manifest that tells Observatory where
-to load routes, navigation, and optional settings panels. The assets live inside the
+loading UI modules at runtime. A plugin publishes a manifest that tells Observatory the
+locations from which to load routes, navigation, and optional settings panels. The assets live inside the
 package and are served by the API.
 
 Key ideas:
@@ -54,10 +54,6 @@ sequenceDiagram
     API->>Assets: read asset from package
     Assets-->>API: js bundle
     API-->>UI: js bundle
-```
-Expected output:
-```text
-Diagram renders in Markdown preview.
 ```
 
 ## Extension Manifest Model
@@ -109,10 +105,6 @@ manifest = ObservatoryExtensionManifest(
         ],
     ),
 )
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ### Field Notes
@@ -200,10 +192,6 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
     def asset_root(self) -> Traversable:
         return resources.files("phlo_observatory_example").joinpath("observatory_assets")
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 This matches the live example in
 `packages/phlo-observatory-example/src/phlo_observatory_example/observatory_plugin.py`.
@@ -221,10 +209,6 @@ my-extension/
 │       ├── observatory_plugin.py
 │       └── observatory_assets/
 │           └── example.js
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 Minimal module exports that match the manifest:
@@ -251,10 +235,6 @@ export function registerSettings(formRegistry) {
     ],
   })
 }
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Settings Lifecycle

@@ -33,10 +33,6 @@ Wednesday 9am:
   • Impact: 500+ people using outdated metrics
   • Root cause: API timeout at 3:14am, log buried in Dagster logs
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 Observability solves this with:
 
@@ -45,10 +41,6 @@ Observability solves this with:
 [Alerting]   → Get notified of problems
 [Tracing]    → Find root causes quickly
 [Dashboards] → Visualize pipeline health
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Three Pillars of Observability
@@ -64,10 +56,6 @@ Track quantitative data:
 • Freshness: 2 hours since last update
 • API latency: 150ms average
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### 2. Logs (Events)
 
@@ -80,10 +68,6 @@ Track what happened and when:
 [2024-10-15 10:35:49] ⚠ 2 rows with invalid device type (logged)
 [2024-10-15 10:35:51] ✓ Merged to Iceberg (487 inserts, 2 updates)
 [2024-10-15 10:35:53] ✓ dlt_glucose_entries succeeded
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### 3. Traces (Flows)
@@ -105,10 +89,6 @@ Request: dlt_glucose_entries asset materialization
 └─ Asset check (15ms)
 
 Total: 152ms
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Phlo's Observability Stack
@@ -140,10 +120,6 @@ Example rendered as shown.
 │  • PagerDuty                 │
 │  • Email                     │
 └──────────────────────────────┘
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Metrics: Tracking Pipeline Health
@@ -307,10 +283,6 @@ def dlt_glucose_entries(context) -> None:
         )
         raise
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 In Grafana, search logs:
 
@@ -323,10 +295,6 @@ Last 24 hours:
 ├─ 10/15 10:25 ✓ Succeeded in 168ms
 ├─ 10/15 10:20 ⚠ Succeeded in 1,240ms (slow)
 └─ 10/15 10:15 ✓ Succeeded in 156ms
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Alerting: Getting Notified When Things Break
@@ -821,10 +789,6 @@ With phlo logs:
   [10:35:42] ERROR glucose_entries: Connection refused to nightscout.api
   [10:35:42] ERROR glucose_entries: Retry 3/3 failed, aborting
   [10:35:43] ERROR glucose_entries: Run failed after 45s
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Filtering Options

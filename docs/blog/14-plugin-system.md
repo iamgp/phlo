@@ -921,10 +921,6 @@ class CRMSource(SourceConnectorPlugin):
     def fetch_hubspot(self): ...
     def fetch_dynamics(self): ...
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### 2. Handle Errors Gracefully
 
@@ -941,10 +937,6 @@ def fetch_data(self, config: dict) -> Iterator[dict]:
     except httpx.RequestError as e:
         raise PluginError(f"Network error: {e}")
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### 3. Include Metadata
 
@@ -960,10 +952,6 @@ def metadata(self) -> PluginMetadata:
         author="Data Platform Team",
         documentation_url="https://docs.yourcompany.com/plugins/salesforce",
     )
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ### 4. Write Tests
@@ -987,10 +975,6 @@ def test_invalid_resource_handled():
     with pytest.raises(PluginError):
         list(source.fetch_data({"resource": "invalid"}))
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### 5. Version Your Plugins
 
@@ -1001,10 +985,6 @@ Use semantic versioning. Breaking changes = major version bump.
 version = "2.0.0"  # Breaking: changed config schema
 version = "1.1.0"  # Feature: added new resource type
 version = "1.0.1"  # Fix: handled edge case
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 ## Plugin Security
@@ -1025,10 +1005,6 @@ class PhloConfig:
         "salesforce",
         "internal_*",  # Allow all internal plugins
     ]
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Hands-On Exercise: Register a Plugin

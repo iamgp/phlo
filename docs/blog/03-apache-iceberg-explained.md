@@ -31,10 +31,6 @@ s3://lake/glucose-data/
 ├── 2024-10-02_002.parquet  (100 rows)
 └── _old_backup_v1/          (Don't delete!)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 **Problems**:
 
@@ -63,10 +59,6 @@ s3://lake/glucose-data/
         ├── 00003-g5h6i.parquet (rows 1-100, v2)
         └── 00004-j7k8l.parquet (rows 101-200, v2)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 The metadata files answer:
 
@@ -85,10 +77,6 @@ flowchart TB
     Manifests --> DataFiles["Parquet data files"]
     Reader[Query engine] --> Metadata
     Reader --> DataFiles
-```
-Expected output:
-```text
-Diagram renders in Markdown preview.
 ```
 
 ## Core Iceberg Concepts
@@ -141,10 +129,6 @@ Snapshot 1234567892:
 └── manifest-002.avro
     └── data/year=2024/month=10/day=02/00004.parquet → rows 101-200
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 Why manifests? Query optimization:
 
@@ -161,10 +145,6 @@ Traditional table partitioning:
 SELECT * FROM glucose_data
 WHERE year=2024 AND month=10 AND day=15;
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 Iceberg partitioning:
 
@@ -177,10 +157,6 @@ WHERE reading_timestamp = '2024-10-15';
 -- WHERE year=2024 AND month=10 AND day=15
 -- (you don't need to know the partition scheme)
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 In Phlo's code, this is handled automatically:
 
@@ -192,10 +168,6 @@ table = catalog.load_table("raw.glucose_entries")
 # Iceberg automatically prunes partitions based on WHERE clause
 # Query engine skips files that don't match the predicate
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### 4. Schema Evolution (Adding Columns Without Rewriting)
 
@@ -205,10 +177,6 @@ No output (definitions only).
 -- Want to add a field? Must rewrite all files
 ALTER TABLE glucose_entries ADD COLUMN a1c_level FLOAT;
 -- ^ Takes hours, costs money
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 **With Iceberg** (good):
@@ -221,10 +189,6 @@ ADD COLUMN a1c_level FLOAT DEFAULT 0.0;
 -- Old files don't have this column?
 -- Iceberg fills in the default when reading
 -- Query still works, no rewrite needed
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 In dbt, this happens automatically when you add a column to a model.
@@ -318,10 +282,6 @@ merge_metrics = iceberg.merge_parquet(
 # 3. If write fails, table unchanged
 # Result: Safe to run multiple times (idempotent)
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ## Iceberg in Phlo
 
@@ -346,10 +306,6 @@ SELECT
 FROM raw_data
 WHERE sgv IS NOT NULL
   AND sgv BETWEEN 20 AND 600  -- Data quality filter
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 This dbt model:
