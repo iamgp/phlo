@@ -751,10 +751,6 @@ class UppercaseTransformPlugin(TransformationPlugin):
 
         return True
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 **Usage:**
 
@@ -898,10 +894,6 @@ phlo-plugin-my-api-source/
 └── tests/
     ├── __init__.py
     └── test_plugin.py       # Test suite
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Best Practices

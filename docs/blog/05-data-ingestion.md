@@ -698,10 +698,6 @@ S3 parquet
   ↓ (PyIceberg merge)
 Iceberg table
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### Pattern 3: Database Replication
 
@@ -713,10 +709,6 @@ Pandas DataFrame
 S3 parquet
   ↓ (PyIceberg merge)
 Iceberg table
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 All follow the same pattern for safety and idempotency.

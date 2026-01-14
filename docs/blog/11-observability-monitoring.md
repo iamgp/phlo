@@ -418,10 +418,6 @@ Resource Utilization
 ├─ Memory: 62% used (10 GB / 16 GB)
 └─ MinIO lake bucket: 280 GB
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### Asset Health Dashboard
 
@@ -459,10 +455,6 @@ Downstream Usage
 ├─ mrt_glucose_readings (Gold) → 100K reads/day
 ├─ Superset Dashboard (Glucose Monitoring) → 450 views/day
 └─ Alert: Low Glucose Detection → 12 alerts/day avg
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Tracing: Deep Debugging

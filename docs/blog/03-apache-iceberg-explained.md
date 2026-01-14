@@ -342,10 +342,6 @@ def glucose_entries(partition_date: str):
 # 4. Creates new snapshot
 # 5. Tracks metadata in Dagster
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### Querying with Time Travel
 
@@ -416,10 +412,6 @@ s3://lake/
             │   └── ...
             └── data/
                 └── year=2024/month=10/day=15/
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 Note: Staging is temporary (cleaned up after merge). Only warehouse tables persist.
