@@ -630,6 +630,7 @@ UniqueCheck(columns=["user_id", "timestamp"])
 **CustomSQLCheck for complex rules:**
 
 ```python
+# "data" is a placeholder for the table/dataframe passed via the @phlo_quality decorator's table parameter
 CustomSQLCheck(
     name_="business_hours_only",
     sql="""
@@ -637,6 +638,7 @@ CustomSQLCheck(
         FROM data
     """,
     expected=True,  # All rows must be within business hours
+    allow_threshold=0.0,  # No failures allowed
 )
 ```
 
@@ -851,7 +853,7 @@ Fix: ensure `phlo-quality` is installed in the active environment.
 - **Checks fail due to schema or column mismatches**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "DESCRIBE iceberg.silver.fct_glucose_readings;"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "DESCRIBE iceberg.silver.fct_glucose_readings;"
 ```
 
 
@@ -860,7 +862,7 @@ Fix: align Pandera schemas with the actual table columns.
 - **CustomSQLCheck returns non-boolean results**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SELECT 1 AS ok LIMIT 1;"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SELECT 1 AS ok LIMIT 1;"
 ```
 
 

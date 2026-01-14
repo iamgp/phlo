@@ -443,7 +443,7 @@ We'll explore that in the next post.
 - **Iceberg catalog missing in Trino**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
 
 
@@ -452,7 +452,7 @@ Fix: restart Trino and confirm the `iceberg` catalog is configured.
 - **Schema or table not found**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SCHEMAS FROM iceberg;"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SCHEMAS FROM iceberg;"
 ```
 
 
@@ -461,7 +461,7 @@ Fix: verify the schema names and run ingestion before querying.
 - **Nessie branch not applied in SQL session**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
 ```
 
 

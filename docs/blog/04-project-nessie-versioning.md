@@ -51,8 +51,9 @@ sequenceDiagram
 
     User->>Nessie: Create branch dev
     Nessie-->>User: Branch hash
-    User->>Iceberg: Write data on dev
-    Iceberg->>Nessie: Commit metadata
+    User->>Nessie: Write data on dev (via catalog API)
+    Nessie->>Iceberg: Create snapshot
+    Iceberg-->>Nessie: Snapshot metadata
     Nessie-->>User: Commit hash
     User->>Nessie: Merge dev -> main
     Nessie-->>User: Merge commit
@@ -759,7 +760,7 @@ Fix: start services and confirm Nessie is on port 19120.
 - **Branch operations fail in SQL**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
 ```
 
 
@@ -768,7 +769,7 @@ Fix: set the session branch before running queries.
 - **Trino queries show stale data after merges**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW TABLES FROM iceberg.bronze;"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW TABLES FROM iceberg.bronze;"
 ```
 
 

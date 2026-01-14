@@ -366,7 +366,7 @@ Open http://localhost:3001 in your browser:
 **Option 2: Trino CLI**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino \
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino \
   --catalog iceberg \
   --schema silver \
   --execute "SELECT COUNT(*) as row_count FROM fct_glucose_readings;"
@@ -485,7 +485,7 @@ Fix: restart Nessie and confirm port 19120 is free.
 
 ```bash
 phlo services logs trino
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
 
 

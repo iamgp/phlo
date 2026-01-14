@@ -668,7 +668,10 @@ See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnos
 
 ## See Also
 
-See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 8: A Real-World End-to-End Example](08-real-world-example.md). Reference: [Configuration Reference](../reference/configuration-reference.md).
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- [Part 7: Orchestration with Dagster](07-orchestration-dagster.md)
+- [Part 8: A Real-World End-to-End Example](08-real-world-example.md)
+- [Configuration Reference](../reference/configuration-reference.md)
 
 
 ## Summary

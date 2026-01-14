@@ -311,7 +311,7 @@ Fix: start services and confirm Nessie is reachable on port 19120.
 - **Trino reports `Catalog iceberg not found`**
 
 ```bash
-docker exec -it "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
 ```
 
 
