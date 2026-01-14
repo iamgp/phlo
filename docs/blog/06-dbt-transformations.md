@@ -1,6 +1,21 @@
 # Part 6: SQL Transformations with dbt—The Right Way
 
+> Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) before running dbt models.
+
+## What You'll Learn
+
+- How dbt models map to Phlo medallion layers
+- How to run dbt in the `workflows/transforms/dbt/` project
+- How tests and docs keep transformations reliable
+- How dbt outputs feed downstream analytics
+
+## Prerequisites
+
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) to run services.
+
 Raw data is in the lakehouse. Now we **transform** it into analysis-ready datasets using **dbt** (data build tool).
+For pipeline scheduling and retries, see [Part 7: Orchestration with Dagster](07-orchestration-dagster.md).
 
 dbt solves a critical problem: **How do you manage SQL transformations professionally?**
 
@@ -80,6 +95,7 @@ dbt build
 # Tests each transformation
 # Generates documentation
 ```
+
 
 ## dbt's Four Core Features
 
@@ -215,6 +231,7 @@ Testing fct_glucose_readings
   Running test accepted_values_fct_glucose_readings_glucose_category ... PASS
 ```
 
+
 ### 4. Documentation (Auto-Generated)
 
 dbt generates a knowledge base from YAML:
@@ -258,12 +275,16 @@ dbt docs serve  # Opens http://localhost:8000
 # - Query execution stats
 ```
 
+
 ## Phlo's dbt Structure
 
 ### Directory Layout
 
 ```
 workflows/transforms/dbt/
+├── dbt_project.yml                   # Project config
+├── profiles/
+│   └── profiles.yml                  # Connection config
 ├── models/
 │   ├── sources.yml         # External data sources (raw Iceberg tables)
 │   ├── bronze/
@@ -283,8 +304,7 @@ workflows/transforms/dbt/
 │       └── *.sql
 ├── tests/
 │   └── custom_tests.sql               # Custom SQL tests
-├── profiles.yml                       # Connection config
-└── dbt_project.yml                   # Project config
+└── target/                            # Generated (gitignored)
 ```
 
 ### 4-Layer Architecture
@@ -377,7 +397,7 @@ workflows/transforms/dbt/
 Nessie branching is configured via different Trino catalogs:
 
 ```yaml
-# profiles.yml
+# workflows/transforms/dbt/profiles/profiles.yml
 phlo:
   target: dev # development by default
 
@@ -424,7 +444,7 @@ WHERE DATE(reading_timestamp) = DATE('{{ var("partition_date_str") }}')
 Dagster passes partition date:
 
 ```python
-# From workflows/transform/dbt.py
+# From packages/phlo-dbt/src/phlo_dbt/transformer.py
 
 if context.has_partition_key:
     partition_date = context.partition_key
@@ -434,7 +454,7 @@ if context.has_partition_key:
     ])
 ```
 
-## Hands-On: Run dbt Transforms
+## Hands-On Exercise: Run dbt Transforms
 
 ### Option 1: Via Dagster UI
 
@@ -464,6 +484,7 @@ docker exec dagster-webserver dbt test \
   --profiles-dir /app/workflows/transforms/dbt/profiles
 ```
 
+
 ### Option 3: Local (if you have uv installed)
 
 ```bash
@@ -491,6 +512,7 @@ dbt run --select stg_glucose_entries
 dbt test
 dbt docs generate && dbt docs serve
 ```
+
 
 ## Best Practices in dbt
 
@@ -613,6 +635,45 @@ We have ingestion and transformation. Now: **Who runs this, and when?**
 
 See you there!
 
+## Common Issues
+
+- **dbt project not found in the expected location**
+
+```bash
+ls workflows/transforms/dbt
+```
+
+
+Fix: move the dbt project under `workflows/transforms/dbt/`.
+
+- **profiles.yml not found or wrong target**
+
+```bash
+cat workflows/transforms/dbt/profiles/profiles.yml
+```
+
+
+Fix: ensure the `profiles/` directory exists and targets match services.
+
+- **dbt cannot connect to Trino**
+
+```bash
+docker exec dagster-webserver dbt debug
+```
+
+
+Fix: verify Trino is running and the connection settings match.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- [Part 7: Orchestration with Dagster](07-orchestration-dagster.md)
+- [Part 8: A Real-World End-to-End Example](08-real-world-example.md)
+- [Configuration Reference](../reference/configuration-reference.md)
+
+
 ## Summary
 
 **dbt provides**:
@@ -632,4 +693,7 @@ See you there!
 
 **Key Pattern**: Define models as SQL files, dbt handles orchestration and testing.
 
-**Next**: [Part 7: Orchestration with Dagster—Running Your Pipelines](07-orchestration-dagster.md)
+## Next Steps
+
+- Continue with [Part 7: Orchestration with Dagster—Running Your Pipelines](07-orchestration-dagster.md).
+- See the end-to-end walk-through in [Part 8: A Real-World End-to-End Example](08-real-world-example.md).

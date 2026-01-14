@@ -1,6 +1,21 @@
 # Part 12: Production Deployment and Scaling
 
+> Prerequisite: Complete [Part 2: Getting Started](02-setup-guide.md) and [Part 11: Observability & Monitoring](11-observability-monitoring.md).
+
+## What You'll Learn
+
+- How to move from local Docker to production deployments
+- How to scale storage, compute, and orchestration safely
+- How to harden security, backups, and access control
+- How to operate Phlo with SLAs
+
+## Prerequisites
+
+- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- [Part 11: Observability & Monitoring](11-observability-monitoring.md)
+
 You've built, tested, and monitored your data lakehouse. Now let's deploy it to production and scale it reliably.
+For governance and access control policy foundations, see [Part 10: Metadata and Governance](10-metadata-governance.md).
 
 ## Development vs Production
 
@@ -113,6 +128,7 @@ phlo services init
 cp .env.example .phlo/.env.local
 ```
 
+
 Based on the actual `.env.example`, here are the critical production settings:
 
 ```yaml
@@ -170,6 +186,7 @@ GRAFANA_ADMIN_PASSWORD=<SECURE_PASSWORD>
 OPENMETADATA_ADMIN_PASSWORD=<SECURE_PASSWORD>
 OPENMETADATA_MYSQL_PASSWORD=<SECURE_PASSWORD>
 ```
+
 
 ### Step 1b: Infrastructure Configuration (phlo.yaml)
 
@@ -299,6 +316,7 @@ docker ps
 # - ml-platform-postgres-1 (port 12000)
 ```
 
+
 #### Configuration Loading
 
 Phlo automatically loads configuration in this order:
@@ -369,6 +387,7 @@ git commit -m "Add infrastructure configuration"
 echo ".phlo/.env.local" >> .gitignore
 ```
 
+
 **5. Use different configs per environment:**
 
 ```bash
@@ -376,6 +395,7 @@ phlo.yaml              # Base configuration
 phlo.staging.yaml      # Staging overrides
 phlo.production.yaml   # Production overrides
 ```
+
 
 #### Service Discovery
 
@@ -412,6 +432,7 @@ phlo k8s generate --config phlo.yaml
 # - Resource limits from phlo.yaml
 ```
 
+
 This ensures consistency between Docker Compose (dev) and Kubernetes (prod).
 
 ### Step 2: Deploy with Docker Compose
@@ -440,6 +461,7 @@ docker-compose --profile all up -d
 docker-compose ps
 ```
 
+
 The actual `docker-compose.yml` includes:
 
 - **Core Services**: postgres, minio, nessie, trino, dagster-webserver, dagster-daemon, superset
@@ -465,6 +487,7 @@ MINIO_API_PORT=9000  # Or S3 endpoint
 docker-compose up -d dagster-webserver dagster-daemon trino nessie
 ```
 
+
 ### Step 3: Verify Service Health
 
 The docker-compose configuration includes health checks for all services:
@@ -487,6 +510,7 @@ docker-compose logs -f nessie
 # Grafana (with observability profile): http://localhost:10016
 # OpenMetadata (with catalog profile): http://localhost:10020
 ```
+
 
 ### Step 4: Storage Configuration (Production S3)
 
@@ -520,6 +544,7 @@ AWS_SECRET_ACCESS_KEY=<your-secret-key>
 AWS_REGION=us-east-1
 ```
 
+
 ### Step 5: Observability Stack
 
 Enable Grafana, Prometheus, and Loki for monitoring:
@@ -536,6 +561,7 @@ docker-compose --profile observability up -d
 # Prometheus metrics: http://localhost:10013
 # Loki logs: Accessible via Grafana data source
 ```
+
 
 The observability stack includes:
 
@@ -680,6 +706,7 @@ kubectl apply -f k8s/nessie-deployment.yaml
 kubectl rollout status deployment/dagster-webserver -n dagster
 ```
 
+
 ## Scaling Strategies
 
 ### Vertical Scaling (Bigger Machines)
@@ -692,6 +719,7 @@ kubectl set resources deployment dagster-compute \
   -n dagster
 ```
 
+
 ### Horizontal Scaling (More Machines)
 
 ```bash
@@ -703,6 +731,7 @@ kubectl set env deployment/dagster-compute \
   DAGSTER_K8S_INSTANCE_CONFIG_WORKERS=10 \
   -n dagster
 ```
+
 
 ### Autoscaling
 
@@ -774,6 +803,7 @@ aws rds restore-db-instance-to-point-in-time \
   --restore-time 2024-10-15T10:30:00Z
 ```
 
+
 ### Service Redundancy
 
 ```yaml
@@ -809,6 +839,7 @@ aws s3api put-bucket-replication \
   --bucket phlo-prod-lake \
   --replication-configuration file://replication.json
 ```
+
 
 **Future: Kubernetes Backup Automation**
 
@@ -854,6 +885,7 @@ EOF
 
 kubectl apply -f k8s/backup-cronjob.yaml
 ```
+
 
 ## Cost Optimization
 
@@ -935,6 +967,7 @@ docker-compose --profile observability up -d
 # Available via Grafana Explore interface
 ```
 
+
 Grafana dashboards are pre-provisioned in `.phlo/grafana/dashboards/`:
 
 - Lakehouse overview
@@ -963,6 +996,50 @@ aws cloudwatch put-metric-alarm \
   --threshold 1 \
   --comparison-operator GreaterThanThreshold
 ```
+
+
+## Hands-On Exercise: Create a Deployment Checklist
+
+1. List the services you will deploy (Nessie, MinIO, Trino, Dagster, Postgres).
+2. Define backup strategy and retention for each stateful service.
+3. Set SLAs for ingestion latency and freshness.
+4. Identify one security control to add (IAM, network policy, secrets manager).
+
+## Common Issues
+
+- **Default credentials still in use**
+
+```bash
+rg -n "changeme|admin" .phlo/.env .phlo/.env.local
+```
+
+
+Fix: rotate credentials and reload services.
+
+- **Services exposed on public interfaces**
+
+```bash
+ss -ltn
+```
+
+
+Fix: bind services to private interfaces and configure firewalls.
+
+- **Configuration changes not applied**
+
+```bash
+cat .phlo/.env
+```
+
+
+Fix: update `.phlo/.env.local` and restart services to apply changes.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 2: Getting Started](02-setup-guide.md), [Part 10: Metadata and Governance](10-metadata-governance.md), [Part 11: Observability & Monitoring](11-observability-monitoring.md). Reference: [Configuration Reference](../reference/configuration-reference.md).
+
 
 ## Summary
 
@@ -996,6 +1073,11 @@ Production deployment with Phlo:
 - Set up SSL/TLS certificates
 - Configure firewall rules and VPC
 - Change all default passwords in `.phlo/.env.local`
+
+## Next Steps
+
+- Review plugin extensibility in [Part 14: Plugin System](14-plugin-system.md).
+- Build observability customizations in [Part 15: Observatory Extensions](15-observatory-extensions.md).
 - Enable audit logging
 
 🔮 **Future (Kubernetes)**:
@@ -1024,9 +1106,10 @@ docker-compose --profile all up -d
 # OpenMetadata: http://localhost:10020
 ```
 
+
 ---
 
-**Next**: [Part 13 - Plugin System](13-plugin-system.md) - Extend Phlo with custom plugins
+**Next**: [Part 14 - Plugin System](14-plugin-system.md) - Extend Phlo with custom plugins
 
 **Series**:
 
