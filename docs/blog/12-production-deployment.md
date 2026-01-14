@@ -54,10 +54,6 @@ What differs between your laptop and production:
 
 Use: docker-compose up
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### Stage 2: Single Server (Small Prod)
 
@@ -80,10 +76,6 @@ Example rendered as shown.
 │  + Managed RDS for Postgres      │
 │  + CloudWatch monitoring         │
 └──────────────────────────────────┘
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Stage 3: Kubernetes (High-Scale Prod)
@@ -120,10 +112,6 @@ Example rendered as shown.
 │  ├─ AWS ElastiCache (caching)           │
 │  └─ AWS CloudWatch (monitoring)         │
 └─────────────────────────────────────────┘
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Deployment Steps
@@ -377,10 +365,6 @@ postgres_config = get_service_config("postgres")
 print(postgres_config["port"])  # 10000
 print(postgres_config["internal_host"])  # "postgres"
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 #### Production Best Practices
 
@@ -460,10 +444,6 @@ connection_string = (
 # Get Trino endpoint
 trino_config = get_service_config("trino")
 trino_endpoint = f"http://{trino_config['internal_host']}:{trino_config['port']}"
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 #### Kubernetes Integration
@@ -1007,10 +987,6 @@ def optimize_costs():
     # 5. Compression
     # Compress old Parquet files
     pass
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Monitoring Production

@@ -49,10 +49,6 @@ With Dagster:
          ↓
          If anything fails → Alert via email/Slack
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### Asset Dependency Graph (Diagram)
 
@@ -62,10 +58,6 @@ flowchart LR
     Ingest --> Bronze[dbt_bronze]
     Bronze --> Silver[dbt_silver]
     Silver --> Publish[publish_postgres]
-```
-Expected output:
-```text
-Diagram renders in Markdown preview.
 ```
 
 ## Dagster's Core Concepts
@@ -110,10 +102,6 @@ def dbt_silver() -> None:
     """
     dbt.cli(["build", "--select", "tag:silver"])
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 Dagster automatically:
 
@@ -155,10 +143,6 @@ def dlt_glucose_entries(context) -> MaterializeResult:
     # ... ingest ...
     return MaterializeResult(metadata={...})
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 In the UI, you can materialize specific partitions:
 
@@ -167,10 +151,6 @@ Oct 14 (complete)
 Oct 15 ⏳ (running)
 Oct 16 (failed - can re-run)
 Oct 17 ⚪ (not run yet)
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### 3. Automation (Schedules & Sensors)
@@ -187,10 +167,6 @@ def daily_ingestion():
         partition_key=get_today_date()
     )
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 **Sensor**: Run when something happens
 
@@ -203,10 +179,6 @@ def nightscout_api_sensor():
             cursor=get_latest_timestamp(),
             run_requests=[dg.RunRequest(tags={"source": "nightscout"})]
         )
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 In Phlo's code:
@@ -223,10 +195,6 @@ In Phlo's code:
 def entries(context) -> MaterializeResult:
     # Runs automatically hourly
     pass
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ### 4. Resources (Connections & Clients)
@@ -254,10 +222,6 @@ def dlt_glucose_entries(iceberg: IcebergResource) -> MaterializeResult:
     # Use iceberg resource
     iceberg.ensure_table(...)
     iceberg.merge_parquet(...)
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 Resources are:
@@ -305,10 +269,6 @@ def range_check(context) -> dg.AssetCheckResult:
         }
     )
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 Checks run after asset materialization:
 
@@ -318,10 +278,6 @@ dlt_glucose_entries (complete)
   └─ Check: row_count_increased [PASSED]
 ↓ (checks pass, continue)
 dbt_bronze [SUCCESS]
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Phlo's Asset Graph
@@ -355,10 +311,6 @@ Publish Layer
 Analytics
 └── Superset Dashboards
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 All dependencies auto-detected by Dagster:
 
@@ -382,10 +334,6 @@ def all_dbt_assets(dbt: DbtCliResource):
 # - Sees dbt reads from dlt_glucose_entries
 # - Waits for ingestion before running dbt
 # - Re-runs dbt when ingestion changes
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Viewing the Lineage
@@ -415,10 +363,6 @@ dlt_glucose_entries
     ├── rows_loaded: 288
     ├── rows_inserted: 288
     ├── partition: 2024-10-15
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Running Pipelines Manually
@@ -462,10 +406,6 @@ materialize(
     partition_key="2024-10-15"
 )
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ## Backfilling Historical Data
 
@@ -489,10 +429,6 @@ Manual approach:
     # Wait for each to complete...
 
 Time: 90 days × 2 minutes = 3 hours of babysitting
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### Using phlo backfill
@@ -681,10 +617,6 @@ def dlt_glucose_entries(context) -> MaterializeResult:
         }
     )
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 View logs in Dagster UI → Runs → Click run → Logs tab
 
@@ -705,10 +637,6 @@ def failure_alert_sensor(context):
     for run in failed_runs:
         send_slack_alert(f"Pipeline failed: {run.asset_selection}")
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### Freshness Policies
 
@@ -726,10 +654,6 @@ Ensure data is fresh:
 )
 def dlt_glucose_entries() -> MaterializeResult:
     pass
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Configuration and Environment
@@ -758,10 +682,6 @@ class PhloConfig(BaseSettings):
 
 config = PhloConfig()  # Singleton
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 In assets:
 
@@ -771,10 +691,6 @@ def dlt_glucose_entries(context, iceberg: IcebergResource) -> MaterializeResult:
     context.log.info(f"Using warehouse: {config.iceberg_warehouse_path}")
     context.log.info(f"Using branch: {config.nessie_branch}")
     # ...
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Advanced: Custom Ops and Jobs
@@ -807,10 +723,6 @@ def ingestion_pipeline():
 
 # Most of Phlo uses Assets instead (more declarative)
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ## Performance Considerations
 
@@ -823,10 +735,6 @@ Dagster Daemon
 ├── Runs scheduled assets
 ├── Monitors sensors
 └── Manages run queue
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 In Docker:
@@ -863,10 +771,6 @@ By default, Dagster runs one partition at a time. For parallel:
 )
 def dlt_glucose_entries() -> MaterializeResult:
     pass
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Hands-On Exercise: Trigger a Run

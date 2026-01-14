@@ -1177,10 +1177,6 @@ $ phlo hasura sync-permissions --config hasura-permissions.yaml
                 │  (dbt models)   │
                 └─────────────────┘
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ---
 

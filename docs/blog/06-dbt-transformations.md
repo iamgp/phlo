@@ -56,10 +56,6 @@ def transform_glucose():
     # 4. No version control (what changed?)
     # 5. Manual dependency management (run sql3 after sql2)
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ## dbt Solves This
 
@@ -89,10 +85,6 @@ FROM {{ ref('stg_glucose_entries') }}  -- Auto-dependency!
 -- File: models/gold/dim_date.sql
 SELECT DISTINCT DATE(reading_timestamp) as reading_date
 FROM {{ ref('fct_glucose_readings') }}  -- dbt finds dependencies
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 One command runs everything:
@@ -135,10 +127,6 @@ cleaned AS (
 
 SELECT * FROM cleaned
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 dbt materializes this as:
 
@@ -161,10 +149,6 @@ Phlo's config:
 {{ config(materialized='table') }}
 -- Dimensions, persisted in Iceberg
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 ### 2. Dependencies (Auto-Resolved)
 
@@ -180,10 +164,6 @@ FROM {{ ref('stg_glucose_entries') }}  -- ref('A')
 -- Model C: depends on Model B
 FROM {{ ref('fct_glucose_readings') }}  -- ref('B')
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 dbt builds a DAG (directed acyclic graph):
 
@@ -197,10 +177,6 @@ fct_glucose_readings
 dim_date, mrt_glucose_readings
     ↓ (Model D)
 gold/marts tables
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 Execute order: automatic!
@@ -338,10 +314,6 @@ workflows/transforms/dbt/
 │   └── custom_tests.sql               # Custom SQL tests
 └── target/                            # Generated (gitignored)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### 4-Layer Architecture
 
@@ -360,10 +332,6 @@ Example rendered as shown.
        CAST(date_string as TIMESTAMP) as timestamp_iso
    FROM {{ source('dagster_assets', 'glucose_entries') }}
    WHERE sgv IS NOT NULL
-   ```
-   Expected output:
-   ```text
-   Query returned rows.
    ```
 
 2. **Silver** (Fact Tables):
@@ -389,10 +357,6 @@ Example rendered as shown.
        ) as glucose_change_mg_dl
    FROM {{ ref('stg_glucose_entries') }}
    ```
-   Expected output:
-   ```text
-   Query returned rows.
-   ```
 
 3. **Gold** (Dimensions):
 
@@ -411,10 +375,6 @@ Example rendered as shown.
        EXTRACT(DAY_OF_WEEK FROM reading_timestamp) as day_of_week
    FROM {{ ref('fct_glucose_readings') }}
    ORDER BY reading_date
-   ```
-   Expected output:
-   ```text
-   Query returned rows.
    ```
 
 4. **Marts** (Published):
@@ -436,10 +396,6 @@ Example rendered as shown.
    FROM {{ ref('fct_glucose_readings') }}
    GROUP BY reading_date
    ORDER BY reading_date DESC
-   ```
-   Expected output:
-   ```text
-   Query returned rows.
    ```
 
 ## Integration with Phlo
@@ -496,10 +452,6 @@ FROM {{ ref('stg_glucose_entries') }}
 WHERE DATE(reading_timestamp) = DATE('{{ var("partition_date_str") }}')
 {% endif %}
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 Dagster passes partition date:
 
@@ -512,10 +464,6 @@ if context.has_partition_key:
         "--vars",
         f'{{"partition_date_str": "{partition_date}"}}'
     ])
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Hands-On Exercise: Run dbt Transforms
@@ -589,10 +537,6 @@ silver/dim_*              Dimension tables
 gold/*                    Summarized/published
 marts_postgres/*          Published to Postgres
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### 2. CTEs for Clarity
 
@@ -616,10 +560,6 @@ SELECT * FROM (
     ) sub
 ) outer_sub
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 ### 3. Comments for Complex Logic
 
@@ -631,10 +571,6 @@ SELECT
     -- Used to identify rapid spikes (potential errors)
     glucose_mg_dl - LAG(glucose_mg_dl) OVER (...) as glucose_change
 FROM {{ ref('stg_glucose_entries') }}
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 ### 4. Tests for Critical Columns
@@ -679,10 +615,6 @@ FROM {{ source('raw', 'entries') }}
   WHERE _cascade_ingested_at > '{{ max_partition }}'
 {% endif %}
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 Only processes new data since last run.
 
@@ -693,10 +625,6 @@ SELECT * FROM {{ ref('large_table') }}
 {% if execute and execute_sql %}
   LIMIT 1000  -- Don't scan 100M rows while developing
 {% endif %}
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 ### 3. Pre-filter Before Joins
@@ -713,10 +641,6 @@ LEFT JOIN (
     SELECT * FROM {{ ref('dimension') }}
     WHERE active = true
 ) dim ...
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 ## Next: Orchestration

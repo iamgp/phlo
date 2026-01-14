@@ -301,10 +301,6 @@ fct_daily_glucose_metrics
   ↓
 postgres_marts
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 Click on `glucose_entries` → Click **Materialize this asset**
 
@@ -341,10 +337,6 @@ You should see output like:
 2024-10-15 10:30:48 - DLT staging completed in 1.23s
 2024-10-15 10:30:50 - Merged 288 rows to raw.glucose_entries
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### 5c: Run Transformations
 
@@ -369,10 +361,6 @@ stg_glucose_entries ⏳ (running)
 fct_glucose_readings ⏳ (waiting)
   ↓
 postgres_marts ⏳ (waiting)
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### 5d: Check Results
@@ -451,10 +439,6 @@ FROM silver.fct_glucose_readings
 GROUP BY 1
 ORDER BY 1 DESC
 LIMIT 24
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 ### 6c: Create a Chart

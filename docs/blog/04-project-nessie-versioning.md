@@ -40,10 +40,6 @@ main branch (production)     dev branch (development)
       │                            │
       └──── merge when ready ──────┘
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### Nessie Branching Flow (Diagram)
 
@@ -61,10 +57,6 @@ sequenceDiagram
     User->>Nessie: Merge dev -> main
     Nessie-->>User: Merge commit
 ```
-Expected output:
-```text
-Diagram renders in Markdown preview.
-```
 
 ## The Problem Nessie Solves
 
@@ -81,10 +73,6 @@ Production Data is CORRUPTED
     ↓
 (Back up from last night? Lost today's data!)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 With Nessie:
 
@@ -97,10 +85,6 @@ main (production)
   │   └─ (If bad, delete branch, main unchanged)
   │
   └─ (If good, merge dev → main atomically)
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Core Nessie Concepts
@@ -121,10 +105,6 @@ Database State:
     ├── bronze.stg_entries (snapshot v3) ← same as main
     └── silver.fct_readings (snapshot v5) ← same as main
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 Now you work on dev:
 
@@ -139,10 +119,6 @@ After transformations on dev:
     ├── raw.glucose_entries (snapshot v1) ← unchanged
     ├── bronze.stg_entries (snapshot v4) ← NEW
     └── silver.fct_readings (snapshot v6) ← NEW
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ### 2. Commits and Merges
@@ -168,10 +144,6 @@ Merge dev → main:
   ├── Commit F: Merge commit (combines D + E)
   └── (now HEAD points to F)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### 3. Tags (Releases)
 
@@ -187,10 +159,6 @@ main:
 -- Query data as it was at v1.0:
 SELECT * FROM iceberg.silver.fct_readings
 FOR TAG v1.0-released;
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Nessie in Phlo
@@ -255,10 +223,6 @@ def create_dev_branch(nessie_client: NessieResource) -> None:
     else:
         print("Dev branch already exists")
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### Phlo's Write-Audit-Publish Pattern
 
@@ -287,10 +251,6 @@ Phlo implements the **Write-Audit-Publish (WAP)** pattern automatically:
 │  5. Publishing ──► Postgres (marts for BI dashboards)           │
 └─────────────────────────────────────────────────────────────────┘
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 **Key insight**: All writes happen on the feature branch. Only validated data reaches main.
 
@@ -317,10 +277,6 @@ def auto_promotion_sensor(context, nessie, branch_manager):
 @sensor(minimum_interval_seconds=3600)
 def branch_cleanup_sensor(context, branch_manager):
     """Clean up branches after retention period (default: 7 days)."""
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 **You don't need to manually merge** - the sensor handles it when quality checks pass.
@@ -362,10 +318,6 @@ SELECT COUNT(*) FROM iceberg.raw.glucose_entries;
 -- Query dev (development)
 SELECT COUNT(*) FROM iceberg_dev.raw.glucose_entries;
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 ### Using Branch in Code
 
@@ -379,10 +331,6 @@ rows = trino.execute("SELECT * FROM iceberg.marts.readings", branch="main")
 
 # Query dev branch
 rows = trino.execute("SELECT * FROM iceberg_dev.marts.readings", branch="dev")
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Hands-On Exercise: Explore Nessie
@@ -463,10 +411,6 @@ UNION ALL
 SELECT
     'dev' as branch, COUNT(*) as rows FROM iceberg_dev.raw.glucose_entries;
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 In dbt, select the target to use the appropriate catalog:
 
@@ -546,10 +490,6 @@ nessie.merge_branch("feature/new-metrics", "main")
 
 # Delete branch
 nessie.delete_branch("feature/new-metrics")
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Branch Management via CLI
@@ -727,10 +667,6 @@ $ phlo branch delete feature/add-a1c-calculation
 │ - Data: S3 parquet files                       │
 └────────────────────────────────────────────────┘
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 **Nessie** = "which version of which table per branch"
 **Iceberg** = "what files make up this table version"
@@ -745,10 +681,6 @@ Let's say your transformation has a bug:
 -- Bug: All glucose values are multiplied by 2!
 SELECT glucose_mg_dl * 2 as glucose_mg_dl  -- WRONG
 FROM stg_glucose_entries;
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 ### Without Nessie (Disaster)
@@ -768,10 +700,6 @@ Query returned rows.
    ↓
 5. Audit trail: ? (who made the change?)
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ### With Nessie (Safe)
 
@@ -788,10 +716,6 @@ Example rendered as shown.
    ↓
 4. Audit trail: commit "Fix glucose calculation bug"
    ↓ Can query dev branch to see what was wrong
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Phlo's Nessie Configuration

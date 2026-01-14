@@ -48,10 +48,6 @@ dbt Transformation
 Postgres Publishing
   └─ Superset Dashboard
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 ## Step 1: Understanding the API
 
@@ -145,10 +141,6 @@ def glucose_entries(partition_date: str):
 
     return source
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 **What the @phlo_ingestion decorator does automatically**:
 
@@ -208,10 +200,6 @@ WHERE sgv IS NOT NULL
   {% if var('partition_date_str', None) is not none %}
     AND DATE(date_string) = DATE('{{ var("partition_date_str") }}')
   {% endif %}
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 **Purpose**:
@@ -284,10 +272,6 @@ enriched AS (
 SELECT * FROM enriched
 ORDER BY reading_timestamp DESC
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 **Features added**:
 
@@ -332,10 +316,6 @@ FROM {{ ref('fct_glucose_readings') }}
 
 GROUP BY reading_date, hour_of_day
 ORDER BY reading_date DESC, hour_of_day DESC
-```
-Expected output:
-```text
-Query returned rows.
 ```
 
 **Metrics**:
@@ -384,10 +364,6 @@ WHERE reading_date >= CURRENT_DATE - INTERVAL '30' DAY
 GROUP BY reading_date
 ORDER BY reading_date DESC
 ```
-Expected output:
-```text
-Query returned rows.
-```
 
 **Note**: Marts are built in Iceberg first, then auto-published to Postgres.
 
@@ -425,10 +401,6 @@ def publish_marts_to_postgres(context):
         cursor.execute(f"CREATE TABLE {target} AS SELECT * FROM {source}")
 
         context.log.info(f"Published {table_name} to Postgres")
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 **How it works:**
@@ -483,10 +455,6 @@ http://localhost:10006
 → dlt_glucose_entries
 → Click to view lineage graph with status
 ```
-Expected output:
-```text
-Example rendered as shown.
-```
 
 **In Observatory**:
 
@@ -495,10 +463,6 @@ http://localhost:3001
 → Data Explorer
 → Browse marts.mrt_glucose_overview
 → Preview data and run queries
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 **In Postgres**:
@@ -540,10 +504,6 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
 def glucose_readings_quality():
     """Declarative quality checks for glucose readings using @phlo_quality."""
     pass
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 And the traditional `@asset_check` for custom logic:
@@ -595,10 +555,6 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
                 "failures_by_column": err.failure_cases.groupby("column").size().to_dict(),
             },
         )
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 **Alerts**: If checks fail:
@@ -663,10 +619,6 @@ No output (definitions only).
 └───────────────────────────────────┘
 
 Total pipeline time: 8.92s
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 ## Key Takeaways
