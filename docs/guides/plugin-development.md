@@ -953,7 +953,7 @@ twine upload --repository-url https://pypi.yourcompany.com dist/*
 
 ## Next Steps
 
-- Review [Blog Post 13: Plugin System](../blog/13-plugin-system.md) for examples
+- Review [Blog Post 14: Plugin System](../blog/14-plugin-system.md) for examples
 - Check [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
 - Explore existing plugins in `packages/phlo-core-plugins/`
 - Join the community to share your plugins

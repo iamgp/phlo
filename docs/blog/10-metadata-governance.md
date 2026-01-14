@@ -1,12 +1,27 @@
 # Part 10: Metadata and Governance with OpenMetadata
 
+> Prerequisite: Read [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md) for branching and audit context.
+
+## What You'll Learn
+
+- Why metadata and governance are critical for trust
+- How OpenMetadata models ownership, lineage, and quality
+- How Phlo publishes assets into the catalog
+- How to use metadata for operational decisions
+
+## Prerequisites
+
+- [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md)
+- Optional: [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md) for validation context.
+
 Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.
+For alerting and monitoring once metadata is in place, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
 ## The Metadata Problem
 
 Without metadata tracking:
 
-```
+```text
 Tuesday 3pm: Someone asks "Where did this dataset come from?"
 
 Answers from your team:
@@ -51,7 +66,7 @@ OpenMetadata integrates seamlessly with Phlo's tech stack:
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │         OpenMetadata Server (UI)           │
 │         http://localhost:10020              │
@@ -89,7 +104,7 @@ make health-catalog
 
 Expected output:
 
-```
+```text
 === Data Catalog Health Check ===
 OpenMetadata:
   Ready
@@ -108,6 +123,7 @@ Elasticsearch:
 make catalog
 # Or manually visit: http://localhost:10020
 ```
+
 
 Default credentials:
 
@@ -128,17 +144,9 @@ Default credentials:
 
 ### Step 2: Configure Trino Connection
 
-**Service Name:**
+**Service Name:** `trino`
 
-```
-trino
-```
-
-**Description:**
-
-```
-Phlo lakehouse Trino query engine with Iceberg catalog
-```
+**Description:** Phlo lakehouse Trino query engine with Iceberg catalog
 
 **Connection Configuration:**
 
@@ -156,7 +164,7 @@ Click on **Basic** authentication type, then configure:
 
 Click **Test Connection** - you should see:
 
-```
+```text
 Connection test was successful
 ```
 
@@ -332,13 +340,13 @@ Updated every 5 minutes via Dagster pipeline.
 - `reading_timestamp`: UTC timestamp of the reading
 ```
 
-4. Add column descriptions:
+3. Add column descriptions:
    - `reading_id`: Unique identifier for each glucose reading
    - `glucose_mg_dl`: Glucose value in mg/dL (validated range: 20-600)
    - `glucose_category`: Categorized glucose level
    - `reading_timestamp`: When the reading was taken (UTC)
 
-5. Click **Save**
+4. Click **Save**
 
 ### Add Tags
 
@@ -359,7 +367,7 @@ Updated every 5 minutes via Dagster pipeline.
 
 OpenMetadata can show visual lineage graphs:
 
-```
+```text
 raw.glucose_entries
     ↓
 bronze.stg_glucose_entries (dbt model)
@@ -443,7 +451,7 @@ Click **Next** → **Deploy**.
 
 Expected output:
 
-```
+```text
 INFO - Starting dbt metadata ingestion
 INFO - Reading manifest from /dbt/target/manifest.json
 INFO - Found 12 dbt models
@@ -461,7 +469,7 @@ Question: "Can I delete the `raw.glucose_entries` table?"
 
 You can use the `phlo lineage impact` command (see Part 11) or check OpenMetadata:
 
-```
+```text
 raw.glucose_entries
 ├─ Downstream: bronze.stg_glucose_entries
 │  ├─ Downstream: silver.fct_glucose_readings
@@ -481,7 +489,7 @@ Answer: NO!
 
 ### 2. Search and Discovery
 
-```
+```text
 OpenMetadata Search: "glucose"
 
 Results:
@@ -547,52 +555,46 @@ models:
         description: Categorized as hypoglycemia, in_range, or hyperglycemia
 ```
 
-## Troubleshooting
+## Hands-On Exercise: Trace a Dataset
 
-### OpenMetadata UI Not Loading
+1. Open OpenMetadata and search for `silver.fct_glucose_readings`.
+2. Open the lineage tab and identify upstream sources.
+3. Assign an owner and add a short description.
+4. Add a tag (e.g., `pii-free`) to the dataset.
+
+## Common Issues
+
+- **OpenMetadata UI not loading**
 
 ```bash
-# Check service health
 make health-catalog
-
-# Check logs
 docker logs openmetadata-server
-docker logs openmetadata-mysql
+```
+
+
+Fix: wait for the server to finish migrations, then refresh the UI.
+
+- **Search returns no results**
+
+```bash
 docker logs openmetadata-elasticsearch
 ```
 
-### Search Not Working
 
-**Symptom:**
+Fix: re-run the search indexing job from the OpenMetadata UI.
 
-- Explore page shows: "Search failed due to Elasticsearch exception"
-- Global search returns no results
-
-**Solution:**
-
-1. Go to **Settings → OpenMetadata → Search**
-2. Click on **SearchIndexingApplication**
-3. Click **Run Now**
-4. **IMPORTANT:** Enable "Recreate Indexes" toggle
-5. Click **Submit**
-6. Wait 1-2 minutes for completion
-
-### Trino Connection Failed
-
-Ensure Trino is running:
+- **Trino connection failed in OpenMetadata**
 
 ```bash
 make health
-
-# Start Trino if not running
-make up-query
-```
-
-Check connection from OpenMetadata container:
-
-```bash
 docker exec -it openmetadata-server curl http://trino:8080/v1/info
 ```
+
+
+Fix: start Trino and update the service connection details.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
 
 ## Data Contracts: Formalizing Data Agreements
 
@@ -602,7 +604,7 @@ As data platforms grow, informal agreements break down. The ML team assumes gluc
 
 ### The Problem Contracts Solve
 
-```
+```text
 Without contracts:
 
 Monday:    Engineer adds new column, removes old one
@@ -697,12 +699,14 @@ Required Columns:
   device       string
 ```
 
+
 To check for contract violations against actual tables, you would use:
 
 ```bash
 $ phlo contract show glucose_readings  # View full contract details
 $ phlo catalog describe raw.glucose_entries  # View actual table schema
 ```
+
 
 ### Schema Evolution and Breaking Changes
 
@@ -740,6 +744,7 @@ glucose_readings:
 
 Contract check FAILED - 1 breaking change detected
 ```
+
 
 ### Consumer Notifications
 
@@ -802,6 +807,7 @@ RawGlucoseEntries           8   workflows.schemas.nightscout
 RawWeatherObservations     10   workflows.schemas.weather
 ```
 
+
 ### Inspecting Schema Details
 
 ```bash
@@ -822,11 +828,13 @@ device       str
 type         str
 ```
 
+
 You can also view the Iceberg schema equivalent:
 
 ```bash
 $ phlo schema show RawGlucoseEntries --iceberg
 ```
+
 
 ### Comparing Schema Versions
 
@@ -850,6 +858,7 @@ Removed:
 
 Classification: WARNING (1 safe, 1 warning, 0 breaking)
 ```
+
 
 ---
 
@@ -875,11 +884,13 @@ gold       fct_daily_glucose_metrics  gold.fct_daily_glucose_metrics
 Total: 4 tables
 ```
 
+
 Filter by namespace:
 
 ```bash
 $ phlo catalog tables --namespace silver
 ```
+
 
 ### Describing Table Metadata
 
@@ -903,6 +914,7 @@ direction          string
 device             string
 ```
 
+
 ### Viewing Table History
 
 Check snapshot history to understand table evolution:
@@ -920,6 +932,7 @@ ghi12345...   2025-11-27 08:25:00  append
 Showing 3 most recent snapshots
 ```
 
+
 > **Future Feature:** Automated metadata sync to OpenMetadata (`phlo catalog sync`) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the [setup guide](../setup/openmetadata.md).
 
 ---
@@ -930,7 +943,7 @@ Your data platform isn't just for analysts running SQL. Applications, mobile app
 
 ### The API Layer Problem
 
-```
+```text
 Traditional approach:
 
 1. Data team builds mart table
@@ -986,6 +999,7 @@ Generated SQL saved to: api_views.sql
 
 Apply with: phlo postgrest generate-views --apply
 ```
+
 
 ### How View Generation Works
 
@@ -1045,6 +1059,7 @@ $ phlo hasura track
 ✓ Tracked 3/3 tables
 ```
 
+
 You can also set up relationships and permissions:
 
 ```bash
@@ -1059,6 +1074,7 @@ $ phlo hasura permissions
 ✓ Created 6/6 permissions
 ```
 
+
 Or do all three at once:
 
 ```bash
@@ -1067,6 +1083,7 @@ $ phlo hasura auto-setup
 Auto-tracking tables, setting up relationships and permissions...
 ✓ Complete
 ```
+
 
 Now you get GraphQL automatically:
 
@@ -1117,6 +1134,7 @@ $ phlo hasura sync-permissions --config hasura-permissions.yaml
 
 ✓ Permissions synced
 ```
+
 
 ### When to Use REST vs GraphQL
 
@@ -1181,6 +1199,10 @@ $ phlo hasura sync-permissions --config hasura-permissions.yaml
 **Quality**: Quality checks visible and tracked
 **Documentation**: Single source of truth for data definitions
 
+## See Also
+
+See also: [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md), [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md), [Part 11: Observability & Monitoring](11-observability-monitoring.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+
 ## Summary
 
 OpenMetadata provides:
@@ -1194,6 +1216,7 @@ OpenMetadata provides:
 
 Integrated with dbt, Dagster, and Iceberg, OpenMetadata becomes your data OS.
 
-**Next**: [Part 11: Observability and Monitoring](11-observability-monitoring.md)
+## Next Steps
 
-See you there!
+- Continue with [Part 11: Observability and Monitoring](11-observability-monitoring.md).
+- Review production hardening in [Part 12: Production Deployment](12-production-deployment.md).

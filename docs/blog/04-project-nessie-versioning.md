@@ -1,6 +1,21 @@
 # Part 4: Project Nessie—Git-Like Versioning for Data
 
+> Prerequisite: Read [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md) for table format basics.
+
+## What You'll Learn
+
+- How Nessie adds branching and tags to Iceberg tables
+- How to use branches for safe experimentation
+- How merges promote data to production
+- How Nessie fits governance workflows
+
+## Prerequisites
+
+- [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md)
+- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) to run commands locally.
+
 Iceberg gave us time travel. Now let's add **branching**, **merging**, and **tags** to our data with Project Nessie.
+For governance workflows that build on Nessie history, see [Part 10: Metadata & Governance](10-metadata-governance.md).
 
 ## Why Nessie? The Git Analogy
 
@@ -15,6 +30,7 @@ git pull request  # Review changes
 git merge  # Promote to main
 ```
 
+
 Nessie brings this same workflow to **data**:
 
 ```
@@ -23,6 +39,24 @@ main branch (production)     dev branch (development)
       │  ← stable, validated       │  ← experimental, testing
       │                            │
       └──── merge when ready ──────┘
+```
+
+### Nessie Branching Flow (Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Nessie
+    participant Iceberg
+
+    User->>Nessie: Create branch dev
+    Nessie-->>User: Branch hash
+    User->>Nessie: Write data on dev (via catalog API)
+    Nessie->>Iceberg: Create snapshot
+    Iceberg-->>Nessie: Snapshot metadata
+    Nessie-->>User: Commit hash
+    User->>Nessie: Merge dev -> main
+    Nessie-->>User: Merge commit
 ```
 
 ## The Problem Nessie Solves
@@ -144,6 +178,7 @@ curl http://localhost:19120/api/v2/config
 # }
 ```
 
+
 ### Default: main Branch
 
 When you start Phlo, the `main` branch exists:
@@ -162,6 +197,7 @@ curl http://localhost:19120/api/v2/trees
 #   ]
 # }
 ```
+
 
 ### Creating a Development Branch
 
@@ -290,7 +326,7 @@ rows = trino.execute("SELECT * FROM iceberg.marts.readings", branch="main")
 rows = trino.execute("SELECT * FROM iceberg_dev.marts.readings", branch="dev")
 ```
 
-## Hands-On: Explore Nessie
+## Hands-On Exercise: Explore Nessie
 
 ### List All Branches
 
@@ -311,6 +347,7 @@ curl http://localhost:19120/api/v2/trees
 #   ]
 # }
 ```
+
 
 ### View Branch History
 
@@ -345,6 +382,7 @@ curl "http://localhost:19120/api/v2/trees/main/history" \
 #   ]
 # }
 ```
+
 
 ### Query on a Specific Branch
 
@@ -395,6 +433,7 @@ dbt run --target dev
 dbt run --target prod
 ```
 
+
 ## Advanced: Manual Branch Operations
 
 Using the Nessie REST API (v1):
@@ -423,6 +462,7 @@ curl -X POST "http://localhost:19120/api/v1/trees/tree/main/merge?expectedHash=$
 BRANCH_HASH=$(curl -s http://localhost:19120/api/v1/trees/tree/feature/new-metrics | jq -r '.hash')
 curl -X DELETE "http://localhost:19120/api/v1/trees/branch/feature/new-metrics?expectedHash=$BRANCH_HASH"
 ```
+
 
 Or use the `NessieResource` in Python:
 
@@ -460,6 +500,7 @@ Tags:
   release-2024-01       m3n4o5p6     15      7d ago
 ```
 
+
 ### Create a Feature Branch
 
 ```bash
@@ -474,6 +515,7 @@ Source: main (a1b2c3d4)
 # Create from specific branch
 $ phlo branch create experiment/risky-change --from dev
 ```
+
 
 ### Compare Branches
 
@@ -499,6 +541,7 @@ Commits on feature/new-transform not in main:
 
 Safe to merge: Yes (no conflicts detected)
 ```
+
 
 ### Merge Branches
 
@@ -526,6 +569,7 @@ Merging: feature/new-transform → main
   Tables affected: 2
 ```
 
+
 ### Delete Branches
 
 ```bash
@@ -542,6 +586,7 @@ Proceed? [y/N] y
 # Force delete unmerged branch
 $ phlo branch delete experiment/abandoned --force
 ```
+
 
 ### Practical Workflow: Safe Schema Changes
 
@@ -571,6 +616,7 @@ $ phlo branch merge feature/add-a1c-calculation main
 # 7. Clean up
 $ phlo branch delete feature/add-a1c-calculation
 ```
+
 
 ### Branch Naming Conventions
 
@@ -699,6 +745,43 @@ Next: How does data actually get into this system?
 
 See you then!
 
+## Common Issues
+
+- **Nessie API not reachable**
+
+```bash
+phlo services logs nessie
+curl http://localhost:19120/api/v2/config
+```
+
+
+Fix: start services and confirm Nessie is on port 19120.
+
+- **Branch operations fail in SQL**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
+```
+
+
+Fix: set the session branch before running queries.
+
+- **Trino queries show stale data after merges**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW TABLES FROM iceberg.bronze;"
+```
+
+
+Fix: verify you are querying the expected branch and schema.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [Part 10: Metadata & Governance](10-metadata-governance.md), [Part 12: Production Deployment](12-production-deployment.md). Reference: [Architecture Overview](../reference/architecture.md).
+
+
 ## Summary
 
 **Project Nessie**:
@@ -716,5 +799,10 @@ See you then!
 - `branch_cleanup_sensor` - Cleans up old branches after retention period
 - Catalog-based branching: `iceberg` (main) vs `iceberg_dev` (dev)
 - All writes happen on feature branch - only validated data reaches main
+
+## Next Steps
+
+- Learn how data is transformed on top of Nessie in [Part 6: dbt Transformations](06-dbt-transformations.md).
+- See governance workflows that build on branches in [Part 10: Metadata & Governance](10-metadata-governance.md).
 
 **Next**: [Part 5: Data Ingestion—Getting Data Into the Lakehouse](05-data-ingestion.md)

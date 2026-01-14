@@ -114,6 +114,26 @@ docker exec dagster-webserver dbt compile
 - GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.
 - Examples: `gh issue view <url> --comments -R owner/repo`, `gh pr view <url> --comments --files -R owner/repo`.
 
+# Docs Blog
+
+## Patterns
+- Service port defaults in docs should match `packages/*/src/*/service.yaml` (and generated `.phlo/.env`).
+- Ingestion docs should import `phlo_ingestion` from `phlo_dlt.decorator`.
+- dbt profiles live at `workflows/transforms/dbt/profiles/profiles.yml` (profiles dir, not root).
+- `phlo_quality` docs: use `allow_threshold`, `timestamp_column`, and `CustomSQLCheck(name_, expected, sql FROM data)`.
+- Plugin docs: entry point groups live in `src/phlo/discovery/plugins.py` (sources, quality, transforms, services, catalogs, assets, resources, orchestrators, hooks, observatory, cli, dagster).
+- Observatory extension docs: reference manifest models in `src/phlo/plugins/observatory.py` and example plugin in `packages/phlo-observatory-example/src/phlo_observatory_example/observatory_plugin.py`.
+- Blog posts should include a Common Issues section before Summary/Next Steps with 3-5 diagnostics and a link to `docs/operations/troubleshooting.md`.
+- Blog post code fences should include an Expected output block; use a short text output for commands or "No output" for definitions/configuration.
+- Mermaid diagrams in blog posts should include an Expected output block and a short diagram lead-in.
+- Blog posts should include a See Also section linking 2-3 related posts plus a relevant reference doc, and a short prerequisite callout near the top.
+- Blog README index should list all 16 posts with read times, status, persona learning paths, and search guidance.
+- Blog posts should include sections for What You'll Learn, Prerequisites, Hands-On Exercise, Summary, and Next Steps (in that order around Common Issues/See Also).
+
+## Gotchas
+- `phlo services` has no `open` command; use direct service URLs.
+- `phlo services status` has no `--json`; use `phlo services list --json`.
+
 ## Flow & Runtime
 
 - Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).

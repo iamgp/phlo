@@ -1,6 +1,21 @@
-# Part 13: Extending Phlo with Plugins
+# Part 14: Extending Phlo with Plugins
+
+> Prerequisite: Review [Part 13: Capability Primitives](13-capability-primitives.md) to understand AssetSpec and ResourceSpec.
+
+## What You'll Learn
+
+- How Phlo discovers plugins via entry points
+- Which plugin types map to capability providers
+- How to register assets, resources, and checks
+- How plugins integrate with orchestrators
+
+## Prerequisites
+
+- [Part 13: Capability Primitives](13-capability-primitives.md)
+- Optional: [Part 16: Building Custom Packages](16-building-custom-packages.md) for scaffolding.
 
 You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialized validation rule, or a domain-specific transformation?
+For full package scaffolding, see [Part 16: Building Custom Packages](16-building-custom-packages.md).
 
 That's where the plugin system comes in.
 
@@ -17,15 +32,24 @@ Week 12: "The finance team wants a specific transformation pattern."
 
 Without plugins, you'd fork the codebase or hack around limitations. With plugins, you extend Phlo cleanly.
 
-## The Three Plugin Types
+## Plugin Types at a Glance
 
-Phlo supports three types of plugins:
+Phlo supports a core set of plugin types, plus capability-focused providers:
 
-| Type                  | Purpose                          | Example                          |
-| --------------------- | -------------------------------- | -------------------------------- |
-| **Source Connectors** | Fetch data from external systems | Salesforce, HubSpot, custom APIs |
-| **Quality Checks**    | Custom validation rules          | Business logic, compliance rules |
-| **Transforms**        | Data transformation helpers      | Domain-specific calculations     |
+| Type                         | Purpose                                                  | Example                               |
+| ---------------------------- | -------------------------------------------------------- | ------------------------------------- |
+| **Source Connectors**        | Fetch data from external systems                         | Salesforce, HubSpot, custom APIs      |
+| **Quality Checks**           | Custom validation rules                                  | Business logic, compliance rules      |
+| **Transforms**               | Data transformation helpers                              | Domain-specific calculations          |
+| **Services**                 | Docker-based infrastructure components                   | Custom metadata service               |
+| **Catalogs**                 | Engine-agnostic catalog configuration                    | Iceberg catalog config                |
+| **Asset Providers**          | Emit AssetSpec and AssetCheckSpec capability primitives  | Domain asset packages                 |
+| **Resource Providers**       | Emit ResourceSpec capability primitives                  | Shared clients and IO managers        |
+| **Orchestrator Adapters**    | Translate specs into orchestrator definitions            | Dagster adapter                       |
+| **Observatory Extensions**   | Extend the UI with manifests and scripts                 | Custom dashboards                     |
+| **Hooks**                    | Event-based hooks for runtime instrumentation            | Alerting, logging, metrics            |
+| **CLI Command Plugins**      | Add CLI commands/groups                                  | Domain-specific CLI tooling           |
+| **Dagster Extensions**       | Contribute Dagster definitions directly                  | Custom sensors or schedules           |
 
 Each type has a base class you inherit from, and Phlo discovers your plugins automatically via Python entry points.
 
@@ -51,6 +75,15 @@ When Phlo starts, it scans for installed packages that declare entry points:
 │    • phlo.plugins.sources                                   │
 │    • phlo.plugins.quality                                   │
 │    • phlo.plugins.transforms                                │
+│    • phlo.plugins.services                                  │
+│    • phlo.plugins.catalogs                                  │
+│    • phlo.plugins.assets                                    │
+│    • phlo.plugins.resources                                 │
+│    • phlo.plugins.orchestrators                             │
+│    • phlo.plugins.hooks                                     │
+│    • phlo.plugins.observatory                               │
+│    • phlo.plugins.cli                                       │
+│    • phlo.plugins.dagster                                   │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -60,7 +93,20 @@ When Phlo starts, it scans for installed packages that declare entry points:
 │  Sources:     [rest_api, salesforce, hubspot]               │
 │  Quality:     [null_check, range_check, threshold_check]    │
 │  Transforms:  [uppercase, currency_convert]                 │
+│  Assets:      [marketing_assets, sales_assets]              │
+│  Resources:   [warehouse_clients]                           │
+│  Orchestrators: [dagster_adapter]                           │
 └─────────────────────────────────────────────────────────────┘
+```
+
+### Plugin Discovery Flow (Diagram)
+
+```mermaid
+flowchart TB
+    Environment[Python environment] --> EntryPoints[Entry point scan]
+    EntryPoints --> Registry[Plugin registry]
+    Registry --> Plugins[Plugin instances]
+    Plugins --> Specs[Capability specs]
 ```
 
 This means:
@@ -68,6 +114,98 @@ This means:
 - No manual registration required
 - Install a package, restart Phlo, plugin is available
 - Bad plugins don't crash the system (logged and skipped)
+
+## Capability Primitives in Plugins
+
+Capability packages now use plugins to emit orchestrator-agnostic specs.
+Instead of returning Dagster assets directly, plugins return `AssetSpec`,
+`AssetCheckSpec`, and `ResourceSpec`, then an orchestrator adapter translates
+them into runtime definitions.
+
+### Example: Asset Provider Plugin
+
+```python
+from collections.abc import Iterable
+
+from phlo.capabilities.runtime import RuntimeContext
+from phlo.capabilities.specs import (
+    AssetCheckSpec,
+    AssetSpec,
+    CheckResult,
+    MaterializeResult,
+    RunSpec,
+)
+from phlo.plugins import AssetProviderPlugin, PluginMetadata
+
+
+def ingest_campaigns(context: RuntimeContext) -> Iterable[MaterializeResult]:
+    context.logger.info("Ingesting campaigns")
+    yield MaterializeResult(metadata={"rows": 1200})
+
+
+def check_row_count(context: RuntimeContext) -> CheckResult:
+    return CheckResult(
+        check_name="row_count_positive",
+        asset_key="marketing.campaigns",
+        passed=True,
+    )
+
+
+class MarketingAssets(AssetProviderPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="marketing_assets",
+            version="1.0.0",
+            description="Marketing asset specs",
+        )
+
+    def get_assets(self) -> Iterable[AssetSpec]:
+        return [
+            AssetSpec(
+                key="marketing.campaigns",
+                group="bronze",
+                description="Raw campaign data",
+                run=RunSpec(fn=ingest_campaigns),
+                checks=[
+                    AssetCheckSpec(
+                        name="row_count_positive",
+                        asset_key="marketing.campaigns",
+                        fn=check_row_count,
+                    )
+                ],
+            )
+        ]
+```
+
+### Example: Resource Provider Plugin
+
+```python
+from collections.abc import Iterable
+
+from phlo.capabilities.specs import ResourceSpec
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin
+
+
+def build_warehouse_client():
+    return {"type": "warehouse", "dsn": "postgresql://..."}
+
+
+class WarehouseResources(ResourceProviderPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="warehouse_resources",
+            version="1.0.0",
+            description="Shared warehouse clients",
+        )
+
+    def get_resources(self) -> Iterable[ResourceSpec]:
+        return [ResourceSpec(name="warehouse", resource=build_warehouse_client())]
+```
+
+Orchestrator adapters (for example, `phlo-dagster`) load these specs and
+emit orchestrator-native definitions at runtime.
 
 ## Creating a Source Connector Plugin
 
@@ -257,6 +395,27 @@ threshold_check = "phlo_example.quality:ThresholdCheckPlugin"
 
 [project.entry-points."phlo.plugins.transforms"]
 uppercase = "phlo_example.transform:UppercaseTransformPlugin"
+
+[project.entry-points."phlo.plugins.assets"]
+marketing_assets = "phlo_example.assets:MarketingAssets"
+
+[project.entry-points."phlo.plugins.resources"]
+warehouse_resources = "phlo_example.resources:WarehouseResources"
+
+[project.entry-points."phlo.plugins.orchestrators"]
+dagster_adapter = "phlo_example.orchestrators:DagsterAdapter"
+
+[project.entry-points."phlo.plugins.catalogs"]
+iceberg_catalog = "phlo_example.catalogs:IcebergCatalog"
+
+[project.entry-points."phlo.plugins.hooks"]
+alerts = "phlo_example.hooks:AlertHookPlugin"
+
+[project.entry-points."phlo.plugins.observatory"]
+ui_extension = "phlo_example.observatory:OpsUIExtension"
+
+[project.entry-points."phlo.plugins.cli"]
+ops_cli = "phlo_example.cli:OpsCliPlugin"
 ```
 
 ### Step 4: Install and Use
@@ -269,6 +428,7 @@ pip install -e .
 # Verify it's discovered
 phlo plugin list
 ```
+
 
 Now use it in your pipeline:
 
@@ -302,6 +462,7 @@ Example quality plugin implementation:
 from typing import Any
 import pandas as pd
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
+from phlo_quality.checks import QualityCheck, QualityCheckResult
 
 
 class ThresholdCheckPlugin(QualityCheckPlugin):
@@ -342,7 +503,7 @@ class ThresholdCheckPlugin(QualityCheckPlugin):
         )
 
 
-class ThresholdCheck:
+class ThresholdCheck(QualityCheck):
     """Threshold-based quality check."""
 
     def __init__(
@@ -366,27 +527,15 @@ class ThresholdCheck:
         self.max_value = max_value
         self.tolerance = max(0.0, min(1.0, tolerance))  # Clamp to 0.0-1.0
 
-    def execute(self, df: pd.DataFrame, context: Any = None) -> dict:
-        """
-        Execute the quality check.
-
-        Returns:
-            Dictionary with check results:
-            {
-                "passed": bool,
-                "violations": int,
-                "total": int,
-                "violation_rate": float,
-            }
-        """
+    def execute(self, df: pd.DataFrame, context: Any = None) -> QualityCheckResult:
+        """Execute the quality check."""
         if self.column not in df.columns:
-            return {
-                "passed": False,
-                "violations": len(df),
-                "total": len(df),
-                "violation_rate": 1.0,
-                "error": f"Column '{self.column}' not found",
-            }
+            return QualityCheckResult(
+                passed=False,
+                metric_name="threshold_check",
+                metric_value={"error": f"Column '{self.column}' not found"},
+                failure_message=f"Column '{self.column}' not found",
+            )
 
         # Count violations
         violations = 0
@@ -408,12 +557,15 @@ class ThresholdCheck:
         # Check if within tolerance
         passed = violation_rate <= self.tolerance
 
-        return {
-            "passed": passed,
-            "violations": violations,
-            "total": total,
-            "violation_rate": violation_rate,
-        }
+        return QualityCheckResult(
+            passed=passed,
+            metric_name="threshold_check",
+            metric_value={
+                "violations": violations,
+                "total": total,
+                "violation_rate": violation_rate,
+            },
+        )
 
     @property
     def name(self) -> str:
@@ -446,8 +598,8 @@ check = plugin.create_check(
 
 # Execute the check
 result = check.execute(df)
-print(f"Passed: {result['passed']}")
-print(f"Violations: {result['violations']} / {result['total']}")
+print(f"Passed: {result.passed}")
+print(f"Violations: {result.metric_value['violations']} / {result.metric_value['total']}")
 ```
 
 ## Creating a Transform Plugin
@@ -607,10 +759,12 @@ Transforms:
 
 # Filter by type
 $ phlo plugin list --type sources
+$ phlo plugin list --type assets
 
 # Output as JSON
 $ phlo plugin list --json
 ```
+
 
 ### Get Plugin Details
 
@@ -636,6 +790,7 @@ $ phlo plugin info uppercase --type transforms
 $ phlo plugin info jsonplaceholder --json
 ```
 
+
 ### Validate Plugins
 
 ```bash
@@ -653,6 +808,7 @@ All plugins are valid!
 # JSON output
 $ phlo plugin check --json
 ```
+
 
 ### Create New Plugin Scaffold
 
@@ -678,6 +834,7 @@ $ phlo plugin create my-transform --type transform
 # Specify custom path
 $ phlo plugin create my-plugin --type source --path ./plugins/my-plugin
 ```
+
 
 The scaffold creates a complete package structure:
 
@@ -798,6 +955,49 @@ class PhloConfig:
     ]
 ```
 
+## Hands-On Exercise: Register a Plugin
+
+1. Add an entry point for a sample plugin in `pyproject.toml`.
+2. Run `phlo plugins list` to confirm discovery.
+3. Enable the plugin and re-run `phlo plugins list --enabled`.
+4. Verify assets or resources are registered in Dagster.
+
+## Common Issues
+
+- **Plugins not discovered**
+
+```bash
+phlo plugin list --type assets
+```
+
+
+Fix: confirm the package is installed and entry points are registered.
+
+- **Entry point group is incorrect**
+
+```bash
+uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
+```
+
+
+Fix: update `pyproject.toml` to use the correct group names.
+
+- **Plugin import errors at startup**
+
+```bash
+uv run python -c "import phlo_plugins"
+```
+
+
+Fix: fix missing dependencies or module paths, and reinstall the plugin package.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 13: Capability Primitives](13-capability-primitives.md), [Part 15: Observatory Extensions](15-observatory-extensions.md), [Part 16: Building Custom Packages](16-building-custom-packages.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+
+
 ## Summary
 
 The plugin system lets you extend Phlo without modifying core code:
@@ -848,6 +1048,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 "
 ```
 
+
 **Actual Files to Study:**
 
 - Source plugin: `src/phlo_example/source.py`
@@ -861,6 +1062,12 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 - `phlo.plugins.SourceConnectorPlugin` - Inherit for source connectors
 - `phlo.plugins.QualityCheckPlugin` - Inherit for quality checks
 - `phlo.plugins.TransformationPlugin` - Inherit for transforms
+- `phlo.plugins.ServicePlugin` - Inherit for Docker-based services
+- `phlo.plugins.CatalogPlugin` - Inherit for catalog definitions
+- `phlo.plugins.AssetProviderPlugin` - Inherit to emit AssetSpec and checks
+- `phlo.plugins.ResourceProviderPlugin` - Inherit to emit ResourceSpec
+- `phlo.plugins.OrchestratorAdapterPlugin` - Inherit to translate specs to runtime
+- `phlo.plugins.ObservatoryExtensionPlugin` - Inherit for UI extensions
 
 **Discovery Functions:**
 
@@ -868,10 +1075,14 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 - `phlo.plugins.get_source_connector(name)` - Get source plugin
 - `phlo.plugins.get_quality_check(name)` - Get quality plugin
 - `phlo.plugins.get_transformation(name)` - Get transform plugin
+- `phlo.plugins.get_service(name)` - Get service plugin
+- `phlo.plugins.get_asset_provider(name)` - Get asset provider plugin
+- `phlo.plugins.get_resource_provider(name)` - Get resource provider plugin
+- `phlo.plugins.get_orchestrator(name)` - Get orchestrator adapter plugin
 
 ---
 
-**Previous**: [Part 12 - Production Deployment](12-production-deployment.md)
+**Previous**: [Part 13 - Capability Primitives](13-capability-primitives.md)
 
 **Series**:
 
@@ -887,6 +1098,12 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 10. Metadata and governance
 11. Observability and monitoring
 12. Production deployment
-13. **Plugin system** ← You are here
+13. Capability primitives and orchestrator adapters
+14. **Plugin system** ← You are here
 
 Happy plugin development!
+
+## Next Steps
+
+- Build observability integrations in [Part 15: Observatory Extensions](15-observatory-extensions.md).
+- Scaffold full packages in [Part 16: Building Custom Packages](16-building-custom-packages.md).

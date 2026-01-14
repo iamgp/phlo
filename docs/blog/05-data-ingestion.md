@@ -1,6 +1,21 @@
 # Part 5: Data Ingestion—Getting Data Into the Lakehouse
 
+> Prerequisite: Complete [Part 2: Getting Started—Setup Guide](02-setup-guide.md) before running ingestion.
+
+## What You'll Learn
+
+- How Phlo uses DLT for extraction and staging
+- How ingestion assets map to Iceberg tables
+- How schemas and partitions are defined
+- How to validate ingestion runs end to end
+
+## Prerequisites
+
+- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- Optional: [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) for scheduling context.
+
 We have our lakehouse infrastructure. Now: **how does data actually get in?**
+For scheduling and retries, pair this with [Part 7: Orchestration with Dagster](07-orchestration-dagster.md).
 
 Phlo uses a two-step pattern:
 
@@ -49,7 +64,7 @@ Phlo provides the `@phlo_ingestion` decorator to simplify DLT ingestion. Here's 
 ```python
 # From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
-import phlo
+from phlo_dlt.decorator import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
@@ -126,6 +141,8 @@ Phlo supports two merge strategies, allowing you to optimize for different data 
 Best for immutable event streams where you never update existing records:
 
 ```python
+from phlo_dlt.decorator import phlo_ingestion
+
 @phlo_ingestion(
     table_name="api_events",
     unique_key="event_id",
@@ -155,6 +172,8 @@ def api_events(partition_date: str):
 Best for dimension tables and data that may need updates:
 
 ```python
+from phlo_dlt.decorator import phlo_ingestion
+
 @phlo_ingestion(
     table_name="user_profiles",
     unique_key="user_id",
@@ -229,6 +248,8 @@ The glucose ingestion uses merge strategy because:
 3. **Idempotency**: We want `materialize --partition 2024-10-15` to be safe to run multiple times
 
 ```python
+from phlo_dlt.decorator import phlo_ingestion
+
 @phlo_ingestion(
     table_name="glucose_entries",
     unique_key="_id",              # Nightscout's unique entry ID
@@ -473,6 +494,7 @@ Metadata:
 Ingestion completed successfully in 2.45s
 ```
 
+
 **You wrote**: ~10 lines of code (just the DLT source configuration)
 **You got**: Full ingestion pipeline with validation, staging, merging, and monitoring
 
@@ -579,7 +601,7 @@ The `@phlo_ingestion` decorator works with any DLT source. You just return a DLT
 ```python
 # Example: Custom API ingestion
 
-import phlo
+from phlo_dlt.decorator import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 
 @phlo_ingestion(
@@ -659,7 +681,7 @@ Iceberg table
 
 All follow the same pattern for safety and idempotency.
 
-## Hands-On: Trace an Ingestion
+## Hands-On Exercise: Trace an Ingestion
 
 ```bash
 # Run ingestion and watch the flow
@@ -690,6 +712,7 @@ docker exec trino trino \
   --schema raw \
   --execute "SELECT COUNT(*) as total FROM glucose_entries;"
 ```
+
 
 ## Performance Considerations
 
@@ -744,6 +767,42 @@ Data is now in the lakehouse. Next: **Transform it with dbt and Trino**.
 
 See you there!
 
+## Common Issues
+
+- **Import errors for `phlo_ingestion`**
+
+```bash
+uv run python -c "from phlo_dlt.decorator import phlo_ingestion; print(phlo_ingestion)"
+```
+
+
+Fix: ensure `phlo-dlt` is installed in the active environment.
+
+- **Pipeline fails due to missing credentials**
+
+```bash
+rg -n "API|TOKEN|SECRET" .phlo/.env .phlo/.env.local
+```
+
+
+Fix: add required secrets to `.phlo/.env.local` and restart services.
+
+- **Ingestion asset does not materialize**
+
+```bash
+phlo materialize dlt_glucose_entries
+```
+
+
+Fix: confirm the asset name and inspect Dagster logs for errors.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 2: Getting Started—Setup Guide](02-setup-guide.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 8: A Real-World End-to-End Example](08-real-world-example.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+
+
 ## Summary
 
 **Phlo's Ingestion with @phlo_ingestion**:
@@ -786,4 +845,7 @@ The `@phlo_ingestion` decorator simplifies data ingestion by handling:
 - Or use traditional `@asset_check` for custom validation logic
 - Both integrate with Dagster's asset check system
 
-**Next**: [Part 6: SQL Transformations with dbt—The Right Way](06-dbt-transformations.md)
+## Next Steps
+
+- Continue with [Part 6: SQL Transformations with dbt—The Right Way](06-dbt-transformations.md).
+- Add quality checks in [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md).
