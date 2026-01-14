@@ -292,10 +292,6 @@ iceberg.catalog.type=rest
 iceberg.rest-catalog.uri=http://nessie:19120/iceberg/main
 iceberg.rest-catalog.prefix=main
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 ```properties
 # .phlo/trino/catalog/iceberg_dev.properties (dev branch)
@@ -303,10 +299,6 @@ connector.name=iceberg
 iceberg.catalog.type=rest
 iceberg.rest-catalog.uri=http://nessie:19120/iceberg/dev
 iceberg.rest-catalog.prefix=dev
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 Query different branches by using different catalogs:
@@ -430,10 +422,6 @@ phlo:
       host: trino
       catalog: iceberg # ← Main branch catalog
       schema: bronze
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 ```bash
@@ -735,10 +723,6 @@ nessie:
     nessie.catalog.service.s3.default-options.endpoint: http://minio:9000/
     nessie.catalog.service.s3.default-options.access-key: minioadmin
     nessie.catalog.service.s3.default-options.secret: minioadmin
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 Breaking this down:

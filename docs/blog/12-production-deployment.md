@@ -172,10 +172,6 @@ env:
   # Data Catalog (OpenMetadata)
   OPENMETADATA_PORT: 10020
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 ```bash
 # .phlo/.env.local (secrets, not committed)
@@ -261,10 +257,6 @@ infrastructure:
       internal_host: trino
       port: 10005
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 #### Multi-Project Example
 
@@ -286,10 +278,6 @@ infrastructure:
       port: 11000
     # ... other services with unique ports
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 **Project 2: ML Platform**
 
@@ -306,10 +294,6 @@ infrastructure:
     postgres:
       port: 12000
     # ... other services with unique ports
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 Now you can run both simultaneously:
@@ -374,10 +358,6 @@ print(postgres_config["internal_host"])  # "postgres"
 name: prod-analytics-us-east
 description: Production analytics lakehouse (US East region)
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 **2. Document service purposes:**
 
@@ -387,10 +367,6 @@ services:
     description: Dagster UI and GraphQL API
     port: 10006
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 **3. Reference secrets from .phlo/.env.local:**
 
@@ -398,10 +374,6 @@ Configuration saved successfully.
 postgres:
   credentials:
     password: ${POSTGRES_PASSWORD} # Never hardcode secrets
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 **4. Version control phlo.yaml:**
@@ -713,10 +685,6 @@ spec:
       targetPort: 3000
       protocol: TCP
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 **Future Kubernetes deployment** would look like:
 
@@ -809,10 +777,6 @@ spec:
           periodSeconds: 30
       selectPolicy: Max
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 ## High Availability
 
@@ -854,10 +818,6 @@ spec:
   selector:
     matchLabels:
       app: dagster-webserver
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 This ensures at least 1 pod is always running during maintenance.

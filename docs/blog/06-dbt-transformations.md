@@ -215,10 +215,6 @@ models:
                   "hyperglycemia_severe",
                 ]
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 Run tests:
 
@@ -264,10 +260,6 @@ models:
 
       - name: hour_of_day
         description: Hour extracted from reading_timestamp (0-23)
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 Run:
@@ -423,10 +415,6 @@ phlo:
       port: 8080
       catalog: iceberg # Main branch catalog
       schema: bronze
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 The `iceberg_dev` catalog points to the Nessie dev branch, while `iceberg` points to main.
@@ -588,10 +576,6 @@ columns:
       - dbt_utils.accepted_range:
           min_value: 20
           max_value: 600
-```
-Expected output:
-```text
-Configuration saved successfully.
 ```
 
 ## Performance Tips

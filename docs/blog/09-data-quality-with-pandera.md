@@ -303,10 +303,6 @@ models:
           - accepted_values:
               values: ["dexcom", "freestyle", "medtronic"]
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 ### Custom Tests (SQL)
 

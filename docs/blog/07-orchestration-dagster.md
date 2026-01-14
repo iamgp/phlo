@@ -747,10 +747,6 @@ dagster-daemon:
     - postgres
     - dagster-webserver
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 The daemon needs:
 

@@ -95,10 +95,6 @@ description: "my-lakehouse data workflows"
 #
 # Secrets belong in .phlo/.env.local
 ```
-Expected output:
-```text
-Configuration saved successfully.
-```
 
 ### What's in .phlo/.env?
 
@@ -112,10 +108,6 @@ TRINO_PORT=8080
 DAGSTER_PORT=3000
 OBSERVATORY_PORT=3001
 ```
-Expected output:
-```text
-Environment variables updated.
-```
 
 ### What's in .phlo/.env.local?
 
@@ -125,10 +117,6 @@ POSTGRES_PASSWORD=phlo
 
 # Storage
 MINIO_ROOT_PASSWORD=minio123
-```
-Expected output:
-```text
-Environment variables updated.
 ```
 
 **For local development**: Use the defaults as-is.
