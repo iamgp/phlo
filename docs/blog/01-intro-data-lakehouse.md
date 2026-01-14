@@ -1,5 +1,19 @@
 # Part 1: What is a Data Lakehouse? Understanding Modern Data Architecture
 
+> Prerequisite: None. Start here before Part 2 and beyond.
+
+## What You'll Learn
+
+- Why lakehouse architecture replaces lake/warehouse tradeoffs
+- How Iceberg, Nessie, Trino, and MinIO work together
+- How Phlo maps ingestion, storage, and analytics layers
+- Where to go next for hands-on setup
+
+## Prerequisites
+
+- None. Start here.
+- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) if you want to run services now.
+
 ## The Problem We're Solving
 
 Traditional data pipelines have a fundamental problem: **they force you to choose**.
@@ -10,6 +24,7 @@ Either you have:
 - **A Data Warehouse**: organized, fast queries but rigid and expensive
 
 Phlo solves this by combining the best of both worlds into a **lakehouse**.
+If you want hands-on setup next, jump to [Part 2: Getting Started—Setup Guide](02-setup-guide.md).
 
 ## The Three Eras of Data Architecture
 
@@ -114,6 +129,7 @@ SELECT * FROM iceberg.bronze.entries (branch: dev)
 # Validate, then merge to main
 nessie merge dev -> main
 ```
+
 
 **Why it matters**:
 
@@ -254,7 +270,7 @@ def publish_marts() -> None:
 | Time travel    | Not available             | Query any past state         |
 | Data quality   | Ad-hoc testing            | Built-in (Iceberg snapshots) |
 
-## What You'll Learn in This Series
+## Series Roadmap
 
 This blog series walks through:
 
@@ -272,6 +288,55 @@ This blog series walks through:
 12. **Part 12**: Production deployment and scaling
 
 Each post includes hands-on examples and code you can run.
+
+## Hands-On Exercise: Map Your Stack
+
+1. List your current data sources (APIs, databases, files).
+2. Pick one storage system you would use for raw data (S3/MinIO/local).
+3. Identify one query engine and one analytics destination you already use.
+4. Compare your list to the Phlo stack diagram above.
+
+## Common Issues
+
+- **Nessie or Trino examples fail to run**
+
+```bash
+phlo services start
+curl http://localhost:19120/api/v2/config
+```
+
+
+Fix: start services and confirm Nessie is reachable on port 19120.
+
+- **Trino reports `Catalog iceberg not found`**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+```
+
+
+Fix: restart Trino and confirm the `iceberg` catalog is configured.
+
+- **Mermaid diagrams do not render locally**
+
+```bash
+uv run mkdocs serve
+```
+
+
+Fix: preview with MkDocs or view the post on GitHub.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 2: Getting Started—Setup Guide](02-setup-guide.md), [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md). Reference: [Architecture Overview](../reference/architecture.md).
+
+## Summary
+
+Phlo combines open table formats, version control, and low-cost storage into a
+single, flexible lakehouse architecture. You now have the mental model for how
+the components fit together and why the tradeoffs matter.
 
 ## Next Steps
 

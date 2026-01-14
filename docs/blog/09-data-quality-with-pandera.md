@@ -1,6 +1,21 @@
 # Part 9: Data Quality—Pandera Schemas and Asset Checks
 
+> Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) before applying quality checks.
+
+## What You'll Learn
+
+- How Pandera schemas validate ingestion data
+- How asset checks enforce rules in Dagster
+- How to use built-in checks (Range, Freshness, Null)
+- How to wire quality checks into production pipelines
+
+## Prerequisites
+
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- Optional: [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) for asset checks context.
+
 In Part 8, we built a complete pipeline. But how do we ensure data quality throughout? This post covers validation at multiple layers.
+For governance and metadata lineage, see [Part 10: Metadata and Governance](10-metadata-governance.md).
 
 ## The Data Quality Problem
 
@@ -322,6 +337,7 @@ dbt test --select stg_glucose_entries.unique:entry_id
 dbt test --select stg_glucose_entries --debug
 ```
 
+
 ## Layer 3: Dagster Asset Checks (Runtime)
 
 After orchestration, Dagster asset checks monitor data quality in production. Phlo provides **two approaches**: the declarative `@phlo_quality` decorator and traditional `@asset_check` for custom logic.
@@ -333,8 +349,7 @@ For common checks (null, range, freshness), use the `@phlo_quality` decorator to
 ```python
 # File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
-import phlo
-from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 
 @phlo_quality(
     table="silver.fct_glucose_readings",
@@ -342,7 +357,7 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
         RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
         RangeCheck(column="hour_of_day", min_value=0, max_value=23),
-        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+        FreshnessCheck(timestamp_column="reading_timestamp", max_age_hours=24),
     ],
     group="nightscout",
     blocking=True,
@@ -504,8 +519,7 @@ Best for standard checks - reduces boilerplate by 70-80%:
 ```python
 # File: phlo-examples/nightscout/workflows/quality/nightscout.py
 
-import phlo
-from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
+from phlo_quality import FreshnessCheck, NullCheck, RangeCheck, phlo_quality
 
 @phlo_quality(
     table="silver.fct_glucose_readings",
@@ -513,7 +527,7 @@ from phlo_quality import NullCheck, RangeCheck, FreshnessCheck
         NullCheck(columns=["entry_id", "glucose_mg_dl", "reading_timestamp"]),
         RangeCheck(column="glucose_mg_dl", min_value=20, max_value=600),
         RangeCheck(column="hour_of_day", min_value=0, max_value=23),
-        FreshnessCheck(column="reading_timestamp", max_age_hours=24),
+        FreshnessCheck(timestamp_column="reading_timestamp", max_age_hours=24),
     ],
     group="nightscout",
     blocking=True,
@@ -560,24 +574,24 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -> AssetChec
 
 | Check Type       | Purpose                  | Parameters                         |
 | ---------------- | ------------------------ | ---------------------------------- |
-| `NullCheck`      | Verify no nulls          | `columns`, `tolerance` (% allowed) |
-| `RangeCheck`     | Verify numeric bounds    | `column`, `min_value`, `max_value` |
-| `FreshnessCheck` | Verify data recency      | `column`, `max_age_hours`          |
-| `UniqueCheck`    | Verify uniqueness        | `columns` (can be composite)       |
-| `CountCheck`     | Verify row count         | `min_count`, `max_count`           |
+| `NullCheck`      | Verify no nulls          | `columns`, `allow_threshold`       |
+| `RangeCheck`     | Verify numeric bounds    | `column`, `min_value`, `max_value`, `allow_threshold` |
+| `FreshnessCheck` | Verify data recency      | `timestamp_column`, `max_age_hours` |
+| `UniqueCheck`    | Verify uniqueness        | `columns`, `allow_threshold`       |
+| `CountCheck`     | Verify row count         | `min_rows`, `max_rows`             |
 | `SchemaCheck`    | Validate against Pandera | `schema` (DataFrameModel class)    |
-| `CustomSQLCheck` | Run arbitrary SQL        | `sql`, `expected_result`           |
+| `CustomSQLCheck` | Run arbitrary SQL        | `name_`, `sql`, `expected`, `allow_threshold` |
 
 ### Check Parameters in Detail
 
-**NullCheck with tolerance:**
+**NullCheck with allow_threshold:**
 
 ```python
 # Strict: no nulls allowed
 NullCheck(columns=["sgv", "timestamp"])
 
 # Lenient: allow up to 1% nulls
-NullCheck(columns=["device"], tolerance=0.01)
+NullCheck(columns=["device"], allow_threshold=0.01)
 ```
 
 **RangeCheck:**
@@ -597,10 +611,10 @@ RangeCheck(column="percentage", max_value=100)
 
 ```python
 # Data must be less than 2 hours old
-FreshnessCheck(column="timestamp", max_age_hours=2)
+FreshnessCheck(timestamp_column="timestamp", max_age_hours=2)
 
 # Different column name
-FreshnessCheck(column="created_at", max_age_hours=24)
+FreshnessCheck(timestamp_column="created_at", max_age_hours=24)
 ```
 
 **UniqueCheck:**
@@ -616,14 +630,15 @@ UniqueCheck(columns=["user_id", "timestamp"])
 **CustomSQLCheck for complex rules:**
 
 ```python
+# "data" is a placeholder for the table/dataframe passed via the @phlo_quality decorator's table parameter
 CustomSQLCheck(
-    name="business_hours_only",
+    name_="business_hours_only",
     sql="""
-        SELECT COUNT(*) as violations
-        FROM {table}
-        WHERE HOUR(timestamp) < 6 OR HOUR(timestamp) > 22
+        SELECT (HOUR(timestamp) >= 6 AND HOUR(timestamp) <= 22) AS is_valid
+        FROM data
     """,
-    expected_result=0,  # Zero violations expected
+    expected=True,  # All rows must be within business hours
+    allow_threshold=0.0,  # No failures allowed
 )
 ```
 
@@ -665,7 +680,7 @@ from workflows.schemas.glucose import FactGlucoseReadings
         SchemaCheck(schema=FactGlucoseReadings),
 
         # Plus additional runtime checks
-        FreshnessCheck(column="timestamp", max_age_hours=2),
+        FreshnessCheck(timestamp_column="timestamp", max_age_hours=2),
     ],
 )
 def glucose_comprehensive_quality():
@@ -817,6 +832,49 @@ GROUP BY 1
 ORDER BY 3 DESC;
 ```
 
+## Hands-On Exercise: Add a New Check
+
+1. Add a `RangeCheck` to the glucose asset for a realistic max value.
+2. Trigger `phlo materialize dlt_glucose_entries`.
+3. Confirm the check result in Dagster.
+4. Fix any violations in the source data or schema.
+
+## Common Issues
+
+- **Import errors for `phlo_quality`**
+
+```bash
+uv run python -c "from phlo_quality.decorator import phlo_quality; print(phlo_quality)"
+```
+
+
+Fix: ensure `phlo-quality` is installed in the active environment.
+
+- **Checks fail due to schema or column mismatches**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "DESCRIBE iceberg.silver.fct_glucose_readings;"
+```
+
+
+Fix: align Pandera schemas with the actual table columns.
+
+- **CustomSQLCheck returns non-boolean results**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SELECT 1 AS ok LIMIT 1;"
+```
+
+
+Fix: ensure the SQL returns boolean values per row.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 6: dbt Transformations](06-dbt-transformations.md), [Part 10: Metadata and Governance](10-metadata-governance.md). Reference: [Quality Checks Catalog](../reference/quality-checks-catalog.md).
+
+
 ## Summary
 
 Phlo uses **three-layer validation**:
@@ -831,6 +889,7 @@ This ensures:
 - Transforms execute correctly
 - Production issues are caught quickly
 
-**Next**: [Part 10: Metadata and Governance with OpenMetadata](10-metadata-governance.md)
+## Next Steps
 
-See you there!
+- Continue with [Part 10: Metadata and Governance with OpenMetadata](10-metadata-governance.md).
+- Review observability tooling in [Part 11: Observability & Monitoring](11-observability-monitoring.md).

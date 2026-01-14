@@ -1,6 +1,21 @@
 # Part 3: Apache Iceberg—The Table Format That Changed Everything
 
+> Prerequisite: Read [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) for lakehouse context.
+
+## What You'll Learn
+
+- Why Iceberg fixes Parquet table management pain
+- How snapshots, manifests, and metadata enable time travel
+- How Iceberg enables partition evolution and schema changes
+- Where Iceberg fits in the Phlo stack
+
+## Prerequisites
+
+- [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md)
+- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) to run the examples locally.
+
 In Part 1, we mentioned Iceberg as the magic ingredient. Let's understand _why_ it's such a game-changer.
+For Git-like versioning on top of Iceberg, see [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md).
 
 ## The Problem With Traditional Parquet
 
@@ -51,6 +66,20 @@ The metadata files answer:
 - "What files make up snapshot 5678?" → manifest-99.avro
 - "What schema is this data?" → snap-5678.avro
 - "Are these writes in conflict?" → atomic metadata updates
+
+### Iceberg Metadata Flow (Diagram)
+
+```mermaid
+flowchart TB
+    Writer[Write operation] --> Metadata["v*.metadata.json"]
+    Metadata --> Snapshots["Snapshot metadata"]
+    Snapshots --> Manifests["Manifest lists"]
+    Manifests --> DataFiles["Parquet data files"]
+    Reader[Query engine] --> Metadata
+    Metadata --> Snapshots
+    Snapshots --> Manifests
+    Manifests --> DataFiles
+```
 
 ## Core Iceberg Concepts
 
@@ -323,6 +352,7 @@ docker exec trino trino \
   "
 ```
 
+
 ## Comparison: Before vs After Iceberg
 
 | Aspect                | Without Iceberg (S3 Files)    | With Iceberg              |
@@ -376,7 +406,7 @@ s3://lake/
 
 Note: Staging is temporary (cleaned up after merge). Only warehouse tables persist.
 
-## Hands-On: Explore Snapshots
+## Hands-On Exercise: Explore Snapshots
 
 ```bash
 # Use Python to explore snapshots
@@ -403,11 +433,48 @@ for snapshot in sorted(table.snapshots(),
 EOF
 ```
 
+
 ## Next: Project Nessie (Git for Data)
 
 Iceberg gives us time travel. Nessie adds **branching** on top.
 
 We'll explore that in the next post.
+
+## Common Issues
+
+- **Iceberg catalog missing in Trino**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW CATALOGS;"
+```
+
+
+Fix: restart Trino and confirm the `iceberg` catalog is configured.
+
+- **Schema or table not found**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SCHEMAS FROM iceberg;"
+```
+
+
+Fix: verify the schema names and run ingestion before querying.
+
+- **Nessie branch not applied in SQL session**
+
+```bash
+docker exec -i "$(docker ps --filter name=trino --format '{{.Names}}' | head -n1)" trino --execute "SHOW SESSION LIKE 'iceberg.nessie_reference_name';"
+```
+
+
+Fix: set `SET SESSION iceberg.nessie_reference_name = 'main';` before queries.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md), [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md), [Part 6: dbt Transformations](06-dbt-transformations.md). Reference: [Architecture Overview](../reference/architecture.md).
+
 
 ## Summary
 
@@ -426,4 +493,7 @@ Phlo uses Iceberg to ensure:
 - Reliable transformations (atomic snapshots)
 - Data governance (audit trail via time travel)
 
-**Next**: [Part 4: Project Nessie—Git-Like Versioning for Data](04-project-nessie-versioning.md)
+## Next Steps
+
+- Continue with [Part 4: Project Nessie—Git-Like Versioning for Data](04-project-nessie-versioning.md).
+- See how Iceberg powers dbt models in [Part 6: dbt Transformations](06-dbt-transformations.md).

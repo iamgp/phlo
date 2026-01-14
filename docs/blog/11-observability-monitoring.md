@@ -1,6 +1,21 @@
 # Part 11: Observability and Monitoring—Knowing Your Pipeline
 
+> Prerequisite: Complete [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) to follow the monitoring flows.
+
+## What You'll Learn
+
+- How Phlo collects metrics, logs, and traces
+- How to set alerting thresholds for pipeline health
+- How to use Dagster and Observatory for incident response
+- How observability connects to governance and quality
+
+## Prerequisites
+
+- [Part 7: Orchestration with Dagster](07-orchestration-dagster.md)
+- Optional: [Part 10: Metadata and Governance](10-metadata-governance.md) for lineage context.
+
 You've built a data lakehouse with validation and governance. But what happens at 3am when something breaks? This post covers observability: monitoring, alerting, and troubleshooting.
+For custom UI extensions in the observability layer, see [Part 15: Observatory Extensions](15-observatory-extensions.md).
 
 ## The Observability Problem
 
@@ -142,6 +157,7 @@ Assets
   Failure:   1
 ```
 
+
 For per-asset details:
 
 ```bash
@@ -166,6 +182,7 @@ def456    success  4.8s      512
 ghi789    success  5.1s      495
 ```
 
+
 Export metrics for external analysis:
 
 ```bash
@@ -175,6 +192,7 @@ $ phlo metrics export --format json --period 7d --output metrics.json
 # Export to CSV
 $ phlo metrics export --format csv --period 30d --output metrics.csv
 ```
+
 
 ## Logs: Structured Logging
 
@@ -303,6 +321,7 @@ export PHLO_ALERT_EMAIL_SMTP_PASSWORD="your-password"
 export PHLO_ALERT_EMAIL_RECIPIENTS="data-team@yourcompany.com,oncall@yourcompany.com"
 ```
 
+
 ### Managing Alerts via CLI
 
 Check alert system status:
@@ -320,6 +339,7 @@ Recent Alerts Sent: 5
 Deduplication Window: 60 minutes
 ```
 
+
 List configured destinations:
 
 ```bash
@@ -332,6 +352,7 @@ slack  SlackDestination  ✓ Ready
 email  EmailDestination  ✓ Ready
 ```
 
+
 Test your alert configuration:
 
 ```bash
@@ -343,6 +364,7 @@ $ phlo alerts test
 # Test specific destination
 $ phlo alerts test --destination slack --severity critical
 ```
+
 
 ### What Triggers Alerts
 
@@ -624,6 +646,7 @@ glucose_entries
                 └── mrt_glucose_hourly_patterns (dbt model)
 ```
 
+
 This tree shows your entire data flow: from API source through transformations to dashboards.
 
 ### Impact Analysis
@@ -654,6 +677,7 @@ Total Impact:
 Recommendation: Coordinate change with dashboard owners before deploying
 ```
 
+
 ### Exporting Lineage
 
 Generate lineage diagrams for documentation:
@@ -666,6 +690,7 @@ $ dot -Tpng lineage.dot -o lineage.png
 # Mermaid format (for Markdown docs)
 $ phlo lineage export --format mermaid --output lineage.md
 ```
+
 
 The Mermaid output can be embedded directly in GitHub READMEs or Notion docs:
 
@@ -759,6 +784,7 @@ phlo logs --run-id abc123-def456
 phlo logs --job daily_glucose_pipeline
 ```
 
+
 ### Real-Time Tailing
 
 Watch logs as they happen:
@@ -774,6 +800,7 @@ $ phlo logs --follow
 [10:35:45] INFO  glucose_entries: Materialization complete (5.2s)
 ^C  # Ctrl+C to stop
 ```
+
 
 ### JSON Output for Scripting
 
@@ -791,6 +818,7 @@ phlo logs --asset glucose_entries --since 7d --json > glucose_logs.json
 # Grep for specific patterns
 phlo logs --json | jq 'select(.message | contains("timeout"))'
 ```
+
 
 ---
 
@@ -831,6 +859,7 @@ Active Alerts: 1
   ⚠ publish_to_postgres running slow (1.2s avg vs 500ms baseline)
 ```
 
+
 ### Per-Asset Metrics
 
 Drill into specific assets:
@@ -861,6 +890,7 @@ Trend:
   Failures: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ (1 in window)
 ```
 
+
 ### Exporting for Analysis
 
 Export metrics for external tools (Grafana, spreadsheets, custom analysis):
@@ -874,7 +904,53 @@ $ phlo metrics export --format json --period 7d | \
   python analyze_metrics.py
 ```
 
+
 ---
+
+## Hands-On Exercise: Simulate an Alert
+
+1. Stop one service: `phlo services stop trino`.
+2. Confirm the alert condition in Dagster or Observatory logs.
+3. Restart the service: `phlo services start trino`.
+4. Verify the alert clears and metrics recover.
+
+## Common Issues
+
+- **Observatory UI not loading**
+
+```bash
+phlo services logs observatory
+curl http://localhost:3001
+```
+
+
+Fix: restart Observatory and confirm port 3001 is reachable.
+
+- **Dashboards show no metrics**
+
+```bash
+phlo services logs grafana
+phlo services logs prometheus
+```
+
+
+Fix: verify metrics exporters are running and Grafana data sources are configured.
+
+- **Logs not appearing in the UI**
+
+```bash
+phlo services logs loki
+```
+
+
+Fix: confirm log shipping configuration and restart Loki if needed.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 10: Metadata and Governance](10-metadata-governance.md), [Part 15: Observatory Extensions](15-observatory-extensions.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+
 
 ## Summary
 
@@ -894,6 +970,7 @@ Combined, you have:
 
 All accessible through simple CLI commands that integrate with your existing workflows.
 
-**Next**: [Part 12: Production Deployment and Scaling](12-production-deployment.md)
+## Next Steps
 
-See you there!
+- Continue with [Part 12: Production Deployment and Scaling](12-production-deployment.md).
+- Explore custom extensions in [Part 15: Observatory Extensions](15-observatory-extensions.md).

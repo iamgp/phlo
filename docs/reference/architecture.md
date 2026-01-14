@@ -217,7 +217,7 @@ Plugins are automatically discovered using Python entry points:
 - **CLI Management**: `phlo plugin search/install/list` commands
 
 For more details, see:
-- [Plugin System Blog Post](../blog/13-plugin-system.md)
+- [Plugin System Blog Post](../blog/14-plugin-system.md)
 - [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
 
 ## Branching Strategy

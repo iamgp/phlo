@@ -1,6 +1,21 @@
 # Part 7: Orchestration with Dagster—Running Your Pipelines
 
+> Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) and [Part 6: dbt Transformations](06-dbt-transformations.md) first.
+
+## What You'll Learn
+
+- How Dagster orchestrates ingestion, transforms, and publishing
+- How assets and sensors map to Phlo workflows
+- How to trigger jobs and inspect runs
+- How orchestration ties into monitoring and alerts
+
+## Prerequisites
+
+- [Part 5: Data Ingestion](05-data-ingestion.md)
+- [Part 6: dbt Transformations](06-dbt-transformations.md)
+
 We have data flowing in (DLT + Iceberg) and transformations defined (dbt). Now: **Who runs this? When? What happens if it fails?**
+For monitoring and alerts, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
 That's **Dagster's job**—orchestration.
 
@@ -20,6 +35,7 @@ publish_to_postgres.py                        # Manual - depends on dbt
 # Dashboards show stale data for 24 hours
 ```
 
+
 With Dagster:
 
 ```
@@ -32,6 +48,16 @@ With Dagster:
 6:06 AM: All complete
          ↓
          If anything fails → Alert via email/Slack
+```
+
+### Asset Dependency Graph (Diagram)
+
+```mermaid
+flowchart LR
+    Scheduler[Dagster scheduler] --> Ingest[dlt_glucose_entries]
+    Ingest --> Bronze[dbt_bronze]
+    Bronze --> Silver[dbt_silver]
+    Silver --> Publish[publish_postgres]
 ```
 
 ## Dagster's Core Concepts
@@ -366,6 +392,7 @@ phlo materialize --select "dlt_glucose_entries,stg_glucose_entries" --partition 
 phlo materialize --select "dlt_glucose_entries+"  # Plus = all downstream
 ```
 
+
 ### Via Python API
 
 ```python
@@ -430,6 +457,7 @@ Proceed? [y/N] y
 Backfill complete: 92 partitions in 43m
 ```
 
+
 ### Parallel Execution
 
 For large backfills, run multiple partitions simultaneously:
@@ -457,6 +485,7 @@ Estimated Time: ~90 minutes
 ...
 ```
 
+
 **Parallel considerations:**
 
 - More workers = faster, but more resource usage
@@ -472,6 +501,7 @@ Sometimes you need specific dates, not a range:
 $ phlo backfill glucose_entries \
     --partitions 2024-01-01,2024-01-15,2024-02-01,2024-03-01
 ```
+
 
 ### Resuming Failed Backfills
 
@@ -495,6 +525,7 @@ Remaining: 46 partitions
 [46/90] 2024-02-15 ✓
 ...
 ```
+
 
 ### Dry Run
 
@@ -525,6 +556,7 @@ Would skip: 1 partition (already fresh)
 
 Run without --dry-run to execute.
 ```
+
 
 ### Backfill Strategies
 
@@ -560,6 +592,7 @@ $ phlo backfill glucose_entries \
     --end-date 2024-12-31 \
     --parallel 2
 ```
+
 
 ## Monitoring and Alerts
 
@@ -736,13 +769,48 @@ def dlt_glucose_entries() -> MaterializeResult:
     pass
 ```
 
-## Next: Data Quality
+## Hands-On Exercise: Trigger a Run
 
-Orchestration keeps pipelines running. But are they running _correctly_?
+1. Open Dagster UI at `http://localhost:3000`.
+2. Navigate to the `glucose_pipeline` asset group.
+3. Launch a run and watch asset materializations.
+4. Inspect logs for one asset to confirm inputs and outputs.
 
-**Part 8: Data Quality and Testing**
+## Common Issues
 
-See you there!
+- **Dagster UI shows no assets**
+
+```bash
+phlo services logs dagster-webserver
+```
+
+
+Fix: resolve import errors and restart the webserver.
+
+- **Schedules or sensors not firing**
+
+```bash
+phlo services logs dagster-daemon
+```
+
+
+Fix: restart the daemon after fixing schedule or sensor errors.
+
+- **Materializations fail at runtime**
+
+```bash
+phlo materialize <asset_name>
+```
+
+
+Fix: check asset configuration and dependencies in the logs.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 6: dbt Transformations](06-dbt-transformations.md), [Part 11: Observability & Monitoring](11-observability-monitoring.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+
 
 ## Summary
 
@@ -765,4 +833,7 @@ See you there!
 
 **Key Pattern**: Declare assets, Dagster handles orchestration.
 
-**Next**: [Part 8: Real-World Example—Building a Complete Data Pipeline](08-real-world-example.md)
+## Next Steps
+
+- Continue with [Part 8: Real-World Example—Building a Complete Data Pipeline](08-real-world-example.md).
+- Review monitoring in [Part 11: Observability & Monitoring](11-observability-monitoring.md).
