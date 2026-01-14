@@ -615,10 +615,6 @@ class ThresholdCheck(QualityCheck):
         bound_str = ",".join(bounds) if bounds else "unbounded"
         return f"threshold_check({self.column},{bound_str})"
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 **Usage:**
 
@@ -640,10 +636,6 @@ check = plugin.create_check(
 result = check.execute(df)
 print(f"Passed: {result.passed}")
 print(f"Violations: {result.metric_value['violations']} / {result.metric_value['total']}")
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ## Creating a Transform Plugin

@@ -512,10 +512,6 @@ def dlt_glucose_entries(context):
             merge_span.set_attribute("inserts", result["inserts"])
             merge_span.set_attribute("updates", result["updates"])
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 In Jaeger UI, you see:
 
@@ -533,10 +529,6 @@ Duration: 152ms
 │     ├─ read_snapshot [65ms - 85ms]
 │     ├─ merge_operation [85ms - 125ms]
 │     └─ write_metadata [125ms - 152ms]
-```
-Expected output:
-```text
-Example rendered as shown.
 ```
 
 Click on any span to see:

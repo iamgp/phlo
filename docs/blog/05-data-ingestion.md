@@ -762,10 +762,6 @@ info = pipeline.run(
 # For large datasets, you want good batch size
 # 100K-1M rows per batch is typical
 ```
-Expected output:
-```text
-No output (definitions only).
-```
 
 ### Deduplication Key
 
@@ -777,10 +773,6 @@ unique_key="_id"  # MongoDB ObjectId, guaranteed unique
 
 # Bad: Reading data multiple times
 unique_key="date_string"  # Multiple readings per minute!
-```
-Expected output:
-```text
-No output (definitions only).
 ```
 
 ### Idempotency
