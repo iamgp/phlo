@@ -9,8 +9,6 @@
 - Ingest sample data and materialize assets
 - Verify results in Dagster and Observatory
 
-New to lakehouse architecture? Skim [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) before setup.
-
 ## Prerequisites
 
 ### What You Need

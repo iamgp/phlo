@@ -76,7 +76,9 @@ flowchart TB
     Snapshots --> Manifests["Manifest lists"]
     Manifests --> DataFiles["Parquet data files"]
     Reader[Query engine] --> Metadata
-    Reader --> DataFiles
+    Metadata --> Snapshots
+    Snapshots --> Manifests
+    Manifests --> DataFiles
 ```
 
 ## Core Iceberg Concepts
