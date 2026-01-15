@@ -35,7 +35,11 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
                 "fields": fields,
             }
         )
-        return ["workflows/schemas/weather.py", "workflows/ingestion/weather/observations.py"]
+        return [
+            "workflows/schemas/weather.py",
+            "workflows/ingestion/weather/observations.py",
+            "workflows/tests/weather/test_observations.py",
+        ]
 
     monkeypatch.setattr(
         "phlo.cli.scaffold.create_ingestion_workflow",

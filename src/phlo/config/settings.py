@@ -177,9 +177,7 @@ class Settings(BaseConfig):
     phlo_alert_pagerduty_key: str | None = Field(
         default=None, description="PagerDuty Events API v2 integration key"
     )
-    phlo_alert_email_smtp_host: str | None = Field(
-        default=None, description="SMTP server hostname"
-    )
+    phlo_alert_email_smtp_host: str | None = Field(default=None, description="SMTP server hostname")
     phlo_alert_email_smtp_port: int = Field(default=587, description="SMTP server port")
     phlo_alert_email_smtp_user: str | None = Field(default=None, description="SMTP username")
     phlo_alert_email_smtp_password: str | None = Field(default=None, description="SMTP password")

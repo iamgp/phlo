@@ -40,7 +40,4 @@ class DatabaseConfig(BaseConfig):
         db_part = f"/{self.postgres_db}" if include_db else ""
         user = quote_plus(self.postgres_user)
         password = quote_plus(self.postgres_password)
-        return (
-            f"postgresql://{user}:{password}"
-            f"@{self.postgres_host}:{self.postgres_port}{db_part}"
-        )
+        return f"postgresql://{user}:{password}@{self.postgres_host}:{self.postgres_port}{db_part}"

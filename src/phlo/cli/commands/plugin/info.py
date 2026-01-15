@@ -26,7 +26,7 @@ from phlo.plugins import get_plugin_info, list_plugins
     default=False,
     help="Output as JSON",
 )
-def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool):
+def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool) -> None:
     """Show detailed plugin information.
 
     Examples:
@@ -38,7 +38,7 @@ def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool):
         all_plugins = list_plugins()
 
         plugin_type_provided = bool(plugin_type)
-        detected_type = None
+        detected_type: str | None = None
 
         if not plugin_type_provided:
             for ptype_key, names in all_plugins.items():
@@ -46,21 +46,26 @@ def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool):
                     detected_type = ptype_key
                     break
 
-            if not detected_type:
+            if detected_type is None:
                 console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
-                sys.exit(1)
+                raise SystemExit(1)
 
-        internal_type = (
-            PLUGIN_TYPE_MAP[plugin_type]
-            if plugin_type_provided
-            else detected_type
-        )
+        if plugin_type_provided:
+            internal_type = PLUGIN_TYPE_MAP[plugin_type]
+            display_type = plugin_type
+        else:
+            internal_type = detected_type
+            display_type = detected_type
+
+        if internal_type is None or display_type is None:
+            console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
+            raise SystemExit(1)
 
         info = get_plugin_info(internal_type, plugin_name)
 
-        if not info:
+        if info is None:
             console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
-            sys.exit(1)
+            raise SystemExit(1)
 
         if output_json:
             console.print(json.dumps(info, indent=2))
@@ -68,7 +73,7 @@ def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool):
 
         # Rich formatted output
         console.print(f"\n[bold cyan]{info['name']}[/bold cyan]")
-        console.print(f"Type: {plugin_type}")
+        console.print(f"Type: {display_type}")
         console.print(f"Version: {info['version']}")
 
         if info.get("author"):

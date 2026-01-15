@@ -78,9 +78,7 @@ def update_cmd(output_json: bool, dry_run: bool):
                 continue
 
         if failures:
-            failed_list = ", ".join(
-                f"{item['package']}=={item['version']}" for item in failures
-            )
+            failed_list = ", ".join(f"{item['package']}=={item['version']}" for item in failures)
             console.print(f"[red]Failed updates: {failed_list}[/red]")
             sys.exit(1)
 

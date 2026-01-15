@@ -16,7 +16,9 @@ class ObservatoryExtensionCompatibility(BaseModel):
 class ObservatoryExtensionSettings(BaseModel):
     """Settings schema and defaults for an extension."""
 
-    settings_schema: dict[str, Any]
+    settings_schema: dict[str, Any] = Field(
+        ..., description="Schema for extension settings and validation"
+    )
     defaults: dict[str, Any] = Field(default_factory=dict)
     scope: Literal["global", "extension"] = "extension"
 

@@ -1,4 +1,4 @@
-from pydantic import AliasChoices, Field, root_validator
+from pydantic import AliasChoices, Field, model_validator
 
 from phlo.config.base import BaseConfig
 
@@ -27,11 +27,11 @@ class OrchestrationConfig(BaseConfig):
     app_port: int = Field(default=10009, description="Hub application port")
     flask_debug: bool = Field(default=False, description="Flask debug mode")
 
-    @root_validator
-    def validate_executor_flags(cls, values: dict) -> dict:
-        if values.get("phlo_force_in_process_executor") and values.get(
-            "phlo_force_multiprocess_executor"
-        ):
-            raise ValueError("phlo_force_in_process_executor and phlo_force_multiprocess_executor "
-                             "cannot both be True")
-        return values
+    @model_validator(mode="after")
+    def validate_executor_flags(self) -> "OrchestrationConfig":
+        if self.phlo_force_in_process_executor and self.phlo_force_multiprocess_executor:
+            raise ValueError(
+                "phlo_force_in_process_executor and phlo_force_multiprocess_executor "
+                "cannot both be True"
+            )
+        return self

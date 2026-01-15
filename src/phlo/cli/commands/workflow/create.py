@@ -15,9 +15,9 @@ import click
 @click.option(
     "--type",
     "workflow_type",
-    type=click.Choice(["ingestion", "transform", "quality"]),
+    type=click.Choice(["ingestion"]),
     prompt="Workflow type",
-    help="Type of workflow to create",
+    help="Type of workflow to create (ingestion only)",
 )
 @click.option("--domain", prompt="Domain name", help="Domain name (e.g., weather, stripe, github)")
 @click.option("--table", prompt="Table name", help="Table name for ingestion")

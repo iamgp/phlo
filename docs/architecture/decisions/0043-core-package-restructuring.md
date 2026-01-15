@@ -63,8 +63,8 @@ cli/
 │   ├── services/        # phlo services commands
 │   │   ├── __init__.py
 │   │   ├── init.py      # phlo services init
-│   │   ├── up.py        # phlo services up
-│   │   ├── down.py      # phlo services down
+│   │   ├── start.py     # phlo services start
+│   │   ├── stop.py      # phlo services stop
 │   │   ├── logs.py      # phlo services logs
 │   │   └── ...          # Additional service commands
 │   ├── plugin/          # phlo plugin commands
@@ -325,7 +325,7 @@ from phlo.plugins.discovery import ServiceDiscovery
 
 ```bash
 # After Phase 1: CLI works
-uv run phlo services up
+uv run phlo services start
 uv run phlo plugin list
 uv run phlo workflow create
 
