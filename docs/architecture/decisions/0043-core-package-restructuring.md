@@ -74,7 +74,7 @@ cli/
 │   │   ├── search.py    # phlo plugin search
 │   │   ├── install.py   # phlo plugin install
 │   │   └── ...          # Additional plugin commands
-│   └── workflow/        # phlo create-workflow, scaffold
+│   └── workflow/        # phlo workflow create, scaffold
 │       ├── __init__.py
 │       ├── create.py
 │       └── scaffold.py
@@ -328,7 +328,7 @@ from phlo.plugins.discovery import ServiceDiscovery
 # After Phase 1: CLI works
 uv run phlo services up
 uv run phlo plugin list
-uv run phlo create-workflow
+uv run phlo workflow create
 
 # After Phase 2: Plugin discovery works
 uv run pytest tests/test_plugin_system.py -v
