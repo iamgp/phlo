@@ -2,6 +2,7 @@
 
 import shutil
 import sys
+from pathlib import Path
 from subprocess import TimeoutExpired
 
 import click
@@ -41,6 +42,7 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     compose_file = phlo_dir / "docker-compose.yml"
     project_name = get_project_name()
     volumes_dir = phlo_dir / "volumes"
+    volumes_dir_resolved = volumes_dir.resolve()
 
     if not compose_file.exists():
         click.echo("Error: docker-compose.yml not found.", err=True)
@@ -54,9 +56,20 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     services_list = [s.strip() for s in services_list if s.strip()]
 
     # Determine what to reset
+    def _resolve_volume_dir(service_name: str) -> Path:
+        candidate = volumes_dir / service_name
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(volumes_dir_resolved):
+            raise ValueError(f"Invalid service path: {service_name}")
+        return candidate
+
     if services_list:
         target = f"services: {', '.join(services_list)}"
-        volume_dirs = [volumes_dir / s for s in services_list]
+        try:
+            volume_dirs = [_resolve_volume_dir(s) for s in services_list]
+        except ValueError as exc:
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
     else:
         target = "all services"
         volume_dirs = [volumes_dir] if volumes_dir.exists() else []
@@ -112,6 +125,13 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     for vol_dir in volume_dirs:
         if vol_dir.exists():
             try:
+                resolved = vol_dir.resolve()
+                if not resolved.is_relative_to(volumes_dir_resolved):
+                    click.echo(f"Warning: Skipping unsafe path {vol_dir}", err=True)
+                    continue
+                if vol_dir.is_symlink():
+                    click.echo(f"Warning: Skipping symlink {vol_dir}", err=True)
+                    continue
                 if vol_dir.is_dir():
                     shutil.rmtree(vol_dir)
                     deleted_count += 1

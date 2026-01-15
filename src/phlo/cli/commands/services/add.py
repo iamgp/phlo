@@ -41,6 +41,9 @@ def add_cmd(service_name: str, no_start: bool):
     if config_file.exists():
         with open(config_file) as f:
             config = yaml.safe_load(f) or {}
+        if not isinstance(config, dict):
+            click.echo("Error: phlo.yaml must contain a mapping.", err=True)
+            sys.exit(1)
     else:
         click.echo("Error: phlo.yaml not found.", err=True)
         sys.exit(1)

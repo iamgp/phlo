@@ -1,6 +1,7 @@
 """Utility functions for CLI services that can be safely imported by plugins."""
 
 import re
+from collections.abc import Mapping
 from pathlib import Path
 
 import yaml
@@ -31,7 +32,8 @@ def get_project_config() -> dict:
     config_path = Path.cwd() / "phlo.yaml"
     if config_path.exists():
         with open(config_path) as f:
-            return yaml.safe_load(f) or {}
+            config = yaml.safe_load(f) or {}
+            return config if isinstance(config, Mapping) else {}
 
     return {
         "name": Path.cwd().name.lower().replace(" ", "-").replace("_", "-"),

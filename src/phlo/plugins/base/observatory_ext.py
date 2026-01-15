@@ -26,13 +26,13 @@ class ObservatoryExtensionPlugin(Plugin, ABC):
     @abstractmethod
     def manifest(self) -> ObservatoryExtensionManifest | dict[str, Any]:
         """Return the extension manifest or a raw manifest dict."""
-        raise NotImplementedError
+        ...
 
     @property
     @abstractmethod
     def asset_root(self) -> Traversable:
         """Return the root directory that contains the extension assets."""
-        raise NotImplementedError
+        ...
 
     def get_manifest(self) -> ObservatoryExtensionManifest:
         """Return a validated manifest instance."""

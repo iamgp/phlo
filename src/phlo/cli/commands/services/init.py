@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 import yaml
@@ -42,10 +41,10 @@ from phlo.plugins.compose import ComposeGenerator
 )
 def init_cmd(
     force: bool,
-    project_name: Optional[str],
+    project_name: str | None,
     dev: bool,
     no_dev: bool,
-    phlo_source: Optional[str],
+    phlo_source: str | None,
 ):
     """Initialize Phlo infrastructure in .phlo/ directory.
 
@@ -101,10 +100,7 @@ def init_cmd(
 
     # Auto-detect phlo source path for dev mode using flexible detection
     if dev:
-        if phlo_src_path:
-            # Already resolved (auto-enabled above)
-            pass
-        elif phlo_source:
+        if phlo_source:
             phlo_source_path = Path(phlo_source)
             if not phlo_source_path.is_absolute():
                 phlo_source_path = (Path.cwd() / phlo_source_path).resolve()
@@ -119,7 +115,7 @@ def init_cmd(
                 sys.exit(1)
             phlo_src_path = str(os.path.relpath(resolved_phlo_source, phlo_dir))
             click.echo(f"Dev mode: using phlo source at {resolved_phlo_source}")
-        else:
+        elif not phlo_src_path:
             # Use flexible path detection
             phlo_src_path = detect_phlo_source_path()
             if phlo_src_path:

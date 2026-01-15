@@ -127,7 +127,10 @@ class SourceConnectorPlugin(Plugin, ABC):
             True if connection successful, False otherwise
         """
         try:
-            next(iter(self.fetch_data(config)))
+            iterator = iter(self.fetch_data(config))
+            next(iterator)
+            return True
+        except StopIteration:
             return True
         except Exception:
             return False

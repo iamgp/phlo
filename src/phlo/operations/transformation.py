@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Generic, Protocol, TypeVar
 
 
 @dataclass
@@ -10,11 +10,25 @@ class TransformationResult:
     models_failed: int
     tests_passed: int
     tests_failed: int
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
 
-class BaseTransformer(ABC):
+class Logger(Protocol):
+    def info(self, msg: str, *args: object, **kwargs: object) -> None:
+        ...
+
+    def warning(self, msg: str, *args: object, **kwargs: object) -> None:
+        ...
+
+    def error(self, msg: str, *args: object, **kwargs: object) -> None:
+        ...
+
+
+ContextT = TypeVar("ContextT")
+
+
+class BaseTransformer(Generic[ContextT], ABC):
     """
     Abstract base class for Phlo Transformation Engines.
 
@@ -22,15 +36,17 @@ class BaseTransformer(ABC):
     adhere to a common contract that Orchestrators (Dagster, Airflow) can consume.
     """
 
-    def __init__(self, context: Any, logger: Any):
+    def __init__(self, context: ContextT, logger: Logger):
         self.context = context
         self.logger = logger
 
     @abstractmethod
     def run_transform(
-        self, partition_key: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None
+        self,
+        partition_key: str | None = None,
+        parameters: dict[str, Any] | None = None,
     ) -> TransformationResult:
         """
         Execute the transformation logic.
         """
-        pass
+        ...

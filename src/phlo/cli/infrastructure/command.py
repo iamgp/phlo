@@ -13,6 +13,9 @@ class CommandError(RuntimeError):
     stdout: str
     stderr: str
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "args", (self.cmd, self.returncode, self.stdout, self.stderr))
+
     def __str__(self) -> str:
         cmd = " ".join(self.cmd)
         stderr = self.stderr.strip()
@@ -30,6 +33,23 @@ def run_command(
     capture_output: bool = True,
     check: bool = True,
 ) -> CompletedProcess[str]:
+    """Run a subprocess command with optional timeout and environment overrides.
+
+    Args:
+        cmd: Command and arguments to execute.
+        timeout_seconds: Optional timeout in seconds.
+        cwd: Optional working directory.
+        env: Optional environment overrides.
+        capture_output: Whether to capture stdout/stderr.
+        check: Whether to raise on non-zero exit codes.
+
+    Returns:
+        CompletedProcess containing stdout, stderr, returncode, and args.
+
+    Raises:
+        CommandError: When check is True and the command exits non-zero.
+        subprocess.TimeoutExpired: When the command exceeds timeout_seconds.
+    """
     result = subprocess.run(
         list(cmd),
         capture_output=capture_output,

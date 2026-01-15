@@ -65,9 +65,9 @@ class CatalogConfig(BaseConfig):
         return f"http://{self.nessie_host}:{self.nessie_port}/api"
 
     @property
-    def nessie_api_v1_uri(self) -> str:
-        """Return Nessie API v1 URI for direct API calls."""
-        return f"http://{self.nessie_host}:{self.nessie_port}/api/v1"
+    def nessie_api_uri(self) -> str:
+        """Return Nessie API URI for direct API calls."""
+        return f"http://{self.nessie_host}:{self.nessie_port}/api/{self.nessie_api_version}"
 
     @property
     def nessie_iceberg_rest_uri(self) -> str:

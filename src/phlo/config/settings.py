@@ -1,11 +1,10 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from pydantic import AliasChoices, Field, computed_field
-from pydantic_settings import SettingsConfigDict
 
 from phlo.config.base import BaseConfig
+from phlo.config.query import build_trino_dsn
 
 
 class Settings(BaseConfig):
@@ -15,12 +14,6 @@ class Settings(BaseConfig):
     full backwards compatibility with the original monolithic config.py while
     providing a cleaner domain-based organization through the config/ submodules.
     """
-
-    model_config = SettingsConfigDict(
-        env_file=(".phlo/.env", ".phlo/.env.local"),
-        case_sensitive=False,
-        extra="ignore",
-    )
 
     # --- Database Configuration ---
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
@@ -48,6 +41,7 @@ class Settings(BaseConfig):
     minio_root_password: str = Field(default="minio123", description="MinIO root password")
     minio_api_port: int = Field(default=10001, description="MinIO API port")
     minio_console_port: int = Field(default=10002, description="MinIO console port")
+    s3_region: str = Field(default="us-east-1", description="S3 region")
 
     # --- Catalog Configuration ---
     nessie_version: str = Field(default="0.106.0", description="Nessie version")
@@ -174,21 +168,21 @@ class Settings(BaseConfig):
     )
 
     # --- Alerting Configuration ---
-    phlo_alert_slack_webhook: Optional[str] = Field(
+    phlo_alert_slack_webhook: str | None = Field(
         default=None, description="Slack incoming webhook URL"
     )
-    phlo_alert_slack_channel: Optional[str] = Field(
+    phlo_alert_slack_channel: str | None = Field(
         default=None, description="Default Slack channel for alerts"
     )
-    phlo_alert_pagerduty_key: Optional[str] = Field(
+    phlo_alert_pagerduty_key: str | None = Field(
         default=None, description="PagerDuty Events API v2 integration key"
     )
-    phlo_alert_email_smtp_host: Optional[str] = Field(
+    phlo_alert_email_smtp_host: str | None = Field(
         default=None, description="SMTP server hostname"
     )
     phlo_alert_email_smtp_port: int = Field(default=587, description="SMTP server port")
-    phlo_alert_email_smtp_user: Optional[str] = Field(default=None, description="SMTP username")
-    phlo_alert_email_smtp_password: Optional[str] = Field(default=None, description="SMTP password")
+    phlo_alert_email_smtp_user: str | None = Field(default=None, description="SMTP username")
+    phlo_alert_email_smtp_password: str | None = Field(default=None, description="SMTP password")
     phlo_alert_email_recipients: list[str] = Field(
         default_factory=list, description="Email recipients for alerts"
     )
@@ -274,9 +268,9 @@ class Settings(BaseConfig):
         return f"http://{self.nessie_host}:{self.nessie_port}/api"
 
     @property
-    def nessie_api_v1_uri(self) -> str:
-        """Return Nessie API v1 URI for direct API calls."""
-        return f"http://{self.nessie_host}:{self.nessie_port}/api/v1"
+    def nessie_api_uri(self) -> str:
+        """Return Nessie API URI for direct API calls."""
+        return f"http://{self.nessie_host}:{self.nessie_port}/api/{self.nessie_api_version}"
 
     @property
     def nessie_iceberg_rest_uri(self) -> str:
@@ -301,7 +295,7 @@ class Settings(BaseConfig):
     @property
     def trino_connection_string(self) -> str:
         """Return Trino connection string for SQLAlchemy/dbt."""
-        return f"trino://{self.trino_host}:{self.trino_port}/{self.trino_catalog}"
+        return build_trino_dsn(self.trino_host, self.trino_port, self.trino_catalog)
 
     @property
     def dbt_project_path(self) -> Path:
@@ -346,7 +340,7 @@ class Settings(BaseConfig):
             "s3.access-key-id": self.minio_root_user,
             "s3.secret-access-key": self.minio_root_password,
             "s3.path-style-access": "true",
-            "s3.region": "us-east-1",
+            "s3.region": self.s3_region,
         }
 
     def get_postgres_connection_string(self, include_db: bool = True) -> str:

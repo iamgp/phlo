@@ -51,7 +51,7 @@ def list_cmd(show_all: bool, output_json: bool):
     try:
         project_name = get_project_name()
         result = run_command(
-            ["docker", "ps", "--filter", f"name={project_name}", "--format", "json"],
+            ["docker", "ps", "--filter", f"name={project_name}", "--format", "{{json .}}"],
             check=False,
         )
         running_containers = {}

@@ -19,8 +19,12 @@ def resolve_install_target(plugin_name: str) -> tuple[str, str]:
 
     registry_plugin = get_registry_plugin(name_part)
     if registry_plugin:
-        version = version_part or registry_plugin.version
-        package_spec = f"{registry_plugin.package}=={version}"
+        if version_part:
+            package_spec = f"{registry_plugin.package}=={version_part}"
+        elif registry_plugin.version:
+            package_spec = f"{registry_plugin.package}=={registry_plugin.version}"
+        else:
+            package_spec = registry_plugin.package
         display_name = f"{registry_plugin.name} ({registry_plugin.package})"
         return package_spec, display_name
 

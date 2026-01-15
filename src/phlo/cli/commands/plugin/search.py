@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Optional
 
 import click
 from rich.table import Table
 
 from phlo.cli.commands.plugin.utils import (
     INTERNAL_TO_REGISTRY_TYPE,
+    PLUGIN_TYPE_CHOICES,
     console,
     registry_plugin_to_dict,
 )
@@ -22,19 +22,7 @@ from phlo.plugins.registry_client import search_plugins
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(
-        [
-            "sources",
-            "quality",
-            "transforms",
-            "services",
-            "hooks",
-            "assets",
-            "resources",
-            "orchestrators",
-            "catalogs",
-        ]
-    ),
+    type=click.Choice(PLUGIN_TYPE_CHOICES),
     help="Filter by plugin type",
 )
 @click.option(
@@ -51,7 +39,7 @@ from phlo.plugins.registry_client import search_plugins
     help="Output as JSON",
 )
 def search_cmd(
-    query: Optional[str], plugin_type: Optional[str], tags: tuple[str, ...], output_json: bool
+    query: str | None, plugin_type: str | None, tags: tuple[str, ...], output_json: bool
 ):
     """Search plugin registry."""
     try:

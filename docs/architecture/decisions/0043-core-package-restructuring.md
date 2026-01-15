@@ -22,7 +22,7 @@ The `src/phlo` core package has grown organically to 11,490 lines across 54 file
    - Confusing for users and violates Python conventions
 
 3. **Unclear module boundaries**
-   ```
+   ```text
    discovery/     # Plugin & service discovery
    services/      # Service discovery & composer (overlaps with discovery/)
    plugins/       # Base classes & registry client (related to discovery/)
@@ -54,7 +54,7 @@ Refactor `src/phlo` into a layered architecture with clear module boundaries:
 
 Split monolithic CLI files into focused command modules:
 
-```
+```text
 cli/
 ├── __init__.py
 ├── main.py              # Entry point, command registration
@@ -95,7 +95,7 @@ cli/
 
 Merge overlapping plugin/discovery/services modules:
 
-```
+```text
 plugins/
 ├── __init__.py          # Public API exports
 ├── base/                # Base classes (split from base.py)
@@ -127,7 +127,7 @@ plugins/
 
 Split monolithic config into domain-specific classes:
 
-```
+```text
 config/
 ├── __init__.py          # Exports get_settings(), unified Settings
 ├── base.py              # BaseConfig, common utilities
@@ -150,7 +150,7 @@ config/
 
 ### Phase 4: Root-Level Cleanup
 
-```
+```text
 Before:
 src/phlo/
 ├── ingestion.py         # What does this do?
@@ -182,7 +182,7 @@ src/phlo/
 
 Document architectural layers in module structure:
 
-```
+```text
 src/phlo/
 ├── domain/              # Business logic (if applicable)
 ├── operations/          # Core operations (ingestion, transform, publish)
@@ -305,7 +305,7 @@ from phlo.discovery import ServiceDiscovery
 # After (0.4.0)
 from phlo.config import get_settings  # Settings is internal
 from phlo.plugins.discovery import ServiceDiscovery
-```
+```text
 
 ### For Internal Code
 

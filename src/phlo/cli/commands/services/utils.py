@@ -6,7 +6,6 @@ import signal
 import sys
 import time
 from pathlib import Path
-from subprocess import TimeoutExpired
 
 import click
 
@@ -60,7 +59,7 @@ def check_docker_running() -> bool:
     try:
         run_command(["docker", "info"], timeout_seconds=10, check=True)
         return True
-    except (Exception, FileNotFoundError, TimeoutExpired, OSError):
+    except Exception:
         return False
 
 
@@ -182,11 +181,16 @@ def _format_hook_command(command: object, substitutions: dict[str, str]) -> list
         command = [command]
     if not isinstance(command, list):
         return []
+
+    class _SafeDict(dict):
+        def __missing__(self, key: str) -> str:
+            return ""
+
     formatted: list[str] = []
     for item in command:
         if not isinstance(item, str):
             continue
-        formatted.append(item.format(**substitutions))
+        formatted.append(item.format_map(_SafeDict(substitutions)))
     return formatted
 
 
@@ -226,8 +230,6 @@ def _run_service_hooks(
             # Respect delay setting
             delay = hook.get("delay")
             if isinstance(delay, (int, float)) and delay > 0:
-                import time
-
                 time.sleep(delay)
 
             command = _format_hook_command(hook.get("command"), substitutions)
@@ -238,7 +240,7 @@ def _run_service_hooks(
             if command and command[0] in ("python", "python3"):
                 venv_python = project_root / ".venv" / "bin" / "python"
                 if venv_python.exists():
-                    command[0] = str(venv_python)
+                    command = [str(venv_python), *command[1:]]
 
             timeout = hook.get("timeout_seconds")
             if isinstance(timeout, str) and timeout.isdigit():
@@ -247,7 +249,7 @@ def _run_service_hooks(
                 timeout = None
             try:
                 result = run_command(command, timeout_seconds=timeout, check=False)
-            except (Exception, TimeoutExpired, OSError) as exc:
+            except Exception as exc:
                 click.echo(
                     f"Warning: hook '{hook_name}' for {service.name} failed: {exc}",
                     err=True,
@@ -338,6 +340,30 @@ def _stop_native_processes(project_root: Path, service_names: list[str] | None =
 
         deadline = time.time() + 10
         while time.time() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                state.pop(name, None)
+                break
+            time.sleep(0.25)
+
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            state.pop(name, None)
+            continue
+
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            state.pop(name, None)
+            continue
+        except PermissionError:
+            continue
+        except Exception:
+            continue
+
+        for _ in range(4):
             try:
                 os.kill(pid, 0)
             except ProcessLookupError:

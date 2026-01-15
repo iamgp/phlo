@@ -6,7 +6,10 @@ Consolidates plugin and service discovery into a single module under phlo.plugin
 This module provides a unified interface for discovering:
 - Plugins (via entry points)
 - Services (from plugins and core)
-- Plugin registry (remote package search)
+- Local in-memory registry access
+
+Remote registry package discovery lives in phlo.plugins.registry_client
+(e.g., list_registry_plugins) and is not re-exported here.
 """
 
 from phlo.plugins.discovery.plugins import (

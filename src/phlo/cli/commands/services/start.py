@@ -27,7 +27,12 @@ from phlo.discovery import ServiceDefinition
 
 
 @click.command("start")
-@click.option("-d", "--detach", is_flag=True, default=True, help="Run in background")
+@click.option(
+    "-d",
+    "--detach/--no-detach",
+    default=True,
+    help="Run in background",
+)
 @click.option("--build", is_flag=True, help="Build images before starting")
 @click.option(
     "--profile",
@@ -90,6 +95,7 @@ def start_cmd(
     # If native dev services are enabled, start Docker services excluding native ones,
     # then start native processes for the excluded services.
     native_service_names: set[str] = set()
+    discovery = None
     if native:
         from phlo.discovery import ServiceDiscovery
         from phlo.plugins.compose.native import NativeProcessManager
@@ -121,6 +127,15 @@ def start_cmd(
 
     if native and docker_services_list:
         docker_services_list = [n for n in docker_services_list if n not in native_service_names]
+
+    if native and services_list and discovery:
+        all_services = discovery.discover()
+        requested_defs = [svc for name, svc in all_services.items() if name in services_list]
+        resolved = discovery.resolve_dependencies(requested_defs)
+        required_docker_services = [
+            svc.name for svc in resolved if svc.name not in native_service_names
+        ]
+        docker_services_list = required_docker_services
 
     # If the user explicitly requested services and all of them are native-capable,
     # avoid running `docker compose up` with no service args (which would start the entire stack).

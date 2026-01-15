@@ -8,6 +8,7 @@ import sys
 import click
 
 from phlo.cli.commands.plugin.utils import (
+    PLUGIN_TYPE_CHOICES,
     collect_installed_plugins,
     collect_registry_plugins,
     console,
@@ -19,21 +20,7 @@ from phlo.cli.commands.plugin.utils import (
 @click.option(
     "--type",
     "plugin_type",
-    type=click.Choice(
-        [
-            "sources",
-            "quality",
-            "transforms",
-            "services",
-            "hooks",
-            "assets",
-            "resources",
-            "orchestrators",
-            "catalogs",
-            "observatory",
-            "all",
-        ]
-    ),
+    type=click.Choice([*PLUGIN_TYPE_CHOICES, "all"]),
     default="all",
     help="Filter by plugin type",
 )
@@ -68,7 +55,7 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
             output = {"installed": installed}
             if include_registry:
                 output["available"] = available
-            console.print(json.dumps(output if include_registry else installed, indent=2))
+            console.print(json.dumps(output, indent=2))
             return
 
         render_plugin_table("Installed", installed)

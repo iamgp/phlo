@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from packaging.version import Version
+from packaging.version import parse
 from rich.console import Console
 from rich.table import Table
 
@@ -28,6 +28,19 @@ PLUGIN_TYPE_MAP = {
     "catalogs": "catalogs",
     "observatory": "observatory_extensions",
 }
+
+PLUGIN_TYPE_CHOICES = [
+    "sources",
+    "quality",
+    "transforms",
+    "services",
+    "hooks",
+    "assets",
+    "resources",
+    "orchestrators",
+    "catalogs",
+    "observatory",
+]
 
 INTERNAL_TO_REGISTRY_TYPE = {
     "source_connectors": "source",
@@ -55,10 +68,13 @@ SCAFFOLD_TYPE_MAP = {
 }
 
 
-def run_pip(args: list[str]) -> None:
+def run_pip(args: list[str], *, timeout: float = 300) -> None:
     """Run pip with given arguments."""
     command = [sys.executable, "-m", "pip", *args]
-    subprocess.run(command, check=True)
+    try:
+        subprocess.run(command, check=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"Pip command timed out after {timeout}s: {' '.join(command)}") from exc
 
 
 def registry_plugin_to_dict(plugin) -> dict:
@@ -176,24 +192,18 @@ def get_installed_version(package: str) -> str | None:
         return None
 
 
-def version_tuple(version: str) -> tuple:
+def version_tuple(version: str) -> tuple[int, object]:
     """Convert version string to tuple for comparison."""
     try:
-        return (0, Version(version))
+        return (0, parse(version))
     except Exception:
-        parts = []
-        for part in version.replace("-", ".").split("."):
-            if part.isdigit():
-                parts.append((0, int(part)))
-            else:
-                parts.append((1, part))
-        return tuple(parts)
+        return (0, parse("0"))
 
 
 def is_version_newer(installed: str, available: str) -> bool:
     """Check if available version is newer than installed."""
     try:
-        return version_tuple(available) > version_tuple(installed)
+        return parse(available) > parse(installed)
     except Exception:
         return available != installed
 
@@ -237,7 +247,9 @@ def create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path)
         "resource": "ResourceProviderPlugin",
         "orchestrator": "OrchestratorAdapterPlugin",
     }
-    base_class = type_mapping[plugin_type]
+    base_class = type_mapping.get(plugin_type)
+    if base_class is None:
+        raise ValueError(f"unknown plugin_type: {plugin_type}")
 
     entry_point_group = {
         "source": "phlo.plugins.sources",
@@ -479,15 +491,17 @@ def test_plugin_metadata(plugin):
 
 def test_plugin_initialization(plugin):
     """Test plugin initialization."""
-    config = {{}}
-    plugin.initialize(config)
-    # Add more initialization tests
+    if hasattr(plugin, "initialize"):
+        config = {{}}
+        plugin.initialize(config)
+        # Add more initialization tests
 
 
 def test_plugin_cleanup(plugin):
     """Test plugin cleanup."""
-    plugin.cleanup()
-    # Add more cleanup tests
+    if hasattr(plugin, "cleanup"):
+        plugin.cleanup()
+        # Add more cleanup tests
 '''
 
     (tests_dir / "test_plugin.py").write_text(test_content)

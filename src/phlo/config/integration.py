@@ -60,6 +60,17 @@ class IntegrationConfig(BaseConfig):
         default=300, description="Minimum interval between metadata syncs (seconds)"
     )
 
+    def model_post_init(self, __context: object) -> None:
+        if self.dbt_project_dir:
+            if not self.dbt_manifest_path:
+                object.__setattr__(
+                    self, "dbt_manifest_path", f"{self.dbt_project_dir}/target/manifest.json"
+                )
+            if not self.dbt_catalog_path:
+                object.__setattr__(
+                    self, "dbt_catalog_path", f"{self.dbt_project_dir}/target/catalog.json"
+                )
+
     @computed_field
     @property
     def dbt_profiles_dir(self) -> str:

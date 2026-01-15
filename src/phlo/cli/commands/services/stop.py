@@ -80,7 +80,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
             )
 
     # If we only needed to stop native services, skip Docker.
-    if stop_native and service and not volumes and not profile:
+    if stop_native and not service and not volumes and not profile:
         click.echo("Stopped native services.")
         return
 

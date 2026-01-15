@@ -1,3 +1,5 @@
+from urllib.parse import quote_plus
+
 from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
@@ -9,7 +11,7 @@ class DatabaseConfig(BaseConfig):
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
     postgres_port: int = Field(default=10000, description="PostgreSQL port")
     postgres_user: str = Field(default="lake", description="PostgreSQL username")
-    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
+    postgres_password: str = Field(..., description="PostgreSQL password")
     postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
@@ -36,7 +38,9 @@ class DatabaseConfig(BaseConfig):
             PostgreSQL connection string
         """
         db_part = f"/{self.postgres_db}" if include_db else ""
+        user = quote_plus(self.postgres_user)
+        password = quote_plus(self.postgres_password)
         return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql://{user}:{password}"
             f"@{self.postgres_host}:{self.postgres_port}{db_part}"
         )

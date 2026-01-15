@@ -24,8 +24,12 @@ class BaseIngester(ABC):
         self.logger = logger
 
     @abstractmethod
-    def run_ingestion(self, partition_key: str, parameters: Dict[str, Any]) -> IngestionResult:
+    def run_ingestion(
+        self, partition_key: str | None, parameters: Dict[str, Any]
+    ) -> IngestionResult:
         """
         Execute the ingestion logic for a specific partition.
+
+        partition_key may be None for unpartitioned runs.
         """
         pass

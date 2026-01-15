@@ -29,6 +29,7 @@ def status_cmd():
         result = run_command(cmd, check=False, capture_output=False)
         if result.returncode != 0:
             click.echo("No services running or error checking status.", err=True)
+            sys.exit(result.returncode or 1)
     except FileNotFoundError:
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)

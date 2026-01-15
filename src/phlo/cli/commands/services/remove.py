@@ -73,7 +73,7 @@ def remove_cmd(service_name: str, keep_running: bool):
             click.echo(f"Warning: Could not stop {service_name}.", err=True)
 
     # Update config
-    if "services" not in config:
+    if not isinstance(config.get("services"), dict):
         config["services"] = {}
     if "disabled" not in config["services"]:
         config["services"]["disabled"] = []

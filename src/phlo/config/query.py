@@ -3,6 +3,11 @@ from pydantic import Field
 from phlo.config.base import BaseConfig
 
 
+def build_trino_dsn(host: str, port: int, catalog: str) -> str:
+    """Build Trino connection string for SQLAlchemy/dbt."""
+    return f"trino://{host}:{port}/{catalog}"
+
+
 class QueryConfig(BaseConfig):
     """Trino distributed SQL query engine configuration."""
 
@@ -14,4 +19,4 @@ class QueryConfig(BaseConfig):
     @property
     def trino_connection_string(self) -> str:
         """Return Trino connection string for SQLAlchemy/dbt."""
-        return f"trino://{self.trino_host}:{self.trino_port}/{self.trino_catalog}"
+        return build_trino_dsn(self.trino_host, self.trino_port, self.trino_catalog)

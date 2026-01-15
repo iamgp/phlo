@@ -49,6 +49,9 @@ def restart_cmd(
         phlo services restart --build                  # Rebuild before starting
     """
     require_docker()
+    if dev:
+        raise click.UsageError("dev mode not implemented for restart")
+
     phlo_dir = ensure_phlo_dir()
     project_name = get_project_name()
 
@@ -61,6 +64,9 @@ def restart_cmd(
     # When --profile is specified without --service, target only profile services
     if profile and not services_list:
         services_list = get_profile_service_names(profile)
+        if not services_list:
+            profile_list = ", ".join(profile)
+            raise click.UsageError(f"profile(s) resolve to no services: {profile_list}")
 
     if services_list:
         click.echo(f"Restarting services: {', '.join(services_list)}...")

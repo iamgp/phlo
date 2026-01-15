@@ -281,7 +281,7 @@ class MetricsCollector:
 
         try:
             # Query Nessie for table listing
-            nessie_url = self.config.nessie_api_v1_uri
+            nessie_url = self.config.nessie_api_uri
             response = requests.get(f"{nessie_url}/trees", timeout=5)
 
             if response.status_code == 200:
