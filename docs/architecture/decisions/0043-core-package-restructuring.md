@@ -74,10 +74,9 @@ cli/
 │   │   ├── search.py    # phlo plugin search
 │   │   ├── install.py   # phlo plugin install
 │   │   └── ...          # Additional plugin commands
-│   └── workflow/        # phlo workflow create, scaffold
+│   └── workflow/        # phlo workflow create
 │       ├── __init__.py
-│       ├── create.py
-│       └── scaffold.py
+│       └── create.py
 └── infrastructure/      # Renamed from _services
     ├── __init__.py
     ├── containers.py
