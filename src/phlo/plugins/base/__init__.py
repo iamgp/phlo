@@ -2,9 +2,6 @@
 Base classes for Phlo plugins.
 
 These abstract base classes define the interfaces that plugins must implement.
-
-This module is a compatibility shim that re-exports from the new modular structure.
-All imports from `phlo.plugins.base` continue to work as before.
 """
 
 from __future__ import annotations

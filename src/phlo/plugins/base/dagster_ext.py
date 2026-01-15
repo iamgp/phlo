@@ -1,0 +1,61 @@
+"""
+Dagster extension plugin classes.
+
+This module defines plugin types that extend Dagster functionality.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Iterable
+
+from phlo.plugins.base.plugin import Plugin
+
+
+class DagsterExtensionPlugin(Plugin, ABC):
+    """
+    Base class for Dagster extension plugins.
+
+    These plugins contribute Dagster definitions (assets/resources/schedules/sensors/etc.)
+    to the running Phlo instance.
+    """
+
+    def get_definitions(self) -> Any:
+        """Return Dagster definitions to merge into the global Definitions."""
+        try:
+            import dagster as dg
+        except Exception as exc:  # noqa: BLE001 - optional dependency
+            raise RuntimeError("Dagster is required for DagsterExtensionPlugin") from exc
+        return dg.Definitions()
+
+    def get_exports(self) -> dict[str, Any]:
+        """
+        Return exported symbols to attach to the `phlo` public API.
+
+        Example: {"ingestion": phlo_ingestion}
+        """
+        return {}
+
+    def clear_registries(self) -> None:
+        """
+        Clear any global registries used by this plugin (primarily for module reload and tests).
+        """
+        return None
+
+
+class IngestionEnginePlugin(DagsterExtensionPlugin, ABC):
+    """
+    Base class for ingestion engine capability plugins.
+
+    Deprecated in favor of capability specs + orchestrator adapters.
+    """
+
+    @abstractmethod
+    def get_ingestion_assets(self) -> Iterable[Any]:
+        """Return Dagster assets created by the ingestion engine."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_ingestion_decorator(self) -> Callable[..., Any]:
+        """Return the decorator used to define ingestion assets."""
+        raise NotImplementedError

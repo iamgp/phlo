@@ -12,10 +12,10 @@ from typing import Optional
 
 import click
 
+from phlo.cli.commands.plugin import plugin_group
+from phlo.cli.commands.services import services_group
 from phlo.cli.config import config
 from phlo.cli.env import env
-from phlo.cli.plugin import plugin_group
-from phlo.cli.services import services
 from phlo.logging import setup_logging
 
 
@@ -32,7 +32,7 @@ def cli():
     setup_logging()
 
 
-cli.add_command(services)
+cli.add_command(services_group)
 cli.add_command(plugin_group)
 cli.add_command(config)
 cli.add_command(env)
@@ -567,7 +567,7 @@ Phlo data workflows for {project_name}.
     (project_dir / "README.md").write_text(readme_content)
 
     # Create phlo.yaml with infrastructure configuration
-    from phlo.cli.services import PHLO_CONFIG_TEMPLATE
+    from phlo.cli.commands.services.utils import PHLO_CONFIG_TEMPLATE
 
     phlo_config_content = PHLO_CONFIG_TEMPLATE.format(
         name=project_name,
