@@ -5,7 +5,7 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from phlo.cli.plugin import plugin_group
+from phlo.cli.commands.plugin import plugin_group
 from phlo.discovery import get_global_registry
 from phlo.plugins import (
     PluginMetadata,
@@ -97,9 +97,14 @@ def test_plugin_list_all_json(setup_registry, monkeypatch):
         )
     ]
 
+    def mock_collect_registry_plugins(plugin_type: str) -> list[dict]:
+        from phlo.cli.commands.plugin.utils import registry_plugin_to_dict
+
+        return [registry_plugin_to_dict(p) for p in registry_plugins]
+
     monkeypatch.setattr(
-        "phlo.cli.plugin.list_registry_plugins",
-        lambda: registry_plugins,
+        "phlo.cli.commands.plugin.list.collect_registry_plugins",
+        mock_collect_registry_plugins,
     )
 
     runner = CliRunner()
@@ -130,7 +135,7 @@ def test_plugin_search(monkeypatch):
     ]
 
     monkeypatch.setattr(
-        "phlo.cli.plugin.search_plugins",
+        "phlo.cli.commands.plugin.search.search_plugins",
         lambda query, plugin_type, tags: registry_plugins,
     )
 
@@ -159,10 +164,10 @@ def test_plugin_install(monkeypatch):
     calls: list[list[str]] = []
 
     monkeypatch.setattr(
-        "phlo.cli.plugin.get_registry_plugin",
+        "phlo.cli.commands.plugin.install.get_registry_plugin",
         lambda name: registry_plugin,
     )
-    monkeypatch.setattr("phlo.cli.plugin._run_pip", lambda args: calls.append(args))
+    monkeypatch.setattr("phlo.cli.commands.plugin.install.run_pip", lambda args: calls.append(args))
 
     runner = CliRunner()
     result = runner.invoke(plugin_group, ["install", "registry_source"])
@@ -190,14 +195,14 @@ def test_plugin_update(monkeypatch):
     calls: list[list[str]] = []
 
     monkeypatch.setattr(
-        "phlo.cli.plugin.list_registry_plugins",
+        "phlo.cli.commands.plugin.update.list_registry_plugins",
         lambda: registry_plugins,
     )
     monkeypatch.setattr(
-        "phlo.cli.plugin._get_installed_version",
+        "phlo.cli.commands.plugin.utils.get_installed_version",
         lambda package: "1.0.0",
     )
-    monkeypatch.setattr("phlo.cli.plugin._run_pip", lambda args: calls.append(args))
+    monkeypatch.setattr("phlo.cli.commands.plugin.update.run_pip", lambda args: calls.append(args))
 
     runner = CliRunner()
     result = runner.invoke(plugin_group, ["update"])

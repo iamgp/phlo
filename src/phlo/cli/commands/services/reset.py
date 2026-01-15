@@ -1,0 +1,131 @@
+"""Reset command for resetting services and volumes."""
+
+import shutil
+import sys
+from subprocess import TimeoutExpired
+
+import click
+
+from phlo.cli.commands.services.utils import ensure_phlo_dir, require_docker
+from phlo.cli.infrastructure.command import run_command
+from phlo.cli.infrastructure.compose import compose_base_cmd
+from phlo.cli.infrastructure.utils import get_project_name
+
+
+@click.command("reset")
+@click.option(
+    "--service",
+    multiple=True,
+    help="Reset only specific service(s) volumes (e.g., --service postgres,minio or --service postgres --service minio)",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Skip confirmation prompt",
+)
+def reset_cmd(service: tuple[str, ...], yes: bool):
+    """Reset Phlo infrastructure by stopping services and deleting volumes.
+
+    This stops all services and removes their data volumes for a clean slate.
+    Use --service to selectively reset only specific service volumes.
+
+    Examples:
+        phlo services reset                      # Reset everything
+        phlo services reset --service postgres   # Reset only postgres
+        phlo services reset --service postgres,minio  # Reset multiple
+        phlo services reset -y                   # Skip confirmation
+    """
+    require_docker()
+    phlo_dir = ensure_phlo_dir()
+    compose_file = phlo_dir / "docker-compose.yml"
+    project_name = get_project_name()
+    volumes_dir = phlo_dir / "volumes"
+
+    if not compose_file.exists():
+        click.echo("Error: docker-compose.yml not found.", err=True)
+        click.echo("Run 'phlo services init' first.", err=True)
+        sys.exit(1)
+
+    # Parse comma-separated services
+    services_list = []
+    for s in service:
+        services_list.extend(s.split(","))
+    services_list = [s.strip() for s in services_list if s.strip()]
+
+    # Determine what to reset
+    if services_list:
+        target = f"services: {', '.join(services_list)}"
+        volume_dirs = [volumes_dir / s for s in services_list]
+    else:
+        target = "all services"
+        volume_dirs = [volumes_dir] if volumes_dir.exists() else []
+
+    # Confirm
+    if not yes:
+        click.echo(f"This will stop {target} and DELETE their data volumes.")
+        if not click.confirm("Are you sure you want to continue?"):
+            click.echo("Aborted.")
+            return
+
+    # Stop services - selective or all
+    if services_list:
+        # Stop and remove only specific services
+        click.echo(f"Stopping services: {', '.join(services_list)}...")
+        cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+        cmd.extend(
+            [
+                "rm",
+                "-f",  # Force removal
+                "-s",  # Stop containers if running
+                "-v",  # Remove anonymous volumes
+                *services_list,  # Specific services
+            ]
+        )
+    else:
+        # Stop all services
+        click.echo(f"Stopping {project_name} infrastructure...")
+        cmd = compose_base_cmd(phlo_dir=phlo_dir, project_name=project_name)
+        cmd.extend(
+            [
+                "down",
+                "-v",  # Remove Docker volumes
+            ]
+        )
+
+    try:
+        result = run_command(cmd, check=False, capture_output=False)
+        if result.returncode != 0:
+            click.echo(
+                f"Warning: docker compose command failed with code {result.returncode}", err=True
+            )
+            click.echo(f"Command: {' '.join(cmd)}", err=True)
+    except FileNotFoundError:
+        click.echo("Error: docker command not found.", err=True)
+        sys.exit(1)
+    except TimeoutExpired:
+        click.echo("Warning: docker compose command timed out.", err=True)
+        click.echo(f"Command: {' '.join(cmd)}", err=True)
+
+    # Delete local volume directories
+    deleted_count = 0
+    for vol_dir in volume_dirs:
+        if vol_dir.exists():
+            try:
+                if vol_dir.is_dir():
+                    shutil.rmtree(vol_dir)
+                    deleted_count += 1
+                    click.echo(f"Deleted: {vol_dir.relative_to(phlo_dir)}")
+            except OSError as e:
+                click.echo(f"Warning: Could not delete {vol_dir}: {e}", err=True)
+
+    # Recreate volumes directory if we deleted it entirely
+    if not services_list and not volumes_dir.exists():
+        volumes_dir.mkdir(parents=True, exist_ok=True)
+
+    click.echo("")
+    if services_list:
+        click.echo(f"Reset complete for: {', '.join(services_list)}")
+    else:
+        click.echo("Full reset complete. All data volumes have been deleted.")
+    click.echo("Run 'phlo services start' to start fresh.")
