@@ -32,7 +32,7 @@ version: string
 compat:
   observatory_min: string
 settings:
-  schema: JSONSchema
+  settings_schema: JSONSchema
   defaults: object
   scope: global | extension
 ui:

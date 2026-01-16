@@ -12,9 +12,9 @@ from typing import Any
 import click
 import yaml
 
-from phlo.cli._services.utils import parse_env_file
+from phlo.cli.infrastructure.utils import parse_env_file
 from phlo.discovery import ServiceDefinition, ServiceDiscovery
-from phlo.services import ComposeGenerator
+from phlo.plugins.compose import ComposeGenerator
 
 
 @click.group()

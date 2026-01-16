@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+import subprocess
+from dataclasses import dataclass
+from subprocess import CompletedProcess
+from typing import Mapping, Sequence
+
+
+@dataclass(frozen=True, slots=True)
+class CommandError(RuntimeError):
+    cmd: tuple[str, ...]
+    returncode: int
+    stdout: str
+    stderr: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "args", (self.cmd, self.returncode, self.stdout, self.stderr))
+
+    def __str__(self) -> str:
+        cmd = " ".join(self.cmd)
+        stderr = self.stderr.strip()
+        if stderr:
+            return f"Command failed ({self.returncode}): {cmd}\n{stderr}"
+        return f"Command failed ({self.returncode}): {cmd}"
+
+
+def run_command(
+    cmd: Sequence[str],
+    *,
+    timeout_seconds: int | None = None,
+    cwd: str | None = None,
+    env: Mapping[str, str] | None = None,
+    capture_output: bool = True,
+    check: bool = True,
+) -> CompletedProcess[str]:
+    """Run a subprocess command with optional timeout and environment overrides.
+
+    Args:
+        cmd: Command and arguments to execute.
+        timeout_seconds: Optional timeout in seconds.
+        cwd: Optional working directory.
+        env: Optional environment overrides.
+        capture_output: Whether to capture stdout/stderr.
+        check: Whether to raise on non-zero exit codes.
+
+    Returns:
+        CompletedProcess containing stdout, stderr, returncode, and args.
+
+    Raises:
+        CommandError: When check is True and the command exits non-zero.
+        subprocess.TimeoutExpired: When the command exceeds timeout_seconds.
+    """
+    result = subprocess.run(
+        list(cmd),
+        capture_output=capture_output,
+        text=capture_output,
+        timeout=timeout_seconds,
+        cwd=cwd,
+        env=None if env is None else dict(env),
+        check=False,
+    )
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+    if check and result.returncode != 0:
+        raise CommandError(
+            cmd=tuple(cmd),
+            returncode=result.returncode,
+            stdout=stdout,
+            stderr=stderr,
+        )
+    return result

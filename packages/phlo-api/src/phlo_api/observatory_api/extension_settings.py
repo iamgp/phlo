@@ -53,7 +53,7 @@ def _get_extension_scope_schema_defaults(
     if not manifest.settings:
         return SettingsScope.EXTENSION, None, None
     scope = SettingsScope(manifest.settings.scope)
-    return scope, manifest.settings.schema, manifest.settings.defaults
+    return scope, manifest.settings.settings_schema, manifest.settings.defaults
 
 
 def _extension_namespace(name: str) -> str:

@@ -12,9 +12,9 @@ from typing import Any
 
 import yaml
 
-from phlo.discovery.plugins import discover_plugins
-from phlo.discovery.registry import get_global_registry
 from phlo.logging import get_logger
+from phlo.plugins.discovery.plugins import discover_plugins
+from phlo.plugins.discovery.registry import get_global_registry
 
 logger = get_logger(__name__)
 

@@ -1171,7 +1171,7 @@ Automatically publish Iceberg marts to PostgreSQL for BI tools.
 ```python
 # workflows/publishing/events.py
 from dagster import asset
-from phlo.publishing import publish_marts_to_postgres
+from phlo.operations.publishing import publish_marts_to_postgres
 
 @asset(
     deps=["marts__daily_aggregates"],  # Depends on dbt mart

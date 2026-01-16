@@ -42,7 +42,7 @@ phlo env                 # Environment exports
 **Workflow Commands:**
 
 ```bash
-phlo create-workflow     # Create new workflow
+phlo workflow create     # Create new workflow
 phlo validate-workflow   # Validate workflow configuration
 ```
 
@@ -719,12 +719,12 @@ Opens Dagster UI at http://localhost:3000
 
 ## Workflow Commands
 
-### phlo create-workflow
+### phlo workflow create
 
 Interactive workflow creation wizard.
 
 ```bash
-phlo create-workflow [OPTIONS]
+phlo workflow create [OPTIONS]
 ```
 
 **Options**:
@@ -749,13 +749,13 @@ phlo create-workflow [OPTIONS]
 **Example (interactive)**:
 
 ```bash
-phlo create-workflow
+phlo workflow create
 ```
 
 **Example (non-interactive)**:
 
 ```bash
-phlo create-workflow \
+phlo workflow create \
   --type ingestion \
   --domain github \
   --table events \
@@ -1532,7 +1532,7 @@ phlo services init
 phlo services start
 
 # 4. Create workflow
-phlo create-workflow
+phlo workflow create
 
 # 5. Run tests
 phlo test
@@ -1551,7 +1551,7 @@ phlo services start --native
 phlo branch create feature-new-workflow
 
 # Create workflow
-phlo create-workflow
+phlo workflow create
 
 # Test workflow
 phlo test workflows/ingestion/api/events.py
