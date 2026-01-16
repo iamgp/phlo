@@ -508,10 +508,10 @@
 <nav aria-label="Workflow Commands" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#phlo-create-workflow">
+<a class="md-nav__link" href="#phlo-workflow-create">
 <span class="md-ellipsis">
       
-        phlo create-workflow
+        phlo workflow create
       
     </span>
 </a>
@@ -1263,10 +1263,10 @@
 <nav aria-label="Workflow Commands" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#phlo-create-workflow">
+<a class="md-nav__link" href="#phlo-workflow-create">
 <span class="md-ellipsis">
       
-        phlo create-workflow
+        phlo workflow create
       
     </span>
 </a>
@@ -1735,7 +1735,7 @@ phlo config              # Configuration management
 phlo env                 # Environment exports
 </code></pre>
 <p><strong>Workflow Commands:</strong></p>
-<pre><code class="language-bash">phlo create-workflow     # Create new workflow
+<pre><code class="language-bash">phlo workflow create     # Create new workflow
 phlo validate-workflow   # Validate workflow configuration
 </code></pre>
 <p><strong>Asset Commands:</strong></p>
@@ -2187,9 +2187,9 @@ cd my-lakehouse
 </code></pre>
 <p>Opens Dagster UI at http://localhost:3000</p>
 <h2 id="workflow-commands">Workflow Commands</h2>
-<h3 id="phlo-create-workflow">phlo create-workflow</h3>
+<h3 id="phlo-workflow-create">phlo workflow create</h3>
 <p>Interactive workflow creation wizard.</p>
-<pre><code class="language-bash">phlo create-workflow [OPTIONS]
+<pre><code class="language-bash">phlo workflow create [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
 <pre><code class="language-bash">--type TYPE          # Workflow type: ingestion, quality, transform
@@ -2208,10 +2208,10 @@ cd my-lakehouse
 <li>Schedule (cron expression)</li>
 </ol>
 <p><strong>Example (interactive)</strong>:</p>
-<pre><code class="language-bash">phlo create-workflow
+<pre><code class="language-bash">phlo workflow create
 </code></pre>
 <p><strong>Example (non-interactive)</strong>:</p>
-<pre><code class="language-bash">phlo create-workflow \
+<pre><code class="language-bash">phlo workflow create \
   --type ingestion \
   --domain github \
   --table events \
@@ -2731,7 +2731,7 @@ phlo services init
 phlo services start
 
 # 4. Create workflow
-phlo create-workflow
+phlo workflow create
 
 # 5. Run tests
 phlo test
@@ -2747,7 +2747,7 @@ phlo services start --native
 phlo branch create feature-new-workflow
 
 # Create workflow
-phlo create-workflow
+phlo workflow create
 
 # Test workflow
 phlo test workflows/ingestion/api/events.py

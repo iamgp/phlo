@@ -23,7 +23,7 @@
     
     
       
-        <title>ADR 0042: Observatory Extension Manifests and Native UI Plugins - Phlo Lakehouse Platform</title>
+        <title>ADR 0043: Core Package Restructuring - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0042-observatory-extension-manifests-and-native-ui-plugins" class="md-skip">
+        <a href="#adr-0043-core-package-restructuring" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0042: Observatory Extension Manifests and Native UI Plugins
+              ADR 0043: Core Package Restructuring
             
           </span>
         </div>
@@ -687,6 +687,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Context">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#critical-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critical Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architectural-concerns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Concerns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -702,10 +730,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-new-plugin-type-observatory-extension-plugin" class="md-nav__link">
+  <a href="#phase-1-cli-command-decomposition" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. New plugin type: Observatory Extension Plugin
+        Phase 1: CLI Command Decomposition
       
     </span>
   </a>
@@ -713,10 +741,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-discovery-api-surface" class="md-nav__link">
+  <a href="#phase-2-plugin-system-consolidation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Discovery + API surface
+        Phase 2: Plugin System Consolidation
       
     </span>
   </a>
@@ -724,10 +752,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-native-tanstack-integration-no-iframes" class="md-nav__link">
+  <a href="#phase-3-configuration-domain-split" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Native TanStack integration (no iframes)
+        Phase 3: Configuration Domain Split
       
     </span>
   </a>
@@ -735,10 +763,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-server-wide-settings" class="md-nav__link">
+  <a href="#phase-4-root-level-cleanup" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Server-wide settings
+        Phase 4: Root-Level Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-5-establish-layered-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Establish Layered Architecture
       
     </span>
   </a>
@@ -751,13 +790,63 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#rationale" class="md-nav__link">
+  <a href="#implementation-plan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rationale
+        Implementation Plan
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Implementation Plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#milestone-1-cli-decomposition-breaking-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 1: CLI Decomposition (Breaking Changes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-2-plugin-system-consolidation-breaking-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 2: Plugin System Consolidation (Breaking Changes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-3-configuration-split-non-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 3: Configuration Split (Non-Breaking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#milestone-4-root-cleanup-non-breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Milestone 4: Root Cleanup (Non-Breaking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -801,13 +890,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation-outline" class="md-nav__link">
+  <a href="#migration-strategy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Implementation Outline
+        Migration Strategy
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Migration Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#for-package-users-breaking-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        For Package Users (Breaking Changes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -820,13 +926,63 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Alternatives Considered">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#alternative-1-do-nothing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative 1: Do Nothing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-2-gradual-file-by-file-refactoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative 2: Gradual File-by-File Refactoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alternative-3-complete-rewrite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternative 3: Complete Rewrite
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
+  <a href="#related" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verification
+        Related
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
       
     </span>
   </a>
@@ -850,116 +1006,360 @@
 
 
 
-<h1 id="adr-0042-observatory-extension-manifests-and-native-ui-plugins">ADR 0042: Observatory Extension Manifests and Native UI Plugins</h1>
+<h1 id="adr-0043-core-package-restructuring">ADR 0043: Core Package Restructuring</h1>
 <h2 id="status">Status</h2>
-<p><strong>Accepted</strong></p>
+<p><strong>Proposed</strong></p>
 <h2 id="context">Context</h2>
+<p>The <code>src/phlo</code> core package has grown organically to 11,490 lines across 54 files. While functional, the structure exhibits several anti-patterns that hinder maintainability:</p>
+<h3 id="critical-issues">Critical Issues</h3>
+<ol>
+<li><strong>Monolithic CLI files</strong></li>
+<li><code>cli/services.py</code>: 1,807 lines with 30 Click commands</li>
+<li><code>cli/plugin.py</code>: 1,061 lines with 17 Click commands</li>
+<li>Violates Single Responsibility Principle</li>
+<li>
+<p>Difficult to test individual commands</p>
+</li>
+<li>
+<p><strong>Private subdirectory in public package</strong></p>
+</li>
+<li><code>cli/_services/</code> uses underscore prefix suggesting private/internal</li>
+<li>Contains essential functionality: containers.py, command.py, compose.py</li>
+<li>
+<p>Confusing for users and violates Python conventions</p>
+</li>
+<li>
+<p><strong>Unclear module boundaries</strong>
+   <code>text
+   discovery/     # Plugin &amp; service discovery
+   services/      # Service discovery &amp; composer (overlaps with discovery/)
+   plugins/       # Base classes &amp; registry client (related to discovery/)</code>
+   Three top-level modules with overlapping concerns create confusion about where code belongs.</p>
+</li>
+<li>
+<p><strong>Single-file modules</strong></p>
+</li>
+<li><code>publishing/</code> contains only <code>trino_to_postgres.py</code> (315 lines)</li>
+<li><code>utils.py</code> contains only one 3-line function</li>
+<li>
+<p>Either indicates premature abstraction or missing functionality</p>
+</li>
+<li>
+<p><strong>Large monolithic config</strong></p>
+</li>
+<li><code>config.py</code>: 462 lines with 50+ fields spanning all domains</li>
+<li>Single Settings class covers database, storage, catalog, orchestration, alerting, etc.</li>
+<li>Difficult to understand scope and dependencies</li>
+</ol>
+<h3 id="architectural-concerns">Architectural Concerns</h3>
 <ul>
-<li>Observatory now ships in core, but UI assumes services/packages installed.</li>
-<li>Need packages to:</li>
-<li>expose settings surfaced in Observatory</li>
-<li>add pages and UI customization</li>
-<li>Current settings: localStorage + env defaults.</li>
-<li>Requirement: server-wide settings, not per-user.</li>
-<li>UI stack: TanStack Start + Vite; routes are static at build time.</li>
-<li>No iframe-based integrations.</li>
+<li>No clear separation between domain logic, application layer, and infrastructure</li>
+<li>Module organization doesn't reflect architectural boundaries</li>
+<li>Entry point unclear for new developers</li>
+<li>Testing strategy hampered by tight coupling</li>
 </ul>
 <h2 id="decision">Decision</h2>
-<h3 id="1-new-plugin-type-observatory-extension-plugin">1. New plugin type: Observatory Extension Plugin</h3>
-<p>Add <code>ObservatoryExtensionPlugin</code> in <code>src/phlo/plugins/base.py</code>.</p>
-<ul>
-<li>Entry point group: <code>phlo.plugins.observatory</code></li>
-<li>Plugin exposes manifest + asset root for UI bundles.</li>
-</ul>
-<p>Manifest (versioned contract):</p>
-<pre><code class="language-yaml">name: string
-version: string
-compat:
-  observatory_min: string
-settings:
-  settings_schema: JSONSchema
-  defaults: object
-  scope: global | extension
-ui:
-  routes:
-    - path: /extensions/&lt;name&gt;/...
-      module: &lt;asset_url&gt;
-      export: registerRoutes
-  nav:
-    - title: string
-      to: /extensions/&lt;name&gt;/...
-  slots:
-    - slot_id: string
-      module: &lt;asset_url&gt;
-      export: registerSlot
-  settings:
-    - module: &lt;asset_url&gt;
-      export: registerSettings
+<p>Refactor <code>src/phlo</code> into a layered architecture with clear module boundaries:</p>
+<h3 id="phase-1-cli-command-decomposition">Phase 1: CLI Command Decomposition</h3>
+<p>Split monolithic CLI files into focused command modules:</p>
+<pre><code class="language-text">cli/
+├── __init__.py
+├── main.py              # Entry point, command registration
+├── commands/
+│   ├── __init__.py
+│   ├── services/        # phlo services commands
+│   │   ├── __init__.py
+│   │   ├── init.py      # phlo services init
+│   │   ├── start.py     # phlo services start
+│   │   ├── stop.py      # phlo services stop
+│   │   ├── logs.py      # phlo services logs
+│   │   └── ...          # Additional service commands
+│   ├── plugin/          # phlo plugin commands
+│   │   ├── __init__.py
+│   │   ├── list.py      # phlo plugin list
+│   │   ├── info.py      # phlo plugin info
+│   │   ├── search.py    # phlo plugin search
+│   │   ├── install.py   # phlo plugin install
+│   │   └── ...          # Additional plugin commands
+│   └── workflow/        # phlo workflow create
+│       ├── __init__.py
+│       └── create.py
+└── infrastructure/      # Renamed from _services
+    ├── __init__.py
+    ├── containers.py
+    ├── command.py
+    ├── compose.py
+    └── utils.py
 </code></pre>
-<h3 id="2-discovery-api-surface">2. Discovery + API surface</h3>
+<p><strong>Benefits:</strong>
+- Each command is 50-200 lines, easily testable
+- Clear ownership and responsibility
+- Easy to add new commands without merge conflicts
+- Follows Click best practices for large CLI apps</p>
+<h3 id="phase-2-plugin-system-consolidation">Phase 2: Plugin System Consolidation</h3>
+<p>Merge overlapping plugin/discovery/services modules:</p>
+<pre><code class="language-text">plugins/
+├── __init__.py          # Public API exports
+├── base/                # Base classes (split from base.py)
+│   ├── __init__.py
+│   ├── plugin.py        # Plugin, PluginMetadata
+│   ├── source.py        # SourceConnectorPlugin
+│   ├── quality.py       # QualityCheckPlugin
+│   ├── transform.py     # TransformationPlugin
+│   ├── service.py       # ServicePlugin
+│   ├── catalog.py       # CatalogPlugin
+│   ├── orchestrator.py  # OrchestratorAdapterPlugin
+│   └── providers.py     # AssetProviderPlugin, ResourceProviderPlugin
+├── discovery/           # Discovery &amp; registration
+│   ├── __init__.py
+│   ├── plugins.py       # Entry point discovery
+│   ├── services.py      # Service discovery
+│   └── registry.py      # Plugin registry client
+└── compose/             # Compose generation (from services/)
+    ├── __init__.py
+    └── composer.py
+</code></pre>
+<p><strong>Benefits:</strong>
+- Single top-level module for plugin system
+- Base classes separated by plugin type for easier navigation
+- Clear separation between discovery (finding plugins) and composition (building infrastructure)</p>
+<h3 id="phase-3-configuration-domain-split">Phase 3: Configuration Domain Split</h3>
+<p>Split monolithic config into domain-specific classes:</p>
+<pre><code class="language-text">config/
+├── __init__.py          # Exports get_settings(), unified Settings
+├── base.py              # BaseConfig, common utilities
+├── database.py          # DatabaseConfig (postgres, lineage)
+├── storage.py           # StorageConfig (minio, s3)
+├── catalog.py           # CatalogConfig (nessie, iceberg)
+├── query.py             # QueryConfig (trino)
+├── orchestration.py     # OrchestrationConfig (dagster)
+├── observability.py     # ObservabilityConfig (logging, metrics)
+├── alerting.py          # AlertingConfig (slack, email, pagerduty)
+├── integration.py       # IntegrationConfig (openmetadata, dbt, superset)
+└── settings.py          # Unified Settings (composes all configs)
+</code></pre>
+<p><strong>Benefits:</strong>
+- Domain experts can own their config section
+- Easier to understand dependencies and relationships
+- Better IDE navigation and autocomplete
+- Settings class becomes composition of domain configs</p>
+<h3 id="phase-4-root-level-cleanup">Phase 4: Root-Level Cleanup</h3>
+<pre><code class="language-text">Before:
+src/phlo/
+├── ingestion.py         # What does this do?
+├── transformer.py       # Is this used?
+├── publishing/
+│   └── trino_to_postgres.py
+└── utils.py             # One 3-line function
+
+After:
+src/phlo/
+├── operations/          # New: operational utilities
+│   ├── __init__.py
+│   ├── ingestion.py     # Moved from root
+│   ├── transformer.py   # Moved from root
+│   └── publishing.py    # Moved from publishing/trino_to_postgres.py
+└── utils/               # Expanded utilities module
+    ├── __init__.py
+    ├── dict.py          # compact_dict
+    ├── path.py          # Path utilities
+    └── validation.py    # Common validators
+</code></pre>
+<p><strong>Benefits:</strong>
+- Clear purpose for root-level files
+- Avoid single-file modules
+- Group related operational concerns</p>
+<h3 id="phase-5-establish-layered-architecture">Phase 5: Establish Layered Architecture</h3>
+<p>Document architectural layers in module structure:</p>
+<pre><code class="language-text">src/phlo/
+├── domain/              # Business logic (if applicable)
+├── operations/          # Core operations (ingestion, transform, publish)
+├── capabilities/        # Capability specs (existing, good structure)
+├── plugins/             # Plugin system
+├── config/              # Configuration management
+├── framework/           # Framework integration (dagster, etc.)
+├── orchestrators/       # Orchestrator adapters
+├── infrastructure/      # External integrations
+├── hooks/               # Event system
+└── cli/                 # Presentation layer
+</code></pre>
+<h2 id="implementation-plan">Implementation Plan</h2>
+<h3 id="milestone-1-cli-decomposition-breaking-changes">Milestone 1: CLI Decomposition (Breaking Changes)</h3>
 <ul>
-<li>Discovery wired into <code>src/phlo/discovery/plugins.py</code>.</li>
-<li><code>phlo-api</code> exposes:</li>
-<li><code>GET /api/observatory/extensions</code></li>
-<li><code>GET /api/observatory/extensions/{name}</code></li>
-<li><code>GET /api/observatory/extensions/{name}/assets/*</code></li>
-<li><code>GET/PUT /api/observatory/settings</code></li>
+<li>[ ] Create <code>cli/commands/</code> structure</li>
+<li>[ ] Split <code>cli/services.py</code> into individual command files</li>
+<li>[ ] Split <code>cli/plugin.py</code> into individual command files</li>
+<li>[ ] Rename <code>cli/_services/</code> → <code>cli/infrastructure/</code></li>
+<li>[ ] Update imports throughout codebase</li>
+<li>[ ] Update tests</li>
+<li>[ ] Update documentation</li>
 </ul>
-<h3 id="3-native-tanstack-integration-no-iframes">3. Native TanStack integration (no iframes)</h3>
-<p>UI loads extension ES modules at runtime:</p>
+<p><strong>Estimated effort:</strong> 3-4 days
+<strong>Risk:</strong> High (touches many imports)</p>
+<h3 id="milestone-2-plugin-system-consolidation-breaking-changes">Milestone 2: Plugin System Consolidation (Breaking Changes)</h3>
 <ul>
-<li>Dynamic import from <code>phlo-api</code> asset endpoint.</li>
-<li>Each module exports registration functions:</li>
-<li><code>registerRoutes(router)</code> returns TanStack routes</li>
-<li><code>registerSlot(registry)</code> registers slot components</li>
-<li>optional <code>registerSettings(formRegistry)</code></li>
-<li>Observatory hosts a slot registry to render extension panels in known locations.</li>
+<li>[ ] Create <code>plugins/base/</code> directory</li>
+<li>[ ] Split <code>plugins/base.py</code> into individual files</li>
+<li>[ ] Move <code>discovery/</code> into <code>plugins/discovery/</code></li>
+<li>[ ] Move <code>services/composer.py</code> into <code>plugins/compose/</code></li>
+<li>[ ] Remove empty <code>services/</code> directory</li>
+<li>[ ] Update imports</li>
+<li>[ ] Update tests</li>
 </ul>
-<h3 id="4-server-wide-settings">4. Server-wide settings</h3>
+<p><strong>Estimated effort:</strong> 2-3 days
+<strong>Risk:</strong> Medium (well-isolated module)</p>
+<h3 id="milestone-3-configuration-split-non-breaking">Milestone 3: Configuration Split (Non-Breaking)</h3>
 <ul>
-<li>Settings stored server-side via <code>phlo-api</code>.</li>
-<li>UI reads/writes via API.</li>
-<li>LocalStorage only for short-lived cache (optional).</li>
+<li>[ ] Create <code>config/</code> directory structure</li>
+<li>[ ] Create domain-specific config classes</li>
+<li>[ ] Create unified Settings class that composes domains</li>
+<li>[ ] Keep <code>config.py</code> as compatibility shim</li>
+<li>[ ] Deprecate direct import of Settings from config.py</li>
+<li>[ ] Migrate callers to use <code>config.get_settings()</code></li>
+<li>[ ] Remove compatibility shim in next major version</li>
 </ul>
-<h2 id="rationale">Rationale</h2>
+<p><strong>Estimated effort:</strong> 2-3 days
+<strong>Risk:</strong> Low (can maintain backward compat)</p>
+<h3 id="milestone-4-root-cleanup-non-breaking">Milestone 4: Root Cleanup (Non-Breaking)</h3>
 <ul>
-<li>Entry points match existing plugin architecture.</li>
-<li>Manifests decouple UI from installed service assumptions.</li>
-<li>Native modules enable tight UX without bundling extensions into core build.</li>
-<li>Server-wide settings satisfy shared instance model.</li>
+<li>[ ] Create <code>operations/</code> directory</li>
+<li>[ ] Move root-level operational files</li>
+<li>[ ] Expand or remove <code>utils.py</code></li>
+<li>[ ] Create compatibility shims</li>
+<li>[ ] Update imports gradually</li>
 </ul>
+<p><strong>Estimated effort:</strong> 1-2 days
+<strong>Risk:</strong> Low</p>
 <h2 id="consequences">Consequences</h2>
 <h3 id="positive">Positive</h3>
-<ul>
-<li>Extensions can add pages and UI panels safely.</li>
-<li>Settings managed centrally, versioned, and auditable.</li>
-<li>Clear contract for plugin authors.</li>
-</ul>
-<h3 id="negative">Negative</h3>
-<ul>
-<li>Runtime module loading adds CSP/security requirements.</li>
-<li>Needs asset-serving and version compatibility checks.</li>
-</ul>
-<h2 id="implementation-outline">Implementation Outline</h2>
 <ol>
-<li>Add <code>ObservatoryExtensionPlugin</code> base + entry point group.</li>
-<li>Update discovery + registry to list observatory extensions.</li>
-<li>Extend phlo-api with extension + settings endpoints.</li>
-<li>Add slot registry + dynamic route loading in Observatory.</li>
-<li>Add docs + example extension package.</li>
+<li><strong>Improved maintainability</strong></li>
+<li>Smaller, focused files easier to understand and modify</li>
+<li>Clear module boundaries reduce cognitive load</li>
+<li>
+<p>Testing individual commands becomes trivial</p>
+</li>
+<li>
+<p><strong>Better developer onboarding</strong></p>
+</li>
+<li>New developers can navigate codebase by layer</li>
+<li>Module names clearly indicate purpose</li>
+<li>
+<p>Architecture documented in structure</p>
+</li>
+<li>
+<p><strong>Reduced merge conflicts</strong></p>
+</li>
+<li>Commands in separate files reduce conflicts</li>
+<li>
+<p>Clearer ownership of modules</p>
+</li>
+<li>
+<p><strong>Easier testing</strong></p>
+</li>
+<li>Individual commands can be tested in isolation</li>
+<li>Configuration domains can be validated separately</li>
+<li>
+<p>Plugin types can be tested independently</p>
+</li>
+<li>
+<p><strong>Foundation for growth</strong></p>
+</li>
+<li>Clear patterns for adding new commands</li>
+<li>Established boundaries for new features</li>
+<li>Scalable architecture</li>
 </ol>
-<h2 id="alternatives-considered">Alternatives Considered</h2>
-<ul>
-<li>Build-time bundling of extension routes only.</li>
-<li>Rejected: forces rebuild to add/remove extensions.</li>
-<li>iframe embedding.</li>
-<li>Rejected: disallowed; weak integration and UX.</li>
-</ul>
-<h2 id="verification">Verification</h2>
-<pre><code class="language-shell">phlo plugin list --type observatory
-curl http://localhost:4000/api/observatory/extensions
-curl http://localhost:3001/extensions/&lt;name&gt;/...
+<h3 id="negative">Negative</h3>
+<ol>
+<li><strong>Migration effort</strong></li>
+<li>Breaking changes require updating all imports</li>
+<li>Package users need to update imports</li>
+<li>
+<p>Documentation needs comprehensive updates</p>
+</li>
+<li>
+<p><strong>Temporary complexity</strong></p>
+</li>
+<li>During migration, both old and new structure exist</li>
+<li>
+<p>Compatibility shims add temporary complexity</p>
+</li>
+<li>
+<p><strong>More files to navigate</strong></p>
+</li>
+<li>Deep directory structures can be harder to browse</li>
+<li>
+<p>IDE file search becomes more important</p>
+</li>
+<li>
+<p><strong>Testing burden</strong></p>
+</li>
+<li>Must update all existing tests</li>
+<li>Integration tests may need restructuring</li>
+</ol>
+<h2 id="migration-strategy">Migration Strategy</h2>
+<h3 id="for-package-users-breaking-changes">For Package Users (Breaking Changes)</h3>
+<p>Provide migration guide with import mapping:</p>
+<pre><code class="language-python"># Before (0.3.0)
+from phlo.config import Settings, get_settings
+from phlo.discovery import ServiceDiscovery
+
+# After (0.4.0)
+from phlo.config import get_settings  # Settings is internal
+from phlo.plugins.discovery import ServiceDiscovery
+```text
+
+### For Internal Code
+
+1. Create compatibility shims in old locations
+2. Add deprecation warnings
+3. Migrate internal code gradually
+4. Remove shims in next major version
+
+### Testing Strategy
+
+1. Maintain existing test coverage during migration
+2. Add new tests for individual command modules
+3. Use pytest fixtures for config domain testing
+4. Integration tests verify compatibility shims
+
+## Verification
+
+```bash
+# After Phase 1: CLI works
+uv run phlo services start
+uv run phlo plugin list
+uv run phlo workflow create
+
+# After Phase 2: Plugin discovery works
+uv run pytest tests/test_plugin_system.py -v
+
+# After Phase 3: Configuration works
+uv run pytest tests/test_config.py -v
+
+# All phases: No regressions
+uv run pytest -v
 </code></pre>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
+<h3 id="alternative-1-do-nothing">Alternative 1: Do Nothing</h3>
+<p><strong>Rejected.</strong> Technical debt compounds. The current structure is becoming increasingly difficult to maintain as the codebase grows. Addressing now prevents larger refactoring later.</p>
+<h3 id="alternative-2-gradual-file-by-file-refactoring">Alternative 2: Gradual File-by-File Refactoring</h3>
+<p><strong>Rejected.</strong> Piecemeal approach lacks coherent vision and can result in inconsistent patterns. Better to establish clear architecture once.</p>
+<h3 id="alternative-3-complete-rewrite">Alternative 3: Complete Rewrite</h3>
+<p><strong>Rejected.</strong> Too risky. Incremental migration maintains functionality while improving structure.</p>
+<h2 id="related">Related</h2>
+<ul>
+<li>ADR 0007: CLI Services Architecture (original CLI refactoring decision)</li>
+<li>ADR 0030: Unified Plugin System (plugin system design)</li>
+<li>ADR 0033: Hook-based Capability Plugins (capability primitives)</li>
+<li>ADR 0041: Capability Primitives and Orchestrator Adapters (layered architecture)</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://realpython.com/python-application-layouts/">Python Application Layouts</a></li>
+<li><a href="https://click.palletsprojects.com/en/8.1.x/complex/">Click Complex Applications</a></li>
+<li><a href="https://docs.pydantic.dev/latest/concepts/pydantic_settings/">Pydantic Settings Management</a></li>
+</ul>
 
 
 

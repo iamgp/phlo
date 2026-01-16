@@ -1027,10 +1027,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#phlo-create-workflow" class="md-nav__link">
+  <a href="#phlo-workflow-create" class="md-nav__link">
     <span class="md-ellipsis">
       
-        phlo create-workflow
+        phlo workflow create
       
     </span>
   </a>
@@ -1702,10 +1702,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#phlo-create-workflow" class="md-nav__link">
+  <a href="#phlo-workflow-create" class="md-nav__link">
     <span class="md-ellipsis">
       
-        phlo create-workflow
+        phlo workflow create
       
     </span>
   </a>
@@ -2081,7 +2081,7 @@
 <h2 id="quick-start">Quick Start</h2>
 <h3 id="1-create-a-test-file">1. Create a Test File</h3>
 <pre><code class="language-bash"># Option A: scaffold a workflow (creates schema + tests)
-phlo create-workflow --type ingestion --domain my_domain --table my_table --unique-key id
+phlo workflow create --type ingestion --domain my_domain --table my_table --unique-key id
 
 # Option B: create a test file if you already have a schema
 touch tests/test_my_workflow.py
@@ -2511,13 +2511,13 @@ phlo materialize weather_observations --partition 2024-01-15
 # Dry run (show command without executing)
 phlo materialize weather_observations --dry-run
 </code></pre>
-<h3 id="phlo-create-workflow">phlo create-workflow</h3>
+<h3 id="phlo-workflow-create">phlo workflow create</h3>
 <p>Interactive workflow scaffolding:</p>
 <pre><code class="language-bash"># Interactive prompts
-phlo create-workflow
+phlo workflow create
 
 # With options
-phlo create-workflow --type ingestion --domain weather --table observations
+phlo workflow create --type ingestion --domain weather --table observations
 </code></pre>
 <p>See <code>phlo --help</code> for full documentation.</p>
 <hr />
