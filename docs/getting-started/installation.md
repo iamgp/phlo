@@ -156,7 +156,7 @@ open http://localhost:10006
 Create a workflow using the interactive wizard:
 
 ```bash
-phlo create-workflow
+phlo workflow create
 ```
 
 Or materialize the example assets (if using a template with examples):

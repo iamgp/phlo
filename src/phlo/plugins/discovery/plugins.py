@@ -11,7 +11,6 @@ import importlib.metadata
 import os
 
 from phlo.config import get_settings
-from phlo.discovery.registry import get_global_registry
 from phlo.logging import get_logger, suppress_log_routing
 from phlo.plugins.base import (
     AssetProviderPlugin,
@@ -27,6 +26,7 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.discovery.registry import get_global_registry
 from phlo.plugins.hooks import HookPlugin
 
 logger = get_logger(__name__)

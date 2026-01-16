@@ -20,7 +20,7 @@ This guide covers:
 
 ```bash
 # Option A: scaffold a workflow (creates schema + tests)
-phlo create-workflow --type ingestion --domain my_domain --table my_table --unique-key id
+phlo workflow create --type ingestion --domain my_domain --table my_table --unique-key id
 
 # Option B: create a test file if you already have a schema
 touch tests/test_my_workflow.py
@@ -531,16 +531,16 @@ phlo materialize weather_observations --partition 2024-01-15
 phlo materialize weather_observations --dry-run
 ```
 
-### phlo create-workflow
+### phlo workflow create
 
 Interactive workflow scaffolding:
 
 ```bash
 # Interactive prompts
-phlo create-workflow
+phlo workflow create
 
 # With options
-phlo create-workflow --type ingestion --domain weather --table observations
+phlo workflow create --type ingestion --domain weather --table observations
 ```
 
 See `phlo --help` for full documentation.

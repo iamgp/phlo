@@ -4,7 +4,7 @@ from phlo.plugins import PluginMetadata, QualityCheckPlugin
 from phlo_quality.checks import UniqueCheck
 
 
-class UniquenessCheckPlugin(QualityCheckPlugin):
+class UniquenessCheckPlugin(QualityCheckPlugin[UniqueCheck]):
     """Plugin for uniqueness checks."""
 
     @property

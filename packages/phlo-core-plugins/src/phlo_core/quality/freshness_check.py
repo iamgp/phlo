@@ -6,7 +6,7 @@ from phlo.plugins import PluginMetadata, QualityCheckPlugin
 from phlo_quality.checks import FreshnessCheck
 
 
-class FreshnessCheckPlugin(QualityCheckPlugin):
+class FreshnessCheckPlugin(QualityCheckPlugin[FreshnessCheck]):
     """Plugin for freshness checks."""
 
     @property

@@ -37,7 +37,7 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
             version="0.1.0",
             compat=ObservatoryExtensionCompatibility(observatory_min="0.1.0"),
             settings=ObservatoryExtensionSettings(
-                schema={
+                settings_schema={
                     "type": "object",
                     "properties": {
                         "enabled": {"type": "boolean"},
