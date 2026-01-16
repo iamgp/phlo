@@ -68,16 +68,16 @@ def setup_registry():
 
 def test_plugin_list_json_installed(setup_registry):
     """List command returns installed plugins as JSON."""
+    # #given
     runner = CliRunner()
+
+    # #when
     result = runner.invoke(plugin_group, ["list", "--json"])
 
-    assert result.exit_code == 0
+    # #then
     data = json.loads(result.output)
-    types = {plugin["type"] for plugin in data}
-    assert "source" in types
-    assert "quality" in types
-    assert "transform" in types
-    assert "service" in types
+    types = {plugin["type"] for plugin in data["installed"]}
+    assert result.exit_code == 0 and types == {"source", "quality", "transform", "service"}
 
 
 def test_plugin_list_all_json(setup_registry, monkeypatch):
