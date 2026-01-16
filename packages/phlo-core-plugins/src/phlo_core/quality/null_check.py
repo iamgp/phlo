@@ -4,7 +4,7 @@ from phlo.plugins import PluginMetadata, QualityCheckPlugin
 from phlo_quality.checks import NullCheck
 
 
-class NullCheckPlugin(QualityCheckPlugin):
+class NullCheckPlugin(QualityCheckPlugin[NullCheck]):
     """Plugin for NullCheck quality checks."""
 
     @property

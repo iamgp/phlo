@@ -62,7 +62,7 @@ class TestNessieConfiguration:
 
         settings = get_settings()
 
-        assert hasattr(settings, "nessie_host") or hasattr(settings, "nessie_api_v1_uri")
+        assert hasattr(settings, "nessie_host") or hasattr(settings, "nessie_api_uri")
 
     def test_nessie_url_format(self):
         """Test Nessie URL has expected format."""
@@ -70,7 +70,7 @@ class TestNessieConfiguration:
 
         settings = get_settings()
 
-        uri = getattr(settings, "nessie_api_v1_uri", "")
+        uri = getattr(settings, "nessie_api_uri", "")
         # Should contain api version path or be valid URL
         assert len(uri) > 0
 

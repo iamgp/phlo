@@ -12,10 +12,11 @@ from typing import Optional
 
 import click
 
+from phlo.cli.commands.plugin import plugin_group
+from phlo.cli.commands.services import services_group
+from phlo.cli.commands.workflow import workflow_group
 from phlo.cli.config import config
 from phlo.cli.env import env
-from phlo.cli.plugin import plugin_group
-from phlo.cli.services import services
 from phlo.logging import setup_logging
 
 
@@ -32,8 +33,9 @@ def cli():
     setup_logging()
 
 
-cli.add_command(services)
+cli.add_command(services_group)
 cli.add_command(plugin_group)
+cli.add_command(workflow_group)
 cli.add_command(config)
 cli.add_command(env)
 
@@ -180,7 +182,7 @@ def init(project_name: Optional[str], template: str, force: bool):
             click.echo(f"  1. cd {project_name}")
         click.echo("  2. pip install -e .              # Install Phlo and dependencies")
         click.echo("  3. phlo services init            # Set up infrastructure (Docker)")
-        click.echo("  4. phlo create-workflow          # Create your first workflow")
+        click.echo("  4. phlo workflow create          # Create your first workflow")
         click.echo("  5. phlo dev                      # Start Dagster UI")
 
         click.echo("\nDocumentation: https://github.com/iamgp/phlo")
@@ -255,97 +257,6 @@ def dev(host: str, port: int, workflows_path: str):
     except subprocess.CalledProcessError as e:
         click.echo(f"\nDagster failed with exit code {e.returncode}", err=True)
         sys.exit(e.returncode)
-
-
-@cli.command("create-workflow")
-@click.option(
-    "--type",
-    "workflow_type",
-    type=click.Choice(["ingestion", "transform", "quality"]),
-    prompt="Workflow type",
-    help="Type of workflow to create",
-)
-@click.option("--domain", prompt="Domain name", help="Domain name (e.g., weather, stripe, github)")
-@click.option("--table", prompt="Table name", help="Table name for ingestion")
-@click.option(
-    "--unique-key",
-    prompt="Unique key field",
-    help="Field name for deduplication (e.g., id, _id)",
-)
-@click.option(
-    "--cron",
-    default="0 */1 * * *",
-    prompt="Cron schedule",
-    help="Cron schedule expression",
-)
-@click.option(
-    "--api-base-url",
-    prompt="API base URL (optional)",
-    default="",
-    help="REST API base URL",
-)
-@click.option(
-    "--field",
-    "fields",
-    multiple=True,
-    help="Additional schema field (name:type, name:type?, name:type!)",
-)
-def create_workflow(
-    workflow_type: str,
-    domain: str,
-    table: str,
-    unique_key: str,
-    cron: str,
-    api_base_url: str,
-    fields: tuple[str, ...],
-):
-    """
-    Interactive workflow scaffolding.
-
-    Creates all necessary files for a new workflow:
-    - Pandera schema file
-    - Ingestion asset file
-    - Test file
-    - Auto-registers domain
-
-    Examples:
-        phlo create-workflow                                # Interactive prompts
-        phlo create-workflow --type ingestion --domain weather --table observations
-    """
-    from phlo.cli.scaffold import create_ingestion_workflow
-
-    click.echo(f"\nCreating {workflow_type} workflow for {domain}.{table}...\n")
-
-    try:
-        if workflow_type == "ingestion":
-            files = create_ingestion_workflow(
-                domain=domain,
-                table_name=table,
-                unique_key=unique_key,
-                cron=cron,
-                api_base_url=api_base_url or None,
-                fields=list(fields),
-            )
-
-            click.echo("Created files:\n")
-            for file_path in files:
-                click.echo(f"  - {file_path}")
-
-            click.echo("\nNext steps:")
-            click.echo(f"  1. Edit schema: {files[0]}")
-            click.echo(f"  2. Configure API: {files[1]}")
-            click.echo("  3. Restart Dagster: docker restart dagster-webserver")
-            click.echo(f"  4. Test: phlo test {domain}")
-            click.echo(f"  5. Materialize: phlo materialize {table}")
-
-        else:
-            click.echo(f"Error: Workflow type '{workflow_type}' not yet implemented", err=True)
-            click.echo("Currently supported: ingestion", err=True)
-            sys.exit(1)
-
-    except Exception as e:
-        click.echo(f"Error creating workflow: {e}", err=True)
-        sys.exit(1)
 
 
 def _create_project_structure(project_dir: Path, project_name: str, template: str):
@@ -531,7 +442,7 @@ Phlo data workflows for {project_name}.
 
 2. **Create your first workflow:**
    ```bash
-   phlo create-workflow
+   phlo workflow create
    ```
 
 3. **Start Dagster UI:**
@@ -561,13 +472,13 @@ Phlo data workflows for {project_name}.
 ## Commands
 
 - `phlo dev` - Start Dagster development server
-- `phlo create-workflow` - Scaffold new workflow
+- `phlo workflow create` - Scaffold new workflow
 - `phlo test` - Run tests
 """
     (project_dir / "README.md").write_text(readme_content)
 
     # Create phlo.yaml with infrastructure configuration
-    from phlo.cli.services import PHLO_CONFIG_TEMPLATE
+    from phlo.cli.commands.services.utils import PHLO_CONFIG_TEMPLATE
 
     phlo_config_content = PHLO_CONFIG_TEMPLATE.format(
         name=project_name,

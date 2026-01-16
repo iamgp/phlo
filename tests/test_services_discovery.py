@@ -41,7 +41,7 @@ def test_service_discovery_includes_plugins(
     registry.register_service(DummyServicePlugin(), replace=True)
 
     monkeypatch.setattr(
-        "phlo.discovery.services.discover_plugins",
+        "phlo.plugins.discovery.services.discover_plugins",
         lambda plugin_type, auto_register: None,
     )
 

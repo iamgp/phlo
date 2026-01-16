@@ -6,7 +6,7 @@ import os
 import importlib.metadata
 from pathlib import Path
 
-from phlo.discovery.plugins import discover_plugins
+from phlo.discovery import discover_plugins
 from phlo.logging import get_logger, setup_logging
 from phlo.plugins.base import CatalogPlugin
 

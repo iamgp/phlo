@@ -31,7 +31,7 @@ export type ObservatoryExtensionManifest = {
     observatory_min: string
   }
   settings?: {
-    schema: Record<string, {}>
+    settings_schema: Record<string, {}>
     defaults?: Record<string, {}>
     scope?: 'global' | 'extension'
   }

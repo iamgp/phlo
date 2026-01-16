@@ -1,5 +1,8 @@
 """
-Unified Discovery Module
+Unified Discovery Module (Backwards Compatibility Shim)
+
+This module re-exports from phlo.plugins.discovery for backwards compatibility.
+New code should import directly from phlo.plugins.discovery.
 
 Consolidates plugin and service discovery into a single module.
 
@@ -9,9 +12,13 @@ This module provides a unified interface for discovering:
 - Plugin registry (remote package search)
 """
 
-from phlo.discovery.plugins import (
+from phlo.plugins.discovery import (
     ENTRY_POINT_GROUPS,
+    PluginRegistry,
+    ServiceDefinition,
+    ServiceDiscovery,
     discover_plugins,
+    get_global_registry,
     get_hook_plugin,
     get_plugin,
     get_plugin_info,
@@ -21,14 +28,6 @@ from phlo.discovery.plugins import (
     get_transformation,
     list_plugins,
     validate_plugins,
-)
-from phlo.discovery.registry import (
-    PluginRegistry,
-    get_global_registry,
-)
-from phlo.discovery.services import (
-    ServiceDefinition,
-    ServiceDiscovery,
 )
 
 __all__ = [

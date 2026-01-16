@@ -6,7 +6,7 @@ from phlo.plugins import PluginMetadata, QualityCheckPlugin
 from phlo_quality.checks import SchemaCheck
 
 
-class SchemaCheckPlugin(QualityCheckPlugin):
+class SchemaCheckPlugin(QualityCheckPlugin[SchemaCheck]):
     """Plugin for schema checks."""
 
     @property
