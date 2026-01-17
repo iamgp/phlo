@@ -1,16 +1,21 @@
-from pydantic import AliasChoices, Field, model_validator
+"""Dagster settings."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+from pydantic import Field, model_validator
 
 from phlo.config.base import BaseConfig
 
 
-class OrchestrationConfig(BaseConfig):
-    """Dagster data orchestration platform configuration."""
+class DagsterSettings(BaseConfig):
+    """Dagster orchestration configuration."""
 
     dagster_port: int = Field(default=10006, description="Dagster webserver port")
-    phlo_orchestrator: str = Field(
-        default="dagster",
-        validation_alias=AliasChoices("PHLO_ORCHESTRATOR", "PHLO_ORCHESTRATOR_NAME"),
-        description="Active orchestrator adapter name",
+    workflows_path: str = Field(
+        default="workflows",
+        description="Path to user workflows directory (for external projects)",
     )
     phlo_force_in_process_executor: bool = Field(
         default=False, description="Force use of in-process executor"
@@ -24,14 +29,16 @@ class OrchestrationConfig(BaseConfig):
         "Auto-detected in CLI; set explicitly for daemon/webserver on macOS.",
     )
 
-    app_port: int = Field(default=10009, description="Hub application port")
-    flask_debug: bool = Field(default=False, description="Flask debug mode")
-
     @model_validator(mode="after")
-    def validate_executor_flags(self) -> "OrchestrationConfig":
+    def validate_executor_flags(self) -> "DagsterSettings":
         if self.phlo_force_in_process_executor and self.phlo_force_multiprocess_executor:
             raise ValueError(
                 "phlo_force_in_process_executor and phlo_force_multiprocess_executor "
                 "cannot both be True"
             )
         return self
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> DagsterSettings:
+    return DagsterSettings()

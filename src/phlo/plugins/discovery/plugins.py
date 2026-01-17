@@ -16,8 +16,6 @@ from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
     CliCommandPlugin,
-    DagsterExtensionPlugin,
-    ObservatoryExtensionPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
@@ -37,8 +35,6 @@ ENTRY_POINT_GROUPS = {
     "quality_checks": "phlo.plugins.quality",
     "transformations": "phlo.plugins.transforms",
     "services": "phlo.plugins.services",
-    "dagster_extensions": "phlo.plugins.dagster",
-    "observatory_extensions": "phlo.plugins.observatory",
     "cli_commands": "phlo.plugins.cli",
     "hooks": "phlo.plugins.hooks",
     "catalogs": "phlo.plugins.catalogs",
@@ -53,8 +49,6 @@ _PLUGIN_REGISTER_METHODS = {
     "quality_checks": "register_quality_check",
     "transformations": "register_transformation",
     "services": "register_service",
-    "dagster_extensions": "register_dagster_extension",
-    "observatory_extensions": "register_observatory_extension",
     "cli_commands": "register_cli_command_plugin",
     "hooks": "register_hook_plugin",
     "catalogs": "register_catalog",
@@ -69,8 +63,6 @@ _PLUGIN_GETTER_METHODS = {
     "quality_checks": "get_quality_check",
     "transformations": "get_transformation",
     "services": "get_service",
-    "dagster_extensions": "get_dagster_extension",
-    "observatory_extensions": "get_observatory_extension",
     "cli_commands": "get_cli_command_plugin",
     "hooks": "get_hook_plugin",
     "catalogs": "get_catalog",
@@ -197,8 +189,6 @@ def discover_plugins(
                         "quality_checks": QualityCheckPlugin,
                         "transformations": TransformationPlugin,
                         "services": ServicePlugin,
-                        "dagster_extensions": DagsterExtensionPlugin,
-                        "observatory_extensions": ObservatoryExtensionPlugin,
                         "cli_commands": CliCommandPlugin,
                         "hooks": HookPlugin,
                         "catalogs": CatalogPlugin,
@@ -280,8 +270,8 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
 
     Args:
         plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
-        "services", "dagster_extensions", "cli_commands", "hooks", "asset_providers",
-        "resource_providers", "orchestrators", "catalogs")
+        "services", "cli_commands", "hooks", "asset_providers", "resource_providers",
+        "orchestrators", "catalogs")
         name: Plugin name
 
     Returns:
@@ -399,7 +389,7 @@ def get_plugin_info(plugin_type: str, name: str) -> dict | None:
 
     Args:
         plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
-            "services", "dagster_extensions", "cli_commands", "hooks", "catalogs")
+            "services", "cli_commands", "hooks", "catalogs")
         name: Plugin name
 
     Returns:

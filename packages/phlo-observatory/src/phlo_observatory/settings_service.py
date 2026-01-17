@@ -10,7 +10,8 @@ from typing import Any
 import psycopg2
 from jsonschema import ValidationError, validate
 
-from phlo.config import get_settings
+from phlo_observatory.settings import get_settings as get_observatory_settings
+from phlo_postgres.settings import get_settings as get_postgres_settings
 
 
 class SettingsScope(StrEnum):
@@ -115,6 +116,9 @@ class SettingsService:
 
 @lru_cache(maxsize=1)
 def get_settings_service() -> SettingsService:
-    settings = get_settings()
-    db_url = settings.observatory_settings_db_url or settings.get_postgres_connection_string()
+    observatory_settings = get_observatory_settings()
+    postgres_settings = get_postgres_settings()
+    db_url = observatory_settings.observatory_settings_db_url or (
+        postgres_settings.get_postgres_connection_string()
+    )
     return SettingsService(db_url)

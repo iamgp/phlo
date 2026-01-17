@@ -2,6 +2,13 @@
 
 from phlo_nessie.plugin import NessieServicePlugin
 from phlo_nessie.resource import BranchManagerResource, NessieResource
+from phlo_nessie.settings import NessieSettings, get_settings
 
-__all__ = ["NessieServicePlugin", "NessieResource", "BranchManagerResource"]
+__all__ = [
+    "NessieServicePlugin",
+    "NessieResource",
+    "BranchManagerResource",
+    "NessieSettings",
+    "get_settings",
+]
 __version__ = "0.1.0"

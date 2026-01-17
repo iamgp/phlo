@@ -8,6 +8,7 @@ then delegates to the active orchestrator adapter.
 
 from __future__ import annotations
 
+import importlib.metadata
 import importlib.util
 import sys
 import warnings
@@ -123,25 +124,17 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
 
 
 def _collect_dagster_extension_definitions() -> Any:
-    from phlo.discovery import discover_plugins, get_global_registry
-
     try:
         import dagster as dg
     except Exception:  # noqa: BLE001 - optional dependency
         return None
 
-    discover_plugins(plugin_type="dagster_extensions", auto_register=True)
-    registry = get_global_registry()
-
     definitions: list[dg.Definitions] = []
-    for name in registry.list_dagster_extensions():
-        plugin = registry.get_dagster_extension(name)
-        if plugin is None:
-            continue
+    for plugin in _discover_dagster_extensions():
         try:
             definitions.append(plugin.get_definitions())
         except Exception as exc:
-            logger.error("Error creating Dagster definitions from plugin %s: %s", name, exc)
+            logger.error("Error creating Dagster definitions from plugin %s: %s", plugin, exc)
 
     return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
 
@@ -172,11 +165,10 @@ def _default_trino_resource() -> Any | None:
 
 def _clear_capability_registries() -> None:
     """Clear capability registries (for testing)."""
-    from phlo.discovery import discover_plugins, get_global_registry
+    from phlo.plugins.discovery import discover_plugins, get_global_registry
 
     clear_capabilities()
     discover_plugins(plugin_type="asset_providers", auto_register=True)
-    discover_plugins(plugin_type="dagster_extensions", auto_register=True)
     registry = get_global_registry()
 
     for name in registry.list_asset_providers():
@@ -190,14 +182,64 @@ def _clear_capability_registries() -> None:
             except Exception as exc:
                 logger.warning("Failed to clear registries for asset provider %s: %s", name, exc)
 
-    for name in registry.list_dagster_extensions():
-        plugin = registry.get_dagster_extension(name)
-        if plugin is None:
-            continue
+    for plugin in _discover_dagster_extensions():
         try:
             plugin.clear_registries()
         except Exception as exc:
-            logger.warning("Failed to clear registries for Dagster plugin %s: %s", name, exc)
+            logger.warning("Failed to clear registries for Dagster plugin %s: %s", plugin, exc)
+
+
+def _discover_dagster_extensions() -> list[Any]:
+    try:
+        from phlo_dagster.dagster_ext import DagsterExtensionPlugin
+    except Exception:
+        return []
+
+    settings = _get_settings()
+    if not settings.plugins_enabled:
+        logger.info("Plugin system is disabled")
+        return []
+
+    try:
+        entry_points = importlib.metadata.entry_points(group="phlo.plugins.dagster")
+    except TypeError:
+        entry_points = importlib.metadata.entry_points().get("phlo.plugins.dagster", [])
+
+    extensions: list[DagsterExtensionPlugin] = []
+    for entry_point in entry_points:
+        if not _is_plugin_allowed(entry_point.name, settings):
+            continue
+        try:
+            plugin_class = entry_point.load()
+            plugin = plugin_class() if isinstance(plugin_class, type) else plugin_class
+        except Exception as exc:
+            logger.warning("Failed to load Dagster extension %s: %s", entry_point.name, exc)
+            continue
+        if not isinstance(plugin, DagsterExtensionPlugin):
+            logger.warning(
+                "Dagster extension %s has invalid type %s",
+                entry_point.name,
+                type(plugin).__name__,
+            )
+            continue
+        extensions.append(plugin)
+    return extensions
+
+
+def _get_settings():
+    from phlo.config import get_settings
+
+    return get_settings()
+
+
+def _is_plugin_allowed(plugin_name: str, settings) -> bool:
+    if plugin_name in settings.plugins_blacklist:
+        logger.debug("Plugin '%s' is blacklisted, skipping", plugin_name)
+        return False
+    if settings.plugins_whitelist and plugin_name not in settings.plugins_whitelist:
+        logger.debug("Plugin '%s' is not in whitelist, skipping", plugin_name)
+        return False
+    return True
 
 
 def get_workflows_path_from_config() -> Path:
@@ -214,16 +256,12 @@ def get_workflows_path_from_config() -> Path:
         ```
     """
     try:
-        from phlo.config import get_settings
+        from phlo_dagster.settings import get_settings
 
         settings = get_settings()
-
-        # Check if workflows_path attribute exists
-        if hasattr(settings, "workflows_path"):
-            return Path(settings.workflows_path)
-
+        return Path(settings.workflows_path)
     except Exception as exc:
-        logger.warning(f"Could not get workflows_path from config: {exc}")
+        logger.warning(f"Could not get workflows_path from dagster settings: {exc}")
 
     # Default fallback
     return Path("workflows")

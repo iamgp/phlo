@@ -14,7 +14,8 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from phlo.config import config
+from phlo_iceberg.settings import get_settings as get_iceberg_settings
+from phlo_nessie.settings import get_settings as get_nessie_settings
 
 console = Console()
 
@@ -25,7 +26,7 @@ def get_nessie_client():
         from pynessie import init
 
         # Initialize Nessie client
-        client = init(config.nessie_uri)
+        client = init(get_nessie_settings().nessie_uri())
         return client
     except ImportError:
         console.print("[red]Error: pynessie not installed[/red]")
@@ -78,7 +79,7 @@ def list(all: bool, format: str):
                     "name": branch_ref.name,
                     "type": "branch",
                     "hash": branch_ref.hash[:8] if branch_ref.hash else "unknown",
-                    "is_default": branch_ref.name == config.iceberg_nessie_ref,
+                    "is_default": branch_ref.name == get_iceberg_settings().iceberg_nessie_ref,
                 }
             )
 
@@ -184,7 +185,7 @@ def delete(branch_name: str, force: bool):
     """
     try:
         # Prevent deleting default branch
-        if branch_name == config.iceberg_nessie_ref:
+        if branch_name == get_iceberg_settings().iceberg_nessie_ref:
             console.print(f"[red]Error: Cannot delete default branch: {branch_name}[/red]")
             sys.exit(1)
 

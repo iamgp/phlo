@@ -242,9 +242,10 @@ from typing import Any
 
 import dagster as dg
 import dlt
+import os
 import requests
 
-from phlo.config import config
+from phlo_iceberg.settings import get_settings as get_iceberg_settings
 from phlo_iceberg.resource import IcebergResource
 from workflows.schemas.weather import WeatherObservationSchema
 from workflows.schemas.iceberg_weather import WEATHER_OBSERVATION_SCHEMA
@@ -274,7 +275,8 @@ def weather_data(
     - Consistent with other ingestion assets (dlt_glucose_entries)
     - State management for incremental loads
     """
-    table_name = f"{config.iceberg_default_namespace}.weather_observations"
+    iceberg_settings = get_iceberg_settings()
+    table_name = f"{iceberg_settings.iceberg_default_namespace}.weather_observations"
     pipeline_name = "weather_openweathermap"
 
     # Setup DLT directories
@@ -288,10 +290,8 @@ def weather_data(
         # Step 1: Fetch data from OpenWeather API
         context.log.info("Fetching data from OpenWeather API...")
 
-        cities = [
-            city.strip().split(",")
-            for city in config.openweather_cities.split(";")
-        ]
+        openweather_cities = os.getenv("OPENWEATHER_CITIES", "")
+        cities = [city.strip().split(",") for city in openweather_cities.split(";") if city.strip()]
 
         weather_records = []
 
@@ -301,7 +301,7 @@ def weather_data(
             url = "https://api.openweathermap.org/data/2.5/weather"
             params = {
                 "q": f"{city_name},{country}",
-                "appid": config.openweather_api_key,
+                "appid": os.getenv("OPENWEATHER_API_KEY", ""),
                 "units": "metric",  # Celsius
             }
 

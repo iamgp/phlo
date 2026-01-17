@@ -2654,6 +2654,8 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "phlo" },
+    { name = "phlo-lineage" },
+    { name = "phlo-observatory" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -2672,6 +2674,8 @@ requires-dist = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "phlo", editable = "." },
+    { name = "phlo-lineage", editable = "packages/phlo-lineage" },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
     { name = "psycopg2-binary" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
@@ -2716,6 +2720,7 @@ source = { editable = "packages/phlo-dagster" }
 dependencies = [
     { name = "dagster-graphql" },
     { name = "phlo" },
+    { name = "phlo-observatory" },
     { name = "pyyaml" },
     { name = "requests" },
 ]
@@ -2730,6 +2735,7 @@ dev = [
 requires-dist = [
     { name = "dagster-graphql" },
     { name = "phlo", editable = "." },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests" },
@@ -2835,6 +2841,7 @@ version = "0.1.0"
 source = { editable = "packages/phlo-hasura" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-postgres" },
     { name = "pyyaml" },
 ]
 
@@ -2847,6 +2854,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "phlo-postgres", editable = "packages/phlo-postgres" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -2859,6 +2867,8 @@ version = "0.1.0"
 source = { editable = "packages/phlo-iceberg" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-minio" },
+    { name = "phlo-nessie" },
     { name = "pyiceberg", extra = ["pyarrow", "s3fs"] },
 ]
 
@@ -2871,6 +2881,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "phlo-minio", editable = "packages/phlo-minio" },
+    { name = "phlo-nessie", editable = "packages/phlo-nessie" },
     { name = "pyiceberg", extras = ["s3fs", "pyarrow"], specifier = "==0.10.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -2884,6 +2896,7 @@ source = { editable = "packages/phlo-lineage" }
 dependencies = [
     { name = "click" },
     { name = "phlo" },
+    { name = "phlo-observatory" },
     { name = "psycopg2-binary" },
     { name = "python-ulid" },
     { name = "rich" },
@@ -2899,6 +2912,7 @@ dev = [
 requires-dist = [
     { name = "click" },
     { name = "phlo", editable = "." },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
     { name = "psycopg2-binary" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "python-ulid", specifier = ">=2.0.0" },
@@ -2913,6 +2927,7 @@ version = "0.1.0"
 source = { editable = "packages/phlo-loki" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-observatory" },
     { name = "pyyaml" },
 ]
 
@@ -2925,6 +2940,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -2938,6 +2954,8 @@ source = { editable = "packages/phlo-metrics" }
 dependencies = [
     { name = "cachetools" },
     { name = "phlo" },
+    { name = "phlo-nessie" },
+    { name = "phlo-postgres" },
     { name = "requests" },
 ]
 
@@ -2951,6 +2969,8 @@ dev = [
 requires-dist = [
     { name = "cachetools" },
     { name = "phlo", editable = "." },
+    { name = "phlo-nessie", editable = "packages/phlo-nessie" },
+    { name = "phlo-postgres", editable = "packages/phlo-postgres" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -2987,6 +3007,8 @@ version = "0.1.0"
 source = { editable = "packages/phlo-nessie" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-observatory" },
+    { name = "phlo-trino" },
     { name = "pynessie" },
     { name = "pyyaml" },
     { name = "requests" },
@@ -3001,6 +3023,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
+    { name = "phlo-trino", editable = "packages/phlo-trino" },
     { name = "pynessie" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
@@ -3013,6 +3037,10 @@ provides-extras = ["dev"]
 name = "phlo-observatory"
 version = "0.1.0"
 source = { editable = "packages/phlo-observatory" }
+dependencies = [
+    { name = "phlo" },
+    { name = "phlo-postgres" },
+]
 
 [package.optional-dependencies]
 dev = [
@@ -3022,6 +3050,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "phlo-postgres", editable = "packages/phlo-postgres" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
@@ -3033,10 +3063,14 @@ version = "0.1.0"
 source = { editable = "packages/phlo-observatory-example" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-observatory" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "phlo", editable = "." }]
+requires-dist = [
+    { name = "phlo", editable = "." },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
+]
 
 [[package]]
 name = "phlo-openmetadata"
@@ -3044,7 +3078,10 @@ version = "0.1.0"
 source = { editable = "packages/phlo-openmetadata" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-dbt" },
     { name = "phlo-nessie" },
+    { name = "phlo-postgres" },
+    { name = "phlo-trino" },
     { name = "pyyaml" },
 ]
 
@@ -3057,7 +3094,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "phlo-dbt", editable = "packages/phlo-dbt" },
     { name = "phlo-nessie", editable = "packages/phlo-nessie" },
+    { name = "phlo-postgres", editable = "packages/phlo-postgres" },
+    { name = "phlo-trino", editable = "packages/phlo-trino" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -3118,6 +3158,8 @@ version = "0.1.0"
 source = { editable = "packages/phlo-postgrest" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-dbt" },
+    { name = "phlo-postgres" },
     { name = "pyyaml" },
 ]
 
@@ -3130,6 +3172,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "phlo-dbt", editable = "packages/phlo-dbt" },
+    { name = "phlo-postgres", editable = "packages/phlo-postgres" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -3169,6 +3213,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pandera" },
     { name = "phlo" },
+    { name = "phlo-observatory" },
     { name = "rich" },
 ]
 
@@ -3184,6 +3229,7 @@ requires-dist = [
     { name = "pandas" },
     { name = "pandera", specifier = ">=0.18.0" },
     { name = "phlo", editable = "." },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "rich" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -3258,6 +3304,9 @@ version = "0.1.0"
 source = { editable = "packages/phlo-trino" }
 dependencies = [
     { name = "phlo" },
+    { name = "phlo-observatory" },
+    { name = "phlo-postgres" },
+    { name = "psycopg2-binary" },
     { name = "pyyaml" },
     { name = "trino" },
 ]
@@ -3271,6 +3320,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "phlo-observatory", editable = "packages/phlo-observatory" },
+    { name = "phlo-postgres", editable = "packages/phlo-postgres" },
+    { name = "psycopg2-binary" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },

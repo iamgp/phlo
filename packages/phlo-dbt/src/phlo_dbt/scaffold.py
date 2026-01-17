@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 
 def build_dbt_project(project_name: str) -> str:
     safe_name = project_name.replace("-", "_")
@@ -57,3 +59,14 @@ capitalisation_policy = lower
 # Table aliases are required
 aliasing = explicit
 """
+
+
+def write_dbt_scaffold(project_name: str, transforms_dir: Path, project_dir: Path) -> None:
+    """Write dbt project and sqlfluff config files for a new project."""
+    transforms_dir.mkdir(parents=True, exist_ok=True)
+
+    dbt_project_content = build_dbt_project(project_name)
+    (transforms_dir / "dbt_project.yml").write_text(dbt_project_content)
+
+    sqlfluff_content = build_sqlfluff_config()
+    (project_dir / ".sqlfluff").write_text(sqlfluff_content)

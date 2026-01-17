@@ -23,7 +23,7 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
-from phlo.discovery import ServiceDefinition
+from phlo.plugins.discovery import ServiceDefinition
 
 
 @click.command("start")
@@ -97,8 +97,8 @@ def start_cmd(
     native_service_names: set[str] = set()
     discovery = None
     if native:
-        from phlo.discovery import ServiceDiscovery
         from phlo.plugins.compose.native import NativeProcessManager
+        from phlo.plugins.discovery import ServiceDiscovery
 
         discovery = ServiceDiscovery()
         project_root = Path.cwd()
@@ -194,8 +194,8 @@ def start_cmd(
 
         if result.returncode == 0:
             if native:
-                from phlo.discovery import ServiceDiscovery
                 from phlo.plugins.compose.native import NativeProcessManager
+                from phlo.plugins.discovery import ServiceDiscovery
 
                 discovery = ServiceDiscovery()
                 project_root = Path.cwd()

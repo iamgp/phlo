@@ -9,7 +9,7 @@ Phlo uses multiple configuration sources:
 1. **Infrastructure defaults** (`phlo.yaml`, `env:`)
 2. **Local secrets/overrides** (`.phlo/.env.local`)
 3. **Runtime environment** (process environment variables)
-4. **Python settings** (`phlo.config`)
+4. **Python settings** (package settings modules like `phlo_postgres.settings`)
 5. **Runtime configuration** (Dagster run config)
 
 ## Environment Variables
@@ -511,38 +511,41 @@ service = get_service_config("postgres")
 # Returns: dict with host, port, credentials, etc.
 ```
 
-## Python Configuration (config.py)
+## Python Configuration (Package Settings)
 
-Programmatic access to configuration:
+Programmatic access to configuration lives in each capability package:
 
 ```python
-from phlo.config import settings
+from phlo_postgres.settings import get_settings as get_postgres_settings
+from phlo_minio.settings import get_settings as get_minio_settings
+from phlo_nessie.settings import get_settings as get_nessie_settings
+from phlo_trino.settings import get_settings as get_trino_settings
+from phlo_iceberg.settings import get_settings as get_iceberg_settings
 
 # Database
-settings.postgres_host
-settings.postgres_port
-settings.get_postgres_connection_string()
+postgres = get_postgres_settings()
+postgres.postgres_host
+postgres.postgres_port
+postgres.get_postgres_connection_string()
 
 # MinIO
-settings.minio_endpoint
-# Returns: "http://minio:10001"
+minio = get_minio_settings()
+minio.minio_endpoint()
 
 # Nessie
-settings.nessie_uri
-settings.nessie_api_v1_uri
-settings.nessie_iceberg_rest_uri
+nessie = get_nessie_settings()
+nessie.nessie_uri()
+nessie.nessie_api_uri()
+nessie.nessie_iceberg_rest_uri()
 
 # Trino
-settings.trino_connection_string
-# Returns: "trino://trino:10005/iceberg_dev"
+trino = get_trino_settings()
+trino.trino_connection_string()
 
 # Iceberg
-settings.iceberg_warehouse_path
-settings.get_iceberg_warehouse_for_branch("main")
-# Returns: "s3://lake/warehouse"
-
-settings.get_iceberg_warehouse_for_branch("feature")
-# Returns: "s3://lake/warehouse@feature"
+iceberg = get_iceberg_settings()
+iceberg.iceberg_warehouse_path
+iceberg.get_iceberg_warehouse_for_branch("main")
 ```
 
 ## Runtime Configuration
@@ -706,12 +709,12 @@ phlo config show --secrets
 ### Validation in Python
 
 ```python
-from phlo.config import settings
+from phlo_postgres.settings import get_settings
 from pydantic import ValidationError
 
 try:
     # Access settings (validates on load)
-    conn_str = settings.get_postgres_connection_string()
+    conn_str = get_settings().get_postgres_connection_string()
 except ValidationError as e:
     print(f"Configuration error: {e}")
 ```

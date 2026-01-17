@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pandera.pandas import DataFrameModel
-from phlo.config import config
+from phlo_iceberg.settings import get_settings
 
 
 @dataclass(frozen=True)
@@ -18,4 +18,4 @@ class TableConfig:
 
     @property
     def full_table_name(self) -> str:
-        return f"{config.iceberg_default_namespace}.{self.table_name}"
+        return f"{get_settings().iceberg_default_namespace}.{self.table_name}"

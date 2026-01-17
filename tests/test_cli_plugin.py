@@ -6,7 +6,6 @@ import pytest
 from click.testing import CliRunner
 
 from phlo.cli.commands.plugin import plugin_group
-from phlo.discovery import get_global_registry
 from phlo.plugins import (
     PluginMetadata,
     QualityCheckPlugin,
@@ -14,6 +13,7 @@ from phlo.plugins import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.discovery import get_global_registry
 from phlo.plugins.registry_client import RegistryPlugin
 
 

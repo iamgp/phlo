@@ -82,7 +82,7 @@ with engine.connect() as conn:
 ### Using with Phlo Config
 
 ```python
-from phlo.config import get_settings
+from phlo_postgres.settings import get_settings
 
 settings = get_settings()
 conn_string = settings.get_postgres_connection_string()

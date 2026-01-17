@@ -522,7 +522,7 @@ Complete end-to-end flow:
 
 **dbt models**: `workflows/transforms/dbt/models/{layer}/{model}.sql`
 
-**Configuration**: `phlo.config`, `.phlo/.env.local`, `phlo.yaml`
+**Configuration**: `.phlo/.env.local`, `phlo.yaml`, package settings (e.g., `phlo_postgres.settings`)
 
 **Sensors**: `workflows/sensors/branch_lifecycle.py`
 

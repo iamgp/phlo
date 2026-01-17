@@ -8,8 +8,8 @@ from phlo_dagster.containers import find_dagster_container
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path, get_profile_service_names
 from phlo.cli.infrastructure.selection import select_services_to_install
-from phlo.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.plugins.compose.generator import ComposeGenerator
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 
 def _service(
@@ -91,9 +91,9 @@ def test_get_profile_service_names_returns_profile_services(
             all_services = [prometheus, grafana, loki, hasura, postgres]
             return [s for s in all_services if s.profile == profile]
 
-    # ServiceDiscovery is imported inside get_profile_service_names from phlo.discovery
+    # ServiceDiscovery is imported inside get_profile_service_names from phlo.plugins.discovery
     monkeypatch.setattr(
-        "phlo.discovery.ServiceDiscovery",
+        "phlo.plugins.discovery.ServiceDiscovery",
         FakeDiscovery,
     )
 

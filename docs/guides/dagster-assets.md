@@ -230,8 +230,6 @@ asset_b ─┘
 ### Conditional Dependencies
 
 ```python
-from phlo.config import get_config
-
 @dg.asset
 def optional_upstream():
     return "data"
@@ -239,10 +237,9 @@ def optional_upstream():
 @dg.asset
 def conditional_asset():
     """Conditionally uses upstream asset."""
-    from phlo.config import get_settings
-    config = get_settings()
+    use_cache = os.getenv("USE_CACHE", "false").lower() == "true"
 
-    if config.USE_CACHE:
+    if use_cache:
         # Use upstream asset
         return load_from_cache()
     else:
@@ -331,20 +328,19 @@ def weather_data(weather_api: WeatherAPIResource):
 ### Configuration from Environment
 
 ```python
-from phlo.config import get_settings
-
 @dg.asset
 def configured_asset(context: dg.AssetExecutionContext):
     """Asset that uses config."""
-    config = get_settings()
+    api_base_url = os.getenv("API_BASE_URL", "https://api.example.com")
+    batch_size = int(os.getenv("BATCH_SIZE", "1000"))
 
-    context.log.info(f"Using API: {config.API_BASE_URL}")
-    context.log.info(f"Batch size: {config.BATCH_SIZE}")
+    context.log.info(f"Using API: {api_base_url}")
+    context.log.info(f"Batch size: {batch_size}")
 
     # Use configuration
     return fetch_data(
-        url=config.API_BASE_URL,
-        batch_size=config.BATCH_SIZE,
+        url=api_base_url,
+        batch_size=batch_size,
     )
 ```
 

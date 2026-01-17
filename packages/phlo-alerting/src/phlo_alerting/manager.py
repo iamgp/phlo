@@ -143,23 +143,23 @@ def _register_default_destinations(manager: AlertManager) -> None:
     from phlo_alerting.destinations.email import EmailAlertDestination
     from phlo_alerting.destinations.pagerduty import PagerDutyAlertDestination
     from phlo_alerting.destinations.slack import SlackAlertDestination
-    from phlo.config import get_settings
+    from phlo_alerting.settings import get_settings
 
     config = get_settings()
 
     # Register Slack if configured
-    if hasattr(config, "phlo_alert_slack_webhook") and config.phlo_alert_slack_webhook:
+    if config.phlo_alert_slack_webhook:
         try:
             slack = SlackAlertDestination(
                 webhook_url=config.phlo_alert_slack_webhook,
-                channel=getattr(config, "phlo_alert_slack_channel", None),
+                channel=config.phlo_alert_slack_channel,
             )
             manager.register_destination("slack", slack)
         except Exception as e:
             logger.warning(f"Failed to register Slack destination: {e}")
 
     # Register PagerDuty if configured
-    if hasattr(config, "phlo_alert_pagerduty_key") and config.phlo_alert_pagerduty_key:
+    if config.phlo_alert_pagerduty_key:
         try:
             pagerduty = PagerDutyAlertDestination(integration_key=config.phlo_alert_pagerduty_key)
             manager.register_destination("pagerduty", pagerduty)
@@ -167,14 +167,14 @@ def _register_default_destinations(manager: AlertManager) -> None:
             logger.warning(f"Failed to register PagerDuty destination: {e}")
 
     # Register Email if configured
-    if hasattr(config, "phlo_alert_email_smtp_host") and config.phlo_alert_email_smtp_host:
+    if config.phlo_alert_email_smtp_host:
         try:
             email = EmailAlertDestination(
                 smtp_host=config.phlo_alert_email_smtp_host,
-                smtp_port=getattr(config, "phlo_alert_email_smtp_port", 587),
-                smtp_user=getattr(config, "phlo_alert_email_smtp_user", None),
-                smtp_password=getattr(config, "phlo_alert_email_smtp_password", None),
-                recipients=getattr(config, "phlo_alert_email_recipients", []),
+                smtp_port=config.phlo_alert_email_smtp_port,
+                smtp_user=config.phlo_alert_email_smtp_user,
+                smtp_password=config.phlo_alert_email_smtp_password,
+                recipients=config.phlo_alert_email_recipients,
             )
             manager.register_destination("email", email)
         except Exception as e:

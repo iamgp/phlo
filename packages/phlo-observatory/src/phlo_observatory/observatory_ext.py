@@ -11,7 +11,7 @@ from importlib.resources.abc import Traversable
 from typing import Any
 
 from phlo.plugins.base.plugin import Plugin
-from phlo.plugins.observatory import ObservatoryExtensionManifest
+from phlo_observatory.manifest import ObservatoryExtensionManifest
 
 
 class ObservatoryExtensionPlugin(Plugin, ABC):

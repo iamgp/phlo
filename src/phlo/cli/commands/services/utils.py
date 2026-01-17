@@ -203,7 +203,7 @@ def _run_service_hooks(
     if not service_names:
         return
 
-    from phlo.discovery import ServiceDiscovery
+    from phlo.plugins.discovery import ServiceDiscovery
 
     discovery = ServiceDiscovery()
     for name in service_names:
@@ -389,7 +389,7 @@ def get_profile_service_names(profile_names: tuple[str, ...]) -> list[str]:
     if not profile_names:
         return []
 
-    from phlo.discovery import ServiceDiscovery
+    from phlo.plugins.discovery import ServiceDiscovery
 
     discovery = ServiceDiscovery()
     service_names: list[str] = []

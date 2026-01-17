@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, List, Optional, Dict
 
-from phlo.transformer import BaseTransformer, TransformationResult
+from phlo.operations.transformation import BaseTransformer, TransformationResult
 from phlo.hooks import (
     LineageEventContext,
     LineageEventEmitter,

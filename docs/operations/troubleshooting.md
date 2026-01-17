@@ -210,7 +210,7 @@ print(result)
 
 ```python
 # Are resources configured?
-from phlo.config import get_settings
+from phlo_trino.settings import get_settings
 config = get_settings()
 print(config.trino_host)  # Should print value, not error
 ```

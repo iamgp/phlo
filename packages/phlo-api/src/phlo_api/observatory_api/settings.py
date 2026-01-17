@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from phlo.logging import get_logger
-from phlo.settings import SettingsScope, get_settings_service
+from phlo_observatory import SettingsScope, get_settings_service
 
 logger = get_logger(__name__)
 

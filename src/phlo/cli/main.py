@@ -39,7 +39,7 @@ cli.add_command(env)
 
 
 def _load_cli_plugin_commands() -> None:
-    from phlo.discovery import discover_plugins, get_global_registry
+    from phlo.plugins.discovery import discover_plugins, get_global_registry
 
     discover_plugins(plugin_type="cli_commands", auto_register=True)
     registry = get_global_registry()
@@ -220,7 +220,15 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     if template == "basic":
         transforms_dir = project_dir / "workflows" / "transforms" / "dbt"
         transforms_dir.mkdir(parents=True, exist_ok=True)
-        _write_dbt_scaffold(project_name, transforms_dir, project_dir)
+        try:
+            from phlo_dbt.scaffold import write_dbt_scaffold
+        except ImportError as exc:
+            raise RuntimeError(
+                "phlo-dbt is required for the basic template. "
+                "Install phlo-dbt or use --template minimal."
+            ) from exc
+
+        write_dbt_scaffold(project_name, transforms_dir, project_dir)
 
         # Create models directory
         (transforms_dir / "models").mkdir(exist_ok=True)
@@ -341,7 +349,7 @@ Phlo data workflows for {project_name}.
 
 
 def _build_env_example_content() -> str:
-    from phlo.discovery import ServiceDiscovery
+    from phlo.plugins.discovery import ServiceDiscovery
 
     lines = [
         "# Phlo Local Secrets Template",
@@ -370,22 +378,6 @@ def _build_env_example_content() -> str:
         lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
-
-
-def _write_dbt_scaffold(project_name: str, transforms_dir: Path, project_dir: Path) -> None:
-    try:
-        from phlo_dbt.scaffold import build_dbt_project, build_sqlfluff_config
-    except ImportError as exc:
-        raise RuntimeError(
-            "phlo-dbt is required for the basic template. "
-            "Install phlo-dbt or use --template minimal."
-        ) from exc
-
-    dbt_project_content = build_dbt_project(project_name)
-    (transforms_dir / "dbt_project.yml").write_text(dbt_project_content)
-
-    sqlfluff_content = build_sqlfluff_config()
-    (project_dir / ".sqlfluff").write_text(sqlfluff_content)
 
 
 def main():

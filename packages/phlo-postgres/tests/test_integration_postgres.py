@@ -22,8 +22,8 @@ class TestPostgresConfiguration:
     """Test Postgres configuration and connection building."""
 
     def test_postgres_config_accessible(self):
-        """Test Postgres configuration is accessible from phlo.config."""
-        from phlo.config import get_settings
+        """Test Postgres configuration is accessible from phlo_postgres.settings."""
+        from phlo_postgres.settings import get_settings
 
         settings = get_settings()
 
@@ -34,7 +34,7 @@ class TestPostgresConfiguration:
 
     def test_postgres_config_has_defaults(self):
         """Test Postgres config has sensible defaults."""
-        from phlo.config import get_settings
+        from phlo_postgres.settings import get_settings
 
         settings = get_settings()
 
@@ -44,7 +44,7 @@ class TestPostgresConfiguration:
 
     def test_connection_string_building(self):
         """Test building a connection string from config."""
-        from phlo.config import get_settings
+        from phlo_postgres.settings import get_settings
 
         settings = get_settings()
 
@@ -121,7 +121,7 @@ class TestPostgresConnectionMocked:
     def test_psycopg2_connect_with_config(self):
         """Test psycopg2 connection using config values."""
         import psycopg2
-        from phlo.config import get_settings
+        from phlo_postgres.settings import get_settings
 
         settings = get_settings()
 
@@ -171,7 +171,7 @@ class TestPostgresConnectionMocked:
 @pytest.fixture
 def postgres_connection():
     """Fixture providing a real Postgres connection if available."""
-    from phlo.config import get_settings
+    from phlo_postgres.settings import get_settings
     import psycopg2
 
     settings = get_settings()

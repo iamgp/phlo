@@ -6,5 +6,13 @@ from phlo_alerting.manager import (
     AlertSeverity,
     get_alert_manager,
 )
+from phlo_alerting.settings import AlertingSettings, get_settings
 
-__all__ = ["AlertManager", "Alert", "AlertSeverity", "get_alert_manager"]
+__all__ = [
+    "AlertManager",
+    "Alert",
+    "AlertSeverity",
+    "AlertingSettings",
+    "get_alert_manager",
+    "get_settings",
+]

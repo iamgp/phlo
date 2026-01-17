@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 from dagster import Definitions
-
 from phlo_dagster.framework.definitions import build_definitions
 from phlo_dagster.framework.discovery import discover_user_workflows
 

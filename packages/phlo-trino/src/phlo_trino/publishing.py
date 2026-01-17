@@ -9,7 +9,6 @@ from typing import Any
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 
-from phlo.config import get_settings
 from phlo.hooks import (
     LineageEventContext,
     LineageEventEmitter,
@@ -18,6 +17,7 @@ from phlo.hooks import (
     TelemetryEventContext,
     TelemetryEventEmitter,
 )
+from phlo_postgres.settings import get_settings as get_postgres_settings
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ def publish_marts_to_postgres(
 ) -> dict[str, TablePublishStats]:
     """Copy Trino tables into Postgres and emit publish lifecycle events."""
 
-    settings = get_settings()
+    settings = get_postgres_settings()
     schema = target_schema or settings.postgres_mart_schema
     asset_key = _resolve_asset_key(context, data_source)
     emitter = PublishEventEmitter(

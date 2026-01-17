@@ -15,12 +15,12 @@ from typing import Any
 
 import dagster as dg
 
-from phlo.config import get_settings
 from phlo_dagster.framework.discovery import (
     _collect_dagster_extension_definitions,
     _ensure_core_resources,
     discover_user_workflows,
 )
+from phlo_dagster.settings import get_settings
 from phlo.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -128,10 +128,6 @@ def build_definitions(
     except Exception as exc:
         logger.error(f"Failed to discover user workflows: {exc}", exc_info=True)
         user_defs = dg.Definitions()
-
-    orchestrator = settings.phlo_orchestrator
-    if orchestrator != "dagster":
-        return user_defs
 
     dagster_defs = _collect_dagster_extension_definitions()
     definitions_to_merge = [user_defs]
