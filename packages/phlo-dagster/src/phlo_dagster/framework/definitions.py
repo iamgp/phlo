@@ -16,7 +16,7 @@ from typing import Any
 import dagster as dg
 
 from phlo.config import get_settings
-from phlo.framework.discovery import (
+from phlo_dagster.framework.discovery import (
     _collect_dagster_extension_definitions,
     _ensure_core_resources,
     discover_user_workflows,
@@ -97,7 +97,7 @@ def build_definitions(
         # In your project's workspace.yaml:
         # load_from:
         #   - python_module:
-        #       module_name: phlo.framework.definitions
+        #       module_name: phlo_dagster.framework.definitions
 
         # Basic usage (loads workflows from ./workflows)
         defs = build_definitions()

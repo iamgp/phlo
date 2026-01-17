@@ -166,16 +166,16 @@ docker-compose restart dagster-webserver dagster-daemon
 **Solution 2: Check asset registration**
 
 ```python
-# Your assets should be discoverable via phlo.framework.definitions
+# Your assets should be discoverable via phlo_dagster.framework.definitions
 # (assets registered in workflows/ via decorators and plugins)
-from phlo.framework.definitions import defs
+from phlo_dagster.framework.definitions import defs
 ```
 
 **Solution 3: Check for syntax errors**
 
 ```bash
 # Test definitions load
-docker-compose exec dagster-webserver python -c "from phlo.framework.definitions import defs; print(defs)"
+docker-compose exec dagster-webserver python -c "from phlo_dagster.framework.definitions import defs; print(defs)"
 ```
 
 ### Asset Materialization Fails
@@ -191,14 +191,14 @@ docker-compose exec dagster-webserver python -c "from phlo.framework.definitions
 
 ```bash
 # Ensure upstream assets materialized
-dagster asset materialize -m phlo.framework.definitions -a upstream_asset
+dagster asset materialize -m phlo_dagster.framework.definitions -a upstream_asset
 ```
 
 **3. Test locally**
 
 ```python
 # In Python shell
-from phlo.framework.definitions import defs
+from phlo_dagster.framework.definitions import defs
 from dagster import materialize
 
 asset_def = defs.get_asset_def("my_asset")
@@ -580,7 +580,7 @@ SELECT * FROM iceberg_dev.raw.my_table
 
 ```bash
 # Materialize the ingestion asset first
-dagster asset materialize -m phlo.framework.definitions -a my_ingestion_asset
+dagster asset materialize -m phlo_dagster.framework.definitions -a my_ingestion_asset
 ```
 
 ### Nessie API Errors

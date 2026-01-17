@@ -461,7 +461,7 @@ docker-compose restart dagster-webserver dagster-daemon
 # Click "Materialize"
 
 # Or use CLI
-dagster asset materialize -m phlo.framework.definitions -a dlt_weather_data
+dagster asset materialize -m phlo_dagster.framework.definitions -a dlt_weather_data
 ```
 
 **What just happened?**
@@ -1192,7 +1192,7 @@ The publishing asset is already generic and will pick up your config automatical
 Test it:
 
 ```bash
-dagster asset materialize -m phlo.framework.definitions -a publish_postgres_marts
+dagster asset materialize -m phlo_dagster.framework.definitions -a publish_postgres_marts
 ```
 
 ---
@@ -1268,7 +1268,7 @@ def weather_freshness_sensor(context: dg.SensorEvaluationContext):
 
 ```bash
 # Materialize all weather assets
-dagster asset materialize -m phlo.framework.definitions \
+dagster asset materialize -m phlo_dagster.framework.definitions \
   --select "tag:weather"
 
 # Or use Dagster UI:

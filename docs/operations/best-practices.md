@@ -139,7 +139,7 @@ def downstream(upstream):  # Clear dependency
 ```
 project/
 ├── phlo.yaml                    # Project + infra config
-├── workflows/                   # Dagster assets discovered by phlo.framework.definitions
+├── workflows/                   # Dagster assets discovered by phlo_dagster.framework.definitions
 │   ├── ingestion/               # Ingestion assets
 │   ├── quality/                 # Quality checks and assets
 │   ├── schemas/                 # Pandera schemas
@@ -612,7 +612,7 @@ def test_calculate_tax_negative():
 ```python
 # tests/test_pipeline.py
 from dagster import materialize
-from phlo.framework.definitions import defs
+from phlo_dagster.framework.definitions import defs
 
 def test_orders_pipeline():
     """Test complete orders pipeline."""

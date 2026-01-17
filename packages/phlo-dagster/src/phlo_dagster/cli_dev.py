@@ -40,7 +40,7 @@ def dev(host: str, port: int, workflows_path: str) -> None:
         "dagster",
         "dev",
         "-m",
-        "phlo.framework.definitions",
+        "phlo_dagster.framework.definitions",
         "-h",
         host,
         "-p",

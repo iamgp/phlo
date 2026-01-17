@@ -268,7 +268,7 @@ def _build_materialize_command(asset_name: str, partition_date: str) -> list[str
         "asset",
         "materialize",
         "-m",
-        "phlo.framework.definitions",
+        "phlo_dagster.framework.definitions",
         "--select",
         asset_name,
         "--partition",

@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 from dagster import Definitions
 
-from phlo.framework.definitions import build_definitions
-from phlo.framework.discovery import discover_user_workflows
+from phlo_dagster.framework.definitions import build_definitions
+from phlo_dagster.framework.discovery import discover_user_workflows
 
 pytestmark = pytest.mark.integration
 

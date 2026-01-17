@@ -467,7 +467,7 @@ Automatic publishing of marts to PostgreSQL for BI:
 # workflows/publishing/trino_to_postgres.py
 @asset(deps=[marts.daily_aggregates])
 def publish_daily_aggregates(context, trino, postgres):
-    _publish_marts_to_postgres(
+    publish_marts_to_postgres(
         context, trino,
         tables_to_publish={
             "daily_aggregates": "marts.daily_aggregates"

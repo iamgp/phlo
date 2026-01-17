@@ -63,7 +63,7 @@ That's it! Dagster will:
 **CLI:**
 
 ```bash
-dagster asset materialize -m phlo.framework.definitions -a my_first_asset
+dagster asset materialize -m phlo_dagster.framework.definitions -a my_first_asset
 ```
 
 **Programmatically:**
@@ -394,7 +394,7 @@ def daily_weather_data(context: dg.AssetExecutionContext):
 **Single partition:**
 
 ```bash
-dagster asset materialize -m phlo.framework.definitions \
+dagster asset materialize -m phlo_dagster.framework.definitions \
   -a daily_weather_data \
   --partition 2024-11-05
 ```
@@ -403,7 +403,7 @@ dagster asset materialize -m phlo.framework.definitions \
 
 ```bash
 # Backfill last 7 days
-dagster asset backfill -m phlo.framework.definitions \
+dagster asset backfill -m phlo_dagster.framework.definitions \
   -a daily_weather_data \
   --from 2024-11-01 \
   --to 2024-11-07
@@ -412,7 +412,7 @@ dagster asset backfill -m phlo.framework.definitions \
 **Latest partition:**
 
 ```bash
-dagster asset materialize -m phlo.framework.definitions \
+dagster asset materialize -m phlo_dagster.framework.definitions \
   -a daily_weather_data \
   --partition $(date +%Y-%m-%d)
 ```
@@ -839,7 +839,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 1. Is it discoverable under workflows/?
 
    ```python
-   from phlo.framework.definitions import defs
+   from phlo_dagster.framework.definitions import defs
    assert defs.get_asset_def("my_asset") is not None
    ```
 
@@ -863,7 +863,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 2. Run locally:
 
    ```python
-   from phlo.framework.definitions import defs
+   from phlo_dagster.framework.definitions import defs
    from dagster import materialize
 
    result = materialize([defs.get_asset_def("my_asset")])
@@ -893,7 +893,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 2. Asset not in the workflows path:
    ```python
    # Ensure both assets live under workflows/ so discovery includes them
-   from phlo.framework.definitions import defs
+   from phlo_dagster.framework.definitions import defs
    assert defs.get_asset_def("upstream") is not None
    assert defs.get_asset_def("downstream") is not None
    ```

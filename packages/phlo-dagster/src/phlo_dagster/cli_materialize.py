@@ -53,7 +53,7 @@ def materialize(
         "asset",
         "materialize",
         "-m",
-        "phlo.framework.definitions",
+        "phlo_dagster.framework.definitions",
     ]
 
     if select:
