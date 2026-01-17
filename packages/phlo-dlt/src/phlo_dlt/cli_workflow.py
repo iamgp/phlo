@@ -1,8 +1,4 @@
-"""
-Create workflow command.
-
-Interactive workflow scaffolding.
-"""
+"""Workflow management commands."""
 
 from __future__ import annotations
 
@@ -11,7 +7,12 @@ import sys
 import click
 
 
-@click.command("create")
+@click.group(name="workflow")
+def workflow_group() -> None:
+    """Manage workflows."""
+
+
+@workflow_group.command("create")
 @click.option(
     "--type",
     "workflow_type",
@@ -53,20 +54,8 @@ def create_workflow_cmd(
     api_base_url: str,
     fields: tuple[str, ...],
 ) -> None:
-    """
-    Create a workflow scaffold.
-
-    Creates all necessary files for a new workflow:
-    - Pandera schema file
-    - Ingestion asset file
-    - Test file
-    - Auto-registers domain
-
-    Examples:
-        phlo workflow create
-        phlo workflow create --type ingestion --domain weather --table observations
-    """
-    from phlo.cli.scaffold import create_ingestion_workflow
+    """Create a workflow scaffold."""
+    from phlo_dlt.scaffold import create_ingestion_workflow
 
     click.echo(f"\nCreating {workflow_type} workflow for {domain}.{table}...\n")
 

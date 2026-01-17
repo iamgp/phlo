@@ -14,7 +14,6 @@ import click
 
 from phlo.cli.commands.plugin import plugin_group
 from phlo.cli.commands.services import services_group
-from phlo.cli.commands.workflow import workflow_group
 from phlo.cli.config import config
 from phlo.cli.env import env
 from phlo.logging import setup_logging
@@ -35,7 +34,6 @@ def cli():
 
 cli.add_command(services_group)
 cli.add_command(plugin_group)
-cli.add_command(workflow_group)
 cli.add_command(config)
 cli.add_command(env)
 
@@ -195,70 +193,6 @@ def init(project_name: Optional[str], template: str, force: bool):
         sys.exit(1)
 
 
-@cli.command("dev")
-@click.option("--host", default="127.0.0.1", help="Host to bind to")
-@click.option("--port", default=3000, type=int, help="Port to bind to")
-@click.option("--workflows-path", default="workflows", help="Path to workflows directory")
-def dev(host: str, port: int, workflows_path: str):
-    """
-    Start Dagster development server with your workflows.
-
-    Automatically discovers workflows in ./workflows and launches the Dagster UI.
-
-    Examples:
-        phlo dev                              # Start on localhost:3000
-        phlo dev --port 8080                  # Use custom port
-        phlo dev --workflows-path custom_workflows
-    """
-    click.echo("Starting Phlo development server...\n")
-
-    # Check if we're in a Phlo project
-    if not Path("pyproject.toml").exists():
-        click.echo("Error: No pyproject.toml found", err=True)
-        click.echo("\nAre you in a Phlo project directory?", err=True)
-        click.echo("Initialize a new project with: phlo init", err=True)
-        sys.exit(1)
-
-    # Check if workflows directory exists
-    workflows_dir = Path(workflows_path)
-    if not workflows_dir.exists():
-        click.echo(f"Warning: Workflows directory not found: {workflows_path}")
-        click.echo("Creating empty workflows directory...")
-        workflows_dir.mkdir(parents=True, exist_ok=True)
-        (workflows_dir / "__init__.py").write_text('"""User workflows."""\n')
-
-    # Set environment variable for workflows path
-    os.environ["PHLO_WORKFLOWS_PATH"] = workflows_path
-
-    click.echo(f"Workflows directory: {workflows_path}")
-    click.echo(f"Starting server at http://{host}:{port}\n")
-
-    # Build dagster dev command
-    cmd = [
-        "dagster",
-        "dev",
-        "-m",
-        "phlo.framework.definitions",
-        "-h",
-        host,
-        "-p",
-        str(port),
-    ]
-
-    try:
-        # Run dagster dev (blocking)
-        subprocess.run(cmd, check=True)
-    except KeyboardInterrupt:
-        click.echo("\n\nShutting down Dagster development server...")
-    except FileNotFoundError:
-        click.echo("Error: dagster command not found", err=True)
-        click.echo("\nInstall Phlo with: pip install -e .", err=True)
-        sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        click.echo(f"\nDagster failed with exit code {e.returncode}", err=True)
-        sys.exit(e.returncode)
-
-
 def _create_project_structure(project_dir: Path, project_name: str, template: str):
     """
     Create project directory structure and files.
@@ -286,26 +220,7 @@ def _create_project_structure(project_dir: Path, project_name: str, template: st
     if template == "basic":
         transforms_dir = project_dir / "workflows" / "transforms" / "dbt"
         transforms_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create minimal dbt_project.yml
-        dbt_project_content = f"""name: {project_name.replace("-", "_")}
-version: 1.0.0
-config-version: 2
-
-profile: phlo
-
-model-paths: ["models"]
-seed-paths: ["seeds"]
-
-# Opt into new SSL behavior to suppress trino-dbt SSL warning
-flags:
-  require_certificate_validation: true
-
-models:
-  {project_name.replace("-", "_")}:
-    +materialized: table
-"""
-        (transforms_dir / "dbt_project.yml").write_text(dbt_project_content)
+        _write_dbt_scaffold(project_name, transforms_dir, project_dir)
 
         # Create models directory
         (transforms_dir / "models").mkdir(exist_ok=True)
@@ -342,70 +257,8 @@ select = ["E", "F", "I"]
     (project_dir / "pyproject.toml").write_text(pyproject_content)
 
     # Create .env.example (secrets template)
-    env_example_content = """# Phlo Local Secrets Template
-# Copy to .phlo/.env.local after running `phlo services init`.
-
-# Postgres
-POSTGRES_PASSWORD=phlo
-
-# MinIO
-MINIO_ROOT_PASSWORD=minio123
-MINIO_OIDC_CLIENT_SECRET=
-MINIO_LDAP_BIND_PASSWORD=
-
-# Nessie
-NESSIE_OIDC_CLIENT_SECRET=
-
-# Trino
-TRINO_OAUTH2_CLIENT_SECRET=
-TRINO_HTTPS_KEYSTORE_PASSWORD=
-
-# Superset
-SUPERSET_SECRET_KEY=phlo-superset-secret-change-me
-SUPERSET_ADMIN_PASSWORD=admin
-
-# Hasura
-HASURA_ADMIN_SECRET=phlo-hasura-admin-secret
-
-# Grafana
-GRAFANA_ADMIN_PASSWORD=admin
-"""
+    env_example_content = _build_env_example_content()
     (project_dir / ".env.example").write_text(env_example_content)
-
-    # Create .sqlfluff (for linting dbt SQL models)
-    sqlfluff_content = """[sqlfluff]
-dialect = trino
-templater = jinja
-max_line_length = 120
-# Only exclude keywords-as-identifiers rule (requires column renames)
-exclude_rules = RF04
-
-[sqlfluff:templater:jinja]
-# Ignore undefined jinja variables in dbt
-ignore = templating
-
-[sqlfluff:rules]
-# Allow trailing commas
-allow_trailing_commas = True
-
-[sqlfluff:rules:layout.long_lines]
-# Increase line length limit
-max_line_length = 120
-
-[sqlfluff:rules:layout.indent]
-# Use 4 spaces for indentation
-indent_unit = space
-tab_space_size = 4
-
-[sqlfluff:rules:capitalisation.keywords]
-# SQL keywords should be lowercase
-capitalisation_policy = lower
-
-[sqlfluff:rules:aliasing.table]
-# Table aliases are required
-aliasing = explicit
-"""
-    (project_dir / ".sqlfluff").write_text(sqlfluff_content)
 
     # Create .gitignore
     gitignore_content = """.env
@@ -485,6 +338,54 @@ Phlo data workflows for {project_name}.
         description=f"{project_name} data workflows",
     )
     (project_dir / "phlo.yaml").write_text(phlo_config_content)
+
+
+def _build_env_example_content() -> str:
+    from phlo.discovery import ServiceDiscovery
+
+    lines = [
+        "# Phlo Local Secrets Template",
+        "# Copy to .phlo/.env.local after running `phlo services init`.",
+        "",
+    ]
+
+    discovery = ServiceDiscovery()
+    services = discovery.discover()
+    if not services:
+        lines.append(
+            "# No service plugins discovered; install service packages to populate secrets."
+        )
+        return "\n".join(lines) + "\n"
+
+    for service in sorted(services.values(), key=lambda s: s.name):
+        secrets = {key: cfg for key, cfg in service.env_vars.items() if cfg.get("secret") is True}
+        if not secrets:
+            continue
+        lines.append(f"# {service.name}")
+        for key in sorted(secrets.keys()):
+            desc = secrets[key].get("description")
+            if desc:
+                lines.append(f"# {desc}")
+            lines.append(f"{key}=")
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _write_dbt_scaffold(project_name: str, transforms_dir: Path, project_dir: Path) -> None:
+    try:
+        from phlo_dbt.scaffold import build_dbt_project, build_sqlfluff_config
+    except ImportError as exc:
+        raise RuntimeError(
+            "phlo-dbt is required for the basic template. "
+            "Install phlo-dbt or use --template minimal."
+        ) from exc
+
+    dbt_project_content = build_dbt_project(project_name)
+    (transforms_dir / "dbt_project.yml").write_text(dbt_project_content)
+
+    sqlfluff_content = build_sqlfluff_config()
+    (project_dir / ".sqlfluff").write_text(sqlfluff_content)
 
 
 def main():

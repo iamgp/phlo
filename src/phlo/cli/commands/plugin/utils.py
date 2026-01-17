@@ -417,7 +417,7 @@ class {class_name}({base_class}):
     @property
     def targets(self) -> list[str]:
         """Return engine targets for this catalog."""
-        return ["trino"]
+        return []
 
     @property
     def catalog_name(self) -> str:

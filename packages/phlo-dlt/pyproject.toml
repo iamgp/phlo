@@ -32,6 +32,9 @@ dev = [
 [project.entry-points."phlo.plugins.assets"]
 dlt = "phlo_dlt.plugin:DltAssetProvider"
 
+[project.entry-points."phlo.plugins.cli"]
+dlt = "phlo_dlt.cli_plugin:DltCliPlugin"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

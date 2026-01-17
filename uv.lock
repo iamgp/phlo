@@ -2746,6 +2746,7 @@ dependencies = [
     { name = "dbt-postgres" },
     { name = "dbt-trino" },
     { name = "phlo" },
+    { name = "phlo-dagster" },
     { name = "phlo-quality" },
 ]
 
@@ -2761,6 +2762,7 @@ requires-dist = [
     { name = "dbt-postgres" },
     { name = "dbt-trino" },
     { name = "phlo", editable = "." },
+    { name = "phlo-dagster", editable = "packages/phlo-dagster" },
     { name = "phlo-quality", editable = "packages/phlo-quality" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },

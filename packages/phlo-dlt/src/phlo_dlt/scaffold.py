@@ -14,16 +14,13 @@ from typing import List, Optional
 
 def _to_snake_case(name: str) -> str:
     """Convert string to snake_case."""
-    # Replace spaces and hyphens with underscores
     name = re.sub(r"[\s-]+", "_", name)
-    # Insert underscore before capital letters
     name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
     return name.lower()
 
 
 def _to_pascal_case(name: str) -> str:
     """Convert string to PascalCase."""
-    # Split on underscores, hyphens, and spaces
     words = re.split(r"[_\s-]+", name)
     return "".join(word.capitalize() for word in words)
 
@@ -94,22 +91,7 @@ def create_ingestion_workflow(
     Create ingestion workflow files.
 
     Creates files in workflows/ and tests/ for the current project.
-
-    Args:
-        domain: Domain name (e.g., "weather", "stripe")
-        table_name: Table name (e.g., "observations", "charges")
-        unique_key: Unique key field for deduplication
-        cron: Cron schedule expression
-        api_base_url: REST API base URL (optional)
-
-    Returns:
-        List of created file paths
-
-    Raises:
-        FileExistsError: If files already exist
-        ValueError: If invalid parameters
     """
-    # Normalize names
     domain_snake = _to_snake_case(domain)
     table_snake = _to_snake_case(table_name)
     schema_class = f"Raw{_to_pascal_case(table_name)}"
@@ -117,7 +99,6 @@ def create_ingestion_workflow(
 
     project_root = Path.cwd()
 
-    # Phlo core no longer owns workflow modules; always scaffold into workflows/.
     schema_dir = project_root / "workflows" / "schemas"
     asset_dir = project_root / "workflows" / "ingestion" / domain_snake
     test_dir = project_root / "tests"
@@ -127,21 +108,17 @@ def create_ingestion_workflow(
     asset_file = asset_dir / f"{table_snake}.py"
     test_file = test_dir / f"test_{domain_snake}_{table_snake}.py"
 
-    # Check if files already exist
     existing = [str(f) for f in (schema_file, asset_file, test_file) if f.exists()]
     if existing:
         raise FileExistsError("Files already exist:\n" + "\n".join(f"  - {f}" for f in existing))
 
-    # Create directories
     asset_dir.mkdir(parents=True, exist_ok=True)
     test_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create __init__.py for domain if needed
     domain_init = asset_dir / "__init__.py"
     if not domain_init.exists():
         domain_init.write_text(f'"""Domain: {domain}"""\n')
 
-    # Generate schema file
     type_import_lines = sorted(
         {
             f"from {mod} import {sym}"
@@ -184,7 +161,6 @@ from pandera.typing import Series
 
     schema_file.write_text(schema_content)
 
-    # Generate asset file
     base_url_literal = api_base_url or ""
     asset_content = f'''"""
 {domain.capitalize()} {table_name} ingestion asset.
@@ -239,7 +215,6 @@ def {table_snake}(partition_date: str):
 
     asset_file.write_text(asset_content)
 
-    # Generate test file
     test_content = f'''"""
 Tests for {domain} {table_name} scaffolded workflow.
 """

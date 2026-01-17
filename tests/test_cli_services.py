@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import os
-from subprocess import CompletedProcess
 from typing import cast
 
 import pytest
+from phlo_dagster.containers import find_dagster_container
 
-import phlo.cli.services as services_cli
-from phlo.cli._services.selection import select_services_to_install
+from phlo.cli.commands.services.utils import detect_phlo_source_path, get_profile_service_names
+from phlo.cli.infrastructure.selection import select_services_to_install
 from phlo.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.plugins.compose.generator import ComposeGenerator
 
@@ -50,32 +50,31 @@ def test_select_services_to_install_respects_enabled_disabled_and_profiles() -> 
 def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.MonkeyPatch) -> None:
     # Mock _resolve_container_name to return the configured name
     monkeypatch.setattr(
-        "phlo.cli.infrastructure.utils._resolve_container_name",
+        "phlo_dagster.containers._resolve_container_name",
         lambda service, project: "myproj-dagster-webserver-1",
     )
 
-    def fake_run_command(cmd, **_kwargs):
-        assert cmd[:3] == ["docker", "ps", "--format"]
-        return CompletedProcess(cmd, 0, stdout="myproj-dagster-webserver-1\n", stderr="")
+    monkeypatch.setattr(
+        "phlo_dagster.containers._list_running_containers",
+        lambda: ["myproj-dagster-webserver-1"],
+    )
 
-    monkeypatch.setattr("phlo.cli.infrastructure.utils.run_command", fake_run_command)
-
-    assert services_cli.find_dagster_container("myproj") == "myproj-dagster-webserver-1"
+    assert find_dagster_container("myproj") == "myproj-dagster-webserver-1"
 
 
 def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.MonkeyPatch) -> None:
     # Mock _resolve_container_name to return something that won't match
     monkeypatch.setattr(
-        "phlo.cli.infrastructure.utils._resolve_container_name",
+        "phlo_dagster.containers._resolve_container_name",
         lambda service, project: "cfg",
     )
 
-    def fake_run_command(cmd, **_kwargs):
-        return CompletedProcess(cmd, 0, stdout="myproj-dagster-1\n", stderr="")
+    monkeypatch.setattr(
+        "phlo_dagster.containers._list_running_containers",
+        lambda: ["myproj-dagster-1"],
+    )
 
-    monkeypatch.setattr("phlo.cli.infrastructure.utils.run_command", fake_run_command)
-
-    assert services_cli.find_dagster_container("myproj") == "myproj-dagster-1"
+    assert find_dagster_container("myproj") == "myproj-dagster-1"
 
 
 def test_get_profile_service_names_returns_profile_services(
@@ -98,16 +97,16 @@ def test_get_profile_service_names_returns_profile_services(
         FakeDiscovery,
     )
 
-    result = services_cli.get_profile_service_names(("observability",))
+    result = get_profile_service_names(("observability",))
     assert sorted(result) == ["grafana", "loki", "prometheus"]
 
-    result = services_cli.get_profile_service_names(("api",))
+    result = get_profile_service_names(("api",))
     assert result == ["hasura"]
 
-    result = services_cli.get_profile_service_names(("observability", "api"))
+    result = get_profile_service_names(("observability", "api"))
     assert sorted(result) == ["grafana", "hasura", "loki", "prometheus"]
 
-    result = services_cli.get_profile_service_names(())
+    result = get_profile_service_names(())
     assert result == []
 
 
@@ -126,7 +125,7 @@ def test_detect_phlo_source_path_finds_sibling_phlo_repo(
     monkeypatch.chdir(project_dir)
     monkeypatch.delenv("PHLO_DEV_SOURCE", raising=False)
 
-    detected = services_cli.detect_phlo_source_path()
+    detected = detect_phlo_source_path()
     expected = os.path.relpath(package_dir, project_dir / ".phlo")
     assert detected == expected
 
@@ -146,7 +145,7 @@ def test_detect_phlo_source_path_accepts_repo_root_in_env_var(
     monkeypatch.chdir(project_dir)
     monkeypatch.setenv("PHLO_DEV_SOURCE", str(phlo_repo))
 
-    detected = services_cli.detect_phlo_source_path()
+    detected = detect_phlo_source_path()
     expected = os.path.relpath(package_dir, project_dir / ".phlo")
     assert detected == expected
 

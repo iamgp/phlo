@@ -9,7 +9,8 @@ from typing import Optional
 
 import click
 
-from phlo.cli._services.utils import find_dagster_container, get_project_name
+from phlo.cli.infrastructure.utils import get_project_name
+from phlo_dagster.containers import find_dagster_container
 from phlo.logging import get_logger
 
 
