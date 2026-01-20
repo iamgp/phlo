@@ -20,8 +20,8 @@ from typing import TextIO
 
 import httpx
 
-from phlo.discovery import ServiceDefinition
 from phlo.logging import get_logger
+from phlo.plugins.discovery import ServiceDefinition
 
 logger = get_logger(__name__)
 

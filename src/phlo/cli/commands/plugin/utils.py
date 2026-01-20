@@ -11,8 +11,8 @@ from packaging.version import parse
 from rich.console import Console
 from rich.table import Table
 
-from phlo.discovery import get_global_registry, get_service
 from phlo.plugins import get_plugin_info
+from phlo.plugins.discovery import get_global_registry, get_service
 
 console = Console()
 
@@ -26,7 +26,6 @@ PLUGIN_TYPE_MAP = {
     "resources": "resource_providers",
     "orchestrators": "orchestrators",
     "catalogs": "catalogs",
-    "observatory": "observatory_extensions",
 }
 
 PLUGIN_TYPE_CHOICES = [
@@ -39,7 +38,6 @@ PLUGIN_TYPE_CHOICES = [
     "resources",
     "orchestrators",
     "catalogs",
-    "observatory",
 ]
 
 INTERNAL_TO_REGISTRY_TYPE = {
@@ -52,7 +50,6 @@ INTERNAL_TO_REGISTRY_TYPE = {
     "resource_providers": "resources",
     "orchestrators": "orchestrators",
     "catalogs": "catalogs",
-    "observatory_extensions": "observatory",
 }
 
 SCAFFOLD_TYPE_MAP = {
@@ -417,7 +414,7 @@ class {class_name}({base_class}):
     @property
     def targets(self) -> list[str]:
         """Return engine targets for this catalog."""
-        return ["trino"]
+        return []
 
     @property
     def catalog_name(self) -> str:

@@ -8,16 +8,14 @@ from anyio.to_thread import run_sync
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from phlo.discovery import discover_plugins, get_global_registry
 from phlo.logging import get_logger
-from phlo.plugins.base import ObservatoryExtensionPlugin
-from phlo.settings import SettingsScope, get_settings_service
+from phlo_observatory import ObservatoryExtensionPlugin
+from phlo_observatory.extensions import get_observatory_extension
+from phlo_observatory import SettingsScope, get_settings_service
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/observatory", tags=["observatory"])
-
-_plugins_discovered = False
 
 
 class ExtensionSettingsPayload(BaseModel):
@@ -30,17 +28,7 @@ class ExtensionSettingsResponse(BaseModel):
 
 
 def _get_extension(name: str) -> ObservatoryExtensionPlugin | None:
-    _ensure_plugins_discovered()
-    registry = get_global_registry()
-    return registry.get_observatory_extension(name)
-
-
-def _ensure_plugins_discovered() -> None:
-    global _plugins_discovered
-    if _plugins_discovered:
-        return
-    discover_plugins(plugin_type="observatory_extensions", auto_register=True)
-    _plugins_discovered = True
+    return get_observatory_extension(name)
 
 
 def _get_extension_scope_schema_defaults(

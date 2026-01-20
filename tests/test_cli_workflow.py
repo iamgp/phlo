@@ -42,7 +42,7 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
         ]
 
     monkeypatch.setattr(
-        "phlo.cli.scaffold.create_ingestion_workflow",
+        "phlo_dlt.scaffold.create_ingestion_workflow",
         fake_create_ingestion_workflow,
     )
 

@@ -6,7 +6,6 @@ This module defines plugin types for catalog configuration.
 
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -22,28 +21,27 @@ class CatalogPlugin(Plugin, ABC):
 
     Example:
         ```python
-        class IcebergCatalogPlugin(CatalogPlugin):
+        class ExampleCatalogPlugin(CatalogPlugin):
             @property
             def metadata(self) -> PluginMetadata:
                 return PluginMetadata(
-                    name="iceberg",
+                    name="example",
                     version="1.0.0",
-                    description="Iceberg catalog with Nessie backend",
+                    description="Example catalog plugin",
                 )
 
             @property
             def targets(self) -> list[str]:
-                return ["trino", "spark"]
+                return ["engine-a", "engine-b"]
 
             @property
             def catalog_name(self) -> str:
-                return "iceberg"
+                return "example"
 
             def get_properties(self) -> dict[str, str]:
                 return {
-                    "connector.name": "iceberg",
-                    "iceberg.catalog.type": "rest",
-                    "iceberg.rest-catalog.uri": "http://nessie:19120/iceberg",
+                    "catalog.type": "example",
+                    "catalog.uri": "http://catalog:1234",
                 }
         ```
     """
@@ -81,20 +79,3 @@ class CatalogPlugin(Plugin, ABC):
     def supports_target(self, target: str) -> bool:
         """Return True if the catalog supports the requested engine target."""
         return target in self.targets
-
-
-class TrinoCatalogPlugin(CatalogPlugin, ABC):
-    """
-    Deprecated: use CatalogPlugin with targets=["trino"] instead.
-    """
-
-    def __init__(self) -> None:
-        warnings.warn(
-            "TrinoCatalogPlugin is deprecated; use CatalogPlugin with targets=['trino'].",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-    @property
-    def targets(self) -> list[str]:
-        return ["trino"]

@@ -15,7 +15,7 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
-from phlo.discovery import ServiceDiscovery
+from phlo.plugins.discovery import ServiceDiscovery
 
 
 @click.command("add")

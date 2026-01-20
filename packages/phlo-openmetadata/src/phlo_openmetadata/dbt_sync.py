@@ -11,10 +11,10 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-from phlo.config import get_settings
 from phlo.logging import get_logger
 
 from phlo_openmetadata.openmetadata import OpenMetadataColumn, OpenMetadataTable
+from phlo_dbt.settings import get_settings
 
 logger = get_logger(__name__)
 

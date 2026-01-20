@@ -7,9 +7,9 @@ from typing import Any
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-from phlo.config import get_settings
 from phlo.logging import get_logger
 from phlo_hasura.client import HasuraClient
+from phlo_postgres.settings import get_settings
 
 logger = get_logger(__name__)
 

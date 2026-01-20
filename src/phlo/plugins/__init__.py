@@ -137,8 +137,6 @@ from typing import TYPE_CHECKING
 from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
-    IngestionEnginePlugin,
-    ObservatoryExtensionPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     PluginMetadata,
@@ -149,11 +147,10 @@ from phlo.plugins.base import (
     TransformationPlugin,
 )
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookHandler, HookPlugin, HookProvider
-from phlo.plugins.observatory import ObservatoryExtensionManifest
 from phlo.plugins.semantic import SemanticLayerProvider, SemanticModel
 
 if TYPE_CHECKING:
-    from phlo.discovery import (
+    from phlo.plugins.discovery import (
         PluginRegistry,
         discover_plugins,
         get_plugin,
@@ -168,7 +165,7 @@ if TYPE_CHECKING:
 
 
 # Import discovery functions lazily to avoid circular imports
-# These will be imported from phlo.discovery when accessed
+# These will be imported from phlo.plugins.discovery when accessed
 def __getattr__(name):
     if name in [
         "discover_plugins",
@@ -183,9 +180,9 @@ def __getattr__(name):
         "validate_plugins",
         "PluginRegistry",
     ]:
-        import phlo.discovery
+        import phlo.plugins.discovery
 
-        return getattr(phlo.discovery, name)
+        return getattr(phlo.plugins.discovery, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -197,13 +194,10 @@ __all__ = [
     "QualityCheckPlugin",
     "ServicePlugin",
     "TransformationPlugin",
-    "IngestionEnginePlugin",
     "AssetProviderPlugin",
     "CatalogPlugin",
     "ResourceProviderPlugin",
     "OrchestratorAdapterPlugin",
-    "ObservatoryExtensionPlugin",
-    "ObservatoryExtensionManifest",
     "HookPlugin",
     "HookProvider",
     "HookHandler",

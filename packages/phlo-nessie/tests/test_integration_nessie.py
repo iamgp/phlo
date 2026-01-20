@@ -57,20 +57,20 @@ class TestNessieConfiguration:
     """Test Nessie configuration."""
 
     def test_nessie_config_accessible(self):
-        """Test Nessie configuration is accessible from phlo.config."""
-        from phlo.config import get_settings
+        """Test Nessie configuration is accessible from phlo_nessie.settings."""
+        from phlo_nessie.settings import get_settings
 
         settings = get_settings()
 
-        assert hasattr(settings, "nessie_host") or hasattr(settings, "nessie_api_uri")
+        assert hasattr(settings, "nessie_host")
 
     def test_nessie_url_format(self):
         """Test Nessie URL has expected format."""
-        from phlo.config import get_settings
+        from phlo_nessie.settings import get_settings
 
         settings = get_settings()
 
-        uri = getattr(settings, "nessie_api_uri", "")
+        uri = settings.nessie_api_uri()
         # Should contain api version path or be valid URL
         assert len(uri) > 0
 

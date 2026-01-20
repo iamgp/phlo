@@ -17,9 +17,9 @@ class TestIcebergCatalogUnitTests:
     """Unit tests for catalog operations."""
 
     @patch("phlo_iceberg.catalog.load_catalog")
-    @patch("phlo_iceberg.catalog.config")
+    @patch("phlo_iceberg.catalog.get_settings")
     def test_get_catalog_creates_and_caches_catalog_instances_for_different_refs(
-        self, mock_config, mock_load_catalog
+        self, mock_get_settings, mock_load_catalog
     ):
         """Test that get_catalog creates and caches catalog instances for different refs."""
         # Setup mocks
@@ -27,12 +27,12 @@ class TestIcebergCatalogUnitTests:
         mock_catalog_dev = MagicMock()
         mock_load_catalog.side_effect = [mock_catalog_main, mock_catalog_dev]
 
-        mock_config_instance = MagicMock()
-        mock_config_instance.get_pyiceberg_catalog_config.side_effect = [
+        mock_settings = MagicMock()
+        mock_settings.get_pyiceberg_catalog_config.side_effect = [
             {"type": "rest", "uri": "http://nessie:19120/iceberg/main"},
             {"type": "rest", "uri": "http://nessie:19120/iceberg/dev"},
         ]
-        mock_config.get_pyiceberg_catalog_config = mock_config_instance.get_pyiceberg_catalog_config
+        mock_get_settings.return_value = mock_settings
 
         # Clear cache
         get_catalog.cache_clear()
@@ -300,8 +300,10 @@ class TestIcebergIntegrationTests:
     """Integration tests for iceberg operations."""
 
     @patch("phlo_iceberg.catalog.load_catalog")
-    @patch("phlo_iceberg.catalog.config")
-    def test_catalog_operations_work_with_mock_pyiceberg(self, mock_config, mock_load_catalog):
+    @patch("phlo_iceberg.catalog.get_settings")
+    def test_catalog_operations_work_with_mock_pyiceberg(
+        self, mock_get_settings, mock_load_catalog
+    ):
         """Test that catalog operations work with mock PyIceberg."""
         # Clear cache
         get_catalog.cache_clear()
@@ -310,12 +312,12 @@ class TestIcebergIntegrationTests:
         mock_catalog = MagicMock()
         mock_load_catalog.return_value = mock_catalog
 
-        mock_config_instance = MagicMock()
-        mock_config_instance.get_pyiceberg_catalog_config.return_value = {
+        mock_settings = MagicMock()
+        mock_settings.get_pyiceberg_catalog_config.return_value = {
             "type": "rest",
             "uri": "http://nessie:19120/iceberg/main",
         }
-        mock_config.get_pyiceberg_catalog_config = mock_config_instance.get_pyiceberg_catalog_config
+        mock_get_settings.return_value = mock_settings
 
         # Test catalog operations
         catalog = get_catalog("main")

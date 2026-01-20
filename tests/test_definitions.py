@@ -1,4 +1,4 @@
-"""Tests for phlo.framework.definitions."""
+"""Tests for phlo_dagster.framework.definitions."""
 
 from __future__ import annotations
 
@@ -20,16 +20,16 @@ class _Settings:
 
 
 def test_default_executor_honors_platform() -> None:
-    with patch("phlo.framework.definitions.get_settings", return_value=_Settings()):
+    with patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()):
         with patch("platform.system", return_value="Darwin"):
-            from phlo.framework.definitions import _default_executor
+            from phlo_dagster.framework.definitions import _default_executor
 
             executor = _default_executor()
             assert executor is not None
             assert executor.name == "in_process"
 
         with patch("platform.system", return_value="Linux"):
-            from phlo.framework.definitions import _default_executor
+            from phlo_dagster.framework.definitions import _default_executor
 
             executor = _default_executor()
             assert executor is not None
@@ -38,16 +38,16 @@ def test_default_executor_honors_platform() -> None:
 
 def test_default_executor_honors_force_flags() -> None:
     settings = _Settings(phlo_force_in_process_executor=True)
-    with patch("phlo.framework.definitions.get_settings", return_value=settings):
-        from phlo.framework.definitions import _default_executor
+    with patch("phlo_dagster.framework.definitions.get_settings", return_value=settings):
+        from phlo_dagster.framework.definitions import _default_executor
 
         executor = _default_executor()
         assert executor is not None
         assert executor.name == "in_process"
 
     settings = _Settings(phlo_force_multiprocess_executor=True)
-    with patch("phlo.framework.definitions.get_settings", return_value=settings):
-        from phlo.framework.definitions import _default_executor
+    with patch("phlo_dagster.framework.definitions.get_settings", return_value=settings):
+        from phlo_dagster.framework.definitions import _default_executor
 
         executor = _default_executor()
         assert executor is not None
@@ -56,10 +56,12 @@ def test_default_executor_honors_force_flags() -> None:
 
 def test_build_definitions_merges_user_defs() -> None:
     empty_defs = dg.Definitions()
-    with patch("phlo.framework.definitions.get_settings", return_value=_Settings()):
-        with patch("phlo.framework.definitions.discover_user_workflows", return_value=empty_defs):
-            with patch("phlo.framework.definitions._default_executor", return_value=None):
-                from phlo.framework.definitions import build_definitions
+    with patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()):
+        with patch(
+            "phlo_dagster.framework.definitions.discover_user_workflows", return_value=empty_defs
+        ):
+            with patch("phlo_dagster.framework.definitions._default_executor", return_value=None):
+                from phlo_dagster.framework.definitions import build_definitions
 
                 result = build_definitions(workflows_path="workflows")
                 assert isinstance(result, dg.Definitions)

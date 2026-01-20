@@ -45,7 +45,7 @@ This package is **fully auto-configured**:
 ### Defining Ingestion
 
 ```python
-from phlo import phlo_ingestion
+from phlo.ingestion import phlo_ingestion
 
 @phlo_ingestion(
     name="github_events",

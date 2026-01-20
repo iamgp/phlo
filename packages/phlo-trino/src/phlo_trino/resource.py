@@ -9,9 +9,11 @@ from typing import Iterable
 
 from trino.dbapi import connect
 
-from phlo.config import get_settings
+from phlo_iceberg.settings import get_settings as get_iceberg_settings
+from phlo_trino.settings import get_settings as get_trino_settings
 
-config = get_settings()
+_trino_settings = get_trino_settings()
+_iceberg_settings = get_iceberg_settings()
 
 
 @dataclass
@@ -23,16 +25,16 @@ class TrinoResource:
     ref: str | None = None
 
     def _resolved_catalog(self) -> str:
-        base_catalog = self.catalog or config.trino_catalog
-        ref = self.ref or config.iceberg_nessie_ref
+        base_catalog = self.catalog or _trino_settings.trino_catalog
+        ref = self.ref or _iceberg_settings.iceberg_nessie_ref
         if ref and ref != "main":
             return f"{base_catalog}_{ref}"
         return base_catalog
 
     def get_connection(self, schema: str | None = None):
         return connect(
-            host=self.host or config.trino_host,
-            port=self.port or config.trino_port,
+            host=self.host or _trino_settings.trino_host,
+            port=self.port or _trino_settings.trino_port,
             user=self.user,
             catalog=self._resolved_catalog(),
             schema=schema,

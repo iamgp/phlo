@@ -35,6 +35,7 @@ class ServiceDefinition:
     compose: dict[str, Any] = field(default_factory=dict)
     env_vars: dict[str, dict[str, Any]] = field(default_factory=dict)
     files: list[dict[str, str]] = field(default_factory=list)
+    gitignore: list[str] = field(default_factory=list)
     hooks: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     dev: dict[str, Any] = field(default_factory=dict)  # Dev mode config (subprocess or Docker)
     source_path: Path | None = None
@@ -68,6 +69,7 @@ class ServiceDefinition:
             compose=data.get("compose", {}),
             env_vars=data.get("env_vars", {}),
             files=data.get("files", []),
+            gitignore=data.get("gitignore", []),
             hooks=data.get("hooks", {}),
             dev=data.get("dev", {}),
             source_path=source_path,
@@ -91,6 +93,7 @@ class ServiceDefinition:
             compose=data.get("compose", {}),
             env_vars=data.get("env_vars", {}),
             files=data.get("files", []),
+            gitignore=data.get("gitignore", []),
             hooks=data.get("hooks", {}),
             dev=data.get("dev", {}),
             source_path=source_path,

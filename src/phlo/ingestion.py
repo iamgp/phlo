@@ -1,13 +1,12 @@
-"""Backward compatibility shim - import from phlo.operations.ingestion instead."""
+"""Ingestion public API for Phlo."""
 
-import warnings
+from __future__ import annotations
 
-from phlo.operations.ingestion import BaseIngester, IngestionResult
+try:
+    from phlo_dlt import get_ingestion_assets, phlo_ingestion
+except ModuleNotFoundError as exc:  # pragma: no cover - exercised via optional extras
+    raise ModuleNotFoundError(
+        "phlo.ingestion requires phlo-dlt. Install phlo[defaults] or phlo-dlt."
+    ) from exc
 
-warnings.warn(
-    "phlo.ingestion is deprecated; import from phlo.operations.ingestion instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
-__all__ = ["BaseIngester", "IngestionResult"]
+__all__ = ["get_ingestion_assets", "phlo_ingestion"]

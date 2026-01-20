@@ -11,8 +11,9 @@ import psycopg2.extras
 import requests
 from cachetools import TTLCache
 
-from phlo.config import get_settings
 from phlo.logging import get_logger
+from phlo_nessie.settings import get_settings as get_nessie_settings
+from phlo_postgres.settings import get_settings as get_postgres_settings
 
 logger = get_logger(__name__)
 
@@ -68,7 +69,8 @@ class MetricsCollector:
 
     def __init__(self):
         """Initialize metrics collector."""
-        self.config = get_settings()
+        self.postgres_settings = get_postgres_settings()
+        self.nessie_settings = get_nessie_settings()
         self._cache = TTLCache(maxsize=100, ttl=30)  # 30 second cache
         self._prometheus_url: Optional[str] = None
 
@@ -242,11 +244,11 @@ class MetricsCollector:
 
         try:
             conn = psycopg2.connect(
-                host=self.config.postgres_host,
-                port=self.config.postgres_port,
-                database=self.config.postgres_db,
-                user=self.config.postgres_user,
-                password=self.config.postgres_password,
+                host=self.postgres_settings.postgres_host,
+                port=self.postgres_settings.postgres_port,
+                database=self.postgres_settings.postgres_db,
+                user=self.postgres_settings.postgres_user,
+                password=self.postgres_settings.postgres_password,
             )
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -281,7 +283,7 @@ class MetricsCollector:
 
         try:
             # Query Nessie for table listing
-            nessie_url = self.config.nessie_api_uri
+            nessie_url = self.nessie_settings.nessie_api_uri()
             response = requests.get(f"{nessie_url}/trees", timeout=5)
 
             if response.status_code == 200:
@@ -320,11 +322,11 @@ class MetricsCollector:
 
         try:
             conn = psycopg2.connect(
-                host=self.config.postgres_host,
-                port=self.config.postgres_port,
-                database=self.config.postgres_db,
-                user=self.config.postgres_user,
-                password=self.config.postgres_password,
+                host=self.postgres_settings.postgres_host,
+                port=self.postgres_settings.postgres_port,
+                database=self.postgres_settings.postgres_db,
+                user=self.postgres_settings.postgres_user,
+                password=self.postgres_settings.postgres_password,
             )
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 

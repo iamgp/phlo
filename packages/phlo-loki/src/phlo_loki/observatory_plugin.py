@@ -6,8 +6,8 @@ from importlib import resources
 from importlib.abc import Traversable
 
 from phlo.plugins import PluginMetadata
-from phlo.plugins.base import ObservatoryExtensionPlugin
-from phlo.plugins.observatory import (
+from phlo_observatory import ObservatoryExtensionPlugin
+from phlo_observatory.manifest import (
     ObservatoryExtensionCompatibility,
     ObservatoryExtensionManifest,
     ObservatoryExtensionNavItem,

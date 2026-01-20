@@ -8,7 +8,7 @@ from typing import Any
 
 from phlo.capabilities import AssetSpec, MaterializeResult, PartitionSpec, RunSpec
 from phlo.capabilities.runtime import RuntimeContext
-from phlo.config import get_settings
+from phlo_dbt.settings import get_settings
 
 from phlo_dbt.transformer import DbtTransformer
 from phlo_dbt.translator import DbtSpecTranslator

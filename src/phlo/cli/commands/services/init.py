@@ -17,8 +17,8 @@ from phlo.cli.commands.services.utils import (
     resolve_phlo_package_dir,
 )
 from phlo.cli.infrastructure.utils import parse_env_file
-from phlo.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.plugins.compose import ComposeGenerator
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 
 @click.command("init")
@@ -216,7 +216,7 @@ def init_cmd(
 
     # Generate .gitignore
     gitignore_file = phlo_dir / ".gitignore"
-    gitignore_file.write_text(composer.generate_gitignore())
+    gitignore_file.write_text(composer.generate_gitignore(services_to_install))
     click.echo(f"Created: {gitignore_file.relative_to(Path.cwd())}")
 
     # Create volumes directory

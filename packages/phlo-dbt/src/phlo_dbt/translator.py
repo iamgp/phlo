@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 from typing import Any
 
-from phlo.config import config
+from phlo_dbt.settings import get_settings
 
 
 def _bool_env(name: str, default: bool = False) -> bool:
@@ -77,7 +77,7 @@ def get_compiled_sql_from_resource_props(
 
     compiled_path = dbt_resource_props.get("compiled_path")
     if compiled_path:
-        compiled_file = config.dbt_project_path / str(compiled_path)
+        compiled_file = get_settings().dbt_project_path / str(compiled_path)
         try:
             if compiled_file.exists():
                 compiled_sql = compiled_file.read_text()
