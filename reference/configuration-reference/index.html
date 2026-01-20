@@ -1168,10 +1168,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#python-configuration-configpy" class="md-nav__link">
+  <a href="#python-configuration-package-settings" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Python Configuration (config.py)
+        Python Configuration (Package Settings)
       
     </span>
   </a>
@@ -1984,10 +1984,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#python-configuration-configpy" class="md-nav__link">
+  <a href="#python-configuration-package-settings" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Python Configuration (config.py)
+        Python Configuration (Package Settings)
       
     </span>
   </a>
@@ -2241,7 +2241,7 @@
 <li><strong>Infrastructure defaults</strong> (<code>phlo.yaml</code>, <code>env:</code>)</li>
 <li><strong>Local secrets/overrides</strong> (<code>.phlo/.env.local</code>)</li>
 <li><strong>Runtime environment</strong> (process environment variables)</li>
-<li><strong>Python settings</strong> (<code>phlo.config</code>)</li>
+<li><strong>Python settings</strong> (package settings modules like <code>phlo_postgres.settings</code>)</li>
 <li><strong>Runtime configuration</strong> (Dagster run config)</li>
 </ol>
 <h2 id="environment-variables">Environment Variables</h2>
@@ -2615,35 +2615,38 @@ container = get_container_name(&quot;dagster-webserver&quot;)
 service = get_service_config(&quot;postgres&quot;)
 # Returns: dict with host, port, credentials, etc.
 </code></pre>
-<h2 id="python-configuration-configpy">Python Configuration (config.py)</h2>
-<p>Programmatic access to configuration:</p>
-<pre><code class="language-python">from phlo.config import settings
+<h2 id="python-configuration-package-settings">Python Configuration (Package Settings)</h2>
+<p>Programmatic access to configuration lives in each capability package:</p>
+<pre><code class="language-python">from phlo_postgres.settings import get_settings as get_postgres_settings
+from phlo_minio.settings import get_settings as get_minio_settings
+from phlo_nessie.settings import get_settings as get_nessie_settings
+from phlo_trino.settings import get_settings as get_trino_settings
+from phlo_iceberg.settings import get_settings as get_iceberg_settings
 
 # Database
-settings.postgres_host
-settings.postgres_port
-settings.get_postgres_connection_string()
+postgres = get_postgres_settings()
+postgres.postgres_host
+postgres.postgres_port
+postgres.get_postgres_connection_string()
 
 # MinIO
-settings.minio_endpoint
-# Returns: &quot;http://minio:10001&quot;
+minio = get_minio_settings()
+minio.minio_endpoint()
 
 # Nessie
-settings.nessie_uri
-settings.nessie_api_v1_uri
-settings.nessie_iceberg_rest_uri
+nessie = get_nessie_settings()
+nessie.nessie_uri()
+nessie.nessie_api_uri()
+nessie.nessie_iceberg_rest_uri()
 
 # Trino
-settings.trino_connection_string
-# Returns: &quot;trino://trino:10005/iceberg_dev&quot;
+trino = get_trino_settings()
+trino.trino_connection_string()
 
 # Iceberg
-settings.iceberg_warehouse_path
-settings.get_iceberg_warehouse_for_branch(&quot;main&quot;)
-# Returns: &quot;s3://lake/warehouse&quot;
-
-settings.get_iceberg_warehouse_for_branch(&quot;feature&quot;)
-# Returns: &quot;s3://lake/warehouse@feature&quot;
+iceberg = get_iceberg_settings()
+iceberg.iceberg_warehouse_path
+iceberg.get_iceberg_warehouse_for_branch(&quot;main&quot;)
 </code></pre>
 <h2 id="runtime-configuration">Runtime Configuration</h2>
 <p>Dagster run configuration for asset execution:</p>
@@ -2766,12 +2769,12 @@ phlo config show
 phlo config show --secrets
 </code></pre>
 <h3 id="validation-in-python">Validation in Python</h3>
-<pre><code class="language-python">from phlo.config import settings
+<pre><code class="language-python">from phlo_postgres.settings import get_settings
 from pydantic import ValidationError
 
 try:
     # Access settings (validates on load)
-    conn_str = settings.get_postgres_connection_string()
+    conn_str = get_settings().get_postgres_connection_string()
 except ValidationError as e:
     print(f&quot;Configuration error: {e}&quot;)
 </code></pre>

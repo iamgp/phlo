@@ -18,19 +18,19 @@
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>PHLO-001: Asset Not Discovered - Phlo Lakehouse Platform</title>
+        <title>ADR 0044: CLI Command Ownership by Package - Phlo Lakehouse Platform</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -49,9 +49,9 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#phlo-001-asset-not-discovered" class="md-skip">
+        <a href="#adr-0044-cli-command-ownership-by-package" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+    <a href="../../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              PHLO-001: Asset Not Discovered
+              ADR 0044: CLI Command Ownership by Package
             
           </span>
         </div>
@@ -233,7 +233,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+    <a href="../../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -251,7 +251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -301,7 +301,7 @@
   
   
   
-    <a href="../../getting-started/installation/" class="md-nav__link">
+    <a href="../../../getting-started/installation/" class="md-nav__link">
       
   
   
@@ -367,7 +367,7 @@
   
   
   
-    <a href="../../guides/developer-guide/" class="md-nav__link">
+    <a href="../../../guides/developer-guide/" class="md-nav__link">
       
   
   
@@ -427,7 +427,7 @@
   
   
   
-    <a href="../../setup/hasura/" class="md-nav__link">
+    <a href="../../../setup/hasura/" class="md-nav__link">
       
   
   
@@ -495,7 +495,7 @@
   
   
   
-    <a href="../../packages/" class="md-nav__link">
+    <a href="../../../packages/" class="md-nav__link">
       
   
   
@@ -557,7 +557,7 @@
   
   
   
-    <a href="../../reference/architecture/" class="md-nav__link">
+    <a href="../../../reference/architecture/" class="md-nav__link">
       
   
   
@@ -615,7 +615,7 @@
   
   
   
-    <a href="../../operations/operations-guide/" class="md-nav__link">
+    <a href="../../../operations/operations-guide/" class="md-nav__link">
       
   
   
@@ -668,10 +668,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#description" class="md-nav__link">
+  <a href="#status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Description
+        Status
       
     </span>
   </a>
@@ -679,10 +679,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-causes" class="md-nav__link">
+  <a href="#context" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Common Causes
+        Context
       
     </span>
   </a>
@@ -690,132 +690,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#solutions" class="md-nav__link">
+  <a href="#decision" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Solutions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Solutions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#solution-1-verify-workflow-placement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Solution 1: Verify workflow placement
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#solution-2-ensure-dagster-loads-phlo_dagsterframeworkdefinitions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Solution 2: Ensure Dagster loads phlo_dagster.framework.definitions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#solution-3-check-for-import-errors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Solution 3: Check for import errors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#solution-4-verify-decorator-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Solution 4: Verify decorator usage
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Examples">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#incorrect-asset-outside-workflows-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ❌ Incorrect: Asset outside workflows path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#correct-asset-under-workflows-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ✅ Correct: Asset under workflows path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#incorrect-missing-decorator" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ❌ Incorrect: Missing decorator
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#correct-decorator-applied" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ✅ Correct: Decorator applied
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#debugging-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Debugging Steps
+        Decision
       
     </span>
   </a>
@@ -823,10 +701,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-errors" class="md-nav__link">
+  <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Related Errors
+        Consequences
       
     </span>
   </a>
@@ -834,10 +712,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#prevention" class="md-nav__link">
+  <a href="#alternatives-considered" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prevention
+        Alternatives Considered
       
     </span>
   </a>
@@ -845,10 +723,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#additional-resources" class="md-nav__link">
+  <a href="#related" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Additional Resources
+        Related
       
     </span>
   </a>
@@ -872,147 +750,77 @@
 
 
 
-<h1 id="phlo-001-asset-not-discovered">PHLO-001: Asset Not Discovered</h1>
-<p><strong>Error Type:</strong> Discovery and Configuration Error
-<strong>Severity:</strong> High
-<strong>Exception Class:</strong> <code>PhloDiscoveryError</code></p>
-<h2 id="description">Description</h2>
-<p>This error occurs when Dagster cannot discover your asset definitions. Phlo uses Python decorators like <code>@phlo_ingestion</code> to define assets, and Dagster needs to be able to find and load these definitions.</p>
-<h2 id="common-causes">Common Causes</h2>
-<ol>
-<li><strong>Workflow file not in the workflows path</strong></li>
-<li>Asset lives outside the configured <code>workflows/</code> directory</li>
-<li>
-<p><code>PHLO_WORKFLOWS_PATH</code> points to the wrong location</p>
-</li>
-<li>
-<p><strong>Incorrect decorator usage</strong></p>
-</li>
-<li>Missing <code>@phlo_ingestion</code> or <code>@phlo_quality</code> decorator</li>
-<li>
-<p>Decorator applied to a non-function object</p>
-</li>
-<li>
-<p><strong>Import errors in asset module</strong></p>
-</li>
-<li>Syntax errors preventing module import</li>
-<li>Missing dependencies</li>
-<li>
-<p>Circular import issues</p>
-</li>
-<li>
-<p><strong>Dagster not loading <code>phlo_dagster.framework.definitions</code></strong></p>
-</li>
-<li>Workspace points at the wrong module</li>
-<li>Dagster is not using <code>phlo_dagster.framework.definitions</code> as the entry point</li>
-</ol>
-<h2 id="solutions">Solutions</h2>
-<h3 id="solution-1-verify-workflow-placement">Solution 1: Verify workflow placement</h3>
-<p>Ensure your workflow module is under the configured workflows path (default: <code>workflows/</code>):</p>
-<pre><code>workflows/
-└── ingestion/
-    └── weather/
-        └── observations.py
-</code></pre>
-<p>If you use a custom workflows directory, set <code>PHLO_WORKFLOWS_PATH</code> or update <code>phlo.yaml</code>.</p>
-<h3 id="solution-2-ensure-dagster-loads-phlo_dagsterframeworkdefinitions">Solution 2: Ensure Dagster loads phlo_dagster.framework.definitions</h3>
-<p>Your Dagster workspace should point at <code>phlo_dagster.framework.definitions</code>:</p>
-<pre><code class="language-yaml"># workspace.yaml
-load_from:
-  - python_module:
-      module_name: phlo_dagster.framework.definitions
-</code></pre>
-<h3 id="solution-3-check-for-import-errors">Solution 3: Check for import errors</h3>
-<p>Test that your asset module can be imported:</p>
-<pre><code class="language-bash">python -c &quot;from workflows.ingestion.weather.observations import weather_observations_asset&quot;
-</code></pre>
-<p>If you see an error, fix the import issue first.</p>
-<h3 id="solution-4-verify-decorator-usage">Solution 4: Verify decorator usage</h3>
-<p>Ensure you're using the decorator correctly:</p>
-<pre><code class="language-python">import phlo
-from workflows.schemas.weather import WeatherObservations
-
-@phlo_ingestion(
-    unique_key=&quot;observation_id&quot;,
-    validation_schema=WeatherObservations,
-)
-def weather_observations(partition: str):
-    # Asset implementation
-    pass
-</code></pre>
-<h2 id="examples">Examples</h2>
-<h3 id="incorrect-asset-outside-workflows-path">❌ Incorrect: Asset outside workflows path</h3>
-<pre><code>custom_assets/observations.py  # Not under workflows/
-</code></pre>
-<h3 id="correct-asset-under-workflows-path">✅ Correct: Asset under workflows path</h3>
-<pre><code>workflows/ingestion/weather/observations.py
-</code></pre>
-<h3 id="incorrect-missing-decorator">❌ Incorrect: Missing decorator</h3>
-<pre><code class="language-python">def weather_observations(partition: str):
-    # Missing @phlo_ingestion decorator
-    return fetch_weather_data(partition)
-</code></pre>
-<h3 id="correct-decorator-applied">✅ Correct: Decorator applied</h3>
-<pre><code class="language-python">@phlo_ingestion(
-    unique_key=&quot;observation_id&quot;,
-    validation_schema=WeatherObservations,
-)
-def weather_observations(partition: str):
-    return fetch_weather_data(partition)
-</code></pre>
-<h2 id="debugging-steps">Debugging Steps</h2>
-<ol>
-<li><strong>Check Dagster UI logs</strong></li>
-</ol>
-<p><code>bash
-   docker logs dagster-webserver</code></p>
-<ol>
-<li><strong>List all discovered assets</strong></li>
-</ol>
-<p><code>bash
-   dagster asset list</code></p>
-<ol>
-<li><strong>Test asset import directly</strong></li>
-</ol>
-<p><code>python
-   from workflows.ingestion.weather.observations import weather_observations
-   print(f"Asset discovered: {weather_observations}")</code></p>
-<ol>
-<li><strong>Check for circular imports</strong>
-   <code>bash
-   python -m py_compile workflows/ingestion/weather/observations.py</code></li>
-</ol>
-<h2 id="related-errors">Related Errors</h2>
+<h1 id="adr-0044-cli-command-ownership-by-package">ADR 0044: CLI Command Ownership by Package</h1>
+<h2 id="status">Status</h2>
+<p><strong>Proposed</strong></p>
+<h2 id="context">Context</h2>
+<p>CLI refactor underway. Core CLI should be glue only. Current ownership split uneven.
+No backwards-compat shims desired; remove shims after moves.</p>
+<p>Findings from CLI scan:</p>
+<p>Core CLI still holds package-specific behavior:
+- <code>src/phlo/cli/main.py</code>: <code>dev</code> command is Dagster-specific. Init scaffolding embeds dbt/Trino/Nessie details (<code>.sqlfluff</code>, <code>dbt_project.yml</code>, secrets).
+- <code>src/phlo/cli/commands/workflow/create.py</code> + <code>src/phlo/cli/scaffold.py</code>: ingestion scaffold uses <code>phlo_dlt</code> + Pandera; belongs to ingestion/quality packages.
+- <code>src/phlo/cli/infrastructure/utils.py</code> + <code>src/phlo/cli/infrastructure/containers.py</code>: Dagster container naming and lookup; used by <code>phlo-dagster</code> and <code>phlo-dbt</code> via shim.
+- <code>src/phlo/cli/_services/*</code>: compatibility shims, still referenced by packages.
+- <code>src/phlo/cli/commands/plugin/utils.py</code>: catalog plugin template hardcodes <code>targets = ["trino"]</code>.</p>
+<p>Packages already ship CLI plugins:
+- <code>phlo-nessie</code>: <code>cli_branch.py</code>, <code>cli_catalog.py</code>
+- <code>phlo-dagster</code>: <code>cli_backfill.py</code>, <code>cli_materialize.py</code>, <code>cli_status.py</code>, <code>cli_logs.py</code>
+- <code>phlo-dbt</code>: <code>cli_publishing.py</code>
+- <code>phlo-quality</code>: <code>cli_validate.py</code>, <code>cli_schema.py</code>
+- <code>phlo-alerting</code>, <code>phlo-lineage</code>, <code>phlo-metrics</code>, <code>phlo-postgrest</code>, <code>phlo-hasura</code>, <code>phlo-openmetadata</code></p>
+<p>Gap:
+- <code>phlo-trino</code> has no CLI module; core only carries Trino-specific scaffolding.</p>
+<h2 id="decision">Decision</h2>
+<p>Move CLI logic into owning packages:</p>
 <ul>
-<li><a href="./PHLO-005.md">PHLO-005: Missing Schema</a> - Schema not provided to decorator</li>
-<li><a href="../PHLO-002/">PHLO-002: Schema Mismatch</a> - unique_key not in schema</li>
+<li>Dagster</li>
+<li>Move <code>phlo dev</code> from <code>src/phlo/cli/main.py</code> to <code>packages/phlo-dagster</code> CLI plugin.</li>
+<li>Move Dagster container helpers from <code>src/phlo/cli/infrastructure/utils.py</code> + <code>containers.py</code> into <code>packages/phlo-dagster</code> helper module.</li>
+<li>
+<p>Update <code>phlo-dbt</code> imports to new helper module.</p>
+</li>
+<li>
+<p>Ingestion + Quality</p>
+</li>
+<li>Move workflow scaffold command from <code>src/phlo/cli/commands/workflow/create.py</code> into <code>packages/phlo-dlt</code>.</li>
+<li>
+<p>Move Pandera schema/test scaffolding pieces from <code>src/phlo/cli/scaffold.py</code> into <code>packages/phlo-quality</code> (or shared scaffold helper).</p>
+</li>
+<li>
+<p>Init templates</p>
+</li>
+<li>Move dbt project + <code>.sqlfluff</code> generation into <code>packages/phlo-dbt</code>.</li>
+<li>
+<p>Move service secret/env defaults into respective service packages (Nessie, Trino, etc).</p>
+</li>
+<li>
+<p>Trino</p>
+</li>
+<li>Add <code>phlo-trino</code> CLI plugin if Trino-specific commands needed; otherwise none.</li>
 </ul>
-<h2 id="prevention">Prevention</h2>
-<ol>
-<li><strong>Use consistent workflow placement</strong></li>
-<li>Keep assets under <code>workflows/</code></li>
-<li>
-<p>Follow the domain-based organization structure</p>
-</li>
-<li>
-<p><strong>Test imports in CI/CD</strong></p>
-</li>
-</ol>
-<p><code>python
-   # tests/test_asset_discovery.py
-   def test_all_assets_importable():
-       from phlo_dagster.framework.definitions import defs
-       assert len(defs.assets) &gt; 0</code></p>
-<ol>
-<li><strong>Use IDE auto-imports</strong></li>
-<li>Let your IDE suggest imports automatically</li>
-<li>This prevents typos in import paths</li>
-</ol>
-<h2 id="additional-resources">Additional Resources</h2>
+<p>Core CLI keeps:
+- CLI entry point + plugin discovery + registration.
+- <code>phlo services</code> orchestration and package-agnostic infra helpers.</p>
+<h2 id="consequences">Consequences</h2>
+<p>Positive:
+- Package ownership clear; less cross-package imports from core CLI.
+- Service-specific behavior co-located with service code.
+- Easier testing per package.</p>
+<p>Negative:
+- Import churn; requires shim updates or removals.
+- Docs and tests need updates for command locations.
+- Removal of shims is breaking; no fallback imports.</p>
+<h2 id="alternatives-considered">Alternatives Considered</h2>
 <ul>
-<li><a href="https://docs.dagster.io/concepts/assets/software-defined-assets">Dagster Asset Discovery</a></li>
-<li><a href="https://docs.python.org/3/reference/import.html">Python Import System</a></li>
-<li><a href="../TESTING_GUIDE.md#creating-assets">Phlo Asset Creation Guide</a></li>
+<li>Keep commands in core: rejected; violates package ownership.</li>
+<li>New shared CLI utils package: deferred; adds complexity now.</li>
+<li>Keep shims: rejected; explicit requirement to remove.</li>
+</ul>
+<h2 id="related">Related</h2>
+<ul>
+<li>ADR 0007: CLI Services Architecture</li>
+<li>ADR 0043: Core Package Restructuring</li>
 </ul>
 
 
@@ -1065,10 +873,10 @@ def weather_observations(partition: str):
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

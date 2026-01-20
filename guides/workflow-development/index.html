@@ -2380,9 +2380,10 @@ from typing import Any
 
 import dagster as dg
 import dlt
+import os
 import requests
 
-from phlo.config import config
+from phlo_iceberg.settings import get_settings as get_iceberg_settings
 from phlo_iceberg.resource import IcebergResource
 from workflows.schemas.weather import WeatherObservationSchema
 from workflows.schemas.iceberg_weather import WEATHER_OBSERVATION_SCHEMA
@@ -2412,7 +2413,8 @@ def weather_data(
     - Consistent with other ingestion assets (dlt_glucose_entries)
     - State management for incremental loads
     &quot;&quot;&quot;
-    table_name = f&quot;{config.iceberg_default_namespace}.weather_observations&quot;
+    iceberg_settings = get_iceberg_settings()
+    table_name = f&quot;{iceberg_settings.iceberg_default_namespace}.weather_observations&quot;
     pipeline_name = &quot;weather_openweathermap&quot;
 
     # Setup DLT directories
@@ -2426,10 +2428,8 @@ def weather_data(
         # Step 1: Fetch data from OpenWeather API
         context.log.info(&quot;Fetching data from OpenWeather API...&quot;)
 
-        cities = [
-            city.strip().split(&quot;,&quot;)
-            for city in config.openweather_cities.split(&quot;;&quot;)
-        ]
+        openweather_cities = os.getenv(&quot;OPENWEATHER_CITIES&quot;, &quot;&quot;)
+        cities = [city.strip().split(&quot;,&quot;) for city in openweather_cities.split(&quot;;&quot;) if city.strip()]
 
         weather_records = []
 
@@ -2439,7 +2439,7 @@ def weather_data(
             url = &quot;https://api.openweathermap.org/data/2.5/weather&quot;
             params = {
                 &quot;q&quot;: f&quot;{city_name},{country}&quot;,
-                &quot;appid&quot;: config.openweather_api_key,
+                &quot;appid&quot;: os.getenv(&quot;OPENWEATHER_API_KEY&quot;, &quot;&quot;),
                 &quot;units&quot;: &quot;metric&quot;,  # Celsius
             }
 
@@ -2594,7 +2594,7 @@ docker-compose restart dagster-webserver dagster-daemon
 # Click &quot;Materialize&quot;
 
 # Or use CLI
-dagster asset materialize -m phlo.framework.definitions -a dlt_weather_data
+dagster asset materialize -m phlo_dagster.framework.definitions -a dlt_weather_data
 </code></pre>
 <p><strong>What just happened?</strong></p>
 <ol>
@@ -3253,7 +3253,7 @@ weather:
 <h3 id="82-create-publishing-asset">8.2 Create Publishing Asset</h3>
 <p>The publishing asset is already generic and will pick up your config automatically. Just ensure it runs after your dbt models.</p>
 <p>Test it:</p>
-<pre><code class="language-bash">dagster asset materialize -m phlo.framework.definitions -a publish_postgres_marts
+<pre><code class="language-bash">dagster asset materialize -m phlo_dagster.framework.definitions -a publish_postgres_marts
 </code></pre>
 <hr />
 <h2 id="step-9-add-scheduling">Step 9: Add Scheduling</h2>
@@ -3313,7 +3313,7 @@ def weather_freshness_sensor(context: dg.SensorEvaluationContext):
 <h2 id="step-10-test-and-deploy">Step 10: Test and Deploy</h2>
 <h3 id="101-run-complete-pipeline">10.1 Run Complete Pipeline</h3>
 <pre><code class="language-bash"># Materialize all weather assets
-dagster asset materialize -m phlo.framework.definitions \
+dagster asset materialize -m phlo_dagster.framework.definitions \
   --select &quot;tag:weather&quot;
 
 # Or use Dagster UI:

@@ -938,7 +938,7 @@ assets directly and import Dagster in core-facing modules. This creates tight co
 <ul>
 <li>Core <code>phlo</code> imports Dagster in <code>src/phlo/plugins/base.py</code>.</li>
 <li>Capability packages create Dagster assets directly (<code>phlo-dlt</code>, <code>phlo-quality</code>, <code>phlo-dbt</code>).</li>
-<li><code>phlo.framework.definitions</code> assumes Dagster is the orchestrator.</li>
+<li><code>phlo_dagster.framework.definitions</code> assumes Dagster is the orchestrator.</li>
 </ul>
 <p>We want fully plug-and-play packages that can compose across different orchestrators (Dagster,
 Airflow, Prefect, etc.) without hard dependencies or direct imports.</p>
@@ -1026,7 +1026,7 @@ phlo.plugins.orchestrators
 </ul>
 <h3 id="phase-4-framework-integration">Phase 4: Framework Integration</h3>
 <ul>
-<li>Replace <code>phlo.framework.definitions</code> Dagster-only path with:</li>
+<li>Replace <code>phlo_dagster.framework.definitions</code> Dagster-only path with:</li>
 <li>discover capability specs</li>
 <li>load active orchestrator adapter</li>
 <li>build orchestrator definitions</li>
@@ -1059,7 +1059,7 @@ phlo.plugins.orchestrators
 <li>[ ] Refactor <code>phlo-dlt</code> to emit <code>AssetSpec</code>.</li>
 <li>[ ] Refactor <code>phlo-quality</code> to emit <code>AssetCheckSpec</code>.</li>
 <li>[ ] Refactor <code>phlo-dbt</code> to emit <code>AssetSpec</code>.</li>
-<li>[ ] Update <code>phlo.framework.definitions</code> to use the adapter.</li>
+<li>[ ] Update <code>phlo_dagster.framework.definitions</code> to use the adapter.</li>
 <li>[ ] Update registry schema + bundled registry data.</li>
 <li>[ ] Update <code>docs/guides/plugin-development.md</code> for new primitives.</li>
 <li>[ ] Add tests for adapter translation and capability discovery.</li>

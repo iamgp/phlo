@@ -1715,7 +1715,7 @@
 </tbody>
 </table>
 <h3 id="quality-check-usage">Quality Check Usage</h3>
-<pre><code class="language-python">from phlo import phlo_quality
+<pre><code class="language-python">from phlo.quality import phlo_quality
 from phlo_quality.checks import null_check, uniqueness_check, range_check
 
 @phlo_quality(
@@ -1747,7 +1747,7 @@ def validate_users():
 </tbody>
 </table>
 <h3 id="source-connector-usage">Source Connector Usage</h3>
-<pre><code class="language-python">from phlo import phlo_ingestion
+<pre><code class="language-python">from phlo.ingestion import phlo_ingestion
 
 @phlo_ingestion(
     name=&quot;api_data&quot;,

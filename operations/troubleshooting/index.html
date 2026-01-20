@@ -2047,13 +2047,13 @@ docker-compose logs trino | grep ERROR
 <pre><code class="language-bash">docker-compose restart dagster-webserver dagster-daemon
 </code></pre>
 <p><strong>Solution 2: Check asset registration</strong></p>
-<pre><code class="language-python"># Your assets should be discoverable via phlo.framework.definitions
+<pre><code class="language-python"># Your assets should be discoverable via phlo_dagster.framework.definitions
 # (assets registered in workflows/ via decorators and plugins)
-from phlo.framework.definitions import defs
+from phlo_dagster.framework.definitions import defs
 </code></pre>
 <p><strong>Solution 3: Check for syntax errors</strong></p>
 <pre><code class="language-bash"># Test definitions load
-docker-compose exec dagster-webserver python -c &quot;from phlo.framework.definitions import defs; print(defs)&quot;
+docker-compose exec dagster-webserver python -c &quot;from phlo_dagster.framework.definitions import defs; print(defs)&quot;
 </code></pre>
 <h3 id="asset-materialization-fails">Asset Materialization Fails</h3>
 <p><strong>Debug steps:</strong></p>
@@ -2064,11 +2064,11 @@ docker-compose exec dagster-webserver python -c &quot;from phlo.framework.defini
 </ul>
 <p><strong>2. Check dependencies</strong></p>
 <pre><code class="language-bash"># Ensure upstream assets materialized
-dagster asset materialize -m phlo.framework.definitions -a upstream_asset
+dagster asset materialize -m phlo_dagster.framework.definitions -a upstream_asset
 </code></pre>
 <p><strong>3. Test locally</strong></p>
 <pre><code class="language-python"># In Python shell
-from phlo.framework.definitions import defs
+from phlo_dagster.framework.definitions import defs
 from dagster import materialize
 
 asset_def = defs.get_asset_def(&quot;my_asset&quot;)
@@ -2077,7 +2077,7 @@ print(result)
 </code></pre>
 <p><strong>4. Check resources</strong></p>
 <pre><code class="language-python"># Are resources configured?
-from phlo.config import get_settings
+from phlo_trino.settings import get_settings
 config = get_settings()
 print(config.trino_host)  # Should print value, not error
 </code></pre>
@@ -2333,7 +2333,7 @@ SELECT * FROM iceberg_dev.raw.my_table
 </code></pre>
 <p><strong>Check 3: Ensure asset materialized</strong></p>
 <pre><code class="language-bash"># Materialize the ingestion asset first
-dagster asset materialize -m phlo.framework.definitions -a my_ingestion_asset
+dagster asset materialize -m phlo_dagster.framework.definitions -a my_ingestion_asset
 </code></pre>
 <h3 id="nessie-api-errors">Nessie API Errors</h3>
 <p><strong>Symptom:</strong> <code>Failed to connect to Nessie</code></p>

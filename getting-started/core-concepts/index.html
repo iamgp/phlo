@@ -1729,7 +1729,7 @@ def silver_events():
 <pre><code class="language-python"># workflows/publishing/trino_to_postgres.py
 @asset(deps=[marts.daily_aggregates])
 def publish_daily_aggregates(context, trino, postgres):
-    _publish_marts_to_postgres(
+    publish_marts_to_postgres(
         context, trino,
         tables_to_publish={
             &quot;daily_aggregates&quot;: &quot;marts.daily_aggregates&quot;
@@ -1774,7 +1774,7 @@ def publish_daily_aggregates(context, trino, postgres):
 <p><strong>Schemas</strong>: <code>workflows/schemas/{domain}.py</code></p>
 <p><strong>Quality checks</strong>: <code>workflows/quality/{domain}.py</code></p>
 <p><strong>dbt models</strong>: <code>workflows/transforms/dbt/models/{layer}/{model}.sql</code></p>
-<p><strong>Configuration</strong>: <code>phlo.config</code>, <code>.phlo/.env.local</code>, <code>phlo.yaml</code></p>
+<p><strong>Configuration</strong>: <code>.phlo/.env.local</code>, <code>phlo.yaml</code>, package settings (e.g., <code>phlo_postgres.settings</code>)</p>
 <p><strong>Sensors</strong>: <code>workflows/sensors/branch_lifecycle.py</code></p>
 <h2 id="next-steps">Next Steps</h2>
 <ul>

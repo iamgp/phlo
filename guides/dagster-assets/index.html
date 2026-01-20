@@ -2171,7 +2171,7 @@ def my_first_asset():
 <li>Click "Materialize"</li>
 </ol>
 <p><strong>CLI:</strong></p>
-<pre><code class="language-bash">dagster asset materialize -m phlo.framework.definitions -a my_first_asset
+<pre><code class="language-bash">dagster asset materialize -m phlo_dagster.framework.definitions -a my_first_asset
 </code></pre>
 <p><strong>Programmatically:</strong></p>
 <pre><code class="language-python">from dagster import materialize
@@ -2301,19 +2301,16 @@ def asset_c(asset_a, asset_b):  # Depends on both
 asset_b ─┘
 </code></pre>
 <h3 id="conditional-dependencies">Conditional Dependencies</h3>
-<pre><code class="language-python">from phlo.config import get_config
-
-@dg.asset
+<pre><code class="language-python">@dg.asset
 def optional_upstream():
     return &quot;data&quot;
 
 @dg.asset
 def conditional_asset():
     &quot;&quot;&quot;Conditionally uses upstream asset.&quot;&quot;&quot;
-    from phlo.config import get_settings
-    config = get_settings()
+    use_cache = os.getenv(&quot;USE_CACHE&quot;, &quot;false&quot;).lower() == &quot;true&quot;
 
-    if config.USE_CACHE:
+    if use_cache:
         # Use upstream asset
         return load_from_cache()
     else:
@@ -2386,20 +2383,19 @@ def weather_data(weather_api: WeatherAPIResource):
     return weather_api.get_weather(&quot;London&quot;)
 </code></pre>
 <h3 id="configuration-from-environment">Configuration from Environment</h3>
-<pre><code class="language-python">from phlo.config import get_settings
-
-@dg.asset
+<pre><code class="language-python">@dg.asset
 def configured_asset(context: dg.AssetExecutionContext):
     &quot;&quot;&quot;Asset that uses config.&quot;&quot;&quot;
-    config = get_settings()
+    api_base_url = os.getenv(&quot;API_BASE_URL&quot;, &quot;https://api.example.com&quot;)
+    batch_size = int(os.getenv(&quot;BATCH_SIZE&quot;, &quot;1000&quot;))
 
-    context.log.info(f&quot;Using API: {config.API_BASE_URL}&quot;)
-    context.log.info(f&quot;Batch size: {config.BATCH_SIZE}&quot;)
+    context.log.info(f&quot;Using API: {api_base_url}&quot;)
+    context.log.info(f&quot;Batch size: {batch_size}&quot;)
 
     # Use configuration
     return fetch_data(
-        url=config.API_BASE_URL,
-        batch_size=config.BATCH_SIZE,
+        url=api_base_url,
+        batch_size=batch_size,
     )
 </code></pre>
 <hr />
@@ -2437,19 +2433,19 @@ def daily_weather_data(context: dg.AssetExecutionContext):
 </ul>
 <h3 id="materializing-partitions">Materializing Partitions</h3>
 <p><strong>Single partition:</strong></p>
-<pre><code class="language-bash">dagster asset materialize -m phlo.framework.definitions \
+<pre><code class="language-bash">dagster asset materialize -m phlo_dagster.framework.definitions \
   -a daily_weather_data \
   --partition 2024-11-05
 </code></pre>
 <p><strong>Range of partitions:</strong></p>
 <pre><code class="language-bash"># Backfill last 7 days
-dagster asset backfill -m phlo.framework.definitions \
+dagster asset backfill -m phlo_dagster.framework.definitions \
   -a daily_weather_data \
   --from 2024-11-01 \
   --to 2024-11-07
 </code></pre>
 <p><strong>Latest partition:</strong></p>
-<pre><code class="language-bash">dagster asset materialize -m phlo.framework.definitions \
+<pre><code class="language-bash">dagster asset materialize -m phlo_dagster.framework.definitions \
   -a daily_weather_data \
   --partition $(date +%Y-%m-%d)
 </code></pre>
@@ -2801,7 +2797,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 <li>Is it discoverable under workflows/?</li>
 </ol>
 <p><code>python
-   from phlo.framework.definitions import defs
+   from phlo_dagster.framework.definitions import defs
    assert defs.get_asset_def("my_asset") is not None</code></p>
 <ol>
 <li>Restart Dagster:</li>
@@ -2824,7 +2820,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 </li>
 </ol>
 <p>```python
-   from phlo.framework.definitions import defs
+   from phlo_dagster.framework.definitions import defs
    from dagster import materialize</p>
 <p>result = materialize([defs.get_asset_def("my_asset")])
    print(result)
@@ -2854,7 +2850,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 <li>Asset not in the workflows path:
    <code>python
    # Ensure both assets live under workflows/ so discovery includes them
-   from phlo.framework.definitions import defs
+   from phlo_dagster.framework.definitions import defs
    assert defs.get_asset_def("upstream") is not None
    assert defs.get_asset_def("downstream") is not None</code></li>
 </ol>

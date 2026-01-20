@@ -1795,7 +1795,7 @@ table = catalog.load_table(&quot;bronze.users&quot;)
 df = table.scan().to_pandas()
 </code></pre>
 <h3 id="direct-usage">Direct Usage</h3>
-<pre><code class="language-python">from phlo.config import get_settings
+<pre><code class="language-python">from phlo_iceberg.settings import get_settings
 
 # Get PyIceberg catalog configuration
 config = get_settings().get_pyiceberg_catalog_config(&quot;main&quot;)

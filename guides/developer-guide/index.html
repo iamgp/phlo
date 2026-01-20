@@ -3101,7 +3101,7 @@ phlo materialize --select &quot;tag:dbt&quot;
 <h3 id="publishing-asset">Publishing Asset</h3>
 <pre><code class="language-python"># workflows/publishing/events.py
 from dagster import asset
-from phlo.operations.publishing import publish_marts_to_postgres
+from phlo_trino.publishing import publish_marts_to_postgres
 
 @asset(
     deps=[&quot;marts__daily_aggregates&quot;],  # Depends on dbt mart

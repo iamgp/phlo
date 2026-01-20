@@ -1809,7 +1809,7 @@ with engine.connect() as conn:
     result = conn.execute(&quot;SELECT * FROM marts.daily_summary&quot;)
 </code></pre>
 <h3 id="using-with-phlo-config">Using with Phlo Config</h3>
-<pre><code class="language-python">from phlo.config import get_settings
+<pre><code class="language-python">from phlo_postgres.settings import get_settings
 
 settings = get_settings()
 conn_string = settings.get_postgres_connection_string()
