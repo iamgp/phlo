@@ -123,13 +123,13 @@ class TestPluginDiscovery:
 
     def test_discover_plugins_function_exists(self):
         """Test discover_plugins function is importable."""
-        from phlo.discovery import discover_plugins
+        from phlo.plugins.discovery import discover_plugins
 
         assert callable(discover_plugins)
 
     def test_discover_plugins_returns_dict(self):
         """Test discover_plugins returns a dictionary."""
-        from phlo.discovery import discover_plugins
+        from phlo.plugins.discovery import discover_plugins
 
         # May return empty dict if no plugins installed
         result = discover_plugins(plugin_type="services", auto_register=False)

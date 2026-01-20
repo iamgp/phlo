@@ -16,9 +16,9 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
-from phlo.discovery import discover_plugins, get_global_registry
 from phlo.logging import get_logger
-from phlo.plugins.base import ObservatoryExtensionPlugin
+from phlo_observatory import ObservatoryExtensionPlugin
+from phlo_observatory.extensions import discover_observatory_extensions
 
 logger = get_logger(__name__)
 
@@ -38,14 +38,9 @@ def _load_extensions() -> list[ObservatoryExtensionPlugin]:
             if now - _cache_timestamp < _CACHE_TTL_SECONDS:
                 return _cached_extensions
 
-    discover_plugins(plugin_type="observatory_extensions", auto_register=True)
-    registry = get_global_registry()
     observatory_version = _get_observatory_version()
     extensions = []
-    for name in registry.list_observatory_extensions():
-        plugin = registry.get_observatory_extension(name)
-        if not plugin:
-            continue
+    for plugin in discover_observatory_extensions():
         if not _is_compatible(plugin, observatory_version):
             logger.warning(
                 "Skipping incompatible Observatory extension: %s",

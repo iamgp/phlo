@@ -3,8 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
-from phlo.cli.scaffold import create_ingestion_workflow, parse_field_specs
+from phlo_dlt.scaffold import create_ingestion_workflow, parse_field_specs
 
 
 def test_parse_field_specs_validates_and_dedupes() -> None:

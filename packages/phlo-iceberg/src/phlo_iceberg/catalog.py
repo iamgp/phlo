@@ -6,8 +6,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from phlo.config import config
 from pyiceberg.catalog import load_catalog
+
+from phlo_iceberg.settings import get_settings
 
 
 @lru_cache
@@ -18,7 +19,7 @@ def get_catalog(ref: str = "main"):
     Args:
         ref: Nessie branch/tag reference (default: main)
     """
-    catalog_config = config.get_pyiceberg_catalog_config(ref=ref)
+    catalog_config = get_settings().get_pyiceberg_catalog_config(ref=ref)
     return load_catalog(name=f"nessie_{ref}", **catalog_config)
 
 

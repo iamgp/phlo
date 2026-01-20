@@ -43,7 +43,7 @@ Dagster cannot discover your asset definitions.
 **Quick fix:**
 
 ```python
-from phlo.framework.definitions import defs
+from phlo_dagster.framework.definitions import defs
 assert len(list(defs.assets or [])) > 0
 ```
 

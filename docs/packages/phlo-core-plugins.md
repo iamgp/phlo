@@ -35,7 +35,7 @@ pip install phlo-core-plugins
 ### Quality Check Usage
 
 ```python
-from phlo import phlo_quality
+from phlo.quality import phlo_quality
 from phlo_quality.checks import null_check, uniqueness_check, range_check
 
 @phlo_quality(
@@ -59,7 +59,7 @@ def validate_users():
 ### Source Connector Usage
 
 ```python
-from phlo import phlo_ingestion
+from phlo.ingestion import phlo_ingestion
 
 @phlo_ingestion(
     name="api_data",

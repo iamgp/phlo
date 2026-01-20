@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Dict
 
-from phlo.ingestion import BaseIngester, IngestionResult
+from phlo.operations.ingestion import BaseIngester, IngestionResult
 from phlo.hooks import (
     IngestionEventContext,
     IngestionEventEmitter,

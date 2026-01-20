@@ -23,9 +23,9 @@ This error occurs when Dagster cannot discover your asset definitions. Phlo uses
    - Missing dependencies
    - Circular import issues
 
-4. **Dagster not loading `phlo.framework.definitions`**
+4. **Dagster not loading `phlo_dagster.framework.definitions`**
    - Workspace points at the wrong module
-   - Dagster is not using `phlo.framework.definitions` as the entry point
+   - Dagster is not using `phlo_dagster.framework.definitions` as the entry point
 
 ## Solutions
 
@@ -42,15 +42,15 @@ workflows/
 
 If you use a custom workflows directory, set `PHLO_WORKFLOWS_PATH` or update `phlo.yaml`.
 
-### Solution 2: Ensure Dagster loads phlo.framework.definitions
+### Solution 2: Ensure Dagster loads phlo_dagster.framework.definitions
 
-Your Dagster workspace should point at `phlo.framework.definitions`:
+Your Dagster workspace should point at `phlo_dagster.framework.definitions`:
 
 ```yaml
 # workspace.yaml
 load_from:
   - python_module:
-      module_name: phlo.framework.definitions
+      module_name: phlo_dagster.framework.definitions
 ```
 
 ### Solution 3: Check for import errors
@@ -155,7 +155,7 @@ def weather_observations(partition: str):
    ```python
    # tests/test_asset_discovery.py
    def test_all_assets_importable():
-       from phlo.framework.definitions import defs
+       from phlo_dagster.framework.definitions import defs
        assert len(defs.assets) > 0
    ```
 

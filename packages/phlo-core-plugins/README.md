@@ -59,7 +59,7 @@ def validate_users():
 ### Source Connectors
 
 ```python
-from phlo import phlo_ingestion
+from phlo.ingestion import phlo_ingestion
 
 @phlo_ingestion(
     name="api_data",

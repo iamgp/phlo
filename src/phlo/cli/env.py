@@ -13,8 +13,8 @@ import click
 import yaml
 
 from phlo.cli.infrastructure.utils import parse_env_file
-from phlo.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.plugins.compose import ComposeGenerator
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 
 @click.group()

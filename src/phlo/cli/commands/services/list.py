@@ -8,7 +8,7 @@ import yaml
 
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.utils import get_project_name
-from phlo.discovery import ServiceDefinition, ServiceDiscovery
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 
 @click.command("list")

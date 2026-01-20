@@ -7,9 +7,7 @@ from datetime import datetime
 
 import requests
 
-from phlo.config import get_settings
-
-config = get_settings()
+from phlo_nessie.settings import get_settings
 
 
 @dataclass
@@ -26,7 +24,8 @@ class NessieResource:
         if base_url:
             self.base_url = base_url.rstrip("/")
         else:
-            self.base_url = f"http://{config.nessie_host}:{config.nessie_port}"
+            settings = get_settings()
+            self.base_url = f"http://{settings.nessie_host}:{settings.nessie_port}"
 
     def _url(self, path: str) -> str:
         return f"{self.base_url}{path}"

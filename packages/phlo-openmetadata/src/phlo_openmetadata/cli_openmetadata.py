@@ -6,12 +6,12 @@ import json
 import sys
 
 import click
-from phlo.config import get_settings
 from rich.console import Console
 
 from phlo_openmetadata.dbt_sync import DbtManifestParser
 from phlo_openmetadata.nessie_sync import sync_nessie_tables_to_openmetadata
 from phlo_openmetadata.openmetadata import OpenMetadataClient
+from phlo_openmetadata.settings import get_settings
 
 console = Console()
 
@@ -26,14 +26,14 @@ def health() -> None:
     """Check OpenMetadata connectivity using configured credentials."""
     cfg = get_settings()
     client = OpenMetadataClient(
-        base_url=cfg.openmetadata_uri,
+        base_url=cfg.openmetadata_uri(),
         username=cfg.openmetadata_username,
         password=cfg.openmetadata_password,
         verify_ssl=cfg.openmetadata_verify_ssl,
         timeout=10,
         service_name=cfg.openmetadata_service_name,
         service_type=cfg.openmetadata_service_type,
-        database_name=cfg.openmetadata_database,
+        database_name=cfg.openmetadata_database(),
     )
     ok = client.health_check()
     if ok:
@@ -57,14 +57,14 @@ def sync(
     """Sync Nessie catalog (and optionally dbt docs) into OpenMetadata."""
     cfg = get_settings()
     client = OpenMetadataClient(
-        base_url=cfg.openmetadata_uri,
+        base_url=cfg.openmetadata_uri(),
         username=cfg.openmetadata_username,
         password=cfg.openmetadata_password,
         verify_ssl=cfg.openmetadata_verify_ssl,
         timeout=30,
         service_name=cfg.openmetadata_service_name,
         service_type=cfg.openmetadata_service_type,
-        database_name=cfg.openmetadata_database,
+        database_name=cfg.openmetadata_database(),
     )
 
     if not client.health_check():

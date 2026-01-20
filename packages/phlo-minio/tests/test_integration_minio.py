@@ -75,26 +75,21 @@ class TestMinioConfiguration:
     """Test MinIO configuration."""
 
     def test_minio_config_accessible(self):
-        """Test MinIO configuration is accessible from phlo.config."""
-        from phlo.config import get_settings
+        """Test MinIO configuration is accessible from phlo_minio.settings."""
+        from phlo_minio.settings import get_settings
 
         settings = get_settings()
 
         # Should have S3/MinIO related settings - check various possible names
-        has_s3_config = (
-            hasattr(settings, "minio_endpoint")
-            or hasattr(settings, "s3_endpoint")
-            or hasattr(settings, "aws_s3_endpoint")
-        )
-        assert has_s3_config or True  # Always pass - config may vary
+        assert hasattr(settings, "minio_endpoint")
 
     def test_minio_endpoint_format(self):
         """Test MinIO endpoint has expected format."""
-        from phlo.config import get_settings
+        from phlo_minio.settings import get_settings
 
         settings = get_settings()
 
-        endpoint = getattr(settings, "minio_endpoint", None) or getattr(settings, "s3_endpoint", "")
+        endpoint = settings.minio_endpoint()
         # Should be a URL or host:port
         assert len(endpoint) > 0
 
@@ -227,13 +222,13 @@ def minio_client():
     """Fixture providing a real MinIO client if available."""
     try:
         from minio import Minio
-        from phlo.config import get_settings
+        from phlo_minio.settings import get_settings
 
         settings = get_settings()
 
-        endpoint = getattr(settings, "minio_endpoint", "localhost:9000")
-        access_key = getattr(settings, "minio_access_key", "minioadmin")
-        secret_key = getattr(settings, "minio_secret_key", "minioadmin")
+        endpoint = settings.minio_endpoint()
+        access_key = settings.minio_root_user
+        secret_key = settings.minio_root_password
 
         # Remove protocol if present
         if "://" in endpoint:

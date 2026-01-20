@@ -300,19 +300,18 @@ Provide migration guide with import mapping:
 ```python
 # Before (0.3.0)
 from phlo.config import Settings, get_settings
-from phlo.discovery import ServiceDiscovery
+from phlo.plugins.discovery import ServiceDiscovery
 
 # After (0.4.0)
-from phlo.config import get_settings  # Settings is internal
+from phlo_postgres.settings import get_settings as get_postgres_settings
 from phlo.plugins.discovery import ServiceDiscovery
 ```text
 
 ### For Internal Code
 
-1. Create compatibility shims in old locations
-2. Add deprecation warnings
-3. Migrate internal code gradually
-4. Remove shims in next major version
+1. Remove shims and update imports immediately
+2. Migrate internal code in one pass
+3. Update docs/tests alongside code
 
 ### Testing Strategy
 

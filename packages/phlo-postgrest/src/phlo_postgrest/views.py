@@ -15,8 +15,9 @@ from typing import Optional
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-from phlo.config import get_settings
 from phlo.logging import get_logger
+from phlo_dbt.settings import get_settings as get_dbt_settings
+from phlo_postgres.settings import get_settings as get_postgres_settings
 
 logger = get_logger(__name__)
 
@@ -43,7 +44,7 @@ class DbtManifestParser:
             manifest_path: Path to manifest.json. If None, uses config value.
         """
         if manifest_path is None:
-            manifest_path = get_settings().dbt_manifest_path
+            manifest_path = get_dbt_settings().dbt_manifest_path
 
         self.manifest_path = Path(manifest_path)
 
@@ -287,7 +288,7 @@ class PostgreSTViewManager:
             user: Database user
             password: Database password
         """
-        settings = get_settings()
+        settings = get_postgres_settings()
         self.host = host or settings.postgres_host
         self.port = port or settings.postgres_port
         self.database = database or settings.postgres_db

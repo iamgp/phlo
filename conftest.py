@@ -37,7 +37,7 @@ def _register_workspace_plugins() -> None:
     try:
         from phlo_dlt.plugin import DltAssetProvider
 
-        from phlo.discovery import get_global_registry
+        from phlo.plugins.discovery import get_global_registry
     except Exception:
         return
 

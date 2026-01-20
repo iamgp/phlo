@@ -11,8 +11,6 @@ from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
     CliCommandPlugin,
-    DagsterExtensionPlugin,
-    ObservatoryExtensionPlugin,
     OrchestratorAdapterPlugin,
     Plugin,
     QualityCheckPlugin,
@@ -28,8 +26,6 @@ _TYPE_CONFIG = {
     "quality_checks": ("_quality_checks", "quality", "Quality check"),
     "transformations": ("_transformations", "transformation", "Transformation"),
     "services": ("_services", "service", "Service"),
-    "dagster_extensions": ("_dagster_extensions", "dagster", "Dagster extension"),
-    "observatory_extensions": ("_observatory_extensions", "observatory", "Observatory extension"),
     "cli_commands": ("_cli_commands", "cli", "CLI command"),
     "hooks": ("_hooks", "hooks", "Hook"),
     "asset_providers": ("_assets", "assets", "Asset provider"),
@@ -53,8 +49,6 @@ class PluginRegistry:
         self._quality_checks: dict[str, QualityCheckPlugin] = {}
         self._transformations: dict[str, TransformationPlugin] = {}
         self._services: dict[str, ServicePlugin] = {}
-        self._dagster_extensions: dict[str, DagsterExtensionPlugin] = {}
-        self._observatory_extensions: dict[str, ObservatoryExtensionPlugin] = {}
         self._cli_commands: dict[str, CliCommandPlugin] = {}
         self._hooks: dict[str, HookPlugin] = {}
         self._assets: dict[str, AssetProviderPlugin] = {}
@@ -99,18 +93,6 @@ class PluginRegistry:
     def register_service(self, plugin: ServicePlugin, replace: bool = False) -> None:
         """Register a service plugin."""
         self._register_plugin("services", plugin, replace)
-
-    def register_dagster_extension(
-        self, plugin: DagsterExtensionPlugin, replace: bool = False
-    ) -> None:
-        """Register a Dagster extension plugin."""
-        self._register_plugin("dagster_extensions", plugin, replace)
-
-    def register_observatory_extension(
-        self, plugin: ObservatoryExtensionPlugin, replace: bool = False
-    ) -> None:
-        """Register an Observatory extension plugin."""
-        self._register_plugin("observatory_extensions", plugin, replace)
 
     def register_cli_command_plugin(self, plugin: CliCommandPlugin, replace: bool = False) -> None:
         """Register a CLI command plugin."""
@@ -174,14 +156,6 @@ class PluginRegistry:
         """Get a service plugin by name."""
         return self._services.get(name)
 
-    def get_dagster_extension(self, name: str) -> DagsterExtensionPlugin | None:
-        """Get a Dagster extension plugin by name."""
-        return self._dagster_extensions.get(name)
-
-    def get_observatory_extension(self, name: str) -> ObservatoryExtensionPlugin | None:
-        """Get an Observatory extension plugin by name."""
-        return self._observatory_extensions.get(name)
-
     def get_cli_command_plugin(self, name: str) -> CliCommandPlugin | None:
         """Get a CLI command plugin by name."""
         return self._cli_commands.get(name)
@@ -221,14 +195,6 @@ class PluginRegistry:
     def list_services(self) -> list[str]:
         """List all registered service plugins."""
         return list(self._services.keys())
-
-    def list_dagster_extensions(self) -> list[str]:
-        """List all registered Dagster extension plugins."""
-        return list(self._dagster_extensions.keys())
-
-    def list_observatory_extensions(self) -> list[str]:
-        """List all registered Observatory extension plugins."""
-        return list(self._observatory_extensions.keys())
 
     def list_cli_command_plugins(self) -> list[str]:
         """List all registered CLI command plugins."""
@@ -352,11 +318,6 @@ class PluginRegistry:
             has_targets = hasattr(plugin, "targets")
             has_properties = hasattr(plugin, "get_properties") and callable(plugin.get_properties)
             return has_catalog and has_targets and has_properties
-        elif isinstance(plugin, ObservatoryExtensionPlugin):
-            has_manifest = hasattr(plugin, "manifest")
-            has_asset_root = hasattr(plugin, "asset_root")
-            return has_manifest and has_asset_root
-
         return True
 
 
