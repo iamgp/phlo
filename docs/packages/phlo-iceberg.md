@@ -65,7 +65,7 @@ df = table.scan().to_pandas()
 ### Direct Usage
 
 ```python
-from phlo.config import get_settings
+from phlo_iceberg.settings import get_settings
 
 # Get PyIceberg catalog configuration
 config = get_settings().get_pyiceberg_catalog_config("main")

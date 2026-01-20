@@ -1,6 +1,7 @@
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.plugin import IcebergResourceProvider
 from phlo_iceberg.resource import IcebergResource
+from phlo_iceberg.settings import IcebergSettings, get_settings
 from phlo_iceberg.tables import (
     append_to_table,
     ensure_table,
@@ -20,4 +21,6 @@ __all__ = [
     "IcebergResourceProvider",
     "merge_to_table",
     "remove_orphan_files",
+    "IcebergSettings",
+    "get_settings",
 ]

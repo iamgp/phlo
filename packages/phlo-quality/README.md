@@ -42,7 +42,7 @@ This package is **fully auto-configured**:
 ### Defining Checks
 
 ```python
-from phlo import phlo_quality
+from phlo.quality import phlo_quality
 from phlo_quality.checks import null_check, uniqueness_check
 
 @phlo_quality(

@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from phlo.config import get_settings
 from phlo.hooks import LineageEvent, PublishEvent, QualityResultEvent
 from phlo.logging import get_logger
 from phlo.plugins.base import PluginMetadata
@@ -13,6 +12,8 @@ from phlo.plugins.hooks import HookFilter, HookPlugin, HookRegistration
 
 from phlo_openmetadata.openmetadata import OpenMetadataClient, OpenMetadataTable
 from phlo_openmetadata.quality_sync import QualityCheckMapper
+from phlo_openmetadata.settings import get_settings as get_openmetadata_settings
+from phlo_postgres.settings import get_settings as get_postgres_settings
 
 logger = get_logger(__name__)
 
@@ -135,11 +136,11 @@ class OpenMetadataHookPlugin(HookPlugin):
         if client is None:
             return
 
-        settings = get_settings()
+        postgres_settings = get_postgres_settings()
         for target_table, target_fqn in event.tables.items():
             schema_name, table_name = _split_table_fqn(
                 target_fqn,
-                default_schema=settings.postgres_mart_schema,
+                default_schema=postgres_settings.postgres_mart_schema,
             )
             try:
                 table = OpenMetadataTable(name=table_name)
@@ -154,18 +155,18 @@ class OpenMetadataHookPlugin(HookPlugin):
     def _get_client(self) -> OpenMetadataClient | None:
         """Return the OpenMetadata client if sync is enabled."""
 
-        settings = get_settings()
+        settings = get_openmetadata_settings()
         if not settings.openmetadata_sync_enabled:
             return None
         if self._client is None:
             self._client = OpenMetadataClient(
-                base_url=settings.openmetadata_uri,
+                base_url=settings.openmetadata_uri(),
                 username=settings.openmetadata_username,
                 password=settings.openmetadata_password,
                 verify_ssl=settings.openmetadata_verify_ssl,
                 service_name=settings.openmetadata_service_name,
                 service_type=settings.openmetadata_service_type,
-                database_name=settings.openmetadata_database,
+                database_name=settings.openmetadata_database(),
             )
         return self._client
 

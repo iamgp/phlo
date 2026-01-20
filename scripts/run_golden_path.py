@@ -973,8 +973,8 @@ def main() -> int:
             textwrap.dedent("""
                 import dagster as dg
                 import psycopg2
-                from phlo.config import get_settings
-                from phlo.publishing import publish_marts_to_postgres
+                from phlo_postgres.settings import get_settings
+                from phlo_trino.publishing import publish_marts_to_postgres
                 from phlo_trino import TrinoResource
 
                 @dg.asset(

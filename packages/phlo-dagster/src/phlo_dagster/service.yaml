@@ -3,6 +3,11 @@ description: Data orchestration platform for workflows and pipelines
 category: orchestration
 default: true
 phlo_dev: true
+gitignore:
+  - dagster/storage/
+  - dagster/history/
+  - dagster/schedules/
+  - dagster/logs/
 
 build:
   context: .

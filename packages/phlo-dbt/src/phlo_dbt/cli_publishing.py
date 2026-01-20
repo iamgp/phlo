@@ -13,8 +13,8 @@ from typing import Any, Iterable
 import click
 import yaml
 
-from phlo.cli._services.utils import get_project_name
-from phlo.config import get_settings
+from phlo.cli.infrastructure.utils import get_project_name
+from phlo_dbt.settings import get_settings
 
 
 def _normalize_select_patterns(select: Iterable[str]) -> list[str]:

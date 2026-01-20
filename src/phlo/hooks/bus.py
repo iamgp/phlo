@@ -90,7 +90,7 @@ class HookBus:
 
         if self._discovered:
             return
-        from phlo.discovery import discover_plugins, get_global_registry
+        from phlo.plugins.discovery import discover_plugins, get_global_registry
 
         discover_plugins(auto_register=True)
         registry = get_global_registry()

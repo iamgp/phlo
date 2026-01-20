@@ -11,8 +11,8 @@ from typing import Any
 
 import yaml
 
-from phlo.discovery import ServiceDefinition, ServiceDiscovery
 from phlo.logging import get_logger
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 logger = get_logger(__name__)
 
@@ -474,19 +474,27 @@ class ComposeGenerator:
 
         return copied
 
-    def generate_gitignore(self) -> str:
+    def generate_gitignore(self, services: list[ServiceDefinition]) -> str:
         """Generate .gitignore content for .phlo directory."""
-        return """# Phlo infrastructure files
-.env
-.env.local
-volumes/
+        entries: list[str] = [
+            "# Phlo infrastructure files",
+            ".env",
+            ".env.local",
+            "volumes/",
+        ]
 
-# Dagster runtime data
-dagster/storage/
-dagster/history/
-dagster/schedules/
-dagster/logs/
-"""
+        extra_entries: list[str] = []
+        for service in services:
+            for entry in service.gitignore:
+                if entry not in extra_entries:
+                    extra_entries.append(entry)
+
+        if extra_entries:
+            entries.append("")
+            entries.append("# Service runtime data")
+            entries.extend(extra_entries)
+
+        return "\n".join(entries) + "\n"
 
     @staticmethod
     def _normalize_env_value(value: Any) -> str:

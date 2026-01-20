@@ -669,13 +669,13 @@ phlo init [PROJECT_NAME] [OPTIONS]
 
 **Templates**:
 
-- `basic`: Minimal project structure
-- `complete`: Full example with ingestion and transformations
+- `basic`: Ingestion + dbt transforms (requires `phlo-dbt`)
+- `minimal`: Minimal project structure (no transforms)
 
 **Example**:
 
 ```bash
-phlo init my-lakehouse --template complete
+phlo init my-lakehouse --template basic
 cd my-lakehouse
 ```
 
@@ -687,7 +687,7 @@ my-lakehouse/
 ├── workflows/
 │   ├── ingestion/
 │   ├── schemas/
-│   └── transforms/
+│   └── transforms/       # basic template only
 │       └── dbt/
 ├── tests/
 └── phlo.yaml

@@ -19,6 +19,10 @@ def _add_cwd_to_syspath() -> None:
     if cwd not in sys.path:
         sys.path.insert(0, cwd)
 
+    for name in list(sys.modules):
+        if name == "workflows" or name.startswith("workflows."):
+            sys.modules.pop(name, None)
+
 
 def test_schema_generate_dry_run_from_ingestion_asset() -> None:
     runner = CliRunner()

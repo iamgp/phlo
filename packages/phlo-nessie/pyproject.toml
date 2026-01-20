@@ -14,6 +14,8 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
+    "phlo-observatory>=0.1.0",
+    "phlo-trino>=0.1.0",
     "pynessie",
     "requests",
     "pyyaml>=6.0.1",

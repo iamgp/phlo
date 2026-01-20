@@ -15,8 +15,8 @@ from anyio.to_thread import run_sync
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
-from phlo.config import get_settings
 from phlo.logging import get_logger
+from phlo_lineage.settings import get_settings
 
 logger = get_logger(__name__)
 

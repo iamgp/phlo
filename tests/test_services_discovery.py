@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from phlo.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
 from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
 
 
 class DummyServicePlugin(ServicePlugin):

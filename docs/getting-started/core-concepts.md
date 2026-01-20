@@ -467,7 +467,7 @@ Automatic publishing of marts to PostgreSQL for BI:
 # workflows/publishing/trino_to_postgres.py
 @asset(deps=[marts.daily_aggregates])
 def publish_daily_aggregates(context, trino, postgres):
-    _publish_marts_to_postgres(
+    publish_marts_to_postgres(
         context, trino,
         tables_to_publish={
             "daily_aggregates": "marts.daily_aggregates"
@@ -522,7 +522,7 @@ Complete end-to-end flow:
 
 **dbt models**: `workflows/transforms/dbt/models/{layer}/{model}.sql`
 
-**Configuration**: `phlo.config`, `.phlo/.env.local`, `phlo.yaml`
+**Configuration**: `.phlo/.env.local`, `phlo.yaml`, package settings (e.g., `phlo_postgres.settings`)
 
 **Sensors**: `workflows/sensors/branch_lifecycle.py`
 

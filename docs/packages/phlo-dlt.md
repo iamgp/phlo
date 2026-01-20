@@ -45,7 +45,7 @@ phlo plugin install dlt
 ### Basic Ingestion
 
 ```python
-from phlo import phlo_ingestion
+from phlo.ingestion import phlo_ingestion
 from workflows.schemas.events import EventSchema
 
 @phlo_ingestion(

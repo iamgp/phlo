@@ -139,7 +139,7 @@ def downstream(upstream):  # Clear dependency
 ```
 project/
 ├── phlo.yaml                    # Project + infra config
-├── workflows/                   # Dagster assets discovered by phlo.framework.definitions
+├── workflows/                   # Dagster assets discovered by phlo_dagster.framework.definitions
 │   ├── ingestion/               # Ingestion assets
 │   ├── quality/                 # Quality checks and assets
 │   ├── schemas/                 # Pandera schemas
@@ -445,18 +445,17 @@ API_KEY = 'abc123'  # Don't hardcode!
 ### Use Strong Authentication
 
 ```python
-from phlo.config import get_settings
-
 @dg.asset
 def fetch_from_api():
-    config = get_settings()
+    api_key = os.getenv("API_KEY")
+    api_url = os.getenv("API_URL")
 
     # Use API key from environment
     headers = {
-        'Authorization': f'Bearer {config.API_KEY}'
+        "Authorization": f"Bearer {api_key}",
     }
 
-    response = requests.get(config.API_URL, headers=headers)
+    response = requests.get(api_url, headers=headers)
     return response.json()
 ```
 
@@ -612,7 +611,7 @@ def test_calculate_tax_negative():
 ```python
 # tests/test_pipeline.py
 from dagster import materialize
-from phlo.framework.definitions import defs
+from phlo_dagster.framework.definitions import defs
 
 def test_orders_pipeline():
     """Test complete orders pipeline."""

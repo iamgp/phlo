@@ -6,6 +6,7 @@ import click
 
 from phlo.plugins.base import CliCommandPlugin, PluginMetadata
 from phlo_dagster.cli_backfill import backfill
+from phlo_dagster.cli_dev import dev
 from phlo_dagster.cli_logs import logs
 from phlo_dagster.cli_materialize import materialize
 from phlo_dagster.cli_status import status
@@ -21,4 +22,4 @@ class DagsterCliPlugin(CliCommandPlugin):
         )
 
     def get_cli_commands(self) -> list[click.Command]:
-        return [logs, status, backfill, materialize]
+        return [dev, logs, status, backfill, materialize]

@@ -89,7 +89,7 @@ docker exec dagster-webserver dbt compile
 - Lint/format: ruff.
 - Absolute imports only.
 - Commits follow Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
-- Configuration via `phlo.config.settings` (reads `.phlo/.env` and `.phlo/.env.local`).
+- Core configuration via `phlo.config.settings` (reads `.phlo/.env` and `.phlo/.env.local`); service configs live in package settings modules.
 - Project templates use:
     - `workflows/` for ingestion/quality assets and `workflows/transforms/dbt/` for dbt projects.
     - Pandera schemas in `workflows/schemas/{domain}.py`.

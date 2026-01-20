@@ -10,7 +10,6 @@ Tests the complete plugin lifecycle:
 
 import pytest
 
-from phlo.discovery import get_global_registry
 from phlo.plugins import (
     PluginMetadata,
     QualityCheckPlugin,
@@ -26,6 +25,7 @@ from phlo.plugins import (
     list_plugins,
     validate_plugins,
 )
+from phlo.plugins.discovery import get_global_registry
 
 
 # Test plugins

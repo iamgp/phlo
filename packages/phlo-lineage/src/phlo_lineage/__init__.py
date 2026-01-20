@@ -2,10 +2,13 @@
 
 from phlo_lineage.graph import LineageGraph, get_lineage_graph
 from phlo_lineage.store import LineageStore, generate_row_id
+from phlo_lineage.settings import LineageSettings, get_settings
 
 __all__ = [
     "LineageGraph",
     "get_lineage_graph",
     "LineageStore",
     "generate_row_id",
+    "LineageSettings",
+    "get_settings",
 ]

@@ -14,8 +14,9 @@ from __future__ import annotations
 from typing import Any
 
 import requests
-from phlo.config import get_settings
 from phlo.logging import get_logger
+from phlo_nessie.settings import get_settings
+from phlo_trino.settings import get_settings as get_trino_settings
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,7 @@ class NessieTableScanner:
     @classmethod
     def from_config(cls) -> NessieTableScanner:
         settings = get_settings()
-        return cls(nessie_uri=settings.nessie_iceberg_rest_uri)
+        return cls(nessie_uri=settings.nessie_iceberg_rest_uri())
 
     def _request(self, method: str, endpoint: str, params: dict[str, Any] | None = None) -> Any:
         url = f"{self.nessie_uri.rstrip('/')}/{endpoint.lstrip('/')}"
@@ -168,7 +169,7 @@ class NessieTableScanner:
         except Exception as exc:  # noqa: BLE001 - optional dependency
             logger.warning("Trino resource not available for Nessie fallback: %s", exc)
             return None
-        settings = get_settings()
+        settings = get_trino_settings()
         return TrinoResource(
             host=settings.trino_host,
             port=settings.trino_port,

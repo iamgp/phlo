@@ -42,7 +42,7 @@ phlo plugin install quality
 ### Defining Checks
 
 ```python
-from phlo import phlo_quality
+from phlo.quality import phlo_quality
 from phlo_quality import NullCheck, UniqueCheck, RangeCheck
 
 @phlo_quality(
@@ -62,6 +62,8 @@ def validate_users():
 ```python
 import pandera as pa
 from pandera.typing import Series
+
+from phlo.ingestion import phlo_ingestion
 
 class UserSchema(pa.DataFrameModel):
     id: Series[str] = pa.Field(nullable=False, unique=True)

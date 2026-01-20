@@ -120,7 +120,7 @@ src/phlo/discovery/
 
 - Rename `plugins/discovery.py` → `discovery/plugins.py`
 - Rename `services/discovery.py` → `discovery/services.py`
-- Single import: `from phlo.discovery import discover_plugins, discover_services`
+- Single import: `from phlo.plugins.discovery import discover_plugins, discover_services`
 
 **Effort**: ~1 day
 

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from phlo.config import config
+from dataclasses import dataclass, field
 from pyiceberg.catalog import Catalog
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
 
 from phlo_iceberg.catalog import get_catalog
+from phlo_iceberg.settings import get_settings
 from phlo_iceberg.tables import append_to_table, ensure_table, merge_to_table
 
 
@@ -15,7 +15,7 @@ from phlo_iceberg.tables import append_to_table, ensure_table, merge_to_table
 class IcebergResource:
     """Resource wrapper for the Nessie-backed Iceberg catalog."""
 
-    ref: str = config.iceberg_nessie_ref
+    ref: str = field(default_factory=lambda: get_settings().iceberg_nessie_ref)
 
     def get_catalog(self, override_ref: str | None = None) -> Catalog:
         branch = override_ref or self.ref
