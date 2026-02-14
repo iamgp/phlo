@@ -844,7 +844,7 @@ ORDER BY 3 DESC;
 - **Import errors for `phlo_quality`**
 
 ```bash
-uv run python -c "from phlo.quality import phlo_quality; print(phlo_quality)"
+uv run python -c "from phlo_quality import phlo_quality; print(phlo_quality)"
 ```
 
 

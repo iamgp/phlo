@@ -79,7 +79,7 @@ def create_workflow_cmd(
             click.echo(f"  2. Configure API: {files[1]}")
             click.echo("  3. Restart Dagster: docker restart dagster-webserver")
             click.echo(f"  4. Test: phlo test {domain}")
-            click.echo(f"  5. Materialize: phlo materialize {table}")
+            click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
         else:
             click.echo(f"Error: Workflow type '{workflow_type}' not yet implemented", err=True)
             click.echo("Currently supported: ingestion", err=True)

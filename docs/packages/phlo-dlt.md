@@ -45,7 +45,7 @@ phlo plugin install dlt
 ### Basic Ingestion
 
 ```python
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.events import EventSchema
 
 @phlo_ingestion(
@@ -60,10 +60,10 @@ def api_events(partition_date: str):
     """Ingest events from REST API."""
     from dlt.sources.rest_api import rest_api
 
-    return rest_api({
-        "client": {"base_url": "https://api.example.com"},
-        "resources": [{"name": "events", "endpoint": "/events"}]
-    })
+    return rest_api(
+        client={"base_url": "https://api.example.com"},
+        resources=[{"name": "events", "endpoint": {"path": "events"}}],
+    )
 ```
 
 ### Decorator Options

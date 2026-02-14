@@ -80,15 +80,17 @@ class TestSchema(DataFrameModel):
 )
 def test_workflow(partition_date: str):
     """Test workflow for discovery."""
-    source = rest_api({
-        "client": {
+    source = rest_api(
+        client={
             "base_url": "https://api.example.com",
         },
-        "resources": [{
-            "name": "test",
-            "endpoint": {"path": "test"},
-        }],
-    })
+        resources=[
+            {
+                "name": "test",
+                "endpoint": {"path": "test"},
+            }
+        ],
+    )
     return source
 '''
         (ingestion_dir / "test_workflow.py").write_text(workflow_content)
