@@ -1,11 +1,11 @@
-# Part 2: Getting Started with Phlo—Setup Guide
+# Part 2: Getting Started with Phlo - Setup Guide
 
 > Prerequisite: Read [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) for core concepts.
 
 ## What You'll Learn
 
 - Bootstrap a new Phlo project with `phlo init`
-- Initialize and start the service stack
+- Initialise and start the service stack
 - Ingest sample data and materialize assets
 - Verify results in Dagster and Observatory
 
@@ -49,7 +49,7 @@
 
 If you have less than 4GB RAM, you can start a minimal setup (Postgres + MinIO only) and add services gradually.
 
-## Step 1: Initialize Your Project
+## Step 1: Initialise Your Project
 
 ```bash
 # Create a new Phlo project
@@ -64,7 +64,7 @@ cd my-lakehouse
 ```
 
 
-Then initialize infra (generates `.phlo/.env` and `.phlo/.env.local`):
+Then initialise infra (generates `.phlo/.env` and `.phlo/.env.local`):
 
 ```bash
 phlo services init
@@ -438,7 +438,7 @@ LIMIT 24
 5. Click **Update Chart**
 6. Click **Save Chart**
 
-Congratulations! You've visualized real glucose data from a lakehouse.
+Congratulations! You've visualised real glucose data from a lakehouse.
 
 ## Hands-On Exercise: Re-run the Pipeline
 
@@ -546,9 +546,9 @@ You've successfully:
 - Ran transformations
 - Created a dashboard
 
-In Part 3, we'll dive deep into **Apache Iceberg**—the magic that makes this lakehouse work.
+In Part 3, we'll cover **Apache Iceberg** and how it manages table metadata, snapshots, and schema changes.
 
 ## Next Steps
 
-- Continue with [Part 3: Apache Iceberg—The Table Format That Changed Everything](03-apache-iceberg-explained.md).
+- Continue with [Part 3: Apache Iceberg - The Table Format That Changed Everything](03-apache-iceberg-explained.md).
 - Jump to ingestion specifics in [Part 5: Data Ingestion](05-data-ingestion.md).

@@ -1,4 +1,4 @@
-# Part 4: Project Nessie—Git-Like Versioning for Data
+# Part 4: Project Nessie - Git-Like Versioning for Data
 
 > Prerequisite: Read [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md) for table format basics.
 
@@ -12,7 +12,7 @@
 ## Prerequisites
 
 - [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md)
-- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) to run commands locally.
+- Optional: [Part 2: Getting Started - Setup Guide](02-setup-guide.md) to run commands locally.
 
 Iceberg gave us time travel. Now let's add **branching**, **merging**, and **tags** to our data with Project Nessie.
 For governance workflows that build on Nessie history, see [Part 10: Metadata & Governance](10-metadata-governance.md).
@@ -136,7 +136,7 @@ main:
 dev (branched from Commit B):
   ├── Commit B': Quality fixes (inherited)
   ├── Commit D: New transformations
-  └── Commit E: Schema optimizations (HEAD)
+  └── Commit E: Schema optimisations (HEAD)
 
 Merge dev → main:
   ├── Commit A: Initial data load
@@ -805,4 +805,4 @@ See also: [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [P
 - Learn how data is transformed on top of Nessie in [Part 6: dbt Transformations](06-dbt-transformations.md).
 - See governance workflows that build on branches in [Part 10: Metadata & Governance](10-metadata-governance.md).
 
-**Next**: [Part 5: Data Ingestion—Getting Data Into the Lakehouse](05-data-ingestion.md)
+**Next**: [Part 5: Data Ingestion - Getting Data Into the Lakehouse](05-data-ingestion.md)

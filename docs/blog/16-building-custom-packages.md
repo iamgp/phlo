@@ -264,7 +264,7 @@ See also: [Part 13: Capability Primitives](13-capability-primitives.md), [Part 1
 
 Custom capability packages let teams ship reusable assets and resources with clear
 entry points and versioned releases. Use AssetProviderPlugin and ResourceProviderPlugin
-to keep domain logic centralized and discoverable across projects.
+to keep domain logic centralised and discoverable across projects.
 
 
 ## Next Steps

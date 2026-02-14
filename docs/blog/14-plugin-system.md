@@ -14,7 +14,7 @@
 - [Part 13: Capability Primitives](13-capability-primitives.md)
 - Optional: [Part 16: Building Custom Packages](16-building-custom-packages.md) for scaffolding.
 
-You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialized validation rule, or a domain-specific transformation?
+You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialised validation rule, or a domain-specific transformation?
 For full package scaffolding, see [Part 16: Building Custom Packages](16-building-custom-packages.md).
 
 That's where the plugin system comes in.
@@ -514,7 +514,7 @@ class ThresholdCheck(QualityCheck):
         tolerance: float = 0.0,
     ):
         """
-        Initialize threshold check.
+        Initialise threshold check.
 
         Args:
             column: Column to validate
@@ -580,7 +580,7 @@ class ThresholdCheck(QualityCheck):
         return f"threshold_check({self.column},{bound_str})"
 ```
 
-**Usage:**
+Usage:
 
 ```python
 from phlo.plugins import get_quality_check
@@ -708,7 +708,7 @@ class UppercaseTransformPlugin(TransformationPlugin):
         return True
 ```
 
-**Usage:**
+Usage:
 
 ```python
 from phlo.plugins import get_transformation
@@ -939,7 +939,7 @@ version = "1.0.1"  # Fix: handled edge case
 
 Plugins run with full access to your environment. Only install trusted plugins.
 
-**For organizations:**
+For organisations:
 
 - Maintain an internal plugin registry
 - Review plugin code before deployment
@@ -1006,15 +1006,15 @@ The plugin system lets you extend Phlo without modifying core code:
 - **Quality Checks**: Encode custom business rules
 - **Transforms**: Reusable transformation logic
 
-Plugins are discovered automatically via Python entry points, managed via CLI, and integrate seamlessly with Phlo's decorators and assets.
+Plugins are discovered through Python entry points, managed via CLI, and used alongside Phlo decorators and assets.
 
-**When to use plugins:**
+When to use plugins:
 
 - You need a data source Phlo doesn't support
-- You have organization-specific quality rules
+- You have organisation-specific quality rules
 - You want to share reusable logic across teams
 
-**When NOT to use plugins:**
+When NOT to use plugins:
 
 - One-off transformations (just write Python)
 - Simple quality checks (use built-in checks)
@@ -1049,7 +1049,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 ```
 
 
-**Actual Files to Study:**
+Actual Files to Study:
 
 - Source plugin: `src/phlo_example/source.py`
 - Quality check plugin: `src/phlo_example/quality.py`
@@ -1057,7 +1057,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 - Entry points: `pyproject.toml`
 - Tests: `tests/`
 
-**Base Classes:**
+Base Classes:
 
 - `phlo.plugins.SourceConnectorPlugin` - Inherit for source connectors
 - `phlo.plugins.QualityCheckPlugin` - Inherit for quality checks
@@ -1069,7 +1069,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 - `phlo.plugins.OrchestratorAdapterPlugin` - Inherit to translate specs to runtime
 - `phlo.plugins.ObservatoryExtensionPlugin` - Inherit for UI extensions
 
-**Discovery Functions:**
+Discovery Functions:
 
 - `phlo.plugins.discover_plugins()` - Discover all plugins
 - `phlo.plugins.get_source_connector(name)` - Get source plugin

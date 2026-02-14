@@ -4,7 +4,7 @@
 
 ## What You'll Learn
 
-- Why metadata and governance are critical for trust
+- Why metadata and governance matter for trust
 - How OpenMetadata models ownership, lineage, and quality
 - How Phlo publishes assets into the catalog
 - How to use metadata for operational decisions
@@ -14,7 +14,7 @@
 - [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md)
 - Optional: [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md) for validation context.
 
-Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.
+Data quality matters. So does knowing what data exists, where it came from, and who can use it. This post covers metadata and governance with OpenMetadata.
 For alerting and monitoring once metadata is in place, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
 ## The Metadata Problem
@@ -40,7 +40,7 @@ Nobody knows because metadata is scattered:
 - Ownership unknown
 - Change history nowhere
 
-> **Note:** For detailed OpenMetadata setup instructions, see [docs/setup/openmetadata.md](../setup/openmetadata.md)
+> Note: For detailed OpenMetadata setup instructions, see [docs/setup/openmetadata.md](../setup/openmetadata.md)
 
 ## OpenMetadata: The Open-Source Data Catalog
 
@@ -56,7 +56,7 @@ OpenMetadata is an open-source data catalog that answers:
 
 ## Why OpenMetadata for Phlo?
 
-OpenMetadata integrates seamlessly with Phlo's tech stack:
+OpenMetadata works with the Phlo stack:
 
 - **Trino connector** - Auto-discovers Iceberg tables
 - **Modern UI** - Intuitive search and browsing experience
@@ -144,11 +144,11 @@ Default credentials:
 
 ### Step 2: Configure Trino Connection
 
-**Service Name:** `trino`
+Service Name: `trino`
 
-**Description:** Phlo lakehouse Trino query engine with Iceberg catalog
+Description: Phlo lakehouse Trino query engine with Iceberg catalog
 
-**Connection Configuration:**
+Connection Configuration:
 
 Click on **Basic** authentication type, then configure:
 
@@ -174,11 +174,11 @@ Click **Submit** to save the service.
 
 After creating the service, you'll be prompted to set up metadata ingestion.
 
-1. **Pipeline Name:** `trino-metadata`
-2. **Pipeline Type:** Select **Metadata Ingestion**
+1. Pipeline Name: `trino-metadata`
+2. Pipeline Type: Select **Metadata Ingestion**
 3. Click **Next**
 
-**Filter Patterns (CRITICAL - prevents crashes):**
+Filter Patterns (CRITICAL - prevents crashes):
 
 ```yaml
 Database Filter Pattern:
@@ -194,7 +194,7 @@ Table Filter Pattern:
   Exclude: (leave empty)
 ```
 
-**Advanced Configuration:**
+Advanced Configuration:
 
 Enable/disable these options:
 
@@ -209,7 +209,7 @@ Enable/disable these options:
 | Include DDL                    | No      | Not needed         |
 | Override Metadata              | No      | -                  |
 
-**Ingestion Settings:**
+Ingestion Settings:
 
 - Thread Count: `1` (default)
 - Timeout: `300` seconds (default)
@@ -218,7 +218,7 @@ Click **Next**.
 
 ### Step 4: Configure Scheduling
 
-**Schedule Type:** Choose one:
+Schedule Type: Choose one:
 
 **Option A: Manual (Recommended for Development)**
 
@@ -237,7 +237,7 @@ Click **Next** → **Deploy**.
 
 ### Step 5: Run Initial Ingestion
 
-**Via OpenMetadata UI:**
+Via OpenMetadata UI:
 
 1. Go to **Settings → Integrations → Databases**
 2. Click on **trino** service
@@ -269,30 +269,30 @@ INFO - Total errors: 0
 
 After initial ingestion, search will NOT work until you populate the search index. This is a required step.
 
-**Navigate to Search Settings:**
+Navigate to Search Settings:
 
 1. Go to **Settings** (gear icon) → **OpenMetadata** → **Search**
 2. Click on **SearchIndexingApplication**
 3. Click **Run Now** button
 
-**Configure the Reindex Job:**
+Configure the Reindex Job:
 
 1. Enable **"Recreate Indexes"** toggle (IMPORTANT)
 2. Select **"All"** entities (or leave default)
 3. Click **Submit**
 
-**Monitor Progress:**
+Monitor Progress:
 
 - The job will run for 1-2 minutes
 - You'll see "Success" when complete
 
-**What This Does:**
+What This Does:
 
 - Creates the `all` search alias
 - Populates search indices from metadata
 - Enables Explore page and search functionality
 
-**Without this step:**
+Without this step:
 
 - Explore page will show error: "Search failed due to Elasticsearch exception"
 - Global search will not work
@@ -336,14 +336,14 @@ Updated every 5 minutes via Dagster pipeline.
 
 ## Business Logic
 
-- `glucose_category`: Categorized as hypoglycemia (<70), in_range (70-180), or hyperglycemia (>180)
+- `glucose_category`: Categorised as hypoglycemia (<70), in_range (70-180), or hyperglycemia (>180)
 - `reading_timestamp`: UTC timestamp of the reading
 ```
 
 3. Add column descriptions:
    - `reading_id`: Unique identifier for each glucose reading
    - `glucose_mg_dl`: Glucose value in mg/dL (validated range: 20-600)
-   - `glucose_category`: Categorized glucose level
+   - `glucose_category`: Categorised glucose level
    - `reading_timestamp`: When the reading was taken (UTC)
 
 4. Click **Save**
@@ -403,7 +403,7 @@ Click **Next**.
 
 **Step 2: Configure dbt Metadata Ingestion**
 
-1. **Source Configuration:**
+1. Source Configuration:
 
 | Field                         | Value                          | Notes                                  |
 | ----------------------------- | ------------------------------ | -------------------------------------- |
@@ -412,23 +412,23 @@ Click **Next**.
 | **dbt Manifest File Path**    | `/dbt/target/manifest.json`    | Contains lineage and dependencies      |
 | **dbt Run Results File Path** | `/dbt/target/run_results.json` | Optional: test results                 |
 
-2. **Database Service Name:** `trino`
+2. Database Service Name: `trino`
    - This links dbt models to your Trino tables
    - Must match the name of your Trino service
 
-3. **Include Tags:** `Yes` (Enable)
+3. Include Tags: `Yes` (Enable)
    - Imports dbt model tags as OpenMetadata tags
 
 Click **Next**.
 
 **Step 3: Schedule dbt Ingestion**
 
-**For Development:**
+For Development:
 
 - Select **Manual**
 - Run after `dbt run` or `dbt build` completes
 
-**For Production:**
+For Production:
 
 - Select **Scheduled**
 - Cron: `0 4 * * *` (4 AM, after Dagster + Trino ingestion)
@@ -552,7 +552,7 @@ models:
               min_value: 20
               max_value: 600
       - name: glucose_category
-        description: Categorized as hypoglycemia, in_range, or hyperglycemia
+        description: Categorised as hypoglycemia, in_range, or hyperglycemia
 ```
 
 ## Hands-On Exercise: Trace a Dataset
@@ -596,7 +596,7 @@ Fix: start Trino and update the service connection details.
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
 
 
-## Data Contracts: Formalizing Data Agreements
+## Data Contracts: Formalising Data Agreements
 
 As data platforms grow, informal agreements break down. The ML team assumes glucose readings update hourly. The analytics team expects certain columns to never be null. The reporting system depends on specific value ranges. When someone changes the schema or update frequency, things break.
 
@@ -715,7 +715,7 @@ Expected output:
 No schema changes detected.
 ```
 
-> **Note:** Dedicated `phlo contract ...` commands are planned. Today, use `phlo schema ...` + `phlo catalog ...` in CI.
+> Note: Dedicated `phlo contract ...` commands are planned. Today, use `phlo schema ...` + `phlo catalog ...` in CI.
 
 
 ### Schema Evolution and Breaking Changes
@@ -944,7 +944,7 @@ Showing 3 most recent snapshots
 ```
 
 
-> **Future Feature:** Automated metadata sync to OpenMetadata (`phlo catalog sync`) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the [setup guide](../setup/openmetadata.md).
+> Future Feature: Automated metadata sync to OpenMetadata (`phlo catalog sync`) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the [setup guide](../setup/openmetadata.md).
 
 ---
 
@@ -967,7 +967,7 @@ Traditional approach:
 
 Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
 
-> **Implementation Details:** For comprehensive API setup guides, see:
+> API setup details: see:
 >
 > - [docs/setup/postgrest.md](../setup/postgrest.md) - PostgREST configuration
 > - [docs/setup/hasura.md](../setup/hasura.md) - Hasura GraphQL setup
@@ -976,7 +976,7 @@ Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
 
 PostgREST turns PostgreSQL tables into REST endpoints automatically. The challenge is keeping API views in sync with your dbt models.
 
-**The manual way:**
+The manual way:
 
 ```sql
 -- Write this by hand for every model
@@ -987,7 +987,7 @@ FROM marts_postgres.mrt_glucose_readings;
 GRANT SELECT ON api.glucose_readings TO analyst;
 ```
 
-**The automated way:**
+The automated way:
 
 ```bash
 # Install optional PostgREST plugin once
