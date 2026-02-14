@@ -147,14 +147,18 @@ def init(project_name: Optional[str], template: str, force: bool):
     """
     click.echo("Phlo Project Initializer\n")
 
-    # Determine project directory
+    # Determine project directory and metadata-safe project name
     if project_name is None or project_name == ".":
         project_dir = Path.cwd()
-        project_name = project_dir.name
+        project_metadata_name = project_dir.name
         click.echo(f"Initializing in current directory: {project_dir}")
     else:
-        project_dir = Path.cwd() / project_name
-        click.echo(f"Creating new project: {project_name}")
+        requested_path = Path(project_name).expanduser()
+        project_dir = (
+            requested_path if requested_path.is_absolute() else (Path.cwd() / requested_path)
+        )
+        project_metadata_name = project_dir.name
+        click.echo(f"Creating new project: {project_dir}")
 
     # Check if directory exists and is not empty
     if project_dir.exists() and any(project_dir.iterdir()) and not force:
@@ -164,11 +168,11 @@ def init(project_name: Optional[str], template: str, force: bool):
 
     # Create project structure
     try:
-        _create_project_structure(project_dir, project_name, template)
+        _create_project_structure(project_dir, project_metadata_name, template)
 
-        click.echo(f"\nSuccessfully initialized Phlo project: {project_name}\n")
+        click.echo(f"\nSuccessfully initialized Phlo project: {project_dir}\n")
         click.echo("Created structure:")
-        click.echo(f"  {project_name}/")
+        click.echo(f"  {project_dir}/")
         click.echo("  ├── phlo.yaml            # Project configuration with infrastructure")
         click.echo("  ├── pyproject.toml       # Project dependencies")
         click.echo("  ├── .env.example         # Local secrets template (copy to .phlo/.env.local)")
@@ -180,8 +184,8 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo("  └── tests/               # Workflow tests")
 
         click.echo("\nNext steps:")
-        if project_name != project_dir.name:
-            click.echo(f"  1. cd {project_name}")
+        if project_dir != Path.cwd():
+            click.echo(f"  1. cd {project_dir}")
         click.echo("  2. pip install -e .              # Install Phlo and dependencies")
         click.echo("  3. phlo services init            # Set up infrastructure (Docker)")
         click.echo("  4. phlo workflow create          # Create your first workflow")

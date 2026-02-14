@@ -1,6 +1,7 @@
 """Tests for plugin CLI commands."""
 
 import json
+import sys
 
 import pytest
 from click.testing import CliRunner
@@ -209,3 +210,46 @@ def test_plugin_update(monkeypatch):
 
     assert result.exit_code == 0
     assert calls == [["install", "--upgrade", "phlo-plugin-registry==2.0.0"]]
+
+
+def test_run_pip_uses_python_pip_when_available(monkeypatch):
+    from phlo.cli.commands.plugin.utils import run_pip
+
+    calls: list[tuple[list[str], bool, float]] = []
+
+    monkeypatch.setattr("phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: object())
+    monkeypatch.setattr(
+        "phlo.cli.commands.plugin.utils.subprocess.run",
+        lambda cmd, check, timeout: calls.append((cmd, check, timeout)),
+    )
+
+    run_pip(["install", "demo-plugin"], timeout=12)
+
+    assert calls == [([sys.executable, "-m", "pip", "install", "demo-plugin"], True, 12)]
+
+
+def test_run_pip_uses_uv_when_pip_module_missing(monkeypatch):
+    from phlo.cli.commands.plugin.utils import run_pip
+
+    calls: list[tuple[list[str], bool, float]] = []
+
+    monkeypatch.setattr("phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: None)
+    monkeypatch.setattr("phlo.cli.commands.plugin.utils.shutil.which", lambda _: "/usr/bin/uv")
+    monkeypatch.setattr(
+        "phlo.cli.commands.plugin.utils.subprocess.run",
+        lambda cmd, check, timeout: calls.append((cmd, check, timeout)),
+    )
+
+    run_pip(["install", "demo-plugin"], timeout=9)
+
+    assert calls == [(["uv", "pip", "install", "demo-plugin"], True, 9)]
+
+
+def test_run_pip_errors_when_no_pip_and_no_uv(monkeypatch):
+    from phlo.cli.commands.plugin.utils import run_pip
+
+    monkeypatch.setattr("phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: None)
+    monkeypatch.setattr("phlo.cli.commands.plugin.utils.shutil.which", lambda _: None)
+
+    with pytest.raises(RuntimeError, match="pip module is unavailable"):
+        run_pip(["install", "demo-plugin"])
