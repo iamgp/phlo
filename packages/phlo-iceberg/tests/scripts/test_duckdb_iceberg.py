@@ -10,6 +10,7 @@ import os
 import sys
 
 import pytest
+from _pytest.outcomes import Skipped
 
 # Mark entire module as integration tests (requires Nessie and MinIO)
 pytestmark = pytest.mark.integration
@@ -228,7 +229,7 @@ if __name__ == "__main__":
     try:
         test_duckdb_iceberg()
         success = True
-    except pytest.skip.Exception as exc:
+    except Skipped as exc:
         print(f"Test skipped: {exc}")
         success = True
     except Exception as e:

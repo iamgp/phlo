@@ -9,6 +9,11 @@ from typing import Any
 from psycopg2 import sql
 from psycopg2.extras import execute_values
 
+try:
+    from trino.exceptions import TrinoUserError
+except Exception:  # noqa: BLE001 - optional dependency in lightweight test envs
+    TrinoUserError = None  # type: ignore[assignment]
+
 from phlo.hooks import (
     LineageEventContext,
     LineageEventEmitter,
@@ -288,10 +293,13 @@ def _describe_trino_table(trino: Any, source_table: str) -> tuple[list[tuple[str
     table_refs = _trino_table_ref_candidates(source_table)
     max_attempts = 5
     retry_delay_seconds = 1.0
+    non_retryable_candidates: set[str] = set()
 
     for attempt in range(max_attempts):
         saw_retryable_error = False
         for source_table_ref in table_refs:
+            if source_table_ref in non_retryable_candidates:
+                continue
             for query in (f"DESCRIBE {source_table_ref}", f"SHOW COLUMNS FROM {source_table_ref}"):
                 try:
                     with trino.cursor() as cursor:
@@ -308,9 +316,12 @@ def _describe_trino_table(trino: Any, source_table: str) -> tuple[list[tuple[str
                     last_error = exc
                     if _is_retryable_introspection_error(exc):
                         saw_retryable_error = True
-                    continue
+                        continue
+                    non_retryable_candidates.add(source_table_ref)
+                    break
         if attempt < max_attempts - 1 and saw_retryable_error:
-            time.sleep(retry_delay_seconds)
+            delay = retry_delay_seconds * (attempt + 1)
+            time.sleep(delay)
             continue
         break
 
@@ -320,6 +331,29 @@ def _describe_trino_table(trino: Any, source_table: str) -> tuple[list[tuple[str
 
 
 def _is_retryable_introspection_error(exc: Exception) -> bool:
+    retryable_error_names = {
+        "table_not_found",
+        "schema_not_found",
+        "server_starting_up",
+        "catalog_not_found",
+    }
+    retryable_error_types = {"external", "internal_error", "insufficient_resources"}
+
+    for error in _iter_exception_chain(exc):
+        if TrinoUserError is not None and isinstance(error, TrinoUserError):
+            error_name = getattr(error, "error_name", None)
+            if error_name and str(error_name).lower() in retryable_error_names:
+                return True
+            error_type = getattr(error, "error_type", None)
+            if error_type and str(error_type).lower() in retryable_error_types:
+                return True
+        error_name = getattr(error, "error_name", None)
+        if error_name and str(error_name).lower() in retryable_error_names:
+            return True
+        error_type = getattr(error, "error_type", None)
+        if error_type and str(error_type).lower() in retryable_error_types:
+            return True
+
     message = str(exc).lower()
     retryable_snippets = (
         "table_not_found",
@@ -331,6 +365,15 @@ def _is_retryable_introspection_error(exc: Exception) -> bool:
         "timed out",
     )
     return any(snippet in message for snippet in retryable_snippets)
+
+
+def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
+    errors: list[BaseException] = []
+    current: BaseException | None = exc
+    while current is not None:
+        errors.append(current)
+        current = current.__cause__ or current.__context__
+    return errors
 
 
 _TRINO_TO_PG_SIMPLE: dict[str, str] = {

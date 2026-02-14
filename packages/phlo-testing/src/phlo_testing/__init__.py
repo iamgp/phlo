@@ -240,8 +240,19 @@ except ModuleNotFoundError as exc:
         raise
 else:
     _FIXTURES_AVAILABLE = True
+    _MISSING = object()
+    missing_exports: list[str] = []
     for _fixture_name in _FIXTURE_EXPORTS:
-        globals()[_fixture_name] = getattr(_fixtures_module, _fixture_name)
+        fixture = getattr(_fixtures_module, _fixture_name, _MISSING)
+        if fixture is _MISSING:
+            missing_exports.append(_fixture_name)
+            continue
+        globals()[_fixture_name] = fixture
+    if missing_exports:
+        missing = ", ".join(missing_exports)
+        raise ImportError(
+            f"phlo_testing.fixtures is missing exports declared in _FIXTURE_EXPORTS: {missing}"
+        )
 
 __all__ = [
     # Phase 1: Core Mocks

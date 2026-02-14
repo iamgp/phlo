@@ -33,7 +33,12 @@ def test_scaffold_generates_no_todos_and_is_syntax_valid(
         assert "TODO" not in contents
         compile(contents, rel_path, "exec")
 
-    asset_contents = (tmp_path / created[1]).read_text()
+    asset_path = next(
+        (tmp_path / rel_path for rel_path in created if "workflows/ingestion/" in rel_path),
+        None,
+    )
+    assert asset_path is not None
+    asset_contents = asset_path.read_text()
     assert "return rest_api(" in asset_contents
     assert "client={" in asset_contents
     assert "resources=[" in asset_contents

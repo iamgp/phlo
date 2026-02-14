@@ -98,11 +98,17 @@ def _build_dagster_fallback_definitions(
 ) -> Any:
     from phlo_dagster.adapter import DagsterOrchestratorAdapter
 
-    return DagsterOrchestratorAdapter().build_definitions(
-        assets=assets,
-        checks=checks,
-        resources=resources,
-    )
+    try:
+        adapter = DagsterOrchestratorAdapter()
+        return adapter.build_definitions(
+            assets=assets,
+            checks=checks,
+            resources=resources,
+        )
+    except PhloConfigError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - normalize fallback failure shape
+        raise PhloConfigError("Dagster fallback also failed") from exc
 
 
 def _import_workflow_modules(workflows_path: Path) -> list[Any]:
@@ -222,7 +228,7 @@ def _collect_module_dagster_definitions(imported_modules: list[Any]) -> Any | No
             if isinstance(value, job_types):
                 _record(value, module_jobs)
 
-        if any([module_assets, module_checks, module_schedules, module_sensors, module_jobs]):
+        if any((module_assets, module_checks, module_schedules, module_sensors, module_jobs)):
             definitions.append(
                 dg.Definitions(
                     assets=module_assets or None,

@@ -121,7 +121,17 @@ class ComposeGenerator:
 
         config["restart"] = compose.get("restart", "unless-stopped")
 
-        handled_compose_keys = {"restart", "volumes", "command", "entrypoint", "healthcheck"}
+        handled_compose_keys = {
+            "restart",
+            "volumes",
+            "command",
+            "entrypoint",
+            "healthcheck",
+            "profiles",
+            "env_file",
+            "build",
+            "depends_on",
+        }
 
         for key in ("user", "container_name", "labels", "environment", "ports"):
             if compose.get(key):

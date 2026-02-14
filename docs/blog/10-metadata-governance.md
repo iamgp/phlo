@@ -684,8 +684,35 @@ Use the current schema and catalog commands to enforce contract-like checks:
 
 ```bash
 $ phlo schema validate workflows/schemas/glucose.py
+```
+
+Expected output:
+
+```text
+Validated schema model: RawGlucoseEntries
+No validation errors found.
+```
+
+```bash
 $ phlo catalog describe raw.glucose_entries
+```
+
+Expected output:
+
+```text
+Table: raw.glucose_entries
+Columns: 20
+Snapshot: current
+```
+
+```bash
 $ phlo schema diff RawGlucoseEntries --old main
+```
+
+Expected output:
+
+```text
+No schema changes detected.
 ```
 
 > **Note:** Dedicated `phlo contract ...` commands are planned. Today, use `phlo schema ...` + `phlo catalog ...` in CI.
@@ -965,10 +992,23 @@ GRANT SELECT ON api.glucose_readings TO analyst;
 ```bash
 # Install optional PostgREST plugin once
 $ phlo plugin install postgrest
+```
 
+Expected output:
+
+```text
+Installed plugin: postgrest
+Run `phlo plugin list` to verify installation.
+```
+
+```bash
 # Generate API views from dbt metadata
 $ phlo postgrest generate-views
+```
 
+Expected output:
+
+```text
 Generating API views from dbt models...
 
 Source: dbt manifest (12 models in marts_postgres)
@@ -984,7 +1024,6 @@ Permissions:
   api.user_summary: admin (restricted)
 
 Generated SQL saved to: api_views.sql
-
 Apply with: phlo postgrest generate-views --apply
 ```
 

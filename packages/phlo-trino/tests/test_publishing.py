@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from phlo_trino.publishing import _describe_trino_table, _trino_table_ref_candidates
+from phlo_trino.publishing import (
+    _describe_trino_table,
+    _is_retryable_introspection_error,
+    _trino_table_ref_candidates,
+)
 
 
 class _FakeCursor:
@@ -81,12 +85,13 @@ def test_describe_trino_table_falls_back_to_schema_table_reference() -> None:
         ("id", "bigint", '"id"'),
         ("title", "text", '"title"'),
     ]
-    assert trino.queries[:4] == [
+    assert trino.queries[:3] == [
         'DESCRIBE "iceberg"."raw_marts"."posts_mart"',
-        'SHOW COLUMNS FROM "iceberg"."raw_marts"."posts_mart"',
         "DESCRIBE iceberg.raw_marts.posts_mart",
-        "SHOW COLUMNS FROM iceberg.raw_marts.posts_mart",
+        'DESCRIBE "raw_marts"."posts_mart"',
     ]
+    assert 'SHOW COLUMNS FROM "iceberg"."raw_marts"."posts_mart"' not in trino.queries
+    assert "SHOW COLUMNS FROM iceberg.raw_marts.posts_mart" not in trino.queries
 
 
 def test_describe_trino_table_retries_after_table_not_found() -> None:
@@ -111,3 +116,41 @@ def test_describe_trino_table_retries_after_table_not_found() -> None:
         ("title", "text", '"title"'),
     ]
     assert trino.queries.count('DESCRIBE "iceberg"."raw_marts"."posts_mart"') == 2
+
+
+def test_describe_trino_table_skips_non_retryable_candidate_after_first_failure() -> None:
+    trino = _FakeTrino(
+        responses={},
+        sequence_responses={
+            'DESCRIBE "iceberg"."raw_marts"."posts_mart"': [
+                RuntimeError("permission denied"),
+                RuntimeError("should not execute"),
+            ],
+            "DESCRIBE iceberg.raw_marts.posts_mart": [
+                RuntimeError(
+                    "TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, "
+                    'message="table does not exist")'
+                ),
+                [("id", "bigint"), ("title", "varchar")],
+            ],
+        },
+    )
+
+    columns, resolved_ref = _describe_trino_table(trino, "iceberg.raw_marts.posts_mart")
+
+    assert resolved_ref == "iceberg.raw_marts.posts_mart"
+    assert columns == [
+        ("id", "bigint", '"id"'),
+        ("title", "text", '"title"'),
+    ]
+    assert trino.queries.count('DESCRIBE "iceberg"."raw_marts"."posts_mart"') == 1
+
+
+def test_retryable_introspection_error_uses_structured_fields() -> None:
+    class _StructuredTrinoError(RuntimeError):
+        def __init__(self) -> None:
+            super().__init__("opaque server error")
+            self.error_name = "TABLE_NOT_FOUND"
+            self.error_type = "USER_ERROR"
+
+    assert _is_retryable_introspection_error(_StructuredTrinoError())
