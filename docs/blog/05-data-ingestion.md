@@ -1,6 +1,6 @@
-# Part 5: Data Ingestion—Getting Data Into the Lakehouse
+# Part 5: Data Ingestion - Getting Data Into the Lakehouse
 
-> Prerequisite: Complete [Part 2: Getting Started—Setup Guide](02-setup-guide.md) before running ingestion.
+> Prerequisite: Complete [Part 2: Getting Started - Setup Guide](02-setup-guide.md) before running ingestion.
 
 ## What You'll Learn
 
@@ -11,7 +11,7 @@
 
 ## Prerequisites
 
-- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- [Part 2: Getting Started - Setup Guide](02-setup-guide.md)
 - Optional: [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) for scheduling context.
 
 We have our lakehouse infrastructure. Now: **how does data actually get in?**
@@ -154,14 +154,14 @@ def api_events(partition_date: str):
     return rest_api(...)
 ```
 
-**Characteristics:**
+Characteristics:
 
 - Fastest performance (no deduplication overhead)
 - No checking for duplicates
 - Simply appends all new records
 - **Use for**: Server logs, clickstream events, time-series sensor data, immutable audit trails
 
-**Trade-offs:**
+Trade-offs:
 
 - If you accidentally run the same partition twice, you'll get duplicates
 - No way to update existing records
@@ -186,7 +186,7 @@ def user_profiles(partition_date: str):
     return rest_api(...)
 ```
 
-**Deduplication Strategies:**
+Deduplication Strategies:
 
 1. **`last` (default)**: Keep the most recent occurrence
 
@@ -216,14 +216,14 @@ def user_profiles(partition_date: str):
    - Useful when you want to detect actual data changes
    - Example: Configuration snapshots (only update if content differs)
 
-**Characteristics:**
+Characteristics:
 
 - Performs upsert: UPDATE if `unique_key` exists, INSERT if new
 - Removes duplicates within the same batch
 - Idempotent: running multiple times produces same result
 - **Use for**: User profiles, product catalogs, reference data, slowly changing dimensions
 
-**Trade-offs:**
+Trade-offs:
 
 - Slower than append (requires deduplication logic)
 - More memory usage during merge
@@ -800,7 +800,7 @@ See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnos
 
 ## See Also
 
-See also: [Part 2: Getting Started—Setup Guide](02-setup-guide.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 8: A Real-World End-to-End Example](08-real-world-example.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+See also: [Part 2: Getting Started - Setup Guide](02-setup-guide.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md), [Part 8: A Real-World End-to-End Example](08-real-world-example.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
 
 
 ## Summary
@@ -847,5 +847,5 @@ The `@phlo_ingestion` decorator simplifies data ingestion by handling:
 
 ## Next Steps
 
-- Continue with [Part 6: SQL Transformations with dbt—The Right Way](06-dbt-transformations.md).
+- Continue with [Part 6: SQL Transformations with dbt - The Right Way](06-dbt-transformations.md).
 - Add quality checks in [Part 9: Data Quality with Pandera](09-data-quality-with-pandera.md).

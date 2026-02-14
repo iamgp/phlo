@@ -11,7 +11,7 @@
 
 ## Prerequisites
 
-- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- [Part 2: Getting Started - Setup Guide](02-setup-guide.md)
 - [Part 11: Observability & Monitoring](11-observability-monitoring.md)
 
 You've built, tested, and monitored your data lakehouse. Now let's deploy it to production and scale it reliably.
@@ -352,14 +352,14 @@ print(postgres_config["internal_host"])  # "postgres"
 
 #### Production Best Practices
 
-**1. Use descriptive project names:**
+1. Use descriptive project names:
 
 ```yaml
 name: prod-analytics-us-east
 description: Production analytics lakehouse (US East region)
 ```
 
-**2. Document service purposes:**
+2. Document service purposes:
 
 ```yaml
 services:
@@ -368,7 +368,7 @@ services:
     port: 10006
 ```
 
-**3. Reference secrets from .phlo/.env.local:**
+3. Reference secrets from .phlo/.env.local:
 
 ```yaml
 postgres:
@@ -376,7 +376,7 @@ postgres:
     password: ${POSTGRES_PASSWORD} # Never hardcode secrets
 ```
 
-**4. Version control phlo.yaml:**
+4. Version control phlo.yaml:
 
 ```bash
 # Commit to git (no secrets here)
@@ -388,7 +388,7 @@ echo ".phlo/.env.local" >> .gitignore
 ```
 
 
-**5. Use different configs per environment:**
+5. Use different configs per environment:
 
 ```bash
 phlo.yaml              # Base configuration
@@ -437,7 +437,7 @@ This ensures consistency between Docker Compose (dev) and Kubernetes (prod).
 
 ### Step 2: Deploy with Docker Compose
 
-Phlo includes a comprehensive `docker-compose.yml` that orchestrates all services. For production, you have options:
+Phlo ships with a `docker-compose.yml` that runs all services. For production, you have options:
 
 **Option A: Docker Compose (Current Implementation)**
 

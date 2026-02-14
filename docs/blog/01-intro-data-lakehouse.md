@@ -12,7 +12,7 @@
 ## Prerequisites
 
 - None. Start here.
-- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) if you want to run services now.
+- Optional: [Part 2: Getting Started - Setup Guide](02-setup-guide.md) if you want to run services now.
 
 ## The Problem We're Solving
 
@@ -24,7 +24,7 @@ Either you have:
 - **A Data Warehouse**: organized, fast queries but rigid and expensive
 
 Phlo solves this by combining the best of both worlds into a **lakehouse**.
-If you want hands-on setup next, jump to [Part 2: Getting Started—Setup Guide](02-setup-guide.md).
+If you want hands-on setup next, jump to [Part 2: Getting Started - Setup Guide](02-setup-guide.md).
 
 ## The Three Eras of Data Architecture
 
@@ -38,7 +38,7 @@ If you want hands-on setup next, jump to [Part 2: Getting Started—Setup Guide]
 
 - Store raw data cheaply in object storage
 - Flexible schema
-- Problem: "Swamp" syndrome—data is disorganized, hard to query, poor governance
+- Problem: "Swamp" syndrome - data is disorganized, hard to query, poor governance
 
 ### Era 3: The Data Lakehouse (2020s+)
 
@@ -330,7 +330,7 @@ See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnos
 
 ## See Also
 
-See also: [Part 2: Getting Started—Setup Guide](02-setup-guide.md), [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md). Reference: [Architecture Overview](../reference/architecture.md).
+See also: [Part 2: Getting Started - Setup Guide](02-setup-guide.md), [Part 3: Apache Iceberg Explained](03-apache-iceberg-explained.md), [Part 4: Project Nessie Versioning](04-project-nessie-versioning.md). Reference: [Architecture Overview](../reference/architecture.md).
 
 ## Summary
 
@@ -347,4 +347,4 @@ Ready to build? In Part 2, we'll:
 - Start all services with one command
 - Run your first data pipeline
 
-**Next**: [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+**Next**: [Part 2: Getting Started - Setup Guide](02-setup-guide.md)

@@ -1,4 +1,4 @@
-# Part 8: Real-World Example—Building a Complete Data Pipeline
+# Part 8: Real-World Example - Building a Complete Data Pipeline
 
 > Prerequisite: Complete [Part 2: Getting Started](02-setup-guide.md), [Part 5: Data Ingestion](05-data-ingestion.md), and [Part 6: dbt Transformations](06-dbt-transformations.md).
 
@@ -11,7 +11,7 @@
 
 ## Prerequisites
 
-- [Part 2: Getting Started—Setup Guide](02-setup-guide.md)
+- [Part 2: Getting Started - Setup Guide](02-setup-guide.md)
 - [Part 5: Data Ingestion](05-data-ingestion.md)
 - [Part 6: dbt Transformations](06-dbt-transformations.md)
 
@@ -403,7 +403,7 @@ def publish_marts_to_postgres(context):
         context.log.info(f"Published {table_name} to Postgres")
 ```
 
-**How it works:**
+How it works:
 
 1. Phlo scans the dbt `manifest.json` for models in the `marts` schema
 2. Auto-generates a publishing asset with dependencies on those marts

@@ -1,4 +1,4 @@
-# Part 11: Observability and Monitoring—Knowing Your Pipeline
+# Part 11: Observability and Monitoring - Knowing Your Pipeline
 
 > Prerequisite: Complete [Part 7: Orchestration with Dagster](07-orchestration-dagster.md) to follow the monitoring flows.
 

@@ -1,4 +1,4 @@
-# Part 6: SQL Transformations with dbt—The Right Way
+# Part 6: SQL Transformations with dbt - The Right Way
 
 > Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) before running dbt models.
 
@@ -12,7 +12,7 @@
 ## Prerequisites
 
 - [Part 5: Data Ingestion](05-data-ingestion.md)
-- Optional: [Part 2: Getting Started—Setup Guide](02-setup-guide.md) to run services.
+- Optional: [Part 2: Getting Started - Setup Guide](02-setup-guide.md) to run services.
 
 Raw data is in the lakehouse. Now we **transform** it into analysis-ready datasets using **dbt** (data build tool).
 For pipeline scheduling and retries, see [Part 7: Orchestration with Dagster](07-orchestration-dagster.md).
@@ -696,5 +696,5 @@ See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnos
 
 ## Next Steps
 
-- Continue with [Part 7: Orchestration with Dagster—Running Your Pipelines](07-orchestration-dagster.md).
+- Continue with [Part 7: Orchestration with Dagster - Running Your Pipelines](07-orchestration-dagster.md).
 - See the end-to-end walk-through in [Part 8: A Real-World End-to-End Example](08-real-world-example.md).

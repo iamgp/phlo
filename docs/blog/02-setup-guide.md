@@ -1,4 +1,4 @@
-# Part 2: Getting Started with Phlo—Setup Guide
+# Part 2: Getting Started with Phlo - Setup Guide
 
 > Prerequisite: Read [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md) for core concepts.
 
@@ -546,9 +546,9 @@ You've successfully:
 - Ran transformations
 - Created a dashboard
 
-In Part 3, we'll dive deep into **Apache Iceberg**—the magic that makes this lakehouse work.
+In Part 3, we'll cover **Apache Iceberg** and how it manages table metadata, snapshots, and schema changes.
 
 ## Next Steps
 
-- Continue with [Part 3: Apache Iceberg—The Table Format That Changed Everything](03-apache-iceberg-explained.md).
+- Continue with [Part 3: Apache Iceberg - The Table Format That Changed Everything](03-apache-iceberg-explained.md).
 - Jump to ingestion specifics in [Part 5: Data Ingestion](05-data-ingestion.md).

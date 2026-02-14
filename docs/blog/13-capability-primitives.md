@@ -2,7 +2,7 @@
 
 > Prerequisite: Review [Part 5: Data Ingestion](05-data-ingestion.md) and [Part 7: Orchestration](07-orchestration-dagster.md) for asset naming and scheduling context.
 
-Phlo uses capability primitives—portable asset definitions that run on any orchestrator.
+Phlo uses capability primitives - portable asset definitions that run on any orchestrator.
 This post explains the core specs, runtime context, and how adapters translate specs into orchestrator definitions. For plugin integration, see [Part 14: Plugin System](14-plugin-system.md).
 
 ## What You'll Learn
