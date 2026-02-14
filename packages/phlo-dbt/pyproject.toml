@@ -16,9 +16,9 @@ dependencies = [
     "phlo>=0.1.0",
     "phlo-dagster>=0.1.0",
     "phlo-quality>=0.1.0",
-    "dbt-core",
-    "dbt-trino",
-    "dbt-postgres",
+    "dbt-core>=1.10.8",
+    "dbt-trino>=1.9.3",
+    "dbt-postgres>=1.9.1",
 ]
 
 [project.optional-dependencies]

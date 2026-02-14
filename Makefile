@@ -5,10 +5,11 @@ DEFAULT_SERVICES ?= postgres minio pgweb dagster-webserver dagster-daemon supers
 DEFAULT_LOG_SERVICES ?= dagster-webserver dagster-daemon
 OBSERVATORY_DIR ?= packages/phlo-observatory/src/phlo_observatory
 NPM_OBSERVATORY := npm --prefix $(OBSERVATORY_DIR)
+TY_CHECK_SCOPE ?= src/phlo
 CHECK_CMD := scripts/run-parallel \
 	"py lint" "uv run ruff check ." \
 	"py format" "uv run ruff format --check ." \
-	"py typecheck" "uv run ty check" \
+	"py typecheck" "uv run ty check $(TY_CHECK_SCOPE)" \
 	"py test" "uv run pytest -m 'not integration'" \
 	"ts lint" "$(NPM_OBSERVATORY) run lint" \
 	"ts format" "$(NPM_OBSERVATORY) run format -- --check ." \
@@ -282,7 +283,7 @@ format-python:
 	uv run ruff format --check .
 
 typecheck-python:
-	uv run ty check
+	uv run ty check $(TY_CHECK_SCOPE)
 
 lint-ts:
 	$(NPM_OBSERVATORY) run lint
