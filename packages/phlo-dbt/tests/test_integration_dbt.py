@@ -13,6 +13,34 @@ from phlo.logging import get_logger
 pytestmark = pytest.mark.integration
 
 
+def _is_missing_duckdb_adapter(output: str) -> bool:
+    normalized = output.lower()
+    patterns = (
+        "could not find adapter type duckdb",
+        "adapter type duckdb is not installed",
+        "no module named 'dbt.adapters.duckdb'",
+        "module not found: dbt.adapters.duckdb",
+        "adapter not found",
+    )
+    return "duckdb" in normalized and any(pattern in normalized for pattern in patterns)
+
+
+def _skip_if_duckdb_adapter_missing(
+    dbt_executable: str, project_dir: Path, env: dict[str, str]
+) -> None:
+    debug_result = subprocess.run(
+        [dbt_executable, "debug", "--profiles-dir", str(project_dir)],
+        cwd=project_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    combined_output = "\n".join((debug_result.stdout, debug_result.stderr))
+    if _is_missing_duckdb_adapter(combined_output):
+        pytest.skip("dbt-duckdb adapter not installed")
+
+
 @pytest.fixture
 def dbt_project_dir(tmp_path):
     """Create a temporary dbt project structure."""
@@ -91,23 +119,7 @@ def test_dbt_transformer_execution(dbt_project_dir):
     # Set DBT_PROFILES_DIR
     env = os.environ.copy()
     env["DBT_PROFILES_DIR"] = str(project_dir)
-
-    # Check if dbt-duckdb is installed
-    result = subprocess.run(
-        [dbt_exe, "debug", "--profiles-dir", str(project_dir)],
-        cwd=project_dir,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    if (
-        "Could not find adapter type duckdb" in result.stderr
-        or "duckdb" in result.stderr.lower()
-        and "not found" in result.stderr.lower()
-    ):
-        pytest.skip("dbt-duckdb adapter not installed")
+    _skip_if_duckdb_adapter_missing(dbt_exe, project_dir, env)
 
     # Import and use DbtTransformer
     from phlo_dbt.transformer import DbtTransformer
@@ -140,14 +152,15 @@ def test_dbt_parse_project(dbt_project_dir):
 
     env = os.environ.copy()
     env["DBT_PROFILES_DIR"] = str(project_dir)
+    _skip_if_duckdb_adapter_missing(dbt_exe, project_dir, env)
 
     result = subprocess.run(
         [dbt_exe, "parse"], cwd=project_dir, env=env, capture_output=True, text=True, check=False
     )
 
-    if result.returncode != 0 and "Adapter not found" in result.stderr:
-        pytest.skip("dbt adapter not found, skipping parse test")
-    if result.returncode != 0 and "Could not find adapter" in result.stderr:
+    if result.returncode != 0 and _is_missing_duckdb_adapter(
+        "\n".join((result.stdout, result.stderr))
+    ):
         pytest.skip("dbt adapter not found, skipping parse test")
 
     if result.returncode == 0:

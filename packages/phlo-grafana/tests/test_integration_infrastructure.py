@@ -147,8 +147,9 @@ class TestPostgrestServicePlugin:
         plugin = PostgrestServicePlugin()
         service_def = plugin.service_definition
 
-        # Should have docker-compose-like structure
-        assert "services" in service_def or service_def.get("service")
+        # Service schema is flat: metadata keys + compose fragment
+        assert service_def.get("name") == "postgrest"
+        assert isinstance(service_def.get("compose"), dict)
 
     def test_module_importable(self):
         """Test phlo_postgrest is importable."""
