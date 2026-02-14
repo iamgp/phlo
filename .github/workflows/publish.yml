@@ -20,7 +20,7 @@ on:
 
 permissions:
   contents: read # Required to checkout private repo
-  id-token: write # Required for trusted publishing
+  id-token: write # Required for trusted publishing path
 
 jobs:
   plan:
@@ -99,7 +99,16 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (API token)
+        if: ${{ secrets.PYPI_API_TOKEN != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
+        # For first release of many new projects, an account-scoped token is simpler than per-project trusted setup.
+
+      - name: Publish to PyPI (trusted publisher)
+        if: ${{ secrets.PYPI_API_TOKEN == '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
