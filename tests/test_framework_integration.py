@@ -7,11 +7,14 @@ for user projects using Phlo as an installable package.
 
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from dagster import Definitions
 from phlo_dagster.framework.definitions import build_definitions
 from phlo_dagster.framework.discovery import discover_user_workflows
+
+from phlo.exceptions import PhloConfigError
 
 pytestmark = pytest.mark.integration
 
@@ -27,6 +30,21 @@ def test_discover_empty_workflows_directory():
 
         assert isinstance(defs, Definitions)
         # Assets may include auto-discovered dbt/publishing assets from project config
+
+
+def test_discover_workflows_falls_back_when_orchestrator_plugin_missing():
+    """Test discovery falls back to local Dagster adapter when entry-point lookup fails."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workflows_path = Path(tmpdir) / "workflows"
+        workflows_path.mkdir()
+
+        with patch(
+            "phlo_dagster.framework.discovery.get_active_orchestrator",
+            side_effect=PhloConfigError("Orchestrator adapter 'dagster' is not installed."),
+        ):
+            defs = discover_user_workflows(workflows_path, clear_registries=True)
+
+        assert isinstance(defs, Definitions)
 
 
 def test_discover_workflows_with_simple_asset():
