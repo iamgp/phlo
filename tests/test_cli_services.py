@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+from subprocess import CompletedProcess
 from typing import cast
 
 import pytest
+import yaml
 from phlo_dagster.containers import find_dagster_container
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path, get_profile_service_names
@@ -179,3 +181,117 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
 
     assert "../phlo/src/phlo/../..:/opt/phlo-dev:rw" in compose
     assert "PHLO_DEV_MODE" in compose
+
+
+def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
+    class FakeDiscovery:
+        def resolve_dependencies(
+            self, services: list[ServiceDefinition]
+        ) -> list[ServiceDefinition]:
+            return services
+
+        def get_service(self, _name: str) -> None:
+            return None
+
+    service = ServiceDefinition(
+        name="trino",
+        description="trino",
+        category="query",
+        default=True,
+        compose={
+            "mem_limit": "3g",
+            "cpus": "2.0",
+            "ulimits": {"nofile": {"soft": 16384, "hard": 16384}},
+        },
+    )
+
+    generator = ComposeGenerator(cast(ServiceDiscovery, FakeDiscovery()))
+    compose_yaml = generator.generate_compose(
+        services=[service],
+        output_dir=tmp_path,
+    )
+
+    data = yaml.safe_load(compose_yaml)
+    trino = data["services"]["trino"]
+    assert trino["mem_limit"] == "3g"
+    assert trino["cpus"] == "2.0"
+    assert trino["ulimits"] == {"nofile": {"soft": 16384, "hard": 16384}}
+
+
+def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import utils as services_utils
+    from phlo.plugins.discovery.services import ServiceDefinition
+
+    service = ServiceDefinition(
+        name="dagster",
+        description="Dagster",
+        category="orchestration",
+        hooks={"post_start": [{"command": ["python3", "-m", "phlo_dbt.hooks", "compile"]}]},
+    )
+
+    class FakeDiscovery:
+        def get_service(self, name: str):
+            return service if name == "dagster" else None
+
+    calls: list[list[str]] = []
+
+    def _fake_run_command(cmd, **_kwargs):
+        calls.append(list(cmd))
+        return CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(services_utils, "run_command", _fake_run_command)
+    monkeypatch.setattr(services_utils.sys, "executable", "/usr/local/bin/current-python")
+
+    services_utils._run_service_hooks(
+        "post_start",
+        ["dagster"],
+        project_name="demo",
+        project_root=tmp_path,
+    )
+
+    assert calls
+    assert calls[0][0] == "/usr/local/bin/current-python"
+
+
+def test_run_service_hooks_prefers_project_venv_python(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import utils as services_utils
+    from phlo.plugins.discovery.services import ServiceDefinition
+
+    service = ServiceDefinition(
+        name="dagster",
+        description="Dagster",
+        category="orchestration",
+        hooks={"post_start": [{"command": ["python", "-m", "phlo_dbt.hooks", "compile"]}]},
+    )
+
+    class FakeDiscovery:
+        def get_service(self, name: str):
+            return service if name == "dagster" else None
+
+    calls: list[list[str]] = []
+
+    def _fake_run_command(cmd, **_kwargs):
+        calls.append(list(cmd))
+        return CompletedProcess(cmd, 0, "", "")
+
+    venv_python = tmp_path / ".venv" / "bin" / "python"
+    venv_python.parent.mkdir(parents=True)
+    venv_python.write_text("#!/usr/bin/env python3\n")
+
+    monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(services_utils, "run_command", _fake_run_command)
+
+    services_utils._run_service_hooks(
+        "post_start",
+        ["dagster"],
+        project_name="demo",
+        project_root=tmp_path,
+    )
+
+    assert calls
+    assert calls[0][0] == str(venv_python)

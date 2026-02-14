@@ -25,14 +25,17 @@ compose:
     S3_PATH_STYLE_ACCESS: "true"
   ports:
     - "${TRINO_PORT:-8080}:8080"
+  mem_limit: 3g
   volumes:
+    - ./trino/jvm.config:/etc/trino/jvm.config:ro
+    - ./trino/config.properties:/etc/trino/config.properties:ro
     - ./trino/catalog:/etc/trino/catalog:ro
   healthcheck:
     test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
     interval: 10s
     timeout: 5s
     retries: 10
-    start_period: 45s
+    start_period: 90s
 
 env_vars:
   TRINO_VERSION:
@@ -91,6 +94,10 @@ env_vars:
     description: Time-to-live for cached query results
 
 files:
+  - source: jvm.config
+    dest: trino/jvm.config
+  - source: config.properties
+    dest: trino/config.properties
   - source: catalog/iceberg.properties
     dest: trino/catalog/iceberg.properties
   - source: catalog/iceberg_dev.properties

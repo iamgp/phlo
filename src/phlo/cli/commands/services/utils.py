@@ -241,6 +241,8 @@ def _run_service_hooks(
                 venv_python = project_root / ".venv" / "bin" / "python"
                 if venv_python.exists():
                     command = [str(venv_python), *command[1:]]
+                else:
+                    command = [sys.executable, *command[1:]]
 
             timeout = hook.get("timeout_seconds")
             if isinstance(timeout, str) and timeout.isdigit():
