@@ -9,6 +9,14 @@ on:
         description: "Build packages but skip publishing to PyPI"
         required: false
         default: "false"
+      publish_all:
+        description: "Publish all workspace packages (ignore change detection)"
+        required: false
+        default: "false"
+      packages:
+        description: "Comma-separated package names or JSON list to publish (overrides detection/publish_all)"
+        required: false
+        default: ""
       base_ref:
         description: "Git ref to compare against for change detection (defaults to previous tag)"
         required: false
@@ -16,7 +24,7 @@ on:
 
 permissions:
   contents: read # Required to checkout private repo
-  id-token: write # Required for trusted publishing
+  id-token: write # Required for trusted publishing path
 
 jobs:
   plan:
@@ -35,6 +43,8 @@ jobs:
         env:
           BASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.base_ref || '' }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          PUBLISH_ALL: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_all || 'false' }}
+          TARGET_PACKAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.packages || '' }}
         run: python .github/scripts/publish_plan.py
 
       - name: Log publish plan
@@ -87,6 +97,8 @@ jobs:
     if: needs.plan.outputs.has_packages == 'true' && needs.plan.outputs.dry_run != 'true'
     runs-on: ubuntu-latest
     environment: pypi # Configure this in GitHub repo settings
+    env:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v7
@@ -94,8 +106,21 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (API token)
+        if: ${{ env.PYPI_API_TOKEN != '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+          password: ${{ env.PYPI_API_TOKEN }}
+          skip-existing: true
+          verbose: true
+        # For first release of many new projects, an account-scoped token is simpler than per-project trusted setup.
+
+      - name: Publish to PyPI (trusted publisher)
+        if: ${{ env.PYPI_API_TOKEN == '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
+          verbose: true
         # Uses trusted publishing - configure at pypi.org/manage/project/phlo/settings/publishing/

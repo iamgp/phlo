@@ -408,7 +408,7 @@ SELECT
 In dbt, select the target to use the appropriate catalog:
 
 ```yaml
-# workflows/transforms/dbt/profiles.yml
+# workflows/transforms/dbt/profiles/profiles.yml
 
 phlo:
   outputs:
@@ -604,8 +604,8 @@ $ dbt run --select fct_glucose_readings
 $ phlo materialize fct_glucose_readings --partition 2024-01-15
 
 # 4. Validate changes
-$ phlo contract validate glucose_readings
-$ phlo quality run silver.fct_glucose_readings
+$ phlo validate-schema workflows/schemas/glucose.py
+$ phlo catalog describe silver.fct_glucose_readings
 
 # 5. Compare to main
 $ phlo branch diff main feature/add-a1c-calculation

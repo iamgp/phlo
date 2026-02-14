@@ -423,13 +423,13 @@ trino_endpoint = f"http://{trino_config['internal_host']}:{trino_config['port']}
 For Kubernetes deployments, `phlo.yaml` provides a single source of truth:
 
 ```bash
-# Generate k8s manifests from phlo.yaml
-phlo k8s generate --config phlo.yaml
+# Phlo does not currently ship a `k8s` CLI command.
+# Use phlo.yaml as source of truth, then render manifests via your platform tooling
+# (Helm/Kustomize/Terraform) from the same service/env settings.
 
-# Deploys with:
-# - Service names from phlo.yaml
-# - Port mappings from phlo.yaml
-# - Resource limits from phlo.yaml
+phlo services init --no-dev --force
+
+# Then map values from phlo.yaml/.phlo/.env into your Kubernetes templates.
 ```
 
 

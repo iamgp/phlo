@@ -14,6 +14,7 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
+    "psycopg2-binary>=2.9.11",
     "pyyaml>=6.0.1",
 ]
 
@@ -26,6 +27,9 @@ dev = [
 [project.entry-points."phlo.plugins.services"]
 postgres = "phlo_postgres.plugin:PostgresServicePlugin"
 postgres-exporter = "phlo_postgres.plugin:PostgresExporterServicePlugin"
+
+[project.entry-points."phlo.plugins.resources"]
+postgres = "phlo_postgres.plugin:PostgresResourceProvider"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

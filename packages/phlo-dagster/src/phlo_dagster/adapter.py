@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 import dagster as dg
 
@@ -95,7 +95,20 @@ class DagsterRuntime(RuntimeContext):
 
     @property
     def tags(self) -> dict[str, str]:
-        return dict(self.context.tags or {})
+        direct_tags = getattr(self.context, "tags", None)
+        if isinstance(direct_tags, Mapping):
+            return {str(key): str(value) for key, value in direct_tags.items()}
+
+        run_tags = getattr(self.context, "run_tags", None)
+        if isinstance(run_tags, Mapping):
+            return {str(key): str(value) for key, value in run_tags.items()}
+
+        run = getattr(self.context, "run", None)
+        run_level_tags = getattr(run, "tags", None) if run is not None else None
+        if isinstance(run_level_tags, Mapping):
+            return {str(key): str(value) for key, value in run_level_tags.items()}
+
+        return {}
 
     @property
     def logger(self) -> Any:
@@ -241,6 +254,12 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
                     metadata = _convert_metadata(result.metadata)
                     if result.status:
                         metadata.setdefault("status", dg.MetadataValue.text(result.status))
+                    status = str(result.status or "").lower()
+                    if status in {"failure", "failed", "error"}:
+                        raise dg.Failure(
+                            description=f"Asset run reported status '{result.status}'",
+                            metadata=metadata,
+                        )
                     yield dg.MaterializeResult(metadata=metadata)
                 elif isinstance(result, CheckResult):
                     severity = _severity_from_string(result.severity) or dg.AssetCheckSeverity.ERROR

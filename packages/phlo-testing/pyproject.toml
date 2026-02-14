@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-testing"
-version = "0.1.0"
+version = "0.1.1"
 description = "Testing utilities for Phlo"
 readme = {text = "Testing utilities for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"
@@ -17,11 +17,11 @@ dependencies = [
     "phlo-dlt>=0.1.0",
     "phlo-trino>=0.1.0",
     "duckdb>=0.9.0",
-    "pyarrow",
-    "pyiceberg",
-    "pandas",
-    "pandera",
-    "dlt",
+    "pyarrow>=21.0.0",
+    "pyiceberg>=0.10.0",
+    "pandas>=2.3.3",
+    "pandera>=0.26.1",
+    "dlt>=1.18.2",
 ]
 
 [project.optional-dependencies]

@@ -193,23 +193,21 @@ def {table_snake}(partition_date: str):
         )
 
     return rest_api(
-        {{
-            "client": {{
-                "base_url": base_url,
-            }},
-            "resources": [
-                {{
-                    "name": "{table_snake}",
-                    "endpoint": {{
-                        "path": "{table_name}",
-                        "params": {{
-                            "start_date": start_time,
-                            "end_date": end_time,
-                        }},
+        client={{
+            "base_url": base_url,
+        }},
+        resources=[
+            {{
+                "name": "{table_snake}",
+                "endpoint": {{
+                    "path": "{table_name}",
+                    "params": {{
+                        "start_date": start_time,
+                        "end_date": end_time,
                     }},
-                }}
-            ],
-        }}
+                }},
+            }}
+        ],
     )
 '''
 

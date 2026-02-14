@@ -7,11 +7,15 @@ packages = ["src/phlo"]
 include = ["src/phlo/plugins/registry_data.json"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/phlo/plugins/registry_data.json", "registry/schema/v1.json", "registry/plugins.json"]
+include = [
+    "src/phlo",
+    "registry/schema/v1.json",
+    "registry/plugins.json",
+]
 
 [project]
 name = "phlo"
-version = "0.3.0"
+version = "0.3.2"
 description = "Lakehouse platform"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,13 +31,13 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "dagster",
-    "dagster-webserver",
-    "pydantic-settings",
-    "pandas",
-    "pandera",
-    "requests",
-    "psycopg2-binary",
+    "dagster>=1.12.1",
+    "dagster-webserver>=1.12.1",
+    "pydantic-settings>=2.11.0",
+    "pandas>=2.3.3",
+    "pandera>=0.26.1",
+    "requests>=2.32.5",
+    "psycopg2-binary>=2.9.11",
     "asyncpg>=0.30.0",
     "click>=8.0",
     "rich>=13.0",
@@ -86,6 +90,28 @@ phlo = "phlo.cli.main:cli"
 [tool.uv.workspace]
 members = [".", "packages/*"]
 
+[tool.uv]
+# Backward-compatible dev dependency declaration for older uv versions
+# (e.g. 0.4.x) that don't install `[dependency-groups].dev`.
+# Canonical source of truth: `[dependency-groups].dev` (keep lists in sync).
+dev-dependencies = [
+    "pytest>=8.4.2",
+    "sqlfluff>=3.5.0",
+    "phlo-dlt>=0.1.0",
+    "phlo-iceberg>=0.1.0",
+    "phlo-dbt>=0.1.0",
+    "phlo-nessie>=0.1.0",
+    "phlo-openmetadata>=0.1.0",
+    "phlo-metrics>=0.1.0",
+    "phlo-testing>=0.1.0",
+    "ruff>=0.14.1",
+    "ty==0.0.1a23",
+    "testcontainers>=4.13.3",
+    "pyiceberg>=0.10.0",
+    "s3fs>=2025.9.0",
+    "testcontainers-minio>=0.0.1rc1",
+]
+
 [tool.uv.sources]
 phlo = { workspace = true }
 phlo-core-plugins = { workspace = true }
@@ -118,10 +144,10 @@ dev = [
     "phlo-openmetadata>=0.1.0",
     "phlo-metrics>=0.1.0",
     "phlo-testing>=0.1.0",
-    "ruff",
-    "ty",
+    "ruff>=0.14.1",
+    "ty==0.0.1a23",
     "testcontainers>=4.13.3",
-    "pyiceberg[s3,sql]>=0.10.0",
+    "pyiceberg>=0.10.0",
     "s3fs>=2025.9.0",
     "testcontainers-minio>=0.0.1rc1",
 ]

@@ -430,7 +430,7 @@ PLUGINS_WHITELIST=plugin1,plugin2
 PLUGINS_BLACKLIST=deprecated_plugin
 
 # Plugin registry
-PLUGIN_REGISTRY_URL=https://registry.phlo.dev/plugins.json
+PLUGIN_REGISTRY_URL=https://registry.phlohouse.com/plugins.json
 PLUGIN_REGISTRY_CACHE_TTL_SECONDS=3600
 PLUGIN_REGISTRY_TIMEOUT_SECONDS=10
 ```

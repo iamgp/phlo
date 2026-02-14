@@ -60,6 +60,7 @@ def test_inline_service_creation() -> None:
         "ports": ["4000:4000", "4001:4001"],
         "environment": {"API_KEY": "secret", "DEBUG": "true"},
         "volumes": ["./data:/data"],
+        "mem_limit": "1g",
         "depends_on": ["trino", "postgres"],
         "command": ["uvicorn", "main:app"],
         "description": "My custom API",
@@ -76,6 +77,7 @@ def test_inline_service_creation() -> None:
     assert service.compose["ports"] == ["4000:4000", "4001:4001"]
     assert service.compose["environment"] == {"API_KEY": "secret", "DEBUG": "true"}
     assert service.compose["volumes"] == ["./data:/data"]
+    assert service.compose["mem_limit"] == "1g"
     assert service.compose["command"] == ["uvicorn", "main:app"]
 
 

@@ -12,7 +12,7 @@ const execAsync = promisify(exec)
 const pluginCommand = process.env.PHLO_PLUGIN_COMMAND ?? 'phlo'
 const registryUrl =
   process.env.PHLO_PLUGIN_REGISTRY_URL ??
-  'https://registry.phlo.dev/plugins.json'
+  'https://registry.phlohouse.com/plugins.json'
 
 export interface PluginInfo {
   name: string

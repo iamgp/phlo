@@ -7,13 +7,26 @@ for user projects using Phlo as an installable package.
 
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from dagster import Definitions
 from phlo_dagster.framework.definitions import build_definitions
 from phlo_dagster.framework.discovery import discover_user_workflows
 
+from phlo.exceptions import PhloConfigError
+
 pytestmark = pytest.mark.integration
+
+
+def _collect_asset_names(defs: Definitions) -> list[str]:
+    names: list[str] = []
+    for asset in list(defs.assets or []):
+        if hasattr(asset, "keys"):
+            names.extend(str(key) for key in asset.keys)  # type: ignore[attr-defined]
+        elif hasattr(asset, "key"):
+            names.append(asset.key.to_string())  # type: ignore[attr-defined]
+    return names
 
 
 def test_discover_empty_workflows_directory():
@@ -27,6 +40,21 @@ def test_discover_empty_workflows_directory():
 
         assert isinstance(defs, Definitions)
         # Assets may include auto-discovered dbt/publishing assets from project config
+
+
+def test_discover_workflows_falls_back_when_orchestrator_plugin_missing():
+    """Test discovery falls back to local Dagster adapter when entry-point lookup fails."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workflows_path = Path(tmpdir) / "workflows"
+        workflows_path.mkdir()
+
+        with patch(
+            "phlo_dagster.framework.discovery.get_active_orchestrator",
+            side_effect=PhloConfigError("Orchestrator adapter 'dagster' is not installed."),
+        ):
+            defs = discover_user_workflows(workflows_path, clear_registries=True)
+
+        assert isinstance(defs, Definitions)
 
 
 def test_discover_workflows_with_simple_asset():
@@ -62,15 +90,17 @@ class TestSchema(DataFrameModel):
 )
 def test_workflow(partition_date: str):
     """Test workflow for discovery."""
-    source = rest_api({
-        "client": {
+    source = rest_api(
+        client={
             "base_url": "https://api.example.com",
         },
-        "resources": [{
-            "name": "test",
-            "endpoint": {"path": "test"},
-        }],
-    })
+        resources=[
+            {
+                "name": "test",
+                "endpoint": {"path": "test"},
+            }
+        ],
+    )
     return source
 '''
         (ingestion_dir / "test_workflow.py").write_text(workflow_content)
@@ -84,14 +114,7 @@ def test_workflow(partition_date: str):
         assert len(assets) > 0
 
         # Check that the asset has the correct name
-        asset_names = []
-        for asset in assets:
-            if hasattr(asset, "keys"):
-                # Multi-asset definition
-                asset_names.extend([str(key) for key in asset.keys])  # type: ignore[attr-defined]
-            elif hasattr(asset, "key"):
-                # Single asset definition
-                asset_names.append(asset.key.to_string())  # type: ignore[attr-defined]
+        asset_names = _collect_asset_names(defs)
 
         assert any("dlt_test_data" in name for name in asset_names)
 
@@ -111,6 +134,31 @@ def test_build_definitions_with_user_workflows():
         assert isinstance(defs, Definitions)
         # Should at least have resources
         assert defs.resources is not None
+
+
+def test_discover_workflows_collects_plain_dagster_assets():
+    """Test workflow discovery includes module-level Dagster @asset definitions."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workflows_path = Path(tmpdir) / "workflows"
+        publishing_dir = workflows_path / "publishing"
+        publishing_dir.mkdir(parents=True)
+        (workflows_path / "__init__.py").write_text("")
+        (publishing_dir / "__init__.py").write_text("")
+        (publishing_dir / "events.py").write_text(
+            """
+from dagster import asset
+
+@asset(group_name="publishing")
+def publish_demo_marts():
+    return {"rows": 1}
+"""
+        )
+
+        defs = discover_user_workflows(workflows_path, clear_registries=True)
+
+        assert isinstance(defs, Definitions)
+        asset_names = _collect_asset_names(defs)
+        assert any("publish_demo_marts" in name for name in asset_names)
 
 
 def test_build_definitions_without_workflows_path():

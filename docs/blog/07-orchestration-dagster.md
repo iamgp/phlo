@@ -425,7 +425,7 @@ Need to re-process the last 90 days.
 
 Manual approach:
   for date in 2024-07-01 to 2024-09-30:
-    phlo materialize glucose_entries --partition $date
+    phlo materialize dlt_glucose_entries --partition $date
     # Wait for each to complete...
 
 Time: 90 days × 2 minutes = 3 hours of babysitting
@@ -437,9 +437,9 @@ The `phlo backfill` command handles date ranges intelligently:
 
 ```bash
 # Backfill a date range
-$ phlo backfill glucose_entries --start-date 2024-07-01 --end-date 2024-09-30
+$ phlo backfill dlt_glucose_entries --start-date 2024-07-01 --end-date 2024-09-30
 
-Backfill Plan: glucose_entries
+Backfill Plan: dlt_glucose_entries
 ══════════════════════════════
 
 Date Range: 2024-07-01 to 2024-09-30
@@ -464,12 +464,12 @@ For large backfills, run multiple partitions simultaneously:
 
 ```bash
 # Run 4 partitions in parallel
-$ phlo backfill glucose_entries \
+$ phlo backfill dlt_glucose_entries \
     --start-date 2024-01-01 \
     --end-date 2024-12-31 \
     --parallel 4
 
-Backfill Plan: glucose_entries
+Backfill Plan: dlt_glucose_entries
 ══════════════════════════════
 
 Date Range: 2024-01-01 to 2024-12-31
@@ -498,7 +498,7 @@ Sometimes you need specific dates, not a range:
 
 ```bash
 # Only these specific dates
-$ phlo backfill glucose_entries \
+$ phlo backfill dlt_glucose_entries \
     --partitions 2024-01-01,2024-01-15,2024-02-01,2024-03-01
 ```
 
@@ -509,7 +509,7 @@ If a backfill fails partway through (network issue, resource limits), resume it:
 
 ```bash
 # Backfill gets interrupted at partition 45
-$ phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-03-31
+$ phlo backfill dlt_glucose_entries --start-date 2024-01-01 --end-date 2024-03-31
 ...
 [45/90] 2024-02-14 ✗ Connection timeout
 Backfill interrupted. Run with --resume to continue.
@@ -517,7 +517,7 @@ Backfill interrupted. Run with --resume to continue.
 # Later, resume from where it stopped
 $ phlo backfill --resume
 
-Resuming backfill: glucose_entries
+Resuming backfill: dlt_glucose_entries
 Completed: 44/90
 Remaining: 46 partitions
 
@@ -532,7 +532,7 @@ Remaining: 46 partitions
 Preview what will happen without executing:
 
 ```bash
-$ phlo backfill glucose_entries \
+$ phlo backfill dlt_glucose_entries \
     --start-date 2024-01-01 \
     --end-date 2024-01-31 \
     --dry-run
@@ -540,7 +540,7 @@ $ phlo backfill glucose_entries \
 Backfill Plan (DRY RUN)
 ═══════════════════════
 
-Asset: glucose_entries
+Asset: dlt_glucose_entries
 Partitions to process: 31
 
   2024-01-01 (not materialized)
@@ -580,14 +580,14 @@ For production backfills:
 
 ```bash
 # Production backfill pattern
-$ phlo backfill glucose_entries \
+$ phlo backfill dlt_glucose_entries \
     --start-date 2024-01-01 \
     --end-date 2024-12-31 \
     --parallel 2 \           # Conservative parallelism
     --dry-run                # Preview first
 
 # If dry-run looks good:
-$ phlo backfill glucose_entries \
+$ phlo backfill dlt_glucose_entries \
     --start-date 2024-01-01 \
     --end-date 2024-12-31 \
     --parallel 2

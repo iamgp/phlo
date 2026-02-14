@@ -48,7 +48,7 @@ Open `workflows/ingestion/nightscout/glucose.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
-import phlo
+from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.glucose import RawGlucoseEntries
 
 @phlo_ingestion(
@@ -64,22 +64,24 @@ def glucose_entries(partition_date: str):
     start_time_iso = f"{partition_date}T00:00:00.000Z"
     end_time_iso = f"{partition_date}T23:59:59.999Z"
 
-    source = rest_api({
-        "client": {
+    source = rest_api(
+        client={
             "base_url": "https://gwp-diabetes.fly.dev/api/v1",
         },
-        "resources": [{
-            "name": "entries",
-            "endpoint": {
-                "path": "entries.json",
-                "params": {
-                    "count": 10000,
-                    "find[dateString][$gte]": start_time_iso,
-                    "find[dateString][$lt]": end_time_iso,
+        resources=[
+            {
+                "name": "entries",
+                "endpoint": {
+                    "path": "entries.json",
+                    "params": {
+                        "count": 10000,
+                        "find[dateString][$gte]": start_time_iso,
+                        "find[dateString][$lt]": end_time_iso,
+                    },
                 },
-            },
-        }],
-    })
+            }
+        ],
+    )
 
     return source
 ```
@@ -96,10 +98,10 @@ def glucose_entries(partition_date: str):
 
 ```bash
 # Materialize for today's date
-docker exec dagster-webserver dagster asset materialize --select glucose_entries
+docker exec dagster-webserver dagster asset materialize --select dlt_glucose_entries
 
 # Or in Dagster UI:
-# Navigate to Assets → glucose_entries → Materialize
+# Navigate to Assets → dlt_glucose_entries → Materialize
 ```
 
 Watch the execution in the Dagster UI. You'll see:
@@ -185,7 +187,7 @@ class RawWeatherData(pa.DataFrameModel):
 
 ```python
 from dlt.sources.rest_api import rest_api
-import phlo
+from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.mydata import RawWeatherData
 
 @phlo_ingestion(
@@ -199,19 +201,21 @@ from workflows.schemas.mydata import RawWeatherData
 def weather_observations(partition_date: str):
     """Ingest weather observations."""
     # TODO: Replace with your API
-    source = rest_api({
-        "client": {
+    source = rest_api(
+        client={
             "base_url": "https://api.openweathermap.org/data/3.0",
-            "auth": {"token": "YOUR_API_KEY"}
+            "auth": {"token": "YOUR_API_KEY"},
         },
-        "resources": [{
-            "name": "observations",
-            "endpoint": {
-                "path": "onecall/timemachine",
-                "params": {"dt": partition_date}
+        resources=[
+            {
+                "name": "observations",
+                "endpoint": {
+                    "path": "onecall/timemachine",
+                    "params": {"dt": partition_date},
+                },
             }
-        }]
-    })
+        ],
+    )
     return source
 ```
 

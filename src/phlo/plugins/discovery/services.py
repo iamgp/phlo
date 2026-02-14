@@ -116,8 +116,23 @@ class ServiceDefinition:
                   - trino
         """
         # Build compose section from inline config
-        compose_keys = ("ports", "environment", "volumes", "command", "healthcheck")
-        compose = {k: config[k] for k in compose_keys if config.get(k)}
+        compose_keys = (
+            "user",
+            "container_name",
+            "labels",
+            "environment",
+            "ports",
+            "volumes",
+            "command",
+            "entrypoint",
+            "healthcheck",
+            "restart",
+            "mem_limit",
+            "mem_reservation",
+            "cpus",
+            "shm_size",
+        )
+        compose = {k: config[k] for k in compose_keys if k in config}
 
         return cls(
             name=name,
