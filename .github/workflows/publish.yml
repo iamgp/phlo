@@ -9,6 +9,10 @@ on:
         description: "Build packages but skip publishing to PyPI"
         required: false
         default: "false"
+      publish_all:
+        description: "Publish all workspace packages (ignore change detection)"
+        required: false
+        default: "false"
       base_ref:
         description: "Git ref to compare against for change detection (defaults to previous tag)"
         required: false
@@ -35,6 +39,7 @@ jobs:
         env:
           BASE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.base_ref || '' }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          PUBLISH_ALL: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_all || 'false' }}
         run: python .github/scripts/publish_plan.py
 
       - name: Log publish plan
