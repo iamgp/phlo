@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-dagster"
-version = "0.1.0"
+version = "0.1.1"
 description = "Dagster service plugin for Phlo"
 readme = {text = "Dagster service plugin for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"
@@ -15,9 +15,9 @@ license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "phlo-observatory>=0.1.0",
-    "dagster-graphql",
+    "dagster-graphql>=1.12.1",
     "pyyaml>=6.0.1",
-    "requests",
+    "requests>=2.32.5",
 ]
 
 [project.optional-dependencies]

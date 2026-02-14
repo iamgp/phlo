@@ -64,7 +64,7 @@ Phlo provides the `@phlo_ingestion` decorator to simplify DLT ingestion. Here's 
 ```python
 # From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
@@ -141,7 +141,7 @@ Phlo supports two merge strategies, allowing you to optimize for different data 
 Best for immutable event streams where you never update existing records:
 
 ```python
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 
 @phlo_ingestion(
     table_name="api_events",
@@ -172,7 +172,7 @@ def api_events(partition_date: str):
 Best for dimension tables and data that may need updates:
 
 ```python
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 
 @phlo_ingestion(
     table_name="user_profiles",
@@ -248,7 +248,7 @@ The glucose ingestion uses merge strategy because:
 3. **Idempotency**: We want `materialize --partition 2024-10-15` to be safe to run multiple times
 
 ```python
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 
 @phlo_ingestion(
     table_name="glucose_entries",
@@ -459,7 +459,7 @@ Let's trace through what happens when you materialize a `@phlo_ingestion` asset:
 # Timeline: 2024-10-15
 
 # 1. Materialize the asset
-dagster asset materialize --select glucose_entries \
+dagster asset materialize --select dlt_glucose_entries \
   --partition "2024-10-15"
 
 # 2. The @phlo_ingestion decorator executes your function
@@ -601,7 +601,7 @@ The `@phlo_ingestion` decorator works with any DLT source. You just return a DLT
 ```python
 # Example: Custom API ingestion
 
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 
 @phlo_ingestion(
@@ -687,7 +687,7 @@ All follow the same pattern for safety and idempotency.
 # Run ingestion and watch the flow
 # This uses the @phlo_ingestion decorated function
 dagster asset materialize \
-  --select glucose_entries \
+  --select dlt_glucose_entries \
   --partition "2024-10-15"
 
 # Check Iceberg table via PyIceberg
@@ -772,7 +772,7 @@ See you there!
 - **Import errors for `phlo_ingestion`**
 
 ```bash
-uv run python -c "from phlo.ingestion import phlo_ingestion; print(phlo_ingestion)"
+uv run python -c "from phlo_dlt.decorator import phlo_ingestion; print(phlo_ingestion)"
 ```
 
 

@@ -110,8 +110,10 @@ def _run_dbt_model(
     profiles_dir: Path,
     runtime: RuntimeContext,
 ) -> list[MaterializeResult]:
-    target = runtime.tags.get("dbt_target") if runtime.tags else None
-    target = target or "dev"
+    runtime_tags = getattr(runtime, "tags", {}) or {}
+    if not isinstance(runtime_tags, Mapping):
+        runtime_tags = {}
+    target = str(runtime_tags.get("dbt_target") or "dev")
     partition_key = runtime.partition_key
 
     transformer = DbtTransformer(

@@ -223,7 +223,7 @@ class remains a thin wrapper for discovery.
 1. Create a new package directory with `pyproject.toml`.
 2. Add an `AssetProviderPlugin` implementation.
 3. Register entry points under `phlo.plugins.assets` and `phlo.plugins.resources`.
-4. Run `phlo plugins list` to confirm discovery.
+4. Run `phlo plugin list` to confirm discovery.
 
 ## Common Issues
 

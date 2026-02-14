@@ -25,7 +25,7 @@ def normalize_dep(dep: str) -> str:
     if not dep:
         return ""
     dep = dep.split("[", 1)[0]
-    name = re.split(r"[<>=!~ ]", dep, 1)[0]
+    name = re.split(r"[<>=!~ ]", dep, maxsplit=1)[0]
     return name.strip()
 
 
@@ -96,7 +96,23 @@ def select_changed_packages(
     root_path: Path,
 ) -> set[str]:
     changed_packages: set[str] = set()
+    package_prefixes: list[tuple[str, str]] = []
+    for package_name, package_path in package_paths.items():
+        if package_name == root_name:
+            continue
+        rel = package_path.relative_to(root_path).as_posix()
+        package_prefixes.append((f"{rel}/", package_name))
+
     for file in changed_files:
+        matched_package = False
+        for prefix, package_name in package_prefixes:
+            if file.startswith(prefix):
+                changed_packages.add(package_name)
+                matched_package = True
+                break
+        if matched_package:
+            continue
+
         if (
             file == "pyproject.toml"
             or file.startswith("src/phlo/")
@@ -132,6 +148,32 @@ def topo_sort(selected: set[str], dep_map: dict[str, list[str]]) -> list[str]:
     return order
 
 
+def parse_target_packages(raw: str, available: set[str]) -> set[str]:
+    value = raw.strip()
+    if not value:
+        return set()
+
+    names: set[str]
+    if value.startswith("["):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"TARGET_PACKAGES contains invalid JSON: {exc.msg} (pos {exc.pos}) in {value!r}"
+            ) from exc
+        if not isinstance(parsed, list):
+            raise ValueError("TARGET_PACKAGES JSON must be a list of package names.")
+        names = {str(item).strip() for item in parsed if str(item).strip()}
+    else:
+        names = {part.strip() for part in value.split(",") if part.strip()}
+
+    unknown = sorted(names - available)
+    if unknown:
+        raise ValueError(f"Unknown package(s): {', '.join(unknown)}")
+
+    return names
+
+
 def main() -> None:
     root = Path(".")
     package_paths, package_meta = load_packages(root)
@@ -148,7 +190,15 @@ def main() -> None:
 
     root_name = next(name for name, path in package_paths.items() if path == root)
 
-    selected = select_changed_packages(changed_files, package_paths, root_name, root)
+    target_packages_raw = os.environ.get("TARGET_PACKAGES", "")
+    target_packages = parse_target_packages(target_packages_raw, set(package_paths))
+    publish_all = os.environ.get("PUBLISH_ALL", "false").strip().lower() == "true"
+    if target_packages:
+        selected = target_packages
+    elif publish_all:
+        selected = set(package_paths)
+    else:
+        selected = select_changed_packages(changed_files, package_paths, root_name, root)
     order = topo_sort(selected, dep_map)
 
     dry_run = os.environ.get("DRY_RUN", "false").strip().lower() == "true"

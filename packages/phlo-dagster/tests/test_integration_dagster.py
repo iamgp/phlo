@@ -1,5 +1,7 @@
 """Integration tests for phlo-dagster."""
 
+from types import SimpleNamespace
+
 import pytest
 from dagster import Definitions, asset, materialize
 
@@ -86,4 +88,37 @@ def test_phlo_dagster_version():
     import phlo_dagster
 
     assert hasattr(phlo_dagster, "__version__")
-    assert phlo_dagster.__version__ == "0.1.0"
+    assert phlo_dagster.__version__ == "0.1.1"
+
+
+def test_dagster_runtime_reads_run_tags_when_context_has_no_tags():
+    """DagsterRuntime should support contexts exposing run-level tags only."""
+    from phlo_dagster.adapter import DagsterRuntime
+
+    context = SimpleNamespace(
+        run=SimpleNamespace(tags={"dbt_target": "ci"}),
+        run_id="abc123",
+        has_partition_key=False,
+        log=SimpleNamespace(),
+        resources=SimpleNamespace(),
+    )
+
+    runtime = DagsterRuntime(context=context)
+    assert runtime.tags == {"dbt_target": "ci"}
+
+
+def test_materialize_result_failure_status_fails_step():
+    """Failure statuses from capability assets must fail Dagster runs."""
+    from phlo.capabilities import AssetSpec, MaterializeResult, RunSpec
+    from phlo_dagster.adapter import DagsterOrchestratorAdapter
+
+    def _run(_runtime):
+        return [MaterializeResult(status="failure", metadata={"reason": "boom"})]
+
+    adapter = DagsterOrchestratorAdapter()
+    asset_def = adapter._build_asset(
+        AssetSpec(key="failure_asset", group=None, description=None, run=RunSpec(fn=_run))
+    )
+    result = materialize([asset_def], raise_on_error=False)
+
+    assert not result.success

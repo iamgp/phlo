@@ -958,8 +958,8 @@ class PhloConfig:
 ## Hands-On Exercise: Register a Plugin
 
 1. Add an entry point for a sample plugin in `pyproject.toml`.
-2. Run `phlo plugins list` to confirm discovery.
-3. Enable the plugin and re-run `phlo plugins list --enabled`.
+2. Run `phlo plugin list` to confirm discovery.
+3. Enable the plugin and re-run `phlo plugin list`.
 4. Verify assets or resources are registered in Dagster.
 
 ## Common Issues

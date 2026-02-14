@@ -41,13 +41,15 @@ from workflows.schemas.api import EventSchema
     freshness_hours=(1, 24),
 )
 def api_events(partition_date: str):
-    return rest_api({
-        "client": {"base_url": "https://api.example.com"},
-        "resources": [{
-            "name": "events",
-            "endpoint": {"path": f"/events?date={partition_date}"}
-        }]
-    })
+    return rest_api(
+        client={"base_url": "https://api.example.com"},
+        resources=[
+            {
+                "name": "events",
+                "endpoint": {"path": f"/events?date={partition_date}"},
+            }
+        ],
+    )
 
 # workflows/quality/api.py
 from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
@@ -199,26 +201,28 @@ from dlt.sources.rest_api import rest_api
 
 @phlo_ingestion(...)
 def api_data(partition_date: str):
-    return rest_api({
-        "client": {
+    return rest_api(
+        client={
             "base_url": "https://api.example.com",
             "auth": {
                 "type": "bearer",
-                "token": os.getenv("API_TOKEN")
-            }
-        },
-        "resources": [{
-            "name": "events",
-            "endpoint": {
-                "path": "events",
-                "params": {
-                    "date": partition_date,
-                    "limit": 1000
-                }
+                "token": os.getenv("API_TOKEN"),
             },
-            "write_disposition": "replace"
-        }]
-    })
+        },
+        resources=[
+            {
+                "name": "events",
+                "endpoint": {
+                    "path": "events",
+                    "params": {
+                        "date": partition_date,
+                        "limit": 1000,
+                    },
+                },
+                "write_disposition": "replace",
+            }
+        ],
+    )
 ```
 
 **Custom Python Source**:
@@ -337,23 +341,26 @@ def my_data(partition_date: str):
     start_time = f"{partition_date}T00:00:00Z"
     end_time = f"{partition_date}T23:59:59Z"
 
-    return rest_api({
-        "resources": [{
-            "endpoint": {
-                "params": {
-                    "start": start_time,
-                    "end": end_time
+    return rest_api(
+        client={"base_url": "https://api.example.com"},
+        resources=[
+            {
+                "endpoint": {
+                    "params": {
+                        "start": start_time,
+                        "end": end_time,
+                    }
                 }
             }
-        }]
-    })
+        ]
+    )
 ```
 
 **Backfills**:
 
 ```bash
 # Backfill specific date
-phlo materialize my_data --partition 2025-01-15
+phlo materialize dlt_my_data --partition 2025-01-15
 
 # Backfill date range (in Dagster UI)
 # Select partitions → 2025-01-01 to 2025-01-31 → Materialize
@@ -1292,9 +1299,10 @@ Use partition-aware queries to load only new data:
 
 ```python
 def my_data(partition_date: str):
-    return rest_api({
-        "params": {"date": partition_date}  # Only fetch partition data
-    })
+    return rest_api(
+        client={"base_url": "https://api.example.com"},
+        resources=[{"endpoint": {"path": "events", "params": {"date": partition_date}}}],
+    )  # Only fetch partition data
 ```
 
 ### 3. Error Handling

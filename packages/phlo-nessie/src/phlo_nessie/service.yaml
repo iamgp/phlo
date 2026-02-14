@@ -77,8 +77,9 @@ env_vars:
 hooks:
   post_start:
     - name: init-branches
+      requires: phlo_nessie
       command:
-        - python
+        - python3
         - -m
         - phlo_nessie.hooks
         - init-branches
