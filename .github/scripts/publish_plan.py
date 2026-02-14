@@ -148,6 +148,35 @@ def topo_sort(selected: set[str], dep_map: dict[str, list[str]]) -> list[str]:
     return order
 
 
+def parse_target_packages(raw: str, available: set[str]) -> list[str]:
+    value = raw.strip()
+    if not value:
+        return []
+
+    names: list[str]
+    if value.startswith("["):
+        parsed = json.loads(value)
+        if not isinstance(parsed, list):
+            raise ValueError("TARGET_PACKAGES JSON must be a list of package names.")
+        names = [str(item).strip() for item in parsed if str(item).strip()]
+    else:
+        names = [part.strip() for part in value.split(",") if part.strip()]
+
+    unknown = sorted(set(names) - available)
+    if unknown:
+        raise ValueError(f"Unknown package(s): {', '.join(unknown)}")
+
+    # Preserve caller order while deduplicating.
+    ordered_unique: list[str] = []
+    seen: set[str] = set()
+    for name in names:
+        if name in seen:
+            continue
+        seen.add(name)
+        ordered_unique.append(name)
+    return ordered_unique
+
+
 def main() -> None:
     root = Path(".")
     package_paths, package_meta = load_packages(root)
@@ -164,8 +193,12 @@ def main() -> None:
 
     root_name = next(name for name, path in package_paths.items() if path == root)
 
+    target_packages_raw = os.environ.get("TARGET_PACKAGES", "")
+    target_packages = parse_target_packages(target_packages_raw, set(package_paths))
     publish_all = os.environ.get("PUBLISH_ALL", "false").strip().lower() == "true"
-    if publish_all:
+    if target_packages:
+        selected = set(target_packages)
+    elif publish_all:
         selected = set(package_paths)
     else:
         selected = select_changed_packages(changed_files, package_paths, root_name, root)
