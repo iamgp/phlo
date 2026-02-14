@@ -385,7 +385,7 @@
 <blockquote>
 <p>Prerequisite: Review <a href="../05-data-ingestion/">Part 5: Data Ingestion</a> and <a href="../07-orchestration-dagster/">Part 7: Orchestration</a> for asset naming and scheduling context.</p>
 </blockquote>
-<p>Phlo uses capability primitives—portable asset definitions that run on any orchestrator.
+<p>Phlo uses capability primitives - portable asset definitions that run on any orchestrator.
 This post explains the core specs, runtime context, and how adapters translate specs into orchestrator definitions. For plugin integration, see <a href="../14-plugin-system/">Part 14: Plugin System</a>.</p>
 <h2 id="what-youll-learn">What You'll Learn</h2>
 <ul>
@@ -419,7 +419,7 @@ they cannot be reused in other orchestrators. The new model is:</p>
 </div>
 <h2 id="the-core-spec-types">The Core Spec Types</h2>
 <p>Capability specs live in <code>src/phlo/capabilities/specs.py</code>. Each spec captures a small, explicit
-piece of behavior.</p>
+piece of behaviour.</p>
 <h3 id="assetspec-and-runspec">AssetSpec and RunSpec</h3>
 <p>AssetSpec describes an asset. RunSpec describes how to execute it.</p>
 <pre><code class="language-python">from collections.abc import Iterable

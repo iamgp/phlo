@@ -9,7 +9,7 @@
 <meta content="Phlo Team" name="author"/>
 <link href="../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator"/>
-<title>Part 11: Observability and Monitoring—Knowing Your Pipeline - Phlo Lakehouse Platform</title>
+<title>Part 11: Observability and Monitoring - Knowing Your Pipeline - Phlo Lakehouse Platform</title>
 <link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -23,7 +23,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#part-11-observability-and-monitoringknowing-your-pipeline">
+<a class="md-skip" href="#part-11-observability-and-monitoring-knowing-your-pipeline">
           Skip to content
         </a>
 </div>
@@ -47,7 +47,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Part 11: Observability and Monitoring—Knowing Your Pipeline
+              Part 11: Observability and Monitoring - Knowing Your Pipeline
             
           </span>
 </div>
@@ -379,14 +379,14 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#dashboards-visualizing-health">
+<a class="md-nav__link" href="#dashboards-visualising-health">
 <span class="md-ellipsis">
       
-        Dashboards: Visualizing Health
+        Dashboards: Visualising Health
       
     </span>
 </a>
-<nav aria-label="Dashboards: Visualizing Health" class="md-nav">
+<nav aria-label="Dashboards: Visualising Health" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
 <a class="md-nav__link" href="#main-operations-dashboard">
@@ -428,14 +428,14 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#lineage-visualization-understanding-your-data-flow">
+<a class="md-nav__link" href="#lineage-visualisation-understanding-your-data-flow">
 <span class="md-ellipsis">
       
-        Lineage Visualization: Understanding Your Data Flow
+        Lineage Visualisation: Understanding Your Data Flow
       
     </span>
 </a>
-<nav aria-label="Lineage Visualization: Understanding Your Data Flow" class="md-nav">
+<nav aria-label="Lineage Visualisation: Understanding Your Data Flow" class="md-nav">
 <ul class="md-nav__list">
 <li class="md-nav__item">
 <a class="md-nav__link" href="#why-lineage-matters">
@@ -639,7 +639,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="part-11-observability-and-monitoringknowing-your-pipeline">Part 11: Observability and Monitoring—Knowing Your Pipeline</h1>
+<h1 id="part-11-observability-and-monitoring-knowing-your-pipeline">Part 11: Observability and Monitoring - Knowing Your Pipeline</h1>
 <blockquote>
 <p>Prerequisite: Complete <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a> to follow the monitoring flows.</p>
 </blockquote>
@@ -675,7 +675,7 @@ Wednesday 9am:
 <pre><code>[Monitoring] → Understand what's happening
 [Alerting]   → Get notified of problems
 [Tracing]    → Find root causes quickly
-[Dashboards] → Visualize pipeline health
+[Dashboards] → Visualise pipeline health
 </code></pre>
 <h2 id="three-pillars-of-observability">Three Pillars of Observability</h2>
 <h3 id="1-metrics-numbers">1. Metrics (Numbers)</h3>
@@ -985,7 +985,7 @@ $ phlo alerts test --destination slack --severity critical
 </tr>
 </tbody>
 </table>
-<h2 id="dashboards-visualizing-health">Dashboards: Visualizing Health</h2>
+<h2 id="dashboards-visualising-health">Dashboards: Visualising Health</h2>
 <h3 id="main-operations-dashboard">Main Operations Dashboard</h3>
 <pre><code>Phlo Data Pipeline - Operations Dashboard
 
@@ -1185,7 +1185,7 @@ def update_observability():
     """Update monitoring dashboards and alerts."""
     return {}
 </code></pre>
-<h2 id="lineage-visualization-understanding-your-data-flow">Lineage Visualization: Understanding Your Data Flow</h2>
+<h2 id="lineage-visualisation-understanding-your-data-flow">Lineage Visualisation: Understanding Your Data Flow</h2>
 <p>One of the hardest questions in data engineering: "If I change this table, what breaks?"</p>
 <p>Without lineage, you're guessing. With lineage, you know exactly what depends on what.</p>
 <h3 id="why-lineage-matters">Why Lineage Matters</h3>
@@ -1457,7 +1457,7 @@ phlo services logs prometheus
 <p>Phlo's observability stack provides:</p>
 <p><strong>Metrics</strong>: Track what's happening via <code>phlo metrics</code> (execution time, throughput, quality)
 <strong>Logs</strong>: Understand why with <code>phlo logs</code> (structured logs, searchable, real-time tailing)
-<strong>Lineage</strong>: Understand impact with <code>phlo lineage</code> (CLI visualization, export, impact analysis)
+<strong>Lineage</strong>: Understand impact with <code>phlo lineage</code> (CLI visualisation, export, impact analysis)
 <strong>Alerts</strong>: Get notified via <code>phlo alerts</code> (requires <code>phlo-alerting</code> plugin; Slack, PagerDuty, email with deduplication)</p>
 <p>Combined, you have:</p>
 <ul>

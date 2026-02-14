@@ -9,7 +9,7 @@
 <meta content="Phlo Team" name="author"/>
 <link href="../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.1" name="generator"/>
-<title>Part 7: Orchestration with Dagster—Running Your Pipelines - Phlo Lakehouse Platform</title>
+<title>Part 7: Orchestration with Dagster - Running Your Pipelines - Phlo Lakehouse Platform</title>
 <link href="../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -23,7 +23,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#part-7-orchestration-with-dagsterrunning-your-pipelines">
+<a class="md-skip" href="#part-7-orchestration-with-dagster-running-your-pipelines">
           Skip to content
         </a>
 </div>
@@ -47,7 +47,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Part 7: Orchestration with Dagster—Running Your Pipelines
+              Part 7: Orchestration with Dagster - Running Your Pipelines
             
           </span>
 </div>
@@ -604,7 +604,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="part-7-orchestration-with-dagsterrunning-your-pipelines">Part 7: Orchestration with Dagster—Running Your Pipelines</h1>
+<h1 id="part-7-orchestration-with-dagster-running-your-pipelines">Part 7: Orchestration with Dagster - Running Your Pipelines</h1>
 <blockquote>
 <p>Prerequisite: Complete <a href="../05-data-ingestion/">Part 5: Data Ingestion</a> and <a href="../06-dbt-transformations/">Part 6: dbt Transformations</a> first.</p>
 </blockquote>
@@ -622,7 +622,7 @@
 </ul>
 <p>We have data flowing in (DLT + Iceberg) and transformations defined (dbt). Now: <strong>Who runs this? When? What happens if it fails?</strong>
 For monitoring and alerts, see <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>.</p>
-<p>That's <strong>Dagster's job</strong>—orchestration.</p>
+<p>That's <strong>Dagster's job</strong> - orchestration.</p>
 <h2 id="the-orchestration-problem">The Orchestration Problem</h2>
 <p>Without orchestration:</p>
 <pre><code class="language-bash"># 6:00 AM
@@ -1011,7 +1011,7 @@ Estimated Time: ~90 minutes
 [Worker 1] 2024-01-05 ✓
 ...
 </code></pre>
-<p><strong>Parallel considerations:</strong></p>
+<p>Parallel considerations:</p>
 <ul>
 <li>More workers = faster, but more resource usage</li>
 <li>Don't exceed your database connection pool</li>
@@ -1171,7 +1171,7 @@ def dlt_glucose_entries() -&gt; MaterializeResult:
     pass
 </code></pre>
 <h2 id="configuration-and-environment">Configuration and Environment</h2>
-<p>Phlo uses <code>phlo/config.py</code> for centralized config:</p>
+<p>Phlo uses <code>phlo/config.py</code> for centralised config:</p>
 <pre><code class="language-python"># phlo/config.py
 from pydantic_settings import BaseSettings
 
@@ -1310,7 +1310,7 @@ def dlt_glucose_entries() -&gt; MaterializeResult:
 <p><strong>Key Pattern</strong>: Declare assets, Dagster handles orchestration.</p>
 <h2 id="next-steps">Next Steps</h2>
 <ul>
-<li>Continue with <a href="../08-real-world-example/">Part 8: Real-World Example—Building a Complete Data Pipeline</a>.</li>
+<li>Continue with <a href="../08-real-world-example/">Part 8: Real-World Example - Building a Complete Data Pipeline</a>.</li>
 <li>Review monitoring in <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>.</li>
 </ul>
 </article>

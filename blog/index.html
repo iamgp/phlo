@@ -467,11 +467,11 @@
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
 <h1 id="phlo-blog-series-modern-data-engineering">Phlo Blog Series: Modern Data Engineering</h1>
-<p>A comprehensive, hands-on guide to building a production-ready data lakehouse using Phlo.</p>
+<p>Hands-on guide to building a data lakehouse with Phlo.</p>
 <p>This 16-part series walks through:</p>
 <ul>
 <li>Fundamental concepts of data lakehouses</li>
-<li>Setting up Phlo step-by-step</li>
+<li>Setting up Phlo step by step</li>
 <li>Understanding Apache Iceberg and Project Nessie</li>
 <li>Data ingestion patterns</li>
 <li>SQL transformations with dbt</li>
@@ -505,7 +505,7 @@ uv add phlo-dagster phlo-postgres phlo-trino phlo-nessie phlo-minio
 # Or install with defaults extra (all core services at once)
 # uv pip install phlo[defaults]
 
-# Step 3: Initialize and configure
+# Step 3: Initialise and configure
 phlo init my-lakehouse
 cd my-lakehouse
 
@@ -536,26 +536,26 @@ phlo services start --profile catalog
 <p>For detailed setup instructions, see <a href="02-setup-guide/">Part 2: Getting Started</a>.</p>
 <p>Short on time? Jump to <a href="02-setup-guide/">Part 2: Getting Started</a>.</p>
 <h2 id="prerequisites">Prerequisites</h2>
-<p><strong>System Requirements:</strong></p>
+<p>System Requirements:</p>
 <ul>
 <li><strong>Minimum</strong>: 4 GB RAM, Docker, 10 GB disk space</li>
 <li><strong>Comfortable</strong>: 8 GB RAM, 2+ CPU cores</li>
 <li><strong>Optimal</strong>: 16+ GB RAM, 4+ CPU cores, SSD</li>
 </ul>
-<p><strong>Skills:</strong></p>
+<p>Skills:</p>
 <ul>
 <li><strong>Required</strong>: Basic SQL knowledge, command line comfort</li>
 <li><strong>Helpful</strong>: Python familiarity, Docker basics</li>
 <li><strong>Optional</strong>: Data engineering experience (we'll teach you!)</li>
 </ul>
-<p><strong>Software:</strong></p>
+<p>Software:</p>
 <ul>
 <li>Docker &amp; Docker Compose (required)</li>
 <li>Git (required)</li>
 <li>Python 3.11+ with uv (optional, for local development)</li>
 <li>A code editor (VSCode, PyCharm, etc.)</li>
 </ul>
-<p>Don't worry if you're missing some skills - the series is designed to teach you as you go!</p>
+<p>If you're missing some prerequisites, start with Part 2 and follow the examples in order.</p>
 <h2 id="blog-posts">Blog Posts</h2>
 <table>
 <thead>
@@ -577,21 +577,21 @@ phlo services start --profile catalog
 </tr>
 <tr>
 <td>2</td>
-<td><a href="02-setup-guide/">Getting Started—Setup Guide</a></td>
+<td><a href="02-setup-guide/">Getting Started - Setup Guide</a></td>
 <td>Installation, services, first pipeline</td>
 <td>20 min</td>
 <td>Up to date</td>
 </tr>
 <tr>
 <td>3</td>
-<td><a href="03-apache-iceberg-explained/">Apache Iceberg—Table Format</a></td>
+<td><a href="03-apache-iceberg-explained/">Apache Iceberg - Table Format</a></td>
 <td>Snapshots, schema evolution, time travel</td>
 <td>20 min</td>
 <td>Needs review</td>
 </tr>
 <tr>
 <td>4</td>
-<td><a href="04-project-nessie-versioning/">Project Nessie—Git for Data</a></td>
+<td><a href="04-project-nessie-versioning/">Project Nessie - Git for Data</a></td>
 <td>Branching, versioning, governance</td>
 <td>15 min</td>
 <td>Needs review</td>
@@ -777,7 +777,7 @@ phlo services start --profile catalog
     style dbt fill:#FF694B
     style Nessie fill:#FFAA00
 </div>
-<p><strong>Key Components:</strong></p>
+<p>Key Components:</p>
 <ul>
 <li><strong>Dagster</strong>: Orchestrates everything, schedules pipelines, monitors assets</li>
 <li><strong>DLT + PyIceberg</strong>: Two-step ingestion pattern (stage → merge)</li>
@@ -810,7 +810,7 @@ phlo services start --profile catalog
 </ol>
 <p><strong>Time</strong>: 2-3 hours reading + hands-on</p>
 <h3 id="path-3-architectevaluator">Path 3: Architect/Evaluator</h3>
-<p><strong>Goal</strong>: Evaluate Phlo for your organization</p>
+<p><strong>Goal</strong>: Evaluate Phlo for your organisation</p>
 <ol>
 <li><a href="01-intro-data-lakehouse/">Part 1</a> (comparison to alternatives)</li>
 <li><a href="13-capability-primitives/">Part 13</a> (system model)</li>
@@ -871,7 +871,7 @@ phlo services start --profile catalog
 <tr>
 <td><strong>DLT</strong></td>
 <td>5, 8</td>
-<td>Data staging, schema normalization</td>
+<td>Data staging, schema normalisation</td>
 </tr>
 <tr>
 <td><strong>PyIceberg</strong></td>
@@ -906,7 +906,7 @@ phlo services start --profile catalog
 <tr>
 <td><strong>Superset</strong></td>
 <td>2, 8</td>
-<td>Dashboarding, visualization</td>
+<td>Dashboarding, visualisation</td>
 </tr>
 <tr>
 <td><strong>Pandera</strong></td>
@@ -932,7 +932,7 @@ phlo services start --profile catalog
 <li><strong>Part 8</strong>: <a href="08-real-world-example/#step-1-understanding-the-api">Complete pipeline walk-through</a></li>
 <li><strong>Part 9</strong>: <a href="09-data-quality-with-pandera/#layer-1-pandera-schemas-ingestion">Set up Pandera validation</a></li>
 <li><strong>Part 10</strong>: <a href="10-metadata-governance/#setting-up-trino-data-source">Query OpenMetadata catalog</a></li>
-<li><strong>Part 11</strong>: <a href="11-observability-monitoring/#dashboards-visualizing-health">Create monitoring dashboards</a></li>
+<li><strong>Part 11</strong>: <a href="11-observability-monitoring/#dashboards-visualising-health">Create monitoring dashboards</a></li>
 <li><strong>Part 12</strong>: <a href="12-production-deployment/#future-kubernetes-deployment">Deploy to Kubernetes</a></li>
 </ul>
 <h2 id="common-questions-answered">Common Questions Answered</h2>
@@ -940,8 +940,12 @@ phlo services start --profile catalog
 <li><strong>"Do I need to understand Iceberg?"</strong> → Yes, <a href="03-apache-iceberg-explained/">Part 3</a> explains why it matters and how it's different</li>
 <li><strong>"Can I skip dbt and use Python instead?"</strong> → You could, but <a href="06-dbt-transformations/">Part 6</a> explains why SQL via dbt is better</li>
 <li><strong>"How does this compare to Snowflake/Databricks?"</strong> → <a href="01-intro-data-lakehouse/">Part 1</a> compares. Key: open-source, no vendor lock-in</li>
-<li><strong>"Is this production-ready?"</strong> → Yes, see <a href="12-production-deployment/">Part 12</a> and <a href="../reference/architecture/">Architecture Guide</a></li>
-<li><strong>"Can I ingest from databases, not just APIs?"</strong> → Yes, <a href="05-data-ingestion/#handling-different-data-sources">Part 5</a> covers the pattern</li>
+<li>
+<p><strong>"Can I run this in production?"</strong> → See <a href="12-production-deployment/">Part 12</a> and <a href="../reference/architecture/">Architecture Guide</a> for deployment patterns and tradeoffs.</p>
+</li>
+<li>
+<p><strong>"Can I ingest from databases, not just APIs?"</strong> → Yes, <a href="05-data-ingestion/#handling-different-data-sources">Part 5</a> covers the pattern</p>
+</li>
 <li><strong>"How do I ensure data quality?"</strong> → <a href="09-data-quality-with-pandera/">Part 9</a> covers three validation layers</li>
 <li><strong>"How do I discover and catalog my data?"</strong> → <a href="10-metadata-governance/">Part 10</a> covers OpenMetadata integration</li>
 <li><strong>"Is my pipeline actually running?"</strong> → <a href="11-observability-monitoring/">Part 11</a> covers monitoring and alerts</li>

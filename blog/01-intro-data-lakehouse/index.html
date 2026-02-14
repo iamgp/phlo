@@ -458,17 +458,17 @@
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
 <li>None. Start here.</li>
-<li>Optional: <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a> if you want to run services now.</li>
+<li>Optional: <a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a> if you want to run services now.</li>
 </ul>
 <h2 id="the-problem-were-solving">The Problem We're Solving</h2>
 <p>Traditional data pipelines have a fundamental problem: <strong>they force you to choose</strong>.</p>
 <p>Either you have:</p>
 <ul>
 <li><strong>A Data Lake</strong>: cheap, flexible storage but chaotic and hard to query</li>
-<li><strong>A Data Warehouse</strong>: organized, fast queries but rigid and expensive</li>
+<li><strong>A Data Warehouse</strong>: organised, fast queries but rigid and expensive</li>
 </ul>
 <p>Phlo solves this by combining the best of both worlds into a <strong>lakehouse</strong>.
-If you want hands-on setup next, jump to <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a>.</p>
+If you want hands-on setup next, jump to <a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a>.</p>
 <h2 id="the-three-eras-of-data-architecture">The Three Eras of Data Architecture</h2>
 <h3 id="era-1-the-data-warehouse-1990s-2010s">Era 1: The Data Warehouse (1990s-2010s)</h3>
 <ul>
@@ -480,7 +480,7 @@ If you want hands-on setup next, jump to <a href="../02-setup-guide/">Part 2: Ge
 <ul>
 <li>Store raw data cheaply in object storage</li>
 <li>Flexible schema</li>
-<li>Problem: "Swamp" syndrome—data is disorganized, hard to query, poor governance</li>
+<li>Problem: "Swamp" syndrome - data is disorganised, hard to query, poor governance</li>
 </ul>
 <h3 id="era-3-the-data-lakehouse-2020s">Era 3: The Data Lakehouse (2020s+)</h3>
 <ul>
@@ -523,7 +523,7 @@ Rigid schemas                  Schema evolution
 </div>
 <h2 id="key-concepts-explained">Key Concepts Explained</h2>
 <h3 id="1-apache-iceberg-table-format">1. Apache Iceberg (Table Format)</h3>
-<p>Imagine you're storing data in a filing cabinet. A table format is the <strong>file organization system</strong> that lets you:</p>
+<p>Imagine you're storing data in a filing cabinet. A table format is the <strong>file organisation system</strong> that lets you:</p>
 <pre><code>Instead of:
 s3://lake/
   entry-001.parquet
@@ -666,7 +666,7 @@ def publish_marts() -&gt; None:
               │
               ↓ (SQL queries)
    ┌──────────────────────────────────────┐
-   │ Superset Dashboard                   │ ← Visualization
+   │ Superset Dashboard                   │ ← Visualisation
    └──────────────────────────────────────┘
 </code></pre>
 <h2 id="why-this-matters-real-benefits">Why This Matters (Real Benefits)</h2>
@@ -687,7 +687,7 @@ def publish_marts() -&gt; None:
 <tr>
 <td>Query speed</td>
 <td>Fast</td>
-<td>Fast (Trino optimization)</td>
+<td>Fast (Trino optimisation)</td>
 </tr>
 <tr>
 <td>Schema changes</td>
@@ -762,7 +762,7 @@ curl http://localhost:19120/api/v2/config
 <p>Fix: preview with MkDocs or view the post on GitHub.</p>
 <p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
 <h2 id="see-also">See Also</h2>
-<p>See also: <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a>, <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg Explained</a>, <a href="../04-project-nessie-versioning/">Part 4: Project Nessie Versioning</a>. Reference: <a href="../../reference/architecture/">Architecture Overview</a>.</p>
+<p>See also: <a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a>, <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg Explained</a>, <a href="../04-project-nessie-versioning/">Part 4: Project Nessie Versioning</a>. Reference: <a href="../../reference/architecture/">Architecture Overview</a>.</p>
 <h2 id="summary">Summary</h2>
 <p>Phlo combines open table formats, version control, and low-cost storage into a
 single, flexible lakehouse architecture. You now have the mental model for how
@@ -775,7 +775,7 @@ the components fit together and why the tradeoffs matter.</p>
 <li>Start all services with one command</li>
 <li>Run your first data pipeline</li>
 </ul>
-<p><strong>Next</strong>: <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a></p>
+<p><strong>Next</strong>: <a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a></p>
 </article>
 </div>
 <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>

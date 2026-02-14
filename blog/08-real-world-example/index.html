@@ -23,7 +23,7 @@
     
     
       
-        <title>Part 8: Real-World Example—Building a Complete Data Pipeline - Phlo Lakehouse Platform</title>
+        <title>Part 8: Real-World Example - Building a Complete Data Pipeline - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#part-8-real-world-examplebuilding-a-complete-data-pipeline" class="md-skip">
+        <a href="#part-8-real-world-example-building-a-complete-data-pipeline" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Part 8: Real-World Example—Building a Complete Data Pipeline
+              Part 8: Real-World Example - Building a Complete Data Pipeline
             
           </span>
         </div>
@@ -1023,7 +1023,7 @@
 
 
 
-<h1 id="part-8-real-world-examplebuilding-a-complete-data-pipeline">Part 8: Real-World Example—Building a Complete Data Pipeline</h1>
+<h1 id="part-8-real-world-example-building-a-complete-data-pipeline">Part 8: Real-World Example - Building a Complete Data Pipeline</h1>
 <blockquote>
 <p>Prerequisite: Complete <a href="../02-setup-guide/">Part 2: Getting Started</a>, <a href="../05-data-ingestion/">Part 5: Data Ingestion</a>, and <a href="../06-dbt-transformations/">Part 6: dbt Transformations</a>.</p>
 </blockquote>
@@ -1032,11 +1032,11 @@
 <li>How the ingestion, dbt, and publishing layers fit together</li>
 <li>How to configure end-to-end assets for a real dataset</li>
 <li>How to validate data quality during the pipeline</li>
-<li>How to visualize outputs in Superset</li>
+<li>How to visualise outputs in Superset</li>
 </ul>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li><a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a></li>
+<li><a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a></li>
 <li><a href="../05-data-ingestion/">Part 5: Data Ingestion</a></li>
 <li><a href="../06-dbt-transformations/">Part 6: dbt Transformations</a></li>
 </ul>
@@ -1387,7 +1387,7 @@ def publish_marts_to_postgres(context):
 
         context.log.info(f&quot;Published {table_name} to Postgres&quot;)
 </code></pre>
-<p><strong>How it works:</strong></p>
+<p>How it works:</p>
 <ol>
 <li>Phlo scans the dbt <code>manifest.json</code> for models in the <code>marts</code> schema</li>
 <li>Auto-generates a publishing asset with dependencies on those marts</li>

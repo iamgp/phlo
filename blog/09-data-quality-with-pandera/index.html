@@ -23,7 +23,7 @@
     
     
       
-        <title>Part 9: Data Quality—Pandera Schemas and Asset Checks - Phlo Lakehouse Platform</title>
+        <title>Part 9: Data Quality - Pandera Schemas and Asset Checks - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#part-9-data-qualitypandera-schemas-and-asset-checks" class="md-skip">
+        <a href="#part-9-data-quality-pandera-schemas-and-asset-checks" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Part 9: Data Quality—Pandera Schemas and Asset Checks
+              Part 9: Data Quality - Pandera Schemas and Asset Checks
             
           </span>
         </div>
@@ -1088,7 +1088,7 @@
 
 
 
-<h1 id="part-9-data-qualitypandera-schemas-and-asset-checks">Part 9: Data Quality—Pandera Schemas and Asset Checks</h1>
+<h1 id="part-9-data-quality-pandera-schemas-and-asset-checks">Part 9: Data Quality - Pandera Schemas and Asset Checks</h1>
 <blockquote>
 <p>Prerequisite: Complete <a href="../05-data-ingestion/">Part 5: Data Ingestion</a> before applying quality checks.</p>
 </blockquote>
@@ -1212,7 +1212,7 @@ class FactGlucoseReadings(DataFrameModel):
     - Proper timestamp formatting
     - Valid direction indicators
     - Time dimension fields (hour, day of week)
-    - Glucose categorization
+    - Glucose categorisation
     &quot;&quot;&quot;
 
     entry_id: str = Field(
@@ -1243,7 +1243,7 @@ class FactGlucoseReadings(DataFrameModel):
     glucose_category: str = Field(
         isin=[&quot;hypoglycemia&quot;, &quot;in_range&quot;, &quot;hyperglycemia_mild&quot;, &quot;hyperglycemia_severe&quot;],
         nullable=False,
-        description=&quot;Categorized glucose level based on ADA guidelines&quot;,
+        description=&quot;Categorised glucose level based on ADA guidelines&quot;,
     )
 
     is_in_range: int = Field(
@@ -1647,14 +1647,14 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -&gt; AssetC
 </tbody>
 </table>
 <h3 id="check-parameters-in-detail">Check Parameters in Detail</h3>
-<p><strong>NullCheck with allow_threshold:</strong></p>
+<p>NullCheck with allow_threshold:</p>
 <pre><code class="language-python"># Strict: no nulls allowed
 NullCheck(columns=[&quot;sgv&quot;, &quot;timestamp&quot;])
 
 # Lenient: allow up to 1% nulls
 NullCheck(columns=[&quot;device&quot;], allow_threshold=0.01)
 </code></pre>
-<p><strong>RangeCheck:</strong></p>
+<p>RangeCheck:</p>
 <pre><code class="language-python"># Both bounds
 RangeCheck(column=&quot;sgv&quot;, min_value=20, max_value=600)
 
@@ -1664,21 +1664,21 @@ RangeCheck(column=&quot;price&quot;, min_value=0)
 # Only upper bound
 RangeCheck(column=&quot;percentage&quot;, max_value=100)
 </code></pre>
-<p><strong>FreshnessCheck:</strong></p>
+<p>FreshnessCheck:</p>
 <pre><code class="language-python"># Data must be less than 2 hours old
 FreshnessCheck(timestamp_column=&quot;timestamp&quot;, max_age_hours=2)
 
 # Different column name
 FreshnessCheck(timestamp_column=&quot;created_at&quot;, max_age_hours=24)
 </code></pre>
-<p><strong>UniqueCheck:</strong></p>
+<p>UniqueCheck:</p>
 <pre><code class="language-python"># Single column unique
 UniqueCheck(columns=[&quot;id&quot;])
 
 # Composite unique (combination must be unique)
 UniqueCheck(columns=[&quot;user_id&quot;, &quot;timestamp&quot;])
 </code></pre>
-<p><strong>CustomSQLCheck for complex rules:</strong></p>
+<p>CustomSQLCheck for complex rules:</p>
 <pre><code class="language-python"># &quot;data&quot; is a placeholder for the table/dataframe passed via the @phlo_quality decorator's table parameter
 CustomSQLCheck(
     name_=&quot;business_hours_only&quot;,
@@ -1700,12 +1700,12 @@ CustomSQLCheck(
     backend=&quot;trino&quot;,                       # Query backend: &quot;trino&quot; or &quot;duckdb&quot;
 )
 </code></pre>
-<p><strong>blocking parameter:</strong></p>
+<p>blocking parameter:</p>
 <ul>
 <li><code>blocking=True</code> (default): Failed checks prevent downstream assets from running</li>
 <li><code>blocking=False</code>: Failed checks log warnings but don't block execution</li>
 </ul>
-<p><strong>warn_threshold:</strong></p>
+<p>warn_threshold:</p>
 <ul>
 <li>Set to <code>0.0</code> for strict mode (any failure = warning)</li>
 <li>Set to <code>0.1</code> to allow 10% of checks to fail before warning</li>
@@ -1830,7 +1830,7 @@ Without Layer 1:
 from pydantic import BaseSettings
 
 class DataQualityConfig(BaseSettings):
-    # Validation behavior
+    # Validation behaviour
     pandera_strict: bool = True  # Fail on any schema error
     allow_null_in_required: bool = False
 

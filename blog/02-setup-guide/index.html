@@ -23,7 +23,7 @@
     
     
       
-        <title>Part 2: Getting Started with Phlo—Setup Guide - Phlo Lakehouse Platform</title>
+        <title>Part 2: Getting Started with Phlo - Setup Guide - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#part-2-getting-started-with-phlosetup-guide" class="md-skip">
+        <a href="#part-2-getting-started-with-phlo-setup-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Part 2: Getting Started with Phlo—Setup Guide
+              Part 2: Getting Started with Phlo - Setup Guide
             
           </span>
         </div>
@@ -718,15 +718,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-1-initialize-your-project" class="md-nav__link">
+  <a href="#step-1-initialise-your-project" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1: Initialize Your Project
+        Step 1: Initialise Your Project
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Step 1: Initialize Your Project">
+    <nav class="md-nav" aria-label="Step 1: Initialise Your Project">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1105,14 +1105,14 @@
 
 
 
-<h1 id="part-2-getting-started-with-phlosetup-guide">Part 2: Getting Started with Phlo—Setup Guide</h1>
+<h1 id="part-2-getting-started-with-phlo-setup-guide">Part 2: Getting Started with Phlo - Setup Guide</h1>
 <blockquote>
 <p>Prerequisite: Read <a href="../01-intro-data-lakehouse/">Part 1: What is a Data Lakehouse?</a> for core concepts.</p>
 </blockquote>
 <h2 id="what-youll-learn">What You'll Learn</h2>
 <ul>
 <li>Bootstrap a new Phlo project with <code>phlo init</code></li>
-<li>Initialize and start the service stack</li>
+<li>Initialise and start the service stack</li>
 <li>Ingest sample data and materialize assets</li>
 <li>Verify results in Dagster and Observatory</li>
 </ul>
@@ -1173,7 +1173,7 @@
 </tbody>
 </table>
 <p>If you have less than 4GB RAM, you can start a minimal setup (Postgres + MinIO only) and add services gradually.</p>
-<h2 id="step-1-initialize-your-project">Step 1: Initialize Your Project</h2>
+<h2 id="step-1-initialise-your-project">Step 1: Initialise Your Project</h2>
 <pre><code class="language-bash"># Create a new Phlo project
 phlo init my-lakehouse
 cd my-lakehouse
@@ -1184,7 +1184,7 @@ cd my-lakehouse
 # - workflows/ (your data pipelines)
 # - workflows/transforms/dbt/ (dbt models)
 </code></pre>
-<p>Then initialize infra (generates <code>.phlo/.env</code> and <code>.phlo/.env.local</code>):</p>
+<p>Then initialise infra (generates <code>.phlo/.env</code> and <code>.phlo/.env.local</code>):</p>
 <pre><code class="language-bash">phlo services init
 </code></pre>
 <h3 id="whats-in-phloyaml">What's in phlo.yaml?</h3>
@@ -1504,7 +1504,7 @@ LIMIT 24
 <li>Click <strong>Update Chart</strong></li>
 <li>Click <strong>Save Chart</strong></li>
 </ol>
-<p>Congratulations! You've visualized real glucose data from a lakehouse.</p>
+<p>Congratulations! You've visualised real glucose data from a lakehouse.</p>
 <h2 id="hands-on-exercise-re-run-the-pipeline">Hands-On Exercise: Re-run the Pipeline</h2>
 <ol>
 <li>Stop services: <code>phlo services stop</code>.</li>
@@ -1580,10 +1580,10 @@ curl http://localhost:3000/graphql         # Dagster
 <li>Ran transformations</li>
 <li>Created a dashboard</li>
 </ul>
-<p>In Part 3, we'll dive deep into <strong>Apache Iceberg</strong>—the magic that makes this lakehouse work.</p>
+<p>In Part 3, we'll cover <strong>Apache Iceberg</strong> and how it manages table metadata, snapshots, and schema changes.</p>
 <h2 id="next-steps">Next Steps</h2>
 <ul>
-<li>Continue with <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg—The Table Format That Changed Everything</a>.</li>
+<li>Continue with <a href="../03-apache-iceberg-explained/">Part 3: Apache Iceberg - The Table Format That Changed Everything</a>.</li>
 <li>Jump to ingestion specifics in <a href="../05-data-ingestion/">Part 5: Data Ingestion</a>.</li>
 </ul>
 

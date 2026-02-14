@@ -23,7 +23,7 @@
     
     
       
-        <title>Part 5: Data Ingestion—Getting Data Into the Lakehouse - Phlo Lakehouse Platform</title>
+        <title>Part 5: Data Ingestion - Getting Data Into the Lakehouse - Phlo Lakehouse Platform</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#part-5-data-ingestiongetting-data-into-the-lakehouse" class="md-skip">
+        <a href="#part-5-data-ingestion-getting-data-into-the-lakehouse" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Part 5: Data Ingestion—Getting Data Into the Lakehouse
+              Part 5: Data Ingestion - Getting Data Into the Lakehouse
             
           </span>
         </div>
@@ -796,10 +796,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#dlt-schema-normalization" class="md-nav__link">
+  <a href="#dlt-schema-normalisation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        DLT Schema Normalization
+        DLT Schema Normalisation
       
     </span>
   </a>
@@ -1094,9 +1094,9 @@
 
 
 
-<h1 id="part-5-data-ingestiongetting-data-into-the-lakehouse">Part 5: Data Ingestion—Getting Data Into the Lakehouse</h1>
+<h1 id="part-5-data-ingestion-getting-data-into-the-lakehouse">Part 5: Data Ingestion - Getting Data Into the Lakehouse</h1>
 <blockquote>
-<p>Prerequisite: Complete <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a> before running ingestion.</p>
+<p>Prerequisite: Complete <a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a> before running ingestion.</p>
 </blockquote>
 <h2 id="what-youll-learn">What You'll Learn</h2>
 <ul>
@@ -1107,7 +1107,7 @@
 </ul>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li><a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a></li>
+<li><a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a></li>
 <li>Optional: <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a> for scheduling context.</li>
 </ul>
 <p>We have our lakehouse infrastructure. Now: <strong>how does data actually get in?</strong>
@@ -1218,7 +1218,7 @@ def glucose_entries(partition_date: str):
 <li><strong>Asset Metadata</strong>: Tracks lineage and dependencies in Dagster</li>
 </ol>
 <h3 id="merge-strategies">Merge Strategies</h3>
-<p>Phlo supports two merge strategies, allowing you to optimize for different data patterns:</p>
+<p>Phlo supports two merge strategies, allowing you to optimise for different data patterns:</p>
 <h4 id="append-strategy-insert-only">Append Strategy (Insert-Only)</h4>
 <p>Best for immutable event streams where you never update existing records:</p>
 <pre><code class="language-python">from phlo_dlt.decorator import phlo_ingestion
@@ -1233,14 +1233,14 @@ def glucose_entries(partition_date: str):
 def api_events(partition_date: str):
     return rest_api(...)
 </code></pre>
-<p><strong>Characteristics:</strong></p>
+<p>Characteristics:</p>
 <ul>
 <li>Fastest performance (no deduplication overhead)</li>
 <li>No checking for duplicates</li>
 <li>Simply appends all new records</li>
 <li><strong>Use for</strong>: Server logs, clickstream events, time-series sensor data, immutable audit trails</li>
 </ul>
-<p><strong>Trade-offs:</strong></p>
+<p>Trade-offs:</p>
 <ul>
 <li>If you accidentally run the same partition twice, you'll get duplicates</li>
 <li>No way to update existing records</li>
@@ -1261,7 +1261,7 @@ def api_events(partition_date: str):
 def user_profiles(partition_date: str):
     return rest_api(...)
 </code></pre>
-<p><strong>Deduplication Strategies:</strong></p>
+<p>Deduplication Strategies:</p>
 <ol>
 <li><strong><code>last</code> (default)</strong>: Keep the most recent occurrence</li>
 </ol>
@@ -1295,14 +1295,14 @@ def user_profiles(partition_date: str):
 <li>Useful when you want to detect actual data changes</li>
 <li>Example: Configuration snapshots (only update if content differs)</li>
 </ul>
-<p><strong>Characteristics:</strong></p>
+<p>Characteristics:</p>
 <ul>
 <li>Performs upsert: UPDATE if <code>unique_key</code> exists, INSERT if new</li>
 <li>Removes duplicates within the same batch</li>
 <li>Idempotent: running multiple times produces same result</li>
 <li><strong>Use for</strong>: User profiles, product catalogs, reference data, slowly changing dimensions</li>
 </ul>
-<p><strong>Trade-offs:</strong></p>
+<p>Trade-offs:</p>
 <ul>
 <li>Slower than append (requires deduplication logic)</li>
 <li>More memory usage during merge</li>
@@ -1381,7 +1381,7 @@ def user_profiles(partition_date: str):
 <li>Corrected readings wouldn't update (you'd have both old and new)</li>
 <li>dbt transformations downstream would need to handle deduplication</li>
 </ul>
-<h3 id="dlt-schema-normalization">DLT Schema Normalization</h3>
+<h3 id="dlt-schema-normalisation">DLT Schema Normalisation</h3>
 <p>DLT normalizes messy API responses:</p>
 <pre><code class="language-python"># API Response (original)
 [
@@ -1396,7 +1396,7 @@ def user_profiles(partition_date: str):
   ...
 ]
 
-# After DLT (normalized schema)
+# After DLT (normalised schema)
 Parquet file with columns:
 ├── date_string: string (converted from dateString)
 ├── _id: string
@@ -1827,7 +1827,7 @@ append_parquet(table, data)  # Second run duplicates!
 <p>Fix: confirm the asset name and inspect Dagster logs for errors.</p>
 <p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
 <h2 id="see-also">See Also</h2>
-<p>See also: <a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a>, <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a>, <a href="../08-real-world-example/">Part 8: A Real-World End-to-End Example</a>. Reference: <a href="../../reference/phlo-api/">Phlo API Reference</a>.</p>
+<p>See also: <a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a>, <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a>, <a href="../08-real-world-example/">Part 8: A Real-World End-to-End Example</a>. Reference: <a href="../../reference/phlo-api/">Phlo API Reference</a>.</p>
 <h2 id="summary">Summary</h2>
 <p><strong>Phlo's Ingestion with @phlo_ingestion</strong>:</p>
 <p>The <code>@phlo_ingestion</code> decorator simplifies data ingestion by handling:</p>
@@ -1843,7 +1843,7 @@ append_parquet(table, data)  # Second run duplicates!
 <li><code>table_name</code>: Iceberg table to write to</li>
 <li><code>unique_key</code>: Column for deduplication</li>
 <li><code>validation_schema</code>: Pandera schema for validation</li>
-<li><code>group</code>: Asset group for organization</li>
+<li><code>group</code>: Asset group for organisation</li>
 <li><code>cron</code>: Schedule (optional)</li>
 <li><code>freshness_hours</code>: Expected data freshness (optional)</li>
 </ul>
@@ -1870,7 +1870,7 @@ append_parquet(table, data)  # Second run duplicates!
 </ul>
 <h2 id="next-steps">Next Steps</h2>
 <ul>
-<li>Continue with <a href="../06-dbt-transformations/">Part 6: SQL Transformations with dbt—The Right Way</a>.</li>
+<li>Continue with <a href="../06-dbt-transformations/">Part 6: SQL Transformations with dbt - The Right Way</a>.</li>
 <li>Add quality checks in <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a>.</li>
 </ul>
 

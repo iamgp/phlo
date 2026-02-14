@@ -597,7 +597,7 @@
 <li><a href="../13-capability-primitives/">Part 13: Capability Primitives</a></li>
 <li>Optional: <a href="../16-building-custom-packages/">Part 16: Building Custom Packages</a> for scaffolding.</li>
 </ul>
-<p>You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialized validation rule, or a domain-specific transformation?
+<p>You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialised validation rule, or a domain-specific transformation?
 For full package scaffolding, see <a href="../16-building-custom-packages/">Part 16: Building Custom Packages</a>.</p>
 <p>That's where the plugin system comes in.</p>
 <h2 id="why-plugins">Why Plugins?</h2>
@@ -1101,7 +1101,7 @@ class ThresholdCheck(QualityCheck):
         tolerance: float = 0.0,
     ):
         """
-        Initialize threshold check.
+        Initialise threshold check.
 
         Args:
             column: Column to validate
@@ -1166,7 +1166,7 @@ class ThresholdCheck(QualityCheck):
         bound_str = ",".join(bounds) if bounds else "unbounded"
         return f"threshold_check({self.column},{bound_str})"
 </code></pre>
-<p><strong>Usage:</strong></p>
+<p>Usage:</p>
 <pre><code class="language-python">from phlo.plugins import get_quality_check
 
 # Get the plugin
@@ -1285,7 +1285,7 @@ class UppercaseTransformPlugin(TransformationPlugin):
 
         return True
 </code></pre>
-<p><strong>Usage:</strong></p>
+<p>Usage:</p>
 <pre><code class="language-python">from phlo.plugins import get_transformation
 import pandas as pd
 
@@ -1469,7 +1469,7 @@ version = "1.0.1"  # Fix: handled edge case
 </code></pre>
 <h2 id="plugin-security">Plugin Security</h2>
 <p>Plugins run with full access to your environment. Only install trusted plugins.</p>
-<p><strong>For organizations:</strong></p>
+<p>For organisations:</p>
 <ul>
 <li>Maintain an internal plugin registry</li>
 <li>Review plugin code before deployment</li>
@@ -1519,14 +1519,14 @@ class PhloConfig:
 <li><strong>Quality Checks</strong>: Encode custom business rules</li>
 <li><strong>Transforms</strong>: Reusable transformation logic</li>
 </ul>
-<p>Plugins are discovered automatically via Python entry points, managed via CLI, and integrate seamlessly with Phlo's decorators and assets.</p>
-<p><strong>When to use plugins:</strong></p>
+<p>Plugins are discovered through Python entry points, managed via CLI, and used alongside Phlo decorators and assets.</p>
+<p>When to use plugins:</p>
 <ul>
 <li>You need a data source Phlo doesn't support</li>
-<li>You have organization-specific quality rules</li>
+<li>You have organisation-specific quality rules</li>
 <li>You want to share reusable logic across teams</li>
 </ul>
-<p><strong>When NOT to use plugins:</strong></p>
+<p>When NOT to use plugins:</p>
 <ul>
 <li>One-off transformations (just write Python)</li>
 <li>Simple quality checks (use built-in checks)</li>
@@ -1555,7 +1555,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
     print(post['title'])
 "
 </code></pre>
-<p><strong>Actual Files to Study:</strong></p>
+<p>Actual Files to Study:</p>
 <ul>
 <li>Source plugin: <code>src/phlo_example/source.py</code></li>
 <li>Quality check plugin: <code>src/phlo_example/quality.py</code></li>
@@ -1563,7 +1563,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 <li>Entry points: <code>pyproject.toml</code></li>
 <li>Tests: <code>tests/</code></li>
 </ul>
-<p><strong>Base Classes:</strong></p>
+<p>Base Classes:</p>
 <ul>
 <li><code>phlo.plugins.SourceConnectorPlugin</code> - Inherit for source connectors</li>
 <li><code>phlo.plugins.QualityCheckPlugin</code> - Inherit for quality checks</li>
@@ -1575,7 +1575,7 @@ for post in source.fetch_data({'resource': 'posts', 'limit': 3}):
 <li><code>phlo.plugins.OrchestratorAdapterPlugin</code> - Inherit to translate specs to runtime</li>
 <li><code>phlo.plugins.ObservatoryExtensionPlugin</code> - Inherit for UI extensions</li>
 </ul>
-<p><strong>Discovery Functions:</strong></p>
+<p>Discovery Functions:</p>
 <ul>
 <li><code>phlo.plugins.discover_plugins()</code> - Discover all plugins</li>
 <li><code>phlo.plugins.get_source_connector(name)</code> - Get source plugin</li>

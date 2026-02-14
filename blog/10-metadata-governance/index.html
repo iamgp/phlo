@@ -1067,15 +1067,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#data-contracts-formalizing-data-agreements" class="md-nav__link">
+  <a href="#data-contracts-formalising-data-agreements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data Contracts: Formalizing Data Agreements
+        Data Contracts: Formalising Data Agreements
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Data Contracts: Formalizing Data Agreements">
+    <nav class="md-nav" aria-label="Data Contracts: Formalising Data Agreements">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1421,7 +1421,7 @@
 </blockquote>
 <h2 id="what-youll-learn">What You'll Learn</h2>
 <ul>
-<li>Why metadata and governance are critical for trust</li>
+<li>Why metadata and governance matter for trust</li>
 <li>How OpenMetadata models ownership, lineage, and quality</li>
 <li>How Phlo publishes assets into the catalog</li>
 <li>How to use metadata for operational decisions</li>
@@ -1431,7 +1431,7 @@
 <li><a href="../04-project-nessie-versioning/">Part 4: Project Nessie Versioning</a></li>
 <li>Optional: <a href="../09-data-quality-with-pandera/">Part 9: Data Quality with Pandera</a> for validation context.</li>
 </ul>
-<p>Data quality is important. But knowing what you have, where it came from, and who can use it is equally critical. This post covers metadata and governance with OpenMetadata.
+<p>Data quality matters. So does knowing what data exists, where it came from, and who can use it. This post covers metadata and governance with OpenMetadata.
 For alerting and monitoring once metadata is in place, see <a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a>.</p>
 <h2 id="the-metadata-problem">The Metadata Problem</h2>
 <p>Without metadata tracking:</p>
@@ -1453,7 +1453,7 @@ Answers from your team:
 <li>Change history nowhere</li>
 </ul>
 <blockquote>
-<p><strong>Note:</strong> For detailed OpenMetadata setup instructions, see <a href="../../setup/openmetadata/">docs/setup/openmetadata.md</a></p>
+<p>Note: For detailed OpenMetadata setup instructions, see <a href="../../setup/openmetadata/">docs/setup/openmetadata.md</a></p>
 </blockquote>
 <h2 id="openmetadata-the-open-source-data-catalog">OpenMetadata: The Open-Source Data Catalog</h2>
 <p>OpenMetadata is an open-source data catalog that answers:</p>
@@ -1467,7 +1467,7 @@ Answers from your team:
 <li>What quality checks does it have?</li>
 </ul>
 <h2 id="why-openmetadata-for-phlo">Why OpenMetadata for Phlo?</h2>
-<p>OpenMetadata integrates seamlessly with Phlo's tech stack:</p>
+<p>OpenMetadata works with the Phlo stack:</p>
 <ul>
 <li><strong>Trino connector</strong> - Auto-discovers Iceberg tables</li>
 <li><strong>Modern UI</strong> - Intuitive search and browsing experience</li>
@@ -1540,9 +1540,9 @@ make catalog
 <li>Click <strong>Next</strong></li>
 </ol>
 <h3 id="step-2-configure-trino-connection">Step 2: Configure Trino Connection</h3>
-<p><strong>Service Name:</strong> <code>trino</code></p>
-<p><strong>Description:</strong> Phlo lakehouse Trino query engine with Iceberg catalog</p>
-<p><strong>Connection Configuration:</strong></p>
+<p>Service Name: <code>trino</code></p>
+<p>Description: Phlo lakehouse Trino query engine with Iceberg catalog</p>
+<p>Connection Configuration:</p>
 <p>Click on <strong>Basic</strong> authentication type, then configure:</p>
 <table>
 <thead>
@@ -1590,11 +1590,11 @@ make catalog
 <h3 id="step-3-configure-metadata-ingestion-pipeline">Step 3: Configure Metadata Ingestion Pipeline</h3>
 <p>After creating the service, you'll be prompted to set up metadata ingestion.</p>
 <ol>
-<li><strong>Pipeline Name:</strong> <code>trino-metadata</code></li>
-<li><strong>Pipeline Type:</strong> Select <strong>Metadata Ingestion</strong></li>
+<li>Pipeline Name: <code>trino-metadata</code></li>
+<li>Pipeline Type: Select <strong>Metadata Ingestion</strong></li>
 <li>Click <strong>Next</strong></li>
 </ol>
-<p><strong>Filter Patterns (CRITICAL - prevents crashes):</strong></p>
+<p>Filter Patterns (CRITICAL - prevents crashes):</p>
 <pre><code class="language-yaml">Database Filter Pattern:
   Include: iceberg
   Exclude: system
@@ -1607,7 +1607,7 @@ Table Filter Pattern:
   Include: .*
   Exclude: (leave empty)
 </code></pre>
-<p><strong>Advanced Configuration:</strong></p>
+<p>Advanced Configuration:</p>
 <p>Enable/disable these options:</p>
 <table>
 <thead>
@@ -1660,14 +1660,14 @@ Table Filter Pattern:
 </tr>
 </tbody>
 </table>
-<p><strong>Ingestion Settings:</strong></p>
+<p>Ingestion Settings:</p>
 <ul>
 <li>Thread Count: <code>1</code> (default)</li>
 <li>Timeout: <code>300</code> seconds (default)</li>
 </ul>
 <p>Click <strong>Next</strong>.</p>
 <h3 id="step-4-configure-scheduling">Step 4: Configure Scheduling</h3>
-<p><strong>Schedule Type:</strong> Choose one:</p>
+<p>Schedule Type: Choose one:</p>
 <p><strong>Option A: Manual (Recommended for Development)</strong></p>
 <ul>
 <li>Select <strong>Manual</strong></li>
@@ -1683,7 +1683,7 @@ Table Filter Pattern:
 </ul>
 <p>Click <strong>Next</strong> → <strong>Deploy</strong>.</p>
 <h3 id="step-5-run-initial-ingestion">Step 5: Run Initial Ingestion</h3>
-<p><strong>Via OpenMetadata UI:</strong></p>
+<p>Via OpenMetadata UI:</p>
 <ol>
 <li>Go to <strong>Settings → Integrations → Databases</strong></li>
 <li>Click on <strong>trino</strong> service</li>
@@ -1710,30 +1710,30 @@ INFO - Total errors: 0
 </code></pre>
 <h3 id="step-6-enable-search-critical">Step 6: Enable Search (CRITICAL)</h3>
 <p>After initial ingestion, search will NOT work until you populate the search index. This is a required step.</p>
-<p><strong>Navigate to Search Settings:</strong></p>
+<p>Navigate to Search Settings:</p>
 <ol>
 <li>Go to <strong>Settings</strong> (gear icon) → <strong>OpenMetadata</strong> → <strong>Search</strong></li>
 <li>Click on <strong>SearchIndexingApplication</strong></li>
 <li>Click <strong>Run Now</strong> button</li>
 </ol>
-<p><strong>Configure the Reindex Job:</strong></p>
+<p>Configure the Reindex Job:</p>
 <ol>
 <li>Enable <strong>"Recreate Indexes"</strong> toggle (IMPORTANT)</li>
 <li>Select <strong>"All"</strong> entities (or leave default)</li>
 <li>Click <strong>Submit</strong></li>
 </ol>
-<p><strong>Monitor Progress:</strong></p>
+<p>Monitor Progress:</p>
 <ul>
 <li>The job will run for 1-2 minutes</li>
 <li>You'll see "Success" when complete</li>
 </ul>
-<p><strong>What This Does:</strong></p>
+<p>What This Does:</p>
 <ul>
 <li>Creates the <code>all</code> search alias</li>
 <li>Populates search indices from metadata</li>
 <li>Enables Explore page and search functionality</li>
 </ul>
-<p><strong>Without this step:</strong></p>
+<p>Without this step:</p>
 <ul>
 <li>Explore page will show error: "Search failed due to Elasticsearch exception"</li>
 <li>Global search will not work</li>
@@ -1774,14 +1774,14 @@ Updated every 5 minutes via Dagster pipeline.
 
 ## Business Logic
 
-- `glucose_category`: Categorized as hypoglycemia (&lt;70), in_range (70-180), or hyperglycemia (&gt;180)
+- `glucose_category`: Categorised as hypoglycemia (&lt;70), in_range (70-180), or hyperglycemia (&gt;180)
 - `reading_timestamp`: UTC timestamp of the reading
 </code></pre>
 <ol>
 <li>Add column descriptions:</li>
 <li><code>reading_id</code>: Unique identifier for each glucose reading</li>
 <li><code>glucose_mg_dl</code>: Glucose value in mg/dL (validated range: 20-600)</li>
-<li><code>glucose_category</code>: Categorized glucose level</li>
+<li><code>glucose_category</code>: Categorised glucose level</li>
 <li>
 <p><code>reading_timestamp</code>: When the reading was taken (UTC)</p>
 </li>
@@ -1854,7 +1854,7 @@ marts.mrt_glucose_overview (Trino publish)
 <p>Click <strong>Next</strong>.</p>
 <p><strong>Step 2: Configure dbt Metadata Ingestion</strong></p>
 <ol>
-<li><strong>Source Configuration:</strong></li>
+<li>Source Configuration:</li>
 </ol>
 <table>
 <thead>
@@ -1888,24 +1888,24 @@ marts.mrt_glucose_overview (Trino publish)
 </tbody>
 </table>
 <ol>
-<li><strong>Database Service Name:</strong> <code>trino</code></li>
+<li>Database Service Name: <code>trino</code></li>
 <li>This links dbt models to your Trino tables</li>
 <li>
 <p>Must match the name of your Trino service</p>
 </li>
 <li>
-<p><strong>Include Tags:</strong> <code>Yes</code> (Enable)</p>
+<p>Include Tags: <code>Yes</code> (Enable)</p>
 </li>
 <li>Imports dbt model tags as OpenMetadata tags</li>
 </ol>
 <p>Click <strong>Next</strong>.</p>
 <p><strong>Step 3: Schedule dbt Ingestion</strong></p>
-<p><strong>For Development:</strong></p>
+<p>For Development:</p>
 <ul>
 <li>Select <strong>Manual</strong></li>
 <li>Run after <code>dbt run</code> or <code>dbt build</code> completes</li>
 </ul>
-<p><strong>For Production:</strong></p>
+<p>For Production:</p>
 <ul>
 <li>Select <strong>Scheduled</strong></li>
 <li>Cron: <code>0 4 * * *</code> (4 AM, after Dagster + Trino ingestion)</li>
@@ -2006,7 +2006,7 @@ models:
               min_value: 20
               max_value: 600
       - name: glucose_category
-        description: Categorized as hypoglycemia, in_range, or hyperglycemia
+        description: Categorised as hypoglycemia, in_range, or hyperglycemia
 </code></pre>
 <h2 id="hands-on-exercise-trace-a-dataset">Hands-On Exercise: Trace a Dataset</h2>
 <ol>
@@ -2037,7 +2037,7 @@ docker exec -it openmetadata-server curl http://trino:8080/v1/info
 </code></pre>
 <p>Fix: start Trino and update the service connection details.</p>
 <p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
-<h2 id="data-contracts-formalizing-data-agreements">Data Contracts: Formalizing Data Agreements</h2>
+<h2 id="data-contracts-formalising-data-agreements">Data Contracts: Formalising Data Agreements</h2>
 <p>As data platforms grow, informal agreements break down. The ML team assumes glucose readings update hourly. The analytics team expects certain columns to never be null. The reporting system depends on specific value ranges. When someone changes the schema or update frequency, things break.</p>
 <p><strong>Data contracts</strong> formalize these agreements between data producers (your pipelines) and data consumers (dashboards, ML models, downstream teams).</p>
 <h3 id="the-problem-contracts-solve">The Problem Contracts Solve</h3>
@@ -2130,7 +2130,7 @@ Snapshot: current
 <pre><code class="language-text">No schema changes detected.
 </code></pre>
 <blockquote>
-<p><strong>Note:</strong> Dedicated <code>phlo contract ...</code> commands are planned. Today, use <code>phlo schema ...</code> + <code>phlo catalog ...</code> in CI.</p>
+<p>Note: Dedicated <code>phlo contract ...</code> commands are planned. Today, use <code>phlo schema ...</code> + <code>phlo catalog ...</code> in CI.</p>
 </blockquote>
 <h3 id="schema-evolution-and-breaking-changes">Schema Evolution and Breaking Changes</h3>
 <p>The real power of contracts is <strong>preventing breaking changes</strong>. When you modify a schema, Phlo classifies changes:</p>
@@ -2338,7 +2338,7 @@ ghi12345...   2025-11-27 08:25:00  append
 Showing 3 most recent snapshots
 </code></pre>
 <blockquote>
-<p><strong>Future Feature:</strong> Automated metadata sync to OpenMetadata (<code>phlo catalog sync</code>) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the <a href="../../setup/openmetadata/">setup guide</a>.</p>
+<p>Future Feature: Automated metadata sync to OpenMetadata (<code>phlo catalog sync</code>) is planned for a future release. For now, use OpenMetadata's built-in ingestion pipelines as described in the <a href="../../setup/openmetadata/">setup guide</a>.</p>
 </blockquote>
 <hr />
 <h2 id="exposing-data-via-apis">Exposing Data via APIs</h2>
@@ -2355,7 +2355,7 @@ Showing 3 most recent snapshots
 </code></pre>
 <p>Phlo automates this with PostgREST (REST) and Hasura (GraphQL).</p>
 <blockquote>
-<p><strong>Implementation Details:</strong> For comprehensive API setup guides, see:</p>
+<p>API setup details: see:</p>
 <ul>
 <li><a href="../../setup/postgrest/">docs/setup/postgrest.md</a> - PostgREST configuration</li>
 <li><a href="../../setup/hasura/">docs/setup/hasura.md</a> - Hasura GraphQL setup</li>
@@ -2363,7 +2363,7 @@ Showing 3 most recent snapshots
 </blockquote>
 <h3 id="auto-generating-rest-apis-with-postgrest">Auto-Generating REST APIs with PostgREST</h3>
 <p>PostgREST turns PostgreSQL tables into REST endpoints automatically. The challenge is keeping API views in sync with your dbt models.</p>
-<p><strong>The manual way:</strong></p>
+<p>The manual way:</p>
 <pre><code class="language-sql">-- Write this by hand for every model
 CREATE VIEW api.glucose_readings AS
 SELECT reading_id, timestamp, sgv, direction
@@ -2371,7 +2371,7 @@ FROM marts_postgres.mrt_glucose_readings;
 
 GRANT SELECT ON api.glucose_readings TO analyst;
 </code></pre>
-<p><strong>The automated way:</strong></p>
+<p>The automated way:</p>
 <pre><code class="language-bash"># Install optional PostgREST plugin once
 $ phlo plugin install postgrest
 </code></pre>

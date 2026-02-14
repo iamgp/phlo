@@ -1028,10 +1028,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cost-optimization" class="md-nav__link">
+  <a href="#cost-optimisation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Cost Optimization
+        Cost Optimisation
       
     </span>
   </a>
@@ -1179,7 +1179,7 @@
 </ul>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li><a href="../02-setup-guide/">Part 2: Getting Started—Setup Guide</a></li>
+<li><a href="../02-setup-guide/">Part 2: Getting Started - Setup Guide</a></li>
 <li><a href="../11-observability-monitoring/">Part 11: Observability &amp; Monitoring</a></li>
 </ul>
 <p>You've built, tested, and monitored your data lakehouse. Now let's deploy it to production and scale it reliably.
@@ -1233,7 +1233,7 @@ For governance and access control policy foundations, see <a href="../10-metadat
 <tr>
 <td><strong>Cost</strong></td>
 <td>Minimal</td>
-<td>Optimized</td>
+<td>Optimised</td>
 </tr>
 <tr>
 <td><strong>Compliance</strong></td>
@@ -1376,13 +1376,13 @@ OPENMETADATA_ADMIN_PASSWORD=&lt;SECURE_PASSWORD&gt;
 OPENMETADATA_MYSQL_PASSWORD=&lt;SECURE_PASSWORD&gt;
 </code></pre>
 <h3 id="step-1b-infrastructure-configuration-phloyaml">Step 1b: Infrastructure Configuration (phlo.yaml)</h3>
-<p>For production deployments, especially when running multiple Phlo projects or customizing service configurations, use <code>phlo.yaml</code> for project-level infrastructure settings.</p>
+<p>For production deployments, especially when running multiple Phlo projects or customising service configurations, use <code>phlo.yaml</code> for project-level infrastructure settings.</p>
 <h4 id="why-infrastructure-configuration">Why Infrastructure Configuration?</h4>
 <p>Secrets in <code>.phlo/.env.local</code> and defaults in <code>phlo.yaml</code> (env:) handle configuration, but they don't handle:</p>
 <ul>
 <li><strong>Multi-project deployments</strong>: Running multiple Phlo instances on the same host</li>
 <li><strong>Container naming patterns</strong>: Custom naming for service discovery</li>
-<li><strong>Port customization</strong>: Per-project port assignments</li>
+<li><strong>Port customisation</strong>: Per-project port assignments</li>
 <li><strong>Service-specific overrides</strong>: Custom configurations for individual services</li>
 </ul>
 <h4 id="creating-phloyaml">Creating phlo.yaml</h4>
@@ -1515,22 +1515,30 @@ print(postgres_config[&quot;port&quot;])  # 10000
 print(postgres_config[&quot;internal_host&quot;])  # &quot;postgres&quot;
 </code></pre>
 <h4 id="production-best-practices">Production Best Practices</h4>
-<p><strong>1. Use descriptive project names:</strong></p>
+<ol>
+<li>Use descriptive project names:</li>
+</ol>
 <pre><code class="language-yaml">name: prod-analytics-us-east
 description: Production analytics lakehouse (US East region)
 </code></pre>
-<p><strong>2. Document service purposes:</strong></p>
+<ol>
+<li>Document service purposes:</li>
+</ol>
 <pre><code class="language-yaml">services:
   dagster_webserver:
     description: Dagster UI and GraphQL API
     port: 10006
 </code></pre>
-<p><strong>3. Reference secrets from .phlo/.env.local:</strong></p>
+<ol>
+<li>Reference secrets from .phlo/.env.local:</li>
+</ol>
 <pre><code class="language-yaml">postgres:
   credentials:
     password: ${POSTGRES_PASSWORD} # Never hardcode secrets
 </code></pre>
-<p><strong>4. Version control phlo.yaml:</strong></p>
+<ol>
+<li>Version control phlo.yaml:</li>
+</ol>
 <pre><code class="language-bash"># Commit to git (no secrets here)
 git add phlo.yaml
 git commit -m &quot;Add infrastructure configuration&quot;
@@ -1538,7 +1546,9 @@ git commit -m &quot;Add infrastructure configuration&quot;
 # But NOT .phlo/.env.local (contains secrets)
 echo &quot;.phlo/.env.local&quot; &gt;&gt; .gitignore
 </code></pre>
-<p><strong>5. Use different configs per environment:</strong></p>
+<ol>
+<li>Use different configs per environment:</li>
+</ol>
 <pre><code class="language-bash">phlo.yaml              # Base configuration
 phlo.staging.yaml      # Staging overrides
 phlo.production.yaml   # Production overrides
@@ -1572,7 +1582,7 @@ phlo services init --no-dev --force
 </code></pre>
 <p>This ensures consistency between Docker Compose (dev) and Kubernetes (prod).</p>
 <h3 id="step-2-deploy-with-docker-compose">Step 2: Deploy with Docker Compose</h3>
-<p>Phlo includes a comprehensive <code>docker-compose.yml</code> that orchestrates all services. For production, you have options:</p>
+<p>Phlo ships with a <code>docker-compose.yml</code> that runs all services. For production, you have options:</p>
 <p><strong>Option A: Docker Compose (Current Implementation)</strong></p>
 <pre><code class="language-bash"># Start all core services
 docker-compose up -d
@@ -1601,7 +1611,7 @@ docker-compose ps
 <li><strong>Documentation</strong> (profile: docs): MkDocs server</li>
 </ul>
 <p><strong>Option B: Managed Services (Recommended for Production)</strong></p>
-<p>For production workloads, consider replacing containerized services with managed alternatives:</p>
+<p>For production workloads, consider replacing containerised services with managed alternatives:</p>
 <pre><code class="language-bash"># Use AWS RDS for PostgreSQL
 POSTGRES_HOST=phlo-prod.xxxxx.rds.amazonaws.com
 POSTGRES_PORT=5432
@@ -1610,7 +1620,7 @@ POSTGRES_PORT=5432
 ICEBERG_WAREHOUSE_PATH=s3://your-prod-bucket/warehouse
 MINIO_API_PORT=9000  # Or S3 endpoint
 
-# Keep Dagster, Trino, Nessie containerized with docker-compose
+# Keep Dagster, Trino, Nessie containerised with docker-compose
 docker-compose up -d dagster-webserver dagster-daemon trino nessie
 </code></pre>
 <h3 id="step-3-verify-service-health">Step 3: Verify Service Health</h3>
@@ -1677,7 +1687,7 @@ docker-compose --profile observability up -d
 <ul>
 <li><strong>Prometheus</strong>: Metrics collection and storage</li>
 <li><strong>Loki</strong>: Log aggregation</li>
-<li><strong>Grafana</strong>: Dashboards and visualization</li>
+<li><strong>Grafana</strong>: Dashboards and visualisation</li>
 <li><strong>Alloy</strong>: Metrics and log forwarding</li>
 <li><strong>postgres-exporter</strong>: PostgreSQL metrics</li>
 </ul>
@@ -1960,7 +1970,7 @@ EOF
 
 kubectl apply -f k8s/backup-cronjob.yaml
 </code></pre>
-<h2 id="cost-optimization">Cost Optimization</h2>
+<h2 id="cost-optimisation">Cost Optimisation</h2>
 <pre><code class="language-python"># phlo/monitoring/cost_tracking.py
 import boto3
 
@@ -1999,9 +2009,9 @@ def estimate_monthly_cost():
         &quot;total&quot;: total,
     }
 
-# Optimization strategies
+# Optimisation strategies
 def optimize_costs():
-    &quot;&quot;&quot;Implement cost optimization.&quot;&quot;&quot;
+    &quot;&quot;&quot;Implement cost optimisation.&quot;&quot;&quot;
 
     # 1. S3 Intelligent-Tiering
     # Automatically move old data to cheaper storage classes
@@ -2091,9 +2101,9 @@ aws cloudwatch put-metric-alarm \
 <p>Production deployment with Phlo:</p>
 <h3 id="current-implementation-docker-compose">Current Implementation (Docker Compose)</h3>
 <p><strong>Deployment Method</strong>: <code>docker-compose up -d</code> with profiles
-<strong>Infrastructure</strong>: Containerized services with health checks
+<strong>Infrastructure</strong>: Containerised services with health checks
 <strong>Storage</strong>: MinIO (dev) or S3 (production)
-<strong>Database</strong>: PostgreSQL (containerized or RDS)
+<strong>Database</strong>: PostgreSQL (containerised or RDS)
 <strong>Monitoring</strong>: Grafana + Prometheus + Loki
 <strong>Scaling</strong>: Vertical (increase container resources)</p>
 <h3 id="production-readiness-checklist">Production Readiness Checklist</h3>
