@@ -147,6 +147,8 @@ For comprehensive testing patterns and best practices, see:
 `docs/TESTING_GUIDE.md`
 """
 
+import importlib
+
 # Phase 1: Core Mocks
 from phlo_testing.conftest_template import (
     CONFTEST_TEMPLATE,
@@ -161,28 +163,6 @@ from phlo_testing.execution import (
     test_asset_with_trino,
 )
 
-# Fixtures are auto-discovered by pytest from fixtures.py
-# Import here for documentation purposes
-from phlo_testing.fixtures import (
-    conftest_template,
-    create_partition_dates,
-    load_csv_fixture,
-    load_json_fixture,
-    mock_asset_context,
-    mock_dlt_source_fixture,
-    mock_iceberg_catalog,
-    mock_resources,
-    mock_trino,
-    sample_dataframe,
-    sample_dlt_data,
-    sample_partition_date,
-    sample_partition_range,
-    setup_test_catalog,
-    setup_test_trino,
-    temp_staging_dir,
-    test_config,
-    test_data_dir,
-)
 from phlo_testing.local_mode import (
     FixtureRecorder,
     LocalTestMode,
@@ -228,6 +208,41 @@ from phlo_testing.hooks import (
     sample_transform_event,
 )
 
+# Fixtures are auto-discovered by pytest from fixtures.py.
+# Load lazily so base package import does not require pytest at runtime.
+_FIXTURE_EXPORTS = [
+    "mock_iceberg_catalog",
+    "mock_trino",
+    "mock_asset_context",
+    "mock_resources",
+    "mock_hook_bus",
+    "sample_partition_date",
+    "sample_partition_range",
+    "sample_dlt_data",
+    "sample_dataframe",
+    "mock_dlt_source_fixture",
+    "temp_staging_dir",
+    "test_data_dir",
+    "setup_test_catalog",
+    "setup_test_trino",
+    "load_json_fixture",
+    "load_csv_fixture",
+    "test_config",
+    "create_partition_dates",
+    "conftest_template",
+]
+_FIXTURES_AVAILABLE = False
+
+try:
+    _fixtures_module = importlib.import_module("phlo_testing.fixtures")
+except ModuleNotFoundError as exc:
+    if exc.name != "pytest":
+        raise
+else:
+    _FIXTURES_AVAILABLE = True
+    for _fixture_name in _FIXTURE_EXPORTS:
+        globals()[_fixture_name] = getattr(_fixtures_module, _fixture_name)
+
 __all__ = [
     # Phase 1: Core Mocks
     "MockIcebergCatalog",
@@ -260,26 +275,6 @@ __all__ = [
     "disable_local_test_mode",
     "set_fixture_dir",
     "get_fixture_dir",
-    # Fixtures
-    "mock_iceberg_catalog",
-    "mock_trino",
-    "mock_asset_context",
-    "mock_resources",
-    "mock_hook_bus",
-    "sample_partition_date",
-    "sample_partition_range",
-    "sample_dlt_data",
-    "sample_dataframe",
-    "mock_dlt_source_fixture",
-    "temp_staging_dir",
-    "test_data_dir",
-    "setup_test_catalog",
-    "setup_test_trino",
-    "load_json_fixture",
-    "load_csv_fixture",
-    "test_config",
-    "create_partition_dates",
-    "conftest_template",
     "CONFTEST_TEMPLATE",
     "get_conftest_template",
     # Hooks
@@ -293,5 +288,8 @@ __all__ = [
     "sample_telemetry_event",
     "sample_service_event",
 ]
+
+if _FIXTURES_AVAILABLE:
+    __all__.extend(_FIXTURE_EXPORTS)
 
 __version__ = "1.0.0"
