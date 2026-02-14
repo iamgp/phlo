@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "phlo-observatory-example"
 version = "0.1.0"
 description = "Example Observatory extension plugin"
-readme = {text = "Example Observatory extension for Phlo.", content-type = "text/plain"}
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [
     {name = "Phlo Team", email = "team@phlo.dev"},
