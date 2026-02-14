@@ -14,6 +14,7 @@ import click
 
 from phlo.cli.commands.plugin import plugin_group
 from phlo.cli.commands.services import services_group
+from phlo.cli.commands.workflow import workflow_group
 from phlo.cli.config import config
 from phlo.cli.env import env
 from phlo.logging import setup_logging
@@ -33,6 +34,7 @@ def cli():
 
 
 cli.add_command(services_group)
+cli.add_command(workflow_group)
 cli.add_command(plugin_group)
 cli.add_command(config)
 cli.add_command(env)
@@ -48,6 +50,8 @@ def _load_cli_plugin_commands() -> None:
         if plugin is None:
             continue
         for command in plugin.get_cli_commands():
+            if command.name is None or command.name in cli.commands:
+                continue
             cli.add_command(command)
 
 

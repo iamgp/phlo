@@ -17,6 +17,7 @@ from typing import Any
 
 from phlo.capabilities.discovery import discover_capabilities
 from phlo.capabilities.registry import clear_capabilities, get_capability_registry
+from phlo.exceptions import PhloConfigError
 from phlo.logging import get_logger
 from phlo.orchestrators import get_active_orchestrator
 
@@ -62,11 +63,39 @@ def discover_user_workflows(
     discover_capabilities()
 
     registry = get_capability_registry()
-    adapter = get_active_orchestrator()
+    assets = registry.list_assets()
+    checks = registry.list_checks()
+    resources = registry.list_resources()
+    try:
+        adapter = get_active_orchestrator()
+    except PhloConfigError as exc:
+        logger.warning(
+            "Orchestrator adapter not available, using Dagster fallback definitions: %s",
+            exc,
+        )
+        return _build_dagster_fallback_definitions(
+            assets=assets, checks=checks, resources=resources
+        )
+
     return adapter.build_definitions(
-        assets=registry.list_assets(),
-        checks=registry.list_checks(),
-        resources=registry.list_resources(),
+        assets=assets,
+        checks=checks,
+        resources=resources,
+    )
+
+
+def _build_dagster_fallback_definitions(
+    *,
+    assets: list[Any],
+    checks: list[Any],
+    resources: list[Any],
+) -> Any:
+    from phlo_dagster.adapter import DagsterOrchestratorAdapter
+
+    return DagsterOrchestratorAdapter().build_definitions(
+        assets=assets,
+        checks=checks,
+        resources=resources,
     )
 
 
