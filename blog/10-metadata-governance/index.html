@@ -1453,7 +1453,7 @@ Answers from your team:
 <li>Change history nowhere</li>
 </ul>
 <blockquote>
-<p><strong>Note:</strong> For detailed OpenMetadata setup instructions, see <a href="/home/user/phlo/docs/setup/openmetadata.md">docs/setup/openmetadata.md</a></p>
+<p><strong>Note:</strong> For detailed OpenMetadata setup instructions, see <a href="../../setup/openmetadata/">docs/setup/openmetadata.md</a></p>
 </blockquote>
 <h2 id="openmetadata-the-open-source-data-catalog">OpenMetadata: The Open-Source Data Catalog</h2>
 <p>OpenMetadata is an open-source data catalog that answers:</p>
@@ -2105,32 +2105,33 @@ notifications:
     - quality_violation
 </code></pre>
 <h3 id="how-contract-validation-works">How Contract Validation Works</h3>
-<p>When you run <code>phlo contract validate glucose_readings</code>, Phlo:</p>
+<p>Use the current schema and catalog commands to enforce contract-like checks:</p>
 <ol>
-<li><strong>Loads the contract</strong> from <code>contracts/glucose_readings.yaml</code> (or <code>phlo-examples/nightscout/contracts/glucose_readings.yaml</code> for examples)</li>
-<li><strong>Validates</strong> the contract schema and structure</li>
-<li><strong>Reports</strong> expected schema and SLA requirements</li>
+<li><strong>Validate schema definitions</strong> in source control</li>
+<li><strong>Inspect live table metadata</strong> in the catalog</li>
+<li><strong>Diff schema changes</strong> against main before merge</li>
 </ol>
+<pre><code class="language-bash">$ phlo schema validate workflows/schemas/glucose.py
+</code></pre>
+<p>Expected output:</p>
+<pre><code class="language-text">Validated schema model: RawGlucoseEntries
+No validation errors found.
+</code></pre>
+<pre><code class="language-bash">$ phlo catalog describe raw.glucose_entries
+</code></pre>
+<p>Expected output:</p>
+<pre><code class="language-text">Table: raw.glucose_entries
+Columns: 20
+Snapshot: current
+</code></pre>
+<pre><code class="language-bash">$ phlo schema diff RawGlucoseEntries --old main
+</code></pre>
+<p>Expected output:</p>
+<pre><code class="language-text">No schema changes detected.
+</code></pre>
 <blockquote>
-<p><strong>Note:</strong> Full table schema comparison against live Iceberg tables is planned for a future release. Currently, the command validates contract syntax and displays expected requirements.</p>
+<p><strong>Note:</strong> Dedicated <code>phlo contract ...</code> commands are planned. Today, use <code>phlo schema ...</code> + <code>phlo catalog ...</code> in CI.</p>
 </blockquote>
-<pre><code class="language-bash">$ phlo contract validate glucose_readings
-
-Contract Validation: glucose_readings
-
-Note: Requires live catalog access to validate actual schema
-
-Required Columns:
-  reading_id   string
-  sgv          integer
-  reading_timestamp timestamp
-  direction    string
-  device       string
-</code></pre>
-<p>To check for contract violations against actual tables, you would use:</p>
-<pre><code class="language-bash">$ phlo contract show glucose_readings  # View full contract details
-$ phlo catalog describe raw.glucose_entries  # View actual table schema
-</code></pre>
 <h3 id="schema-evolution-and-breaking-changes">Schema Evolution and Breaking Changes</h3>
 <p>The real power of contracts is <strong>preventing breaking changes</strong>. When you modify a schema, Phlo classifies changes:</p>
 <table>
@@ -2179,13 +2180,14 @@ $ phlo catalog describe raw.glucose_entries  # View actual table schema
 </tr>
 </tbody>
 </table>
-<p>In CI/CD, run <code>phlo contract check --pr</code> to validate changes before merge:</p>
-<pre><code class="language-bash">$ phlo contract check --pr
+<p>In CI/CD, run schema diff + tests before merge:</p>
+<pre><code class="language-bash">$ phlo schema diff RawGlucoseEntries --old main
+$ phlo test -m quality --local
 
-Checking contracts against PR changes...
+Comparing schema versions...
 
 glucose_readings:
-  BREAKING: Column 'device_type' removed
+  BREAKING: Field 'device_type' removed
 
   Impact:
     - analytics-team: BI dashboards (contact: analytics@example.com)
@@ -2197,7 +2199,7 @@ glucose_readings:
     3. Get explicit approval from consumers
     4. Use --force to override (not recommended)
 
-Contract check FAILED - 1 breaking change detected
+Schema diff FAILED - 1 breaking change detected
 </code></pre>
 <h3 id="consumer-notifications">Consumer Notifications</h3>
 <p>When contracts change, affected teams get notified automatically:</p>
@@ -2355,8 +2357,8 @@ Showing 3 most recent snapshots
 <blockquote>
 <p><strong>Implementation Details:</strong> For comprehensive API setup guides, see:</p>
 <ul>
-<li><a href="/home/user/phlo/docs/setup/postgrest.md">docs/setup/postgrest.md</a> - PostgREST configuration</li>
-<li><a href="/home/user/phlo/docs/setup/hasura.md">docs/setup/hasura.md</a> - Hasura GraphQL setup</li>
+<li><a href="../../setup/postgrest/">docs/setup/postgrest.md</a> - PostgREST configuration</li>
+<li><a href="../../setup/hasura/">docs/setup/hasura.md</a> - Hasura GraphQL setup</li>
 </ul>
 </blockquote>
 <h3 id="auto-generating-rest-apis-with-postgrest">Auto-Generating REST APIs with PostgREST</h3>
@@ -2370,9 +2372,18 @@ FROM marts_postgres.mrt_glucose_readings;
 GRANT SELECT ON api.glucose_readings TO analyst;
 </code></pre>
 <p><strong>The automated way:</strong></p>
-<pre><code class="language-bash">$ phlo postgrest generate-views
-
-Generating API views from dbt models...
+<pre><code class="language-bash"># Install optional PostgREST plugin once
+$ phlo plugin install postgrest
+</code></pre>
+<p>Expected output:</p>
+<pre><code class="language-text">Installed plugin: postgrest
+Run `phlo plugin list` to verify installation.
+</code></pre>
+<pre><code class="language-bash"># Generate API views from dbt metadata
+$ phlo postgrest generate-views
+</code></pre>
+<p>Expected output:</p>
+<pre><code class="language-text">Generating API views from dbt models...
 
 Source: dbt manifest (12 models in marts_postgres)
 
@@ -2387,7 +2398,6 @@ Permissions:
   api.user_summary: admin (restricted)
 
 Generated SQL saved to: api_views.sql
-
 Apply with: phlo postgrest generate-views --apply
 </code></pre>
 <h3 id="how-view-generation-works">How View Generation Works</h3>

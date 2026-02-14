@@ -1767,7 +1767,7 @@ phlo plugin install dlt
 </code></pre>
 <h2 id="usage">Usage</h2>
 <h3 id="basic-ingestion">Basic Ingestion</h3>
-<pre><code class="language-python">from phlo.ingestion import phlo_ingestion
+<pre><code class="language-python">from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.events import EventSchema
 
 @phlo_ingestion(
@@ -1782,10 +1782,10 @@ def api_events(partition_date: str):
     &quot;&quot;&quot;Ingest events from REST API.&quot;&quot;&quot;
     from dlt.sources.rest_api import rest_api
 
-    return rest_api({
-        &quot;client&quot;: {&quot;base_url&quot;: &quot;https://api.example.com&quot;},
-        &quot;resources&quot;: [{&quot;name&quot;: &quot;events&quot;, &quot;endpoint&quot;: &quot;/events&quot;}]
-    })
+    return rest_api(
+        client={&quot;base_url&quot;: &quot;https://api.example.com&quot;},
+        resources=[{&quot;name&quot;: &quot;events&quot;, &quot;endpoint&quot;: {&quot;path&quot;: &quot;events&quot;}}],
+    )
 </code></pre>
 <h3 id="decorator-options">Decorator Options</h3>
 <table>

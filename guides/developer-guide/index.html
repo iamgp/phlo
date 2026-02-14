@@ -2202,13 +2202,15 @@ from workflows.schemas.api import EventSchema
     freshness_hours=(1, 24),
 )
 def api_events(partition_date: str):
-    return rest_api({
-        &quot;client&quot;: {&quot;base_url&quot;: &quot;https://api.example.com&quot;},
-        &quot;resources&quot;: [{
-            &quot;name&quot;: &quot;events&quot;,
-            &quot;endpoint&quot;: {&quot;path&quot;: f&quot;/events?date={partition_date}&quot;}
-        }]
-    })
+    return rest_api(
+        client={&quot;base_url&quot;: &quot;https://api.example.com&quot;},
+        resources=[
+            {
+                &quot;name&quot;: &quot;events&quot;,
+                &quot;endpoint&quot;: {&quot;path&quot;: f&quot;/events?date={partition_date}&quot;},
+            }
+        ],
+    )
 
 # workflows/quality/api.py
 from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck
@@ -2306,26 +2308,28 @@ merge_config={&quot;deduplication_method&quot;: &quot;hash&quot;}   # Keep based
 
 @phlo_ingestion(...)
 def api_data(partition_date: str):
-    return rest_api({
-        &quot;client&quot;: {
+    return rest_api(
+        client={
             &quot;base_url&quot;: &quot;https://api.example.com&quot;,
             &quot;auth&quot;: {
                 &quot;type&quot;: &quot;bearer&quot;,
-                &quot;token&quot;: os.getenv(&quot;API_TOKEN&quot;)
-            }
-        },
-        &quot;resources&quot;: [{
-            &quot;name&quot;: &quot;events&quot;,
-            &quot;endpoint&quot;: {
-                &quot;path&quot;: &quot;events&quot;,
-                &quot;params&quot;: {
-                    &quot;date&quot;: partition_date,
-                    &quot;limit&quot;: 1000
-                }
+                &quot;token&quot;: os.getenv(&quot;API_TOKEN&quot;),
             },
-            &quot;write_disposition&quot;: &quot;replace&quot;
-        }]
-    })
+        },
+        resources=[
+            {
+                &quot;name&quot;: &quot;events&quot;,
+                &quot;endpoint&quot;: {
+                    &quot;path&quot;: &quot;events&quot;,
+                    &quot;params&quot;: {
+                        &quot;date&quot;: partition_date,
+                        &quot;limit&quot;: 1000,
+                    },
+                },
+                &quot;write_disposition&quot;: &quot;replace&quot;,
+            }
+        ],
+    )
 </code></pre>
 <p><strong>Custom Python Source</strong>:</p>
 <pre><code class="language-python">import dlt
@@ -2414,20 +2418,23 @@ def my_data(partition_date: str):
     start_time = f&quot;{partition_date}T00:00:00Z&quot;
     end_time = f&quot;{partition_date}T23:59:59Z&quot;
 
-    return rest_api({
-        &quot;resources&quot;: [{
-            &quot;endpoint&quot;: {
-                &quot;params&quot;: {
-                    &quot;start&quot;: start_time,
-                    &quot;end&quot;: end_time
+    return rest_api(
+        client={&quot;base_url&quot;: &quot;https://api.example.com&quot;},
+        resources=[
+            {
+                &quot;endpoint&quot;: {
+                    &quot;params&quot;: {
+                        &quot;start&quot;: start_time,
+                        &quot;end&quot;: end_time,
+                    }
                 }
             }
-        }]
-    })
+        ]
+    )
 </code></pre>
 <p><strong>Backfills</strong>:</p>
 <pre><code class="language-bash"># Backfill specific date
-phlo materialize my_data --partition 2025-01-15
+phlo materialize dlt_my_data --partition 2025-01-15
 
 # Backfill date range (in Dagster UI)
 # Select partitions → 2025-01-01 to 2025-01-31 → Materialize
@@ -3199,9 +3206,10 @@ def conditional_data(context):
 <h3 id="2-incremental-loading">2. Incremental Loading</h3>
 <p>Use partition-aware queries to load only new data:</p>
 <pre><code class="language-python">def my_data(partition_date: str):
-    return rest_api({
-        &quot;params&quot;: {&quot;date&quot;: partition_date}  # Only fetch partition data
-    })
+    return rest_api(
+        client={&quot;base_url&quot;: &quot;https://api.example.com&quot;},
+        resources=[{&quot;endpoint&quot;: {&quot;path&quot;: &quot;events&quot;, &quot;params&quot;: {&quot;date&quot;: partition_date}}}],
+    )  # Only fetch partition data
 </code></pre>
 <h3 id="3-error-handling">3. Error Handling</h3>
 <p>Let Phlo handle retries, but add custom handling where needed:</p>

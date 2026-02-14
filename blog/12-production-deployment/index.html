@@ -1562,13 +1562,13 @@ trino_endpoint = f&quot;http://{trino_config['internal_host']}:{trino_config['po
 </code></pre>
 <h4 id="kubernetes-integration">Kubernetes Integration</h4>
 <p>For Kubernetes deployments, <code>phlo.yaml</code> provides a single source of truth:</p>
-<pre><code class="language-bash"># Generate k8s manifests from phlo.yaml
-phlo k8s generate --config phlo.yaml
+<pre><code class="language-bash"># Phlo does not currently ship a `k8s` CLI command.
+# Use phlo.yaml as source of truth, then render manifests via your platform tooling
+# (Helm/Kustomize/Terraform) from the same service/env settings.
 
-# Deploys with:
-# - Service names from phlo.yaml
-# - Port mappings from phlo.yaml
-# - Resource limits from phlo.yaml
+phlo services init --no-dev --force
+
+# Then map values from phlo.yaml/.phlo/.env into your Kubernetes templates.
 </code></pre>
 <p>This ensures consistency between Docker Compose (dev) and Kubernetes (prod).</p>
 <h3 id="step-2-deploy-with-docker-compose">Step 2: Deploy with Docker Compose</h3>

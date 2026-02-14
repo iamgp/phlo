@@ -1151,7 +1151,7 @@ Two Steps (Safe)
 <p>Phlo provides the <code>@phlo_ingestion</code> decorator to simplify DLT ingestion. Here's the actual implementation from the glucose platform:</p>
 <pre><code class="language-python"># From phlo-examples/nightscout/workflows/ingestion/nightscout/readings.py
 
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 from workflows.schemas.nightscout import RawGlucoseEntries
 
@@ -1221,7 +1221,7 @@ def glucose_entries(partition_date: str):
 <p>Phlo supports two merge strategies, allowing you to optimize for different data patterns:</p>
 <h4 id="append-strategy-insert-only">Append Strategy (Insert-Only)</h4>
 <p>Best for immutable event streams where you never update existing records:</p>
-<pre><code class="language-python">from phlo.ingestion import phlo_ingestion
+<pre><code class="language-python">from phlo_dlt.decorator import phlo_ingestion
 
 @phlo_ingestion(
     table_name=&quot;api_events&quot;,
@@ -1248,7 +1248,7 @@ def api_events(partition_date: str):
 </ul>
 <h4 id="merge-strategy-upsert-with-deduplication">Merge Strategy (Upsert with Deduplication)</h4>
 <p>Best for dimension tables and data that may need updates:</p>
-<pre><code class="language-python">from phlo.ingestion import phlo_ingestion
+<pre><code class="language-python">from phlo_dlt.decorator import phlo_ingestion
 
 @phlo_ingestion(
     table_name=&quot;user_profiles&quot;,
@@ -1364,7 +1364,7 @@ def user_profiles(partition_date: str):
 <li><strong>Data corrections</strong>: Nightscout allows retroactive corrections to glucose readings</li>
 <li><strong>Idempotency</strong>: We want <code>materialize --partition 2024-10-15</code> to be safe to run multiple times</li>
 </ol>
-<pre><code class="language-python">from phlo.ingestion import phlo_ingestion
+<pre><code class="language-python">from phlo_dlt.decorator import phlo_ingestion
 
 @phlo_ingestion(
     table_name=&quot;glucose_entries&quot;,
@@ -1550,7 +1550,7 @@ def merge_parquet(
 <pre><code class="language-bash"># Timeline: 2024-10-15
 
 # 1. Materialize the asset
-dagster asset materialize --select glucose_entries \
+dagster asset materialize --select dlt_glucose_entries \
   --partition &quot;2024-10-15&quot;
 
 # 2. The @phlo_ingestion decorator executes your function
@@ -1673,7 +1673,7 @@ def nightscout_glucose_quality_check(context, trino: TrinoResource) -&gt; AssetC
 <p><strong>Pattern</strong>: Define your data source, return it, and let <code>@phlo_ingestion</code> handle staging, validation, and merging.</p>
 <pre><code class="language-python"># Example: Custom API ingestion
 
-from phlo.ingestion import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 from dlt.sources.rest_api import rest_api
 
 @phlo_ingestion(
@@ -1745,7 +1745,7 @@ Iceberg table
 <pre><code class="language-bash"># Run ingestion and watch the flow
 # This uses the @phlo_ingestion decorated function
 dagster asset materialize \
-  --select glucose_entries \
+  --select dlt_glucose_entries \
   --partition &quot;2024-10-15&quot;
 
 # Check Iceberg table via PyIceberg
@@ -1810,7 +1810,7 @@ append_parquet(table, data)  # Second run duplicates!
 <ul>
 <li><strong>Import errors for <code>phlo_ingestion</code></strong></li>
 </ul>
-<pre><code class="language-bash">uv run python -c &quot;from phlo.ingestion import phlo_ingestion; print(phlo_ingestion)&quot;
+<pre><code class="language-bash">uv run python -c &quot;from phlo_dlt.decorator import phlo_ingestion; print(phlo_ingestion)&quot;
 </code></pre>
 <p>Fix: ensure <code>phlo-dlt</code> is installed in the active environment.</p>
 <ul>

@@ -1517,9 +1517,9 @@ docker exec dagster-webserver dbt test \
 # Install dbt
 uv pip install dbt-trino
 
-# Create dbt profiles
-mkdir -p ~/.dbt
-cat &gt; ~/.dbt/profiles.yml &lt;&lt; EOF
+# Create dbt profiles in the project (recommended for Phlo)
+mkdir -p profiles
+cat &gt; profiles/profiles.yml &lt;&lt; EOF
 phlo:
   target: dev
   outputs:
@@ -1532,9 +1532,10 @@ phlo:
 EOF
 
 # Run dbt
-dbt run --select stg_glucose_entries
-dbt test
-dbt docs generate &amp;&amp; dbt docs serve
+dbt run --profiles-dir ./profiles --select stg_glucose_entries
+dbt test --profiles-dir ./profiles
+dbt docs generate --profiles-dir ./profiles
+dbt docs serve --profiles-dir ./profiles
 </code></pre>
 <h2 id="best-practices-in-dbt">Best Practices in dbt</h2>
 <h3 id="1-naming-convention">1. Naming Convention</h3>

@@ -654,6 +654,7 @@
 <ul>
 <li><a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a></li>
 <li>Optional: <a href="../10-metadata-governance/">Part 10: Metadata and Governance</a> for lineage context.</li>
+<li>Optional for alert CLI examples: <code>phlo plugin install alerting</code></li>
 </ul>
 <p>You've built a data lakehouse with validation and governance. But what happens at 3am when something breaks? This post covers observability: monitoring, alerting, and troubleshooting.
 For custom UI extensions in the observability layer, see <a href="../15-observatory-extensions/">Part 15: Observatory Extensions</a>.</p>
@@ -722,7 +723,7 @@ Total: 152ms
 │  • phlo logs                 │
 │  • phlo metrics              │
 │  • phlo lineage              │
-│  • phlo alerts               │
+│  • phlo alerts (alerting plugin) │
 └──────────────────────────────┘
             ↓
 ┌──────────────────────────────┐
@@ -912,7 +913,11 @@ export PHLO_ALERT_EMAIL_RECIPIENTS="data-team@yourcompany.com,oncall@yourcompany
 </code></pre>
 <h3 id="managing-alerts-via-cli">Managing Alerts via CLI</h3>
 <p>Check alert system status:</p>
-<pre><code class="language-bash">$ phlo alerts status
+<pre><code class="language-bash"># Install optional alerting plugin once
+$ phlo plugin install alerting
+
+# Check alert system status
+$ phlo alerts status
 
 Alert System Status
 
@@ -1453,7 +1458,7 @@ phlo services logs prometheus
 <p><strong>Metrics</strong>: Track what's happening via <code>phlo metrics</code> (execution time, throughput, quality)
 <strong>Logs</strong>: Understand why with <code>phlo logs</code> (structured logs, searchable, real-time tailing)
 <strong>Lineage</strong>: Understand impact with <code>phlo lineage</code> (CLI visualization, export, impact analysis)
-<strong>Alerts</strong>: Get notified via <code>phlo alerts</code> (Slack, PagerDuty, email with deduplication)</p>
+<strong>Alerts</strong>: Get notified via <code>phlo alerts</code> (requires <code>phlo-alerting</code> plugin; Slack, PagerDuty, email with deduplication)</p>
 <p>Combined, you have:</p>
 <ul>
 <li><strong>Visibility</strong>: Know your pipeline state at any time via CLI</li>
