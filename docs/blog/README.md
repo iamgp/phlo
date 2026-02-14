@@ -1,11 +1,11 @@
 # Phlo Blog Series: Modern Data Engineering
 
-A comprehensive, hands-on guide to building a production-ready data lakehouse using Phlo.
+Hands-on guide to building a data lakehouse with Phlo.
 
 This 16-part series walks through:
 
 - Fundamental concepts of data lakehouses
-- Setting up Phlo step-by-step
+- Setting up Phlo step by step
 - Understanding Apache Iceberg and Project Nessie
 - Data ingestion patterns
 - SQL transformations with dbt
@@ -42,7 +42,7 @@ uv add phlo-dagster phlo-postgres phlo-trino phlo-nessie phlo-minio
 # Or install with defaults extra (all core services at once)
 # uv pip install phlo[defaults]
 
-# Step 3: Initialize and configure
+# Step 3: Initialise and configure
 phlo init my-lakehouse
 cd my-lakehouse
 
@@ -80,35 +80,35 @@ Short on time? Jump to [Part 2: Getting Started](02-setup-guide.md).
 
 ## Prerequisites
 
-**System Requirements:**
+System Requirements:
 
 - **Minimum**: 4 GB RAM, Docker, 10 GB disk space
 - **Comfortable**: 8 GB RAM, 2+ CPU cores
 - **Optimal**: 16+ GB RAM, 4+ CPU cores, SSD
 
-**Skills:**
+Skills:
 
 - **Required**: Basic SQL knowledge, command line comfort
 - **Helpful**: Python familiarity, Docker basics
 - **Optional**: Data engineering experience (we'll teach you!)
 
-**Software:**
+Software:
 
 - Docker & Docker Compose (required)
 - Git (required)
 - Python 3.11+ with uv (optional, for local development)
 - A code editor (VSCode, PyCharm, etc.)
 
-Don't worry if you're missing some skills - the series is designed to teach you as you go!
+If you're missing some prerequisites, start with Part 2 and follow the examples in order.
 
 ## Blog Posts
 
 | #   | Title                                                          | Topics                                         | Time   | Status        |
 | --- | -------------------------------------------------------------- | ---------------------------------------------- | ------ | ------------- |
 | 1   | [What is a Data Lakehouse?](01-intro-data-lakehouse.md)        | Architecture, Iceberg, Nessie, overview        | 15 min | Needs review  |
-| 2   | [Getting Started—Setup Guide](02-setup-guide.md)               | Installation, services, first pipeline         | 20 min | Up to date    |
-| 3   | [Apache Iceberg—Table Format](03-apache-iceberg-explained.md)  | Snapshots, schema evolution, time travel       | 20 min | Needs review  |
-| 4   | [Project Nessie—Git for Data](04-project-nessie-versioning.md) | Branching, versioning, governance              | 15 min | Needs review  |
+| 2   | [Getting Started - Setup Guide](02-setup-guide.md)               | Installation, services, first pipeline         | 20 min | Up to date    |
+| 3   | [Apache Iceberg - Table Format](03-apache-iceberg-explained.md)  | Snapshots, schema evolution, time travel       | 20 min | Needs review  |
+| 4   | [Project Nessie - Git for Data](04-project-nessie-versioning.md) | Branching, versioning, governance              | 15 min | Needs review  |
 | 5   | [Data Ingestion Patterns](05-data-ingestion.md)                | DLT, PyIceberg, merge strategies, validation   | 20 min | Up to date    |
 | 6   | [dbt Transformations](06-dbt-transformations.md)               | Models, testing, layers, best practices        | 20 min | Up to date    |
 | 7   | [Dagster Orchestration](07-orchestration-dagster.md)           | Assets, partitions, scheduling, monitoring     | 20 min | Needs review  |
@@ -222,7 +222,7 @@ graph TB
     style Nessie fill:#FFAA00
 ```
 
-**Key Components:**
+Key Components:
 
 - **Dagster**: Orchestrates everything, schedules pipelines, monitors assets
 - **DLT + PyIceberg**: Two-step ingestion pattern (stage → merge)
@@ -261,7 +261,7 @@ graph TB
 
 ### Path 3: Architect/Evaluator
 
-**Goal**: Evaluate Phlo for your organization
+**Goal**: Evaluate Phlo for your organisation
 
 1. [Part 1](01-intro-data-lakehouse.md) (comparison to alternatives)
 2. [Part 13](13-capability-primitives.md) (system model)
@@ -308,14 +308,14 @@ Each tool has dedicated coverage:
 | ------------------ | ---------- | ---------------------------------------- |
 | **Apache Iceberg** | 1, 3, 5, 8 | Snapshots, time travel, schema evolution |
 | **Project Nessie** | 1, 4, 8    | Branching, merging, versioning           |
-| **DLT**            | 5, 8       | Data staging, schema normalization       |
+| **DLT**            | 5, 8       | Data staging, schema normalisation       |
 | **PyIceberg**      | 5, 8       | Iceberg operations, table management     |
 | **dbt**            | 1, 6, 8    | Transformations, testing, documentation  |
 | **Dagster**        | 1, 7, 8    | Orchestration, partitions, scheduling    |
 | **Trino**          | 1, 3, 5, 6 | Query engine, Iceberg integration        |
 | **MinIO**          | 1, 2       | Object storage setup and config          |
 | **Postgres**       | 2, 6, 8    | Marts, metadata, BI integration          |
-| **Superset**       | 2, 8       | Dashboarding, visualization              |
+| **Superset**       | 2, 8       | Dashboarding, visualisation              |
 | **Pandera**        | 5, 9       | Schema validation, data quality          |
 | **OpenMetadata**   | 10         | Data catalog, lineage, governance        |
 
@@ -332,7 +332,7 @@ These posts include runnable code and exercises:
 - **Part 8**: [Complete pipeline walk-through](08-real-world-example.md#step-1-understanding-the-api)
 - **Part 9**: [Set up Pandera validation](09-data-quality-with-pandera.md#layer-1-pandera-schemas-ingestion)
 - **Part 10**: [Query OpenMetadata catalog](10-metadata-governance.md#setting-up-trino-data-source)
-- **Part 11**: [Create monitoring dashboards](11-observability-monitoring.md#dashboards-visualizing-health)
+- **Part 11**: [Create monitoring dashboards](11-observability-monitoring.md#dashboards-visualising-health)
 - **Part 12**: [Deploy to Kubernetes](12-production-deployment.md#future-kubernetes-deployment)
 
 ## Common Questions Answered
@@ -340,7 +340,8 @@ These posts include runnable code and exercises:
 - **"Do I need to understand Iceberg?"** → Yes, [Part 3](03-apache-iceberg-explained.md) explains why it matters and how it's different
 - **"Can I skip dbt and use Python instead?"** → You could, but [Part 6](06-dbt-transformations.md) explains why SQL via dbt is better
 - **"How does this compare to Snowflake/Databricks?"** → [Part 1](01-intro-data-lakehouse.md) compares. Key: open-source, no vendor lock-in
-- **"Is this production-ready?"** → Yes, see [Part 12](12-production-deployment.md) and [Architecture Guide](../reference/architecture.md)
+- **"Can I run this in production?"** → See [Part 12](12-production-deployment.md) and [Architecture Guide](../reference/architecture.md) for deployment patterns and tradeoffs.
+
 - **"Can I ingest from databases, not just APIs?"** → Yes, [Part 5](05-data-ingestion.md#handling-different-data-sources) covers the pattern
 - **"How do I ensure data quality?"** → [Part 9](09-data-quality-with-pandera.md) covers three validation layers
 - **"How do I discover and catalog my data?"** → [Part 10](10-metadata-governance.md) covers OpenMetadata integration

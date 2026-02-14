@@ -1,4 +1,4 @@
-# Part 7: Orchestration with Dagster—Running Your Pipelines
+# Part 7: Orchestration with Dagster - Running Your Pipelines
 
 > Prerequisite: Complete [Part 5: Data Ingestion](05-data-ingestion.md) and [Part 6: dbt Transformations](06-dbt-transformations.md) first.
 
@@ -17,7 +17,7 @@
 We have data flowing in (DLT + Iceberg) and transformations defined (dbt). Now: **Who runs this? When? What happens if it fails?**
 For monitoring and alerts, see [Part 11: Observability & Monitoring](11-observability-monitoring.md).
 
-That's **Dagster's job**—orchestration.
+That's **Dagster's job** - orchestration.
 
 ## The Orchestration Problem
 
@@ -486,7 +486,7 @@ Estimated Time: ~90 minutes
 ```
 
 
-**Parallel considerations:**
+Parallel considerations:
 
 - More workers = faster, but more resource usage
 - Don't exceed your database connection pool
@@ -658,7 +658,7 @@ def dlt_glucose_entries() -> MaterializeResult:
 
 ## Configuration and Environment
 
-Phlo uses `phlo/config.py` for centralized config:
+Phlo uses `phlo/config.py` for centralised config:
 
 ```python
 # phlo/config.py
@@ -835,5 +835,5 @@ See also: [Part 5: Data Ingestion](05-data-ingestion.md), [Part 6: dbt Transform
 
 ## Next Steps
 
-- Continue with [Part 8: Real-World Example—Building a Complete Data Pipeline](08-real-world-example.md).
+- Continue with [Part 8: Real-World Example - Building a Complete Data Pipeline](08-real-world-example.md).
 - Review monitoring in [Part 11: Observability & Monitoring](11-observability-monitoring.md).
