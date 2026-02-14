@@ -257,11 +257,11 @@ Extensions should treat settings as shared instance configuration, not per-user 
 
 ## Common Issues
 
-- **Extension not listed:** check the entry point group is `phlo.plugins.observatory`.
-- **Assets 404:** ensure `asset_root` points at the package asset directory.
-- **Routes not loading:** module path in the manifest must exist in assets.
-- **Nav item missing:** verify `ui.nav` is populated and route exists.
-- **Settings not saved:** confirm API endpoints are reachable and schema is valid JSONSchema.
+- Extension not listed: check the entry point group is `phlo.plugins.observatory`.
+- Assets 404: ensure `asset_root` points at the package asset directory.
+- Routes not loading: module path in the manifest must exist in assets.
+- Nav item missing: verify `ui.nav` is populated and route exists.
+- Settings not saved: confirm API endpoints are reachable and schema is valid JSONSchema.
 
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
 
