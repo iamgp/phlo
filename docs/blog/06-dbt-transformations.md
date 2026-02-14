@@ -107,7 +107,7 @@ A model is a `.sql` file that transforms data:
 -- models/bronze/stg_glucose_entries.sql
 {{ config(
     materialized='view',  -- or 'table' for persistent storage
-    tags=['nightscout'],   -- organize models
+    tags=['nightscout'],   -- organise models
 ) }}
 
 -- CTEs for clarity

@@ -42,7 +42,7 @@ flowchart LR
 ## The Core Spec Types
 
 Capability specs live in `src/phlo/capabilities/specs.py`. Each spec captures a small, explicit
-piece of behavior.
+piece of behaviour.
 
 ### AssetSpec and RunSpec
 

@@ -42,7 +42,7 @@ uv add phlo-dagster phlo-postgres phlo-trino phlo-nessie phlo-minio
 # Or install with defaults extra (all core services at once)
 # uv pip install phlo[defaults]
 
-# Step 3: Initialize and configure
+# Step 3: Initialise and configure
 phlo init my-lakehouse
 cd my-lakehouse
 
@@ -261,7 +261,7 @@ Key Components:
 
 ### Path 3: Architect/Evaluator
 
-**Goal**: Evaluate Phlo for your organization
+**Goal**: Evaluate Phlo for your organisation
 
 1. [Part 1](01-intro-data-lakehouse.md) (comparison to alternatives)
 2. [Part 13](13-capability-primitives.md) (system model)
@@ -308,14 +308,14 @@ Each tool has dedicated coverage:
 | ------------------ | ---------- | ---------------------------------------- |
 | **Apache Iceberg** | 1, 3, 5, 8 | Snapshots, time travel, schema evolution |
 | **Project Nessie** | 1, 4, 8    | Branching, merging, versioning           |
-| **DLT**            | 5, 8       | Data staging, schema normalization       |
+| **DLT**            | 5, 8       | Data staging, schema normalisation       |
 | **PyIceberg**      | 5, 8       | Iceberg operations, table management     |
 | **dbt**            | 1, 6, 8    | Transformations, testing, documentation  |
 | **Dagster**        | 1, 7, 8    | Orchestration, partitions, scheduling    |
 | **Trino**          | 1, 3, 5, 6 | Query engine, Iceberg integration        |
 | **MinIO**          | 1, 2       | Object storage setup and config          |
 | **Postgres**       | 2, 6, 8    | Marts, metadata, BI integration          |
-| **Superset**       | 2, 8       | Dashboarding, visualization              |
+| **Superset**       | 2, 8       | Dashboarding, visualisation              |
 | **Pandera**        | 5, 9       | Schema validation, data quality          |
 | **OpenMetadata**   | 10         | Data catalog, lineage, governance        |
 
@@ -332,7 +332,7 @@ These posts include runnable code and exercises:
 - **Part 8**: [Complete pipeline walk-through](08-real-world-example.md#step-1-understanding-the-api)
 - **Part 9**: [Set up Pandera validation](09-data-quality-with-pandera.md#layer-1-pandera-schemas-ingestion)
 - **Part 10**: [Query OpenMetadata catalog](10-metadata-governance.md#setting-up-trino-data-source)
-- **Part 11**: [Create monitoring dashboards](11-observability-monitoring.md#dashboards-visualizing-health)
+- **Part 11**: [Create monitoring dashboards](11-observability-monitoring.md#dashboards-visualising-health)
 - **Part 12**: [Deploy to Kubernetes](12-production-deployment.md#future-kubernetes-deployment)
 
 ## Common Questions Answered

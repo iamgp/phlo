@@ -136,7 +136,7 @@ class FactGlucoseReadings(DataFrameModel):
     - Proper timestamp formatting
     - Valid direction indicators
     - Time dimension fields (hour, day of week)
-    - Glucose categorization
+    - Glucose categorisation
     """
 
     entry_id: str = Field(
@@ -167,7 +167,7 @@ class FactGlucoseReadings(DataFrameModel):
     glucose_category: str = Field(
         isin=["hypoglycemia", "in_range", "hyperglycemia_mild", "hyperglycemia_severe"],
         nullable=False,
-        description="Categorized glucose level based on ADA guidelines",
+        description="Categorised glucose level based on ADA guidelines",
     )
 
     is_in_range: int = Field(
@@ -768,7 +768,7 @@ Without Layer 1:
 from pydantic import BaseSettings
 
 class DataQualityConfig(BaseSettings):
-    # Validation behavior
+    # Validation behaviour
     pandera_strict: bool = True  # Fail on any schema error
     allow_null_in_required: bool = False
 

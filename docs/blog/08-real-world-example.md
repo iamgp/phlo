@@ -7,7 +7,7 @@
 - How the ingestion, dbt, and publishing layers fit together
 - How to configure end-to-end assets for a real dataset
 - How to validate data quality during the pipeline
-- How to visualize outputs in Superset
+- How to visualise outputs in Superset
 
 ## Prerequisites
 

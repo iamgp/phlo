@@ -658,7 +658,7 @@ def dlt_glucose_entries() -> MaterializeResult:
 
 ## Configuration and Environment
 
-Phlo uses `phlo/config.py` for centralized config:
+Phlo uses `phlo/config.py` for centralised config:
 
 ```python
 # phlo/config.py

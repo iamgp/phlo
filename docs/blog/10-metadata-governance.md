@@ -336,14 +336,14 @@ Updated every 5 minutes via Dagster pipeline.
 
 ## Business Logic
 
-- `glucose_category`: Categorized as hypoglycemia (<70), in_range (70-180), or hyperglycemia (>180)
+- `glucose_category`: Categorised as hypoglycemia (<70), in_range (70-180), or hyperglycemia (>180)
 - `reading_timestamp`: UTC timestamp of the reading
 ```
 
 3. Add column descriptions:
    - `reading_id`: Unique identifier for each glucose reading
    - `glucose_mg_dl`: Glucose value in mg/dL (validated range: 20-600)
-   - `glucose_category`: Categorized glucose level
+   - `glucose_category`: Categorised glucose level
    - `reading_timestamp`: When the reading was taken (UTC)
 
 4. Click **Save**
@@ -552,7 +552,7 @@ models:
               min_value: 20
               max_value: 600
       - name: glucose_category
-        description: Categorized as hypoglycemia, in_range, or hyperglycemia
+        description: Categorised as hypoglycemia, in_range, or hyperglycemia
 ```
 
 ## Hands-On Exercise: Trace a Dataset
@@ -596,7 +596,7 @@ Fix: start Trino and update the service connection details.
 See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
 
 
-## Data Contracts: Formalizing Data Agreements
+## Data Contracts: Formalising Data Agreements
 
 As data platforms grow, informal agreements break down. The ML team assumes glucose readings update hourly. The analytics team expects certain columns to never be null. The reporting system depends on specific value ranges. When someone changes the schema or update frequency, things break.
 

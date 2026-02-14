@@ -136,7 +136,7 @@ main:
 dev (branched from Commit B):
   ├── Commit B': Quality fixes (inherited)
   ├── Commit D: New transformations
-  └── Commit E: Schema optimizations (HEAD)
+  └── Commit E: Schema optimisations (HEAD)
 
 Merge dev → main:
   ├── Commit A: Initial data load

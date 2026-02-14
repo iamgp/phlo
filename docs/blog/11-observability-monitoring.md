@@ -41,7 +41,7 @@ Observability solves this with:
 [Monitoring] → Understand what's happening
 [Alerting]   → Get notified of problems
 [Tracing]    → Find root causes quickly
-[Dashboards] → Visualize pipeline health
+[Dashboards] → Visualise pipeline health
 ```
 
 ## Three Pillars of Observability
@@ -388,7 +388,7 @@ Phlo automatically sends alerts for:
 | **ERROR**    | Something failed  | Slack + Email + PagerDuty (low urgency) |
 | **CRITICAL** | Production impact | All channels + PagerDuty (high urgency) |
 
-## Dashboards: Visualizing Health
+## Dashboards: Visualising Health
 
 ### Main Operations Dashboard
 
@@ -605,7 +605,7 @@ def update_observability():
     return {}
 ```
 
-## Lineage Visualization: Understanding Your Data Flow
+## Lineage Visualisation: Understanding Your Data Flow
 
 One of the hardest questions in data engineering: "If I change this table, what breaks?"
 
@@ -963,7 +963,7 @@ Phlo's observability stack provides:
 
 **Metrics**: Track what's happening via `phlo metrics` (execution time, throughput, quality)
 **Logs**: Understand why with `phlo logs` (structured logs, searchable, real-time tailing)
-**Lineage**: Understand impact with `phlo lineage` (CLI visualization, export, impact analysis)
+**Lineage**: Understand impact with `phlo lineage` (CLI visualisation, export, impact analysis)
 **Alerts**: Get notified via `phlo alerts` (requires `phlo-alerting` plugin; Slack, PagerDuty, email with deduplication)
 
 Combined, you have:

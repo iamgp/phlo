@@ -132,7 +132,7 @@ Snapshot 1234567892:
     └── data/year=2024/month=10/day=02/00004.parquet → rows 101-200
 ```
 
-Why manifests? Query optimization:
+Why manifests? Query optimisation:
 
 - Scanner reads manifest, not S3 listing
 - Knows exact file count before scanning

@@ -5,7 +5,7 @@
 ## What You'll Learn
 
 - Bootstrap a new Phlo project with `phlo init`
-- Initialize and start the service stack
+- Initialise and start the service stack
 - Ingest sample data and materialize assets
 - Verify results in Dagster and Observatory
 
@@ -49,7 +49,7 @@
 
 If you have less than 4GB RAM, you can start a minimal setup (Postgres + MinIO only) and add services gradually.
 
-## Step 1: Initialize Your Project
+## Step 1: Initialise Your Project
 
 ```bash
 # Create a new Phlo project
@@ -64,7 +64,7 @@ cd my-lakehouse
 ```
 
 
-Then initialize infra (generates `.phlo/.env` and `.phlo/.env.local`):
+Then initialise infra (generates `.phlo/.env` and `.phlo/.env.local`):
 
 ```bash
 phlo services init
@@ -438,7 +438,7 @@ LIMIT 24
 5. Click **Update Chart**
 6. Click **Save Chart**
 
-Congratulations! You've visualized real glucose data from a lakehouse.
+Congratulations! You've visualised real glucose data from a lakehouse.
 
 ## Hands-On Exercise: Re-run the Pipeline
 

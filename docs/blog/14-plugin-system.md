@@ -14,7 +14,7 @@
 - [Part 13: Capability Primitives](13-capability-primitives.md)
 - Optional: [Part 16: Building Custom Packages](16-building-custom-packages.md) for scaffolding.
 
-You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialized validation rule, or a domain-specific transformation?
+You've built pipelines, added quality checks, and set up monitoring. But what happens when you need something Phlo doesn't provide out of the box? A custom data source, a specialised validation rule, or a domain-specific transformation?
 For full package scaffolding, see [Part 16: Building Custom Packages](16-building-custom-packages.md).
 
 That's where the plugin system comes in.
@@ -514,7 +514,7 @@ class ThresholdCheck(QualityCheck):
         tolerance: float = 0.0,
     ):
         """
-        Initialize threshold check.
+        Initialise threshold check.
 
         Args:
             column: Column to validate
@@ -939,7 +939,7 @@ version = "1.0.1"  # Fix: handled edge case
 
 Plugins run with full access to your environment. Only install trusted plugins.
 
-For organizations:
+For organisations:
 
 - Maintain an internal plugin registry
 - Review plugin code before deployment
@@ -1011,7 +1011,7 @@ Plugins are discovered through Python entry points, managed via CLI, and used al
 When to use plugins:
 
 - You need a data source Phlo doesn't support
-- You have organization-specific quality rules
+- You have organisation-specific quality rules
 - You want to share reusable logic across teams
 
 When NOT to use plugins:

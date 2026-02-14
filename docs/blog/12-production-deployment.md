@@ -30,7 +30,7 @@ What differs between your laptop and production:
 | **Failure Recovery** | Restart containers       | Auto-recovery, failover |
 | **Monitoring**       | None (ad-hoc)            | Continuous              |
 | **Capacity**         | 16GB RAM, 1TB disk       | 256GB+ RAM, PB+ storage |
-| **Cost**             | Minimal                  | Optimized               |
+| **Cost**             | Minimal                  | Optimised               |
 | **Compliance**       | None                     | HIPAA, GDPR, etc.       |
 
 ## Architecture: From Laptop to Kubernetes
@@ -190,7 +190,7 @@ OPENMETADATA_MYSQL_PASSWORD=<SECURE_PASSWORD>
 
 ### Step 1b: Infrastructure Configuration (phlo.yaml)
 
-For production deployments, especially when running multiple Phlo projects or customizing service configurations, use `phlo.yaml` for project-level infrastructure settings.
+For production deployments, especially when running multiple Phlo projects or customising service configurations, use `phlo.yaml` for project-level infrastructure settings.
 
 #### Why Infrastructure Configuration?
 
@@ -198,7 +198,7 @@ Secrets in `.phlo/.env.local` and defaults in `phlo.yaml` (env:) handle configur
 
 - **Multi-project deployments**: Running multiple Phlo instances on the same host
 - **Container naming patterns**: Custom naming for service discovery
-- **Port customization**: Per-project port assignments
+- **Port customisation**: Per-project port assignments
 - **Service-specific overrides**: Custom configurations for individual services
 
 #### Creating phlo.yaml
@@ -472,7 +472,7 @@ The actual `docker-compose.yml` includes:
 
 **Option B: Managed Services (Recommended for Production)**
 
-For production workloads, consider replacing containerized services with managed alternatives:
+For production workloads, consider replacing containerised services with managed alternatives:
 
 ```bash
 # Use AWS RDS for PostgreSQL
@@ -483,7 +483,7 @@ POSTGRES_PORT=5432
 ICEBERG_WAREHOUSE_PATH=s3://your-prod-bucket/warehouse
 MINIO_API_PORT=9000  # Or S3 endpoint
 
-# Keep Dagster, Trino, Nessie containerized with docker-compose
+# Keep Dagster, Trino, Nessie containerised with docker-compose
 docker-compose up -d dagster-webserver dagster-daemon trino nessie
 ```
 
@@ -567,7 +567,7 @@ The observability stack includes:
 
 - **Prometheus**: Metrics collection and storage
 - **Loki**: Log aggregation
-- **Grafana**: Dashboards and visualization
+- **Grafana**: Dashboards and visualisation
 - **Alloy**: Metrics and log forwarding
 - **postgres-exporter**: PostgreSQL metrics
 
@@ -887,7 +887,7 @@ kubectl apply -f k8s/backup-cronjob.yaml
 ```
 
 
-## Cost Optimization
+## Cost Optimisation
 
 ```python
 # phlo/monitoring/cost_tracking.py
@@ -928,9 +928,9 @@ def estimate_monthly_cost():
         "total": total,
     }
 
-# Optimization strategies
+# Optimisation strategies
 def optimize_costs():
-    """Implement cost optimization."""
+    """Implement cost optimisation."""
 
     # 1. S3 Intelligent-Tiering
     # Automatically move old data to cheaper storage classes
@@ -1048,9 +1048,9 @@ Production deployment with Phlo:
 ### Current Implementation (Docker Compose)
 
 **Deployment Method**: `docker-compose up -d` with profiles
-**Infrastructure**: Containerized services with health checks
+**Infrastructure**: Containerised services with health checks
 **Storage**: MinIO (dev) or S3 (production)
-**Database**: PostgreSQL (containerized or RDS)
+**Database**: PostgreSQL (containerised or RDS)
 **Monitoring**: Grafana + Prometheus + Loki
 **Scaling**: Vertical (increase container resources)
 

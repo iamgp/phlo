@@ -134,7 +134,7 @@ The decorator handles all the complexity:
 
 ### Merge Strategies
 
-Phlo supports two merge strategies, allowing you to optimize for different data patterns:
+Phlo supports two merge strategies, allowing you to optimise for different data patterns:
 
 #### Append Strategy (Insert-Only)
 
@@ -266,7 +266,7 @@ If we used `append` strategy instead:
 - Corrected readings wouldn't update (you'd have both old and new)
 - dbt transformations downstream would need to handle deduplication
 
-### DLT Schema Normalization
+### DLT Schema Normalisation
 
 DLT normalizes messy API responses:
 
@@ -284,7 +284,7 @@ DLT normalizes messy API responses:
   ...
 ]
 
-# After DLT (normalized schema)
+# After DLT (normalised schema)
 Parquet file with columns:
 ├── date_string: string (converted from dateString)
 ├── _id: string
@@ -820,7 +820,7 @@ The `@phlo_ingestion` decorator simplifies data ingestion by handling:
 - `table_name`: Iceberg table to write to
 - `unique_key`: Column for deduplication
 - `validation_schema`: Pandera schema for validation
-- `group`: Asset group for organization
+- `group`: Asset group for organisation
 - `cron`: Schedule (optional)
 - `freshness_hours`: Expected data freshness (optional)
 
