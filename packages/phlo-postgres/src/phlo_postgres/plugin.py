@@ -6,7 +6,10 @@ from importlib import resources
 from typing import Any
 
 import yaml
-from phlo.plugins import PluginMetadata, ServicePlugin
+from phlo.capabilities import ResourceSpec
+from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
+
+from phlo_postgres.resource import PostgresResource
 
 
 class PostgresServicePlugin(ServicePlugin):
@@ -45,3 +48,16 @@ class PostgresExporterServicePlugin(ServicePlugin):
     def service_definition(self) -> dict[str, Any]:
         service_path = resources.files("phlo_postgres").joinpath("exporter_service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))
+
+
+class PostgresResourceProvider(ResourceProviderPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="postgres",
+            version="0.1.0",
+            description="Postgres resource for Phlo",
+        )
+
+    def get_resources(self) -> list[ResourceSpec]:
+        return [ResourceSpec(name="postgres", resource=PostgresResource())]

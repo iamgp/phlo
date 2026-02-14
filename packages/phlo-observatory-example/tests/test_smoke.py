@@ -1,0 +1,17 @@
+"""Smoke tests for the example Observatory extension package."""
+
+from phlo_observatory_example.observatory_plugin import ExampleObservatoryExtension
+
+
+def test_example_extension_manifest_smoke() -> None:
+    plugin = ExampleObservatoryExtension()
+
+    assert plugin.metadata.name == "example"
+    assert plugin.manifest.name == "example"
+    assert plugin.manifest.ui.routes[0].path == "/extensions/example"
+
+
+def test_example_extension_assets_present() -> None:
+    plugin = ExampleObservatoryExtension()
+
+    assert plugin.asset_root.joinpath("example.js").is_file()

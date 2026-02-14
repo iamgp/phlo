@@ -121,9 +121,22 @@ class ComposeGenerator:
 
         config["restart"] = compose.get("restart", "unless-stopped")
 
+        handled_compose_keys = {
+            "restart",
+            "volumes",
+            "command",
+            "entrypoint",
+            "healthcheck",
+            "profiles",
+            "env_file",
+            "build",
+            "depends_on",
+        }
+
         for key in ("user", "container_name", "labels", "environment", "ports"):
             if compose.get(key):
                 config[key] = compose[key]
+                handled_compose_keys.add(key)
 
         if compose.get("volumes"):
             config["volumes"] = list(compose["volumes"])  # Copy to avoid mutation
@@ -164,6 +177,15 @@ class ComposeGenerator:
 
         if compose.get("healthcheck"):
             config["healthcheck"] = compose["healthcheck"]
+
+        # Pass through remaining compose keys such as mem_limit/cpus/ulimits.
+        # This keeps generator behavior future-proof for valid docker-compose options.
+        for key, value in compose.items():
+            if key in handled_compose_keys:
+                continue
+            if value is None:
+                continue
+            config[key] = value
 
         # Dependencies
         if service.depends_on:

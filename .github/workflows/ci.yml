@@ -71,7 +71,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --dev --group dev
+        run: uv sync --dev
 
       - name: Run tests
         env:
@@ -101,7 +101,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install dependencies
-        run: uv sync --dev --group dev
+        run: uv sync --dev
 
       - name: Lint SQL with sqlfluff
         run: |

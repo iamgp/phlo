@@ -40,7 +40,7 @@ Nobody knows because metadata is scattered:
 - Ownership unknown
 - Change history nowhere
 
-> **Note:** For detailed OpenMetadata setup instructions, see [docs/setup/openmetadata.md](/home/user/phlo/docs/setup/openmetadata.md)
+> **Note:** For detailed OpenMetadata setup instructions, see [docs/setup/openmetadata.md](../setup/openmetadata.md)
 
 ## OpenMetadata: The Open-Source Data Catalog
 
@@ -676,36 +676,46 @@ notifications:
 
 ### How Contract Validation Works
 
-When you run `phlo contract validate glucose_readings`, Phlo:
+Use the current schema and catalog commands to enforce contract-like checks:
 
-1. **Loads the contract** from `contracts/glucose_readings.yaml` (or `phlo-examples/nightscout/contracts/glucose_readings.yaml` for examples)
-2. **Validates** the contract schema and structure
-3. **Reports** expected schema and SLA requirements
-
-> **Note:** Full table schema comparison against live Iceberg tables is planned for a future release. Currently, the command validates contract syntax and displays expected requirements.
+1. **Validate schema definitions** in source control
+2. **Inspect live table metadata** in the catalog
+3. **Diff schema changes** against main before merge
 
 ```bash
-$ phlo contract validate glucose_readings
-
-Contract Validation: glucose_readings
-
-Note: Requires live catalog access to validate actual schema
-
-Required Columns:
-  reading_id   string
-  sgv          integer
-  reading_timestamp timestamp
-  direction    string
-  device       string
+$ phlo schema validate workflows/schemas/glucose.py
 ```
 
+Expected output:
 
-To check for contract violations against actual tables, you would use:
+```text
+Validated schema model: RawGlucoseEntries
+No validation errors found.
+```
 
 ```bash
-$ phlo contract show glucose_readings  # View full contract details
-$ phlo catalog describe raw.glucose_entries  # View actual table schema
+$ phlo catalog describe raw.glucose_entries
 ```
+
+Expected output:
+
+```text
+Table: raw.glucose_entries
+Columns: 20
+Snapshot: current
+```
+
+```bash
+$ phlo schema diff RawGlucoseEntries --old main
+```
+
+Expected output:
+
+```text
+No schema changes detected.
+```
+
+> **Note:** Dedicated `phlo contract ...` commands are planned. Today, use `phlo schema ...` + `phlo catalog ...` in CI.
 
 
 ### Schema Evolution and Breaking Changes
@@ -722,15 +732,16 @@ The real power of contracts is **preventing breaking changes**. When you modify 
 | Change column type        | BREAKING       | Block merge     |
 | Remove nullable           | BREAKING       | Block merge     |
 
-In CI/CD, run `phlo contract check --pr` to validate changes before merge:
+In CI/CD, run schema diff + tests before merge:
 
 ```bash
-$ phlo contract check --pr
+$ phlo schema diff RawGlucoseEntries --old main
+$ phlo test -m quality --local
 
-Checking contracts against PR changes...
+Comparing schema versions...
 
 glucose_readings:
-  BREAKING: Column 'device_type' removed
+  BREAKING: Field 'device_type' removed
 
   Impact:
     - analytics-team: BI dashboards (contact: analytics@example.com)
@@ -742,7 +753,7 @@ glucose_readings:
     3. Get explicit approval from consumers
     4. Use --force to override (not recommended)
 
-Contract check FAILED - 1 breaking change detected
+Schema diff FAILED - 1 breaking change detected
 ```
 
 
@@ -958,8 +969,8 @@ Phlo automates this with PostgREST (REST) and Hasura (GraphQL).
 
 > **Implementation Details:** For comprehensive API setup guides, see:
 >
-> - [docs/setup/postgrest.md](/home/user/phlo/docs/setup/postgrest.md) - PostgREST configuration
-> - [docs/setup/hasura.md](/home/user/phlo/docs/setup/hasura.md) - Hasura GraphQL setup
+> - [docs/setup/postgrest.md](../setup/postgrest.md) - PostgREST configuration
+> - [docs/setup/hasura.md](../setup/hasura.md) - Hasura GraphQL setup
 
 ### Auto-Generating REST APIs with PostgREST
 
@@ -979,8 +990,25 @@ GRANT SELECT ON api.glucose_readings TO analyst;
 **The automated way:**
 
 ```bash
-$ phlo postgrest generate-views
+# Install optional PostgREST plugin once
+$ phlo plugin install postgrest
+```
 
+Expected output:
+
+```text
+Installed plugin: postgrest
+Run `phlo plugin list` to verify installation.
+```
+
+```bash
+# Generate API views from dbt metadata
+$ phlo postgrest generate-views
+```
+
+Expected output:
+
+```text
 Generating API views from dbt models...
 
 Source: dbt manifest (12 models in marts_postgres)
@@ -996,7 +1024,6 @@ Permissions:
   api.user_summary: admin (restricted)
 
 Generated SQL saved to: api_views.sql
-
 Apply with: phlo postgrest generate-views --apply
 ```
 

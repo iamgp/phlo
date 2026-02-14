@@ -263,6 +263,8 @@ Extensions should treat settings as shared instance configuration, not per-user 
 - **Nav item missing:** verify `ui.nav` is populated and route exists.
 - **Settings not saved:** confirm API endpoints are reachable and schema is valid JSONSchema.
 
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
 ## See Also
 
 See also: [Part 11: Observability & Monitoring](11-observability-monitoring.md), [Part 14: Extending Phlo with Plugins](14-plugin-system.md), [Part 16: Building Custom Packages](16-building-custom-packages.md). Reference: [Phlo API Reference](../reference/phlo-api.md).

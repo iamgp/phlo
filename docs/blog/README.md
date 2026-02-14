@@ -324,16 +324,16 @@ Each tool has dedicated coverage:
 These posts include runnable code and exercises:
 
 - **Part 2**: [Service access and first pipeline](02-setup-guide.md#step-5-first-data-ingestion)
-- **Part 3**: [Explore snapshots](03-apache-iceberg-explained.md#hands-on-explore-snapshots)
-- **Part 4**: [Query different branches](04-project-nessie-versioning.md#hands-on-explore-nessie)
-- **Part 5**: [Trace an ingestion](05-data-ingestion.md#hands-on-trace-an-ingestion)
-- **Part 6**: [Run dbt transforms](06-dbt-transformations.md#hands-on-run-dbt-transforms)
+- **Part 3**: [Explore snapshots](03-apache-iceberg-explained.md#hands-on-exercise-explore-snapshots)
+- **Part 4**: [Query different branches](04-project-nessie-versioning.md#hands-on-exercise-explore-nessie)
+- **Part 5**: [Trace an ingestion](05-data-ingestion.md#hands-on-exercise-trace-an-ingestion)
+- **Part 6**: [Run dbt transforms](06-dbt-transformations.md#hands-on-exercise-run-dbt-transforms)
 - **Part 7**: [Materialize assets](07-orchestration-dagster.md#running-pipelines-manually)
 - **Part 8**: [Complete pipeline walk-through](08-real-world-example.md#step-1-understanding-the-api)
 - **Part 9**: [Set up Pandera validation](09-data-quality-with-pandera.md#layer-1-pandera-schemas-ingestion)
 - **Part 10**: [Query OpenMetadata catalog](10-metadata-governance.md#setting-up-trino-data-source)
 - **Part 11**: [Create monitoring dashboards](11-observability-monitoring.md#dashboards-visualizing-health)
-- **Part 12**: [Deploy to Kubernetes](12-production-deployment.md#step-5-kubernetes-deployment)
+- **Part 12**: [Deploy to Kubernetes](12-production-deployment.md#future-kubernetes-deployment)
 
 ## Common Questions Answered
 
@@ -389,7 +389,7 @@ See the main [docs](../index.md) for references and advanced guides.
 
 Find issues in these posts? Want to add examples?
 
-- Check [AGENTS.md](../../AGENTS.md) for contribution guidelines
+- Check `AGENTS.md` at repository root for contribution guidelines
 - Issues and corrections are welcome
 - Real-world examples especially appreciated
 

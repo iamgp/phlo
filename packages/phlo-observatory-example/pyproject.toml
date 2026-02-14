@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "phlo-observatory-example"
-version = "0.1.0"
+version = "0.1.1"
 description = "Example Observatory extension plugin"
-readme = {text = "Example Observatory extension for Phlo.", content-type = "text/plain"}
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [
     {name = "Phlo Team", email = "team@phlo.dev"},
@@ -25,7 +25,7 @@ packages = ["src/phlo_observatory_example"]
 include = ["src/phlo_observatory_example/observatory_assets/*"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/phlo_observatory_example/observatory_assets/*"]
+include = ["src/phlo_observatory_example"]
 
 [tool.ruff]
 line-length = 100

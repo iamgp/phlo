@@ -493,9 +493,9 @@ cd workflows/transforms/dbt
 # Install dbt
 uv pip install dbt-trino
 
-# Create dbt profiles
-mkdir -p ~/.dbt
-cat > ~/.dbt/profiles.yml << EOF
+# Create dbt profiles in the project (recommended for Phlo)
+mkdir -p profiles
+cat > profiles/profiles.yml << EOF
 phlo:
   target: dev
   outputs:
@@ -508,9 +508,10 @@ phlo:
 EOF
 
 # Run dbt
-dbt run --select stg_glucose_entries
-dbt test
-dbt docs generate && dbt docs serve
+dbt run --profiles-dir ./profiles --select stg_glucose_entries
+dbt test --profiles-dir ./profiles
+dbt docs generate --profiles-dir ./profiles
+dbt docs serve --profiles-dir ./profiles
 ```
 
 

@@ -10,6 +10,7 @@ import os
 import sys
 
 import pytest
+from _pytest.outcomes import Skipped
 
 # Mark entire module as integration tests (requires Nessie and MinIO)
 pytestmark = pytest.mark.integration
@@ -20,15 +21,27 @@ os.environ.setdefault("NESSIE_HOST", "localhost")
 os.environ.setdefault("MINIO_HOST", "localhost")
 
 
+def _is_nessie_unreachable_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    patterns = (
+        "temporary failure in name resolution",
+        "nameresolutionerror",
+        "connection refused",
+        "failed to establish",
+        "max retries exceeded",
+        "name or service not known",
+        "connection timed out",
+    )
+    return any(pattern in message for pattern in patterns)
+
+
 def test_duckdb_iceberg():
     try:
         import duckdb
     except ImportError:
-        print("⚠ DuckDB not installed. Install with: pip install duckdb")
-        print("  Skipping integration test...")
-        return True  # Skip, don't fail
+        pytest.skip("DuckDB not installed")
 
-        print("=== Testing DuckDB Iceberg Extension ===")
+    print("=== Testing DuckDB Iceberg Extension ===")
 
     # Create DuckDB connection
     conn = duckdb.connect(":memory:")
@@ -40,8 +53,7 @@ def test_duckdb_iceberg():
         conn.execute("LOAD iceberg")
         print("   ✓ Iceberg extension loaded\n")
     except Exception as e:
-        print(f"   ✗ Failed to load Iceberg extension: {e}")
-        return False
+        pytest.skip(f"DuckDB Iceberg extension unavailable: {e}")
 
     # Step 2: Configure S3/MinIO connection
     print("2. Configuring S3/MinIO connection...")
@@ -61,8 +73,7 @@ def test_duckdb_iceberg():
 
         print(f"   ✓ Connected to MinIO at {minio_endpoint}\n")
     except Exception as e:
-        print(f"   ✗ Failed to configure S3: {e}")
-        return False
+        pytest.fail(f"Failed to configure S3: {e}")
 
     # Step 3: Get table location from PyIceberg catalog
     print("3. Getting Iceberg table location from Nessie...")
@@ -76,23 +87,18 @@ def test_duckdb_iceberg():
         try:
             tables = list(catalog.list_tables("raw"))
             if not tables:
-                print("   ⚠ No tables found in raw namespace (run ingestion first)")
-                return True  # Not a failure, just no data yet
+                pytest.skip("No tables found in raw namespace (run ingestion first)")
 
             print(f"   ✓ Found {len(tables)} table(s) in raw namespace")
 
         except Exception:
-            print("   ⚠ Raw namespace not found (run ingestion first)")
-            return True  # Not a failure, just no data yet
+            pytest.skip("Raw namespace not found (run ingestion first)")
 
     except ImportError:
-        print("   ⚠ PyIceberg not available, using direct path")
-        print("     Note: This may not work with Nessie table naming")
-        return True  # Skip test gracefully
+        pytest.skip("PyIceberg not available")
     except Exception as exc:
-        message = str(exc)
-        if "Temporary failure in name resolution" in message or "NameResolutionError" in message:
-            pytest.skip("Skipping: Nessie not reachable from test host.")
+        if _is_nessie_unreachable_error(exc):
+            pytest.skip("Nessie not reachable from test host.")
         raise
 
     # Step 4: Query Iceberg table using metadata location
@@ -119,14 +125,11 @@ def test_duckdb_iceberg():
 
     except Exception as e:
         error_msg = str(e)
+        if _is_nessie_unreachable_error(e):
+            pytest.skip("Nessie not reachable from test host.")
         if "No such file" in error_msg or "does not exist" in error_msg or "404" in error_msg:
-            print("   ⚠ Iceberg table not found (run ingestion first)")
-            print(f"     Error: {error_msg}")
-            # Not a failure - table just doesn't exist yet
-            return True
-        else:
-            print(f"   ✗ Failed to query Iceberg table: {e}")
-            return False
+            pytest.skip(f"Iceberg table not found (run ingestion first): {error_msg}")
+        pytest.fail(f"Failed to query Iceberg table: {e}")
 
     # Step 5: Query with filters (if table has data)
     if row_count > 0:
@@ -220,16 +223,18 @@ def test_duckdb_iceberg():
     print()
     print("Integration test PASSED")
 
-    return True
-
 
 if __name__ == "__main__":
+    success = False
     try:
-        success = test_duckdb_iceberg()
-        sys.exit(0 if success else 1)
+        test_duckdb_iceberg()
+        success = True
+    except Skipped as exc:
+        print(f"Test skipped: {exc}")
+        success = True
     except Exception as e:
         print(f"Test failed with unexpected error: {e}")
         import traceback
 
         traceback.print_exc()
-        sys.exit(1)
+    sys.exit(0 if success else 1)

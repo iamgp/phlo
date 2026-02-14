@@ -45,7 +45,7 @@ class Settings(BaseConfig):
         default_factory=list, description="Blacklist of plugin names to exclude"
     )
     plugin_registry_url: str = Field(
-        default="https://registry.phlo.dev/plugins.json",
+        default="https://registry.phlohouse.com/plugins.json",
         description="URL for the plugin registry catalog",
     )
     plugin_registry_cache_ttl_seconds: int = Field(

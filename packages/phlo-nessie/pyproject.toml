@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-nessie"
-version = "0.1.0"
+version = "0.1.1"
 description = "Nessie service plugin for Phlo"
 readme = {text = "Nessie service plugin for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"
@@ -16,8 +16,8 @@ dependencies = [
     "phlo>=0.1.0",
     "phlo-observatory>=0.1.0",
     "phlo-trino>=0.1.0",
-    "pynessie",
-    "requests",
+    "pynessie>=0.67.0",
+    "requests>=2.32.5",
     "pyyaml>=6.0.1",
 ]
 

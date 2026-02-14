@@ -13,6 +13,7 @@
 
 - [Part 7: Orchestration with Dagster](07-orchestration-dagster.md)
 - Optional: [Part 10: Metadata and Governance](10-metadata-governance.md) for lineage context.
+- Optional for alert CLI examples: `phlo plugin install alerting`
 
 You've built a data lakehouse with validation and governance. But what happens at 3am when something breaks? This post covers observability: monitoring, alerting, and troubleshooting.
 For custom UI extensions in the observability layer, see [Part 15: Observatory Extensions](15-observatory-extensions.md).
@@ -104,7 +105,7 @@ Total: 152ms
 │  • phlo logs                 │
 │  • phlo metrics              │
 │  • phlo lineage              │
-│  • phlo alerts               │
+│  • phlo alerts (alerting plugin) │
 └──────────────────────────────┘
             ↓
 ┌──────────────────────────────┐
@@ -327,6 +328,10 @@ export PHLO_ALERT_EMAIL_RECIPIENTS="data-team@yourcompany.com,oncall@yourcompany
 Check alert system status:
 
 ```bash
+# Install optional alerting plugin once
+$ phlo plugin install alerting
+
+# Check alert system status
 $ phlo alerts status
 
 Alert System Status
@@ -959,7 +964,7 @@ Phlo's observability stack provides:
 **Metrics**: Track what's happening via `phlo metrics` (execution time, throughput, quality)
 **Logs**: Understand why with `phlo logs` (structured logs, searchable, real-time tailing)
 **Lineage**: Understand impact with `phlo lineage` (CLI visualization, export, impact analysis)
-**Alerts**: Get notified via `phlo alerts` (Slack, PagerDuty, email with deduplication)
+**Alerts**: Get notified via `phlo alerts` (requires `phlo-alerting` plugin; Slack, PagerDuty, email with deduplication)
 
 Combined, you have:
 
