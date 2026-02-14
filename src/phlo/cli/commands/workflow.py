@@ -80,10 +80,6 @@ def create_workflow_cmd(
             click.echo("  3. Restart Dagster: docker restart dagster-webserver")
             click.echo(f"  4. Test: phlo test {domain}")
             click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
-        else:
-            click.echo(f"Error: Workflow type '{workflow_type}' not yet implemented", err=True)
-            click.echo("Currently supported: ingestion", err=True)
-            sys.exit(1)
     except Exception as exc:
         click.echo(f"Error creating workflow: {exc}", err=True)
         sys.exit(1)

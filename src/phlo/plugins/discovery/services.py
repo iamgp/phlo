@@ -132,7 +132,7 @@ class ServiceDefinition:
             "cpus",
             "shm_size",
         )
-        compose = {k: config[k] for k in compose_keys if config.get(k)}
+        compose = {k: config[k] for k in compose_keys if k in config}
 
         return cls(
             name=name,

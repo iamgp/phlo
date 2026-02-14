@@ -93,6 +93,7 @@ members = [".", "packages/*"]
 [tool.uv]
 # Backward-compatible dev dependency declaration for older uv versions
 # (e.g. 0.4.x) that don't install `[dependency-groups].dev`.
+# Canonical source of truth: `[dependency-groups].dev` (keep lists in sync).
 dev-dependencies = [
     "pytest>=8.4.2",
     "sqlfluff>=3.5.0",

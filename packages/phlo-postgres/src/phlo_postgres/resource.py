@@ -22,6 +22,24 @@ class PostgresResource:
     database: str | None = None
     _connection: Any | None = field(default=None, init=False, repr=False)
 
+    def __enter__(self) -> "PostgresResource":
+        self._ensure_connection()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        if exc_type is not None:
+            try:
+                self.rollback()
+            except Exception:  # noqa: BLE001 - best effort rollback on context exit
+                pass
+        self.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001 - destructor must never raise
+            pass
+
     def _ensure_connection(self):
         if self._connection is None or getattr(self._connection, "closed", 1):
             settings = get_settings()
@@ -36,10 +54,28 @@ class PostgresResource:
 
     @contextmanager
     def cursor(self):
+        """Yield a cursor; caller owns transaction commit/rollback."""
+
         connection = self._ensure_connection()
         cursor = connection.cursor()
         try:
             yield cursor
+        finally:
+            cursor.close()
+
+    @contextmanager
+    def transactional_cursor(self):
+        """Yield a cursor and commit/rollback automatically."""
+
+        connection = self._ensure_connection()
+        cursor = connection.cursor()
+        try:
+            yield cursor
+        except Exception:
+            connection.rollback()
+            raise
+        else:
+            connection.commit()
         finally:
             cursor.close()
 
@@ -52,3 +88,4 @@ class PostgresResource:
     def close(self) -> None:
         if self._connection is not None and not getattr(self._connection, "closed", 1):
             self._connection.close()
+        self._connection = None

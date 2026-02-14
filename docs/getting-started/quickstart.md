@@ -48,7 +48,7 @@ Open `workflows/ingestion/nightscout/glucose.py`:
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo_dlt import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.glucose import RawGlucoseEntries
 
 @phlo_ingestion(
@@ -187,7 +187,7 @@ class RawWeatherData(pa.DataFrameModel):
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo_dlt import phlo_ingestion
+from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.mydata import RawWeatherData
 
 @phlo_ingestion(

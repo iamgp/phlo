@@ -19,6 +19,16 @@ from phlo.exceptions import PhloConfigError
 pytestmark = pytest.mark.integration
 
 
+def _collect_asset_names(defs: Definitions) -> list[str]:
+    names: list[str] = []
+    for asset in list(defs.assets or []):
+        if hasattr(asset, "keys"):
+            names.extend(str(key) for key in asset.keys)  # type: ignore[attr-defined]
+        elif hasattr(asset, "key"):
+            names.append(asset.key.to_string())  # type: ignore[attr-defined]
+    return names
+
+
 def test_discover_empty_workflows_directory():
     """Test discovering workflows from empty directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -104,14 +114,7 @@ def test_workflow(partition_date: str):
         assert len(assets) > 0
 
         # Check that the asset has the correct name
-        asset_names = []
-        for asset in assets:
-            if hasattr(asset, "keys"):
-                # Multi-asset definition
-                asset_names.extend([str(key) for key in asset.keys])  # type: ignore[attr-defined]
-            elif hasattr(asset, "key"):
-                # Single asset definition
-                asset_names.append(asset.key.to_string())  # type: ignore[attr-defined]
+        asset_names = _collect_asset_names(defs)
 
         assert any("dlt_test_data" in name for name in asset_names)
 
@@ -154,12 +157,7 @@ def publish_demo_marts():
         defs = discover_user_workflows(workflows_path, clear_registries=True)
 
         assert isinstance(defs, Definitions)
-        asset_names: list[str] = []
-        for asset in list(defs.assets or []):
-            if hasattr(asset, "keys"):
-                asset_names.extend(str(key) for key in asset.keys)  # type: ignore[attr-defined]
-            elif hasattr(asset, "key"):
-                asset_names.append(asset.key.to_string())  # type: ignore[attr-defined]
+        asset_names = _collect_asset_names(defs)
         assert any("publish_demo_marts" in name for name in asset_names)
 
 

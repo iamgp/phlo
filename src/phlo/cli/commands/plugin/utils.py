@@ -81,9 +81,8 @@ def run_pip(args: list[str], *, timeout: float = 300) -> None:
     try:
         subprocess.run(command, check=True, timeout=timeout)
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(
-            f"Install command timed out after {timeout}s: {' '.join(command)}"
-        ) from exc
+        message = f"Install command timed out after {timeout}s: {' '.join(command)}"
+        raise RuntimeError(message) from exc
 
 
 def registry_plugin_to_dict(plugin) -> dict:

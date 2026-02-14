@@ -148,33 +148,30 @@ def topo_sort(selected: set[str], dep_map: dict[str, list[str]]) -> list[str]:
     return order
 
 
-def parse_target_packages(raw: str, available: set[str]) -> list[str]:
+def parse_target_packages(raw: str, available: set[str]) -> set[str]:
     value = raw.strip()
     if not value:
-        return []
+        return set()
 
-    names: list[str]
+    names: set[str]
     if value.startswith("["):
-        parsed = json.loads(value)
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"TARGET_PACKAGES contains invalid JSON: {exc.msg} (pos {exc.pos}) in {value!r}"
+            ) from exc
         if not isinstance(parsed, list):
             raise ValueError("TARGET_PACKAGES JSON must be a list of package names.")
-        names = [str(item).strip() for item in parsed if str(item).strip()]
+        names = {str(item).strip() for item in parsed if str(item).strip()}
     else:
-        names = [part.strip() for part in value.split(",") if part.strip()]
+        names = {part.strip() for part in value.split(",") if part.strip()}
 
-    unknown = sorted(set(names) - available)
+    unknown = sorted(names - available)
     if unknown:
         raise ValueError(f"Unknown package(s): {', '.join(unknown)}")
 
-    # Preserve caller order while deduplicating.
-    ordered_unique: list[str] = []
-    seen: set[str] = set()
-    for name in names:
-        if name in seen:
-            continue
-        seen.add(name)
-        ordered_unique.append(name)
-    return ordered_unique
+    return names
 
 
 def main() -> None:
@@ -197,7 +194,7 @@ def main() -> None:
     target_packages = parse_target_packages(target_packages_raw, set(package_paths))
     publish_all = os.environ.get("PUBLISH_ALL", "false").strip().lower() == "true"
     if target_packages:
-        selected = set(target_packages)
+        selected = target_packages
     elif publish_all:
         selected = set(package_paths)
     else:

@@ -344,3 +344,5 @@ class TestInfrastructurePluginPattern:
         for plugin in plugins:
             service_def = plugin.service_definition
             assert isinstance(service_def, dict)
+            assert service_def.get("name")
+            assert isinstance(service_def.get("compose"), dict)

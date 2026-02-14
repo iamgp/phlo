@@ -222,7 +222,6 @@ def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     from phlo.cli.commands.services import utils as services_utils
-    from phlo.plugins.discovery.services import ServiceDefinition
 
     service = ServiceDefinition(
         name="dagster",
@@ -260,7 +259,6 @@ def test_run_service_hooks_prefers_project_venv_python(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     from phlo.cli.commands.services import utils as services_utils
-    from phlo.plugins.discovery.services import ServiceDefinition
 
     service = ServiceDefinition(
         name="dagster",
@@ -282,6 +280,7 @@ def test_run_service_hooks_prefers_project_venv_python(
     venv_python = tmp_path / ".venv" / "bin" / "python"
     venv_python.parent.mkdir(parents=True)
     venv_python.write_text("#!/usr/bin/env python3\n")
+    venv_python.chmod(0o755)
 
     monkeypatch.setattr("phlo.plugins.discovery.ServiceDiscovery", FakeDiscovery)
     monkeypatch.setattr(services_utils, "run_command", _fake_run_command)

@@ -28,14 +28,20 @@ def _is_missing_duckdb_adapter(output: str) -> bool:
 def _skip_if_duckdb_adapter_missing(
     dbt_executable: str, project_dir: Path, env: dict[str, str]
 ) -> None:
-    debug_result = subprocess.run(
-        [dbt_executable, "debug", "--profiles-dir", str(project_dir)],
-        cwd=project_dir,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        debug_result = subprocess.run(
+            [dbt_executable, "debug", "--profiles-dir", str(project_dir)],
+            cwd=project_dir,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        pytest.fail(f"dbt debug timed out after 60s\nstdout:\n{stdout}\nstderr:\n{stderr}")
     combined_output = "\n".join((debug_result.stdout, debug_result.stderr))
     if _is_missing_duckdb_adapter(combined_output):
         pytest.skip("dbt-duckdb adapter not installed")
