@@ -212,6 +212,8 @@ The adapter will wrap `raw_users_spec` into the orchestrator-specific asset defi
 - Missing resources: add resource names to AssetSpec.resources and configure them in your adapter.
 - Adapter coupling: avoid importing Dagster, Airflow, or Prefect in capability packages.
 
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
 ## See Also
 
 See also: [Part 14: Plugin System](14-plugin-system.md), [Part 16: Building Custom Packages](16-building-custom-packages.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md). Reference: [Phlo API Reference](../reference/phlo-api.md).

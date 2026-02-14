@@ -32,3 +32,8 @@ def test_scaffold_generates_no_todos_and_is_syntax_valid(
         contents = (tmp_path / rel_path).read_text()
         assert "TODO" not in contents
         compile(contents, rel_path, "exec")
+
+    asset_contents = (tmp_path / created[1]).read_text()
+    assert "return rest_api(" in asset_contents
+    assert "client={" in asset_contents
+    assert "resources=[" in asset_contents
