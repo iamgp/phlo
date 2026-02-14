@@ -88,7 +88,7 @@ def test_phlo_dagster_version():
     import phlo_dagster
 
     assert hasattr(phlo_dagster, "__version__")
-    assert phlo_dagster.__version__ == "0.1.0"
+    assert phlo_dagster.__version__ == "0.1.1"
 
 
 def test_dagster_runtime_reads_run_tags_when_context_has_no_tags():
