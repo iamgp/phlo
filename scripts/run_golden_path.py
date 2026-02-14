@@ -792,7 +792,9 @@ def main() -> int:
     default_project_name = "phlo-golden-path"
     default_project_root = Path.home() / "tmp"
     project_name = args.project_dir.name if args.project_dir else default_project_name
-    project_dir = args.project_dir.expanduser() if args.project_dir else default_project_root / project_name
+    project_dir = (
+        args.project_dir.expanduser() if args.project_dir else default_project_root / project_name
+    )
     phlo_source = Path(__file__).resolve().parents[1]
 
     log_step("Golden Path E2E Workflow")
@@ -1049,7 +1051,13 @@ def main() -> int:
         )
 
         write_file(
-            project_dir / "workflows" / "transforms" / "dbt" / "models" / "marts" / "posts_mart.sql",
+            project_dir
+            / "workflows"
+            / "transforms"
+            / "dbt"
+            / "models"
+            / "marts"
+            / "posts_mart.sql",
             textwrap.dedent("""
                 {{ config(materialized='table', schema='marts') }}
                 select

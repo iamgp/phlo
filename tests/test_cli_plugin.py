@@ -217,7 +217,9 @@ def test_run_pip_uses_python_pip_when_available(monkeypatch):
 
     calls: list[tuple[list[str], bool, float]] = []
 
-    monkeypatch.setattr("phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: object())
+    monkeypatch.setattr(
+        "phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: object()
+    )
     monkeypatch.setattr(
         "phlo.cli.commands.plugin.utils.subprocess.run",
         lambda cmd, check, timeout: calls.append((cmd, check, timeout)),

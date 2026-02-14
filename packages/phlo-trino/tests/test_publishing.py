@@ -96,7 +96,7 @@ def test_describe_trino_table_retries_after_table_not_found() -> None:
             'DESCRIBE "iceberg"."raw_marts"."posts_mart"': [
                 RuntimeError(
                     "TrinoUserError(type=USER_ERROR, name=TABLE_NOT_FOUND, "
-                    "message=\"table does not exist\")"
+                    'message="table does not exist")'
                 ),
                 [("id", "bigint"), ("title", "varchar")],
             ]
