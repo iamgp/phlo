@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.metadata
+import importlib.util
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -66,12 +68,20 @@ SCAFFOLD_TYPE_MAP = {
 
 
 def run_pip(args: list[str], *, timeout: float = 300) -> None:
-    """Run pip with given arguments."""
-    command = [sys.executable, "-m", "pip", *args]
+    """Install packages using pip, with uv fallback for uv-managed environments."""
+    if importlib.util.find_spec("pip") is not None:
+        command = [sys.executable, "-m", "pip", *args]
+    else:
+        if shutil.which("uv") is None:
+            raise RuntimeError(
+                "pip module is unavailable and 'uv' is not installed; cannot install packages."
+            )
+        command = ["uv", "pip", *args]
+
     try:
         subprocess.run(command, check=True, timeout=timeout)
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"Pip command timed out after {timeout}s: {' '.join(command)}") from exc
+        raise RuntimeError(f"Install command timed out after {timeout}s: {' '.join(command)}") from exc
 
 
 def registry_plugin_to_dict(plugin) -> dict:

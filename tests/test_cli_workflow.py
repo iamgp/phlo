@@ -1,5 +1,7 @@
 """Tests for workflow CLI commands."""
 
+from pathlib import Path
+
 from click.testing import CliRunner
 
 from phlo.cli.main import cli
@@ -78,3 +80,15 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
         "api_base_url": "https://api.example.com",
         "fields": ["id:int"],
     }
+
+
+def test_init_with_absolute_path_uses_directory_name_for_project_metadata(tmp_path: Path) -> None:
+    project_dir = tmp_path / "my-lakehouse"
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["init", str(project_dir), "--template", "minimal"])
+
+    assert result.exit_code == 0
+    pyproject_content = (project_dir / "pyproject.toml").read_text()
+    assert f'name = "{project_dir.name}"' in pyproject_content
+    assert f'name = "{project_dir}"' not in pyproject_content
