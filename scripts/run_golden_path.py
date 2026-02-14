@@ -23,6 +23,7 @@ import base64
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import textwrap
@@ -30,6 +31,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -246,6 +248,41 @@ def preflight_check(*, auto_cleanup: bool = False) -> bool:
     return all_ok
 
 
+def verify_bind_mount_visibility(path: Path) -> tuple[bool, str]:
+    """Verify Docker can see files from a host path via bind mount."""
+    marker = f".phlo_bind_check_{int(time.time())}"
+    target_path = path.resolve()
+    marker_path = target_path / marker
+
+    try:
+        target_path.mkdir(parents=True, exist_ok=True)
+        marker_path.write_text("ok\n")
+        result = subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{target_path}:/mnt:ro",
+                "alpine:3.20",
+                "sh",
+                "-lc",
+                f"test -f /mnt/{marker}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode == 0:
+            return True, ""
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown bind mount error"
+        return False, detail
+    except Exception as exc:
+        return False, str(exc)
+    finally:
+        marker_path.unlink(missing_ok=True)
+
+
 def log_step(step: str) -> None:
     """Print a step header."""
     print()
@@ -441,6 +478,30 @@ def wait_for_http(url: str, *, timeout: int = 60, name: str = "endpoint") -> boo
                     log_success(f"{name} is ready")
                     return True
         except (urllib.error.URLError, TimeoutError, OSError):
+            pass
+        time.sleep(2)
+        print(".", end="", flush=True)
+    print()
+    log_warning(f"{name} not ready after {timeout}s")
+    return False
+
+
+def wait_for_tcp(
+    host: str,
+    port: int,
+    *,
+    timeout: int = 60,
+    name: str = "service",
+) -> bool:
+    """Wait for a TCP endpoint to become available."""
+    log_info(f"Waiting for {name} at {host}:{port}...")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=5):
+                log_success(f"{name} is ready")
+                return True
+        except OSError:
             pass
         time.sleep(2)
         print(".", end="", flush=True)
@@ -664,7 +725,7 @@ def main() -> int:
         "--project-dir",
         type=Path,
         default=None,
-        help="Project directory (default: /tmp/phlo-golden-path)",
+        help="Project directory (default: ~/tmp/phlo-golden-path)",
     )
     # Optional service testing flags
     parser.add_argument(
@@ -712,6 +773,11 @@ def main() -> int:
         action="store_true",
         help="Skip preflight checks (not recommended)",
     )
+    parser.add_argument(
+        "--partition-date",
+        default=None,
+        help="Partition date for ingestion/transform (YYYY-MM-DD). Default: yesterday.",
+    )
     args = parser.parse_args()
 
     # Expand --test-all
@@ -723,8 +789,10 @@ def main() -> int:
         args.test_lineage = True
         args.test_openmetadata = True
 
-    project_name = "phlo-golden-path"
-    project_dir = args.project_dir or Path("/tmp") / project_name
+    default_project_name = "phlo-golden-path"
+    default_project_root = Path.home() / "tmp"
+    project_name = args.project_dir.name if args.project_dir else default_project_name
+    project_dir = args.project_dir.expanduser() if args.project_dir else default_project_root / project_name
     phlo_source = Path(__file__).resolve().parents[1]
 
     log_step("Golden Path E2E Workflow")
@@ -759,6 +827,13 @@ def main() -> int:
             return 1
     else:
         log_warning("Skipping preflight checks (--skip-preflight)")
+
+    bind_mount_ok, bind_mount_detail = verify_bind_mount_visibility(project_dir.parent)
+    if not bind_mount_ok:
+        log_error(f"Docker cannot bind-mount project parent: {project_dir.parent}")
+        log_warning(bind_mount_detail)
+        log_info("Choose a different --project-dir under your home directory and rerun.")
+        return 1
 
     # Clean up if exists
     if project_dir.exists():
@@ -814,9 +889,31 @@ def main() -> int:
             "TRINO_PORT": 8080,
             "MINIO_API_PORT": 9000,
             "MINIO_CONSOLE_PORT": 9001,
+            "NESSIE_PORT": 19120,
         }
         for key, default_port in core_port_defaults.items():
             env_updates[key] = str(resolve_port(key, default_port))
+
+        if args.mode == "dev":
+            # Force Dagster containers to install local workspace packages from /opt/phlo-dev.
+            env_updates["PHLO_DEV_EXTRA_PACKAGES"] = ",".join(
+                [
+                    "phlo-dagster",
+                    "phlo-dlt",
+                    "phlo-dbt",
+                    "phlo-iceberg",
+                    "phlo-trino",
+                    "phlo-postgres",
+                    "phlo-nessie",
+                    "phlo-minio",
+                    "phlo-hasura",
+                    "phlo-postgrest",
+                    "phlo-superset",
+                    "phlo-api",
+                    "phlo-observatory",
+                    "phlo-lineage",
+                ]
+            )
 
         if args.test_api:
             env_updates["HASURA_PORT"] = str(resolve_port("Hasura", 8082))
@@ -857,7 +954,8 @@ def main() -> int:
         log_step("Step 3: Create Workflow")
         run_phlo(
             [
-                "create-workflow",
+                "workflow",
+                "create",
                 "--type",
                 "ingestion",
                 "--domain",
@@ -913,33 +1011,33 @@ def main() -> int:
 
         # Create dbt profiles and mart model
         write_file(
-            project_dir / "transforms" / "dbt" / "profiles" / "profiles.yml",
-            textwrap.dedent("""
+            project_dir / "workflows" / "transforms" / "dbt" / "profiles" / "profiles.yml",
+            textwrap.dedent(f"""
                 phlo:
                   target: dev
                   outputs:
                     dev:
                       type: trino
                       method: none
-                      user: dagster
+                      user: {env_vars.get("TRINO_USER", "dagster")}
                       host: trino
                       port: 8080
-                      catalog: iceberg
-                      schema: raw
+                      catalog: {env_vars.get("TRINO_CATALOG", "iceberg")}
+                      schema: {env_vars.get("TRINO_SCHEMA", "raw")}
                       http_scheme: http
                       threads: 2
             """).lstrip(),
         )
 
         write_file(
-            project_dir / "transforms" / "dbt" / "models" / "sources" / "raw.yml",
-            textwrap.dedent("""
+            project_dir / "workflows" / "transforms" / "dbt" / "models" / "sources" / "raw.yml",
+            textwrap.dedent(f"""
                 version: 2
 
                 sources:
                   - name: raw
-                    database: iceberg
-                    schema: raw
+                    database: {env_vars.get("TRINO_CATALOG", "iceberg")}
+                    schema: {env_vars.get("TRINO_SCHEMA", "raw")}
                     tables:
                       - name: posts
                         columns:
@@ -951,7 +1049,7 @@ def main() -> int:
         )
 
         write_file(
-            project_dir / "transforms" / "dbt" / "models" / "marts" / "posts_mart.sql",
+            project_dir / "workflows" / "transforms" / "dbt" / "models" / "marts" / "posts_mart.sql",
             textwrap.dedent("""
                 {{ config(materialized='table', schema='marts') }}
                 select
@@ -997,7 +1095,7 @@ def main() -> int:
                             context=context,
                             trino=trino,
                             postgres=postgres,
-                            tables_to_publish={"posts_mart": "iceberg.raw_marts.posts_mart"},
+                            tables_to_publish={"posts_mart": "raw_marts.posts_mart"},
                             data_source="jsonplaceholder",
                         )
                     finally:
@@ -1020,15 +1118,30 @@ def main() -> int:
         trino_port = int(env_vars.get("TRINO_PORT", "8080"))
         postgres_port = int(env_vars.get("POSTGRES_PORT", "5432"))
         minio_port = int(env_vars.get("MINIO_API_PORT", "9000"))
+        nessie_port = int(env_vars.get("NESSIE_PORT", "19120"))
 
-        wait_for_http(f"http://127.0.0.1:{dagster_port}/server_info", name="Dagster", timeout=120)
-        wait_for_http(f"http://127.0.0.1:{minio_port}/minio/health/live", name="MinIO", timeout=60)
-        wait_for_http(f"http://127.0.0.1:{trino_port}/v1/info", name="Trino", timeout=120)
+        if not wait_for_tcp("127.0.0.1", dagster_port, name="Dagster", timeout=120):
+            return 1
+        if not wait_for_http(
+            f"http://127.0.0.1:{minio_port}/minio/health/live",
+            name="MinIO",
+            timeout=60,
+        ):
+            return 1
+        if not wait_for_http(f"http://127.0.0.1:{trino_port}/v1/info", name="Trino", timeout=120):
+            return 1
+        if not wait_for_tcp("127.0.0.1", postgres_port, name="Postgres", timeout=120):
+            return 1
+        if not wait_for_tcp("127.0.0.1", nessie_port, name="Nessie", timeout=120):
+            return 1
+
+        partition_date = args.partition_date or (date.today() - timedelta(days=1)).isoformat()
+        log_info(f"Using partition date: {partition_date}")
 
         # Step 5: Run DLT ingestion
         log_step("Step 5: Run DLT Ingestion")
         run_phlo(
-            ["materialize", "dlt_posts", "--partition", "2025-01-01"],
+            ["materialize", "dlt_posts", "--partition", partition_date],
             cwd=project_dir,
             timeout=1200,
             python_exe=project_python,
@@ -1052,7 +1165,7 @@ def main() -> int:
         # Step 7: Run dbt transform
         log_step("Step 7: Run dbt Transform")
         run_phlo(
-            ["materialize", "posts_mart", "--partition", "2025-01-01"],
+            ["materialize", "posts_mart", "--partition", partition_date],
             cwd=project_dir,
             timeout=1200,
             python_exe=project_python,
@@ -1077,7 +1190,9 @@ def main() -> int:
         # Step 9: Verify PostgreSQL
         log_step("Step 9: Verify PostgreSQL Data")
         import psycopg2
+        from psycopg2 import sql
 
+        mart_schema = env_vars.get("POSTGRES_MART_SCHEMA", "marts")
         pg_conn = psycopg2.connect(
             host="localhost",
             port=postgres_port,
@@ -1087,9 +1202,14 @@ def main() -> int:
         )
         try:
             with pg_conn.cursor() as cursor:
-                cursor.execute("SELECT count(*) FROM marts.posts_mart")
+                cursor.execute(
+                    sql.SQL("SELECT count(*) FROM {}.{}").format(
+                        sql.Identifier(mart_schema),
+                        sql.Identifier("posts_mart"),
+                    )
+                )
                 pg_count = cursor.fetchone()[0]
-                log_info(f"Row count in PostgreSQL marts.posts_mart: {pg_count}")
+                log_info(f"Row count in PostgreSQL {mart_schema}.posts_mart: {pg_count}")
                 if pg_count > 0:
                     log_success(f"PostgreSQL verified: {pg_count} rows")
                 else:

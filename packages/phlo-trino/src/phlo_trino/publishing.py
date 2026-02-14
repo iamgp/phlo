@@ -207,8 +207,7 @@ def _copy_table(
 ) -> tuple[int, int]:
     """Copy a single Trino table into Postgres and return row/column counts."""
 
-    source_table_ref = _quote_trino_qualified_name(source_table)
-    columns = _describe_trino_table(trino, source_table_ref)
+    columns, source_table_ref = _describe_trino_table(trino, source_table)
     column_defs = [
         sql.SQL("{} {}").format(sql.Identifier(name), sql.SQL(pg_type))
         for name, pg_type, _expr in columns
@@ -253,17 +252,85 @@ def _copy_table(
     return row_count, len(columns)
 
 
-def _describe_trino_table(trino: Any, source_table_ref: str) -> list[tuple[str, str, str]]:
-    """Return column names, Postgres types, and Trino select expressions."""
+def _trino_table_ref_candidates(name: str) -> list[str]:
+    """Build likely-valid Trino table references for introspection queries."""
 
-    with trino.cursor() as cursor:
-        cursor.execute(f"DESCRIBE {source_table_ref}")
-        rows = cursor.fetchall()
-    return [
-        (str(row[0]), *_trino_type_to_postgres(str(row[0]), str(row[1])))
-        for row in rows
-        if row and len(row) >= 2
-    ]
+    parts = _split_trino_qualified_name(name)
+    quoted_all = ".".join(
+        _quote_trino_identifier(part, was_quoted=was_quoted) for part, was_quoted in parts
+    )
+    plain_all = ".".join(part for part, _was_quoted in parts)
+
+    candidates: list[str] = [quoted_all, plain_all]
+    if len(parts) == 3:
+        schema_table_parts = parts[1:]
+        quoted_schema_table = ".".join(
+            _quote_trino_identifier(part, was_quoted=was_quoted)
+            for part, was_quoted in schema_table_parts
+        )
+        plain_schema_table = ".".join(part for part, _was_quoted in schema_table_parts)
+        candidates.extend([quoted_schema_table, plain_schema_table])
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        deduped.append(candidate)
+    return deduped
+
+
+def _describe_trino_table(trino: Any, source_table: str) -> tuple[list[tuple[str, str, str]], str]:
+    """Return column metadata and the resolved source table reference."""
+
+    last_error: Exception | None = None
+    table_refs = _trino_table_ref_candidates(source_table)
+    max_attempts = 5
+    retry_delay_seconds = 1.0
+
+    for attempt in range(max_attempts):
+        saw_retryable_error = False
+        for source_table_ref in table_refs:
+            for query in (f"DESCRIBE {source_table_ref}", f"SHOW COLUMNS FROM {source_table_ref}"):
+                try:
+                    with trino.cursor() as cursor:
+                        cursor.execute(query)
+                        rows = cursor.fetchall()
+                    columns = [
+                        (str(row[0]), *_trino_type_to_postgres(str(row[0]), str(row[1])))
+                        for row in rows
+                        if row and len(row) >= 2
+                    ]
+                    if columns:
+                        return columns, source_table_ref
+                except Exception as exc:  # noqa: BLE001 - fallback across valid table refs
+                    last_error = exc
+                    if _is_retryable_introspection_error(exc):
+                        saw_retryable_error = True
+                    continue
+        if attempt < max_attempts - 1 and saw_retryable_error:
+            time.sleep(retry_delay_seconds)
+            continue
+        break
+
+    if last_error is not None:
+        raise RuntimeError(f"Unable to introspect Trino table '{source_table}'") from last_error
+    raise RuntimeError(f"Unable to introspect Trino table '{source_table}'")
+
+
+def _is_retryable_introspection_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    retryable_snippets = (
+        "table_not_found",
+        "does not exist",
+        "no such table",
+        "server_starting_up",
+        "connection refused",
+        "temporarily unavailable",
+        "timed out",
+    )
+    return any(snippet in message for snippet in retryable_snippets)
 
 
 _TRINO_TO_PG_SIMPLE: dict[str, str] = {

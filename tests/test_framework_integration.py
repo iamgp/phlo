@@ -131,6 +131,36 @@ def test_build_definitions_with_user_workflows():
         assert defs.resources is not None
 
 
+def test_discover_workflows_collects_plain_dagster_assets():
+    """Test workflow discovery includes module-level Dagster @asset definitions."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workflows_path = Path(tmpdir) / "workflows"
+        publishing_dir = workflows_path / "publishing"
+        publishing_dir.mkdir(parents=True)
+        (workflows_path / "__init__.py").write_text("")
+        (publishing_dir / "__init__.py").write_text("")
+        (publishing_dir / "events.py").write_text(
+            """
+from dagster import asset
+
+@asset(group_name="publishing")
+def publish_demo_marts():
+    return {"rows": 1}
+"""
+        )
+
+        defs = discover_user_workflows(workflows_path, clear_registries=True)
+
+        assert isinstance(defs, Definitions)
+        asset_names: list[str] = []
+        for asset in list(defs.assets or []):
+            if hasattr(asset, "keys"):
+                asset_names.extend(str(key) for key in asset.keys)  # type: ignore[attr-defined]
+            elif hasattr(asset, "key"):
+                asset_names.append(asset.key.to_string())  # type: ignore[attr-defined]
+        assert any("publish_demo_marts" in name for name in asset_names)
+
+
 def test_build_definitions_without_workflows_path():
     """Test that build_definitions handles missing workflows gracefully."""
     with tempfile.TemporaryDirectory() as tmpdir:

@@ -2474,7 +2474,7 @@ wheels = [
 
 [[package]]
 name = "phlo"
-version = "0.3.0"
+version = "0.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -2709,7 +2709,7 @@ requires-dist = [
 
 [[package]]
 name = "phlo-dagster"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/phlo-dagster" }
 dependencies = [
     { name = "dagster-graphql" },
@@ -2987,7 +2987,7 @@ requires-dist = [
 
 [[package]]
 name = "phlo-nessie"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/phlo-nessie" }
 dependencies = [
     { name = "phlo" },
@@ -3041,7 +3041,7 @@ requires-dist = [
 
 [[package]]
 name = "phlo-observatory-example"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/phlo-observatory-example" }
 dependencies = [
     { name = "phlo" },
@@ -3114,6 +3114,7 @@ version = "0.1.0"
 source = { editable = "packages/phlo-postgres" }
 dependencies = [
     { name = "phlo" },
+    { name = "psycopg2-binary" },
     { name = "pyyaml" },
 ]
 
@@ -3126,6 +3127,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "phlo", editable = "." },
+    { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
@@ -3237,7 +3239,7 @@ requires-dist = [
 
 [[package]]
 name = "phlo-testing"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/phlo-testing" }
 dependencies = [
     { name = "dlt" },

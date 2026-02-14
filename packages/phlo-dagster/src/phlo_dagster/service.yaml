@@ -88,7 +88,7 @@ hooks:
     - name: dbt-compile
       requires: phlo_dbt
       command:
-        - python
+        - python3
         - -m
         - phlo_dbt.hooks
         - compile

@@ -66,6 +66,7 @@ def discover_user_workflows(
     assets = registry.list_assets()
     checks = registry.list_checks()
     resources = registry.list_resources()
+    module_defs = _collect_module_dagster_definitions(imported_modules)
     try:
         adapter = get_active_orchestrator()
     except PhloConfigError as exc:
@@ -73,14 +74,19 @@ def discover_user_workflows(
             "Orchestrator adapter not available, using Dagster fallback definitions: %s",
             exc,
         )
-        return _build_dagster_fallback_definitions(
+        capability_defs = _build_dagster_fallback_definitions(
             assets=assets, checks=checks, resources=resources
         )
+    else:
+        capability_defs = adapter.build_definitions(
+            assets=assets,
+            checks=checks,
+            resources=resources,
+        )
 
-    return adapter.build_definitions(
-        assets=assets,
-        checks=checks,
-        resources=resources,
+    return _merge_dagster_definitions(
+        capability_defs=capability_defs,
+        module_defs=module_defs,
     )
 
 
@@ -166,6 +172,84 @@ def _collect_dagster_extension_definitions() -> Any:
             logger.error("Error creating Dagster definitions from plugin %s: %s", plugin, exc)
 
     return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
+
+
+def _collect_module_dagster_definitions(imported_modules: list[Any]) -> Any | None:
+    try:
+        import dagster as dg
+    except Exception:  # noqa: BLE001 - optional dependency
+        return None
+
+    definitions: list[dg.Definitions] = []
+    seen_ids: set[int] = set()
+    unresolved_job_cls = getattr(dg, "UnresolvedAssetJobDefinition", None)
+    job_types: tuple[type[Any], ...]
+    if isinstance(unresolved_job_cls, type):
+        job_types = (dg.JobDefinition, unresolved_job_cls)
+    else:
+        job_types = (dg.JobDefinition,)
+
+    def _record(def_obj: object, bucket: list[Any]) -> None:
+        obj_id = id(def_obj)
+        if obj_id in seen_ids:
+            return
+        seen_ids.add(obj_id)
+        bucket.append(def_obj)
+
+    for module in imported_modules:
+        module_assets: list[Any] = []
+        module_checks: list[Any] = []
+        module_schedules: list[Any] = []
+        module_sensors: list[Any] = []
+        module_jobs: list[Any] = []
+
+        for value in vars(module).values():
+            if isinstance(value, dg.Definitions):
+                _record(value, definitions)
+                continue
+            if isinstance(value, dg.AssetsDefinition):
+                _record(value, module_assets)
+                continue
+            if isinstance(value, dg.AssetChecksDefinition):
+                _record(value, module_checks)
+                continue
+            if isinstance(value, dg.ScheduleDefinition):
+                _record(value, module_schedules)
+                continue
+            if isinstance(value, dg.SensorDefinition):
+                _record(value, module_sensors)
+                continue
+            if isinstance(value, job_types):
+                _record(value, module_jobs)
+
+        if any([module_assets, module_checks, module_schedules, module_sensors, module_jobs]):
+            definitions.append(
+                dg.Definitions(
+                    assets=module_assets or None,
+                    asset_checks=module_checks or None,
+                    schedules=module_schedules or None,
+                    sensors=module_sensors or None,
+                    jobs=module_jobs or None,
+                )
+            )
+
+    return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
+
+
+def _merge_dagster_definitions(*, capability_defs: Any, module_defs: Any | None) -> Any:
+    if module_defs is None:
+        return capability_defs
+
+    try:
+        import dagster as dg
+    except Exception:  # noqa: BLE001 - optional dependency
+        return capability_defs
+
+    if not isinstance(capability_defs, dg.Definitions):
+        return capability_defs
+    if not isinstance(module_defs, dg.Definitions):
+        return capability_defs
+    return dg.Definitions.merge(capability_defs, module_defs)
 
 
 def _ensure_core_resources(definitions: Any) -> Any:
