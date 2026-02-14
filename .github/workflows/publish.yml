@@ -108,6 +108,7 @@ jobs:
           packages-dir: dist
           password: ${{ env.PYPI_API_TOKEN }}
           skip-existing: true
+          verbose: true
         # For first release of many new projects, an account-scoped token is simpler than per-project trusted setup.
 
       - name: Publish to PyPI (trusted publisher)
@@ -116,4 +117,5 @@ jobs:
         with:
           packages-dir: dist
           skip-existing: true
+          verbose: true
         # Uses trusted publishing - configure at pypi.org/manage/project/phlo/settings/publishing/
