@@ -78,7 +78,7 @@ hooks:
   post_start:
     - name: init-branches
       command:
-        - python
+        - python3
         - -m
         - phlo_nessie.hooks
         - init-branches
