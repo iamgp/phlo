@@ -12,7 +12,15 @@ const execAsync = promisify(exec)
 const pluginCommand = process.env.PHLO_PLUGIN_COMMAND ?? 'phlo'
 const registryUrl =
   process.env.PHLO_PLUGIN_REGISTRY_URL ??
-  'https://registry.phlohouse.com/plugins.json'
+  'https://phlohouse.com/plugins.json'
+const defaultRegistryTimeoutMs = 5000
+const registryTimeoutMsRaw = Number(
+  process.env.PHLO_PLUGIN_REGISTRY_TIMEOUT_MS ?? defaultRegistryTimeoutMs,
+)
+const registryTimeoutMs =
+  Number.isFinite(registryTimeoutMsRaw) && registryTimeoutMsRaw > 0
+    ? registryTimeoutMsRaw
+    : defaultRegistryTimeoutMs
 
 export interface PluginInfo {
   name: string
@@ -53,39 +61,79 @@ function parseCliOutput(stdout: string): {
 }
 
 async function fetchRegistryPlugins(): Promise<Array<PluginInfo>> {
-  const response = await fetch(registryUrl)
-  if (!response.ok) {
-    throw new Error(`Registry request failed: ${response.status}`)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => {
+    controller.abort()
+  }, registryTimeoutMs)
+  try {
+    const response = await fetch(registryUrl, { signal: controller.signal })
+    if (!response.ok) {
+      throw new Error(`Registry request failed: ${response.status}`)
+    }
+    const payload = (await response.json()) as RegistryPayload
+    const entries = payload.plugins ?? {}
+    return Object.entries(entries).map(([name, info]) => ({
+      name,
+      type: info.type ?? 'service',
+      version: info.version ?? 'unknown',
+      description: info.description,
+      author: info.author,
+      homepage: info.homepage,
+      tags: info.tags,
+      verified: info.verified,
+      core: info.core,
+      package: info.package,
+    }))
+  } finally {
+    clearTimeout(timeout)
   }
-  const payload = (await response.json()) as RegistryPayload
-  const entries = payload.plugins ?? {}
-  return Object.entries(entries).map(([name, info]) => ({
-    name,
-    type: info.type ?? 'service',
-    version: info.version ?? 'unknown',
-    description: info.description,
-    author: info.author,
-    homepage: info.homepage,
-    tags: info.tags,
-    verified: info.verified,
-    core: info.core,
-    package: info.package,
-  }))
+}
+
+export async function resolvePluginLists(dependencies: {
+  runPluginListCommand: () => Promise<string>
+  fetchRegistry: () => Promise<Array<PluginInfo>>
+}): Promise<{
+  installed: Array<PluginInfo>
+  available: Array<PluginInfo>
+}> {
+  let installed: Array<PluginInfo> = []
+  let available: Array<PluginInfo> = []
+
+  try {
+    const stdout = await dependencies.runPluginListCommand()
+    const parsed = parseCliOutput(stdout)
+    installed = parsed.installed
+    available = parsed.available
+  } catch {
+    // Fall back to registry when CLI command is unavailable in the runtime image.
+  }
+
+  if (available.length > 0) {
+    return { installed, available }
+  }
+
+  try {
+    available = await dependencies.fetchRegistry()
+  } catch {
+    // Offline / DNS failures should not break the Plugins UI.
+  }
+
+  return { installed, available }
 }
 
 async function getPluginLists(): Promise<{
   installed: Array<PluginInfo>
   available: Array<PluginInfo>
 }> {
-  try {
-    const { stdout } = await execAsync(
-      `${pluginCommand} plugin list --all --json`,
-    )
-    return parseCliOutput(stdout)
-  } catch (error) {
-    const available = await fetchRegistryPlugins()
-    return { installed: [], available }
-  }
+  return resolvePluginLists({
+    runPluginListCommand: async () => {
+      const { stdout } = await execAsync(
+        `${pluginCommand} plugin list --all --json`,
+      )
+      return stdout
+    },
+    fetchRegistry: fetchRegistryPlugins,
+  })
 }
 
 export const getPlugins = createServerFn().handler(
