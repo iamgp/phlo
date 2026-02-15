@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { resolvePluginLists } from './plugins.server'
+import { createRegistryFetcherWithCache, resolvePluginLists } from './plugins.server'
 import type { PluginInfo } from './plugins.server'
 
 function plugin(
@@ -116,5 +116,131 @@ describe('plugins.server resolvePluginLists', () => {
 
     expect(result.installed).toEqual([])
     expect(result.available).toEqual([])
+  })
+})
+
+describe('plugins.server createRegistryFetcherWithCache', () => {
+  it('returns cached registry data within ttl', async () => {
+    let nowMs = 1_000
+    const fetchRegistry = vi
+      .fn()
+      .mockResolvedValue([
+        plugin({ name: 'phlo-dbt', type: 'transform', version: '0.1.1' }),
+      ])
+    const fetchWithCache = createRegistryFetcherWithCache({
+      fetchRegistry,
+      ttlMs: 300_000,
+      staleOnErrorMs: 86_400_000,
+      now: () => nowMs,
+    })
+
+    const first = await fetchWithCache()
+    nowMs += 30_000
+    const second = await fetchWithCache()
+
+    expect(first).toEqual(second)
+    expect(fetchRegistry).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes registry data after ttl expiry', async () => {
+    let nowMs = 1_000
+    const fetchRegistry = vi
+      .fn()
+      .mockResolvedValueOnce([
+        plugin({ name: 'phlo-dbt', type: 'transform', version: '0.1.1' }),
+      ])
+      .mockResolvedValueOnce([
+        plugin({ name: 'phlo-dbt', type: 'transform', version: '0.1.2' }),
+      ])
+    const fetchWithCache = createRegistryFetcherWithCache({
+      fetchRegistry,
+      ttlMs: 60_000,
+      staleOnErrorMs: 86_400_000,
+      now: () => nowMs,
+    })
+
+    const first = await fetchWithCache()
+    nowMs += 61_000
+    const second = await fetchWithCache()
+
+    expect(first[0].version).toBe('0.1.1')
+    expect(second[0].version).toBe('0.1.2')
+    expect(fetchRegistry).toHaveBeenCalledTimes(2)
+  })
+
+  it('serves stale cache when refresh fails inside stale window', async () => {
+    let nowMs = 1_000
+    const fetchRegistry = vi
+      .fn()
+      .mockResolvedValueOnce([
+        plugin({ name: 'phlo-dlt', type: 'source', version: '0.1.1' }),
+      ])
+      .mockRejectedValueOnce(new Error('network down'))
+    const fetchWithCache = createRegistryFetcherWithCache({
+      fetchRegistry,
+      ttlMs: 60_000,
+      staleOnErrorMs: 86_400_000,
+      now: () => nowMs,
+    })
+
+    const first = await fetchWithCache()
+    nowMs += 61_000
+    const second = await fetchWithCache()
+
+    expect(first).toEqual(second)
+    expect(fetchRegistry).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws when stale cache is older than stale-on-error window', async () => {
+    let nowMs = 1_000
+    const fetchRegistry = vi
+      .fn()
+      .mockResolvedValueOnce([
+        plugin({ name: 'phlo-dlt', type: 'source', version: '0.1.1' }),
+      ])
+      .mockRejectedValueOnce(new Error('registry unavailable'))
+    const fetchWithCache = createRegistryFetcherWithCache({
+      fetchRegistry,
+      ttlMs: 60_000,
+      staleOnErrorMs: 120_000,
+      now: () => nowMs,
+    })
+
+    await fetchWithCache()
+    nowMs += 200_000
+
+    await expect(fetchWithCache()).rejects.toThrow('registry unavailable')
+  })
+
+  it('deduplicates concurrent refreshes with single in-flight request', async () => {
+    const nowMs = 1_000
+    let releaseFetch: (() => void) | null = null
+    const fetchRegistry = vi.fn().mockImplementation(
+      () =>
+        new Promise<Array<PluginInfo>>((resolve) => {
+          releaseFetch = () =>
+            resolve([
+              plugin({
+                name: 'phlo-quality',
+                type: 'quality',
+                version: '0.1.1',
+              }),
+            ])
+        }),
+    )
+    const fetchWithCache = createRegistryFetcherWithCache({
+      fetchRegistry,
+      ttlMs: 60_000,
+      staleOnErrorMs: 86_400_000,
+      now: () => nowMs,
+    })
+
+    const first = fetchWithCache()
+    const second = fetchWithCache()
+    expect(fetchRegistry).toHaveBeenCalledTimes(1)
+    releaseFetch?.()
+
+    const [a, b] = await Promise.all([first, second])
+    expect(a).toEqual(b)
   })
 })
