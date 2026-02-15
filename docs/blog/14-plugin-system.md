@@ -962,66 +962,6 @@ class PhloConfig:
 3. Enable the plugin and re-run `phlo plugin list`.
 4. Verify assets or resources are registered in Dagster.
 
-## Common Issues
-
-- **Plugins not discovered**
-
-```bash
-phlo plugin list --type assets
-```
-
-
-Fix: confirm the package is installed and entry points are registered.
-
-- **Entry point group is incorrect**
-
-```bash
-uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
-```
-
-
-Fix: update `pyproject.toml` to use the correct group names.
-
-- **Plugin import errors at startup**
-
-```bash
-uv run python -c "import phlo_plugins"
-```
-
-
-Fix: fix missing dependencies or module paths, and reinstall the plugin package.
-
-See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
-
-## See Also
-
-See also: [Part 13: Capability Primitives](13-capability-primitives.md), [Part 15: Observatory Extensions](15-observatory-extensions.md), [Part 16: Building Custom Packages](16-building-custom-packages.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
-
-
-## Summary
-
-The plugin system lets you extend Phlo without modifying core code:
-
-- **Source Connectors**: Fetch data from any system
-- **Quality Checks**: Encode custom business rules
-- **Transforms**: Reusable transformation logic
-
-Plugins are discovered through Python entry points, managed via CLI, and used alongside Phlo decorators and assets.
-
-When to use plugins:
-
-- You need a data source Phlo doesn't support
-- You have organisation-specific quality rules
-- You want to share reusable logic across teams
-
-When NOT to use plugins:
-
-- One-off transformations (just write Python)
-- Simple quality checks (use built-in checks)
-- Anything that could be a dbt model
-
----
-
 ## Try the Example Plugin
 
 A complete working example layout:
@@ -1102,6 +1042,64 @@ Discovery Functions:
 14. **Plugin system** ← You are here
 
 Happy plugin development!
+
+## Common Issues
+
+- **Plugins not discovered**
+
+```bash
+phlo plugin list --type assets
+```
+
+
+Fix: confirm the package is installed and entry points are registered.
+
+- **Entry point group is incorrect**
+
+```bash
+uv run python -c "import importlib.metadata as m; print(m.entry_points(group='phlo.plugins.assets'))"
+```
+
+
+Fix: update `pyproject.toml` to use the correct group names.
+
+- **Plugin import errors at startup**
+
+```bash
+uv run python -c "import phlo_plugins"
+```
+
+
+Fix: fix missing dependencies or module paths, and reinstall the plugin package.
+
+See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnostics.
+
+## See Also
+
+See also: [Part 13: Capability Primitives](13-capability-primitives.md), [Part 15: Observatory Extensions](15-observatory-extensions.md), [Part 16: Building Custom Packages](16-building-custom-packages.md). Reference: [Phlo API Reference](../reference/phlo-api.md).
+
+
+## Summary
+
+The plugin system lets you extend Phlo without modifying core code:
+
+- **Source Connectors**: Fetch data from any system
+- **Quality Checks**: Encode custom business rules
+- **Transforms**: Reusable transformation logic
+
+Plugins are discovered through Python entry points, managed via CLI, and used alongside Phlo decorators and assets.
+
+When to use plugins:
+
+- You need a data source Phlo doesn't support
+- You have organisation-specific quality rules
+- You want to share reusable logic across teams
+
+When NOT to use plugins:
+
+- One-off transformations (just write Python)
+- Simple quality checks (use built-in checks)
+- Anything that could be a dbt model
 
 ## Next Steps
 
