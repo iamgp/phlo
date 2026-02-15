@@ -212,7 +212,7 @@ health-observability:
 # API health check
 health-api:
 	@echo "=== API Stack Health Check ==="
-	@if docker ps --format '{{.Names}}' | grep -q cascade-api; then \
+	@if docker ps --format '{{.Names}}' | grep -q phlo-api; then \
 		echo "FastAPI:"; \
 		curl -sf http://localhost:$${API_PORT:-10010}/health > /dev/null && echo "  Ready" || echo "  Not ready"; \
 		echo "  Docs: http://localhost:$${API_PORT:-10010}/docs"; \
