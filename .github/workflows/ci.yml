@@ -51,7 +51,7 @@ jobs:
         run: uv sync --dev
 
       - name: Type check with ty
-        run: uv run ty check src/phlo
+        run: make typecheck-python
 
   test:
     runs-on: ubuntu-latest
