@@ -1,5 +1,16 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { Boxes, LayoutDashboard, Settings, Terminal } from 'lucide-react'
+import {
+  Boxes,
+  Database,
+  FileStack,
+  GitBranch,
+  LayoutDashboard,
+  Network,
+  ScrollText,
+  Settings,
+  Shield,
+  Terminal,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import {
@@ -31,8 +42,15 @@ type NavItem = {
 const navItems: Array<NavItem> = [
   { to: '/', label: 'Dashboard', icon: <LayoutDashboard /> },
   { to: '/hub', label: 'Hub', icon: <Boxes /> },
+  { to: '/data', label: 'Data Explorer', icon: <Database /> },
+  { to: '/graph', label: 'Graph', icon: <Network /> },
+  { to: '/quality', label: 'Quality', icon: <Shield /> },
+  { to: '/logs', label: 'Logs', icon: <ScrollText /> },
+  { to: '/branches', label: 'Branches', icon: <GitBranch /> },
+  { to: '/assets', label: 'Assets', icon: <FileStack /> },
   { to: '/settings', label: 'Settings', icon: <Settings /> },
 ]
+export const coreNavItems = navItems
 
 export function AppSidebar() {
   const navigate = useNavigate()

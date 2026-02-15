@@ -20,6 +20,9 @@ FROM node:24-alpine AS runner
 
 WORKDIR /app
 
+# Required for service discovery/status code paths that run `docker ps`.
+RUN apk add --no-cache docker-cli
+
 # Copy built application
 COPY --from=builder /app/.output /app/.output
 COPY --from=builder /app/package*.json ./

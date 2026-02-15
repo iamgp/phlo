@@ -15,6 +15,10 @@ import { createServerFn } from '@tanstack/react-start'
 import { parse as parseYaml } from 'yaml'
 
 import { authMiddleware } from '@/server/auth.server'
+import {
+  getComposeLabelValue,
+  matchesComposeProject,
+} from '@/server/docker-labels'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
@@ -29,6 +33,7 @@ let servicesCache: {
   timestamp: number
   data: Array<ServiceWithStatus>
 } | null = null
+let composeProjectCache: string | null | undefined
 
 const serviceMetadata: Record<
   string,
@@ -199,6 +204,40 @@ async function loadNativeProcesses(): Promise<
   } catch {
     return {}
   }
+}
+
+async function getComposeProjectName(): Promise<string | null> {
+  if (composeProjectCache !== undefined) {
+    return composeProjectCache
+  }
+
+  const explicitProject =
+    process.env.PHLO_COMPOSE_PROJECT ?? process.env.COMPOSE_PROJECT_NAME
+  if (explicitProject) {
+    composeProjectCache = explicitProject
+    return composeProjectCache
+  }
+
+  const currentContainerId = process.env.HOSTNAME
+  if (!currentContainerId) {
+    composeProjectCache = null
+    return composeProjectCache
+  }
+
+  try {
+    const { stdout } = await execFileAsync('docker', [
+      'inspect',
+      currentContainerId,
+      '--format',
+      '{{ index .Config.Labels "com.docker.compose.project" }}',
+    ])
+    const project = String(stdout).trim()
+    composeProjectCache = project || null
+  } catch {
+    composeProjectCache = null
+  }
+
+  return composeProjectCache
 }
 
 // Get the packages directory path for local fallback discovery.
@@ -414,6 +453,7 @@ async function discoverServicesFromContainers(): Promise<
   Array<ServiceDefinition>
 > {
   try {
+    const composeProject = await getComposeProjectName()
     const { stdout } = await execAsync('docker ps -a --format json')
     const services: Array<ServiceDefinition> = []
     const seen = new Set<string>()
@@ -426,8 +466,12 @@ async function discoverServicesFromContainers(): Promise<
       }
 
       const labels = container.Labels || ''
-      const serviceMatch = labels.match(/com\.docker\.compose\.service=([^,]+)/)
-      const serviceName = serviceMatch ? serviceMatch[1] : ''
+      if (!matchesComposeProject(labels, composeProject)) {
+        continue
+      }
+
+      const serviceName =
+        getComposeLabelValue(labels, 'com.docker.compose.service') || ''
       if (!serviceName || seen.has(serviceName)) {
         continue
       }
@@ -478,6 +522,21 @@ function parsePorts(
     })
   }
   return ports
+}
+
+function statusPriority(status: DockerContainerStatus['status']): number {
+  switch (status) {
+    case 'running':
+      return 4
+    case 'unhealthy':
+      return 3
+    case 'starting':
+      return 2
+    case 'stopped':
+      return 1
+    default:
+      return 0
+  }
 }
 
 async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
@@ -531,10 +590,11 @@ async function loadEnvValues(): Promise<Record<string, string>> {
 export const getDockerStatus = createServerFn().handler(
   async (): Promise<Array<DockerContainerStatus>> => {
     try {
+      const composeProject = await getComposeProjectName()
       // Use docker ps to get ALL running containers (not compose-specific)
       const { stdout } = await execAsync('docker ps -a --format json')
 
-      const containers: Array<DockerContainerStatus> = []
+      const containersByService = new Map<string, DockerContainerStatus>()
 
       // Docker outputs one JSON object per line
       for (const line of stdout.trim().split('\n')) {
@@ -564,26 +624,36 @@ export const getDockerStatus = createServerFn().handler(
 
           // Get service name from docker compose label
           const labels = container.Labels || ''
-          const serviceMatch = labels.match(
-            /com\.docker\.compose\.service=([^,]+)/,
-          )
-          const serviceName = serviceMatch ? serviceMatch[1] : ''
+          if (!matchesComposeProject(labels, composeProject)) {
+            continue
+          }
+
+          const serviceName =
+            getComposeLabelValue(labels, 'com.docker.compose.service') || ''
 
           if (serviceName) {
-            containers.push({
+            const parsedStatus: DockerContainerStatus = {
               name: container.Names || container.Name || '',
               service: serviceName,
               status,
               health: container.Health,
               ports: container.Ports,
-            })
+            }
+            const existing = containersByService.get(serviceName)
+            if (
+              !existing ||
+              statusPriority(parsedStatus.status) >
+                statusPriority(existing.status)
+            ) {
+              containersByService.set(serviceName, parsedStatus)
+            }
           }
         } catch {
           // Skip invalid JSON lines
         }
       }
 
-      return containers
+      return Array.from(containersByService.values())
     } catch (error) {
       console.error('Error getting Docker status:', error)
       return []
@@ -675,9 +745,22 @@ async function findContainerByService(
   serviceName: string,
 ): Promise<string | null> {
   try {
-    const { stdout } = await execAsync(
-      `docker ps -a --filter "label=com.docker.compose.service=${serviceName}" --format "{{.ID}}"`,
-    )
+    const composeProject = await getComposeProjectName()
+    const args = [
+      'ps',
+      '-a',
+      '--filter',
+      `label=com.docker.compose.service=${serviceName}`,
+    ]
+    if (composeProject) {
+      args.push(
+        '--filter',
+        `label=com.docker.compose.project=${composeProject}`,
+      )
+    }
+    args.push('--format', '{{.ID}}')
+
+    const { stdout } = await execFileAsync('docker', args)
     const containerId = stdout.trim().split('\n')[0]
     return containerId || null
   } catch {
