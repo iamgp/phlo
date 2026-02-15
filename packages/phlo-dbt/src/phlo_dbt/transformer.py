@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import time
 from collections.abc import Callable, Mapping
@@ -18,6 +19,23 @@ from phlo.hooks import (
     TransformEventEmitter,
 )
 from phlo_dbt.translator import DbtSpecTranslator
+
+
+def _parse_dbt_summary(stdout: str) -> dict[str, int]:
+    """Parse dbt build summary line: PASS=N WARN=N ERROR=N SKIP=N TOTAL=N."""
+    match = re.search(
+        r"PASS=(\d+)\s+WARN=(\d+)\s+ERROR=(\d+)\s+SKIP=(\d+)\s+TOTAL=(\d+)",
+        stdout,
+    )
+    if not match:
+        return {"pass": 0, "warn": 0, "error": 0, "skip": 0, "total": 0}
+    return {
+        "pass": int(match.group(1)),
+        "warn": int(match.group(2)),
+        "error": int(match.group(3)),
+        "skip": int(match.group(4)),
+        "total": int(match.group(5)),
+    }
 
 
 def _latest_project_mtime(dbt_project_path: Path) -> float:
@@ -308,12 +326,13 @@ class DbtTransformer(BaseTransformer):
                 self._run_command(docs_args)
                 # We don't fail hard on docs gen failure usually
 
+            summary = _parse_dbt_summary(result.stdout)
             return TransformationResult(
                 status="success",
-                models_built=-1,  # TODO: Parse from stdout if needed
-                models_failed=0,
-                tests_passed=-1,
-                tests_failed=0,
+                models_built=summary["pass"],
+                models_failed=summary["error"],
+                tests_passed=summary["pass"],
+                tests_failed=summary["error"],
                 metadata={"total_elapsed_seconds": elapsed, "dbt_output": result.stdout},
             )
 
