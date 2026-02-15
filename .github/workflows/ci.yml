@@ -79,7 +79,7 @@ jobs:
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
           SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
         run: |
-          uv run pytest -m "not integration" --tb=short
+          uv run pytest -m "not integration" --tb=short --cov=phlo --cov-report=term-missing
 
   lint-sql:
     runs-on: ubuntu-latest
