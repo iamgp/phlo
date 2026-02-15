@@ -14,13 +14,32 @@ const registryUrl =
   process.env.PHLO_PLUGIN_REGISTRY_URL ??
   'https://phlohouse.com/plugins.json'
 const defaultRegistryTimeoutMs = 5000
+const defaultRegistryCacheTtlMs = 5 * 60 * 1000
+const defaultRegistryStaleOnErrorMs = 24 * 60 * 60 * 1000
+
+function parsePositiveDurationMs(
+  rawValue: string | number | undefined,
+  fallbackMs: number,
+): number {
+  const parsed = Number(rawValue ?? fallbackMs)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackMs
+}
+
 const registryTimeoutMsRaw = Number(
   process.env.PHLO_PLUGIN_REGISTRY_TIMEOUT_MS ?? defaultRegistryTimeoutMs,
 )
-const registryTimeoutMs =
-  Number.isFinite(registryTimeoutMsRaw) && registryTimeoutMsRaw > 0
-    ? registryTimeoutMsRaw
-    : defaultRegistryTimeoutMs
+const registryTimeoutMs = parsePositiveDurationMs(
+  registryTimeoutMsRaw,
+  defaultRegistryTimeoutMs,
+)
+const registryCacheTtlMs = parsePositiveDurationMs(
+  process.env.PHLO_PLUGIN_REGISTRY_CACHE_TTL_MS,
+  defaultRegistryCacheTtlMs,
+)
+const registryStaleOnErrorMs = parsePositiveDurationMs(
+  process.env.PHLO_PLUGIN_REGISTRY_STALE_ON_ERROR_MS,
+  defaultRegistryStaleOnErrorMs,
+)
 
 export interface PluginInfo {
   name: string
@@ -89,6 +108,61 @@ async function fetchRegistryPlugins(): Promise<Array<PluginInfo>> {
   }
 }
 
+export function createRegistryFetcherWithCache(dependencies: {
+  fetchRegistry: () => Promise<Array<PluginInfo>>
+  ttlMs: number
+  staleOnErrorMs: number
+  now?: () => number
+}): () => Promise<Array<PluginInfo>> {
+  let cache: { data: Array<PluginInfo>; fetchedAtMs: number } | null = null
+  let inFlight: Promise<Array<PluginInfo>> | null = null
+
+  const now = dependencies.now ?? Date.now
+  const ttlMs = parsePositiveDurationMs(
+    dependencies.ttlMs,
+    defaultRegistryCacheTtlMs,
+  )
+  const staleOnErrorMs = parsePositiveDurationMs(
+    dependencies.staleOnErrorMs,
+    defaultRegistryStaleOnErrorMs,
+  )
+
+  return async () => {
+    const currentTimeMs = now()
+    if (cache && currentTimeMs - cache.fetchedAtMs < ttlMs) {
+      return cache.data
+    }
+
+    if (inFlight) {
+      return inFlight
+    }
+
+    inFlight = (async () => {
+      try {
+        const fresh = await dependencies.fetchRegistry()
+        cache = { data: fresh, fetchedAtMs: now() }
+        return fresh
+      } catch (error) {
+        const staleTimeMs = now()
+        if (cache && staleTimeMs - cache.fetchedAtMs < staleOnErrorMs) {
+          return cache.data
+        }
+        throw error
+      } finally {
+        inFlight = null
+      }
+    })()
+
+    return inFlight
+  }
+}
+
+const fetchRegistryPluginsCached = createRegistryFetcherWithCache({
+  fetchRegistry: fetchRegistryPlugins,
+  ttlMs: registryCacheTtlMs,
+  staleOnErrorMs: registryStaleOnErrorMs,
+})
+
 export async function resolvePluginLists(dependencies: {
   runPluginListCommand: () => Promise<string>
   fetchRegistry: () => Promise<Array<PluginInfo>>
@@ -132,7 +206,7 @@ async function getPluginLists(): Promise<{
       )
       return stdout
     },
-    fetchRegistry: fetchRegistryPlugins,
+    fetchRegistry: fetchRegistryPluginsCached,
   })
 }
 
