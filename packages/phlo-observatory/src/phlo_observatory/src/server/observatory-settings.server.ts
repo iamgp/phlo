@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { Register, ValidateSerializableInput } from '@tanstack/router-core'
+import { z } from 'zod'
 
+import { observatorySettingsSchema } from '@/lib/observatorySettings'
 import { authMiddleware } from '@/server/auth.server'
 import { apiGet, apiPut } from '@/server/phlo-api'
 
@@ -25,8 +27,7 @@ export const getObservatorySettings = createServerFn()
 
 export const putObservatorySettings = createServerFn()
   .middleware([authMiddleware])
-  // TODO: Keep lightweight client validation; backend enforces the schema.
-  .inputValidator((input: { settings: Record<string, unknown> }) => input)
+  .inputValidator(z.object({ settings: observatorySettingsSchema }).parse)
   .handler(
     async ({ data }): Promise<ObservatorySettingsResponseSerializable> => {
       const response = await apiPut<ObservatorySettingsResponse>(
