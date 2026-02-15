@@ -22,7 +22,7 @@ from phlo.logging import setup_logging
 
 @click.group()
 @click.version_option(version="1.0.0", prog_name="phlo")
-def cli():
+def cli() -> None:
     """
     Phlo - Modern Data Lakehouse Framework
 
