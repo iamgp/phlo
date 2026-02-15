@@ -1,6 +1,7 @@
 """List command for showing available services."""
 
 import json
+import subprocess
 from pathlib import Path
 
 import click
@@ -71,8 +72,7 @@ def list_cmd(show_all: bool, output_json: bool):
                         "status": container_info.get("State", ""),
                         "ports": container_info.get("Ports", ""),
                     }
-    except Exception:
-        # Silently handle errors - services list should work even without docker
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
         running_containers = {}
 
     if output_json:

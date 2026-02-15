@@ -369,7 +369,7 @@ def start_cmd(
         click.echo("Error: docker command not found.", err=True)
         click.echo("Please install Docker: https://docs.docker.com/get-docker/", err=True)
         sys.exit(1)
-    except Exception:
-        click.echo("Error: docker compose timed out.", err=True)
+    except Exception as exc:
+        click.echo(f"Error: docker compose failed unexpectedly: {exc}", err=True)
         click.echo(f"Command: {' '.join(cmd)}", err=True)
         sys.exit(1)
