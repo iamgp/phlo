@@ -842,12 +842,12 @@ def iceberg_io_manager(iceberg: IcebergResource):
 2. Restart Dagster:
 
    ```bash
-   docker-compose restart dagster-webserver dagster-daemon
+   phlo services restart dagster
    ```
 
 3. Check logs:
    ```bash
-   docker-compose logs dagster-webserver
+   phlo services logs dagster
    ```
 
 ### Asset Fails to Materialize

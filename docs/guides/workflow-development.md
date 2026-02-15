@@ -454,7 +454,7 @@ No manual registration is needed. Phlo discovers all Python files under `workflo
 
 ```bash
 # Reload Dagster
-docker-compose restart dagster-webserver dagster-daemon
+phlo services restart dagster
 
 # Open Dagster UI
 # Navigate to Assets → dlt_weather_data
