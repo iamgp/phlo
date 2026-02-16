@@ -10,7 +10,10 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import Any
 
+from phlo.logging import get_logger
 from phlo.plugins.base.plugin import Plugin
+
+logger = get_logger(__name__)
 
 
 class SourceConnectorPlugin(Plugin, ABC):
@@ -133,4 +136,5 @@ class SourceConnectorPlugin(Plugin, ABC):
         except StopIteration:
             return True
         except Exception:
+            logger.debug("source_connectivity_check_failed")
             return False

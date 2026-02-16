@@ -39,9 +39,16 @@ def _resolve_container_name(service_name: str, project_name: str) -> str:
     return infra.container_naming_pattern.format(project=project_name, service=service_name)
 
 
-def _list_running_containers() -> list[str]:
+def _list_running_containers(project_name: str) -> list[str]:
     result = subprocess.run(
-        ["docker", "ps", "--format", "{{.Names}}"],
+        [
+            "docker",
+            "ps",
+            "--filter",
+            f"label=com.docker.compose.project={project_name}",
+            "--format",
+            "{{.Names}}",
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -54,7 +61,7 @@ def find_dagster_container(project_name: str) -> str:
     candidates = dagster_container_candidates(project_name, configured_name)
     preferred = [candidates.configured, candidates.new, candidates.legacy]
 
-    existing = _list_running_containers()
+    existing = _list_running_containers(project_name)
     chosen = select_first_existing(preferred, existing)
     if chosen:
         return chosen

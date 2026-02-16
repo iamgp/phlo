@@ -6,6 +6,7 @@ from typing import cast
 
 import pytest
 import yaml
+from click.testing import CliRunner
 from phlo_dagster.containers import find_dagster_container
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path, get_profile_service_names
@@ -58,7 +59,7 @@ def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.Monk
 
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: ["myproj-dagster-webserver-1"],
+        lambda _project: ["myproj-dagster-webserver-1"],
     )
 
     assert find_dagster_container("myproj") == "myproj-dagster-webserver-1"
@@ -73,7 +74,7 @@ def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: ["myproj-dagster-1"],
+        lambda _project: ["myproj-dagster-1"],
     )
 
     assert find_dagster_container("myproj") == "myproj-dagster-1"
@@ -294,3 +295,201 @@ def test_run_service_hooks_prefers_project_venv_python(
 
     assert calls
     assert calls[0][0] == str(venv_python)
+
+
+def test_find_dagster_container_falls_back_to_legacy_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "phlo_dagster.containers._resolve_container_name",
+        lambda service, project: "cfg",
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.containers._list_running_containers",
+        lambda _project: ["myproj-dagster-webserver-1"],
+    )
+    assert find_dagster_container("myproj") == "myproj-dagster-webserver-1"
+
+
+def test_find_dagster_container_regex_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "phlo_dagster.containers._resolve_container_name",
+        lambda service, project: "cfg",
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.containers._list_running_containers",
+        lambda _project: ["myproj-custom-dagster-web-1"],
+    )
+    assert find_dagster_container("myproj") == "myproj-custom-dagster-web-1"
+
+
+def test_find_dagster_container_regex_excludes_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "phlo_dagster.containers._resolve_container_name",
+        lambda service, project: "cfg",
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.containers._list_running_containers",
+        lambda _project: ["myproj-dagster-daemon-1"],
+    )
+    with pytest.raises(RuntimeError, match="Could not find running Dagster"):
+        find_dagster_container("myproj")
+
+
+def test_find_dagster_container_raises_when_no_containers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "phlo_dagster.containers._resolve_container_name",
+        lambda service, project: "cfg",
+    )
+    monkeypatch.setattr(
+        "phlo_dagster.containers._list_running_containers",
+        lambda _project: [],
+    )
+    with pytest.raises(RuntimeError, match="Could not find running Dagster"):
+        find_dagster_container("myproj")
+
+
+def test_dagster_container_candidates_structure() -> None:
+    from phlo_dagster.containers import dagster_container_candidates
+
+    candidates = dagster_container_candidates("demo", "demo-dagster-webserver-1")
+    assert candidates.configured == "demo-dagster-webserver-1"
+    assert candidates.new == "demo-dagster-1"
+    assert candidates.legacy == "demo-dagster-webserver-1"
+
+
+def test_dagster_container_candidates_no_configured() -> None:
+    from phlo_dagster.containers import dagster_container_candidates
+
+    candidates = dagster_container_candidates("demo", None)
+    assert candidates.configured == ""
+    assert candidates.new == "demo-dagster-1"
+
+
+def test_select_first_existing_returns_first_match() -> None:
+    from phlo_dagster.containers import select_first_existing
+
+    result = select_first_existing(
+        ["a", "b", "c"],
+        ["c", "b"],
+    )
+    assert result == "b"
+
+
+def test_select_first_existing_returns_none_when_no_match() -> None:
+    from phlo_dagster.containers import select_first_existing
+
+    result = select_first_existing(["a", "b"], ["x", "y"])
+    assert result is None
+
+
+def test_select_first_existing_skips_empty_candidates() -> None:
+    from phlo_dagster.containers import select_first_existing
+
+    result = select_first_existing(["", "b"], ["b"])
+    assert result == "b"
+
+
+def test_extract_compose_service_from_label() -> None:
+    from phlo.cli.commands.services.list import _extract_compose_service
+
+    info = {"Labels": "com.docker.compose.project=demo,com.docker.compose.service=postgres,other=x"}
+    assert _extract_compose_service(info) == "postgres"
+
+
+def test_extract_compose_service_returns_none_without_label() -> None:
+    from phlo.cli.commands.services.list import _extract_compose_service
+
+    assert _extract_compose_service({"Labels": "some.other.label=val"}) is None
+    assert _extract_compose_service({}) is None
+
+
+def test_services_list_handles_malformed_docker_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import list as list_module
+
+    class FakeDiscovery:
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {}
+
+    monkeypatch.setattr(list_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        list_module,
+        "run_command",
+        lambda *_args, **_kwargs: CompletedProcess(["docker", "ps"], 0, "not-valid-json\n", ""),
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(list_module.list_cmd, ["--json"])
+    assert result.exit_code == 0
+    assert result.output.strip() == "[]"
+
+
+def test_resolve_dependencies_reports_cycle_path() -> None:
+    discovery = ServiceDiscovery.__new__(ServiceDiscovery)
+    discovery.services_dir = None
+    discovery._services = {}
+    discovery._loaded = True
+
+    a = _service("a")
+    a.depends_on = ["b"]
+    b = _service("b")
+    b.depends_on = ["c"]
+    c = _service("c")
+    c.depends_on = ["a"]
+
+    with pytest.raises(ValueError, match="Circular dependency detected:.*→"):
+        discovery.resolve_dependencies([a, b, c])
+
+
+def test_resolve_dependencies_cycle_path_is_closed() -> None:
+    discovery = ServiceDiscovery.__new__(ServiceDiscovery)
+    discovery.services_dir = None
+    discovery._services = {}
+    discovery._loaded = True
+
+    a = _service("a")
+    a.depends_on = ["b"]
+    b = _service("b")
+    b.depends_on = ["a", "c"]
+    c = _service("c")
+    c.depends_on = ["b"]
+
+    with pytest.raises(ValueError) as exc_info:
+        discovery.resolve_dependencies([a, b, c])
+
+    message = str(exc_info.value)
+    assert "Circular dependency detected:" in message
+    assert "→" in message
+    assert "a → b → c" not in message
+
+
+def test_find_cycles_returns_closed_paths() -> None:
+    from phlo.plugins.discovery.services import _find_cycles
+
+    graph = {
+        "a": {"b"},
+        "b": {"a", "c"},
+        "c": {"b"},
+    }
+    cycles = _find_cycles({"a", "b", "c"}, graph)
+
+    assert cycles
+    assert all(len(cycle) > 2 and cycle[0] == cycle[-1] for cycle in cycles)
+
+
+def test_resolve_dependencies_no_cycle() -> None:
+    discovery = ServiceDiscovery.__new__(ServiceDiscovery)
+    discovery.services_dir = None
+    discovery._services = {}
+    discovery._loaded = True
+
+    a = _service("a")
+    b = _service("b")
+    b.depends_on = ["a"]
+    c = _service("c")
+    c.depends_on = ["b"]
+
+    result = discovery.resolve_dependencies([a, b, c])
+    names = [s.name for s in result]
+    assert names.index("a") < names.index("b") < names.index("c")

@@ -459,6 +459,9 @@ def auto_discover() -> None:
 if not os.environ.get("PHLO_NO_AUTO_DISCOVER"):
     try:
         auto_discover()
-    except Exception:
-        # Silently fail on auto-discovery to not break import
-        pass
+    except Exception as exc:
+        logger.warning(
+            "plugin_auto_discovery_failed",
+            error=str(exc),
+            hint="Set PHLO_NO_AUTO_DISCOVER=1 to skip or check installed plugins",
+        )

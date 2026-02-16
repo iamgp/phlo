@@ -19,6 +19,63 @@ from phlo.plugins.discovery.registry import get_global_registry
 logger = get_logger(__name__)
 
 
+def _find_cycles(nodes: set[str], graph: dict[str, set[str]]) -> list[list[str]]:
+    """Extract closed dependency cycles from a graph subset.
+
+    ``graph`` is built as ``dependency -> dependents``. Convert that into
+    ``service -> dependencies`` first so cycle paths read in "depends-on"
+    order for user-facing diagnostics.
+    """
+    dependencies: dict[str, set[str]] = {name: set() for name in nodes}
+    for dependency, dependents in graph.items():
+        for dependent in dependents & nodes:
+            dependencies[dependent].add(dependency)
+
+    cycles: list[list[str]] = []
+    seen_signatures: set[tuple[str, ...]] = set()
+
+    for start in sorted(nodes):
+        cycle = _find_cycle_from_start(start, dependencies, nodes)
+        if not cycle:
+            continue
+        signature = _canonical_cycle(cycle[:-1])
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        cycles.append(cycle)
+
+    return cycles
+
+
+def _find_cycle_from_start(
+    start: str, dependencies: dict[str, set[str]], allowed: set[str]
+) -> list[str] | None:
+    stack: list[tuple[str, list[str], set[str]]] = [(start, [start], {start})]
+
+    while stack:
+        current, path, seen = stack.pop()
+        for dep in sorted(dependencies.get(current, set())):
+            if dep not in allowed:
+                continue
+            if dep == start and len(path) > 1:
+                return path + [start]
+            if dep in seen:
+                continue
+            stack.append((dep, path + [dep], seen | {dep}))
+
+    return None
+
+
+def _canonical_cycle(cycle_nodes: list[str]) -> tuple[str, ...]:
+    if not cycle_nodes:
+        return tuple()
+
+    rotations = [tuple(cycle_nodes[i:] + cycle_nodes[:i]) for i in range(len(cycle_nodes))]
+    reverse = list(reversed(cycle_nodes))
+    rotations_reverse = [tuple(reverse[i:] + reverse[:i]) for i in range(len(reverse))]
+    return min(rotations + rotations_reverse)
+
+
 @dataclass(slots=True)
 class ServiceDefinition:
     """Represents a parsed service.yaml definition."""
@@ -314,9 +371,10 @@ class ServiceDiscovery:
                     queue.append(neighbor)
 
         if len(result) != len(services):
-            # Circular dependency detected
             remaining = set(in_degree.keys()) - set(result)
-            raise ValueError(f"Circular dependency detected among: {remaining}")
+            cycles = _find_cycles(remaining, graph)
+            cycle_detail = "; ".join(" → ".join(c) for c in cycles) if cycles else str(remaining)
+            raise ValueError(f"Circular dependency detected: {cycle_detail}")
 
         # Return services in sorted order
         name_to_service = {s.name: s for s in services}
