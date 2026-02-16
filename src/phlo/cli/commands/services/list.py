@@ -85,7 +85,7 @@ def list_cmd(show_all: bool, output_json: bool):
                         "status": container_info.get("State", ""),
                         "ports": container_info.get("Ports", ""),
                     }
-    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError, ValueError):
         running_containers = {}
 
     if output_json:

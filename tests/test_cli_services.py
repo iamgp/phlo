@@ -6,6 +6,7 @@ from typing import cast
 
 import pytest
 import yaml
+from click.testing import CliRunner
 from phlo_dagster.containers import find_dagster_container
 
 from phlo.cli.commands.services.utils import detect_phlo_source_path, get_profile_service_names
@@ -399,6 +400,29 @@ def test_extract_compose_service_returns_none_without_label() -> None:
 
     assert _extract_compose_service({"Labels": "some.other.label=val"}) is None
     assert _extract_compose_service({}) is None
+
+
+def test_services_list_handles_malformed_docker_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from phlo.cli.commands.services import list as list_module
+
+    class FakeDiscovery:
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return {}
+
+    monkeypatch.setattr(list_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(list_module, "get_project_name", lambda: "demo")
+    monkeypatch.setattr(
+        list_module,
+        "run_command",
+        lambda *_args, **_kwargs: CompletedProcess(["docker", "ps"], 0, "not-valid-json\n", ""),
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(list_module.list_cmd, ["--json"])
+    assert result.exit_code == 0
+    assert result.output.strip() == "[]"
 
 
 def test_resolve_dependencies_reports_cycle_path() -> None:
