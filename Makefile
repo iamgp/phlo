@@ -5,7 +5,32 @@ DEFAULT_SERVICES ?= postgres minio pgweb dagster-webserver dagster-daemon supers
 DEFAULT_LOG_SERVICES ?= dagster-webserver dagster-daemon
 OBSERVATORY_DIR ?= packages/phlo-observatory/src/phlo_observatory
 NPM_OBSERVATORY := npm --prefix $(OBSERVATORY_DIR)
-TY_CHECK_SCOPE ?= src/phlo
+TY_CHECK_SCOPE ?= src/phlo \
+	packages/phlo-alerting/src \
+	packages/phlo-alloy/src \
+	packages/phlo-api/src \
+	packages/phlo-core-plugins/src \
+	packages/phlo-dagster/src \
+	packages/phlo-dbt/src \
+	packages/phlo-dlt/src \
+	packages/phlo-grafana/src \
+	packages/phlo-hasura/src \
+	packages/phlo-iceberg/src \
+	packages/phlo-lineage/src \
+	packages/phlo-loki/src \
+	packages/phlo-metrics/src \
+	packages/phlo-minio/src \
+	packages/phlo-nessie/src \
+	packages/phlo-observatory-example/src \
+	packages/phlo-observatory/src \
+	packages/phlo-openmetadata/src \
+	packages/phlo-pgweb/src \
+	packages/phlo-postgres/src \
+	packages/phlo-postgrest/src \
+	packages/phlo-prometheus/src \
+	packages/phlo-quality/src \
+	packages/phlo-superset/src \
+	packages/phlo-trino/src
 CHECK_CMD := scripts/run-parallel \
 	"py lint" "uv run ruff check ." \
 	"py format" "uv run ruff format --check ." \
