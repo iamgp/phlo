@@ -1,0 +1,92 @@
+"""Unit tests for phlo-alerting."""
+
+from phlo_alerting.manager import Alert, AlertManager, AlertDestination, AlertSeverity
+from phlo_alerting.hooks_plugin import (
+    AlertingHookPlugin,
+    _map_quality_severity,
+    _map_telemetry_severity,
+)
+from phlo_alerting.settings import AlertingSettings
+
+
+class MockDestination(AlertDestination):
+    def __init__(self):
+        self.alerts: list[Alert] = []
+
+    def send(self, alert: Alert) -> bool:
+        self.alerts.append(alert)
+        return True
+
+
+def test_alert_defaults():
+    alert = Alert(title="Test", message="hello")
+    assert alert.severity == AlertSeverity.ERROR
+    assert alert.timestamp is not None
+
+
+def test_alert_severity_values():
+    assert AlertSeverity.INFO.value == "info"
+    assert AlertSeverity.CRITICAL.value == "critical"
+
+
+def test_alert_manager_register_and_send():
+    manager = AlertManager()
+    dest = MockDestination()
+    manager.register_destination("mock", dest)
+
+    alert = Alert(title="T", message="M", asset_name="a1", error_message="e1")
+    assert manager.send(alert) is True
+    assert len(dest.alerts) == 1
+
+
+def test_alert_manager_deduplication():
+    manager = AlertManager()
+    dest = MockDestination()
+    manager.register_destination("mock", dest)
+
+    alert = Alert(title="T", message="M", asset_name="a1", error_message="e1")
+    manager.send(alert)
+    assert manager.send(alert) is False
+    assert len(dest.alerts) == 1
+
+
+def test_alert_manager_targeted_destinations():
+    manager = AlertManager()
+    d1 = MockDestination()
+    d2 = MockDestination()
+    manager.register_destination("d1", d1)
+    manager.register_destination("d2", d2)
+
+    alert = Alert(title="T", message="M")
+    manager.send(alert, destinations=["d1"])
+    assert len(d1.alerts) == 1
+    assert len(d2.alerts) == 0
+
+
+def test_map_quality_severity():
+    assert _map_quality_severity(None) == AlertSeverity.ERROR
+    assert _map_quality_severity("WARN") == AlertSeverity.WARNING
+    assert _map_quality_severity("CRITICAL") == AlertSeverity.CRITICAL
+    assert _map_quality_severity("FATAL") == AlertSeverity.CRITICAL
+    assert _map_quality_severity("error") == AlertSeverity.ERROR
+
+
+def test_map_telemetry_severity():
+    assert _map_telemetry_severity("critical") == AlertSeverity.CRITICAL
+    assert _map_telemetry_severity("error") == AlertSeverity.ERROR
+
+
+def test_alerting_hooks_plugin_registrations():
+    plugin = AlertingHookPlugin()
+    hooks = plugin.get_hooks()
+    assert len(hooks) == 2
+    names = {h.hook_name for h in hooks}
+    assert "alerting_quality" in names
+    assert "alerting_telemetry" in names
+
+
+def test_alerting_settings_defaults():
+    settings = AlertingSettings()
+    assert settings.phlo_alert_email_smtp_port == 587
+    assert settings.phlo_alert_email_recipients == []
+    assert settings.phlo_alert_slack_webhook is None
