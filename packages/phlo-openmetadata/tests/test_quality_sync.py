@@ -8,13 +8,13 @@ from phlo_openmetadata.quality_sync import QualityCheckMapper, QualityCheckPubli
 
 from phlo_quality.checks import (
     CountCheck,
-    CustomSQLCheck,
     FreshnessCheck,
     NullCheck,
     QualityCheckResult,
     RangeCheck,
     UniqueCheck,
 )
+from phlo_quality.checks_extra import CustomSQLCheck
 
 
 class TestQualityCheckMapper:
