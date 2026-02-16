@@ -110,7 +110,10 @@ def test_get_asset_runs_from_postgres_success(monkeypatch):
     import phlo_metrics.collector as collector_module
 
     class FakeCursor:
+        last_params = None
+
         def execute(self, _query, _params):
+            FakeCursor.last_params = _params
             return None
 
         def fetchall(self):
@@ -151,6 +154,8 @@ def test_get_asset_runs_from_postgres_success(monkeypatch):
     assert runs[0].run_id == "run-123"
     assert runs[0].status == "success"
     assert runs[0].duration_seconds == 300.0
+    assert FakeCursor.last_params is not None
+    assert FakeCursor.last_params[1] == r"%dlt\_users%"
 
 
 def test_get_iceberg_table_stats_dependency_unavailable(monkeypatch):

@@ -345,6 +345,9 @@ class MetricsCollector:
 
         runs: list[RunMetrics] = []
         try:
+            escaped_asset_name = (
+                asset_name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            )
             with conn, conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                 # Dagster stores per-run asset selection in run_tags; include direct pipeline match fallback.
                 cur.execute(
@@ -359,13 +362,13 @@ class MetricsCollector:
                     WHERE r.pipeline_name = %s
                        OR (
                            t.key = 'dagster/asset_selection'
-                           AND t.value ILIKE %s
+                           AND t.value ILIKE %s ESCAPE '\\'
                        )
                     GROUP BY r.run_id, start_time, end_time, r.status
                     ORDER BY start_time DESC
                     LIMIT %s
                     """,
-                    (asset_name, f"%{asset_name}%", limit),
+                    (asset_name, f"%{escaped_asset_name}%", limit),
                 )
                 rows = cur.fetchall()
         except PsycopgError as exc:
