@@ -69,8 +69,8 @@ def _to_pascal_case(name: str) -> str:
 
 
 def _snake_case(name: str) -> str:
-    s1 = re.sub("(.)([A-Z][a-z]+)", r"\\1_\\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\\1_\\2", s1).lower()
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
 def _map_dlt_type(dlt_type: str) -> tuple[str, str | None]:
