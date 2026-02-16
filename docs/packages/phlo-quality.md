@@ -87,14 +87,14 @@ def ingest_users():
 ### CLI Commands
 
 ```bash
-# Run quality checks
-phlo quality run --asset bronze.users
+# List discovered schemas
+phlo schema list
 
-# List available checks
-phlo quality list
+# Validate a schema file
+phlo validate-schema workflows/schemas/users.py
 
-# Run all quality checks
-phlo quality run --all
+# Validate workflow decorators and contracts
+phlo validate-workflow workflows/ingestion/
 ```
 
 ## Built-in Checks
@@ -146,7 +146,7 @@ See [Plugin Development Guide](../guides/plugin-development.md) for details.
 | Entry Point            | Plugin                 |
 | ---------------------- | ---------------------- |
 | `phlo.plugins.cli`     | `quality` CLI commands |
-| `phlo.plugins.quality` | Built-in check plugins |
+| `phlo.plugins.observatory` | Quality observatory extension |
 
 ## Related Packages
 
