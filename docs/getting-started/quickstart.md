@@ -200,7 +200,6 @@ from workflows.schemas.mydata import RawWeatherData
 )
 def weather_observations(partition_date: str):
     """Ingest weather observations."""
-    # TODO: Replace with your API
     source = rest_api(
         client={
             "base_url": "https://api.openweathermap.org/data/3.0",
@@ -224,7 +223,7 @@ def weather_observations(partition_date: str):
 4. Restart Dagster:
 
 ```bash
-docker restart dagster-webserver
+phlo services restart --service dagster
 ```
 
 5. Materialize in UI!
@@ -276,8 +275,8 @@ make up-core up-query
 **"Asset not showing in UI"**
 
 ```bash
-# Restart Dagster webserver
-docker restart dagster-webserver
+# Restart Dagster
+phlo services restart --service dagster
 
 # Ensure asset file lives under workflows/ and imports cleanly
 ```

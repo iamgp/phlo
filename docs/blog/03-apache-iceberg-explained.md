@@ -434,11 +434,7 @@ EOF
 ```
 
 
-## Next: Project Nessie (Git for Data)
-
-Iceberg gives us time travel. Nessie adds **branching** on top.
-
-We'll explore that in the next post.
+Iceberg gives us time travel. Nessie adds **branching** on top. We'll explore that in the next post.
 
 ## Common Issues
 
