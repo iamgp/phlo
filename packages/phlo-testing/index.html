@@ -1091,10 +1091,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#integration-test-markers" class="md-nav__link">
+  <a href="#test-marker-rules" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Integration Test Markers
+        Test Marker Rules
       
     </span>
   </a>
@@ -1455,10 +1455,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#integration-test-markers" class="md-nav__link">
+  <a href="#test-marker-rules" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Integration Test Markers
+        Test Marker Rules
       
     </span>
   </a>
@@ -1659,8 +1659,13 @@ result = MockTrinoResult(
     rows=[(&quot;1&quot;, &quot;Alice&quot;), (&quot;2&quot;, &quot;Bob&quot;)]
 )
 </code></pre>
-<h3 id="integration-test-markers">Integration Test Markers</h3>
+<h3 id="test-marker-rules">Test Marker Rules</h3>
 <pre><code class="language-python">import pytest
+
+@pytest.mark.unit
+def test_pure_transform_logic():
+    &quot;&quot;&quot;No network, Docker, or filesystem side effects.&quot;&quot;&quot;
+    pass
 
 @pytest.mark.integration
 def test_full_pipeline():
@@ -1673,9 +1678,13 @@ def test_large_dataset():
     pass
 
 # Run specific markers
+# pytest -m unit
 # pytest -m integration
 # pytest -m &quot;not slow&quot;
 </code></pre>
+<p>Use <code>unit</code> for import-only tests, pure functions, and tests that run without external services.
+Use <code>integration</code> only for tests that require service discovery, Docker containers, dbt artifacts,
+or other cross-package runtime wiring.</p>
 <h2 id="common-test-patterns">Common Test Patterns</h2>
 <h3 id="testing-ingestion">Testing Ingestion</h3>
 <pre><code class="language-python">from phlo_testing.fixtures import mock_iceberg_catalog, test_dataframe
