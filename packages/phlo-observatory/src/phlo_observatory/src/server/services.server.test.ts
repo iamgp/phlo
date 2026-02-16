@@ -22,7 +22,7 @@ describe('services.server helpers', () => {
 
     it('falls back to docker Status text when State is missing', () => {
       expect(parseContainerStateStatus({ Status: 'Up 10 seconds' })).toBe(
-        'stopped',
+        'running',
       )
       expect(parseContainerStateStatus({ Status: 'running' })).toBe('running')
     })

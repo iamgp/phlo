@@ -560,7 +560,11 @@ export function parseContainerStateStatus(
   container: Pick<DockerPsEntry, 'State' | 'Status' | 'Health'>,
 ): DockerContainerStatus['status'] {
   const rawState = (container.State || container.Status || '').toLowerCase()
-  if (rawState.includes('running')) {
+  if (
+    rawState.includes('running') ||
+    rawState.startsWith('up ') ||
+    rawState === 'up'
+  ) {
     return container.Health === 'unhealthy' ? 'unhealthy' : 'running'
   }
   if (rawState.includes('starting') || rawState.includes('created')) {
