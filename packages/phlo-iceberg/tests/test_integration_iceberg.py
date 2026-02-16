@@ -8,6 +8,8 @@ Per TEST_STRATEGY.md Level 2 (Functional):
 """
 
 import tempfile
+import socket
+from urllib.parse import urlparse
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -325,17 +327,50 @@ class TestAppendToTable:
 
 
 @pytest.fixture
-def iceberg_catalog(minio_service):
+def iceberg_catalog(minio_service, monkeypatch):
     """Fixture providing a real Iceberg catalog for testing."""
-    # This uses conftest.py's minio_service and iceberg_catalog fixtures
-    # Skip if not available
+    # Explicit endpoint removes hidden dependency on default "minio" DNS alias.
     try:
-        from phlo_iceberg.catalog import get_catalog
+        from phlo_iceberg.catalog import get_catalog, reset_catalog_cache
+        from phlo_iceberg.settings import get_settings as get_iceberg_settings
+        from phlo_minio.settings import get_settings as get_minio_settings
+        from phlo_nessie.settings import get_settings as get_nessie_settings
+
+        endpoint = minio_service.get_url() if minio_service else "http://127.0.0.1:10001"
+        parsed_endpoint = urlparse(endpoint)
+        endpoint_host = parsed_endpoint.hostname or "127.0.0.1"
+        endpoint_port = parsed_endpoint.port or 80
+
+        try:
+            with socket.create_connection((endpoint_host, endpoint_port), timeout=1):
+                pass
+        except OSError:
+            pytest.skip(f"MinIO endpoint not reachable at {endpoint}")
+
+        monkeypatch.setenv("ICEBERG_S3_ENDPOINT", endpoint)
+
+        reset_catalog_cache()
+        get_iceberg_settings.cache_clear()
+        get_minio_settings.cache_clear()
+        get_nessie_settings.cache_clear()
 
         catalog = get_catalog()
         yield catalog
     except Exception as e:
         pytest.skip(f"Iceberg catalog not available: {e}")
+    finally:
+        try:
+            from phlo_iceberg.catalog import reset_catalog_cache
+            from phlo_iceberg.settings import get_settings as get_iceberg_settings
+            from phlo_minio.settings import get_settings as get_minio_settings
+            from phlo_nessie.settings import get_settings as get_nessie_settings
+
+            reset_catalog_cache()
+            get_iceberg_settings.cache_clear()
+            get_minio_settings.cache_clear()
+            get_nessie_settings.cache_clear()
+        except Exception:
+            pass
 
 
 class TestIcebergIntegrationReal:
@@ -404,6 +439,35 @@ class TestIcebergIntegrationReal:
                 iceberg_catalog.drop_table(table_name)
             except Exception:
                 pass
+
+
+class TestIcebergIntegrationRegression:
+    """Regression tests for integration configuration drift."""
+
+    def test_get_catalog_respects_explicit_s3_endpoint_override(self, monkeypatch):
+        """Ensure test env can avoid default MinIO DNS alias."""
+        from phlo_iceberg.catalog import get_catalog, reset_catalog_cache
+        from phlo_iceberg.settings import get_settings as get_iceberg_settings
+        from phlo_minio.settings import get_settings as get_minio_settings
+        from phlo_nessie.settings import get_settings as get_nessie_settings
+
+        reset_catalog_cache()
+        get_iceberg_settings.cache_clear()
+        get_minio_settings.cache_clear()
+        get_nessie_settings.cache_clear()
+        monkeypatch.setenv("ICEBERG_S3_ENDPOINT", "http://127.0.0.1:19001")
+
+        try:
+            with patch("phlo_iceberg.catalog.load_catalog", return_value=MagicMock()) as mock_load:
+                get_catalog(ref="main")
+
+            assert mock_load.call_args is not None
+            assert mock_load.call_args.kwargs["s3.endpoint"] == "http://127.0.0.1:19001"
+        finally:
+            reset_catalog_cache()
+            get_iceberg_settings.cache_clear()
+            get_minio_settings.cache_clear()
+            get_nessie_settings.cache_clear()
 
 
 # =============================================================================

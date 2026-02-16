@@ -26,6 +26,10 @@ class IcebergSettings(BaseConfig):
     iceberg_nessie_ref: str = Field(
         default="main", description="Default Nessie branch/tag for Iceberg operations"
     )
+    iceberg_s3_endpoint: str | None = Field(
+        default=None,
+        description="Optional explicit S3 endpoint URL override for Iceberg I/O",
+    )
 
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
         return self.iceberg_warehouse_path
@@ -33,11 +37,14 @@ class IcebergSettings(BaseConfig):
     def get_pyiceberg_catalog_config(self, ref: str = "main") -> dict:
         nessie_settings = get_nessie_settings()
         minio_settings = get_minio_settings()
+        s3_endpoint = self.iceberg_s3_endpoint or (
+            f"http://{minio_settings.minio_host}:{minio_settings.minio_api_port}"
+        )
         return {
             "type": "rest",
             "uri": f"{nessie_settings.nessie_iceberg_rest_uri()}/{ref}",
             "warehouse": self.get_iceberg_warehouse_for_branch(ref),
-            "s3.endpoint": f"http://{minio_settings.minio_host}:{minio_settings.minio_api_port}",
+            "s3.endpoint": s3_endpoint,
             "s3.access-key-id": minio_settings.minio_root_user,
             "s3.secret-access-key": minio_settings.minio_root_password,
             "s3.path-style-access": "true",
