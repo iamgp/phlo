@@ -20,6 +20,7 @@ def test_dagster_asset_materialization():
 
     @asset
     def test_asset():
+        """Return a deterministic payload for materialization verification."""
         return {"value": 42}
 
     # Materialize the asset
@@ -113,6 +114,7 @@ def test_materialize_result_failure_status_fails_step():
     from phlo_dagster.adapter import DagsterOrchestratorAdapter
 
     def _run(_runtime):
+        """Emit a failure materialize result for adapter failure-path testing."""
         return [MaterializeResult(status="failure", metadata={"reason": "boom"})]
 
     adapter = DagsterOrchestratorAdapter()

@@ -24,7 +24,14 @@ DEFAULT_NESSIE_URL = "http://nessie:19120/api/v2"
 
 
 def resolve_nessie_url(override: str | None = None) -> str:
-    """Resolve the Nessie URL from override, environment, or default."""
+    """Resolve the Nessie API URL.
+
+    Args:
+        override: Optional explicit Nessie URL.
+
+    Returns:
+        Nessie URL from override, environment, or default.
+    """
     env_url = os.environ.get("NESSIE_URL")
     if override and override.strip():
         if env_url and override.strip() == "http://localhost:19120/api/v2":
@@ -37,12 +44,32 @@ def resolve_nessie_url(override: str | None = None) -> str:
 
 
 class Branch(BaseModel):
+    """Nessie reference metadata.
+
+    Attributes:
+        type: Reference kind (`BRANCH` or `TAG`).
+        name: Reference name.
+        hash: Head commit hash.
+    """
+
     type: Literal["BRANCH", "TAG"]
     name: str
     hash: str
 
 
 class CommitMeta(BaseModel):
+    """Commit metadata returned by Nessie history APIs.
+
+    Attributes:
+        hash: Commit hash.
+        message: Commit message.
+        committer: Committer identity, if provided.
+        authors: Author identities.
+        commit_time: Commit timestamp.
+        author_time: Author timestamp.
+        parent_commit_hashes: Parent commit hashes.
+    """
+
     hash: str
     message: str
     committer: str | None = None
@@ -53,24 +80,55 @@ class CommitMeta(BaseModel):
 
 
 class LogEntry(BaseModel):
+    """Single Nessie log entry.
+
+    Attributes:
+        commit_meta: Metadata for the commit.
+        parent_commit_hash: Direct parent hash when present.
+        operations: Change operations included in the entry.
+    """
+
     commit_meta: CommitMeta
     parent_commit_hash: str | None = None
     operations: list[dict[str, Any]] | None = None
 
 
 class NessieConnectionStatus(BaseModel):
+    """Connection status for Nessie API checks.
+
+    Attributes:
+        connected: Whether Nessie is reachable.
+        error: Error message when connection fails.
+        default_branch: Nessie default branch when available.
+    """
+
     connected: bool
     error: str | None = None
     default_branch: str | None = None
 
 
 class NessieContent(BaseModel):
+    """Content item returned by Nessie entry/content APIs.
+
+    Attributes:
+        name: Content identifier structure.
+        type: Nessie content type.
+        content: Optional content payload.
+    """
+
     name: dict[str, Any]
     type: str
     content: dict[str, Any] | None = None
 
 
 class MergeResult(BaseModel):
+    """Result of a merge operation.
+
+    Attributes:
+        success: Whether merge succeeded.
+        hash: Resulting target hash after merge.
+    """
+
     success: bool
     hash: str | None = None
 
@@ -82,7 +140,14 @@ class MergeResult(BaseModel):
 async def check_connection(
     nessie_url: str | None = None,
 ) -> NessieConnectionStatus:
-    """Check if Nessie is reachable."""
+    """Check whether Nessie is reachable.
+
+    Args:
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Nessie connectivity status.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -106,7 +171,14 @@ async def check_connection(
 
 @router.get("/branches", response_model=list[Branch] | dict)
 async def get_branches(nessie_url: str | None = None) -> list[Branch] | dict[str, str]:
-    """Get all branches and tags."""
+    """List Nessie references.
+
+    Args:
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        List of branches/tags or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -133,7 +205,15 @@ async def get_branches(nessie_url: str | None = None) -> list[Branch] | dict[str
 
 @router.get("/branches/{branch_name}", response_model=Branch | dict)
 async def get_branch(branch_name: str, nessie_url: str | None = None) -> Branch | dict[str, str]:
-    """Get branch details by name."""
+    """Get a branch by name.
+
+    Args:
+        branch_name: Branch name.
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Branch details or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -161,7 +241,16 @@ async def get_commits(
     limit: int = Query(default=50, le=200),
     nessie_url: str | None = None,
 ) -> list[LogEntry] | dict[str, str]:
-    """Get commit history for a branch."""
+    """Get commit history for a branch.
+
+    Args:
+        branch_name: Branch name.
+        limit: Maximum commit entries to return.
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Commit log entries or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -205,7 +294,16 @@ async def get_contents(
     prefix: str | None = None,
     nessie_url: str | None = None,
 ) -> list[dict[str, Any]] | dict[str, str]:
-    """Get contents (tables) at a specific branch/ref."""
+    """Get branch contents.
+
+    Args:
+        branch_name: Branch name.
+        prefix: Optional namespace prefix filter.
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Content entries or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -234,7 +332,16 @@ async def compare_branches(
     to_branch: str,
     nessie_url: str | None = None,
 ) -> dict[str, Any]:
-    """Compare two branches (diff)."""
+    """Compare two branches.
+
+    Args:
+        from_branch: Source branch for diff.
+        to_branch: Target branch for diff.
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Diff payload or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -257,7 +364,16 @@ async def create_branch(
     from_branch: str,
     nessie_url: str | None = None,
 ) -> Branch | dict[str, str]:
-    """Create a new branch."""
+    """Create a new branch.
+
+    Args:
+        name: New branch name.
+        from_branch: Existing source branch name.
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Created branch or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -300,7 +416,16 @@ async def delete_branch(
     expected_hash: str,
     nessie_url: str | None = None,
 ) -> dict[str, Any]:
-    """Delete a branch."""
+    """Delete a branch.
+
+    Args:
+        branch_name: Branch name to delete.
+        expected_hash: Expected head hash for optimistic concurrency.
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Success payload or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:
@@ -326,7 +451,17 @@ async def merge_branch(
     message: str | None = None,
     nessie_url: str | None = None,
 ) -> MergeResult | dict[str, str]:
-    """Merge branches."""
+    """Merge one branch into another.
+
+    Args:
+        from_branch: Source branch name.
+        into_branch: Target branch name.
+        message: Optional merge commit message.
+        nessie_url: Optional Nessie URL override.
+
+    Returns:
+        Merge result or an error dictionary.
+    """
     url = resolve_nessie_url(nessie_url)
 
     try:

@@ -4,6 +4,8 @@ from phlo_trino.plugin import TrinoServicePlugin
 
 
 def test_trino_service_definition():
+    """Validate Trino service definition fields."""
+
     plugin = TrinoServicePlugin()
     service_definition = plugin.service_definition
 

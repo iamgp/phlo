@@ -21,4 +21,10 @@ class ObservatorySettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> ObservatorySettings:
+    """Return cached Observatory settings.
+
+    Returns:
+        ObservatorySettings: Parsed Observatory settings instance.
+    """
+
     return ObservatorySettings()

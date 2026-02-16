@@ -35,6 +35,8 @@ class TestPanderaToIcebergConversion:
         from phlo_dlt.converter import pandera_to_iceberg
 
         class TestSchema(DataFrameModel):
+            """Basic Pandera schema for conversion tests."""
+
             id: int
             name: str
 
@@ -56,6 +58,8 @@ class TestPanderaToIcebergConversion:
         from phlo_dlt.converter import pandera_to_iceberg
 
         class ComplexSchema(DataFrameModel):
+            """Complex Pandera schema with mixed field types."""
+
             id: int
             name: str
             value: float

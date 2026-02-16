@@ -114,6 +114,12 @@ class PhloDiscoveryError(PhloError):
     """Raised when assets cannot be discovered by Dagster."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+        """Initialize a discovery error.
+
+        Args:
+            message: Description of the discovery failure.
+            suggestions: Optional remediation suggestions.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.ASSET_NOT_DISCOVERED,
@@ -125,6 +131,12 @@ class PhloSchemaError(PhloError):
     """Raised when schema configuration is invalid."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+        """Initialize a schema error.
+
+        Args:
+            message: Description of the schema issue.
+            suggestions: Optional remediation suggestions.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.SCHEMA_MISMATCH,
@@ -136,6 +148,12 @@ class PhloCronError(PhloError):
     """Raised when cron expression is invalid."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+        """Initialize a cron expression error.
+
+        Args:
+            message: Description of the cron validation issue.
+            suggestions: Optional remediation suggestions. Defaults are used when omitted.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.INVALID_CRON,
@@ -157,6 +175,13 @@ class PhloValidationError(PhloError):
         suggestions: Optional[List[str]] = None,
         cause: Optional[Exception] = None,
     ):
+        """Initialize a validation error.
+
+        Args:
+            message: Description of the validation failure.
+            suggestions: Optional remediation suggestions.
+            cause: Optional underlying exception.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.VALIDATION_FAILED,
@@ -169,6 +194,12 @@ class PhloConfigError(PhloError):
     """Raised when decorator configuration is invalid."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+        """Initialize a configuration error.
+
+        Args:
+            message: Description of the configuration issue.
+            suggestions: Optional remediation suggestions.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.MISSING_SCHEMA,
@@ -185,6 +216,13 @@ class PhloIngestionError(PhloError):
         suggestions: Optional[List[str]] = None,
         cause: Optional[Exception] = None,
     ):
+        """Initialize an ingestion error.
+
+        Args:
+            message: Description of the ingestion failure.
+            suggestions: Optional remediation suggestions.
+            cause: Optional underlying exception.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.INGESTION_FAILED,
@@ -197,6 +235,12 @@ class PhloTableError(PhloError):
     """Raised when Iceberg table operations fail."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+        """Initialize a table operation error.
+
+        Args:
+            message: Description of the table operation issue.
+            suggestions: Optional remediation suggestions.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.TABLE_NOT_FOUND,
@@ -213,6 +257,13 @@ class PhloInfrastructureError(PhloError):
         suggestions: Optional[List[str]] = None,
         cause: Optional[Exception] = None,
     ):
+        """Initialize an infrastructure error.
+
+        Args:
+            message: Description of the infrastructure failure.
+            suggestions: Optional remediation suggestions.
+            cause: Optional underlying exception.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.INFRASTRUCTURE_ERROR,
@@ -225,6 +276,12 @@ class SchemaConversionError(PhloError):
     """Raised when Pandera schema cannot be converted to PyIceberg."""
 
     def __init__(self, message: str, suggestions: Optional[List[str]] = None):
+        """Initialize a schema conversion error.
+
+        Args:
+            message: Description of the conversion issue.
+            suggestions: Optional remediation suggestions.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.SCHEMA_CONVERSION_ERROR,
@@ -241,6 +298,13 @@ class DLTPipelineError(PhloError):
         suggestions: Optional[List[str]] = None,
         cause: Optional[Exception] = None,
     ):
+        """Initialize a DLT pipeline error.
+
+        Args:
+            message: Description of the pipeline failure.
+            suggestions: Optional remediation suggestions.
+            cause: Optional underlying exception.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.DLT_PIPELINE_FAILED,
@@ -258,6 +322,13 @@ class IcebergCatalogError(PhloError):
         suggestions: Optional[List[str]] = None,
         cause: Optional[Exception] = None,
     ):
+        """Initialize an Iceberg catalog error.
+
+        Args:
+            message: Description of the catalog operation failure.
+            suggestions: Optional remediation suggestions.
+            cause: Optional underlying exception.
+        """
         super().__init__(
             message=message,
             code=PhloErrorCode.ICEBERG_CATALOG_ERROR,

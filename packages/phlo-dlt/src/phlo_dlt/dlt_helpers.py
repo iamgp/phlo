@@ -1,3 +1,5 @@
+"""Shared helper utilities for DLT ingestion execution."""
+
 from __future__ import annotations
 
 import time
@@ -18,6 +20,15 @@ from phlo_dlt.registry import TableConfig
 
 
 def get_branch_from_context(context: Any) -> str:
+    """Return the target branch from Dagster context tags.
+
+    Args:
+        context: Dagster execution context or compatible object exposing ``tags``.
+
+    Returns:
+        Branch name from ``context.tags["branch"]`` when present, else ``"main"``.
+    """
+
     tags = getattr(context, "tags", None) or {}
     branch = tags.get("branch")
     if isinstance(branch, str) and branch:
@@ -32,6 +43,18 @@ def inject_metadata_columns(
     run_id: str,
     context: Any = None,
 ) -> Path:
+    """Append Phlo metadata columns to a staged parquet file.
+
+    Args:
+        parquet_path: Absolute path to the parquet file to mutate.
+        partition_date: Partition date associated with this ingestion run.
+        run_id: Orchestrator run identifier.
+        context: Optional Dagster context used for structured logging.
+
+    Returns:
+        The same parquet path after metadata columns are written.
+    """
+
     import pyarrow as pa
     import pyarrow.parquet as pq
 
@@ -72,6 +95,19 @@ def validate_with_pandera(
     column_mapping: dict[str, str] | None = None,
     strict: bool = False,
 ) -> bool:
+    """Validate extracted records against a Pandera schema.
+
+    Args:
+        context: Dagster context used for logging validation outcomes.
+        data: Extracted records to validate.
+        schema_class: Pandera ``DataFrameModel`` defining validation rules.
+        column_mapping: Optional source-to-schema column rename mapping.
+        strict: Whether to re-raise schema errors instead of returning ``False``.
+
+    Returns:
+        ``True`` when validation passes, ``False`` when it fails in non-strict mode.
+    """
+
     try:
         context.log.info(f"Validating {len(data)} records with {schema_class.__name__}")
 
@@ -105,6 +141,16 @@ def setup_dlt_pipeline(
     pipeline_name: str,
     dataset_name: str,
 ) -> tuple[Any, Path]:
+    """Create a filesystem-backed DLT pipeline.
+
+    Args:
+        pipeline_name: DLT pipeline identifier.
+        dataset_name: Target dataset name for staged output.
+
+    Returns:
+        Tuple of ``(pipeline, pipeline_working_directory)``.
+    """
+
     pipelines_dir = Path("/tmp/phlo/dlt")
     pipelines_dir.mkdir(parents=True, exist_ok=True)
     bucket_url = str((pipelines_dir / "bucket").resolve())
@@ -126,6 +172,18 @@ def stage_to_parquet(
     dlt_source: Any,
     local_staging_root: Path,
 ) -> tuple[Path, float]:
+    """Run DLT extraction and locate the staged parquet output.
+
+    Args:
+        context: Dagster context for logs.
+        pipeline: Configured DLT pipeline object.
+        dlt_source: DLT source/resource object to execute.
+        local_staging_root: Root directory used to resolve relative parquet paths.
+
+    Returns:
+        Tuple of ``(parquet_path, elapsed_seconds)``.
+    """
+
     start_time = time.time()
 
     load_info: LoadInfo = pipeline.run(dlt_source, loader_file_format="parquet")
@@ -157,6 +215,21 @@ def merge_to_iceberg(
     merge_strategy: str = "merge",
     merge_config: dict[str, Any] | None = None,
 ) -> dict[str, int]:
+    """Write staged parquet data into Iceberg via append or merge.
+
+    Args:
+        context: Dagster context used for progress logging.
+        iceberg: Iceberg resource wrapper used for table operations.
+        table_config: Table configuration including schema, partitioning, and keys.
+        parquet_path: Path to staged parquet data.
+        branch_name: Nessie branch to write into.
+        merge_strategy: Write strategy (``"append"`` or ``"merge"``).
+        merge_config: Reserved merge configuration payload.
+
+    Returns:
+        Merge metrics emitted by the underlying Iceberg write operation.
+    """
+
     merge_config = merge_config or {}
     table_name = table_config.full_table_name
 
@@ -187,6 +260,7 @@ def merge_to_iceberg(
         num_rows = len(arrow_table)
 
         def iceberg_type_to_arrow_type(iceberg_type: object) -> pa.DataType:
+            """Map a subset of Iceberg primitive types to Arrow data types."""
             if isinstance(iceberg_type, StringType):
                 return pa.string()
             if isinstance(iceberg_type, LongType):

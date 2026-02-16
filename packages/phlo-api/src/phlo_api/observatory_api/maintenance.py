@@ -16,6 +16,8 @@ router = APIRouter(tags=["maintenance"])
 
 
 class MaintenanceOperationStatus(BaseModel):
+    """Serialized status for one maintenance operation run."""
+
     operation: str
     namespace: str
     ref: str
@@ -34,6 +36,8 @@ class MaintenanceOperationStatus(BaseModel):
 
 
 class MaintenanceStatusSnapshot(BaseModel):
+    """Top-level maintenance status payload."""
+
     last_updated: str
     operations: list[MaintenanceOperationStatus]
 
@@ -64,6 +68,14 @@ def get_maintenance_metrics() -> PlainTextResponse:
 
 
 def _serialize_snapshot(snapshot: Any) -> MaintenanceStatusSnapshot:
+    """Convert domain snapshot data into API response format.
+
+    Args:
+        snapshot: Maintenance snapshot object from telemetry helpers.
+
+    Returns:
+        MaintenanceStatusSnapshot: API-ready maintenance snapshot.
+    """
     return MaintenanceStatusSnapshot(
         last_updated=_isoformat(snapshot.last_updated),
         operations=[_serialize_operation(op) for op in snapshot.operations],
@@ -71,6 +83,14 @@ def _serialize_snapshot(snapshot: Any) -> MaintenanceStatusSnapshot:
 
 
 def _serialize_operation(operation: Any) -> MaintenanceOperationStatus:
+    """Convert a maintenance operation record into API response format.
+
+    Args:
+        operation: Operation object from telemetry helpers.
+
+    Returns:
+        MaintenanceOperationStatus: API-ready operation payload.
+    """
     return MaintenanceOperationStatus(
         operation=operation.operation,
         namespace=operation.namespace,
@@ -91,6 +111,14 @@ def _serialize_operation(operation: Any) -> MaintenanceOperationStatus:
 
 
 def _isoformat(value: datetime | Any) -> str:
+    """Return an ISO timestamp when possible, else a string conversion.
+
+    Args:
+        value: Value that may be a datetime.
+
+    Returns:
+        str: ISO-formatted datetime or stringified value.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)

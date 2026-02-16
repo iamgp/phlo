@@ -10,26 +10,40 @@ from phlo_alerting.settings import AlertingSettings
 
 
 class MockDestination(AlertDestination):
+    """In-memory destination stub that records sent alerts."""
+
     def __init__(self):
+        """Initialize the destination with an empty alert buffer."""
         self.alerts: list[Alert] = []
 
     def send(self, alert: Alert) -> bool:
+        """Record an alert and report successful delivery.
+
+        Args:
+            alert: Alert payload to send.
+
+        Returns:
+            Always returns ``True`` for successful test delivery.
+        """
         self.alerts.append(alert)
         return True
 
 
 def test_alert_defaults():
+    """Verifies default alert severity and timestamp assignment."""
     alert = Alert(title="Test", message="hello")
     assert alert.severity == AlertSeverity.ERROR
     assert alert.timestamp is not None
 
 
 def test_alert_severity_values():
+    """Verifies enum values for alert severity constants."""
     assert AlertSeverity.INFO.value == "info"
     assert AlertSeverity.CRITICAL.value == "critical"
 
 
 def test_alert_manager_register_and_send():
+    """Verifies destination registration and alert delivery path."""
     manager = AlertManager()
     dest = MockDestination()
     manager.register_destination("mock", dest)
@@ -40,6 +54,7 @@ def test_alert_manager_register_and_send():
 
 
 def test_alert_manager_deduplication():
+    """Verifies duplicate alerts are de-duplicated by the manager."""
     manager = AlertManager()
     dest = MockDestination()
     manager.register_destination("mock", dest)
@@ -51,6 +66,7 @@ def test_alert_manager_deduplication():
 
 
 def test_alert_manager_targeted_destinations():
+    """Verifies alert routing to only explicitly targeted destinations."""
     manager = AlertManager()
     d1 = MockDestination()
     d2 = MockDestination()
@@ -64,6 +80,7 @@ def test_alert_manager_targeted_destinations():
 
 
 def test_map_quality_severity():
+    """Verifies quality status values map to expected alert severities."""
     assert _map_quality_severity(None) == AlertSeverity.ERROR
     assert _map_quality_severity("WARN") == AlertSeverity.WARNING
     assert _map_quality_severity("CRITICAL") == AlertSeverity.CRITICAL
@@ -72,11 +89,13 @@ def test_map_quality_severity():
 
 
 def test_map_telemetry_severity():
+    """Verifies telemetry status values map to expected alert severities."""
     assert _map_telemetry_severity("critical") == AlertSeverity.CRITICAL
     assert _map_telemetry_severity("error") == AlertSeverity.ERROR
 
 
 def test_alerting_hooks_plugin_registrations():
+    """Verifies alerting plugin registers both quality and telemetry hooks."""
     plugin = AlertingHookPlugin()
     hooks = plugin.get_hooks()
     assert len(hooks) == 2
@@ -86,6 +105,7 @@ def test_alerting_hooks_plugin_registrations():
 
 
 def test_alerting_settings_defaults():
+    """Verifies default alerting settings values."""
     settings = AlertingSettings()
     assert settings.phlo_alert_email_smtp_port == 587
     assert settings.phlo_alert_email_recipients == []

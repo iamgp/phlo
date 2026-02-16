@@ -42,9 +42,19 @@ class OpenMetadataSettings(BaseConfig):
     )
 
     def openmetadata_uri(self) -> str:
+        """Build the OpenMetadata API base URI.
+
+        Returns:
+            str: Base API URI for OpenMetadata.
+        """
         return f"http://{self.openmetadata_host}:{self.openmetadata_port}/api"
 
     def openmetadata_database(self) -> str:
+        """Resolve the OpenMetadata database name.
+
+        Returns:
+            str: Explicit OpenMetadata database name or Trino catalog fallback.
+        """
         if self.openmetadata_database_name:
             return self.openmetadata_database_name
         return get_trino_settings().trino_catalog
@@ -52,4 +62,9 @@ class OpenMetadataSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> OpenMetadataSettings:
+    """Get cached OpenMetadata settings.
+
+    Returns:
+        OpenMetadataSettings: Cached OpenMetadata settings instance.
+    """
     return OpenMetadataSettings()

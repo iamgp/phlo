@@ -37,10 +37,21 @@ def test_alert_destination_registration():
     from phlo_alerting.manager import AlertManager, AlertDestination, Alert
 
     class MockDestination(AlertDestination):
+        """Mock alert destination for destination registration tests."""
+
         def __init__(self):
+            """Initialize destination with captured alert storage."""
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
+            """Store an alert and report success.
+
+            Args:
+                alert: Alert payload to capture.
+
+            Returns:
+                Always ``True``.
+            """
             self.alerts.append(alert)
             return True
 
@@ -57,10 +68,21 @@ def test_alert_sending_to_destination():
     from phlo_alerting.manager import AlertManager, AlertDestination, Alert, AlertSeverity
 
     class MockDestination(AlertDestination):
+        """Mock destination used to verify send behavior."""
+
         def __init__(self):
+            """Initialize destination with captured alert storage."""
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
+            """Store an alert and report success.
+
+            Args:
+                alert: Alert payload to capture.
+
+            Returns:
+                Always ``True``.
+            """
             self.alerts.append(alert)
             return True
 
@@ -87,10 +109,21 @@ def test_alert_deduplication():
     from phlo_alerting.manager import AlertManager, AlertDestination, Alert, AlertSeverity
 
     class MockDestination(AlertDestination):
+        """Mock destination used for deduplication behavior checks."""
+
         def __init__(self):
+            """Initialize destination with captured alert storage."""
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
+            """Store an alert and report success.
+
+            Args:
+                alert: Alert payload to capture.
+
+            Returns:
+                Always ``True``.
+            """
             self.alerts.append(alert)
             return True
 
@@ -122,11 +155,26 @@ def test_alert_to_specific_destination():
     from phlo_alerting.manager import AlertManager, AlertDestination, Alert
 
     class MockDestination(AlertDestination):
+        """Mock destination keyed by name for routing tests."""
+
         def __init__(self, name):
+            """Initialize destination.
+
+            Args:
+                name: Destination identifier.
+            """
             self.name = name
             self.alerts = []
 
         def send(self, alert: Alert) -> bool:
+            """Store an alert and report success.
+
+            Args:
+                alert: Alert payload to capture.
+
+            Returns:
+                Always ``True``.
+            """
             self.alerts.append(alert)
             return True
 

@@ -19,6 +19,8 @@ from pyiceberg.types import (
 
 
 class SchemaConversionError(Exception):
+    """Raised when a Pandera schema cannot be converted to Iceberg schema."""
+
     pass
 
 
@@ -28,6 +30,20 @@ def pandera_to_iceberg(
     add_dlt_metadata: bool = True,
     add_phlo_metadata: bool = True,
 ) -> Schema:
+    """Convert a Pandera DataFrameModel schema to a PyIceberg schema.
+
+    Args:
+        pandera_schema: Source Pandera model class.
+        start_field_id: Starting field identifier for user columns.
+        add_dlt_metadata: Whether to append standard DLT metadata columns.
+        add_phlo_metadata: Whether to append standard Phlo metadata columns.
+
+    Returns:
+        Equivalent Iceberg schema.
+
+    Raises:
+        SchemaConversionError: If conversion fails or schema is invalid.
+    """
     reserved_field_ids: dict[str, int] = {
         "_dlt_load_id": 100,
         "_dlt_id": 101,
@@ -166,6 +182,18 @@ def pandera_to_iceberg(
 
 
 def _map_type(field_name: str, pandera_type: Any) -> Any:
+    """Map a Pandera-annotated type to an Iceberg type.
+
+    Args:
+        field_name: Source field name for error reporting.
+        pandera_type: Annotated Python/Pandera type.
+
+    Returns:
+        Corresponding Iceberg type instance.
+
+    Raises:
+        SchemaConversionError: If type cannot be represented.
+    """
     origin = get_origin(pandera_type)
     if origin is None:
         return _map_scalar(field_name, pandera_type)
@@ -193,6 +221,18 @@ def _map_type(field_name: str, pandera_type: Any) -> Any:
 
 
 def _map_scalar(field_name: str, t: Any) -> Any:
+    """Map a scalar Python type to an Iceberg type.
+
+    Args:
+        field_name: Source field name for error reporting.
+        t: Scalar Python type.
+
+    Returns:
+        Corresponding Iceberg type instance.
+
+    Raises:
+        SchemaConversionError: If type is unsupported.
+    """
     if t in (str,):
         return StringType()
     if t in (int,):

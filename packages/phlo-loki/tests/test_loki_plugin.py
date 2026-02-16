@@ -4,6 +4,8 @@ from phlo_loki.plugin import LokiServicePlugin
 
 
 def test_loki_service_definition():
+    """Validate Loki service definition fields."""
+
     plugin = LokiServicePlugin()
     defn = plugin.service_definition
 
@@ -12,6 +14,8 @@ def test_loki_service_definition():
 
 
 def test_loki_plugin_metadata():
+    """Validate Loki plugin metadata tags and name."""
+
     plugin = LokiServicePlugin()
     meta = plugin.metadata
 

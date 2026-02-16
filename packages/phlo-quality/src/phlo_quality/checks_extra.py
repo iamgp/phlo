@@ -84,6 +84,11 @@ class SchemaCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this schema check.
+        """
         schema_name = getattr(self.schema, "__name__", "schema")
         return f"schema_check_{schema_name}"
 
@@ -183,6 +188,11 @@ class CustomSQLCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this custom SQL check.
+        """
         return f"custom_sql_{self.name_}"
 
 
@@ -282,4 +292,9 @@ class PatternCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this pattern check.
+        """
         return f"pattern_check_{self.column}"

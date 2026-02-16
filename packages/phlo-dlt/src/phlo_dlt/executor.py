@@ -38,6 +38,18 @@ class DltIngester(BaseIngester):
         merge_strategy: str = "merge",
         merge_config: Dict[str, Any] | None = None,
     ):
+        """Initialize the DLT ingester.
+
+        Args:
+            context: Execution context from the orchestrator runtime.
+            logger: Logger used for ingestion lifecycle messages.
+            table_config: Table-level ingestion configuration.
+            iceberg_resource: Iceberg resource used for merge operations.
+            dlt_source_func: Callable that builds a DLT source for a partition.
+            add_metadata_columns: Whether to inject metadata columns into staged parquet.
+            merge_strategy: Merge strategy name for Iceberg writes.
+            merge_config: Optional merge strategy configuration.
+        """
         super().__init__(context, logger)
         self.table_config = table_config
         self.iceberg = iceberg_resource
@@ -109,7 +121,14 @@ class DltIngester(BaseIngester):
             # but helpers use context.log). Let's wrap a context shim.
 
             class ContextShim:
+                """Expose a `.log` attribute expected by legacy DLT helpers."""
+
                 def __init__(self, logger):
+                    """Store logger on `.log` to match helper context contract.
+
+                    Args:
+                        logger: Logger instance consumed by helper functions.
+                    """
                     self.log = logger
 
             shim = ContextShim(self.logger)

@@ -12,6 +12,17 @@ def select_services_to_install(
     enabled_names: Iterable[str],
     disabled_names: Iterable[str],
 ) -> list[ServiceDefinition]:
+    """Resolve final service selection from defaults and CLI overrides.
+
+    Args:
+        all_services: Mapping of all discovered services by name.
+        default_services: Services enabled by default.
+        enabled_names: Explicitly enabled service names.
+        disabled_names: Explicitly disabled service names.
+
+    Returns:
+        Ordered list of services selected for installation.
+    """
     disabled = set(disabled_names)
     services_to_install: list[ServiceDefinition] = [
         service for service in default_services if service.name not in disabled

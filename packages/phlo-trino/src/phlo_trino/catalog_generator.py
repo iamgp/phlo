@@ -14,6 +14,14 @@ logger = get_logger(__name__)
 
 
 def _load_entry_points(group: str) -> list[CatalogPlugin]:
+    """Load catalog plugins from a Python entry-point group.
+
+    Args:
+        group: Entry-point group name to resolve.
+
+    Returns:
+        Instantiated catalog plugins that inherit from ``CatalogPlugin``.
+    """
     try:
         entry_points = importlib.metadata.entry_points(group=group)
     except TypeError:
@@ -39,6 +47,15 @@ def _load_entry_points(group: str) -> list[CatalogPlugin]:
 
 
 def _filter_catalogs(catalogs: list[CatalogPlugin], target: str) -> list[CatalogPlugin]:
+    """Filter catalogs to those that support a target runtime.
+
+    Args:
+        catalogs: Candidate catalog plugins.
+        target: Target runtime identifier, for example ``"trino"``.
+
+    Returns:
+        Catalog plugins compatible with the requested target.
+    """
     filtered: list[CatalogPlugin] = []
     for catalog in catalogs:
         if catalog.supports_target(target):
@@ -79,7 +96,24 @@ def discover_trino_catalogs() -> list[CatalogPlugin]:
 
 
 def _to_properties_file(properties: dict[str, object]) -> str:
+    """Serialize catalog properties to Java ``.properties`` text.
+
+    Args:
+        properties: Catalog key/value properties.
+
+    Returns:
+        Newline-delimited ``key=value`` content with escaped values.
+    """
+
     def escape_value(value: object) -> str:
+        """Escape a value for Java ``.properties`` output.
+
+        Args:
+            value: Property key or value to escape.
+
+        Returns:
+            Escaped text safe for ``.properties`` files.
+        """
         text = str(value)
         text = text.replace("\\", "\\\\")
         text = text.replace("\t", "\\t")

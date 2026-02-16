@@ -24,7 +24,14 @@ router = APIRouter(tags=["lineage"])
 
 
 def get_connection_string() -> str:
-    """Get PostgreSQL connection string for lineage store."""
+    """Get the lineage PostgreSQL connection string.
+
+    Returns:
+        Lineage database connection string.
+
+    Raises:
+        RuntimeError: If no lineage database URL is configured.
+    """
     settings = get_settings()
     if settings.lineage_db_url:
         return settings.lineage_db_url
@@ -38,6 +45,16 @@ def get_connection_string() -> str:
 
 
 class RowLineageInfo(BaseModel):
+    """Represent lineage metadata for a single row.
+
+    Attributes:
+        row_id: Row identifier.
+        table_name: Table containing the row.
+        source_type: Ingestion or transformation source classification.
+        parent_row_ids: Parent row identifiers used to produce this row.
+        created_at: Row lineage event timestamp in ISO format.
+    """
+
     row_id: str
     table_name: str
     source_type: str
@@ -46,12 +63,31 @@ class RowLineageInfo(BaseModel):
 
 
 class LineageJourney(BaseModel):
+    """Represent current, upstream, and downstream lineage for a row.
+
+    Attributes:
+        current: Current row lineage record, when found.
+        ancestors: Upstream lineage rows.
+        descendants: Downstream lineage rows.
+    """
+
     current: RowLineageInfo | None
     ancestors: list[RowLineageInfo]
     descendants: list[RowLineageInfo]
 
 
 class AssetNode(BaseModel):
+    """Represent an asset node in the lineage graph.
+
+    Attributes:
+        name: Asset key.
+        asset_type: Asset type classification.
+        status: Asset status string.
+        description: Asset description text.
+        metadata: Arbitrary metadata attached to the asset.
+        tags: Arbitrary tags attached to the asset.
+    """
+
     name: str
     asset_type: str | None = None
     status: str | None = None
@@ -61,6 +97,15 @@ class AssetNode(BaseModel):
 
 
 class AssetEdge(BaseModel):
+    """Represent a directed relationship between two assets.
+
+    Attributes:
+        source: Source asset key.
+        target: Target asset key.
+        metadata: Arbitrary edge metadata.
+        tags: Arbitrary edge tags.
+    """
+
     source: str
     target: str
     metadata: dict[str, Any] | None = None
@@ -68,6 +113,14 @@ class AssetEdge(BaseModel):
 
 
 class AssetLineageGraph(BaseModel):
+    """Represent the asset lineage graph payload.
+
+    Attributes:
+        assets: Asset nodes keyed by asset key.
+        edges: Forward adjacency map keyed by source asset key.
+        edge_details: Detailed directed edge records.
+    """
+
     assets: dict[str, AssetNode]
     edges: dict[str, list[str]]
     edge_details: list[AssetEdge]
@@ -77,6 +130,15 @@ class AssetLineageGraph(BaseModel):
 
 
 def _execute_lineage_query_sync(query: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
+    """Execute a lineage query synchronously.
+
+    Args:
+        query: SQL query text.
+        params: Positional query parameters.
+
+    Returns:
+        Query results as dictionaries.
+    """
     with psycopg2.connect(get_connection_string()) as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             cursor.execute(query, params)
@@ -85,12 +147,27 @@ def _execute_lineage_query_sync(query: str, params: tuple[Any, ...]) -> list[dic
 
 
 async def execute_lineage_query(query: str, params: list[Any]) -> list[dict[str, Any]]:
-    """Execute a query against the lineage store."""
+    """Execute a lineage query in a worker thread.
+
+    Args:
+        query: SQL query text.
+        params: Positional query parameters.
+
+    Returns:
+        Query results as dictionaries.
+    """
     return await run_sync(_execute_lineage_query_sync, query, tuple(params))
 
 
 def row_to_lineage_info(row: dict[str, Any]) -> RowLineageInfo:
-    """Convert database row to RowLineageInfo."""
+    """Convert a lineage row dictionary to `RowLineageInfo`.
+
+    Args:
+        row: Row dictionary from lineage queries.
+
+    Returns:
+        Normalized row lineage model.
+    """
     return RowLineageInfo(
         row_id=row["row_id"],
         table_name=row["table_name"],
@@ -104,6 +181,15 @@ def _build_asset_graph(
     nodes: list[dict[str, Any]],
     edges: list[dict[str, Any]],
 ) -> tuple[dict[str, AssetNode], dict[str, list[str]], list[AssetEdge]]:
+    """Build asset graph structures from node and edge rows.
+
+    Args:
+        nodes: Asset node rows.
+        edges: Asset edge rows.
+
+    Returns:
+        Tuple of assets, adjacency map, and edge details.
+    """
     assets: dict[str, AssetNode] = {}
     edges_map: dict[str, list[str]] = {}
 
@@ -148,6 +234,19 @@ def _filter_asset_graph(
     direction: str,
     depth: int | None,
 ) -> tuple[dict[str, AssetNode], dict[str, list[str]], list[AssetEdge]]:
+    """Filter an asset graph around a focal asset.
+
+    Args:
+        assets: Full asset map keyed by asset name.
+        edges: Forward adjacency map.
+        edge_details: Detailed edge list.
+        asset_key: Focal asset key.
+        direction: Traversal direction (`upstream`, `downstream`, or `both`).
+        depth: Optional traversal depth limit.
+
+    Returns:
+        Filtered assets, edges, and edge details.
+    """
     reverse_edges: dict[str, list[str]] = {}
     for source, targets in edges.items():
         for target in targets:
@@ -158,6 +257,16 @@ def _filter_asset_graph(
         adjacency: dict[str, list[str]],
         max_depth: int | None,
     ) -> set[str]:
+        """Traverse reachable assets breadth-first.
+
+        Args:
+            start: Start asset key.
+            adjacency: Adjacency map for traversal direction.
+            max_depth: Optional traversal depth limit.
+
+        Returns:
+            Reachable asset keys excluding the start key.
+        """
         visited: set[str] = set()
         queue: deque[tuple[str, int]] = deque([(start, 0)])
         while queue:
@@ -196,7 +305,14 @@ def _filter_asset_graph(
 
 @router.get("/rows/{row_id}", response_model=RowLineageInfo | dict)
 async def get_row_lineage(row_id: str) -> RowLineageInfo | dict[str, str]:
-    """Get lineage info for a single row."""
+    """Get lineage info for one row.
+
+    Args:
+        row_id: Row identifier.
+
+    Returns:
+        Row lineage information or an error dictionary.
+    """
     try:
         rows = await execute_lineage_query(
             """
@@ -223,7 +339,15 @@ async def get_row_ancestors(
     row_id: str,
     max_depth: int = Query(default=10, le=50),
 ) -> list[RowLineageInfo] | dict[str, str]:
-    """Get all ancestor rows (recursive)."""
+    """Get ancestor rows recursively.
+
+    Args:
+        row_id: Row identifier.
+        max_depth: Maximum recursion depth.
+
+    Returns:
+        Ancestor rows or an error dictionary.
+    """
     try:
         rows = await execute_lineage_query(
             """
@@ -266,7 +390,15 @@ async def get_row_descendants(
     row_id: str,
     max_depth: int = Query(default=10, le=50),
 ) -> list[RowLineageInfo] | dict[str, str]:
-    """Get all descendant rows (recursive)."""
+    """Get descendant rows recursively.
+
+    Args:
+        row_id: Row identifier.
+        max_depth: Maximum recursion depth.
+
+    Returns:
+        Descendant rows or an error dictionary.
+    """
     try:
         rows = await execute_lineage_query(
             """
@@ -302,7 +434,14 @@ async def get_row_descendants(
 
 @router.get("/rows/{row_id}/journey", response_model=LineageJourney | dict)
 async def get_row_journey(row_id: str) -> LineageJourney | dict[str, str]:
-    """Get full lineage journey for a row (ancestors + self + descendants)."""
+    """Get lineage journey for a row.
+
+    Args:
+        row_id: Row identifier.
+
+    Returns:
+        Row lineage journey or an error dictionary.
+    """
     try:
         # Get current row
         current_rows = await execute_lineage_query(
@@ -356,7 +495,16 @@ async def get_asset_lineage_graph(
     direction: str = Query(default="both", pattern="^(upstream|downstream|both)$"),
     depth: int | None = Query(default=None, ge=1, le=50),
 ) -> AssetLineageGraph | dict[str, str]:
-    """Get asset-level lineage graph."""
+    """Get the asset lineage graph.
+
+    Args:
+        asset_key: Optional focal asset key.
+        direction: Graph traversal direction for focused views.
+        depth: Optional traversal depth for focused views.
+
+    Returns:
+        Full or filtered asset lineage graph, or an error dictionary.
+    """
     try:
         nodes = await execute_lineage_query(
             """

@@ -15,12 +15,16 @@ from phlo_postgres.settings import get_settings as get_postgres_settings
 
 
 class SettingsScope(StrEnum):
+    """Supported settings scopes."""
+
     GLOBAL = "global"
     EXTENSION = "extension"
 
 
 @dataclass(frozen=True)
 class SettingsRecord:
+    """Stored settings payload and metadata."""
+
     scope: SettingsScope
     namespace: str
     settings: dict[str, Any]
@@ -31,10 +35,20 @@ class SettingsService:
     """Settings service with optional schema validation."""
 
     def __init__(self, db_url: str) -> None:
+        """Initialize settings persistence with a Postgres connection URL."""
         self._db_url = db_url
         self._table_ensured = False
 
     def get(self, scope: SettingsScope, namespace: str) -> SettingsRecord | None:
+        """Get settings for a scope and namespace.
+
+        Args:
+            scope: Settings scope.
+            namespace: Scope-specific settings namespace.
+
+        Returns:
+            Stored settings record, or ``None`` when not found.
+        """
         with psycopg2.connect(self._db_url) as conn:
             self._ensure_table(conn)
             with conn.cursor() as cursor:
@@ -64,6 +78,17 @@ class SettingsService:
         settings: dict[str, Any],
         schema: dict[str, Any] | None = None,
     ) -> SettingsRecord:
+        """Upsert settings for a scope and namespace.
+
+        Args:
+            scope: Settings scope.
+            namespace: Scope-specific settings namespace.
+            settings: Settings payload to persist.
+            schema: Optional JSON schema used to validate ``settings``.
+
+        Returns:
+            Persisted settings record.
+        """
         self._validate(settings, schema)
         with psycopg2.connect(self._db_url) as conn:
             self._ensure_table(conn)
@@ -116,6 +141,7 @@ class SettingsService:
 
 @lru_cache(maxsize=1)
 def get_settings_service() -> SettingsService:
+    """Build and cache the settings service instance."""
     observatory_settings = get_observatory_settings()
     postgres_settings = get_postgres_settings()
     db_url = observatory_settings.observatory_settings_db_url or (

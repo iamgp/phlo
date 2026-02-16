@@ -9,6 +9,17 @@ from phlo_iceberg.settings import get_settings
 
 @dataclass(frozen=True)
 class TableConfig:
+    """Configuration describing a registered ingestion table.
+
+    Attributes:
+        table_name: Physical target table name.
+        iceberg_schema: Converted Iceberg schema object.
+        validation_schema: Optional Pandera schema used for validation.
+        unique_key: Column used as unique key for merge semantics.
+        group_name: Dagster group name for generated assets.
+        partition_spec: Optional Iceberg partition transform specification.
+    """
+
     table_name: str
     iceberg_schema: Any
     validation_schema: type[DataFrameModel] | None
@@ -18,4 +29,9 @@ class TableConfig:
 
     @property
     def full_table_name(self) -> str:
+        """Return fully qualified table name with default namespace.
+
+        Returns:
+            Namespace-prefixed table name.
+        """
         return f"{get_settings().iceberg_default_namespace}.{self.table_name}"

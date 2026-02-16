@@ -47,6 +47,8 @@ class NativeProcess:
         return self.process.pid
 
     def close_log_file(self) -> None:
+        """Close the process log file handle when one is open."""
+
         if self.log_file is None:
             return
         try:
@@ -61,6 +63,13 @@ class NativeProcessManager:
     """Manages native processes for services in dev mode (no Docker)."""
 
     def __init__(self, project_root: Path, log_dir: Path | None = None):
+        """Initialize a native process manager.
+
+        Args:
+            project_root: Root directory for resolving service paths.
+            log_dir: Optional directory for per-service log files.
+        """
+
         self.project_root = project_root
         self.log_dir = log_dir
         self._processes: dict[str, NativeProcess] = {}
@@ -70,9 +79,24 @@ class NativeProcessManager:
         return bool(service.dev and service.dev.get("command"))
 
     def _expand_env_vars(self, value: str, env: dict[str, str]) -> str:
+        """Expand `${VAR}` and `${VAR:-default}` placeholders in a string.
+
+        Args:
+            value: Input string that may include environment placeholders.
+            env: Environment mapping used for substitution.
+
+        Returns:
+            String with placeholders replaced from env or defaults.
+
+        Raises:
+            KeyError: If a placeholder has no matching env value and no default.
+        """
+
         pattern = re.compile(r"\$\{([A-Z0-9_]+)(?::-([^}]*))?\}")
 
         def repl(match: Match[str]) -> str:
+            """Resolve a single environment placeholder match."""
+
             var = match.group(1)
             default = match.group(2)
             if var in env:

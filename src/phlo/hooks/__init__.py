@@ -101,6 +101,18 @@ if TYPE_CHECKING:
 
 
 def __getattr__(name: str):  # noqa: ANN001
+    """Lazily resolve exports from hook submodules.
+
+    Args:
+        name: Export name requested from this module.
+
+    Returns:
+        Exported attribute resolved from bus, emitters, or events modules.
+
+    Raises:
+        AttributeError: If name is not an exported hook symbol.
+    """
+
     if name in _BUS_EXPORTS:
         from phlo.hooks import bus as _bus
 
@@ -117,4 +129,6 @@ def __getattr__(name: str):  # noqa: ANN001
 
 
 def __dir__() -> list[str]:
+    """Return module attribute names for introspection tools."""
+
     return sorted(set(__all__))

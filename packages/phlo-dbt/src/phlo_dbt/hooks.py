@@ -13,6 +13,11 @@ from phlo_dagster.containers import find_dagster_container
 
 
 def compile_dbt() -> int:
+    """Compile dbt models in the Dagster container when a dbt project exists.
+
+    Returns:
+        Process-style status code.
+    """
     settings = get_settings()
     dbt_project_dir = Path(settings.dbt_project_dir)
 
@@ -86,6 +91,11 @@ def compile_dbt() -> int:
 
 
 def main() -> int:
+    """Run dbt hook CLI entrypoint.
+
+    Returns:
+        Process-style status code.
+    """
     parser = argparse.ArgumentParser(description="Phlo dbt hooks")
     parser.add_argument("action", choices=["compile"])
     args = parser.parse_args()

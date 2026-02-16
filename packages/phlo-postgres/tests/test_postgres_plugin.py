@@ -4,6 +4,7 @@ from phlo_postgres.plugin import PostgresResourceProvider, PostgresServicePlugin
 
 
 def test_postgres_service_definition():
+    """Validate Postgres service definition fields."""
     plugin = PostgresServicePlugin()
     service_definition = plugin.service_definition
 
@@ -12,6 +13,7 @@ def test_postgres_service_definition():
 
 
 def test_postgres_resource_provider():
+    """Validate Postgres resource provider output."""
     provider = PostgresResourceProvider()
     resources = provider.get_resources()
 

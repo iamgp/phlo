@@ -4,6 +4,8 @@ from phlo_minio.plugin import MinioServicePlugin
 
 
 def test_minio_service_definition():
+    """Validate MinIO service definition fields."""
+
     plugin = MinioServicePlugin()
     service_definition = plugin.service_definition
 

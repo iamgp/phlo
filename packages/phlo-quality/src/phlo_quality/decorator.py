@@ -62,6 +62,7 @@ def phlo_quality(
     """
 
     def decorator(func: Callable) -> Callable:
+        """Register contract and quality checks for the decorated asset function."""
         # Derive asset key from table name if not provided
         nonlocal asset_key, description, full_table
 
@@ -94,6 +95,7 @@ def phlo_quality(
         if schema_checks:
 
             def pandera_contract_check(runtime: RuntimeContext) -> CheckResult:
+                """Execute schema-based checks and emit a contract-style result."""
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
                 emitter, telemetry = _make_emitters(
@@ -260,6 +262,7 @@ def phlo_quality(
         if non_schema_checks:
 
             def quality_check_wrapper(runtime: RuntimeContext) -> CheckResult:
+                """Execute non-schema checks and emit aggregated quality metadata."""
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
                 emitter, telemetry = _make_emitters(

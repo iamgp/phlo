@@ -15,6 +15,14 @@ from phlo_dbt.translator import DbtSpecTranslator
 
 
 def _latest_project_mtime(dbt_project_path: Path) -> float:
+    """Return latest modification timestamp across dbt project inputs.
+
+    Args:
+        dbt_project_path: Root path of the dbt project.
+
+    Returns:
+        Most recent file modification timestamp.
+    """
     candidates: list[Path] = [
         dbt_project_path / "dbt_project.yml",
         dbt_project_path / "packages.yml",
@@ -45,6 +53,15 @@ def _latest_project_mtime(dbt_project_path: Path) -> float:
 
 
 def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
+    """Ensure a valid dbt manifest exists, compiling when necessary.
+
+    Args:
+        dbt_project_path: Root path of the dbt project.
+        profiles_path: Path to dbt profiles directory.
+
+    Returns:
+        ``True`` when a valid manifest is available, else ``False``.
+    """
     manifest_path = dbt_project_path / "target" / "manifest.json"
 
     needs_compile = not manifest_path.exists()
@@ -91,6 +108,16 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
 
 
 def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, str]) -> list[str]:
+    """Resolve upstream asset dependencies for a dbt node.
+
+    Args:
+        unique_id: dbt unique node identifier.
+        nodes: Manifest node mapping.
+        asset_keys: Mapping of dbt unique IDs to asset keys.
+
+    Returns:
+        Upstream asset keys for the node.
+    """
     props = nodes.get(unique_id, {})
     depends_on = props.get("depends_on") or {}
     depends_nodes = depends_on.get("nodes") or []
@@ -110,6 +137,17 @@ def _run_dbt_model(
     profiles_dir: Path,
     runtime: RuntimeContext,
 ) -> list[MaterializeResult]:
+    """Execute a single dbt model and map result to materialization output.
+
+    Args:
+        model_name: dbt model name to execute.
+        project_dir: dbt project root.
+        profiles_dir: dbt profiles directory.
+        runtime: Asset runtime context.
+
+    Returns:
+        Materialization results for the model run.
+    """
     runtime_tags = getattr(runtime, "tags", {}) or {}
     if not isinstance(runtime_tags, Mapping):
         runtime_tags = {}
@@ -143,6 +181,11 @@ def _run_dbt_model(
 
 
 def build_dbt_asset_specs() -> list[AssetSpec]:
+    """Build asset specifications from dbt manifest metadata.
+
+    Returns:
+        Asset specs representing supported dbt nodes.
+    """
     settings = get_settings()
 
     dbt_project_path = settings.dbt_project_path
@@ -198,6 +241,15 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
         tags = {"tool": "dbt"}
 
         def _runner(runtime: RuntimeContext, model=model_name) -> list[MaterializeResult]:
+            """Execute one dbt-backed asset run.
+
+            Args:
+                runtime: Asset runtime context.
+                model: Bound dbt model name for this spec.
+
+            Returns:
+                Materialization results for the selected dbt model.
+            """
             return _run_dbt_model(
                 model_name=model,
                 project_dir=dbt_project_path,

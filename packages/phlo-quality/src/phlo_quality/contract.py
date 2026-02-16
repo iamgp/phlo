@@ -48,10 +48,27 @@ PANDERA_CONTRACT_CHECK_NAME = "pandera_contract"
 
 
 def dbt_check_name(test_type: str, target: str) -> str:
+    """Build a canonical Dagster-safe check name for a dbt test.
+
+    Args:
+        test_type: dbt test type (for example, ``not_null``).
+        target: Target model/column identifier for the test.
+
+    Returns:
+        Canonical check name in ``dbt__<test_type>__<target>`` format.
+    """
     return f"dbt__{_sanitize_dagster_name(test_type)}__{_sanitize_dagster_name(target)}"
 
 
 def _sanitize_dagster_name(value: str) -> str:
+    """Normalize a string into a Dagster-safe identifier segment.
+
+    Args:
+        value: Raw identifier value.
+
+    Returns:
+        Lower-risk identifier segment containing alphanumerics and underscores.
+    """
     cleaned = "".join(char if char.isalnum() else "_" for char in value.strip())
     cleaned = "_".join(part for part in cleaned.split("_") if part)
     return cleaned or "unknown"
@@ -59,6 +76,18 @@ def _sanitize_dagster_name(value: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class QualityCheckContract:
+    """Canonical metadata payload for quality checks.
+
+    Attributes:
+        source: Check source type.
+        failed_count: Number of observed failures.
+        partition_key: Optional partition key for scoped checks.
+        total_count: Optional total evaluated count.
+        query_or_sql: Optional query or SQL used for evaluation.
+        repro_sql: Optional reproduction SQL snippet.
+        sample: Optional failure samples (trimmed to 20 on export).
+    """
+
     source: Literal["pandera", "dbt", "phlo"]
     failed_count: int
     partition_key: str | None = None
@@ -68,6 +97,11 @@ class QualityCheckContract:
     sample: list[Any] | None = None
 
     def to_metadata(self) -> dict[str, Any]:
+        """Export contract fields as a metadata dictionary.
+
+        Returns:
+            Metadata dictionary using the quality-check contract keys.
+        """
         metadata: dict[str, Any] = {
             "source": self.source,
             "failed_count": self.failed_count,

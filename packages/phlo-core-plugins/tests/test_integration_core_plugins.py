@@ -64,12 +64,16 @@ class TestServicePlugin:
 
         # Attempting to instantiate directly should fail or have abstract methods
         class ConcretePlugin(ServicePlugin):
+            """Concrete service plugin for abstract base class testing."""
+
             @property
             def metadata(self):
+                """Get test plugin metadata."""
                 return PluginMetadata("test", "1.0.0", "test")
 
             @property
             def service_definition(self):
+                """Get minimal service definition for test instantiation."""
                 return {"services": {}}
 
         plugin = ConcretePlugin()
@@ -156,19 +160,25 @@ class TestCatalogPlugin:
         from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
         class MockCatalog(CatalogPlugin):
+            """Concrete catalog plugin used to validate interface behavior."""
+
             @property
             def metadata(self):
+                """Get mock catalog metadata."""
                 return PluginMetadata("mock", "1.0.0", "Mock catalog")
 
             @property
             def targets(self) -> list[str]:
+                """Get supported target engines."""
                 return ["trino"]
 
             @property
             def catalog_name(self):
+                """Get catalog identifier."""
                 return "mock"
 
             def get_properties(self):
+                """Get connector properties for the catalog."""
                 return {"connector.name": "mock"}
 
         catalog = MockCatalog()

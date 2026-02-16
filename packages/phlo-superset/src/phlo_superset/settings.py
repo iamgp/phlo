@@ -22,4 +22,9 @@ class SupersetSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> SupersetSettings:
+    """Get cached Superset settings.
+
+    Returns:
+        Loaded Superset configuration settings.
+    """
     return SupersetSettings()

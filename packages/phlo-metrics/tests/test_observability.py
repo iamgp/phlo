@@ -78,7 +78,17 @@ class TestAlertManager:
 
         # Register a mock destination
         class MockDestination(AlertDestination):
+            """Test alert destination that records successful delivery."""
+
             def send(self, alert):
+                """Pretend to send an alert destination payload.
+
+                Args:
+                    alert: Alert payload to send.
+
+                Returns:
+                    bool: Always returns ``True`` for test success.
+                """
                 return True
 
         manager.register_destination("mock", MockDestination())

@@ -17,6 +17,11 @@ class TrinoServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for Trino service registration.
+
+        Returns:
+            Plugin metadata used by plugin discovery.
+        """
         return PluginMetadata(
             name="trino",
             version="0.1.0",
@@ -27,13 +32,25 @@ class TrinoServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Load the Trino service compose definition.
+
+        Returns:
+            Parsed service definition from `service.yaml`.
+        """
         service_path = resources.files("phlo_trino").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))
 
 
 class TrinoResourceProvider(ResourceProviderPlugin):
+    """Resource provider plugin for Trino."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for Trino resource registration.
+
+        Returns:
+            Plugin metadata used by plugin discovery.
+        """
         return PluginMetadata(
             name="trino",
             version="0.1.0",
@@ -41,4 +58,9 @@ class TrinoResourceProvider(ResourceProviderPlugin):
         )
 
     def get_resources(self) -> list[ResourceSpec]:
+        """Return Trino resources exposed by this plugin.
+
+        Returns:
+            Resource specifications for Trino integrations.
+        """
         return [ResourceSpec(name="trino", resource=TrinoResource())]

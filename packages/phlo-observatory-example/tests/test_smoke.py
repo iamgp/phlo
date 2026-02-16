@@ -4,6 +4,7 @@ from phlo_observatory_example.observatory_plugin import ExampleObservatoryExtens
 
 
 def test_example_extension_manifest_smoke() -> None:
+    """Validate basic extension manifest fields."""
     plugin = ExampleObservatoryExtension()
 
     assert plugin.metadata.name == "example"
@@ -12,6 +13,7 @@ def test_example_extension_manifest_smoke() -> None:
 
 
 def test_example_extension_assets_present() -> None:
+    """Ensure extension static assets are packaged."""
     plugin = ExampleObservatoryExtension()
 
     assert plugin.asset_root.joinpath("example.js").is_file()

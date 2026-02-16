@@ -7,6 +7,8 @@ from phlo_quality.partitioning import PartitionScope, apply_partition_scope
 
 
 def test_apply_partition_scope_adds_where_for_partition_key() -> None:
+    """Verify partition key scope appends a WHERE predicate."""
+
     scope = PartitionScope(
         partition_key="2024-01-02",
         partition_column="_phlo_partition_date",
@@ -20,6 +22,8 @@ def test_apply_partition_scope_adds_where_for_partition_key() -> None:
 
 
 def test_apply_partition_scope_appends_and_when_where_exists() -> None:
+    """Verify partition key scope appends AND to existing WHERE clauses."""
+
     scope = PartitionScope(
         partition_key="2024-01-02",
         partition_column="_phlo_partition_date",
@@ -33,9 +37,19 @@ def test_apply_partition_scope_appends_and_when_where_exists() -> None:
 
 
 def test_apply_partition_scope_rolling_window(monkeypatch) -> None:
+    """Verify rolling window scope uses today's date minus window days.
+
+    Args:
+        monkeypatch: Pytest fixture for patching module state.
+    """
+
     class _Date(date):
+        """Deterministic date replacement for rolling window tests."""
+
         @classmethod
         def today(cls):  # type: ignore[override]
+            """Return a fixed date for reproducible assertions."""
+
             return cls(2024, 1, 10)
 
     module = importlib.import_module("phlo_quality.partitioning")
@@ -54,6 +68,8 @@ def test_apply_partition_scope_rolling_window(monkeypatch) -> None:
 
 
 def test_apply_partition_scope_full_table_noop() -> None:
+    """Verify full-table scope leaves SQL unchanged."""
+
     scope = PartitionScope(
         partition_key="2024-01-02",
         partition_column="_phlo_partition_date",

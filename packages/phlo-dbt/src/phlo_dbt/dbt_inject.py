@@ -1,3 +1,5 @@
+"""Helpers to inject stable row identifiers into dbt-managed tables."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -11,6 +13,18 @@ def inject_row_ids_to_table(
     table: str,
     context: Any | None = None,
 ) -> dict[str, Any]:
+    """Add `_phlo_row_id` to a table and backfill missing values.
+
+    Args:
+        trino_connection: Open Trino connection used for DDL and DML statements.
+        catalog: Trino catalog name.
+        schema: Trino schema name.
+        table: Target table name.
+        context: Optional runtime context with a logger.
+
+    Returns:
+        Result metadata including updated row count and whether the table was skipped.
+    """
     cursor = trino_connection.cursor()
 
     fqtn = f"{catalog}.{schema}.{table}"
@@ -44,6 +58,17 @@ def inject_row_ids_for_dbt_run(
     catalog: str = "iceberg",
     context: Any | None = None,
 ) -> dict[str, Any]:
+    """Inject `_phlo_row_id` into successful dbt model outputs.
+
+    Args:
+        trino_connection: Open Trino connection used for table updates.
+        run_results: Parsed dbt `run_results.json` payload.
+        catalog: Trino catalog containing dbt target schemas.
+        context: Optional runtime context with a logger.
+
+    Returns:
+        Mapping of model name to per-model injection result or error payload.
+    """
     results: dict[str, Any] = {}
 
     for result in run_results.get("results", []):
