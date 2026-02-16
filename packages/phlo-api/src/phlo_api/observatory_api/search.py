@@ -25,6 +25,15 @@ router = APIRouter(tags=["search"])
 
 
 class SearchableAsset(BaseModel):
+    """Represent a searchable Dagster asset.
+
+    Attributes:
+        id: Stable asset identifier.
+        key_path: Asset key path.
+        group_name: Optional Dagster group name.
+        compute_kind: Optional compute engine label.
+    """
+
     id: str
     key_path: str
     group_name: str | None = None
@@ -32,6 +41,16 @@ class SearchableAsset(BaseModel):
 
 
 class SearchableTable(BaseModel):
+    """Represent a searchable table in the catalog.
+
+    Attributes:
+        catalog: Catalog name.
+        schema_name: Schema name.
+        name: Table name.
+        full_name: Fully qualified table name.
+        layer: Medallion/data layer classification.
+    """
+
     catalog: str
     schema_name: str
     name: str
@@ -40,6 +59,15 @@ class SearchableTable(BaseModel):
 
 
 class SearchableColumn(BaseModel):
+    """Represent a searchable table column.
+
+    Attributes:
+        table_name: Parent table name.
+        table_schema: Parent schema name.
+        name: Column name.
+        type: Column data type.
+    """
+
     table_name: str
     table_schema: str
     name: str
@@ -47,6 +75,15 @@ class SearchableColumn(BaseModel):
 
 
 class SearchIndex(BaseModel):
+    """Represent the aggregated observability search index.
+
+    Attributes:
+        assets: Searchable assets.
+        tables: Searchable tables.
+        columns: Searchable columns.
+        last_updated: ISO timestamp when the index was built.
+    """
+
     assets: list[SearchableAsset]
     tables: list[SearchableTable]
     columns: list[SearchableColumn]
@@ -64,7 +101,18 @@ async def get_search_index(
     branch: str = "main",
     include_columns: bool = Query(default=True),
 ) -> SearchIndex | dict[str, str]:
-    """Get search index with all searchable entities."""
+    """Build the observability search index.
+
+    Args:
+        dagster_url: Optional Dagster URL override.
+        trino_url: Optional Trino URL override.
+        catalog: Trino catalog name.
+        branch: Trino schema/branch context.
+        include_columns: Whether to include column metadata.
+
+    Returns:
+        Aggregated search index or an error dictionary.
+    """
     try:
         # Fetch assets and tables in parallel
         assets_result, tables_result = await asyncio.gather(

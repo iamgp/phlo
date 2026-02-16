@@ -15,6 +15,7 @@ class SupersetServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Superset service."""
         return PluginMetadata(
             name="superset",
             version="0.1.0",
@@ -25,5 +26,6 @@ class SupersetServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Return the Docker service definition for Superset."""
         service_path = resources.files("phlo_superset").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

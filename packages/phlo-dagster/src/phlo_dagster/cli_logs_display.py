@@ -38,6 +38,11 @@ def _tail_logs(
     seen_logs = set()
 
     def generate_logs_table():
+        """Build a table for newly fetched log entries.
+
+        Returns:
+            Rich renderable containing log rows or an empty-state message.
+        """
         nonlocal last_fetch_time
 
         # Fetch new logs

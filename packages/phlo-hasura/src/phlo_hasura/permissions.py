@@ -248,6 +248,7 @@ class RoleHierarchy:
         inherited = [role]
 
         def visit(r: str) -> None:
+            """Depth-first traversal that accumulates inherited roles."""
             for inherited_role in self.hierarchy.get(r, []):
                 if inherited_role not in inherited:
                     inherited.append(inherited_role)

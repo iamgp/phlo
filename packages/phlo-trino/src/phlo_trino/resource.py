@@ -18,18 +18,38 @@ class _ConfigFacade:
 
     @property
     def trino_host(self) -> str:
+        """Get the configured Trino host.
+
+        Returns:
+            Trino service hostname.
+        """
         return get_trino_settings().trino_host
 
     @property
     def trino_port(self) -> int:
+        """Get the configured Trino port.
+
+        Returns:
+            Trino HTTP port.
+        """
         return get_trino_settings().trino_port
 
     @property
     def trino_catalog(self) -> str:
+        """Get the configured Trino catalog.
+
+        Returns:
+            Default Trino catalog name.
+        """
         return get_trino_settings().trino_catalog
 
     @property
     def iceberg_nessie_ref(self) -> str:
+        """Get the configured Nessie reference for Iceberg.
+
+        Returns:
+            Nessie branch or tag reference.
+        """
         return get_iceberg_settings().iceberg_nessie_ref
 
 
@@ -38,6 +58,16 @@ config = _ConfigFacade()
 
 @dataclass
 class TrinoResource:
+    """Resource wrapper for Trino connections and query execution.
+
+    Attributes:
+        host: Optional Trino host override.
+        port: Optional Trino port override.
+        user: Trino username for connections.
+        catalog: Optional catalog override.
+        ref: Optional Nessie ref override for catalog resolution.
+    """
+
     host: str | None = None
     port: int | None = None
     user: str = "dagster"
@@ -45,6 +75,11 @@ class TrinoResource:
     ref: str | None = None
 
     def _resolved_catalog(self) -> str:
+        """Resolve the catalog name, including non-main Nessie refs.
+
+        Returns:
+            Catalog name used for Trino connections.
+        """
         base_catalog = self.catalog or config.trino_catalog
         ref = self.ref or config.iceberg_nessie_ref
         if ref and ref != "main":
@@ -52,6 +87,14 @@ class TrinoResource:
         return base_catalog
 
     def get_connection(self, schema: str | None = None):
+        """Create a DB-API connection to Trino.
+
+        Args:
+            schema: Optional schema name for the connection.
+
+        Returns:
+            Open Trino DB-API connection.
+        """
         return connect(
             host=self.host or config.trino_host,
             port=self.port or config.trino_port,
@@ -62,6 +105,14 @@ class TrinoResource:
 
     @contextmanager
     def cursor(self, schema: str | None = None):
+        """Yield a Trino cursor and close resources on exit.
+
+        Args:
+            schema: Optional schema name for the connection.
+
+        Yields:
+            Active Trino cursor.
+        """
         conn = self.get_connection(schema=schema)
         cursor = conn.cursor()
         try:
@@ -73,6 +124,16 @@ class TrinoResource:
                 conn.close()
 
     def execute(self, sql: str, params: Iterable[object] | None = None, schema: str | None = None):
+        """Execute SQL and return query results when present.
+
+        Args:
+            sql: SQL statement to execute.
+            params: Optional positional query parameters.
+            schema: Optional schema name for the connection.
+
+        Returns:
+            List of query result rows, or an empty list for statements without results.
+        """
         params = list(params or [])
         with self.cursor(schema=schema) as cursor:
             cursor.execute(sql, params)
@@ -104,6 +165,14 @@ class TrinoResource:
 
 
 def _is_transient_trino_error(exc: Exception) -> bool:
+    """Check whether an exception chain indicates transient Trino startup/connectivity errors.
+
+    Args:
+        exc: Root exception to inspect.
+
+    Returns:
+        True when retrying is likely useful; otherwise False.
+    """
     for error in _iter_exception_chain(exc):
         message = str(error).lower()
         if "server_starting_up" in message:
@@ -145,6 +214,14 @@ def _is_transient_trino_error(exc: Exception) -> bool:
 
 
 def _iter_exception_chain(exc: BaseException) -> Iterable[BaseException]:
+    """Yield an exception and its chained causes/contexts.
+
+    Args:
+        exc: Starting exception.
+
+    Yields:
+        Exception objects from the chain, root first.
+    """
     current: BaseException | None = exc
     while current is not None:
         yield current

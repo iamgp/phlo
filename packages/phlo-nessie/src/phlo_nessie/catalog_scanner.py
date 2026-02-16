@@ -25,15 +25,36 @@ class NessieTableScanner:
     """Scan Nessie Iceberg REST catalog for namespaces and tables."""
 
     def __init__(self, nessie_uri: str, timeout_seconds: int = 30):
+        """Initialize scanner with Nessie base URI and request timeout.
+
+        Args:
+            nessie_uri: Base URI for the Nessie Iceberg REST endpoint.
+            timeout_seconds: HTTP request timeout in seconds.
+        """
         self.nessie_uri = nessie_uri.rstrip("/")
         self.timeout_seconds = timeout_seconds
 
     @classmethod
     def from_config(cls) -> NessieTableScanner:
+        """Build a scanner using configured Nessie settings.
+
+        Returns:
+            NessieTableScanner: Configured scanner instance.
+        """
         settings = get_settings()
         return cls(nessie_uri=settings.nessie_iceberg_rest_uri())
 
     def _request(self, method: str, endpoint: str, params: dict[str, Any] | None = None) -> Any:
+        """Execute an HTTP request against Nessie and parse JSON response.
+
+        Args:
+            method: HTTP method.
+            endpoint: Relative Nessie endpoint path.
+            params: Optional query parameters.
+
+        Returns:
+            Any: Parsed JSON body, or empty dict when response body is empty.
+        """
         url = f"{self.nessie_uri.rstrip('/')}/{endpoint.lstrip('/')}"
         response = requests.request(
             method=method,
@@ -108,6 +129,11 @@ class NessieTableScanner:
             raise
 
     def _list_namespaces_via_trino(self) -> list[dict[str, Any]]:
+        """List namespaces using Trino as a fallback path.
+
+        Returns:
+            list[dict[str, Any]]: Namespace objects with ``namespace`` key.
+        """
         trino = self._get_trino_resource()
         if trino is None:
             return []
@@ -123,6 +149,14 @@ class NessieTableScanner:
         return namespaces
 
     def _list_tables_via_trino(self, namespace: str) -> list[dict[str, Any]]:
+        """List tables in a namespace using Trino as fallback.
+
+        Args:
+            namespace: Namespace to query.
+
+        Returns:
+            list[dict[str, Any]]: Table objects with ``name`` key.
+        """
         trino = self._get_trino_resource()
         if trino is None:
             return []
@@ -140,6 +174,15 @@ class NessieTableScanner:
     def _get_table_metadata_via_trino(
         self, namespace: str, table_name: str
     ) -> dict[str, Any] | None:
+        """Fetch table metadata via Trino DESCRIBE fallback.
+
+        Args:
+            namespace: Namespace containing the table.
+            table_name: Table identifier.
+
+        Returns:
+            dict[str, Any] | None: Normalized metadata when available.
+        """
         trino = self._get_trino_resource()
         if trino is None:
             return None
@@ -164,6 +207,11 @@ class NessieTableScanner:
         return {"name": table_name, "schema": {"fields": fields}}
 
     def _get_trino_resource(self):
+        """Return Trino resource used for fallback queries.
+
+        Returns:
+            Any | None: Trino resource instance, or ``None`` when unavailable.
+        """
         try:
             from phlo_trino import TrinoResource
         except Exception as exc:  # noqa: BLE001 - optional dependency
@@ -177,6 +225,15 @@ class NessieTableScanner:
         )
 
     def _normalize_table_metadata(self, table_name: str, data: Any) -> dict[str, Any]:
+        """Normalize Nessie table payload into a stable metadata shape.
+
+        Args:
+            table_name: Table identifier.
+            data: Raw response payload from Nessie.
+
+        Returns:
+            dict[str, Any]: Normalized metadata payload.
+        """
         if not isinstance(data, dict):
             return {"name": table_name}
         metadata = data.get("metadata")

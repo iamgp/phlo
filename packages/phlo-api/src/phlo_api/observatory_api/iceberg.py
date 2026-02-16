@@ -31,6 +31,15 @@ CACHE_TTL_SCHEMA = 300.0  # 5 minutes
 
 
 def _cache_get(key: str, ttl: float) -> Any | None:
+    """Get a cached value when still valid.
+
+    Args:
+        key: Cache key.
+        ttl: Time-to-live in seconds.
+
+    Returns:
+        Cached value or `None` when missing/expired.
+    """
     entry = _cache.get(key)
     if not entry:
         return None
@@ -42,6 +51,12 @@ def _cache_get(key: str, ttl: float) -> Any | None:
 
 
 def _cache_set(key: str, value: Any) -> None:
+    """Store a value in the in-memory cache.
+
+    Args:
+        key: Cache key.
+        value: Value to cache.
+    """
     _cache[key] = (time.time(), value)
 
 
@@ -51,6 +66,16 @@ Layer = Literal["bronze", "silver", "gold", "publish", "unknown"]
 
 
 class IcebergTable(BaseModel):
+    """Represents an Iceberg table exposed by Trino.
+
+    Attributes:
+        catalog: Trino catalog name.
+        schema_name: Trino schema name.
+        name: Table name.
+        full_name: Fully qualified table identifier.
+        layer: Inferred medallion layer classification.
+    """
+
     catalog: str
     schema_name: str  # 'schema' is reserved in Pydantic
     name: str
@@ -59,6 +84,15 @@ class IcebergTable(BaseModel):
 
 
 class TableColumn(BaseModel):
+    """Represents a column in a table schema.
+
+    Attributes:
+        name: Column name.
+        type: SQL type string.
+        nullable: Whether the column allows NULL values.
+        comment: Optional column comment from catalog metadata.
+    """
+
     name: str
     type: str
     nullable: bool
@@ -66,6 +100,15 @@ class TableColumn(BaseModel):
 
 
 class TableMetadata(BaseModel):
+    """Represents table metadata for observatory responses.
+
+    Attributes:
+        table: Table descriptor.
+        columns: Table column definitions.
+        row_count: Optional row count when available.
+        last_modified: Optional last-modified timestamp when available.
+    """
+
     table: IcebergTable
     columns: list[TableColumn]
     row_count: int | None = None
@@ -76,7 +119,14 @@ class TableMetadata(BaseModel):
 
 
 def infer_layer(name: str) -> Layer:
-    """Infer data layer from table name prefix."""
+    """Infer data layer from table name.
+
+    Args:
+        name: Table name.
+
+    Returns:
+        Inferred medallion layer.
+    """
     lower = name.lower()
     # Bronze: raw ingestion tables from DLT
     if lower.startswith("dlt_"):
@@ -99,7 +149,15 @@ def infer_layer(name: str) -> Layer:
 
 
 def infer_layer_from_schema(schema: str, table_name: str) -> Layer:
-    """Infer layer - TABLE NAME takes precedence over schema name."""
+    """Infer data layer from table and schema names.
+
+    Args:
+        schema: Schema name.
+        table_name: Table name.
+
+    Returns:
+        Inferred medallion layer.
+    """
     # First try table name (most reliable)
     from_table = infer_layer(table_name)
     if from_table != "unknown":
@@ -129,7 +187,18 @@ async def fetch_tables(
     trino_url: str | None,
     timeout_ms: int,
 ) -> list[IcebergTable] | dict[str, str]:
-    """Fetch all tables from Iceberg catalog."""
+    """Fetch tables from known Iceberg schemas.
+
+    Args:
+        branch: Branch/schema fallback name.
+        catalog: Trino catalog name.
+        preferred_schema: Optional schema to prioritize.
+        trino_url: Optional Trino URL override.
+        timeout_ms: Query timeout in milliseconds.
+
+    Returns:
+        Table list or an error dictionary.
+    """
     schemas_to_query = ["bronze", "silver", "gold", "raw", "marts", "publish"]
 
     # Prioritize preferred schema
@@ -203,7 +272,18 @@ async def fetch_table_schema(
     trino_url: str | None = None,
     timeout_ms: int = 30000,
 ) -> list[TableColumn] | dict[str, str]:
-    """Get column schema for a table."""
+    """Fetch table columns from Trino.
+
+    Args:
+        table: Table name.
+        schema: Schema name.
+        catalog: Trino catalog name.
+        trino_url: Optional Trino URL override.
+        timeout_ms: Query timeout in milliseconds.
+
+    Returns:
+        Column list or an error dictionary.
+    """
     sql = (
         f"DESCRIBE {quote_identifier(catalog)}.{quote_identifier(schema)}.{quote_identifier(table)}"
     )
@@ -243,7 +323,18 @@ async def get_tables(
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> list[IcebergTable] | dict[str, str]:
-    """Get all tables from Iceberg catalog."""
+    """Get tables from the Iceberg catalog.
+
+    Args:
+        branch: Branch/schema fallback name.
+        catalog: Optional Trino catalog override.
+        preferred_schema: Optional schema to prioritize.
+        trino_url: Optional Trino URL override.
+        timeout_ms: Query timeout in milliseconds.
+
+    Returns:
+        Table list or an error dictionary.
+    """
     effective_catalog = catalog or DEFAULT_CATALOG
 
     cache_key = f"tables:{effective_catalog}:{branch}:{preferred_schema}:{trino_url or 'default'}"
@@ -266,7 +357,19 @@ async def get_table_schema(
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> list[TableColumn] | dict[str, str]:
-    """Get column schema for a table."""
+    """Get table column schema.
+
+    Args:
+        table: Table name.
+        schema: Optional schema override.
+        branch: Default schema/branch.
+        catalog: Optional Trino catalog override.
+        trino_url: Optional Trino URL override.
+        timeout_ms: Query timeout in milliseconds.
+
+    Returns:
+        Column list or an error dictionary.
+    """
     effective_catalog = catalog or DEFAULT_CATALOG
     effective_schema = schema or branch
 
@@ -291,7 +394,18 @@ async def get_table_row_count(
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> int | dict[str, str]:
-    """Get row count for a table."""
+    """Get row count for a table.
+
+    Args:
+        table: Table name.
+        branch: Schema/branch name.
+        catalog: Optional Trino catalog override.
+        trino_url: Optional Trino URL override.
+        timeout_ms: Query timeout in milliseconds.
+
+    Returns:
+        Row count or an error dictionary.
+    """
     effective_catalog = catalog or DEFAULT_CATALOG
     sql = f"SELECT COUNT(*) as cnt FROM {quote_identifier(effective_catalog)}.{quote_identifier(branch)}.{quote_identifier(table)}"
 
@@ -313,7 +427,18 @@ async def get_table_metadata(
     trino_url: str | None = None,
     timeout_ms: int = Query(default=30000, le=120000),
 ) -> TableMetadata | dict[str, str]:
-    """Get full table metadata including schema and row count."""
+    """Get table metadata including schema and optional row count.
+
+    Args:
+        table: Table name.
+        branch: Schema/branch name.
+        catalog: Optional Trino catalog override.
+        trino_url: Optional Trino URL override.
+        timeout_ms: Query timeout in milliseconds.
+
+    Returns:
+        Table metadata or an error dictionary.
+    """
     effective_catalog = catalog or DEFAULT_CATALOG
 
     # Get schema

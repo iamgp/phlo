@@ -9,8 +9,15 @@ from phlo_metrics.cli import metrics_group
 
 
 class MetricsCliPlugin(CliCommandPlugin):
+    """Register metrics CLI commands with the plugin system."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for metrics commands.
+
+        Returns:
+            PluginMetadata: Metadata used for plugin discovery and display.
+        """
         return PluginMetadata(
             name="metrics",
             version="0.1.0",
@@ -18,4 +25,9 @@ class MetricsCliPlugin(CliCommandPlugin):
         )
 
     def get_cli_commands(self) -> list[click.Command]:
+        """Return CLI commands exposed by this plugin.
+
+        Returns:
+            list[click.Command]: Registered metrics command group.
+        """
         return [metrics_group]

@@ -17,10 +17,12 @@ from pyiceberg.types import NestedField, StringType
 
 @pytest.fixture(autouse=True)
 def _clear_ingestion_registry() -> None:
+    """Clear the ingestion asset registry before each test."""
     clear_ingestion_assets()
 
 
 def test_phlo_ingestion_export_is_available() -> None:
+    """Verify the ingestion decorator export is callable."""
     assert callable(phlo_ingestion)
 
 
@@ -39,6 +41,7 @@ class TestSchemaAutoGeneration:
         """Test PyIceberg schema is auto-generated when only validation_schema provided."""
 
         class TestPanderaSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str = Field(nullable=False)
             value: int
 
@@ -49,6 +52,11 @@ class TestSchemaAutoGeneration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Verify asset was created
@@ -60,6 +68,7 @@ class TestSchemaAutoGeneration:
         """Test explicit PyIceberg schema is used when provided."""
 
         class TestPanderaSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         explicit_schema = Schema(
@@ -74,6 +83,11 @@ class TestSchemaAutoGeneration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Asset should be created successfully
@@ -93,6 +107,11 @@ class TestSchemaAutoGeneration:
                 group="test",
             )
             def test_asset(partition_date: str):
+                """Placeholder asset function used for decorator registration tests.
+                
+                Args:
+                    partition_date: Partition key passed by the orchestrator.
+                """
                 pass
 
 
@@ -103,6 +122,7 @@ class TestDecoratorConfiguration:
         """Test table_name parameter is properly configured."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -112,6 +132,11 @@ class TestDecoratorConfiguration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check asset name includes table name
@@ -122,6 +147,7 @@ class TestDecoratorConfiguration:
         """Test unique_key parameter is stored."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             custom_id: str
 
         @phlo_ingestion(
@@ -131,6 +157,11 @@ class TestDecoratorConfiguration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Asset should be created
@@ -140,6 +171,7 @@ class TestDecoratorConfiguration:
         """Test group_name parameter is applied to asset."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -149,6 +181,11 @@ class TestDecoratorConfiguration:
             group="custom_group",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check asset has correct group
@@ -163,6 +200,7 @@ class TestAutomationConfiguration:
         """Test cron schedule is applied when provided."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -173,6 +211,11 @@ class TestAutomationConfiguration:
             cron="0 */1 * * *",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check automation condition is set
@@ -184,6 +227,7 @@ class TestAutomationConfiguration:
         """Test no automation condition when cron not provided."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -193,6 +237,11 @@ class TestAutomationConfiguration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check no automation condition
@@ -208,6 +257,7 @@ class TestFreshnessConfiguration:
         """Test freshness policy is created from hours tuple."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -218,6 +268,11 @@ class TestFreshnessConfiguration:
             freshness_hours=(1, 24),
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check freshness policy is set
@@ -229,6 +284,7 @@ class TestFreshnessConfiguration:
         """Test no freshness policy when freshness_hours not provided."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -238,6 +294,11 @@ class TestFreshnessConfiguration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check no freshness policy
@@ -253,6 +314,7 @@ class TestRetryConfiguration:
         """Test default retry policy configuration."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -262,6 +324,11 @@ class TestRetryConfiguration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check retry policy exists
@@ -273,6 +340,7 @@ class TestRetryConfiguration:
         """Test custom max_retries and retry_delay configuration."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -284,6 +352,11 @@ class TestRetryConfiguration:
             retry_delay_seconds=60,
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check retry policy exists
@@ -303,6 +376,7 @@ class TestAssetRegistration:
         initial_count = len(get_ingestion_assets())
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -312,6 +386,11 @@ class TestAssetRegistration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check asset was registered
@@ -323,6 +402,7 @@ class TestAssetRegistration:
         """Test get_ingestion_assets() returns a copy of registered assets."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -332,6 +412,11 @@ class TestAssetRegistration:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         assets = get_ingestion_assets()
@@ -352,6 +437,7 @@ class TestAssetAttributes:
         """Test asset name follows dlt_{table_name} format."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -361,6 +447,11 @@ class TestAssetAttributes:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check asset name
@@ -371,6 +462,7 @@ class TestAssetAttributes:
         """Test asset preserves function docstring as description."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -391,6 +483,7 @@ class TestAssetAttributes:
         """Test asset has correct compute kind."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -400,6 +493,11 @@ class TestAssetAttributes:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         spec = get_asset_spec("dlt_test_table")
@@ -410,6 +508,7 @@ class TestAssetAttributes:
         """Test asset has partitions_def configured."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -419,6 +518,11 @@ class TestAssetAttributes:
             group="test",
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Check partitions def
@@ -434,6 +538,7 @@ class TestComplexSchemas:
         """Test decorator with GitHub events-like schema."""
 
         class GitHubEvents(DataFrameModel):
+            """Pandera schema representing GitHub events test data."""
             id: str = Field(nullable=False, unique=True, description="Event ID")
             type: str = Field(nullable=False)
             actor: str = Field(nullable=False)
@@ -465,6 +570,7 @@ class TestComplexSchemas:
         """Test decorator with Nightscout glucose-like schema."""
 
         class GlucoseEntries(DataFrameModel):
+            """Pandera schema representing glucose entries test data."""
             _id: str = Field(nullable=False, unique=True)
             sgv: int = Field(ge=1, le=1000, nullable=False)
             date: int = Field(nullable=False)
@@ -499,6 +605,7 @@ class TestEdgeCases:
         """Test partition_spec is optional."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -509,6 +616,11 @@ class TestEdgeCases:
             partition_spec=None,
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Should create asset successfully
@@ -518,6 +630,7 @@ class TestEdgeCases:
         """Test validate flag is optional."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -528,6 +641,11 @@ class TestEdgeCases:
             validate=False,
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         # Should create asset successfully
@@ -537,6 +655,7 @@ class TestEdgeCases:
         """Test max_runtime_seconds is applied to op_tags."""
 
         class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
             id: str
 
         @phlo_ingestion(
@@ -547,6 +666,11 @@ class TestEdgeCases:
             max_runtime_seconds=900,
         )
         def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+            
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
             pass
 
         spec = get_asset_spec("dlt_test_table")

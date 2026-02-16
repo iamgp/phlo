@@ -11,6 +11,7 @@ class FreshnessCheckPlugin(QualityCheckPlugin[FreshnessCheck]):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the freshness-check plugin."""
         return PluginMetadata(
             name="freshness_check",
             version="0.1.0",
@@ -25,6 +26,16 @@ class FreshnessCheckPlugin(QualityCheckPlugin[FreshnessCheck]):
         max_age_hours: float,
         reference_time: datetime | None = None,
     ) -> FreshnessCheck:
+        """Create a freshness check instance.
+
+        Args:
+            timestamp_column: Timestamp column used for freshness calculations.
+            max_age_hours: Maximum allowed age in hours.
+            reference_time: Optional reference time for age evaluation.
+
+        Returns:
+            Configured freshness-check instance.
+        """
         return FreshnessCheck(
             timestamp_column=timestamp_column,
             max_age_hours=max_age_hours,

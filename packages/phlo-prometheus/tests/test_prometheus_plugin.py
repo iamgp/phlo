@@ -4,6 +4,7 @@ from phlo_prometheus.plugin import PrometheusServicePlugin
 
 
 def test_prometheus_service_definition():
+    """Validate Prometheus service definition defaults."""
     plugin = PrometheusServicePlugin()
     defn = plugin.service_definition
 
@@ -12,6 +13,7 @@ def test_prometheus_service_definition():
 
 
 def test_prometheus_plugin_metadata():
+    """Validate Prometheus plugin metadata."""
     plugin = PrometheusServicePlugin()
     meta = plugin.metadata
 

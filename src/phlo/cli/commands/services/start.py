@@ -245,6 +245,11 @@ def start_cmd(
                     click.echo("No native services to start.")
 
                 async def start_native_services():
+                    """Start selected native services and collect runtime state.
+
+                    Returns:
+                        Mapping of started service names to persisted process metadata.
+                    """
                     started: dict[str, dict] = {}
                     env_overrides = {
                         "PHLO_PROJECT_PATH": str(project_root),
@@ -308,6 +313,7 @@ def start_cmd(
                         return
 
                     def _stop_and_exit(_signum=None, _frame=None) -> None:
+                        """Stop native services for this invocation and exit cleanly."""
                         click.echo("\nStopping native services...")
                         _stop_native_processes(project_root, [svc.name for svc in native_to_start])
                         raise SystemExit(0)

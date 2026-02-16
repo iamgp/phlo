@@ -25,6 +25,8 @@ class TestPanderaContractEvaluation:
         from phlo_quality.pandera_asset_checks import evaluate_pandera_contract
 
         class TestSchema(DataFrameModel):
+            """Schema for valid integer and string columns."""
+
             id: int
             name: str
 
@@ -43,6 +45,8 @@ class TestPanderaContractEvaluation:
         from phlo_quality.pandera_asset_checks import evaluate_pandera_contract
 
         class TestSchema(DataFrameModel):
+            """Schema expecting integer IDs and string names."""
+
             id: int
             name: str
 
@@ -60,6 +64,8 @@ class TestPanderaContractEvaluation:
         from phlo_quality.pandera_asset_checks import evaluate_pandera_contract
 
         class TestSchema(DataFrameModel):
+            """Schema requiring an additional float column."""
+
             id: int
             name: str
             required_col: float
@@ -194,6 +200,8 @@ class TestParquetValidation:
         from phlo_quality.pandera_asset_checks import evaluate_pandera_contract_parquet
 
         class TestSchema(DataFrameModel):
+            """Schema used for parquet contract validation."""
+
             id: int
             name: str
 
@@ -224,6 +232,8 @@ class TestComplexSchemas:
         from phlo_quality.pandera_asset_checks import evaluate_pandera_contract
 
         class DateTimeSchema(DataFrameModel):
+            """Schema with datetime field for timestamp validation."""
+
             id: int
             created_at: datetime
 
@@ -243,6 +253,8 @@ class TestComplexSchemas:
         from phlo_quality.pandera_asset_checks import evaluate_pandera_contract
 
         class NullableSchema(DataFrameModel):
+            """Schema with nullable optional string values."""
+
             id: int
             optional_value: Optional[str] = Field(nullable=True)
 

@@ -11,6 +11,14 @@ from urllib.request import Request, urlopen
 
 
 def _get_json(url: str) -> dict[str, Any]:
+    """Perform a JSON GET request.
+
+    Args:
+        url: URL to request.
+
+    Returns:
+        Parsed JSON response payload.
+    """
     req = Request(url, headers={"Accept": "application/json"})
     with urlopen(req, timeout=5) as response:  # nosec B310
         payload = response.read().decode("utf-8")
@@ -18,6 +26,15 @@ def _get_json(url: str) -> dict[str, Any]:
 
 
 def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Perform a JSON POST request.
+
+    Args:
+        url: URL to request.
+        payload: JSON payload to send.
+
+    Returns:
+        Parsed JSON response payload, or an empty dictionary for empty bodies.
+    """
     data = json.dumps(payload).encode("utf-8")
     req = Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
     with urlopen(req, timeout=10) as response:  # nosec B310
@@ -28,6 +45,11 @@ def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _resolve_nessie_url() -> str:
+    """Resolve the Nessie base URL from environment variables.
+
+    Returns:
+        Nessie base URL without a trailing slash.
+    """
     if url := os.environ.get("NESSIE_URL"):
         return url.rstrip("/")
     port = os.environ.get("NESSIE_PORT", "19120")
@@ -86,6 +108,11 @@ def init_branches() -> int:
 
 
 def main() -> int:
+    """Run the Nessie hooks CLI entrypoint.
+
+    Returns:
+        Process exit code.
+    """
     parser = argparse.ArgumentParser(description="Phlo Nessie hooks")
     parser.add_argument("action", choices=["init-branches"])
     args = parser.parse_args()

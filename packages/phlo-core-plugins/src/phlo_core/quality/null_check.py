@@ -9,6 +9,7 @@ class NullCheckPlugin(QualityCheckPlugin[NullCheck]):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the null-check quality plugin."""
         return PluginMetadata(
             name="null_check",
             version="0.1.0",
@@ -18,4 +19,13 @@ class NullCheckPlugin(QualityCheckPlugin[NullCheck]):
         )
 
     def create_check(self, columns: list[str], allow_threshold: float = 0.0) -> NullCheck:
+        """Create a null check instance.
+
+        Args:
+            columns: Column names to validate for null values.
+            allow_threshold: Maximum allowed null ratio per column.
+
+        Returns:
+            Configured null-check instance.
+        """
         return NullCheck(columns=columns, allow_threshold=allow_threshold)

@@ -13,12 +13,23 @@ from phlo_metrics.maintenance import (
 
 
 def _write_events(path: Path, events: list[dict]) -> None:
+    """Write telemetry events to a JSONL file.
+
+    Args:
+        path: Output JSONL path.
+        events: Event payloads to serialize.
+    """
     with path.open("w", encoding="utf-8") as handle:
         for event in events:
             handle.write(json.dumps(event) + "\n")
 
 
 def test_load_maintenance_status(tmp_path: Path) -> None:
+    """Verify maintenance status loads from telemetry events.
+
+    Args:
+        tmp_path: Pytest temporary path fixture.
+    """
     timestamp = datetime(2025, 12, 30, tzinfo=timezone.utc).isoformat()
     events = [
         {
@@ -59,6 +70,11 @@ def test_load_maintenance_status(tmp_path: Path) -> None:
 
 
 def test_render_maintenance_prometheus(tmp_path: Path) -> None:
+    """Verify Prometheus output renders maintenance telemetry metrics.
+
+    Args:
+        tmp_path: Pytest temporary path fixture.
+    """
     timestamp = datetime(2025, 12, 30, tzinfo=timezone.utc).isoformat()
     events = [
         {

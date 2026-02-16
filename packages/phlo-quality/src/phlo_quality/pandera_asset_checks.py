@@ -16,6 +16,16 @@ from phlo_quality.severity import severity_for_pandera_contract
 
 @dataclass(frozen=True, slots=True)
 class PanderaContractEvaluation:
+    """Result summary for Pandera schema contract evaluation.
+
+    Attributes:
+        passed: Whether validation passed without contract failures.
+        failed_count: Number of failing rows or checks.
+        total_count: Total number of evaluated rows.
+        sample: Sample failure payload for metadata/debugging.
+        error: Optional top-level validation error message.
+    """
+
     passed: bool
     failed_count: int
     total_count: int
@@ -28,6 +38,16 @@ def evaluate_pandera_contract(
     *,
     schema_class: type[DataFrameModel],
 ) -> PanderaContractEvaluation:
+    """Validate a dataframe against a Pandera schema class.
+
+    Args:
+        df: Input dataframe to validate.
+        schema_class: Pandera ``DataFrameModel`` class defining the contract.
+
+    Returns:
+        Evaluation summary with pass/fail status and sampled failures.
+    """
+
     schema = schema_class.to_schema()
     datetime_columns = [
         name
@@ -81,6 +101,16 @@ def evaluate_pandera_contract_parquet(
     *,
     schema_class: type[DataFrameModel],
 ) -> PanderaContractEvaluation:
+    """Load parquet data and validate it against a Pandera schema class.
+
+    Args:
+        parquet_path: Path to the parquet file.
+        schema_class: Pandera ``DataFrameModel`` class defining the contract.
+
+    Returns:
+        Evaluation summary for the loaded dataframe.
+    """
+
     df = pd.read_parquet(parquet_path)
     return evaluate_pandera_contract(df, schema_class=schema_class)
 
@@ -93,6 +123,19 @@ def pandera_contract_asset_check_result(
     schema_class: type[DataFrameModel],
     query_or_sql: str,
 ) -> CheckResult:
+    """Build a Phlo quality check result from Pandera evaluation output.
+
+    Args:
+        evaluation: Pandera contract evaluation summary.
+        partition_key: Optional partition key associated with the checked data.
+        asset_key: Asset identifier for the check result.
+        schema_class: Pandera schema class used for evaluation.
+        query_or_sql: Query or SQL used to produce the evaluated dataset.
+
+    Returns:
+        Normalized quality check result with metadata and severity.
+    """
+
     contract = QualityCheckContract(
         source="pandera",
         partition_key=partition_key,

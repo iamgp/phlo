@@ -1,8 +1,4 @@
-"""
-Env File Generation Module
-
-Generates .env and .env.local file content from service definitions.
-"""
+"""Render `.env` and `.env.local` content from discovered service definitions."""
 
 from typing import Any
 
@@ -10,6 +6,15 @@ from phlo.plugins.discovery import ServiceDefinition
 
 
 def normalize_env_value(value: Any) -> str:
+    """Convert an environment value to its serialized string form.
+
+    Args:
+        value: Raw value from defaults, overrides, or existing env content.
+
+    Returns:
+        String value ready for `.env` output. `None` becomes an empty string and
+        booleans are normalized to lowercase `true`/`false`.
+    """
     if value is None:
         return ""
     if isinstance(value, bool):
@@ -18,6 +23,14 @@ def normalize_env_value(value: Any) -> str:
 
 
 def normalize_env_overrides(env_overrides: dict[str, Any]) -> dict[str, str]:
+    """Normalize override values into a string-only environment mapping.
+
+    Args:
+        env_overrides: Environment overrides loaded from project configuration.
+
+    Returns:
+        A new dictionary containing only string keys and normalized string values.
+    """
     normalized: dict[str, str] = {}
     for key, value in env_overrides.items():
         if not isinstance(key, str):
@@ -35,6 +48,19 @@ def render_env(
     existing_values: dict[str, str] | None,
     header_lines: list[str],
 ) -> str:
+    """Render environment file content for selected service variables.
+
+    Args:
+        services: Service definitions that contribute environment variables.
+        env_overrides: Optional project-level env overrides keyed by variable name.
+        include_secrets: Whether secret variables should be emitted.
+        include_non_secrets: Whether non-secret variables should be emitted.
+        existing_values: Existing local values to preserve for selected keys.
+        header_lines: Header lines prepended to the rendered output.
+
+    Returns:
+        Full environment file body with grouped sections and trailing newlines.
+    """
     lines = list(header_lines)
 
     overrides = normalize_env_overrides(env_overrides or {})

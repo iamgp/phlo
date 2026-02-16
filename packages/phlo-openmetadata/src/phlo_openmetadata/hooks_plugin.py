@@ -19,6 +19,8 @@ logger = get_logger(__name__)
 
 
 class OpenMetadataHookPlugin(HookPlugin):
+    """Hook plugin that syncs lineage, quality, and publish events."""
+
     def __init__(self) -> None:
         """Initialize the plugin with lazy client setup."""
 

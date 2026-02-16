@@ -15,6 +15,7 @@ class PhloApiServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Phlo API service."""
         return PluginMetadata(
             name="phlo-api",
             version="0.1.0",
@@ -25,5 +26,6 @@ class PhloApiServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Return the Docker service definition for the Phlo API."""
         service_path = resources.files("phlo_api").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

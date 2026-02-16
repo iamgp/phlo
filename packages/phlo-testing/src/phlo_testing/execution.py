@@ -92,11 +92,23 @@ class MockAssetContext:
 
         # Add custom handler to capture logs
         class LogCapture(logging.Handler):
+            """Logging handler that appends formatted records to a list."""
+
             def __init__(self, logs_list: list[str]) -> None:
+                """Initialize the capture handler.
+
+                Args:
+                    logs_list: Destination list for formatted log messages.
+                """
                 super().__init__()
                 self.logs = logs_list
 
             def emit(self, record: logging.LogRecord) -> None:
+                """Store a formatted log record.
+
+                Args:
+                    record: Log record emitted by the logger.
+                """
                 self.logs.append(self.format(record))
 
         handler = LogCapture(self._logs)

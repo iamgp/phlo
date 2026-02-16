@@ -236,6 +236,14 @@ def mock_dlt_source_with_error(
         """Resource that raises an error after N records."""
 
         def __next__(self) -> dict[str, Any]:
+            """Return the next record or raise a configured mock error.
+
+            Returns:
+                The next record from the underlying mock resource.
+
+            Raises:
+                MockDLTError: If the configured error threshold is reached.
+            """
             if error_after is not None and self._index >= error_after:
                 raise MockDLTError(error_message)
             return super().__next__()

@@ -95,6 +95,17 @@ class ServiceConfig(BaseModel):
     @field_validator("container_name")
     @classmethod
     def validate_container_name(cls, v: Optional[str]) -> Optional[str]:
+        """Validate `container_name` characters and format.
+
+        Args:
+            v: Candidate container name.
+
+        Returns:
+            Optional[str]: Original value when valid.
+
+        Raises:
+            ValueError: If the container name is empty or contains invalid characters.
+        """
         if v is None:
             return v
 
@@ -115,6 +126,17 @@ class ServiceConfig(BaseModel):
     @field_validator("service_name")
     @classmethod
     def validate_service_name(cls, v: str) -> str:
+        """Validate and normalize a service name.
+
+        Args:
+            v: Candidate service name.
+
+        Returns:
+            str: Trimmed service name.
+
+        Raises:
+            ValueError: If the service name is empty.
+        """
         if not v or not v.strip():
             raise ValueError("service_name cannot be empty")
         return v.strip()
@@ -164,6 +186,17 @@ class InfrastructureConfig(BaseModel):
     @field_validator("container_naming_pattern")
     @classmethod
     def validate_pattern(cls, v: str) -> str:
+        """Validate a container naming pattern.
+
+        Args:
+            v: Naming pattern template.
+
+        Returns:
+            str: Original pattern when valid.
+
+        Raises:
+            ValueError: If pattern includes neither `{project}` nor `{service}`.
+        """
         if "{project}" not in v and "{service}" not in v:
             raise ValueError(
                 "container_naming_pattern must contain at least {project} or {service}"

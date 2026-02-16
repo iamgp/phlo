@@ -32,9 +32,25 @@ class IcebergSettings(BaseConfig):
     )
 
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
+        """Get the warehouse path for a branch.
+
+        Args:
+            branch: Nessie branch name.
+
+        Returns:
+            str: Warehouse path for the requested branch.
+        """
         return self.iceberg_warehouse_path
 
     def get_pyiceberg_catalog_config(self, ref: str = "main") -> dict:
+        """Build PyIceberg REST catalog configuration.
+
+        Args:
+            ref: Nessie reference to target.
+
+        Returns:
+            dict: PyIceberg catalog configuration values.
+        """
         nessie_settings = get_nessie_settings()
         minio_settings = get_minio_settings()
         s3_endpoint = self.iceberg_s3_endpoint or (
@@ -54,4 +70,9 @@ class IcebergSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> IcebergSettings:
+    """Get cached Iceberg settings.
+
+    Returns:
+        IcebergSettings: Cached Iceberg settings instance.
+    """
     return IcebergSettings()

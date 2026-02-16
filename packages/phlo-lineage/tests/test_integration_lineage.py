@@ -173,6 +173,16 @@ class TestLineageGraphConstruction:
 
         # Simple cycle detection using DFS
         def has_cycle(node, visited, rec_stack):
+            """Detect whether the current DFS path contains a cycle.
+
+            Args:
+                node: Node currently being traversed.
+                visited: Set of nodes already visited globally.
+                rec_stack: Set of nodes in the active recursion stack.
+
+            Returns:
+                True if a back-edge cycle is found, otherwise False.
+            """
             visited.add(node)
             rec_stack.add(node)
 

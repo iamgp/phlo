@@ -13,6 +13,13 @@ from phlo.hooks import TelemetryEvent
 
 
 class TelemetryRecorder:
+    """Write telemetry events to a JSONL file.
+
+    Args:
+        path: Optional output path for telemetry events.
+        max_bytes: Maximum file size before rotation.
+    """
+
     def __init__(self, path: Path | None = None, max_bytes: int = 20_000_000) -> None:
         """Create a recorder that writes telemetry events to JSONL."""
 

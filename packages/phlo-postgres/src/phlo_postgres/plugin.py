@@ -17,6 +17,11 @@ class PostgresServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Postgres service.
+
+        Returns:
+            PluginMetadata: Metadata describing the service plugin.
+        """
         return PluginMetadata(
             name="postgres",
             version="0.1.0",
@@ -27,6 +32,11 @@ class PostgresServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Load the Postgres service definition from package data.
+
+        Returns:
+            dict[str, Any]: Parsed Docker Compose service definition.
+        """
         service_path = resources.files("phlo_postgres").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))
 
@@ -36,6 +46,11 @@ class PostgresExporterServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Postgres exporter service.
+
+        Returns:
+            PluginMetadata: Metadata describing the exporter plugin.
+        """
         return PluginMetadata(
             name="postgres-exporter",
             version="0.1.0",
@@ -46,13 +61,25 @@ class PostgresExporterServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Load the Postgres exporter service definition from package data.
+
+        Returns:
+            dict[str, Any]: Parsed Docker Compose service definition.
+        """
         service_path = resources.files("phlo_postgres").joinpath("exporter_service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))
 
 
 class PostgresResourceProvider(ResourceProviderPlugin):
+    """Resource provider plugin that exposes the Postgres resource."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Postgres resource provider.
+
+        Returns:
+            PluginMetadata: Metadata describing the resource provider plugin.
+        """
         return PluginMetadata(
             name="postgres",
             version="0.1.0",
@@ -60,4 +87,9 @@ class PostgresResourceProvider(ResourceProviderPlugin):
         )
 
     def get_resources(self) -> list[ResourceSpec]:
+        """Return resource specifications exposed by this provider.
+
+        Returns:
+            list[ResourceSpec]: Registered resource specifications.
+        """
         return [ResourceSpec(name="postgres", resource=PostgresResource())]

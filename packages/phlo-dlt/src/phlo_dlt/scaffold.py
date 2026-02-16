@@ -27,6 +27,14 @@ def _to_pascal_case(name: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class FieldSpec:
+    """Structured representation of a scaffold field declaration.
+
+    Attributes:
+        name: Normalized snake_case field name.
+        type_name: Primitive field type name.
+        nullable: Whether the field is nullable.
+    """
+
     name: str
     type_name: str
     nullable: bool
@@ -43,6 +51,17 @@ _TYPE_IMPORTS: dict[str, tuple[str, str] | None] = {
 
 
 def parse_field_specs(raw_specs: list[str] | None) -> list[FieldSpec]:
+    """Parse raw CLI field specifications.
+
+    Args:
+        raw_specs: Field specs in ``name:type``, ``name:type?``, or ``name:type!`` form.
+
+    Returns:
+        Parsed and normalized field specs.
+
+    Raises:
+        ValueError: If any field spec format or type is invalid.
+    """
     if not raw_specs:
         return []
 

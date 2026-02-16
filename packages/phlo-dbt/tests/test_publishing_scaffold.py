@@ -9,6 +9,13 @@ from phlo_dbt.cli_publishing import scaffold_publishing_config
 
 
 def _write_manifest(path: Path, model_names: list[str]) -> None:
+    """Write a minimal dbt manifest containing model nodes.
+
+    Args:
+        path: Manifest file path.
+        model_names: Model names to include as dbt nodes.
+    """
+
     nodes = {}
     for name in model_names:
         nodes[f"model.test.{name}"] = {"resource_type": "model", "name": name, "columns": {}}
@@ -16,6 +23,8 @@ def _write_manifest(path: Path, model_names: list[str]) -> None:
 
 
 def test_scaffold_publishing_config_is_idempotent() -> None:
+    """Ensure scaffolding preserves custom fields and appends missing models."""
+
     existing = {
         "publishing": {
             "demo": {
@@ -46,6 +55,13 @@ def test_scaffold_publishing_config_is_idempotent() -> None:
 
 
 def test_scaffold_command_writes_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify scaffold CLI writes filtered publishing config.
+
+    Args:
+        tmp_path: Temporary directory fixture.
+        monkeypatch: Pytest monkeypatch fixture.
+    """
+
     from click.testing import CliRunner
 
     from phlo_dbt.cli_publishing import publishing

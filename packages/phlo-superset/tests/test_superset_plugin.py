@@ -5,6 +5,7 @@ from phlo_superset.settings import SupersetSettings
 
 
 def test_superset_service_definition():
+    """Verify Superset plugin exposes the expected service name."""
     plugin = SupersetServicePlugin()
     defn = plugin.service_definition
 
@@ -12,6 +13,7 @@ def test_superset_service_definition():
 
 
 def test_superset_plugin_metadata():
+    """Verify Superset plugin metadata includes expected identity and tags."""
     plugin = SupersetServicePlugin()
     meta = plugin.metadata
 
@@ -20,6 +22,7 @@ def test_superset_plugin_metadata():
 
 
 def test_superset_settings_defaults():
+    """Verify Superset settings defaults match expected local development values."""
     settings = SupersetSettings()
 
     assert settings.superset_port == 10007

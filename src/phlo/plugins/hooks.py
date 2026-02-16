@@ -50,14 +50,28 @@ class HookRegistration:
 class HookProvider(Protocol):
     """Protocol for plugins that expose hook registrations."""
 
-    def get_hooks(self) -> Iterable[HookRegistration]: ...
+    def get_hooks(self) -> Iterable[HookRegistration]:
+        """Return hook registrations exposed by the implementing plugin.
+
+        Returns:
+            Iterable of hook registration definitions.
+        """
+
+        ...
 
 
 @runtime_checkable
 class HookHandler(Protocol):
     """Protocol for handler objects implementing hook dispatch."""
 
-    def handle_event(self, event: HookEvent) -> None: ...
+    def handle_event(self, event: HookEvent) -> None:
+        """Handle a hook event emitted by the hook bus.
+
+        Args:
+            event: Hook event payload to process.
+        """
+
+        ...
 
 
 class HookPlugin(Plugin, HookProvider):

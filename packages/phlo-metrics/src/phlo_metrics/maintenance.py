@@ -14,6 +14,26 @@ MAINTENANCE_COMPLETE_EVENT = "iceberg.maintenance.complete"
 
 @dataclass(frozen=True)
 class MaintenanceOperationStatus:
+    """Represents the latest known status for one maintenance operation.
+
+    Attributes:
+        operation: Operation name (for example expire_snapshots).
+        namespace: Catalog namespace where operation ran.
+        ref: Catalog reference name.
+        status: Terminal status string for the operation.
+        completed_at: Completion timestamp.
+        duration_seconds: Operation duration in seconds, if available.
+        tables_processed: Number of tables processed.
+        errors: Number of errors reported.
+        snapshots_deleted: Number of snapshots removed.
+        orphan_files: Number of orphan files removed or detected.
+        total_records: Total records reported by maintenance telemetry.
+        total_size_mb: Total size reported by maintenance telemetry in MB.
+        dry_run: Whether operation ran in dry-run mode.
+        run_id: Optional run identifier.
+        job_name: Optional job name associated with execution.
+    """
+
     operation: str
     namespace: str
     ref: str
@@ -33,12 +53,28 @@ class MaintenanceOperationStatus:
 
 @dataclass(frozen=True)
 class MaintenanceStatusSnapshot:
+    """Represents a point-in-time view of maintenance operation statuses.
+
+    Attributes:
+        last_updated: Most recent completion timestamp in this snapshot.
+        operations: Latest status entry per operation/namespace/ref tuple.
+    """
+
     last_updated: datetime
     operations: list[MaintenanceOperationStatus]
 
 
 @dataclass(frozen=True)
 class _PrometheusMetric:
+    """Defines Prometheus mapping metadata for a telemetry metric.
+
+    Attributes:
+        prom_name: Prometheus metric name.
+        metric_type: Prometheus metric type (counter or gauge).
+        help: Help text exported for the metric.
+        mode: Aggregation mode for event processing.
+    """
+
     prom_name: str
     metric_type: str
     help: str
@@ -201,10 +237,26 @@ def render_maintenance_prometheus(path: Path | None = None) -> str:
 
 
 def _iter_events(path: Path) -> Iterable[dict[str, Any]]:
+    """Yield telemetry events from the configured telemetry file path.
+
+    Args:
+        path: Path to newline-delimited telemetry event data.
+
+    Returns:
+        Iterator of decoded telemetry event payloads.
+    """
     return iter_telemetry_events(path)
 
 
 def _parse_timestamp(value: Any) -> datetime:
+    """Parse a timestamp into a datetime.
+
+    Args:
+        value: Timestamp value from telemetry payloads.
+
+    Returns:
+        Parsed datetime value, or current UTC time when parsing fails.
+    """
     if isinstance(value, datetime):
         return value
     if isinstance(value, str):
@@ -217,12 +269,28 @@ def _parse_timestamp(value: Any) -> datetime:
 
 
 def _ensure_dict(value: Any) -> dict[str, Any]:
+    """Coerce an arbitrary value to a dictionary.
+
+    Args:
+        value: Arbitrary value from telemetry payloads.
+
+    Returns:
+        The original dictionary value, or an empty dictionary.
+    """
     if isinstance(value, dict):
         return value
     return {}
 
 
 def _metric_labels(tags: dict[str, Any]) -> dict[str, str]:
+    """Extract Prometheus label values from telemetry tags.
+
+    Args:
+        tags: Telemetry tag mapping.
+
+    Returns:
+        Filtered metric labels with non-empty string values.
+    """
     labels: dict[str, str] = {}
     for key in ("operation", "namespace", "ref", "status", "dry_run"):
         value = tags.get(key)
@@ -232,6 +300,14 @@ def _metric_labels(tags: dict[str, Any]) -> dict[str, str]:
 
 
 def _coerce_int(value: Any) -> int:
+    """Coerce a value to an integer.
+
+    Args:
+        value: Input value.
+
+    Returns:
+        Parsed integer value, or ``0`` on failure.
+    """
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -239,6 +315,14 @@ def _coerce_int(value: Any) -> int:
 
 
 def _coerce_float(value: Any) -> float | None:
+    """Coerce a value to a float.
+
+    Args:
+        value: Input value.
+
+    Returns:
+        Parsed float value, or ``None`` on failure.
+    """
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -246,6 +330,14 @@ def _coerce_float(value: Any) -> float | None:
 
 
 def _coerce_bool(value: Any) -> bool | None:
+    """Coerce a value to a boolean.
+
+    Args:
+        value: Input value.
+
+    Returns:
+        Parsed boolean value, or ``None`` when no bool representation exists.
+    """
     if value is None:
         return None
     if isinstance(value, bool):
@@ -259,18 +351,45 @@ def _coerce_bool(value: Any) -> bool | None:
 
 
 def _coerce_str(value: Any, fallback: str) -> str:
+    """Coerce a value to a non-empty string with fallback.
+
+    Args:
+        value: Input value.
+        fallback: Default string to return when coercion fails.
+
+    Returns:
+        Non-empty string value.
+    """
     if isinstance(value, str) and value:
         return value
     return fallback
 
 
 def _coerce_optional_str(value: Any) -> str | None:
+    """Coerce a value to an optional non-empty string.
+
+    Args:
+        value: Input value.
+
+    Returns:
+        String value when non-empty, otherwise ``None``.
+    """
     if isinstance(value, str) and value:
         return value
     return None
 
 
 def _format_prometheus_line(name: str, value: float, labels: tuple[tuple[str, str], ...]) -> str:
+    """Format one metric sample in Prometheus exposition format.
+
+    Args:
+        name: Prometheus metric name.
+        value: Metric sample value.
+        labels: Sorted key/value labels.
+
+    Returns:
+        Rendered Prometheus metric line.
+    """
     if not labels:
         return f"{name} {value}"
     label_str = ",".join(f'{key}="{val}"' for key, val in labels)

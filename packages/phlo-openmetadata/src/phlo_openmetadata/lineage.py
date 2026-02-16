@@ -23,8 +23,25 @@ def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callab
     """Decorator that logs exceptions with context and re-raises them."""
 
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
+        """Wrap an extraction function with source-aware error logging.
+
+        Args:
+            fn: Extraction function to wrap.
+
+        Returns:
+            Wrapped function that logs failures with source context.
+        """
         @wraps(fn)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            """Execute extraction function and log source-specific failures.
+
+            Args:
+                *args: Positional arguments forwarded to the wrapped callable.
+                **kwargs: Keyword arguments forwarded to the wrapped callable.
+
+            Returns:
+                Result produced by the wrapped callable.
+            """
             try:
                 return fn(*args, **kwargs)
             except Exception as e:

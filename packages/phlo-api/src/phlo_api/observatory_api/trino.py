@@ -46,6 +46,8 @@ def resolve_trino_url(override: str | None = None) -> str:
 
 
 class TrinoConnectionStatus(BaseModel):
+    """Connection health and version details for the Trino endpoint."""
+
     connected: bool
     error: str | None = None
     cluster_version: str | None = None
@@ -58,6 +60,8 @@ class DataRow(BaseModel):
 
 
 class DataPreviewResult(BaseModel):
+    """Paginated table preview payload returned to the UI."""
+
     columns: list[str]
     column_types: list[str]
     rows: list[dict[str, Any]]
@@ -66,6 +70,8 @@ class DataPreviewResult(BaseModel):
 
 
 class ColumnProfile(BaseModel):
+    """Per-column profiling metrics for a sampled table."""
+
     column: str
     type: str
     null_count: int
@@ -77,6 +83,8 @@ class ColumnProfile(BaseModel):
 
 
 class TableMetrics(BaseModel):
+    """High-level row and storage metrics for a table."""
+
     row_count: int
     size_bytes: int | None = None
     last_modified: str | None = None
@@ -84,6 +92,8 @@ class TableMetrics(BaseModel):
 
 
 class QueryExecutionResult(BaseModel):
+    """Normalized successful query response shape."""
+
     columns: list[str]
     column_types: list[str]
     rows: list[dict[str, Any]]
@@ -92,6 +102,8 @@ class QueryExecutionResult(BaseModel):
 
 
 class QueryExecutionError(BaseModel):
+    """Structured query execution failure payload."""
+
     ok: bool = False
     error: str
     kind: str  # 'timeout', 'trino', 'validation'
@@ -378,6 +390,8 @@ async def execute_query(request: ExecuteQueryRequest) -> QueryExecutionResult | 
 
 
 class ExecuteQueryRequest(BaseModel):
+    """Payload for executing an ad-hoc Trino query."""
+
     query: str
     branch: str = "main"
     catalog: str | None = None
@@ -390,6 +404,8 @@ class ExecuteQueryRequest(BaseModel):
 
 
 class QueryWithFiltersRequest(BaseModel):
+    """Payload for filtered table preview queries."""
+
     table_name: str
     schema_name: str = Field(alias="schema")
     catalog: str = DEFAULT_CATALOG

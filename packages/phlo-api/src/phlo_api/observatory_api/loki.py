@@ -27,7 +27,14 @@ LogLevel = Literal["debug", "info", "warn", "error"]
 
 
 def resolve_loki_url(override: str | None = None) -> str:
-    """Resolve Loki URL."""
+    """Resolve the Loki base URL.
+
+    Args:
+        override: Optional explicit Loki URL.
+
+    Returns:
+        Loki URL from override, environment, or default.
+    """
     if override and override.strip():
         return override
     return os.environ.get("LOKI_URL", DEFAULT_LOKI_URL)
@@ -37,6 +44,15 @@ def resolve_loki_url(override: str | None = None) -> str:
 
 
 class LogEntry(BaseModel):
+    """Represents a normalized log record.
+
+    Attributes:
+        timestamp: Event timestamp in ISO 8601 format.
+        level: Log severity level.
+        message: Log message text.
+        metadata: Correlation metadata extracted from the payload.
+    """
+
     timestamp: str
     level: LogLevel
     message: str
@@ -44,11 +60,26 @@ class LogEntry(BaseModel):
 
 
 class LogQueryResult(BaseModel):
+    """Contains query results from Loki.
+
+    Attributes:
+        entries: Parsed log entries for the request.
+        has_more: Whether additional entries may exist beyond the returned limit.
+    """
+
     entries: list[LogEntry]
     has_more: bool
 
 
 class LokiConnectionStatus(BaseModel):
+    """Describes Loki connectivity status.
+
+    Attributes:
+        connected: Whether the Loki endpoint is reachable.
+        error: Error message when the connection check fails.
+        version: Loki version string when available.
+    """
+
     connected: bool
     error: str | None = None
     version: str | None = None
@@ -66,7 +97,20 @@ def build_log_query(
     level: LogLevel | None = None,
     service: str | None = None,
 ) -> str:
-    """Build a LogQL query with optional filters."""
+    """Build a LogQL query with optional filters.
+
+    Args:
+        run_id: Optional Dagster run identifier.
+        asset_key: Optional asset key filter.
+        job: Optional job name filter.
+        partition_key: Optional partition key filter.
+        check_name: Optional check name filter.
+        level: Optional log level filter.
+        service: Optional service/container selector.
+
+    Returns:
+        LogQL query string.
+    """
     label_matchers = []
     json_filters = []
 
@@ -97,7 +141,14 @@ def build_log_query(
 
 
 def parse_loki_response(response: dict[str, Any]) -> list[LogEntry]:
-    """Parse Loki response into LogEntry list."""
+    """Parse Loki query response into log entries.
+
+    Args:
+        response: Loki query API response payload.
+
+    Returns:
+        Parsed log entries sorted by timestamp descending.
+    """
     entries = []
 
     for stream in response.get("data", {}).get("result", []):
@@ -151,7 +202,14 @@ def parse_loki_response(response: dict[str, Any]) -> list[LogEntry]:
 
 @router.get("/connection", response_model=LokiConnectionStatus)
 async def check_connection(loki_url: str | None = None) -> LokiConnectionStatus:
-    """Check if Loki is reachable."""
+    """Check whether Loki is reachable.
+
+    Args:
+        loki_url: Optional Loki URL override.
+
+    Returns:
+        Loki connectivity status.
+    """
     url = resolve_loki_url(loki_url)
 
     try:
@@ -194,7 +252,24 @@ async def query_logs(
     limit: int = Query(default=100, le=1000),
     loki_url: str | None = None,
 ) -> LogQueryResult | dict[str, str]:
-    """Query logs with filters."""
+    """Query logs with correlation filters.
+
+    Args:
+        start: Query start time as ISO 8601 timestamp.
+        end: Query end time as ISO 8601 timestamp.
+        run_id: Optional Dagster run identifier.
+        asset_key: Optional asset key filter.
+        job: Optional job name filter.
+        partition_key: Optional partition key filter.
+        check_name: Optional check name filter.
+        level: Optional log level filter.
+        service: Optional service/container selector.
+        limit: Maximum number of log entries.
+        loki_url: Optional Loki URL override.
+
+    Returns:
+        Query result with log entries or an error dictionary.
+    """
     url = resolve_loki_url(loki_url)
 
     try:
@@ -234,7 +309,17 @@ async def query_run_logs(
     limit: int = Query(default=500, le=2000),
     loki_url: str | None = None,
 ) -> LogQueryResult | dict[str, str]:
-    """Query logs for a specific Dagster run."""
+    """Query logs for a Dagster run.
+
+    Args:
+        run_id: Dagster run identifier.
+        level: Optional log level filter.
+        limit: Maximum number of log entries.
+        loki_url: Optional Loki URL override.
+
+    Returns:
+        Query result with log entries or an error dictionary.
+    """
     # Query last 24 hours
     end = datetime.now()
     start = end - timedelta(hours=24)
@@ -258,7 +343,19 @@ async def query_asset_logs(
     limit: int = Query(default=200, le=1000),
     loki_url: str | None = None,
 ) -> LogQueryResult | dict[str, str]:
-    """Query logs for a specific asset."""
+    """Query logs for an asset.
+
+    Args:
+        asset_key: Asset key.
+        partition_key: Optional partition key filter.
+        level: Optional log level filter.
+        hours_back: Hours to include before now.
+        limit: Maximum number of log entries.
+        loki_url: Optional Loki URL override.
+
+    Returns:
+        Query result with log entries or an error dictionary.
+    """
     end = datetime.now()
     start = end - timedelta(hours=hours_back)
 
@@ -275,7 +372,14 @@ async def query_asset_logs(
 
 @router.get("/labels", response_model=dict)
 async def get_log_labels(loki_url: str | None = None) -> dict[str, Any]:
-    """Get available log labels for filtering."""
+    """Get available Loki label keys.
+
+    Args:
+        loki_url: Optional Loki URL override.
+
+    Returns:
+        Label key list payload or an error dictionary.
+    """
     url = resolve_loki_url(loki_url)
 
     try:

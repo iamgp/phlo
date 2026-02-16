@@ -9,8 +9,15 @@ from phlo_openmetadata.cli_openmetadata import openmetadata
 
 
 class OpenMetadataCliPlugin(CliCommandPlugin):
+    """CLI plugin that registers OpenMetadata commands."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Get plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the OpenMetadata CLI plugin.
+        """
         return PluginMetadata(
             name="openmetadata",
             version="0.1.0",
@@ -18,4 +25,9 @@ class OpenMetadataCliPlugin(CliCommandPlugin):
         )
 
     def get_cli_commands(self) -> list[click.Command]:
+        """Get CLI commands exposed by this plugin.
+
+        Returns:
+            list[click.Command]: Registered OpenMetadata CLI commands.
+        """
         return [openmetadata]

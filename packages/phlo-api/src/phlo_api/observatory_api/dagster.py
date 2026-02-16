@@ -182,12 +182,16 @@ query MaterializationHistory($assetKey: AssetKeyInput!, $limit: Int!) {
 
 
 class DagsterConnectionStatus(BaseModel):
+    """Connection status and server version metadata for Dagster."""
+
     connected: bool
     error: str | None = None
     version: str | None = None
 
 
 class HealthMetrics(BaseModel):
+    """Aggregated platform health metrics exposed to Observatory."""
+
     assets_total: int
     assets_healthy: int
     failed_jobs_24h: int
@@ -198,11 +202,15 @@ class HealthMetrics(BaseModel):
 
 
 class LastMaterialization(BaseModel):
+    """Timestamp and run id for the most recent materialization."""
+
     timestamp: str
     run_id: str
 
 
 class Asset(BaseModel):
+    """Dagster asset summary used in list views."""
+
     id: str
     key: list[str]
     key_path: str
@@ -214,17 +222,23 @@ class Asset(BaseModel):
 
 
 class ColumnSchema(BaseModel):
+    """Column definition extracted from metadata."""
+
     name: str
     type: str
     description: str | None = None
 
 
 class ColumnLineageDep(BaseModel):
+    """Single upstream column dependency for lineage rendering."""
+
     asset_key: list[str]
     column_name: str
 
 
 class AssetDetails(Asset):
+    """Extended asset payload used on detail pages."""
+
     op_names: list[str] = []
     metadata: list[dict[str, str]] = []
     columns: list[ColumnSchema] | None = None
@@ -233,6 +247,8 @@ class AssetDetails(Asset):
 
 
 class MaterializationEvent(BaseModel):
+    """Single historical materialization event for an asset."""
+
     timestamp: str
     run_id: str
     status: str = "SUCCESS"

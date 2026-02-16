@@ -72,6 +72,16 @@ def _truncate_utf8_bytes(text: str, max_bytes: int) -> tuple[str, bool, int]:
 def get_compiled_sql_from_resource_props(
     dbt_resource_props: Mapping[str, Any], *, max_bytes: int
 ) -> tuple[str, bool, int, str]:
+    """Resolve compiled SQL from dbt resource properties.
+
+    Args:
+        dbt_resource_props: dbt manifest resource dictionary.
+        max_bytes: Maximum number of UTF-8 bytes to keep in SQL text.
+
+    Returns:
+        A tuple of compiled SQL text, truncation flag, original byte length,
+        and SQL source indicator.
+    """
     compiled_sql = ""
     source = "none"
 
@@ -110,6 +120,14 @@ class DbtSpecTranslator:
     """Translate dbt manifest entries into orchestrator-agnostic spec fields."""
 
     def get_asset_key(self, dbt_resource_props: Mapping[str, Any]) -> str:
+        """Build the asset key for a dbt resource.
+
+        Args:
+            dbt_resource_props: dbt manifest resource dictionary.
+
+        Returns:
+            Canonical asset key string.
+        """
         resource_type = dbt_resource_props.get("resource_type")
         is_source = resource_type == "source" or (
             resource_type is None and "source_name" in dbt_resource_props
@@ -125,6 +143,14 @@ class DbtSpecTranslator:
         return str(dbt_resource_props["name"])
 
     def get_description(self, dbt_resource_props: Mapping[str, Any]) -> str:
+        """Build the asset description from dbt metadata.
+
+        Args:
+            dbt_resource_props: dbt manifest resource dictionary.
+
+        Returns:
+            Description text for the translated asset.
+        """
         model_name = str(dbt_resource_props.get("name", ""))
         docstring = str(dbt_resource_props.get("description") or "")
 
@@ -143,6 +169,14 @@ class DbtSpecTranslator:
         return "\n\n".join(parts)
 
     def get_group_name(self, dbt_resource_props: Mapping[str, Any]) -> str:
+        """Infer the group name for a dbt resource.
+
+        Args:
+            dbt_resource_props: dbt manifest resource dictionary.
+
+        Returns:
+            Group name used for asset organization.
+        """
         meta = dbt_resource_props.get("meta", {})
         if isinstance(meta, dict) and "group" in meta:
             return str(meta["group"])
@@ -165,6 +199,14 @@ class DbtSpecTranslator:
         return "transform"
 
     def get_metadata(self, dbt_resource_props: Mapping[str, Any]) -> dict[str, Any]:
+        """Build asset metadata from dbt manifest fields.
+
+        Args:
+            dbt_resource_props: dbt manifest resource dictionary.
+
+        Returns:
+            Metadata dictionary for the translated asset.
+        """
         metadata: dict[str, Any] = {}
         columns = dbt_resource_props.get("columns", {})
         if isinstance(columns, dict) and columns:
@@ -196,4 +238,12 @@ class DbtSpecTranslator:
         return metadata
 
     def get_kinds(self, dbt_resource_props: Mapping[str, Any]) -> set[str]:
+        """Return asset kinds for the dbt resource.
+
+        Args:
+            dbt_resource_props: dbt manifest resource dictionary.
+
+        Returns:
+            Set of kind labels.
+        """
         return {"dbt"}

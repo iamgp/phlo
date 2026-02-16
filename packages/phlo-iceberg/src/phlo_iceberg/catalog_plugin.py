@@ -12,6 +12,11 @@ class IcebergCatalogPlugin(CatalogPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Static metadata for the Iceberg catalog plugin.
+        """
         return PluginMetadata(
             name="iceberg",
             version="0.1.0",
@@ -21,10 +26,20 @@ class IcebergCatalogPlugin(CatalogPlugin):
 
     @property
     def targets(self) -> list[str]:
+        """Return supported orchestration targets.
+
+        Returns:
+            list[str]: Target systems supported by this catalog plugin.
+        """
         return ["trino"]
 
     @property
     def catalog_name(self) -> str:
+        """Return the Trino catalog name.
+
+        Returns:
+            str: Catalog identifier exposed to Trino.
+        """
         return "iceberg"
 
     def get_properties(self) -> dict[str, str]:
@@ -51,6 +66,11 @@ class IcebergDevCatalogPlugin(CatalogPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Static metadata for the dev Iceberg catalog plugin.
+        """
         return PluginMetadata(
             name="iceberg_dev",
             version="0.1.0",
@@ -60,10 +80,20 @@ class IcebergDevCatalogPlugin(CatalogPlugin):
 
     @property
     def targets(self) -> list[str]:
+        """Return supported orchestration targets.
+
+        Returns:
+            list[str]: Target systems supported by this catalog plugin.
+        """
         return ["trino"]
 
     @property
     def catalog_name(self) -> str:
+        """Return the Trino catalog name.
+
+        Returns:
+            str: Catalog identifier exposed to Trino.
+        """
         return "iceberg_dev"
 
     def get_properties(self) -> dict[str, str]:

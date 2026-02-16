@@ -588,6 +588,14 @@ class TestChecksumReconciliationCheck:
         context = MagicMock()
 
         def execute_query(query: str):
+            """Return mocked checksum rows for source and target queries.
+
+            Args:
+                query: SQL query issued by the check.
+
+            Returns:
+                list[tuple[int, str]]: Mocked row hash tuples.
+            """
             if "FROM silver.stg_github_events" in query:
                 return [(1, "hash1"), (2, "hash2")]
             return [(1, "hash1"), (2, "hash2")]
@@ -614,6 +622,14 @@ class TestChecksumReconciliationCheck:
         context = MagicMock()
 
         def execute_query(query: str):
+            """Return mismatched target hashes for reconciliation testing.
+
+            Args:
+                query: SQL query issued by the check.
+
+            Returns:
+                list[tuple[int, str]]: Mocked row hash tuples.
+            """
             if "FROM silver.stg_github_events" in query:
                 return [(1, "hash1"), (2, "hash2")]
             return [(1, "hash1"), (2, "hashX")]
@@ -642,6 +658,14 @@ class TestChecksumReconciliationCheck:
         context = MagicMock()
 
         def execute_query(query: str):
+            """Return partially mismatched hashes to validate tolerance.
+
+            Args:
+                query: SQL query issued by the check.
+
+            Returns:
+                list[tuple[int, str]]: Mocked row hash tuples.
+            """
             if "FROM silver.stg_github_events" in query:
                 return [(1, "hash1"), (2, "hash2"), (3, "hash3")]
             return [(1, "hash1"), (2, "hashX"), (3, "hash3")]

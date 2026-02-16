@@ -15,6 +15,7 @@ class PgwebServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the pgweb service."""
         return PluginMetadata(
             name="pgweb",
             version="0.1.0",
@@ -25,5 +26,6 @@ class PgwebServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Return the Docker service definition for pgweb."""
         service_path = resources.files("phlo_pgweb").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

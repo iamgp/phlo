@@ -32,5 +32,7 @@ class PhloSchema(DataFrameModel):
     """
 
     class Config:
+        """Default Pandera model configuration for all derived Phlo schemas."""
+
         strict = False  # Allow extra columns (DLT metadata)
         coerce = True  # Auto-coerce types

@@ -89,6 +89,8 @@ class TestApplySchemaTypes:
         from pandera.pandas import DataFrameModel
 
         class TestSchema(DataFrameModel):
+            """Schema for verifying primitive type coercion."""
+
             id: int
             name: str
             value: float
@@ -110,6 +112,8 @@ class TestApplySchemaTypes:
         from pandera.pandas import DataFrameModel
 
         class TestSchema(DataFrameModel):
+            """Schema including a column absent from input DataFrame."""
+
             id: int
             name: str
             missing_col: float  # Not in DataFrame
@@ -219,6 +223,7 @@ class TestTrinoResourceUnit:
         calls = {"count": 0}
 
         def side_effect(*_args, **_kwargs):
+            """Fail twice with startup error before returning success."""
             calls["count"] += 1
             if calls["count"] < 3:
                 raise Exception("SERVER_STARTING_UP")
@@ -267,19 +272,41 @@ class TestCatalogGenerator:
         from phlo.plugins.base import CatalogPlugin, PluginMetadata
 
         class MockCatalog(CatalogPlugin):
+            """Mock catalog plugin used for catalog file generation tests."""
+
             @property
             def metadata(self):
+                """Return mock plugin metadata.
+
+                Returns:
+                    PluginMetadata: Mock plugin metadata.
+                """
                 return PluginMetadata("mock", "1.0.0", "Mock catalog")
 
             @property
             def targets(self) -> list[str]:
+                """Return supported integration targets.
+
+                Returns:
+                    list[str]: Single Trino target.
+                """
                 return ["trino"]
 
             @property
             def catalog_name(self) -> str:
+                """Return mock catalog name.
+
+                Returns:
+                    str: Catalog identifier.
+                """
                 return "mock_catalog"
 
             def get_properties(self):
+                """Return catalog properties for file generation.
+
+                Returns:
+                    dict[str, str]: Connector property map.
+                """
                 return {"connector.name": "mock", "key": "value"}
 
         with tempfile.TemporaryDirectory() as tmpdir:

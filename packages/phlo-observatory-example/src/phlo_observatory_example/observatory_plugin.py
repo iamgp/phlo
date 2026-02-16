@@ -24,6 +24,11 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for extension discovery.
+
+        Returns:
+            PluginMetadata: Extension identity and description.
+        """
         return PluginMetadata(
             name="example",
             version="0.1.0",
@@ -32,6 +37,11 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def manifest(self) -> ObservatoryExtensionManifest:
+        """Return Observatory extension manifest configuration.
+
+        Returns:
+            ObservatoryExtensionManifest: Routes, slots, settings, and compatibility.
+        """
         return ObservatoryExtensionManifest(
             name="example",
             version="0.1.0",
@@ -78,4 +88,9 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def asset_root(self) -> Traversable:
+        """Return the static asset directory for the extension.
+
+        Returns:
+            Traversable: Package path to bundled Observatory assets.
+        """
         return resources.files("phlo_observatory_example").joinpath("observatory_assets")
