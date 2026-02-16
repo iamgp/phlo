@@ -133,8 +133,8 @@ class TestPluginsEndpoints:
         client = TestClient(app)
         response = client.get("/api/plugins/services")
 
-        # Should return 200 (list) or 404 (unknown type)
-        assert response.status_code in (200, 404)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
 
     def test_plugins_unknown_type_returns_404(self):
         """Test unknown plugin type returns 404."""
@@ -144,8 +144,8 @@ class TestPluginsEndpoints:
         client = TestClient(app)
         response = client.get("/api/plugins/unknown_type_that_does_not_exist")
 
-        # Should return 404 for unknown plugin type
-        assert response.status_code in (200, 404)
+        assert response.status_code == 404
+        assert "Unknown plugin type" in response.json()["detail"]
 
 
 # =============================================================================
@@ -192,8 +192,8 @@ class TestServicesEndpoints:
         # Try to get a service that likely exists or doesn't
         response = client.get("/api/services/trino")
 
-        # Should return 200 or 404 depending on whether service exists
-        assert response.status_code in (200, 404, 500)  # 500 if discovery fails
+        # trino may or may not exist in local service manifests.
+        assert response.status_code in (200, 404)
 
     def test_service_not_found_returns_404(self):
         """Test unknown service returns 404."""
@@ -203,8 +203,8 @@ class TestServicesEndpoints:
         client = TestClient(app)
         response = client.get("/api/services/nonexistent_service_xyz")
 
-        # Should return 404 for unknown service
-        assert response.status_code in (404, 500)  # 500 if discovery not available
+        assert response.status_code == 404
+        assert "Service not found" in response.json()["detail"]
 
 
 # =============================================================================
