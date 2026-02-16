@@ -12,14 +12,18 @@ from typing import Any, Callable, List, Optional
 from phlo.capabilities import AssetCheckSpec, CheckResult, get_capability_registry, register_check
 from phlo.capabilities.runtime import RuntimeContext
 
-from phlo.hooks import (
-    QualityResultEventContext,
-    QualityResultEventEmitter,
-    TelemetryEventContext,
-    TelemetryEventEmitter,
-)
-from phlo_quality.checks import QualityCheck, QualityCheckResult, SchemaCheck
+from phlo_quality.checks import QualityCheck, QualityCheckResult
+from phlo_quality.checks_extra import SchemaCheck
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
+from phlo_quality.decorator_helpers import (
+    _build_metadata,
+    _collect_failure_sample,
+    _contract_metadata,
+    _estimate_failed_count,
+    _load_data,
+    _make_emitters,
+    _repro_sql,
+)
 from phlo_quality.partitioning import PartitionScope, apply_partition_scope, get_partition_key
 from phlo_quality.severity import severity_for_pandera_contract, severity_for_quality_check
 
@@ -39,52 +43,22 @@ def phlo_quality(
     query: Optional[str] = None,
     backend: str = "trino",
 ) -> Callable:
-    """
-    Decorator that generates Dagster asset checks from quality check definitions.
-
-    This decorator reduces quality check boilerplate by 70%, transforming verbose
-    asset check implementations into concise declarative definitions.
+    """Generate Dagster asset checks from declarative quality check definitions.
 
     Args:
-        table: Fully qualified table name (e.g., "bronze.weather_observations")
-        checks: List of quality checks to execute
-        asset_key: Optional asset key string (derived from table if not provided)
-        group: Optional asset group
-        blocking: Whether check failures block downstream assets (default: True)
-        partition_aware: Whether to apply partition scoping (default: True)
-        warn_threshold: Max fraction of failed checks to mark as WARN (otherwise ERROR)
-        partition_column: Partition column name used for scoping queries
-        rolling_window_days: When unpartitioned, optionally scope to last N days
-        full_table: Disable partition scoping (use with care)
-        description: Optional description (auto-generated if not provided)
-        query: Optional custom SQL query (defaults to SELECT * FROM {table})
-        backend: Backend to use ("trino" or "duckdb", default: "trino")
-
-    Returns:
-        Decorated function that executes quality checks
-
-    Example:
-        ```python
-        from phlo_quality import phlo_quality, NullCheck, RangeCheck
-
-        @phlo_quality(
-            table="bronze.weather_observations",
-            checks=[
-                NullCheck(columns=["station_id", "temperature"]),
-                RangeCheck(column="temperature", min_value=-50, max_value=60),
-            ],
-            group="weather",
-        )
-        def weather_quality_check():
-            '''Quality checks for weather observations.'''
-            pass
-        ```
-
-        This generates a Dagster asset check that:
-        - Queries the table via Trino/DuckDB
-        - Executes all quality checks
-        - Returns capability check results with rich metadata
-        - Reduces code from ~40 lines to ~8 lines (80% reduction)
+        table: Fully qualified table name (e.g., "bronze.weather_observations").
+        checks: Quality checks to execute.
+        asset_key: Asset key (derived from table if not provided).
+        group: Asset group.
+        blocking: Whether failures block downstream assets.
+        partition_aware: Apply partition scoping (default True).
+        warn_threshold: Max failed-check fraction for WARN vs ERROR.
+        partition_column: Partition column for scoping queries.
+        rolling_window_days: Scope to last N days when unpartitioned.
+        full_table: Disable partition scoping.
+        description: Auto-generated if not provided.
+        query: Custom SQL query (defaults to ``SELECT * FROM {table}``).
+        backend: ``"trino"`` or ``"duckdb"``.
     """
 
     def decorator(func: Callable) -> Callable:
@@ -122,21 +96,8 @@ def phlo_quality(
             def pandera_contract_check(runtime: RuntimeContext) -> CheckResult:
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
-                emitter = QualityResultEventEmitter(
-                    QualityResultEventContext(
-                        asset_key=asset_key_value,
-                        partition_key=partition_key_value,
-                        tags={"source": "pandera", "backend": backend},
-                    )
-                )
-                telemetry = TelemetryEventEmitter(
-                    TelemetryEventContext(
-                        tags={
-                            "asset": asset_key_value,
-                            "source": "pandera",
-                            "backend": backend,
-                        }
-                    )
+                emitter, telemetry = _make_emitters(
+                    asset_key_value, partition_key_value, "pandera", backend
                 )
                 scope = PartitionScope(
                     partition_key=partition_key,
@@ -149,14 +110,7 @@ def phlo_quality(
                     runtime.logger.info(f"Validating partition: {partition_key}")
 
                 try:
-                    if backend == "trino":
-                        trino = _resolve_trino_resource(runtime)
-                        df = _load_data_trino(runtime, final_query, trino)
-                    elif backend == "duckdb":
-                        duckdb_conn = _resolve_duckdb_connection(runtime)
-                        df = _load_data_duckdb(runtime, final_query, duckdb_conn)
-                    else:
-                        raise ValueError(f"Unknown backend: {backend}")
+                    df = _load_data(runtime, final_query, backend)
                 except Exception as exc:
                     runtime.logger.error(f"Failed to load data: {exc}")
                     telemetry.emit_log(
@@ -308,21 +262,8 @@ def phlo_quality(
             def quality_check_wrapper(runtime: RuntimeContext) -> CheckResult:
                 partition_key = get_partition_key(runtime)
                 partition_key_value = str(partition_key) if partition_key else None
-                emitter = QualityResultEventEmitter(
-                    QualityResultEventContext(
-                        asset_key=asset_key_value,
-                        partition_key=partition_key_value,
-                        tags={"source": "phlo", "backend": backend},
-                    )
-                )
-                telemetry = TelemetryEventEmitter(
-                    TelemetryEventContext(
-                        tags={
-                            "asset": asset_key_value,
-                            "source": "phlo",
-                            "backend": backend,
-                        }
-                    )
+                emitter, telemetry = _make_emitters(
+                    asset_key_value, partition_key_value, "phlo", backend
                 )
                 scope = PartitionScope(
                     partition_key=partition_key,
@@ -335,14 +276,7 @@ def phlo_quality(
                     runtime.logger.info(f"Validating partition: {partition_key}")
 
                 try:
-                    if backend == "trino":
-                        trino = _resolve_trino_resource(runtime)
-                        df = _load_data_trino(runtime, final_query, trino)
-                    elif backend == "duckdb":
-                        duckdb_conn = _resolve_duckdb_connection(runtime)
-                        df = _load_data_duckdb(runtime, final_query, duckdb_conn)
-                    else:
-                        raise ValueError(f"Unknown backend: {backend}")
+                    df = _load_data(runtime, final_query, backend)
                 except Exception as exc:
                     runtime.logger.error(f"Failed to load data: {exc}")
                     telemetry.emit_log(
@@ -564,180 +498,3 @@ def clear_quality_checks() -> None:
     registry = get_capability_registry()
     registry.clear_checks()
 
-
-def _load_data_trino(context: RuntimeContext, query: str, trino: Any) -> Any:
-    """Load data from Trino."""
-    import pandas as pd
-
-    # Execute query
-    with trino.cursor() as cursor:
-        cursor.execute(query)
-        rows = cursor.fetchall()
-
-        if not cursor.description:
-            raise ValueError("Trino did not return column metadata")
-
-        columns = [desc[0] for desc in cursor.description]
-
-    # Convert to DataFrame
-    df = pd.DataFrame(rows, columns=columns)
-
-    context.logger.info(f"Loaded {len(df)} rows from Trino")
-
-    return df
-
-
-def _resolve_trino_resource(context: RuntimeContext) -> Any:
-    trino = None
-    resources = context.resources
-    if isinstance(resources, dict):
-        trino = resources.get("trino")
-    elif resources is not None:
-        trino = getattr(resources, "trino", None)
-    if trino is None:
-        try:
-            trino = context.get_resource("trino")
-        except Exception:
-            trino = None
-    if trino is None:
-        try:
-            from phlo_trino.resource import TrinoResource
-        except Exception as exc:  # noqa: BLE001 - surface missing backend cleanly
-            raise ValueError(
-                "Trino resource not found in context and phlo_trino is not available"
-            ) from exc
-        trino = TrinoResource()
-    return trino
-
-
-def _resolve_duckdb_connection(context: RuntimeContext) -> Any:
-    duckdb_conn = None
-    resources = context.resources
-    if isinstance(resources, dict):
-        duckdb_conn = resources.get("duckdb")
-    elif resources is not None:
-        duckdb_conn = getattr(resources, "duckdb", None)
-    if duckdb_conn is None:
-        try:
-            duckdb_conn = context.get_resource("duckdb")
-        except Exception:
-            duckdb_conn = None
-    if duckdb_conn is None:
-        try:
-            import duckdb
-        except Exception as exc:  # noqa: BLE001 - surface missing backend cleanly
-            raise ValueError(
-                "DuckDB resource not found in context and duckdb is not available"
-            ) from exc
-        duckdb_conn = duckdb.connect()
-    return duckdb_conn
-
-
-def _load_data_duckdb(context: RuntimeContext, query: str, duckdb_conn: Any) -> Any:
-    """Load data from DuckDB."""
-
-    # Execute query
-    df = duckdb_conn.execute(query).fetchdf()
-
-    context.logger.info(f"Loaded {len(df)} rows from DuckDB")
-
-    return df
-
-
-def _build_metadata(df: Any, check_results: List[QualityCheckResult]) -> dict[str, Any]:
-    """Build metadata dictionary for downstream consumers."""
-    metadata: dict[str, Any] = {
-        "rows_validated": len(df),
-        "columns_validated": len(df.columns),
-        "checks_executed": len(check_results),
-        "checks_passed": sum(1 for r in check_results if r.passed),
-        "checks_failed": sum(1 for r in check_results if not r.passed),
-    }
-
-    # Add individual check results
-    for result in check_results:
-        # Add metric value
-        if result.metric_value is not None:
-            metadata[f"{result.metric_name}_value"] = result.metric_value
-
-        # Add check metadata
-        if result.metadata:
-            for key, value in result.metadata.items():
-                metadata_key = f"{result.metric_name}_{key}"
-                metadata[metadata_key] = value
-
-    # Build quality summary table
-    summary_rows = []
-    for result in check_results:
-        summary_rows.append(
-            f"| {result.metric_name} | {'✅ Pass' if result.passed else '❌ Fail'} | "
-            f"{result.metric_value} | {result.failure_message or '-'} |"
-        )
-
-    if summary_rows:
-        summary_table = (
-            "## Quality Check Results\n\n"
-            "| Check | Status | Value | Message |\n"
-            "|-------|--------|-------|----------|\n" + "\n".join(summary_rows)
-        )
-        metadata["quality_summary"] = summary_table
-
-    return metadata
-
-
-def _estimate_failed_count(check_results: List[QualityCheckResult]) -> int:
-    failed_count = 0
-    for result in check_results:
-        if result.passed:
-            continue
-        metadata = result.metadata or {}
-        for key in (
-            "failed_rows",
-            "failure_count",
-            "duplicate_count",
-            "out_of_range",
-            "non_match_count",
-        ):
-            value = metadata.get(key)
-            if isinstance(value, int):
-                failed_count += value
-                break
-    if failed_count > 0:
-        return failed_count
-    return sum(1 for r in check_results if not r.passed)
-
-
-def _collect_failure_sample(check_results: List[QualityCheckResult]) -> list[dict[str, Any]]:
-    sample: list[dict[str, Any]] = []
-    for result in check_results:
-        if result.passed:
-            continue
-        rows = result.metadata.get("sample_rows") if result.metadata else None
-        if not isinstance(rows, list):
-            continue
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            sample.append({"check": result.metric_name, **row})
-            if len(sample) >= 20:
-                return sample
-    return sample
-
-
-def _contract_metadata(contract: QualityCheckContract) -> dict[str, Any]:
-    metadata: dict[str, Any] = {"source": contract.source, "failed_count": contract.failed_count}
-    if contract.partition_key is not None:
-        metadata["partition_key"] = contract.partition_key
-    if contract.total_count is not None:
-        metadata["total_count"] = contract.total_count
-    if contract.query_or_sql is not None:
-        metadata["query_or_sql"] = contract.query_or_sql
-    if contract.repro_sql is not None:
-        metadata["repro_sql"] = contract.repro_sql
-    if contract.sample is not None:
-        metadata["sample"] = contract.sample[:20]
-    return metadata
-
-
-def _repro_sql(query: str) -> str:
-    return f"SELECT *\nFROM (\n{query}\n) AS phlo_quality\nLIMIT 100"
