@@ -13,6 +13,8 @@ pytestmark = pytest.mark.integration
 
 @dataclass
 class _Settings:
+    """Minimal settings stub used to control executor selection in tests."""
+
     phlo_force_in_process_executor: bool = False
     phlo_force_multiprocess_executor: bool = False
     phlo_host_platform: str | None = None
@@ -20,6 +22,7 @@ class _Settings:
 
 
 def test_default_executor_honors_platform() -> None:
+    """Selects executor type from detected platform when no force flags are set."""
     with patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()):
         with patch("platform.system", return_value="Darwin"):
             from phlo_dagster.framework.definitions import _default_executor
@@ -37,6 +40,7 @@ def test_default_executor_honors_platform() -> None:
 
 
 def test_default_executor_honors_force_flags() -> None:
+    """Prefers explicit force flags over platform-derived defaults."""
     settings = _Settings(phlo_force_in_process_executor=True)
     with patch("phlo_dagster.framework.definitions.get_settings", return_value=settings):
         from phlo_dagster.framework.definitions import _default_executor
@@ -55,6 +59,7 @@ def test_default_executor_honors_force_flags() -> None:
 
 
 def test_build_definitions_merges_user_defs() -> None:
+    """Builds Dagster definitions when workflow discovery returns user definitions."""
     empty_defs = dg.Definitions()
     with patch("phlo_dagster.framework.definitions.get_settings", return_value=_Settings()):
         with patch(

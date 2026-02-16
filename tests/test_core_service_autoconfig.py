@@ -18,7 +18,15 @@ PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)(?::-[^}]+)?\}")
 
 
 class ServiceFixture:
+    """Store service name and discovered service definition for assertions."""
+
     def __init__(self, name: str, definition: Mapping[str, Any]):
+        """Initialize the fixture container.
+
+        Args:
+            name: Service identifier.
+            definition: Service definition mapping from the plugin.
+        """
         self.name = name
         self.definition = definition
 
@@ -33,10 +41,26 @@ CORE_SERVICES = {
 
 
 def _extract_placeholders(value: str) -> set[str]:
+    """Extract environment placeholder names from a string.
+
+    Args:
+        value: String that may contain `${VAR}` placeholders.
+
+    Returns:
+        set[str]: Placeholder names without delimiters.
+    """
     return {match.group(1) for match in PLACEHOLDER_RE.finditer(value)}
 
 
 def _collect_placeholders(values: Iterable[object]) -> set[str]:
+    """Collect placeholder names from iterable string values.
+
+    Args:
+        values: Values to scan for placeholders.
+
+    Returns:
+        set[str]: Union of extracted placeholder names.
+    """
     placeholders: set[str] = set()
     for item in values:
         if isinstance(item, str):
@@ -45,6 +69,14 @@ def _collect_placeholders(values: Iterable[object]) -> set[str]:
 
 
 def _collect_service_placeholders(definition: Mapping[str, Any]) -> set[str]:
+    """Collect placeholders referenced by a service definition.
+
+    Args:
+        definition: Service definition mapping.
+
+    Returns:
+        set[str]: Placeholder names referenced in image, build args, and compose data.
+    """
     placeholders: set[str] = set()
 
     image = definition.get("image")
@@ -70,6 +102,7 @@ def _collect_service_placeholders(definition: Mapping[str, Any]) -> set[str]:
 
 
 def test_core_service_dependencies_are_declared() -> None:
+    """Verify core service dependency declarations match expected topology."""
     expected = {
         "dagster": {"postgres", "minio", "nessie", "trino"},
         "nessie": {"postgres", "minio"},
@@ -87,6 +120,7 @@ def test_core_service_dependencies_are_declared() -> None:
 
 
 def test_core_service_hooks_configured_for_auto_setup() -> None:
+    """Verify required post-start hooks are configured for auto-setup."""
     dagster_hooks = CORE_SERVICES["dagster"].definition.get("hooks", {})
     assert isinstance(dagster_hooks, dict)
     post_start = dagster_hooks.get("post_start", [])
@@ -105,6 +139,7 @@ def test_core_service_hooks_configured_for_auto_setup() -> None:
 
 
 def test_core_service_placeholders_defined_in_env_vars() -> None:
+    """Verify referenced placeholders are defined in service env var maps."""
     available_env = set()
     placeholders: set[str] = set()
     for fixture in CORE_SERVICES.values():

@@ -7,6 +7,7 @@ from phlo_dlt.scaffold import create_ingestion_workflow, parse_field_specs
 
 
 def test_parse_field_specs_validates_and_dedupes() -> None:
+    """Normalizes field specs and keeps first occurrence for duplicate names."""
     specs = parse_field_specs(["User ID:str!", "created_at:datetime", "user_id:int"])
     assert [s.name for s in specs] == ["user_id", "created_at"]
     assert specs[0].nullable is False
@@ -15,6 +16,12 @@ def test_parse_field_specs_validates_and_dedupes() -> None:
 def test_scaffold_generates_no_todos_and_is_syntax_valid(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Generates scaffold files without placeholders and with valid Python syntax.
+
+    Args:
+        tmp_path: Temporary filesystem root for generated files.
+        monkeypatch: Pytest fixture for changing current working directory.
+    """
     monkeypatch.chdir(tmp_path)
     (tmp_path / "workflows" / "schemas").mkdir(parents=True)
     (tmp_path / "workflows" / "ingestion").mkdir(parents=True)
