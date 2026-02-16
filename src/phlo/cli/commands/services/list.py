@@ -12,6 +12,19 @@ from phlo.cli.infrastructure.utils import get_project_name
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 
+def _extract_compose_service(container_info: dict) -> str | None:
+    """Extract the compose service name from docker ps JSON output.
+
+    Uses the ``com.docker.compose.service`` label when available,
+    falling back to container-name parsing for non-compose containers.
+    """
+    labels = container_info.get("Labels", "")
+    for label in labels.split(","):
+        if label.startswith("com.docker.compose.service="):
+            return label.split("=", 1)[1]
+    return None
+
+
 @click.command("list")
 @click.option("--all", "show_all", is_flag=True, help="Show all services including optional")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
@@ -48,26 +61,26 @@ def list_cmd(show_all: bool, output_json: bool):
         if isinstance(cfg, dict) and cfg.get("type") == "inline":
             inline_services.append(ServiceDefinition.from_inline(name, cfg))
 
-    # Get running container status
+    # Get running container status using compose project label for deterministic matching
     try:
         project_name = get_project_name()
         result = run_command(
-            ["docker", "ps", "--filter", f"name={project_name}", "--format", "{{json .}}"],
+            [
+                "docker",
+                "ps",
+                "--filter",
+                f"label=com.docker.compose.project={project_name}",
+                "--format",
+                '{{json .}}',
+            ],
             check=False,
         )
         running_containers = {}
         if result.returncode == 0 and result.stdout.strip():
             for line in result.stdout.strip().split("\n"):
                 container_info = json.loads(line)
-                container_name = container_info.get("Names", "")
-                # Extract service name from container name (format: project-service-1)
-                # Remove project prefix and container number suffix
-                prefix = f"{project_name}-"
-                if container_name.startswith(prefix):
-                    # Remove prefix and -1 suffix (last dash and number)
-                    service_with_suffix = container_name[len(prefix) :]
-                    # Remove the -1 suffix
-                    service_name = service_with_suffix.rsplit("-", 1)[0]
+                service_name = _extract_compose_service(container_info)
+                if service_name:
                     running_containers[service_name] = {
                         "status": container_info.get("State", ""),
                         "ports": container_info.get("Ports", ""),

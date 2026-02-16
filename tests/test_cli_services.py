@@ -58,7 +58,7 @@ def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.Monk
 
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: ["myproj-dagster-webserver-1"],
+        lambda _project: ["myproj-dagster-webserver-1"],
     )
 
     assert find_dagster_container("myproj") == "myproj-dagster-webserver-1"
@@ -73,7 +73,7 @@ def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: ["myproj-dagster-1"],
+        lambda _project: ["myproj-dagster-1"],
     )
 
     assert find_dagster_container("myproj") == "myproj-dagster-1"
@@ -303,7 +303,7 @@ def test_find_dagster_container_falls_back_to_legacy_name(monkeypatch: pytest.Mo
     )
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: ["myproj-dagster-webserver-1"],
+        lambda _project: ["myproj-dagster-webserver-1"],
     )
     assert find_dagster_container("myproj") == "myproj-dagster-webserver-1"
 
@@ -315,7 +315,7 @@ def test_find_dagster_container_regex_fallback(monkeypatch: pytest.MonkeyPatch) 
     )
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: ["myproj-custom-dagster-web-1"],
+        lambda _project: ["myproj-custom-dagster-web-1"],
     )
     assert find_dagster_container("myproj") == "myproj-custom-dagster-web-1"
 
@@ -327,7 +327,7 @@ def test_find_dagster_container_regex_excludes_daemon(monkeypatch: pytest.Monkey
     )
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: ["myproj-dagster-daemon-1"],
+        lambda _project: ["myproj-dagster-daemon-1"],
     )
     with pytest.raises(RuntimeError, match="Could not find running Dagster"):
         find_dagster_container("myproj")
@@ -340,7 +340,7 @@ def test_find_dagster_container_raises_when_no_containers(monkeypatch: pytest.Mo
     )
     monkeypatch.setattr(
         "phlo_dagster.containers._list_running_containers",
-        lambda: [],
+        lambda _project: [],
     )
     with pytest.raises(RuntimeError, match="Could not find running Dagster"):
         find_dagster_container("myproj")
@@ -385,6 +385,20 @@ def test_select_first_existing_skips_empty_candidates() -> None:
 
     result = select_first_existing(["", "b"], ["b"])
     assert result == "b"
+
+
+def test_extract_compose_service_from_label() -> None:
+    from phlo.cli.commands.services.list import _extract_compose_service
+
+    info = {"Labels": "com.docker.compose.project=demo,com.docker.compose.service=postgres,other=x"}
+    assert _extract_compose_service(info) == "postgres"
+
+
+def test_extract_compose_service_returns_none_without_label() -> None:
+    from phlo.cli.commands.services.list import _extract_compose_service
+
+    assert _extract_compose_service({"Labels": "some.other.label=val"}) is None
+    assert _extract_compose_service({}) is None
 
 
 def test_resolve_dependencies_reports_cycle_path() -> None:
