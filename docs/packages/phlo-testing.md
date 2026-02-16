@@ -104,10 +104,15 @@ result = MockTrinoResult(
 )
 ```
 
-### Integration Test Markers
+### Test Marker Rules
 
 ```python
 import pytest
+
+@pytest.mark.unit
+def test_pure_transform_logic():
+    """No network, Docker, or filesystem side effects."""
+    pass
 
 @pytest.mark.integration
 def test_full_pipeline():
@@ -120,9 +125,14 @@ def test_large_dataset():
     pass
 
 # Run specific markers
+# pytest -m unit
 # pytest -m integration
 # pytest -m "not slow"
 ```
+
+Use `unit` for import-only tests, pure functions, and tests that run without external services.
+Use `integration` only for tests that require service discovery, Docker containers, dbt artifacts,
+or other cross-package runtime wiring.
 
 ## Common Test Patterns
 
