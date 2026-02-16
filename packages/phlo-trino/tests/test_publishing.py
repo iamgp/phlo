@@ -190,6 +190,7 @@ def test_describe_trino_table_skips_non_retryable_candidate_after_first_failure(
 
 def test_retryable_introspection_error_uses_structured_fields() -> None:
     """Verifies structured error fields are recognized as retryable."""
+
     class _StructuredTrinoError(RuntimeError):
         """Structured exception stub mimicking Trino client errors."""
 

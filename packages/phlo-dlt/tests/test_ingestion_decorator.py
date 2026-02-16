@@ -42,6 +42,7 @@ class TestSchemaAutoGeneration:
 
         class TestPanderaSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str = Field(nullable=False)
             value: int
 
@@ -53,7 +54,7 @@ class TestSchemaAutoGeneration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -69,6 +70,7 @@ class TestSchemaAutoGeneration:
 
         class TestPanderaSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         explicit_schema = Schema(
@@ -84,7 +86,7 @@ class TestSchemaAutoGeneration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -108,7 +110,7 @@ class TestSchemaAutoGeneration:
             )
             def test_asset(partition_date: str):
                 """Placeholder asset function used for decorator registration tests.
-                
+
                 Args:
                     partition_date: Partition key passed by the orchestrator.
                 """
@@ -123,6 +125,7 @@ class TestDecoratorConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -133,7 +136,7 @@ class TestDecoratorConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -148,6 +151,7 @@ class TestDecoratorConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             custom_id: str
 
         @phlo_ingestion(
@@ -158,7 +162,7 @@ class TestDecoratorConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -172,6 +176,7 @@ class TestDecoratorConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -182,7 +187,7 @@ class TestDecoratorConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -201,6 +206,7 @@ class TestAutomationConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -212,7 +218,7 @@ class TestAutomationConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -228,6 +234,7 @@ class TestAutomationConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -238,7 +245,7 @@ class TestAutomationConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -258,6 +265,7 @@ class TestFreshnessConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -269,7 +277,7 @@ class TestFreshnessConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -285,6 +293,7 @@ class TestFreshnessConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -295,7 +304,7 @@ class TestFreshnessConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -315,6 +324,7 @@ class TestRetryConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -325,7 +335,7 @@ class TestRetryConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -341,6 +351,7 @@ class TestRetryConfiguration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -353,7 +364,7 @@ class TestRetryConfiguration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -377,6 +388,7 @@ class TestAssetRegistration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -387,7 +399,7 @@ class TestAssetRegistration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -403,6 +415,7 @@ class TestAssetRegistration:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -413,7 +426,7 @@ class TestAssetRegistration:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -438,6 +451,7 @@ class TestAssetAttributes:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -448,7 +462,7 @@ class TestAssetAttributes:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -463,6 +477,7 @@ class TestAssetAttributes:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -484,6 +499,7 @@ class TestAssetAttributes:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -494,7 +510,7 @@ class TestAssetAttributes:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -509,6 +525,7 @@ class TestAssetAttributes:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -519,7 +536,7 @@ class TestAssetAttributes:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -539,6 +556,7 @@ class TestComplexSchemas:
 
         class GitHubEvents(DataFrameModel):
             """Pandera schema representing GitHub events test data."""
+
             id: str = Field(nullable=False, unique=True, description="Event ID")
             type: str = Field(nullable=False)
             actor: str = Field(nullable=False)
@@ -571,6 +589,7 @@ class TestComplexSchemas:
 
         class GlucoseEntries(DataFrameModel):
             """Pandera schema representing glucose entries test data."""
+
             _id: str = Field(nullable=False, unique=True)
             sgv: int = Field(ge=1, le=1000, nullable=False)
             date: int = Field(nullable=False)
@@ -606,6 +625,7 @@ class TestEdgeCases:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -617,7 +637,7 @@ class TestEdgeCases:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -631,6 +651,7 @@ class TestEdgeCases:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -642,7 +663,7 @@ class TestEdgeCases:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """
@@ -656,6 +677,7 @@ class TestEdgeCases:
 
         class TestSchema(DataFrameModel):
             """Pandera schema used for this test case."""
+
             id: str
 
         @phlo_ingestion(
@@ -667,7 +689,7 @@ class TestEdgeCases:
         )
         def test_asset(partition_date: str):
             """Placeholder asset function used for decorator registration tests.
-            
+
             Args:
                 partition_date: Partition key passed by the orchestrator.
             """

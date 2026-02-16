@@ -31,6 +31,7 @@ def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callab
         Returns:
             Wrapped function that logs failures with source context.
         """
+
         @wraps(fn)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             """Execute extraction function and log source-specific failures.
