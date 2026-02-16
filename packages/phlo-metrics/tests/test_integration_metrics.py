@@ -1,5 +1,7 @@
 """Integration tests for phlo-metrics."""
 
+from datetime import datetime, timezone
+
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -100,3 +102,162 @@ def test_hooks_plugin_exists():
     plugin = MetricsHookPlugin()
     assert plugin is not None
     assert hasattr(plugin, "metadata")
+
+
+def test_get_asset_runs_from_postgres_success(monkeypatch):
+    """Collector returns normalized Dagster run rows."""
+    from phlo_metrics.collector import MetricsCollector
+    import phlo_metrics.collector as collector_module
+
+    class FakeCursor:
+        last_params = None
+
+        def execute(self, _query, _params):
+            FakeCursor.last_params = _params
+            return None
+
+        def fetchall(self):
+            return [
+                {
+                    "run_id": "run-123",
+                    "start_time": datetime(2026, 2, 1, 10, 0, tzinfo=timezone.utc),
+                    "end_time": datetime(2026, 2, 1, 10, 5, tzinfo=timezone.utc),
+                    "status": "SUCCESS",
+                }
+            ]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeConnection:
+        def cursor(self, **_kwargs):
+            return FakeCursor()
+
+        def close(self):
+            return None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(collector_module.psycopg2, "connect", lambda **_kwargs: FakeConnection())
+
+    collector = MetricsCollector()
+    runs = collector._get_asset_runs_from_postgres("dlt_users", limit=5)
+
+    assert len(runs) == 1
+    assert runs[0].run_id == "run-123"
+    assert runs[0].status == "success"
+    assert runs[0].duration_seconds == 300.0
+    assert FakeCursor.last_params is not None
+    assert FakeCursor.last_params[1] == r"%dlt\_users%"
+
+
+def test_get_iceberg_table_stats_dependency_unavailable(monkeypatch):
+    """Collector raises explicit dependency error when Trino client is missing."""
+    from phlo_metrics.collector import MetricsCollector, MetricsDependencyError
+
+    collector = MetricsCollector()
+    monkeypatch.setattr(collector, "_load_trino_connect", lambda: None)
+    with pytest.raises(MetricsDependencyError):
+        collector._get_iceberg_table_stats("dlt_users")
+
+
+def test_get_iceberg_table_stats_success(monkeypatch):
+    """Collector returns row/byte stats from Trino metadata tables."""
+    from phlo_metrics.collector import MetricsCollector
+
+    class FakeCursor:
+        def __init__(self, row):
+            self._row = row
+
+        def execute(self, _sql):
+            return None
+
+        def fetchone(self):
+            return self._row
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeConnection:
+        def __init__(self, row):
+            self._row = row
+
+        def cursor(self):
+            return FakeCursor(self._row)
+
+        def close(self):
+            return None
+
+    fake_connections = [FakeConnection(("bronze",)), FakeConnection((1024, 42))]
+
+    def _fake_connect(**_kwargs):
+        return fake_connections.pop(0)
+
+    class FakeTrinoSettings:
+        trino_host = "trino"
+        trino_port = 10005
+        trino_catalog = "iceberg"
+
+    collector = MetricsCollector()
+    monkeypatch.setattr(collector, "_load_trino_connect", lambda: _fake_connect)
+    monkeypatch.setattr(collector, "_load_trino_settings", lambda: FakeTrinoSettings())
+    stats = collector._get_iceberg_table_stats("dlt_users")
+
+    assert stats == {"total_bytes": 1024, "row_count": 42}
+
+
+def test_get_iceberg_table_stats_malformed_response(monkeypatch):
+    """Collector raises typed malformed response error for invalid Trino payload."""
+    from phlo_metrics.collector import MetricsCollector, MetricsMalformedResponseError
+
+    class FakeCursor:
+        def __init__(self, row):
+            self._row = row
+
+        def execute(self, _sql):
+            return None
+
+        def fetchone(self):
+            return self._row
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeConnection:
+        def __init__(self, row):
+            self._row = row
+
+        def cursor(self):
+            return FakeCursor(self._row)
+
+        def close(self):
+            return None
+
+    fake_connections = [FakeConnection(("bronze",)), FakeConnection(("bad-shape",))]
+
+    def _fake_connect(**_kwargs):
+        return fake_connections.pop(0)
+
+    class FakeTrinoSettings:
+        trino_host = "trino"
+        trino_port = 10005
+        trino_catalog = "iceberg"
+
+    collector = MetricsCollector()
+    monkeypatch.setattr(collector, "_load_trino_connect", lambda: _fake_connect)
+    monkeypatch.setattr(collector, "_load_trino_settings", lambda: FakeTrinoSettings())
+    with pytest.raises(MetricsMalformedResponseError):
+        collector._get_iceberg_table_stats("dlt_users")
