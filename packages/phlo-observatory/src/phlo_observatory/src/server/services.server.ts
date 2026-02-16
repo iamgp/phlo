@@ -178,6 +178,16 @@ export interface ServiceWithStatus extends ServiceDefinition {
   containerStatus: DockerContainerStatus | null
 }
 
+interface DockerPsEntry {
+  Name?: string
+  Names?: string
+  Labels?: string
+  Health?: string
+  Ports?: string
+  State?: string
+  Status?: string
+}
+
 interface NativeProcessEntry {
   pid: number
   started_at?: number
@@ -405,7 +415,7 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     console.error('Error discovering services:', error)
   }
 
-  if (!useCli && services.length === 0) {
+  if (shouldFallbackToCliDiscovery(useCli, services.length)) {
     const cliServices = await discoverServicesFromCli()
     if (cliServices.length > 0) {
       return cliServices
@@ -419,6 +429,13 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     }
     return a.name.localeCompare(b.name)
   })
+}
+
+export function shouldFallbackToCliDiscovery(
+  useCliDiscovery: boolean,
+  discoveredServiceCount: number,
+): boolean {
+  return !useCliDiscovery && discoveredServiceCount === 0
 }
 
 async function findServiceYamlFiles(root: string): Promise<Array<string>> {
@@ -539,6 +556,65 @@ function statusPriority(status: DockerContainerStatus['status']): number {
   }
 }
 
+export function parseContainerStateStatus(
+  container: Pick<DockerPsEntry, 'State' | 'Status' | 'Health'>,
+): DockerContainerStatus['status'] {
+  const rawState = (container.State || container.Status || '').toLowerCase()
+  if (rawState.includes('running')) {
+    return container.Health === 'unhealthy' ? 'unhealthy' : 'running'
+  }
+  if (rawState.includes('starting') || rawState.includes('created')) {
+    return 'starting'
+  }
+  if (rawState.length === 0) {
+    return 'unknown'
+  }
+  return 'stopped'
+}
+
+export function parseDockerStatusLines(
+  stdout: string,
+  composeProject: string | null,
+): Array<DockerContainerStatus> {
+  const containersByService = new Map<string, DockerContainerStatus>()
+  for (const line of stdout.trim().split('\n')) {
+    if (!line) continue
+
+    try {
+      const container = JSON.parse(line) as DockerPsEntry
+      const labels = container.Labels || ''
+      if (!matchesComposeProject(labels, composeProject)) {
+        continue
+      }
+
+      const serviceName =
+        getComposeLabelValue(labels, 'com.docker.compose.service') || ''
+      if (!serviceName) {
+        continue
+      }
+
+      const parsedStatus: DockerContainerStatus = {
+        name: container.Names || container.Name || '',
+        service: serviceName,
+        status: parseContainerStateStatus(container),
+        health: container.Health,
+        ports: container.Ports,
+      }
+      const existing = containersByService.get(serviceName)
+      if (
+        !existing ||
+        statusPriority(parsedStatus.status) > statusPriority(existing.status)
+      ) {
+        containersByService.set(serviceName, parsedStatus)
+      }
+    } catch {
+      // Skip invalid JSON lines
+    }
+  }
+
+  return Array.from(containersByService.values())
+}
+
 async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
   try {
     const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
@@ -593,67 +669,7 @@ export const getDockerStatus = createServerFn().handler(
       const composeProject = await getComposeProjectName()
       // Use docker ps to get ALL running containers (not compose-specific)
       const { stdout } = await execAsync('docker ps -a --format json')
-
-      const containersByService = new Map<string, DockerContainerStatus>()
-
-      // Docker outputs one JSON object per line
-      for (const line of stdout.trim().split('\n')) {
-        if (!line) continue
-
-        try {
-          const container = JSON.parse(line)
-
-          // Parse status - Docker returns "running", "exited", "created", etc.
-          let status: DockerContainerStatus['status'] = 'unknown'
-          const rawState = (
-            container.State ||
-            container.Status ||
-            ''
-          ).toLowerCase()
-
-          if (rawState.includes('running')) {
-            status = container.Health === 'unhealthy' ? 'unhealthy' : 'running'
-          } else if (
-            rawState.includes('starting') ||
-            rawState.includes('created')
-          ) {
-            status = 'starting'
-          } else {
-            status = 'stopped'
-          }
-
-          // Get service name from docker compose label
-          const labels = container.Labels || ''
-          if (!matchesComposeProject(labels, composeProject)) {
-            continue
-          }
-
-          const serviceName =
-            getComposeLabelValue(labels, 'com.docker.compose.service') || ''
-
-          if (serviceName) {
-            const parsedStatus: DockerContainerStatus = {
-              name: container.Names || container.Name || '',
-              service: serviceName,
-              status,
-              health: container.Health,
-              ports: container.Ports,
-            }
-            const existing = containersByService.get(serviceName)
-            if (
-              !existing ||
-              statusPriority(parsedStatus.status) >
-                statusPriority(existing.status)
-            ) {
-              containersByService.set(serviceName, parsedStatus)
-            }
-          }
-        } catch {
-          // Skip invalid JSON lines
-        }
-      }
-
-      return Array.from(containersByService.values())
+      return parseDockerStatusLines(stdout, composeProject)
     } catch (error) {
       console.error('Error getting Docker status:', error)
       return []
