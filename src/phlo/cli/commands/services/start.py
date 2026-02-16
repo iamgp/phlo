@@ -69,9 +69,7 @@ def start_cmd(
     project_name = get_project_name()
 
     if not compose_file.exists():
-        raise click.ClickException(
-            "docker-compose.yml not found. Run 'phlo services init' first."
-        )
+        raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
 
     # Parse comma-separated services
     services_list = []
@@ -223,9 +221,7 @@ def start_cmd(
                                 expanded[dep.name] = dep
                                 queue.append(dep)
                     try:
-                        native_to_start = discovery.resolve_dependencies(
-                            list(expanded.values())
-                        )
+                        native_to_start = discovery.resolve_dependencies(list(expanded.values()))
                     except ValueError as exc:
                         raise click.ClickException(str(exc)) from exc
                 else:
@@ -377,6 +373,4 @@ def start_cmd(
             "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
         )
     except (subprocess.SubprocessError, OSError) as exc:
-        raise click.ClickException(
-            f"docker compose failed unexpectedly: {exc}"
-        ) from exc
+        raise click.ClickException(f"docker compose failed unexpectedly: {exc}") from exc

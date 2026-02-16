@@ -71,7 +71,7 @@ def list_cmd(show_all: bool, output_json: bool):
                 "--filter",
                 f"label=com.docker.compose.project={project_name}",
                 "--format",
-                '{{json .}}',
+                "{{json .}}",
             ],
             check=False,
         )

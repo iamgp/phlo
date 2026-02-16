@@ -42,7 +42,9 @@ class TestCanRunDev:
 class TestExpandEnvVars:
     def test_expands_simple_var(self) -> None:
         mgr = NativeProcessManager(Path("/tmp"))
-        result = mgr._expand_env_vars("http://${HOST}:${PORT}", {"HOST": "localhost", "PORT": "3000"})
+        result = mgr._expand_env_vars(
+            "http://${HOST}:${PORT}", {"HOST": "localhost", "PORT": "3000"}
+        )
         assert result == "http://localhost:3000"
 
     def test_uses_default_when_var_missing(self) -> None:
