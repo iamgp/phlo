@@ -51,8 +51,7 @@ def track(schema: str, exclude: tuple, verbose: bool) -> None:
         click.echo(f"✓ Tracked {tracked}/{total} tables")
 
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))
 
 
 @hasura.command()
@@ -81,8 +80,7 @@ def relationships(schema: str, verbose: bool) -> None:
         click.echo(f"✓ Created {successful}/{total} relationships")
 
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))
 
 
 @hasura.command()
@@ -111,8 +109,7 @@ def permissions(schema: str, verbose: bool) -> None:
         click.echo(f"✓ Created {successful}/{total} permissions")
 
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))
 
 
 @hasura.command()
@@ -132,8 +129,7 @@ def auto_setup(schema: str, verbose: bool) -> None:
     try:
         auto_track(schema, verbose=verbose)
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))
 
 
 @hasura.command()
@@ -150,8 +146,7 @@ def export(output: str) -> None:
         syncer.export_metadata(output)
         click.echo(f"✓ Metadata exported to {output}")
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))
 
 
 @hasura.command(name="apply")
@@ -168,8 +163,7 @@ def apply_meta(input: str) -> None:
         syncer.import_metadata(input)
         click.echo(f"✓ Metadata applied from {input}")
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))
 
 
 @hasura.command()
@@ -189,8 +183,7 @@ def status() -> None:
                 click.echo(f"    • {table}")
 
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))
 
 
 @hasura.command(name="sync-permissions")
@@ -208,5 +201,4 @@ def sync_permissions(config: str) -> None:
         manager.sync_permissions(config_dict, verbose=True)
         click.echo("✓ Permissions synced")
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1)
+        raise click.ClickException(str(e))

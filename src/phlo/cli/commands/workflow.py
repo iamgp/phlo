@@ -77,7 +77,7 @@ def create_workflow_cmd(
             click.echo("\nNext steps:")
             click.echo(f"  1. Edit schema: {files[0]}")
             click.echo(f"  2. Configure API: {files[1]}")
-            click.echo("  3. Restart Dagster: docker restart dagster-webserver")
+            click.echo("  3. Restart Dagster: phlo services restart dagster")
             click.echo(f"  4. Test: phlo test {domain}")
             click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
     except Exception as exc:

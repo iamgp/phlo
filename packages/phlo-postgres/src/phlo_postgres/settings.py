@@ -14,10 +14,10 @@ class PostgresSettings(BaseConfig):
     """PostgreSQL database connection and schema configuration."""
 
     postgres_host: str = Field(default="postgres", description="PostgreSQL host")
-    postgres_port: int = Field(default=10000, description="PostgreSQL port")
-    postgres_user: str = Field(default="lake", description="PostgreSQL username")
+    postgres_port: int = Field(default=5432, description="PostgreSQL port")
+    postgres_user: str = Field(default="phlo", description="PostgreSQL username")
     postgres_password: str = Field(default="phlo", description="PostgreSQL password")
-    postgres_db: str = Field(default="lakehouse", description="PostgreSQL database name")
+    postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
     postgres_mart_schema: str = Field(
         default="marts", description="Schema for published mart tables"
     )

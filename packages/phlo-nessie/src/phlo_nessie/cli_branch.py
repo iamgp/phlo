@@ -8,7 +8,6 @@ Provides commands to:
 """
 
 import json
-import sys
 
 import click
 from rich.console import Console
@@ -29,12 +28,9 @@ def get_nessie_client():
         client = init(get_nessie_settings().nessie_uri())
         return client
     except ImportError:
-        console.print("[red]Error: pynessie not installed[/red]")
-        console.print("Install with: pip install pynessie")
-        sys.exit(1)
+        raise click.ClickException("pynessie not installed. Install with: pip install pynessie")
     except Exception as e:
-        console.print(f"[red]Error connecting to Nessie: {e}[/red]")
-        sys.exit(1)
+        raise click.ClickException(f"Error connecting to Nessie: {e}")
 
 
 @click.group()
@@ -108,8 +104,7 @@ def list(all: bool, format: str):
             console.print(table)
 
     except Exception as e:
-        console.print(f"[red]Error listing branches: {e}[/red]")
-        sys.exit(1)
+        raise click.ClickException(f"Error listing branches: {e}")
 
 
 @branch.command()
@@ -141,8 +136,7 @@ def create(branch_name: str, from_ref: str):
                 break
 
         if not source_ref:
-            console.print(f"[red]Reference not found: {from_ref}[/red]")
-            sys.exit(1)
+            raise click.ClickException(f"Reference not found: {from_ref}")
         assert source_ref is not None
 
         # Create branch
@@ -156,14 +150,12 @@ def create(branch_name: str, from_ref: str):
             console.print(f"  Head: {new_branch[:8] if new_branch else 'unknown'}")
         except Exception as e:
             if "already exists" in str(e).lower():
-                console.print(f"[red]Error: Branch already exists: {branch_name}[/red]")
+                raise click.ClickException(f"Branch already exists: {branch_name}")
             else:
-                console.print(f"[red]Error creating branch: {e}[/red]")
-            sys.exit(1)
+                raise click.ClickException(f"Error creating branch: {e}")
 
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
+        raise click.ClickException(str(e))
 
 
 @branch.command()
@@ -186,8 +178,7 @@ def delete(branch_name: str, force: bool):
     try:
         # Prevent deleting default branch
         if branch_name == get_iceberg_settings().iceberg_nessie_ref:
-            console.print(f"[red]Error: Cannot delete default branch: {branch_name}[/red]")
-            sys.exit(1)
+            raise click.ClickException(f"Cannot delete default branch: {branch_name}")
 
         client = get_nessie_client()
 
@@ -199,8 +190,7 @@ def delete(branch_name: str, force: bool):
                 break
 
         if not branch_ref:
-            console.print(f"[red]Branch not found: {branch_name}[/red]")
-            sys.exit(1)
+            raise click.ClickException(f"Branch not found: {branch_name}")
         assert branch_ref is not None
 
         # Delete branch
@@ -208,12 +198,10 @@ def delete(branch_name: str, force: bool):
             client.delete_branch(branch_name=branch_name, reference=branch_ref.hash)
             console.print(f"[green]✓ Deleted branch: {branch_name}[/green]")
         except Exception as e:
-            console.print(f"[red]Error deleting branch: {e}[/red]")
-            sys.exit(1)
+            raise click.ClickException(f"Error deleting branch: {e}")
 
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
+        raise click.ClickException(str(e))
 
 
 @branch.command()
@@ -254,13 +242,11 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
                 target_ref = ref
 
         if not source_ref:
-            console.print(f"[red]Source branch not found: {source_branch}[/red]")
-            sys.exit(1)
+            raise click.ClickException(f"Source branch not found: {source_branch}")
         assert source_ref is not None
 
         if not target_ref:
-            console.print(f"[red]Target branch not found: {target_branch}[/red]")
-            sys.exit(1)
+            raise click.ClickException(f"Target branch not found: {target_branch}")
         assert target_ref is not None
 
         if dry_run:
@@ -288,15 +274,12 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
         except Exception as e:
             error_msg = str(e).lower()
             if "conflict" in error_msg:
-                console.print("[red]Merge conflict detected[/red]")
-                console.print(f"[yellow]Details: {e}[/yellow]")
+                raise click.ClickException(f"Merge conflict detected. Details: {e}")
             else:
-                console.print(f"[red]Error merging branches: {e}[/red]")
-            sys.exit(1)
+                raise click.ClickException(f"Error merging branches: {e}")
 
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        sys.exit(1)
+        raise click.ClickException(str(e))
 
 
 @branch.command()
@@ -332,8 +315,7 @@ def diff(source_branch: str, target_branch: str, format: str):
                 target_ref = ref
 
         if not source_ref or not target_ref:
-            console.print("[red]One or both branches not found[/red]")
-            sys.exit(1)
+            raise click.ClickException("One or both branches not found")
         assert source_ref is not None
         assert target_ref is not None
 
@@ -364,5 +346,4 @@ def diff(source_branch: str, target_branch: str, format: str):
                 console.print(table)
 
     except Exception as e:
-        console.print(f"[red]Error comparing branches: {e}[/red]")
-        sys.exit(1)
+        raise click.ClickException(f"Error comparing branches: {e}")
