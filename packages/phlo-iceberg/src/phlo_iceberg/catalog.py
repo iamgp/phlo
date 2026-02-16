@@ -11,7 +11,7 @@ from pyiceberg.catalog import load_catalog
 from phlo_iceberg.settings import get_settings
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def get_catalog(ref: str = "main"):
     """
     Get PyIceberg catalog configured for Nessie.
@@ -21,6 +21,11 @@ def get_catalog(ref: str = "main"):
     """
     catalog_config = get_settings().get_pyiceberg_catalog_config(ref=ref)
     return load_catalog(name=f"nessie_{ref}", **catalog_config)
+
+
+def reset_catalog_cache() -> None:
+    """Clear cached catalog instances."""
+    get_catalog.cache_clear()
 
 
 def list_tables(namespace: str | None = None, ref: str = "main") -> list[str]:

@@ -85,9 +85,14 @@ def mock_dns(monkeypatch):
         ):
             return real_getaddrinfo("127.0.0.1", port, family, type, proto, flags)
 
-        # Allow other calls (like MinIO if it worked, but here it won't resolve if DNS is broken)
-        # We try to let them pass, if they fail, they fail.
-        return real_getaddrinfo(host, port, family, type, proto, flags)
+        # Fall back for internal service aliases commonly used in compose configs.
+        # This removes hidden dependence on local DNS entries during host-side tests.
+        try:
+            return real_getaddrinfo(host, port, family, type, proto, flags)
+        except socket.gaierror:
+            if hasattr(host, "lower") and host.lower() in {"minio", "nessie"}:
+                return real_getaddrinfo("127.0.0.1", port, family, type, proto, flags)
+            raise
 
     monkeypatch.setattr(socket, "getaddrinfo", side_effect)
 
