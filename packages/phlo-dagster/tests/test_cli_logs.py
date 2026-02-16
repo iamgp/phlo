@@ -8,10 +8,10 @@ from click.testing import CliRunner
 from phlo_dagster.cli_logs import (
     _get_log_level,
     _get_mock_logs,
-    _is_json,
     _parse_since,
     logs,
 )
+from phlo_dagster.cli_logs_display import _is_json
 
 
 class TestLogLevelMapping:
