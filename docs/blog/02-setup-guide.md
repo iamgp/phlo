@@ -447,6 +447,37 @@ Congratulations! You've visualised real glucose data from a lakehouse.
 3. Re-materialize a subset: `phlo materialize --select tag:daily`.
 4. Confirm in Dagster that the run succeeded and assets updated.
 
+## What's Next?
+
+You now have a working lakehouse! Next steps:
+
+1. **Explore the Data** (Part 3): Understand Iceberg and Nessie
+2. **Understand Ingestion** (Part 4): How DLT + PyIceberg works
+3. **Learn dbt** (Part 5): SQL transformations
+4. **Master Dagster** (Part 6): Orchestration and dependencies
+
+But first, let's make sure everything works by running a quick health check.
+
+## Quick Health Check
+
+```bash
+# Check all services at once
+phlo services status
+
+# Or use the health endpoint
+curl http://localhost:8080/v1/info         # Trino
+curl http://localhost:19120/api/v2/config  # Nessie
+curl http://localhost:3000/graphql         # Dagster
+```
+
+
+Or run the CLI check:
+
+```bash
+phlo services list --json
+```
+
+
 ## Common Issues
 
 - **Services fail to start**
@@ -504,37 +535,6 @@ See [Troubleshooting Guide](../operations/troubleshooting.md) for deeper diagnos
 ## See Also
 
 See also: [Part 1: What is a Data Lakehouse?](01-intro-data-lakehouse.md), [Part 5: Data Ingestion with DLT](05-data-ingestion.md), [Part 7: Orchestration with Dagster](07-orchestration-dagster.md). Reference: [CLI Reference](../reference/cli-reference.md).
-
-
-## What's Next?
-
-You now have a working lakehouse! Next steps:
-
-1. **Explore the Data** (Part 3): Understand Iceberg and Nessie
-2. **Understand Ingestion** (Part 4): How DLT + PyIceberg works
-3. **Learn dbt** (Part 5): SQL transformations
-4. **Master Dagster** (Part 6): Orchestration and dependencies
-
-But first, let's make sure everything works by running a quick health check.
-
-## Quick Health Check
-
-```bash
-# Check all services at once
-phlo services status
-
-# Or use the health endpoint
-curl http://localhost:8080/v1/info         # Trino
-curl http://localhost:19120/api/v2/config  # Nessie
-curl http://localhost:3000/graphql         # Dagster
-```
-
-
-Or run the CLI check:
-
-```bash
-phlo services list --json
-```
 
 
 ## Summary
