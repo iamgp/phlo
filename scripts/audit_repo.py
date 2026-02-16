@@ -56,9 +56,7 @@ def check_file_sizes() -> list[str]:
                 continue
             loc = len(py.read_text().splitlines())
             if loc > MAX_PYTHON_LOC:
-                errors.append(
-                    f"{py.relative_to(REPO_ROOT)}: {loc} lines (max {MAX_PYTHON_LOC})"
-                )
+                errors.append(f"{py.relative_to(REPO_ROOT)}: {loc} lines (max {MAX_PYTHON_LOC})")
 
     return errors
 
