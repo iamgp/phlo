@@ -270,6 +270,6 @@ class NativeProcessManager:
                     if response.status_code < 500:
                         return True
                 except Exception:
-                    pass
+                    logger.debug("health_check_poll_failed", url=url)
                 await asyncio.sleep(1)
         return False

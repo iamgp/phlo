@@ -44,8 +44,12 @@ def load_infrastructure_config(project_root: Optional[Path] = None) -> Infrastru
 
         return InfrastructureConfig(**infra_config_data)
 
-    except (yaml.YAMLError, ValidationError):
-        return InfrastructureConfig()
+    except yaml.YAMLError as exc:
+        logger.error("invalid_phlo_yaml", path=str(config_path), error=str(exc))
+        raise
+    except ValidationError as exc:
+        logger.error("invalid_infrastructure_config", path=str(config_path), error=str(exc))
+        raise
 
 
 def get_project_name_from_config(project_root: Optional[Path] = None) -> Optional[str]:
@@ -63,6 +67,7 @@ def get_project_name_from_config(project_root: Optional[Path] = None) -> Optiona
             project_config = yaml.safe_load(f)
         return project_config.get("name") if project_config else None
     except Exception:
+        logger.warning("failed_to_read_project_name", path=str(config_path))
         return None
 
 

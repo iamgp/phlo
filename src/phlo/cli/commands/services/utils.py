@@ -11,6 +11,9 @@ import click
 
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.utils import _resolve_container_name
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 PHLO_CONFIG_FILE = "phlo.yaml"
 NATIVE_STATE_FILE = "native-processes.json"
@@ -60,6 +63,7 @@ def check_docker_running() -> bool:
         run_command(["docker", "info"], timeout_seconds=10, check=True)
         return True
     except Exception:
+        logger.debug("docker_check_failed")
         return False
 
 
@@ -363,6 +367,7 @@ def _stop_native_processes(project_root: Path, service_names: list[str] | None =
         except PermissionError:
             continue
         except Exception:
+            logger.warning("process_kill_failed", name=name, pid=pid)
             continue
 
         for _ in range(4):

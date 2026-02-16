@@ -9,6 +9,9 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Standard Trino to Pandas type mappings
 TRINO_TO_PANDAS_TYPES: dict[str, str] = {
@@ -121,7 +124,6 @@ def apply_schema_types(
                 df[col_name] = df[col_name].astype("boolean")
             # datetime types are usually handled by Pandera coerce=True
         except Exception:
-            # If conversion fails, leave as-is and let Pandera handle it
-            pass
+            logger.debug("type_coercion_skipped", column=col_name, target_type=type_hint.__name__)
 
     return df
