@@ -497,4 +497,3 @@ def clear_quality_checks() -> None:
     """Clear registered quality check specs (useful for tests)."""
     registry = get_capability_registry()
     registry.clear_checks()
-

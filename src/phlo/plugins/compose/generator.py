@@ -396,5 +396,3 @@ class ComposeGenerator:
             entries.extend(extra_entries)
 
         return "\n".join(entries) + "\n"
-
-

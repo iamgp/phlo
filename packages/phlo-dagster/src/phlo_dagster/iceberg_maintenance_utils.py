@@ -155,13 +155,13 @@ def start_maintenance_op(
 ) -> TelemetryEventEmitter:
     """Emit start telemetry/logging for a maintenance op. Returns the emitter."""
     telemetry = TelemetryEventEmitter(
-        TelemetryEventContext(
-            tags=maintenance_tags(config, operation=operation, **extra_tags)
-        )
+        TelemetryEventContext(tags=maintenance_tags(config, operation=operation, **extra_tags))
     )
     context.log.info(
         "Starting Iceberg maintenance operation",
-        extra=maintenance_log_extra(context, config, operation=operation, phase="start", **extra_tags),
+        extra=maintenance_log_extra(
+            context, config, operation=operation, phase="start", **extra_tags
+        ),
     )
     telemetry.emit_log(
         name="iceberg.maintenance.start",

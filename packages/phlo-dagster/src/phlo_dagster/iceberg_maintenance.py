@@ -115,9 +115,7 @@ def cleanup_orphan_files(
     }
     operation = "cleanup_orphan_files"
     start_time = time.time()
-    telemetry = start_maintenance_op(
-        context, config, operation, dry_run=config.orphan_dry_run
-    )
+    telemetry = start_maintenance_op(context, config, operation, dry_run=config.orphan_dry_run)
 
     if not config.orphan_dry_run:
         context.log.warning(

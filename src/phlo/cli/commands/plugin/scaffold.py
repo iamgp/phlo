@@ -405,9 +405,7 @@ def create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path)
     entry_point_group = _TYPE_TO_ENTRY_POINT[plugin_type]
     class_name = plugin_name.replace("-", "_").title().replace("_", "") + "Plugin"
 
-    (src_dir / "__init__.py").write_text(
-        _build_init_content(plugin_name, plugin_type, module_name)
-    )
+    (src_dir / "__init__.py").write_text(_build_init_content(plugin_name, plugin_type, module_name))
     (src_dir / "plugin.py").write_text(
         _build_plugin_content(plugin_name, plugin_type, base_class, class_name)
     )
@@ -416,7 +414,9 @@ def create_plugin_package(plugin_name: str, plugin_type: str, plugin_path: Path)
         _build_test_content(plugin_name, module_name, class_name)
     )
     (plugin_path / "pyproject.toml").write_text(
-        _build_pyproject_content(plugin_name, plugin_type, module_name, class_name, entry_point_group)
+        _build_pyproject_content(
+            plugin_name, plugin_type, module_name, class_name, entry_point_group
+        )
     )
     (plugin_path / "README.md").write_text(
         _build_readme_content(plugin_name, plugin_type, module_name, class_name)
