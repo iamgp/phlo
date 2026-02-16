@@ -9,12 +9,24 @@ from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_glob
 
 
 class DummyServicePlugin(ServicePlugin):
+    """Provide a minimal service plugin for discovery tests."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Static metadata for the dummy plugin.
+        """
         return PluginMetadata(name="dummy_service", version="1.0.0")
 
     @property
     def service_definition(self) -> dict:
+        """Return the service definition used in tests.
+
+        Returns:
+            dict: Service configuration for discovery assertions.
+        """
         return {
             "name": "dummy_service",
             "description": "Dummy service",
@@ -26,6 +38,7 @@ class DummyServicePlugin(ServicePlugin):
 
 @pytest.fixture
 def clean_registry():
+    """Clear the global registry before and after each test."""
     registry = get_global_registry()
     registry.clear()
     yield registry
@@ -37,6 +50,7 @@ def test_service_discovery_includes_plugins(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    """Ensure discovered services include registered service plugins."""
     registry = get_global_registry()
     registry.register_service(DummyServicePlugin(), replace=True)
 

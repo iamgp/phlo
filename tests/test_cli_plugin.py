@@ -19,44 +19,107 @@ from phlo.plugins.registry_client import RegistryPlugin
 
 
 class DummySource(SourceConnectorPlugin):
+    """Stub source connector for CLI plugin tests."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy source plugin.
+        """
         return PluginMetadata(name="dummy_source", version="1.0.0")
 
     def fetch_data(self, config):
+        """Yield a single dummy record.
+
+        Args:
+            config: Source configuration.
+
+        Yields:
+            dict: Dummy source row.
+        """
         yield {"id": 1}
 
 
 class DummyQuality(QualityCheckPlugin):
+    """Stub quality plugin for CLI plugin tests."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy quality plugin.
+        """
         return PluginMetadata(name="dummy_quality", version="1.0.0")
 
     def create_check(self, **kwargs):
+        """Create a no-op quality check.
+
+        Args:
+            **kwargs: Quality check options.
+
+        Returns:
+            None: No check object for this stub.
+        """
         return None
 
 
 class DummyTransform(TransformationPlugin):
+    """Stub transform plugin for CLI plugin tests."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy transform plugin.
+        """
         return PluginMetadata(name="dummy_transform", version="1.0.0")
 
     def transform(self, df, config):
+        """Return input data unchanged.
+
+        Args:
+            df: Input dataframe-like object.
+            config: Transform configuration.
+
+        Returns:
+            Any: Unmodified input dataframe-like object.
+        """
         return df
 
 
 class DummyService(ServicePlugin):
+    """Stub service plugin for CLI plugin tests."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy service plugin.
+        """
         return PluginMetadata(name="dummy_service", version="1.0.0")
 
     @property
     def service_definition(self) -> dict:
+        """Return a minimal service definition.
+
+        Returns:
+            dict: Service category and compose configuration.
+        """
         return {"category": "core", "compose": {"image": "dummy:latest"}}
 
 
 @pytest.fixture
 def setup_registry():
+    """Provide an isolated plugin registry for each test.
+
+    Yields:
+        PluginRegistry: Cleared global registry with dummy plugins registered.
+    """
     registry = get_global_registry()
     registry.clear()
     registry.register_source_connector(DummySource(), replace=True)
@@ -99,6 +162,14 @@ def test_plugin_list_all_json(setup_registry, monkeypatch):
     ]
 
     def mock_collect_registry_plugins(plugin_type: str) -> list[dict]:
+        """Convert mocked registry plugins to CLI payload dictionaries.
+
+        Args:
+            plugin_type: Requested plugin type.
+
+        Returns:
+            list[dict]: Serialized registry plugins for the CLI response.
+        """
         from phlo.cli.commands.plugin.utils import registry_plugin_to_dict
 
         return [registry_plugin_to_dict(p) for p in registry_plugins]
@@ -213,6 +284,7 @@ def test_plugin_update(monkeypatch):
 
 
 def test_run_pip_uses_python_pip_when_available(monkeypatch):
+    """Use `python -m pip` when pip module is importable."""
     from phlo.cli.commands.plugin.utils import run_pip
 
     calls: list[tuple[list[str], bool, float]] = []
@@ -231,6 +303,7 @@ def test_run_pip_uses_python_pip_when_available(monkeypatch):
 
 
 def test_run_pip_uses_uv_when_pip_module_missing(monkeypatch):
+    """Use `uv pip` when pip module is unavailable but `uv` exists."""
     from phlo.cli.commands.plugin.utils import run_pip
 
     calls: list[tuple[list[str], bool, float]] = []
@@ -248,6 +321,7 @@ def test_run_pip_uses_uv_when_pip_module_missing(monkeypatch):
 
 
 def test_run_pip_errors_when_no_pip_and_no_uv(monkeypatch):
+    """Raise runtime error when neither pip module nor `uv` is available."""
     from phlo.cli.commands.plugin.utils import run_pip
 
     monkeypatch.setattr("phlo.cli.commands.plugin.utils.importlib.util.find_spec", lambda _: None)

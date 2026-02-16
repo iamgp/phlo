@@ -8,6 +8,7 @@ from phlo.cli.main import cli
 
 
 def test_workflow_group_help_lists_create() -> None:
+    """Shows the scaffold command in workflow group help output."""
     runner = CliRunner()
     result = runner.invoke(cli, ["workflow", "--help"])
 
@@ -16,6 +17,7 @@ def test_workflow_group_help_lists_create() -> None:
 
 
 def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
+    """Passes CLI options to ingestion scaffold creation."""
     calls = {}
 
     def fake_create_ingestion_workflow(
@@ -27,6 +29,19 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
         api_base_url: str | None,
         fields: list[str] | None,
     ) -> list[str]:
+        """Captures scaffold arguments and returns mocked output paths.
+
+        Args:
+            domain: Domain passed from CLI option.
+            table_name: Table name passed from CLI option.
+            unique_key: Unique key passed from CLI option.
+            cron: Cron schedule passed from CLI option.
+            api_base_url: Optional API base URL from CLI option.
+            fields: Optional field spec list from CLI option.
+
+        Returns:
+            list[str]: Relative paths representing scaffolded files.
+        """
         calls.update(
             {
                 "domain": domain,
@@ -84,6 +99,11 @@ def test_workflow_create_invokes_scaffold(monkeypatch) -> None:
 
 
 def test_init_with_absolute_path_uses_directory_name_for_project_metadata(tmp_path: Path) -> None:
+    """Uses directory basename, not full absolute path, for project name.
+
+    Args:
+        tmp_path: Temporary filesystem root for the test.
+    """
     project_dir = tmp_path / "my-lakehouse"
 
     runner = CliRunner()

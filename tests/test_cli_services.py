@@ -22,6 +22,17 @@ def _service(
     profile: str | None = None,
     category: str = "core",
 ) -> ServiceDefinition:
+    """Build a service definition fixture.
+
+    Args:
+        name: Service name.
+        default: Whether the service is enabled by default.
+        profile: Optional profile name.
+        category: Service category name.
+
+    Returns:
+        ServiceDefinition: Constructed service definition.
+    """
     return ServiceDefinition(
         name=name,
         description=f"{name} service",
@@ -32,6 +43,7 @@ def _service(
 
 
 def test_select_services_to_install_respects_enabled_disabled_and_profiles() -> None:
+    """Verify service selection honors default, enabled, disabled, and profile behavior."""
     postgres = _service("postgres", default=True)
     minio = _service("minio", default=True)
     prometheus = _service("prometheus", profile="observability")
@@ -51,6 +63,11 @@ def test_select_services_to_install_respects_enabled_disabled_and_profiles() -> 
 
 
 def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify configured Dagster container name is selected when running.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     # Mock _resolve_container_name to return the configured name
     monkeypatch.setattr(
         "phlo_dagster.containers._resolve_container_name",
@@ -66,6 +83,11 @@ def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.Monk
 
 
 def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify fallback to the new Dagster container name.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     # Mock _resolve_container_name to return something that won't match
     monkeypatch.setattr(
         "phlo_dagster.containers._resolve_container_name",
@@ -83,6 +105,11 @@ def test_find_dagster_container_falls_back_to_new_name(monkeypatch: pytest.Monke
 def test_get_profile_service_names_returns_profile_services(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify profile expansion returns all services in selected profiles.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     prometheus = _service("prometheus", profile="observability")
     grafana = _service("grafana", profile="observability")
     loki = _service("loki", profile="observability")
@@ -90,7 +117,17 @@ def test_get_profile_service_names_returns_profile_services(
     postgres = _service("postgres", default=True)
 
     class FakeDiscovery:
+        """Test double for service discovery profile lookups."""
+
         def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
+            """Return services matching the requested profile.
+
+            Args:
+                profile: Profile name to filter by.
+
+            Returns:
+                list[ServiceDefinition]: Matching services.
+            """
             all_services = [prometheus, grafana, loki, hasura, postgres]
             return [s for s in all_services if s.profile == profile]
 
@@ -117,6 +154,12 @@ def test_detect_phlo_source_path_finds_sibling_phlo_repo(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
+    """Verify sibling phlo repository source path is detected.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+        tmp_path: Temporary directory fixture.
+    """
     phlo_repo = tmp_path / "phlo"
     package_dir = phlo_repo / "src" / "phlo"
     package_dir.mkdir(parents=True)
@@ -137,6 +180,12 @@ def test_detect_phlo_source_path_accepts_repo_root_in_env_var(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
+    """Verify PHLO_DEV_SOURCE accepts repository root path input.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+        tmp_path: Temporary directory fixture.
+    """
     phlo_repo = tmp_path / "phlo"
     package_dir = phlo_repo / "src" / "phlo"
     package_dir.mkdir(parents=True)
@@ -154,13 +203,37 @@ def test_detect_phlo_source_path_accepts_repo_root_in_env_var(
 
 
 def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
+    """Verify compose generation injects development mounts for phlo.
+
+    Args:
+        tmp_path: Temporary directory fixture.
+    """
+
     class FakeDiscovery:
+        """Test double for compose dependency resolution."""
+
         def resolve_dependencies(
             self, services: list[ServiceDefinition]
         ) -> list[ServiceDefinition]:
+            """Return service list unchanged.
+
+            Args:
+                services: Services to resolve.
+
+            Returns:
+                list[ServiceDefinition]: Input services unchanged.
+            """
             return services
 
         def get_service(self, _name: str) -> None:
+            """Return no service for lookup requests.
+
+            Args:
+                _name: Service name.
+
+            Returns:
+                None: Always none for this test double.
+            """
             return None
 
     service = ServiceDefinition(
@@ -185,13 +258,37 @@ def test_compose_generator_injects_phlo_dev_mounts(tmp_path) -> None:
 
 
 def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
+    """Verify compose keys pass through to generated service YAML.
+
+    Args:
+        tmp_path: Temporary directory fixture.
+    """
+
     class FakeDiscovery:
+        """Test double for compose dependency resolution."""
+
         def resolve_dependencies(
             self, services: list[ServiceDefinition]
         ) -> list[ServiceDefinition]:
+            """Return service list unchanged.
+
+            Args:
+                services: Services to resolve.
+
+            Returns:
+                list[ServiceDefinition]: Input services unchanged.
+            """
             return services
 
         def get_service(self, _name: str) -> None:
+            """Return no service for lookup requests.
+
+            Args:
+                _name: Service name.
+
+            Returns:
+                None: Always none for this test double.
+            """
             return None
 
     service = ServiceDefinition(
@@ -222,6 +319,12 @@ def test_compose_generator_passthrough_compose_keys(tmp_path) -> None:
 def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
+    """Verify hook runner uses current interpreter when project venv is absent.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+        tmp_path: Temporary directory fixture.
+    """
     from phlo.cli.commands.services import utils as services_utils
 
     service = ServiceDefinition(
@@ -232,12 +335,31 @@ def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
     )
 
     class FakeDiscovery:
+        """Test double for service lookup."""
+
         def get_service(self, name: str):
+            """Return service for matching name.
+
+            Args:
+                name: Service name.
+
+            Returns:
+                ServiceDefinition | None: Matching service or none.
+            """
             return service if name == "dagster" else None
 
     calls: list[list[str]] = []
 
     def _fake_run_command(cmd, **_kwargs):
+        """Capture command invocations and return successful process.
+
+        Args:
+            cmd: Command argument sequence.
+            **_kwargs: Unused keyword arguments.
+
+        Returns:
+            CompletedProcess[str]: Successful command result.
+        """
         calls.append(list(cmd))
         return CompletedProcess(cmd, 0, "", "")
 
@@ -259,6 +381,12 @@ def test_run_service_hooks_uses_sys_executable_when_project_venv_missing(
 def test_run_service_hooks_prefers_project_venv_python(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
+    """Verify hook runner prefers project venv python executable.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+        tmp_path: Temporary directory fixture.
+    """
     from phlo.cli.commands.services import utils as services_utils
 
     service = ServiceDefinition(
@@ -269,12 +397,31 @@ def test_run_service_hooks_prefers_project_venv_python(
     )
 
     class FakeDiscovery:
+        """Test double for service lookup."""
+
         def get_service(self, name: str):
+            """Return service for matching name.
+
+            Args:
+                name: Service name.
+
+            Returns:
+                ServiceDefinition | None: Matching service or none.
+            """
             return service if name == "dagster" else None
 
     calls: list[list[str]] = []
 
     def _fake_run_command(cmd, **_kwargs):
+        """Capture command invocations and return successful process.
+
+        Args:
+            cmd: Command argument sequence.
+            **_kwargs: Unused keyword arguments.
+
+        Returns:
+            CompletedProcess[str]: Successful command result.
+        """
         calls.append(list(cmd))
         return CompletedProcess(cmd, 0, "", "")
 
@@ -298,6 +445,11 @@ def test_run_service_hooks_prefers_project_venv_python(
 
 
 def test_find_dagster_container_falls_back_to_legacy_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify fallback to legacy Dagster container name.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     monkeypatch.setattr(
         "phlo_dagster.containers._resolve_container_name",
         lambda service, project: "cfg",
@@ -310,6 +462,11 @@ def test_find_dagster_container_falls_back_to_legacy_name(monkeypatch: pytest.Mo
 
 
 def test_find_dagster_container_regex_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify regex-based fallback matches compatible container names.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     monkeypatch.setattr(
         "phlo_dagster.containers._resolve_container_name",
         lambda service, project: "cfg",
@@ -322,6 +479,11 @@ def test_find_dagster_container_regex_fallback(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_find_dagster_container_regex_excludes_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify regex fallback excludes daemon container names.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     monkeypatch.setattr(
         "phlo_dagster.containers._resolve_container_name",
         lambda service, project: "cfg",
@@ -335,6 +497,11 @@ def test_find_dagster_container_regex_excludes_daemon(monkeypatch: pytest.Monkey
 
 
 def test_find_dagster_container_raises_when_no_containers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify error is raised when no Dagster containers are running.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     monkeypatch.setattr(
         "phlo_dagster.containers._resolve_container_name",
         lambda service, project: "cfg",
@@ -348,6 +515,7 @@ def test_find_dagster_container_raises_when_no_containers(monkeypatch: pytest.Mo
 
 
 def test_dagster_container_candidates_structure() -> None:
+    """Verify candidate container names expose configured, new, and legacy values."""
     from phlo_dagster.containers import dagster_container_candidates
 
     candidates = dagster_container_candidates("demo", "demo-dagster-webserver-1")
@@ -357,6 +525,7 @@ def test_dagster_container_candidates_structure() -> None:
 
 
 def test_dagster_container_candidates_no_configured() -> None:
+    """Verify candidate names handle a missing configured container."""
     from phlo_dagster.containers import dagster_container_candidates
 
     candidates = dagster_container_candidates("demo", None)
@@ -365,6 +534,7 @@ def test_dagster_container_candidates_no_configured() -> None:
 
 
 def test_select_first_existing_returns_first_match() -> None:
+    """Verify first existing candidate is selected."""
     from phlo_dagster.containers import select_first_existing
 
     result = select_first_existing(
@@ -375,6 +545,7 @@ def test_select_first_existing_returns_first_match() -> None:
 
 
 def test_select_first_existing_returns_none_when_no_match() -> None:
+    """Verify none is returned when no candidates match existing containers."""
     from phlo_dagster.containers import select_first_existing
 
     result = select_first_existing(["a", "b"], ["x", "y"])
@@ -382,6 +553,7 @@ def test_select_first_existing_returns_none_when_no_match() -> None:
 
 
 def test_select_first_existing_skips_empty_candidates() -> None:
+    """Verify empty candidate names are ignored."""
     from phlo_dagster.containers import select_first_existing
 
     result = select_first_existing(["", "b"], ["b"])
@@ -389,6 +561,7 @@ def test_select_first_existing_skips_empty_candidates() -> None:
 
 
 def test_extract_compose_service_from_label() -> None:
+    """Verify compose service label parsing returns service name."""
     from phlo.cli.commands.services.list import _extract_compose_service
 
     info = {"Labels": "com.docker.compose.project=demo,com.docker.compose.service=postgres,other=x"}
@@ -396,6 +569,7 @@ def test_extract_compose_service_from_label() -> None:
 
 
 def test_extract_compose_service_returns_none_without_label() -> None:
+    """Verify missing compose service labels return none."""
     from phlo.cli.commands.services.list import _extract_compose_service
 
     assert _extract_compose_service({"Labels": "some.other.label=val"}) is None
@@ -405,10 +579,23 @@ def test_extract_compose_service_returns_none_without_label() -> None:
 def test_services_list_handles_malformed_docker_json(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
+    """Verify services list command tolerates malformed docker JSON output.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+        tmp_path: Temporary directory fixture.
+    """
     from phlo.cli.commands.services import list as list_module
 
     class FakeDiscovery:
+        """Test double returning an empty service map."""
+
         def discover(self) -> dict[str, ServiceDefinition]:
+            """Return no services.
+
+            Returns:
+                dict[str, ServiceDefinition]: Empty service mapping.
+            """
             return {}
 
     monkeypatch.setattr(list_module, "ServiceDiscovery", FakeDiscovery)
@@ -426,6 +613,7 @@ def test_services_list_handles_malformed_docker_json(
 
 
 def test_resolve_dependencies_reports_cycle_path() -> None:
+    """Verify dependency cycle errors include the cycle path."""
     discovery = ServiceDiscovery.__new__(ServiceDiscovery)
     discovery.services_dir = None
     discovery._services = {}
@@ -443,6 +631,7 @@ def test_resolve_dependencies_reports_cycle_path() -> None:
 
 
 def test_resolve_dependencies_cycle_path_is_closed() -> None:
+    """Verify reported cycle path is closed and formatted as expected."""
     discovery = ServiceDiscovery.__new__(ServiceDiscovery)
     discovery.services_dir = None
     discovery._services = {}
@@ -465,6 +654,7 @@ def test_resolve_dependencies_cycle_path_is_closed() -> None:
 
 
 def test_find_cycles_returns_closed_paths() -> None:
+    """Verify cycle finder returns closed cycle paths."""
     from phlo.plugins.discovery.services import _find_cycles
 
     graph = {
@@ -479,6 +669,7 @@ def test_find_cycles_returns_closed_paths() -> None:
 
 
 def test_resolve_dependencies_no_cycle() -> None:
+    """Verify dependency resolution order is valid when graph is acyclic."""
     discovery = ServiceDiscovery.__new__(ServiceDiscovery)
     discovery.services_dir = None
     discovery._services = {}
