@@ -128,7 +128,6 @@ All packages integrate through Phlo's unified plugin system using Python entry p
 | `phlo.plugins.hooks`          | Event hook handlers                            |
 | `phlo.plugins.observatory`    | Observatory UI extension manifests             |
 | `phlo.plugins.catalogs`       | Catalog configurations (filter by target)      |
-| `phlo.plugins.dagster`        | Legacy Dagster extensions (when needed)        |
 
 ### Discovering Installed Plugins
 

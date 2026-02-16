@@ -82,7 +82,8 @@ Standard dbt project layout for Phlo:
 ```
 workflows/transforms/dbt/
 ├── dbt_project.yml
-├── profiles.yml
+├── profiles/
+│   └── profiles.yml
 ├── models/
 │   ├── bronze/           # Staging models
 │   │   └── stg_*.sql

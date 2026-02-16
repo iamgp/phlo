@@ -208,7 +208,7 @@ phlo services stop [OPTIONS]
 --volumes, -v        # Remove volumes (deletes all data)
 --profile PROFILE    # Stop only services in specified profile
 --service SERVICE    # Stop specific service(s)
---stop-native        # Also stop native subprocess services
+--native             # Also stop native subprocess services
 ```
 
 **Examples**:
@@ -373,7 +373,6 @@ phlo services logs [OPTIONS] [SERVICE]
 ```bash
 --follow, -f         # Follow log output
 --tail N             # Show last N lines
---timestamps         # Show timestamps
 ```
 
 **Examples**:
@@ -404,7 +403,8 @@ phlo plugin list [OPTIONS]
 **Options**:
 
 ```bash
---type TYPE          # Filter by plugin type (sources, quality, transforms, services, hooks, dagster, cli)
+--type TYPE          # Filter by plugin type (sources, quality, transforms, services, hooks, assets, resources, orchestrators, catalogs, all)
+--all                # Include registry plugins in output
 --json               # Output as JSON
 ```
 
@@ -484,12 +484,7 @@ Install a plugin from the registry.
 phlo plugin install PLUGIN_NAME [OPTIONS]
 ```
 
-**Options**:
-
-```bash
---version VERSION    # Specific version to install
---upgrade            # Upgrade if already installed
-```
+**Options**: none
 
 **Examples**:
 
@@ -498,10 +493,7 @@ phlo plugin install PLUGIN_NAME [OPTIONS]
 phlo plugin install phlo-superset
 
 # Install specific version
-phlo plugin install phlo-superset --version 0.2.0
-
-# Upgrade existing
-phlo plugin install phlo-superset --upgrade
+phlo plugin install phlo-superset==0.2.0
 ```
 
 ### phlo plugin info
@@ -555,27 +547,27 @@ Service Details:
 Update plugins to latest versions.
 
 ```bash
-phlo plugin update [PLUGIN_NAME] [OPTIONS]
+phlo plugin update [OPTIONS]
 ```
 
 **Options**:
 
 ```bash
---all                # Update all plugins
---check              # Check for updates without installing
+--dry-run            # Show available updates without applying
+--json               # Output available updates as JSON
 ```
 
 **Examples**:
 
 ```bash
-# Update specific plugin
-phlo plugin update phlo-superset
+# Update available plugins
+phlo plugin update
 
-# Update all plugins
-phlo plugin update --all
+# Check for updates without installing
+phlo plugin update --dry-run
 
-# Check for updates
-phlo plugin update --check
+# JSON output
+phlo plugin update --json
 ```
 
 ### phlo plugin create
@@ -589,10 +581,8 @@ phlo plugin create PLUGIN_NAME --type TYPE [OPTIONS]
 **Options**:
 
 ```bash
---type TYPE          # Plugin type: source, quality, transform, service
+--type TYPE          # Plugin type: sources, quality, transforms, services, hooks, catalogs, assets, resources, orchestrators
 --path PATH          # Custom output path
---author AUTHOR      # Author name
---description DESC   # Plugin description
 ```
 
 **Examples**:
@@ -663,8 +653,7 @@ phlo init [PROJECT_NAME] [OPTIONS]
 
 ```bash
 --template TEMPLATE      # Project template (default: basic)
---directory PATH         # Target directory
---no-git                 # Don't initialize git repository
+--force                  # Initialize in non-empty directory
 ```
 
 **Templates**:
@@ -706,7 +695,7 @@ phlo dev [OPTIONS]
 ```bash
 --port PORT          # Port for webserver (default: 3000)
 --host HOST          # Host to bind (default: 127.0.0.1)
---workspace PATH     # Path to workspace.yaml
+--workflows-path PATH # Path to workflows directory
 ```
 
 **Example**:
@@ -730,11 +719,13 @@ phlo workflow create [OPTIONS]
 **Options**:
 
 ```bash
---type TYPE          # Workflow type: ingestion, quality, transform
+--type TYPE          # Workflow type (currently: ingestion)
 --domain DOMAIN      # Domain/namespace (e.g., api, files)
 --table TABLE        # Table name
 --unique-key KEY     # Unique key column
---non-interactive    # Non-interactive mode (requires all options)
+--cron CRON          # Cron schedule expression
+--api-base-url URL   # REST API base URL (optional)
+--field NAME:TYPE    # Additional schema field (repeatable)
 ```
 
 **Interactive prompts**:
@@ -743,8 +734,8 @@ phlo workflow create [OPTIONS]
 2. Domain name
 3. Table name
 4. Unique key column
-5. Validation schema (optional)
-6. Schedule (cron expression)
+5. Schedule (cron expression)
+6. API base URL (optional)
 
 **Example (interactive)**:
 
@@ -780,7 +771,7 @@ workflows/
 Materialize Dagster assets.
 
 ```bash
-phlo materialize [ASSET_KEYS...] [OPTIONS]
+phlo materialize ASSET_NAME [OPTIONS]
 ```
 
 **Options**:
@@ -788,8 +779,7 @@ phlo materialize [ASSET_KEYS...] [OPTIONS]
 ```bash
 --select SELECTOR        # Asset selection query
 --partition PARTITION    # Specific partition to materialize
---tags TAG=VALUE         # Filter by tags
---all                    # Materialize all assets
+--dry-run                # Show command without executing
 ```
 
 **Selection Syntax**:
@@ -818,11 +808,8 @@ phlo materialize dlt_glucose_entries --partition 2025-01-15
 # By tag
 phlo materialize --select "tag:nightscout"
 
-# Multiple assets
-phlo materialize asset1 asset2 asset3
-
-# All assets
-phlo materialize --all
+# Dry run
+phlo materialize dlt_glucose_entries --dry-run
 ```
 
 ## Testing Commands
@@ -841,7 +828,6 @@ phlo test [TEST_PATH] [OPTIONS]
 --local              # Skip Docker integration tests
 --verbose, -v        # Verbose output
 --marker, -m MARKER  # Run tests with marker
---keyword, -k EXPR   # Run tests matching keyword
 --coverage           # Generate coverage report
 ```
 
@@ -1342,9 +1328,11 @@ phlo status [OPTIONS]
 **Options**:
 
 ```bash
+--assets             # Show assets only
+--services           # Show services only
 --stale              # Show only stale assets
---failed             # Show only failed assets
 --group GROUP        # Filter by group
+--json               # JSON output for scripting
 ```
 
 **Example**:
@@ -1366,14 +1354,15 @@ phlo validate-schema SCHEMA_PATH [OPTIONS]
 **Options**:
 
 ```bash
---data DATA_PATH     # Validate against sample data
+--check-constraints  # Check that constraints are defined
+--check-descriptions # Check that field descriptions are present
 ```
 
 **Example**:
 
 ```bash
 phlo validate-schema workflows/schemas/events.py
-phlo validate-schema workflows/schemas/events.py --data sample.parquet
+phlo validate-schema workflows/schemas/events.py --no-check-descriptions
 ```
 
 ### phlo validate-workflow
@@ -1538,7 +1527,7 @@ phlo workflow create
 phlo test
 
 # 6. Materialize
-phlo materialize --all
+phlo materialize dlt_events
 ```
 
 ### Development Workflow
@@ -1554,7 +1543,7 @@ phlo branch create feature-new-workflow
 phlo workflow create
 
 # Test workflow
-phlo test workflows/ingestion/api/events.py
+phlo test events
 
 # Materialize to test
 phlo materialize dlt_events --partition 2025-01-15
@@ -1572,8 +1561,8 @@ phlo services status
 # View logs
 phlo services logs -f dagster-webserver
 
-# Check asset status
-phlo status --failed
+# Check stale assets
+phlo status --stale
 
 # Validate configuration
 phlo config validate
