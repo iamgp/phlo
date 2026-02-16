@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import re
-from math import isfinite
 from time import monotonic
 from typing import Any
 
@@ -18,6 +16,13 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from phlo.logging import get_logger
+from phlo_api.observatory_api.trino_sql import (
+    is_probably_qualified_table,
+    qualify_table_name,
+    quote_identifier,
+    sql_literal,
+    validate_read_only_query,
+)
 
 logger = get_logger(__name__)
 
@@ -180,26 +185,6 @@ async def execute_trino_query(
     except Exception as e:
         logger.exception("Trino query failed")
         return QueryExecutionError(error=str(e), kind="trino")
-
-
-def quote_identifier(identifier: str) -> str:
-    """Quote an SQL identifier."""
-    if not identifier:
-        raise ValueError("Identifier cannot be empty")
-    if "\x00" in identifier:
-        raise ValueError("Identifier cannot contain NUL bytes")
-    escaped = identifier.replace('"', '""')
-    return f'"{escaped}"'
-
-
-def qualify_table_name(catalog: str, schema: str, table: str) -> str:
-    """Build a fully qualified table name."""
-    return f"{quote_identifier(catalog)}.{quote_identifier(schema)}.{quote_identifier(table)}"
-
-
-def is_probably_qualified_table(table: str) -> bool:
-    """Check if a table name appears to be fully qualified."""
-    return table.count(".") >= 2 or table.startswith('"')
 
 
 # --- API Endpoints ---
@@ -414,23 +399,6 @@ class QueryWithFiltersRequest(BaseModel):
     timeout_ms: int = 30000
 
 
-def _sql_literal(value: object) -> str:
-    if value is None:
-        raise ValueError("Use IS NULL for null filters")
-    if isinstance(value, bool):
-        return "TRUE" if value else "FALSE"
-    if isinstance(value, int):
-        return str(value)
-    if isinstance(value, float):
-        if not isfinite(value):
-            raise ValueError("Non-finite float values are not supported")
-        return str(value)
-    if isinstance(value, str):
-        escaped = value.replace("'", "''")
-        return f"'{escaped}'"
-    raise ValueError(f"Unsupported filter value type: {type(value).__name__}")
-
-
 @router.post("/query-with-filters", response_model=DataPreviewResult | dict)
 async def query_with_filters(
     request: QueryWithFiltersRequest,
@@ -452,7 +420,7 @@ async def query_with_filters(
             if value is None:
                 where_parts.append(f"{quoted_column} IS NULL")
             else:
-                where_parts.append(f"{quoted_column} = {_sql_literal(value)}")
+                where_parts.append(f"{quoted_column} = {sql_literal(value)}")
 
         where_clause = " AND ".join(where_parts)
         limit = int(request.limit)
@@ -479,125 +447,6 @@ async def query_with_filters(
         )
     except ValueError as e:
         return {"error": str(e)}
-
-
-def strip_sql_literals_and_comments(query: str) -> str:
-    """Return query with string literals, identifiers, and comments removed."""
-    out: list[str] = []
-    i = 0
-    in_single = False
-    in_double = False
-    in_line_comment = False
-    in_block_comment = False
-    length = len(query)
-
-    while i < length:
-        ch = query[i]
-        nxt = query[i + 1] if i + 1 < length else ""
-
-        if in_line_comment:
-            if ch in "\r\n":
-                in_line_comment = False
-                out.append(ch)
-            else:
-                out.append(" ")
-            i += 1
-            continue
-
-        if in_block_comment:
-            if ch == "*" and nxt == "/":
-                out.extend([" ", " "])
-                i += 2
-                in_block_comment = False
-                continue
-            out.append(" ")
-            i += 1
-            continue
-
-        if in_single:
-            if ch == "'":
-                if nxt == "'":
-                    out.extend([" ", " "])
-                    i += 2
-                    continue
-                in_single = False
-            out.append(" ")
-            i += 1
-            continue
-
-        if in_double:
-            if ch == '"':
-                if nxt == '"':
-                    out.extend([" ", " "])
-                    i += 2
-                    continue
-                in_double = False
-            out.append(" ")
-            i += 1
-            continue
-
-        if ch == "-" and nxt == "-":
-            in_line_comment = True
-            out.extend([" ", " "])
-            i += 2
-            continue
-
-        if ch == "/" and nxt == "*":
-            in_block_comment = True
-            out.extend([" ", " "])
-            i += 2
-            continue
-
-        if ch == "'":
-            in_single = True
-            out.append(" ")
-            i += 1
-            continue
-
-        if ch == '"':
-            in_double = True
-            out.append(" ")
-            i += 1
-            continue
-
-        out.append(ch)
-        i += 1
-
-    return "".join(out)
-
-
-def validate_read_only_query(query: str) -> str | None:
-    """Validate a query is read-only and a single statement."""
-    cleaned = strip_sql_literals_and_comments(query)
-    trimmed = cleaned.strip()
-    if not trimmed:
-        return "Query cannot be empty"
-
-    while trimmed.endswith(";"):
-        trimmed = trimmed[:-1].rstrip()
-    if ";" in trimmed:
-        return "Multiple statements are not allowed in read-only mode"
-
-    cleaned_upper = trimmed.upper()
-    forbidden = [
-        "INSERT",
-        "UPDATE",
-        "DELETE",
-        "DROP",
-        "CREATE",
-        "ALTER",
-        "TRUNCATE",
-        "MERGE",
-        "CALL",
-        "GRANT",
-        "REVOKE",
-    ]
-    pattern = re.compile(rf"\b({'|'.join(forbidden)})\b")
-    match = pattern.search(cleaned_upper)
-    if match:
-        return f"{match.group(1)} statements are not allowed in read-only mode"
-
-    return None
 
 
 @router.get("/row/{table:path}/{row_id}", response_model=DataPreviewResult | dict)
