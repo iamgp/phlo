@@ -273,6 +273,8 @@ class DbtTransformer(BaseTransformer):
         )
 
         start_time = time.time()
+        elapsed = 0.0
+        result_stdout = ""
 
         # Only emit start if we're actually running build
         if not skip_build:
@@ -282,6 +284,7 @@ class DbtTransformer(BaseTransformer):
             # 1. Run dbt build (unless skipped)
             if not skip_build:
                 result = self._run_command(build_args)
+                result_stdout = result.stdout
 
                 if result.returncode != 0:
                     raise RuntimeError(
@@ -326,14 +329,17 @@ class DbtTransformer(BaseTransformer):
                 self._run_command(docs_args)
                 # We don't fail hard on docs gen failure usually
 
-            summary = _parse_dbt_summary(result.stdout)
+            if skip_build:
+                elapsed = time.time() - start_time
+
+            summary = _parse_dbt_summary(result_stdout)
             return TransformationResult(
                 status="success",
                 models_built=summary["pass"],
                 models_failed=summary["error"],
                 tests_passed=summary["pass"],
                 tests_failed=summary["error"],
-                metadata={"total_elapsed_seconds": elapsed, "dbt_output": result.stdout},
+                metadata={"total_elapsed_seconds": elapsed, "dbt_output": result_stdout},
             )
 
         except Exception as exc:

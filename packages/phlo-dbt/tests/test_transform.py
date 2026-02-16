@@ -3,7 +3,12 @@
 These tests do not require a dbt manifest or running services.
 """
 
+import subprocess
+from pathlib import Path
+
 import pytest
+from phlo.logging import get_logger
+from phlo_dbt.transformer import DbtTransformer
 from phlo_dbt.translator import DbtSpecTranslator
 
 
@@ -72,3 +77,34 @@ def test_custom_dbt_translator_metadata_compiled_sql_is_capped(
     assert "phlo/compiled_sql" in metadata
     assert metadata["phlo/compiled_sql_truncated"] is True
     assert "TRUNCATED compiled SQL" in metadata["phlo/compiled_sql"]
+
+
+def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
+    transformer = DbtTransformer(
+        context=None,
+        logger=get_logger("test_dbt_transformer_skip_build"),
+        project_dir=tmp_path,
+        profiles_dir=tmp_path,
+    )
+    run_calls: list[list[str]] = []
+
+    def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        run_calls.append(args)
+        return subprocess.CompletedProcess(
+            args=["dbt"] + args,
+            returncode=0,
+            stdout="PASS=1 WARN=0 ERROR=0 SKIP=0 TOTAL=1",
+            stderr="",
+        )
+
+    transformer._run_command = fake_run_command  # type: ignore[method-assign]
+
+    result = transformer.run_transform(parameters={"skip_build": True, "generate_docs": False})
+
+    assert result.status == "success"
+    assert result.models_built == 0
+    assert result.models_failed == 0
+    assert result.tests_passed == 0
+    assert result.tests_failed == 0
+    assert result.metadata["dbt_output"] == ""
+    assert run_calls == []
