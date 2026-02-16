@@ -1,15 +1,23 @@
-name: Integration Tests
+name: Integration Lane
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  integration:
+  integration-iceberg:
+    name: integration / iceberg
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.run_suite.outputs.result }}
+      reason: ${{ steps.run_suite.outputs.reason }}
     steps:
       - uses: actions/checkout@v6
 
@@ -24,9 +32,218 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
-      - name: Run integration tests
+      - name: Run iceberg integration suite
+        id: run_suite
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
           SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
-        run: uv run pytest -m integration --tb=short
+        shell: bash
+        run: |
+          set -euo pipefail
+          suite="iceberg"
+          test_dir="packages/phlo-iceberg/tests"
+
+          if [ ! -d "$test_dir" ]; then
+            reason="missing test directory: $test_dir"
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
+            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+            echo "[integration][$suite] skipped - $reason"
+            exit 0
+          fi
+
+          set +e
+          uv run pytest -m integration --tb=short "$test_dir"
+          exit_code=$?
+          set -e
+
+          if [ "$exit_code" -eq 0 ]; then
+            result="passed"
+          else
+            result="failed"
+          fi
+          reason="pytest exit $exit_code"
+
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "[integration][$suite] $result - $reason"
+
+      - name: Fail lane when suite fails
+        if: steps.run_suite.outputs.result == 'failed'
+        run: exit 1
+
+  integration-dagster:
+    name: integration / dagster
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.run_suite.outputs.result }}
+      reason: ${{ steps.run_suite.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run dagster integration suite
+        id: run_suite
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          suite="dagster"
+          test_dir="packages/phlo-dagster/tests"
+
+          if [ ! -d "$test_dir" ]; then
+            reason="missing test directory: $test_dir"
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
+            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+            echo "[integration][$suite] skipped - $reason"
+            exit 0
+          fi
+
+          set +e
+          uv run pytest -m integration --tb=short "$test_dir"
+          exit_code=$?
+          set -e
+
+          if [ "$exit_code" -eq 0 ]; then
+            result="passed"
+          else
+            result="failed"
+          fi
+          reason="pytest exit $exit_code"
+
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "[integration][$suite] $result - $reason"
+
+      - name: Fail lane when suite fails
+        if: steps.run_suite.outputs.result == 'failed'
+        run: exit 1
+
+  integration-api:
+    name: integration / api
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.run_suite.outputs.result }}
+      reason: ${{ steps.run_suite.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run api integration suite
+        id: run_suite
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          suite="api"
+          test_dir="packages/phlo-api/tests"
+
+          if [ ! -d "$test_dir" ]; then
+            reason="missing test directory: $test_dir"
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
+            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+            echo "[integration][$suite] skipped - $reason"
+            exit 0
+          fi
+
+          set +e
+          uv run pytest -m integration --tb=short "$test_dir"
+          exit_code=$?
+          set -e
+
+          if [ "$exit_code" -eq 0 ]; then
+            result="passed"
+          else
+            result="failed"
+          fi
+          reason="pytest exit $exit_code"
+
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "[integration][$suite] $result - $reason"
+
+      - name: Fail lane when suite fails
+        if: steps.run_suite.outputs.result == 'failed'
+        run: exit 1
+
+  integration-status:
+    name: integration / status
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - integration-iceberg
+      - integration-dagster
+      - integration-api
+    steps:
+      - name: Summarize integration lane results
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          iceberg_result="${{ needs.integration-iceberg.outputs.result || 'failed' }}"
+          iceberg_reason="${{ needs.integration-iceberg.outputs.reason || 'missing output' }}"
+          dagster_result="${{ needs.integration-dagster.outputs.result || 'failed' }}"
+          dagster_reason="${{ needs.integration-dagster.outputs.reason || 'missing output' }}"
+          api_result="${{ needs.integration-api.outputs.result || 'failed' }}"
+          api_reason="${{ needs.integration-api.outputs.reason || 'missing output' }}"
+
+          echo "Integration lane summary"
+          echo "- iceberg: $iceberg_result ($iceberg_reason)"
+          echo "- dagster: $dagster_result ($dagster_reason)"
+          echo "- api: $api_result ($api_reason)"
+
+          {
+            echo "### Integration lane summary"
+            echo ""
+            echo "| Suite | Result | Detail |"
+            echo "|---|---|---|"
+            echo "| iceberg | $iceberg_result | $iceberg_reason |"
+            echo "| dagster | $dagster_result | $dagster_reason |"
+            echo "| api | $api_result | $api_reason |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          failed_count=0
+          skipped_count=0
+
+          for result in "$iceberg_result" "$dagster_result" "$api_result"; do
+            if [ "$result" = "failed" ]; then
+              failed_count=$((failed_count + 1))
+            elif [ "$result" = "skipped" ]; then
+              skipped_count=$((skipped_count + 1))
+            fi
+          done
+
+          if [ "$skipped_count" -gt 0 ]; then
+            echo "::warning::Integration lane has $skipped_count skipped suite(s)."
+          fi
+
+          if [ "$failed_count" -gt 0 ]; then
+            echo "::error::Integration lane has $failed_count failed suite(s)."
+            exit 1
+          fi
