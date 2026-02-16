@@ -9,7 +9,7 @@ from phlo_hasura.track import HasuraTableTracker, auto_track
 
 
 @click.group()
-def hasura():
+def hasura() -> None:
     """Hasura GraphQL metadata management."""
     pass
 
@@ -31,7 +31,7 @@ def hasura():
     is_flag=True,
     help="Verbose output",
 )
-def track(schema: str, exclude: tuple, verbose: bool):
+def track(schema: str, exclude: tuple, verbose: bool) -> None:
     """Auto-discover and track tables in Hasura."""
     try:
         exclude_list = list(exclude) if exclude else None
@@ -67,7 +67,7 @@ def track(schema: str, exclude: tuple, verbose: bool):
     is_flag=True,
     help="Verbose output",
 )
-def relationships(schema: str, verbose: bool):
+def relationships(schema: str, verbose: bool) -> None:
     """Auto-create relationships from foreign keys."""
     try:
         tracker = HasuraTableTracker()
@@ -97,7 +97,7 @@ def relationships(schema: str, verbose: bool):
     is_flag=True,
     help="Verbose output",
 )
-def permissions(schema: str, verbose: bool):
+def permissions(schema: str, verbose: bool) -> None:
     """Set up default permissions for tracked tables."""
     try:
         tracker = HasuraTableTracker()
@@ -127,7 +127,7 @@ def permissions(schema: str, verbose: bool):
     is_flag=True,
     help="Verbose output",
 )
-def auto_setup(schema: str, verbose: bool):
+def auto_setup(schema: str, verbose: bool) -> None:
     """Auto-track tables, set up relationships and permissions."""
     try:
         auto_track(schema, verbose=verbose)
@@ -143,7 +143,7 @@ def auto_setup(schema: str, verbose: bool):
     required=True,
     help="Output file path for metadata",
 )
-def export(output: str):
+def export(output: str) -> None:
     """Export current Hasura metadata to file."""
     try:
         syncer = HasuraMetadataSync()
@@ -161,7 +161,7 @@ def export(output: str):
     required=True,
     help="Input metadata file",
 )
-def apply_meta(input: str):
+def apply_meta(input: str) -> None:
     """Apply Hasura metadata from file."""
     try:
         syncer = HasuraMetadataSync()
@@ -173,7 +173,7 @@ def apply_meta(input: str):
 
 
 @hasura.command()
-def status():
+def status() -> None:
     """Show Hasura tracking status."""
     try:
         client = HasuraClient()
@@ -200,7 +200,7 @@ def status():
     required=True,
     help="Permission config file (JSON/YAML)",
 )
-def sync_permissions(config: str):
+def sync_permissions(config: str) -> None:
     """Sync permissions from config file."""
     try:
         manager = HasuraPermissionManager()

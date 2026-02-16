@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createRegistryFetcherWithCache, resolvePluginLists } from './plugins.server'
+import {
+  createRegistryFetcherWithCache,
+  resolvePluginLists,
+} from './plugins.server'
 import type { PluginInfo } from './plugins.server'
 
 function plugin(
@@ -214,7 +217,9 @@ describe('plugins.server createRegistryFetcherWithCache', () => {
 
   it('deduplicates concurrent refreshes with single in-flight request', async () => {
     const nowMs = 1_000
-    let releaseFetch: (() => void) | null = null
+    let releaseFetch: () => void = () => {
+      throw new Error('Expected fetch release callback to be set')
+    }
     const fetchRegistry = vi.fn().mockImplementation(
       () =>
         new Promise<Array<PluginInfo>>((resolve) => {
@@ -238,7 +243,7 @@ describe('plugins.server createRegistryFetcherWithCache', () => {
     const first = fetchWithCache()
     const second = fetchWithCache()
     expect(fetchRegistry).toHaveBeenCalledTimes(1)
-    releaseFetch?.()
+    releaseFetch()
 
     const [a, b] = await Promise.all([first, second])
     expect(a).toEqual(b)
