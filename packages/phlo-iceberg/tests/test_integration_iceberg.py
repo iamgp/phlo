@@ -457,11 +457,17 @@ class TestIcebergIntegrationRegression:
         get_nessie_settings.cache_clear()
         monkeypatch.setenv("ICEBERG_S3_ENDPOINT", "http://127.0.0.1:19001")
 
-        with patch("phlo_iceberg.catalog.load_catalog", return_value=MagicMock()) as mock_load:
-            get_catalog(ref="main")
+        try:
+            with patch("phlo_iceberg.catalog.load_catalog", return_value=MagicMock()) as mock_load:
+                get_catalog(ref="main")
 
-        assert mock_load.call_args is not None
-        assert mock_load.call_args.kwargs["s3.endpoint"] == "http://127.0.0.1:19001"
+            assert mock_load.call_args is not None
+            assert mock_load.call_args.kwargs["s3.endpoint"] == "http://127.0.0.1:19001"
+        finally:
+            reset_catalog_cache()
+            get_iceberg_settings.cache_clear()
+            get_minio_settings.cache_clear()
+            get_nessie_settings.cache_clear()
 
 
 # =============================================================================
