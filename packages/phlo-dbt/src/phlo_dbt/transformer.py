@@ -38,6 +38,64 @@ def _parse_dbt_summary(stdout: str) -> dict[str, int]:
     }
 
 
+def _resource_type_for_result(result: Mapping[str, Any]) -> str:
+    resource_type = result.get("resource_type")
+    if isinstance(resource_type, str) and resource_type:
+        return resource_type
+    unique_id = result.get("unique_id")
+    if isinstance(unique_id, str) and "." in unique_id:
+        return unique_id.split(".", 1)[0]
+    return ""
+
+
+def _parse_run_results_counts(payload: Mapping[str, Any]) -> dict[str, int] | None:
+    results = payload.get("results")
+    if not isinstance(results, list):
+        return None
+
+    counts = {
+        "models_built": 0,
+        "models_failed": 0,
+        "tests_passed": 0,
+        "tests_failed": 0,
+    }
+    model_types = {"model", "seed", "snapshot"}
+    success_statuses = {"pass", "success"}
+    skipped_statuses = {"skip", "skipped"}
+
+    for item in results:
+        if not isinstance(item, Mapping):
+            continue
+
+        status = str(item.get("status") or "").strip().lower()
+        resource_type = _resource_type_for_result(item)
+
+        if resource_type in model_types:
+            if status in success_statuses:
+                counts["models_built"] += 1
+            elif status not in skipped_statuses:
+                counts["models_failed"] += 1
+            continue
+
+        if resource_type == "test":
+            if status in success_statuses:
+                counts["tests_passed"] += 1
+            elif status not in skipped_statuses:
+                counts["tests_failed"] += 1
+
+    return counts
+
+
+def _read_run_results_counts(path: Path) -> dict[str, int] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(payload, Mapping):
+        return None
+    return _parse_run_results_counts(payload)
+
+
 def _latest_project_mtime(dbt_project_path: Path) -> float:
     candidates: list[Path] = [
         dbt_project_path / "dbt_project.yml",
@@ -333,13 +391,38 @@ class DbtTransformer(BaseTransformer):
                 elapsed = time.time() - start_time
 
             summary = _parse_dbt_summary(result_stdout)
+            counts_source = "skip_build"
+            counts = {
+                "models_built": 0,
+                "models_failed": 0,
+                "tests_passed": 0,
+                "tests_failed": 0,
+            }
+            if not skip_build:
+                counts_source = "run_results"
+                counts = _read_run_results_counts(
+                    self.project_dir / "target" / "run_results.json"
+                ) or {
+                    "models_built": -1,
+                    "models_failed": -1,
+                    "tests_passed": -1,
+                    "tests_failed": -1,
+                }
+                if counts["models_built"] < 0:
+                    counts_source = "summary_only_combined"
+
             return TransformationResult(
                 status="success",
-                models_built=summary["pass"],
-                models_failed=summary["error"],
-                tests_passed=summary["pass"],
-                tests_failed=summary["error"],
-                metadata={"total_elapsed_seconds": elapsed, "dbt_output": result_stdout},
+                models_built=counts["models_built"],
+                models_failed=counts["models_failed"],
+                tests_passed=counts["tests_passed"],
+                tests_failed=counts["tests_failed"],
+                metadata={
+                    "total_elapsed_seconds": elapsed,
+                    "dbt_output": result_stdout,
+                    "dbt_summary": summary,
+                    "counts_source": counts_source,
+                },
             )
 
         except Exception as exc:

@@ -108,3 +108,74 @@ def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
     assert result.tests_failed == 0
     assert result.metadata["dbt_output"] == ""
     assert run_calls == []
+
+
+def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) -> None:
+    transformer = DbtTransformer(
+        context=None,
+        logger=get_logger("test_dbt_transformer_run_results_counts"),
+        project_dir=tmp_path,
+        profiles_dir=tmp_path,
+    )
+    (tmp_path / "target").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "target" / "run_results.json").write_text(
+        """
+{
+  "results": [
+    {"resource_type": "model", "status": "success"},
+    {"resource_type": "model", "status": "error"},
+    {"resource_type": "test", "status": "pass"},
+    {"resource_type": "test", "status": "fail"},
+    {"unique_id": "test.pkg.fallback_type", "status": "pass"},
+    {"resource_type": "test", "status": "skipped"}
+  ]
+}
+""".strip()
+    )
+
+    def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        return subprocess.CompletedProcess(
+            args=["dbt"] + args,
+            returncode=0,
+            stdout="PASS=3 WARN=0 ERROR=2 SKIP=1 TOTAL=6",
+            stderr="",
+        )
+
+    transformer._run_command = fake_run_command  # type: ignore[method-assign]
+
+    result = transformer.run_transform(parameters={"generate_docs": False})
+
+    assert result.status == "success"
+    assert result.models_built == 1
+    assert result.models_failed == 1
+    assert result.tests_passed == 2
+    assert result.tests_failed == 1
+    assert result.metadata["counts_source"] == "run_results"
+
+
+def test_run_transform_falls_back_when_run_results_missing(tmp_path: Path) -> None:
+    transformer = DbtTransformer(
+        context=None,
+        logger=get_logger("test_dbt_transformer_missing_run_results"),
+        project_dir=tmp_path,
+        profiles_dir=tmp_path,
+    )
+
+    def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        return subprocess.CompletedProcess(
+            args=["dbt"] + args,
+            returncode=0,
+            stdout="PASS=2 WARN=0 ERROR=1 SKIP=0 TOTAL=3",
+            stderr="",
+        )
+
+    transformer._run_command = fake_run_command  # type: ignore[method-assign]
+
+    result = transformer.run_transform(parameters={"generate_docs": False})
+
+    assert result.status == "success"
+    assert result.models_built == -1
+    assert result.models_failed == -1
+    assert result.tests_passed == -1
+    assert result.tests_failed == -1
+    assert result.metadata["counts_source"] == "summary_only_combined"
