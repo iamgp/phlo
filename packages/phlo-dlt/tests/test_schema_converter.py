@@ -29,6 +29,8 @@ class TestBasicTypeMapping:
         """Test str -> StringType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             name: str
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -41,6 +43,8 @@ class TestBasicTypeMapping:
         """Test int -> LongType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             count: int
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -53,6 +57,8 @@ class TestBasicTypeMapping:
         """Test float -> DoubleType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             value: float
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -65,6 +71,8 @@ class TestBasicTypeMapping:
         """Test bool -> BooleanType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             active: bool
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -77,6 +85,8 @@ class TestBasicTypeMapping:
         """Test datetime -> TimestamptzType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             created_at: datetime
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -89,6 +99,8 @@ class TestBasicTypeMapping:
         """Test date -> DateType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             birth_date: date
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -101,6 +113,8 @@ class TestBasicTypeMapping:
         """Test bytes -> BinaryType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             data: bytes
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -113,6 +127,8 @@ class TestBasicTypeMapping:
         """Test Decimal -> DoubleType conversion (fallback)."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             price: Decimal
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -129,6 +145,8 @@ class TestOptionalTypes:
         """Test str | None -> StringType conversion."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             nickname: str | None
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -145,6 +163,8 @@ class TestNullableMapping:
         """Test Field(nullable=False) -> required=True."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             id: str = Field(nullable=False)
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -155,6 +175,8 @@ class TestNullableMapping:
         """Test Field(nullable=True) -> required=False."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             nickname: str = Field(nullable=True)
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -165,6 +187,8 @@ class TestNullableMapping:
         """Test default behavior when nullable not specified."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             value: int
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -180,6 +204,8 @@ class TestFieldDescriptions:
         """Test Field(description="...") -> doc parameter."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             user_id: str = Field(description="Unique user identifier")
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -190,6 +216,8 @@ class TestFieldDescriptions:
         """Test doc is empty string when no description provided."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             value: int
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False)
@@ -204,6 +232,8 @@ class TestFieldOrdering:
         """Test fields get sequential IDs starting from start_field_id."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             first: str
             second: int
             third: bool
@@ -218,6 +248,8 @@ class TestFieldOrdering:
         """Test custom start_field_id parameter."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             name: str
 
         schema = pandera_to_iceberg(
@@ -234,6 +266,8 @@ class TestDLTMetadataFields:
         """Test _dlt_load_id and _dlt_id automatically added."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             id: str
 
         schema = pandera_to_iceberg(SimpleSchema, add_phlo_metadata=False)
@@ -246,6 +280,8 @@ class TestDLTMetadataFields:
         """Test DLT fields get IDs 100+."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             id: str
 
         schema = pandera_to_iceberg(SimpleSchema, add_phlo_metadata=False)
@@ -260,6 +296,8 @@ class TestDLTMetadataFields:
         """Test DLT fields are marked as required."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             id: str
 
         schema = pandera_to_iceberg(SimpleSchema, add_phlo_metadata=False)
@@ -274,6 +312,8 @@ class TestDLTMetadataFields:
         """Test add_dlt_metadata=False skips DLT fields."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             id: str
 
         schema = pandera_to_iceberg(SimpleSchema, add_dlt_metadata=False, add_phlo_metadata=False)
@@ -286,6 +326,8 @@ class TestDLTMetadataFields:
         """Test _phlo_ingested_at gets ID 102."""
 
         class SimpleSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
             id: str
             _phlo_ingested_at: datetime
 
@@ -302,7 +344,11 @@ class TestErrorHandling:
         """Test schema with no fields raises SchemaConversionError."""
 
         class EmptySchema(DataFrameModel):
+            """Pandera schema intentionally defined without data fields."""
+
             class Config:
+                """Pandera configuration for this test schema."""
+
                 strict = True
 
         with pytest.raises(SchemaConversionError, match="No fields found"):
@@ -312,6 +358,8 @@ class TestErrorHandling:
         """Test unsupported type raises SchemaConversionError."""
 
         class BadSchema(DataFrameModel):
+            """Pandera schema with an unsupported field type for error testing."""
+
             data: list  # type: ignore
 
         with pytest.raises(SchemaConversionError, match="Cannot map Pandera type"):
@@ -325,6 +373,8 @@ class TestComplexSchemas:
         """Test conversion of realistic GitHub events schema."""
 
         class GitHubEvents(DataFrameModel):
+            """Pandera schema representing GitHub events test data."""
+
             id: str = Field(nullable=False, unique=True, description="Event ID")
             type: str = Field(nullable=False)
             actor: str = Field(nullable=False)
@@ -352,6 +402,8 @@ class TestComplexSchemas:
         """Test conversion of Nightscout glucose schema."""
 
         class GlucoseEntries(DataFrameModel):
+            """Pandera schema representing glucose entries test data."""
+
             _id: str = Field(nullable=False, unique=True)
             sgv: int = Field(ge=1, le=1000, nullable=False)
             date: int = Field(nullable=False)
@@ -381,9 +433,13 @@ class TestConfigClassHandling:
         """Test Pandera Config class doesn't become a field."""
 
         class SchemaWithConfig(DataFrameModel):
+            """Pandera schema used to validate nested Config handling."""
+
             id: str
 
             class Config:
+                """Pandera configuration for this test schema."""
+
                 strict = True
                 coerce = True
 

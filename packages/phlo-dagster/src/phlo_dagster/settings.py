@@ -31,6 +31,14 @@ class DagsterSettings(BaseConfig):
 
     @model_validator(mode="after")
     def validate_executor_flags(self) -> "DagsterSettings":
+        """Validate mutually exclusive executor override flags.
+
+        Returns:
+            Validated settings instance.
+
+        Raises:
+            ValueError: If both force flags are set simultaneously.
+        """
         if self.phlo_force_in_process_executor and self.phlo_force_multiprocess_executor:
             raise ValueError(
                 "phlo_force_in_process_executor and phlo_force_multiprocess_executor "
@@ -41,4 +49,5 @@ class DagsterSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> DagsterSettings:
+    """Return cached Dagster settings."""
     return DagsterSettings()

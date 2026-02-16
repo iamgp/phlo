@@ -18,6 +18,14 @@ logger = get_logger(__name__)
 
 
 def _map_iceberg_to_openmetadata_type(iceberg_type: str) -> str:
+    """Map an Iceberg column type string to an OpenMetadata type.
+
+    Args:
+        iceberg_type: Raw Iceberg type string from table schema metadata.
+
+    Returns:
+        OpenMetadata-compatible type name.
+    """
     type_map = {
         "boolean": "BOOLEAN",
         "int": "INT",
@@ -44,6 +52,15 @@ def _map_iceberg_to_openmetadata_type(iceberg_type: str) -> str:
 def nessie_table_metadata_to_openmetadata_table(
     table_metadata: dict[str, Any], description: str | None = None
 ) -> OpenMetadataTable:
+    """Convert Nessie table metadata into an OpenMetadata table payload.
+
+    Args:
+        table_metadata: Nessie table metadata dictionary.
+        description: Optional override for the table description.
+
+    Returns:
+        OpenMetadata table model built from Nessie metadata.
+    """
     table_name = table_metadata.get("name", "unknown")
     schema = (
         table_metadata.get("schema", {}) if isinstance(table_metadata.get("schema"), dict) else {}
@@ -85,6 +102,17 @@ def sync_nessie_tables_to_openmetadata(
     include_namespaces: list[str] | None = None,
     exclude_namespaces: list[str] | None = None,
 ) -> dict[str, int]:
+    """Sync Nessie tables to OpenMetadata and return aggregate sync stats.
+
+    Args:
+        scanner: Nessie table scanner used to discover and fetch metadata.
+        om_client: OpenMetadata client used to upsert table entities.
+        include_namespaces: Optional namespace allowlist.
+        exclude_namespaces: Optional namespace denylist.
+
+    Returns:
+        Counts for successful and failed sync operations.
+    """
     stats = {"created": 0, "failed": 0}
     include = set(include_namespaces) if include_namespaces else None
     exclude = set(exclude_namespaces or [])

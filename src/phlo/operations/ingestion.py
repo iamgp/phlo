@@ -5,6 +5,8 @@ from typing import Any, Dict
 
 @dataclass
 class IngestionResult:
+    """Outcome payload returned by ingestion executions."""
+
     status: str
     rows_inserted: int
     rows_deleted: int
@@ -20,6 +22,13 @@ class BaseIngester(ABC):
     """
 
     def __init__(self, context: Any, logger: Any):
+        """Store runtime context and logger for ingestion implementations.
+
+        Args:
+            context: Orchestrator-provided execution context.
+            logger: Logger used for ingestion diagnostics.
+        """
+
         self.context = context
         self.logger = logger
 

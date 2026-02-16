@@ -239,6 +239,11 @@ COMMENT ON VIEW {self.api_schema}.{model.name} IS '{self._escape_string(model.de
         order = []
 
         def visit(name: str) -> None:
+            """Depth-first visit helper for dependency ordering.
+
+            Args:
+                name: Model name to visit.
+            """
             if name in visited:
                 return
             visited.add(name)

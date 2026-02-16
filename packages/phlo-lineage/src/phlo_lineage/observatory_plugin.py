@@ -20,6 +20,11 @@ class LineageObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for extension discovery.
+
+        Returns:
+            PluginMetadata: Extension identity and description.
+        """
         return PluginMetadata(
             name="lineage",
             version="0.1.0",
@@ -28,6 +33,11 @@ class LineageObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def manifest(self) -> ObservatoryExtensionManifest:
+        """Return Observatory extension manifest configuration.
+
+        Returns:
+            ObservatoryExtensionManifest: UI navigation and compatibility settings.
+        """
         return ObservatoryExtensionManifest(
             name="lineage",
             version="0.1.0",
@@ -39,4 +49,9 @@ class LineageObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def asset_root(self) -> Traversable:
+        """Return the static asset directory for the extension.
+
+        Returns:
+            Traversable: Package path to bundled Observatory assets.
+        """
         return resources.files("phlo_lineage").joinpath("observatory_assets")

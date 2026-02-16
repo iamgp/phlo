@@ -4,6 +4,7 @@ from phlo_dagster.plugin import DagsterServicePlugin
 
 
 def test_dagster_service_definition():
+    """Verify the Dagster plugin exposes expected service metadata."""
     plugin = DagsterServicePlugin()
     service_definition = plugin.service_definition
 

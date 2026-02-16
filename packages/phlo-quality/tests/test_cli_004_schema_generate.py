@@ -8,11 +8,18 @@ from phlo.cli.main import cli
 
 
 def _write(path: Path, content: str) -> None:
+    """Write text to a file, creating parent directories as needed.
+
+    Args:
+        path: File path to write.
+        content: File contents to write.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
 
 
 def _add_cwd_to_syspath() -> None:
+    """Ensure the isolated test workspace is importable from `sys.path`."""
     import sys
 
     cwd = str(Path.cwd())
@@ -25,6 +32,7 @@ def _add_cwd_to_syspath() -> None:
 
 
 def test_schema_generate_dry_run_from_ingestion_asset() -> None:
+    """Verify dry-run schema generation renders an inferred schema class."""
     runner = CliRunner()
     with runner.isolated_filesystem():
         _add_cwd_to_syspath()
@@ -76,6 +84,7 @@ def user_events(partition_date: str):
 
 
 def test_schema_generate_write_new_file_default_location() -> None:
+    """Verify schema generation writes a new schema file at the default path."""
     runner = CliRunner()
     with runner.isolated_filesystem():
         _add_cwd_to_syspath()
@@ -126,6 +135,7 @@ def user_events(partition_date: str):
 
 
 def test_schema_generate_refuses_overwrite_by_default() -> None:
+    """Verify generation fails when output file exists and `--update` is not set."""
     runner = CliRunner()
     with runner.isolated_filesystem():
         _add_cwd_to_syspath()
@@ -174,6 +184,7 @@ def user_events(partition_date: str):
 
 
 def test_schema_generate_update_in_place() -> None:
+    """Verify generation updates an existing schema file when `--update` is used."""
     runner = CliRunner()
     with runner.isolated_filesystem():
         _add_cwd_to_syspath()

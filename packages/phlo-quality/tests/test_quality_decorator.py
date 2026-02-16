@@ -30,6 +30,8 @@ from phlo_quality import (
 
 @pytest.fixture(autouse=True)
 def _reset_quality_checks() -> None:
+    """Clear quality check registry before each test."""
+
     clear_quality_checks()
 
 
@@ -323,6 +325,8 @@ class TestPhloQualityDecorator:
             checks=[NullCheck(columns=["id"])],
         )
         def test_check():
+            """No-op asset function used to register a test check."""
+
             pass
 
         # Verify a new check was registered
@@ -340,6 +344,8 @@ class TestPhloQualityDecorator:
             ],
         )
         def multi_check():
+            """No-op asset function used to register multiple checks."""
+
             pass
 
         # Verify the decorator works
@@ -355,6 +361,8 @@ class TestPhloQualityDecorator:
             warn_threshold=0.5,
         )
         def warn_check():
+            """No-op asset function used to register warn-threshold checks."""
+
             pass
 
         checks = get_quality_checks()
@@ -369,6 +377,8 @@ class TestPhloQualityDecorator:
             description="Custom quality check description",
         )
         def described_check():
+            """No-op asset function used to register described checks."""
+
             pass
 
         checks = get_quality_checks()
@@ -383,6 +393,8 @@ class TestPhloQualityDecorator:
             asset_key="custom.path",
         )
         def custom_key_check():
+            """No-op asset function used to register custom asset-key checks."""
+
             pass
 
         checks = get_quality_checks()

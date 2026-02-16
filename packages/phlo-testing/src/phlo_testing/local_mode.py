@@ -197,6 +197,15 @@ class LocalTestDecorator:
         """Apply decorator."""
 
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            """Run the wrapped callable inside local test mode.
+
+            Args:
+                *args: Positional arguments passed to the wrapped callable.
+                **kwargs: Keyword arguments passed to the wrapped callable.
+
+            Returns:
+                The wrapped callable result.
+            """
             with local_test_mode():
                 return func(*args, **kwargs)
 

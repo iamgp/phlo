@@ -74,6 +74,16 @@ def with_asset_logging(
     def wrapper(
         context: AssetExecutionContext | OpExecutionContext, *args: Any, **kwargs: Any
     ) -> T:
+        """Execute wrapped asset function with lifecycle logging.
+
+        Args:
+            context: Dagster execution context.
+            *args: Positional arguments for the wrapped function.
+            **kwargs: Keyword arguments for the wrapped function.
+
+        Returns:
+            Wrapped function result.
+        """
         correlation = get_correlation_fields(context)
 
         context.log.info(

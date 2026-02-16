@@ -25,4 +25,9 @@ class LineageSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> LineageSettings:
+    """Get cached lineage settings.
+
+    Returns:
+        Loaded lineage configuration settings.
+    """
     return LineageSettings()

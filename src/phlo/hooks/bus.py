@@ -34,6 +34,7 @@ class HookBus:
     """Dispatch hook events to registered handlers."""
 
     def __init__(self) -> None:
+        """Initialize hook bus storage and lazy-discovery state."""
         self._hooks: list[RegisteredHook] = []
         self._discovered = False
 

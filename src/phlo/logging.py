@@ -34,6 +34,8 @@ _LOGGING_CONFIGURED = False
 
 @dataclass(frozen=True)
 class LoggingSettings:
+    """Configuration values for logging initialization."""
+
     level: str = "INFO"
     log_format: str = "auto"
     router_enabled: bool = True
@@ -42,6 +44,11 @@ class LoggingSettings:
 
     @classmethod
     def from_settings(cls) -> "LoggingSettings":
+        """Build logging settings from global application settings.
+
+        Returns:
+            LoggingSettings: Logging settings resolved from app configuration.
+        """
         settings = get_settings()
         return cls(
             level=settings.phlo_log_level,
@@ -67,6 +74,7 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     def add_service(
         _: Any, __: str, event_dict: MutableMapping[str, Any]
     ) -> MutableMapping[str, Any]:
+        """Attach default service metadata to each structured log event."""
         event_dict.setdefault("service", service_name)
         return event_dict
 
@@ -191,10 +199,21 @@ class LogRouterHandler(logging.Handler):
     """Route log records to the hook bus as LogEvent payloads."""
 
     def __init__(self, *, service_name: str, level: int = logging.NOTSET) -> None:
+        """Initialize a router handler for hook-bus log forwarding.
+
+        Args:
+            service_name: Default service name for emitted log events.
+            level: Minimum log level accepted by this handler.
+        """
         super().__init__(level=level)
         self._service_name = service_name
 
     def emit(self, record: logging.LogRecord) -> None:
+        """Emit a log record to the hook bus as a structured log event.
+
+        Args:
+            record: Standard library log record to route.
+        """
         if _ROUTER_ACTIVE.get():
             return
         token = _ROUTER_ACTIVE.set(True)
@@ -212,6 +231,15 @@ class LogRouterHandler(logging.Handler):
 
 
 def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEvent | None:
+    """Convert a log record into a hook `LogEvent`.
+
+    Args:
+        record: Log record to transform.
+        default_service: Service name used when record extras omit one.
+
+    Returns:
+        LogEvent | None: Converted event, or `None` when no message is available.
+    """
     message, extra = _extract_message_and_extra(record)
     if message is None:
         return None
@@ -244,6 +272,14 @@ def _record_to_event(record: logging.LogRecord, default_service: str) -> LogEven
 def _extract_message_and_extra(
     record: logging.LogRecord,
 ) -> tuple[str | None, dict[str, Any]]:
+    """Extract message text and custom extra fields from a log record.
+
+    Args:
+        record: Log record to inspect.
+
+    Returns:
+        tuple[str | None, dict[str, Any]]: Normalized message and extra fields.
+    """
     extra = {
         key: value
         for key, value in record.__dict__.items()
@@ -274,6 +310,15 @@ def _extract_message_and_extra(
 
 
 def _build_metadata(record: logging.LogRecord, extra: dict[str, Any]) -> dict[str, Any]:
+    """Build metadata payload for a `LogEvent`.
+
+    Args:
+        record: Source log record.
+        extra: Additional structured fields from record extras.
+
+    Returns:
+        dict[str, Any]: Metadata dictionary merged with record context.
+    """
     metadata = {
         **extra,
         "module": record.module,
@@ -292,6 +337,15 @@ def _build_file_handler(
     template: str,
     formatter: logging.Formatter,
 ) -> logging.Handler | None:
+    """Create a file handler from a template path.
+
+    Args:
+        template: Log path template with date/time placeholders.
+        formatter: Formatter applied to the file handler.
+
+    Returns:
+        logging.Handler | None: Configured file handler, or `None` on template errors.
+    """
     path = _render_log_file_path(template)
     if path is None:
         return None
@@ -301,6 +355,14 @@ def _build_file_handler(
 
 
 def _render_log_file_path(template: str) -> Path | None:
+    """Render and prepare an absolute log file path from a template.
+
+    Args:
+        template: Path template that may include date/time placeholders.
+
+    Returns:
+        Path | None: Resolved path with parent directory created, or `None` if invalid.
+    """
     now = datetime.now(timezone.utc)
     tokens = {
         "YMD": now.strftime("%Y%m%d"),
@@ -335,6 +397,14 @@ def _render_log_file_path(template: str) -> Path | None:
 
 
 def _pop_tags(extra: dict[str, Any]) -> dict[str, str]:
+    """Extract normalized string tags from record extras.
+
+    Args:
+        extra: Extra fields dictionary to consume.
+
+    Returns:
+        dict[str, str]: Tag dictionary with string keys and values.
+    """
     tags_value = extra.pop("tags", None)
     if isinstance(tags_value, Mapping):
         return {str(key): str(value) for key, value in tags_value.items()}
@@ -342,6 +412,15 @@ def _pop_tags(extra: dict[str, Any]) -> dict[str, str]:
 
 
 def _pop_value(extra: dict[str, Any], key: str) -> str | None:
+    """Pop and stringify a value from extras.
+
+    Args:
+        extra: Extra fields dictionary to consume.
+        key: Field name to remove.
+
+    Returns:
+        str | None: Stringified value or `None` when absent.
+    """
     value = extra.pop(key, None)
     if value is None:
         return None
@@ -349,14 +428,32 @@ def _pop_value(extra: dict[str, Any], key: str) -> str | None:
 
 
 def _coerce_log_level(level: str) -> int:
+    """Resolve a log level name to a stdlib numeric level.
+
+    Args:
+        level: Log level name.
+
+    Returns:
+        int: Numeric logging level.
+    """
     return logging._nameToLevel.get(level.upper(), logging.INFO)
 
 
 def _mark_phlo_handler(handler: logging.Handler) -> None:
+    """Mark a handler as managed by Phlo logging setup.
+
+    Args:
+        handler: Logging handler to mark.
+    """
     setattr(handler, "_phlo_handler", True)
 
 
 def _remove_phlo_handlers(root: logging.Logger) -> None:
+    """Remove handlers previously attached by Phlo from a logger.
+
+    Args:
+        root: Logger from which managed handlers are removed.
+    """
     for handler in list(root.handlers):
         if getattr(handler, "_phlo_handler", False):
             root.removeHandler(handler)

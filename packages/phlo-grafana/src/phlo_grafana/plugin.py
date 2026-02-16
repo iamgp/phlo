@@ -15,6 +15,7 @@ class GrafanaServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for Grafana service registration."""
         return PluginMetadata(
             name="grafana",
             version="0.1.0",
@@ -25,5 +26,6 @@ class GrafanaServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Load and return the Grafana service definition."""
         service_path = resources.files("phlo_grafana").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

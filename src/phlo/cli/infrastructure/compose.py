@@ -10,6 +10,16 @@ def compose_base_cmd(
     project_name: str,
     profiles: Iterable[str] = (),
 ) -> list[str]:
+    """Build the base docker compose command for a Phlo project.
+
+    Args:
+        phlo_dir: Directory containing compose and environment files.
+        project_name: Docker compose project name.
+        profiles: Optional compose profile names to enable.
+
+    Returns:
+        Base command tokens for docker compose invocation.
+    """
     compose_file = phlo_dir / "docker-compose.yml"
     env_file = phlo_dir / ".env"
     env_local_file = phlo_dir / ".env.local"

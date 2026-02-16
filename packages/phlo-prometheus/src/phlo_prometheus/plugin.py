@@ -15,6 +15,7 @@ class PrometheusServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Prometheus service."""
         return PluginMetadata(
             name="prometheus",
             version="0.1.0",
@@ -25,5 +26,6 @@ class PrometheusServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Return the Docker service definition for Prometheus."""
         service_path = resources.files("phlo_prometheus").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

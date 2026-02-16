@@ -13,6 +13,7 @@ from phlo_dbt.translator import DbtSpecTranslator
 
 
 def test_custom_dbt_translator_asset_key_model() -> None:
+    """Verifies model resources map directly to their model-name asset key."""
     translator = DbtSpecTranslator()
     asset_key = translator.get_asset_key(
         {"name": "stg_nightscout_entries", "resource_type": "model"}
@@ -21,6 +22,7 @@ def test_custom_dbt_translator_asset_key_model() -> None:
 
 
 def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> None:
+    """Verifies Dagster source assets map to DLT-prefixed asset keys."""
     translator = DbtSpecTranslator()
     asset_key = translator.get_asset_key(
         {"resource_type": "source", "source_name": "dagster_assets", "name": "entries"}
@@ -38,6 +40,12 @@ def test_custom_dbt_translator_asset_key_source_dagster_assets_maps_to_dlt() -> 
     ],
 )
 def test_custom_dbt_translator_group_name_prefers_folder(props: dict, expected: str) -> None:
+    """Verifies folder-derived grouping takes precedence when path/fqn is available.
+
+    Args:
+        props: dbt node properties for group-resolution.
+        expected: Expected group name.
+    """
     translator = DbtSpecTranslator()
     assert translator.get_group_name(props) == expected
 
@@ -53,11 +61,18 @@ def test_custom_dbt_translator_group_name_prefers_folder(props: dict, expected: 
     ],
 )
 def test_custom_dbt_translator_group_name_fallbacks(model_name: str, expected: str) -> None:
+    """Verifies naming-convention fallback mapping for group assignment.
+
+    Args:
+        model_name: Model name used for fallback inference.
+        expected: Expected fallback group.
+    """
     translator = DbtSpecTranslator()
     assert translator.get_group_name({"name": model_name}) == expected
 
 
 def test_custom_dbt_translator_description_does_not_embed_compiled_sql_by_default() -> None:
+    """Verifies compiled SQL is excluded from description text by default."""
     translator = DbtSpecTranslator()
     description = translator.get_description(
         {"name": "model_x", "description": "Doc", "compiled_code": "select 1 as x"}
@@ -68,6 +83,11 @@ def test_custom_dbt_translator_description_does_not_embed_compiled_sql_by_defaul
 def test_custom_dbt_translator_metadata_compiled_sql_is_capped(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies metadata compiled SQL payload is truncated at configured limit.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture for env overrides.
+    """
     monkeypatch.setenv("PHLO_DBT_COMPILED_SQL_MAX_BYTES", "64")
     translator = DbtSpecTranslator()
 
@@ -80,6 +100,11 @@ def test_custom_dbt_translator_metadata_compiled_sql_is_capped(
 
 
 def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
+    """Verifies skip-build mode returns success without invoking dbt commands.
+
+    Args:
+        tmp_path: Temporary dbt project directory fixture.
+    """
     transformer = DbtTransformer(
         context=None,
         logger=get_logger("test_dbt_transformer_skip_build"),
@@ -89,6 +114,15 @@ def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
     run_calls: list[list[str]] = []
 
     def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        """Capture dbt command calls and return a synthetic success result.
+
+        Args:
+            args: dbt CLI arguments.
+            env: Optional environment variables for process execution.
+
+        Returns:
+            Completed process with successful summary output.
+        """
         run_calls.append(args)
         return subprocess.CompletedProcess(
             args=["dbt"] + args,
@@ -111,6 +145,11 @@ def test_run_transform_skip_build_returns_success(tmp_path: Path) -> None:
 
 
 def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) -> None:
+    """Verifies model/test counts are derived from dbt run_results artifacts.
+
+    Args:
+        tmp_path: Temporary dbt project directory fixture.
+    """
     transformer = DbtTransformer(
         context=None,
         logger=get_logger("test_dbt_transformer_run_results_counts"),
@@ -134,6 +173,15 @@ def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) 
     )
 
     def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        """Return a synthetic successful dbt run command result.
+
+        Args:
+            args: dbt CLI arguments.
+            env: Optional environment variables for process execution.
+
+        Returns:
+            Completed process with summary-style stdout.
+        """
         return subprocess.CompletedProcess(
             args=["dbt"] + args,
             returncode=0,
@@ -154,6 +202,11 @@ def test_run_transform_counts_models_and_tests_from_run_results(tmp_path: Path) 
 
 
 def test_run_transform_falls_back_when_run_results_missing(tmp_path: Path) -> None:
+    """Verifies summary parsing fallback when run_results.json is absent.
+
+    Args:
+        tmp_path: Temporary dbt project directory fixture.
+    """
     transformer = DbtTransformer(
         context=None,
         logger=get_logger("test_dbt_transformer_missing_run_results"),
@@ -162,6 +215,15 @@ def test_run_transform_falls_back_when_run_results_missing(tmp_path: Path) -> No
     )
 
     def fake_run_command(args: list[str], env: dict[str, str] | None = None):
+        """Return a synthetic successful dbt run command result.
+
+        Args:
+            args: dbt CLI arguments.
+            env: Optional environment variables for process execution.
+
+        Returns:
+            Completed process with summary-style stdout.
+        """
         return subprocess.CompletedProcess(
             args=["dbt"] + args,
             returncode=0,

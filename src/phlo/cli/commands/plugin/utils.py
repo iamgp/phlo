@@ -107,6 +107,7 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
     installed: list[dict] = []
 
     def add_plugin(plugin_key: str, name: str) -> None:
+        """Append discovered plugin metadata for one registry entry."""
         info = get_plugin_info(plugin_key, name)
         if not info:
             return

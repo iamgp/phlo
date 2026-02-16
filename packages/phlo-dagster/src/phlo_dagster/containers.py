@@ -9,6 +9,14 @@ from phlo.infrastructure import load_infrastructure_config
 
 @dataclass(frozen=True, slots=True)
 class DagsterContainerCandidates:
+    """Candidate Dagster webserver container names.
+
+    Attributes:
+        configured: Name resolved from infrastructure config.
+        new: Current compose naming pattern candidate.
+        legacy: Legacy compose naming pattern candidate.
+    """
+
     configured: str
     new: str
     legacy: str
@@ -17,6 +25,16 @@ class DagsterContainerCandidates:
 def dagster_container_candidates(
     project_name: str, configured_name: str | None
 ) -> DagsterContainerCandidates:
+    """Build candidate container names for a project.
+
+    Args:
+        project_name: Compose project name.
+        configured_name: Optional configured container name override.
+
+    Returns:
+        Ordered candidate names for Dagster webserver discovery.
+    """
+
     configured = configured_name or ""
     new = f"{project_name}-dagster-1"
     legacy = f"{project_name}-dagster-webserver-1"
@@ -24,6 +42,16 @@ def dagster_container_candidates(
 
 
 def select_first_existing(candidates: list[str], existing: list[str]) -> str | None:
+    """Return the first candidate present in the existing container list.
+
+    Args:
+        candidates: Candidate container names in priority order.
+        existing: Existing running container names.
+
+    Returns:
+        First matching candidate, or ``None`` when no match exists.
+    """
+
     existing_set = set(existing)
     for candidate in candidates:
         if candidate and candidate in existing_set:
@@ -32,6 +60,16 @@ def select_first_existing(candidates: list[str], existing: list[str]) -> str | N
 
 
 def _resolve_container_name(service_name: str, project_name: str) -> str:
+    """Resolve container name for a service from infrastructure settings.
+
+    Args:
+        service_name: Service identifier in infrastructure config.
+        project_name: Compose project name.
+
+    Returns:
+        Configured or derived container name for the service.
+    """
+
     infra = load_infrastructure_config()
     configured = infra.get_container_name(service_name, project_name)
     if configured:
@@ -40,6 +78,15 @@ def _resolve_container_name(service_name: str, project_name: str) -> str:
 
 
 def _list_running_containers(project_name: str) -> list[str]:
+    """List running compose container names for a project.
+
+    Args:
+        project_name: Compose project name.
+
+    Returns:
+        Running container names reported by Docker.
+    """
+
     result = subprocess.run(
         [
             "docker",
@@ -57,6 +104,18 @@ def _list_running_containers(project_name: str) -> list[str]:
 
 
 def find_dagster_container(project_name: str) -> str:
+    """Find the running Dagster webserver container for a project.
+
+    Args:
+        project_name: Compose project name.
+
+    Returns:
+        Selected Dagster container name.
+
+    Raises:
+        RuntimeError: If no matching Dagster webserver container is running.
+    """
+
     configured_name = _resolve_container_name("dagster", project_name)
     candidates = dagster_container_candidates(project_name, configured_name)
     preferred = [candidates.configured, candidates.new, candidates.legacy]

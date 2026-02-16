@@ -15,11 +15,18 @@ from phlo_quality.schemas.base import PhloSchema
 
 
 class DemoSchema(PhloSchema):
+    """Minimal schema for validating test parquet payloads."""
+
     id: int
     created_at: datetime
 
 
 def test_pandera_contract_asset_check_fails_for_invalid_parquet(tmp_path) -> None:
+    """Verify parquet contract check fails and reports metadata for invalid data.
+
+    Args:
+        tmp_path: Temporary test directory provided by pytest.
+    """
     parquet_path = tmp_path / "data.parquet"
     df = pd.DataFrame([{"id": 1, "created_at": "not-a-date"}])
     df.to_parquet(parquet_path)
@@ -47,6 +54,11 @@ def test_pandera_contract_asset_check_fails_for_invalid_parquet(tmp_path) -> Non
 
 
 def test_pandera_contract_asset_check_passes_for_valid_parquet(tmp_path) -> None:
+    """Verify parquet contract check passes for schema-compliant data.
+
+    Args:
+        tmp_path: Temporary test directory provided by pytest.
+    """
     parquet_path = tmp_path / "data.parquet"
     df = pd.DataFrame([{"id": 1, "created_at": "2025-01-01T00:00:00Z"}])
     df.to_parquet(parquet_path)
@@ -67,6 +79,12 @@ def test_pandera_contract_asset_check_passes_for_valid_parquet(tmp_path) -> None
     ],
 )
 def test_dbt_test_results_emit_asset_checks_with_severity(tags, expected_severity) -> None:
+    """Verify dbt test tags map to expected emitted asset check severity.
+
+    Args:
+        tags: dbt test tags used to derive severity.
+        expected_severity: Expected severity value in emitted check metadata.
+    """
     manifest = {
         "nodes": {
             "model.phlo.marts.mrt_orders": {

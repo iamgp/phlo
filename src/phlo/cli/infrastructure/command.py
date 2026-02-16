@@ -8,15 +8,21 @@ from typing import Mapping, Sequence
 
 @dataclass(frozen=True, slots=True)
 class CommandError(RuntimeError):
+    """Error raised when a subprocess command exits with a non-zero status."""
+
     cmd: tuple[str, ...]
     returncode: int
     stdout: str
     stderr: str
 
     def __post_init__(self) -> None:
+        """Populate RuntimeError args tuple for consistent exception rendering."""
+
         object.__setattr__(self, "args", (self.cmd, self.returncode, self.stdout, self.stderr))
 
     def __str__(self) -> str:
+        """Render a readable command failure message."""
+
         cmd = " ".join(self.cmd)
         stderr = self.stderr.strip()
         if stderr:

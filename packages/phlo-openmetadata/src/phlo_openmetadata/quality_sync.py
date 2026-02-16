@@ -255,12 +255,32 @@ class QualityCheckMapper:
 
     @staticmethod
     def _build_entity_link(table_fqn: str, column: str | None) -> str:
+        """
+        Build an OpenMetadata entity link for a table or table column.
+
+        Args:
+            table_fqn: Fully qualified table name.
+            column: Optional column name to target column-level links.
+
+        Returns:
+            OpenMetadata entity link string.
+        """
         if column:
             return f"<#E::table::{table_fqn}::columns::{column}>"
         return f"<#E::table::{table_fqn}>"
 
     @classmethod
     def _get_entity_link(cls, check: Any, table_fqn: str) -> str:
+        """
+        Build an entity link for the check scope.
+
+        Args:
+            check: Quality check instance.
+            table_fqn: Fully qualified table name.
+
+        Returns:
+            OpenMetadata entity link for table or column scope.
+        """
         column: str | None = None
         if isinstance(check, NullCheck) and len(check.columns) == 1:
             column = check.columns[0]
@@ -274,6 +294,15 @@ class QualityCheckMapper:
 
     @staticmethod
     def _get_entity_type(check: Any) -> str:
+        """
+        Determine the OpenMetadata entity type for a check.
+
+        Args:
+            check: Quality check instance.
+
+        Returns:
+            "COLUMN" for column-scoped checks, otherwise "TABLE".
+        """
         if isinstance(check, (NullCheck, RangeCheck, FreshnessCheck)):
             return "COLUMN"
         if isinstance(check, UniqueCheck) and len(check.columns) == 1:
@@ -384,6 +413,12 @@ class QualityCheckPublisher:
     """
 
     def __init__(self, om_client: OpenMetadataClient):
+        """
+        Initialize publisher with an OpenMetadata client.
+
+        Args:
+            om_client: Client used to create definitions, cases, and results.
+        """
         self.om_client = om_client
 
     def publish_test_definitions(
@@ -408,6 +443,7 @@ class QualityCheckPublisher:
         ]
 
         def publish(item: tuple[Any, dict[str, Any]]) -> None:
+            """Create one OpenMetadata test definition from a mapped check."""
             _check, test_def = item
             self.om_client.create_test_definition(
                 test_name=test_def["name"],
@@ -419,6 +455,7 @@ class QualityCheckPublisher:
             )
 
         def get_name(item: tuple[Any, dict[str, Any]]) -> str:
+            """Return the definition name used for deduplication and reporting."""
             _check, test_def = item
             return test_def["name"]
 
@@ -448,6 +485,7 @@ class QualityCheckPublisher:
         ]
 
         def publish(item: tuple[Any, dict[str, Any]]) -> None:
+            """Create one OpenMetadata test case from a mapped check."""
             _check, test_case = item
             self.om_client.create_test_case(
                 test_case_name=test_case["name"],
@@ -460,6 +498,7 @@ class QualityCheckPublisher:
             )
 
         def get_name(item: tuple[Any, dict[str, Any]]) -> str:
+            """Return the test-case name used for deduplication and reporting."""
             _check, test_case = item
             return test_case["name"]
 
@@ -533,6 +572,7 @@ class QualityCheckPublisher:
         ]
 
         def publish(item: tuple[dict[str, Any], dict[str, Any]]) -> None:
+            """Create one OpenMetadata test case from a mapped dbt test."""
             _dbt_test, test_case = item
             self.om_client.create_test_case(
                 test_case_name=test_case["name"],
@@ -545,6 +585,7 @@ class QualityCheckPublisher:
             )
 
         def get_name(item: tuple[dict[str, Any], dict[str, Any]]) -> str:
+            """Return the dbt-derived test-case name for deduplication."""
             _dbt_test, test_case = item
             return test_case["name"]
 

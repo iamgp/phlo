@@ -20,9 +20,11 @@ class MinioSettings(BaseConfig):
     s3_region: str = Field(default="us-east-1", description="S3 region")
 
     def minio_endpoint(self) -> str:
+        """Return host:port endpoint for MinIO API."""
         return f"{self.minio_host}:{self.minio_api_port}"
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> MinioSettings:
+    """Return cached MinIO settings."""
     return MinioSettings()

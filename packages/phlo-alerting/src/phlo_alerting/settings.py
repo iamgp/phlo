@@ -32,4 +32,5 @@ class AlertingSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> AlertingSettings:
+    """Return cached alerting settings."""
     return AlertingSettings()

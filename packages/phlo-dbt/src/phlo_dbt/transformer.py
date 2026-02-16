@@ -39,6 +39,14 @@ def _parse_dbt_summary(stdout: str) -> dict[str, int]:
 
 
 def _resource_type_for_result(result: Mapping[str, Any]) -> str:
+    """Infer dbt resource type from a run result mapping.
+
+    Args:
+        result: Single result item from dbt run results.
+
+    Returns:
+        Resource type value, or an empty string if unavailable.
+    """
     resource_type = result.get("resource_type")
     if isinstance(resource_type, str) and resource_type:
         return resource_type
@@ -49,6 +57,14 @@ def _resource_type_for_result(result: Mapping[str, Any]) -> str:
 
 
 def _parse_run_results_counts(payload: Mapping[str, Any]) -> dict[str, int] | None:
+    """Extract model and test pass/fail counts from dbt run results payload.
+
+    Args:
+        payload: Parsed JSON payload from ``run_results.json``.
+
+    Returns:
+        Count mapping when parseable; otherwise ``None``.
+    """
     results = payload.get("results")
     if not isinstance(results, list):
         return None
@@ -87,6 +103,14 @@ def _parse_run_results_counts(payload: Mapping[str, Any]) -> dict[str, int] | No
 
 
 def _read_run_results_counts(path: Path) -> dict[str, int] | None:
+    """Read dbt run results counts from disk.
+
+    Args:
+        path: Path to ``run_results.json``.
+
+    Returns:
+        Parsed count mapping when available; otherwise ``None``.
+    """
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -97,6 +121,14 @@ def _read_run_results_counts(path: Path) -> dict[str, int] | None:
 
 
 def _latest_project_mtime(dbt_project_path: Path) -> float:
+    """Return latest modification time across key dbt project files.
+
+    Args:
+        dbt_project_path: Path to the dbt project root.
+
+    Returns:
+        Unix timestamp of the newest relevant file modification.
+    """
     candidates: list[Path] = [
         dbt_project_path / "dbt_project.yml",
         dbt_project_path / "packages.yml",
@@ -127,6 +159,15 @@ def _latest_project_mtime(dbt_project_path: Path) -> float:
 
 
 def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
+    """Ensure dbt manifest exists and is valid for the project.
+
+    Args:
+        dbt_project_path: Path to the dbt project root.
+        profiles_path: Path to the dbt profiles directory.
+
+    Returns:
+        ``True`` when a valid manifest is present after checks/compile.
+    """
     manifest_path = dbt_project_path / "target" / "manifest.json"
 
     needs_compile = not manifest_path.exists()
@@ -180,6 +221,15 @@ def _emit_dbt_lineage(
     logger: Any,
     reader: Callable[[str], Any],
 ) -> None:
+    """Emit lineage edges from a dbt manifest.
+
+    Args:
+        manifest_path: Path to ``manifest.json``.
+        translator: Translator used to derive asset keys.
+        lineage_emitter: Lineage event emitter instance.
+        logger: Logger used for warning output.
+        reader: JSON loader callable for manifest text.
+    """
     if not manifest_path.exists():
         logger.warning("dbt manifest not found at %s; skipping lineage emit", manifest_path)
         return
@@ -252,6 +302,16 @@ class DbtTransformer(BaseTransformer):
         target: str = "dev",
         dbt_executable: str = "dbt",
     ):
+        """Initialize dbt transformer runtime configuration.
+
+        Args:
+            context: Execution context passed from orchestrator.
+            logger: Logger instance.
+            project_dir: dbt project directory.
+            profiles_dir: dbt profiles directory.
+            target: dbt target profile name.
+            dbt_executable: dbt binary name or path.
+        """
         super().__init__(context, logger)
         self.project_dir = project_dir
         self.profiles_dir = profiles_dir
@@ -261,6 +321,15 @@ class DbtTransformer(BaseTransformer):
     def _run_command(
         self, args: List[str], env: Optional[Dict[str, str]] = None
     ) -> subprocess.CompletedProcess:
+        """Run a dbt subprocess command inside the configured project.
+
+        Args:
+            args: dbt command arguments.
+            env: Optional environment variable overrides.
+
+        Returns:
+            Completed subprocess result.
+        """
         full_env = os.environ.copy()
         if env:
             full_env.update(env)
@@ -282,6 +351,15 @@ class DbtTransformer(BaseTransformer):
     def run_transform(
         self, partition_key: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None
     ) -> TransformationResult:
+        """Execute dbt build/docs flow and emit transform telemetry events.
+
+        Args:
+            partition_key: Optional partition date key for dbt vars.
+            parameters: Optional runtime parameters controlling dbt execution.
+
+        Returns:
+            Transformation result containing status, counts, and metadata.
+        """
         parameters = parameters or {}
         select_args = parameters.get("select", [])
         exclude_args = parameters.get("exclude", [])

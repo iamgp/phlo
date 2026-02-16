@@ -18,9 +18,21 @@ class AssetProviderPlugin(Plugin, ABC):
 
     @abstractmethod
     def get_assets(self) -> Iterable[AssetSpec]:
+        """Return asset specifications exposed by this plugin.
+
+        Returns:
+            Iterable of asset specifications.
+        """
+
         raise NotImplementedError
 
     def get_checks(self) -> Iterable[AssetCheckSpec]:
+        """Return asset check specifications exposed by this plugin.
+
+        Returns:
+            Iterable of asset check specifications.
+        """
+
         return []
 
 
@@ -29,4 +41,10 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     @abstractmethod
     def get_resources(self) -> Iterable[ResourceSpec]:
+        """Return resource specifications exposed by this plugin.
+
+        Returns:
+            Iterable of resource specifications.
+        """
+
         raise NotImplementedError

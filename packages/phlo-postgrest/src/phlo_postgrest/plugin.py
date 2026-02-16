@@ -15,6 +15,7 @@ class PostgrestServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the PostgREST service."""
         return PluginMetadata(
             name="postgrest",
             version="0.1.0",
@@ -25,5 +26,6 @@ class PostgrestServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Return the Docker service definition for PostgREST."""
         service_path = resources.files("phlo_postgrest").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

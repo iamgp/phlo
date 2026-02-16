@@ -19,21 +19,45 @@ router = APIRouter(prefix="/api/observatory", tags=["observatory"])
 
 
 class ExtensionSettingsPayload(BaseModel):
+    """Request payload for extension settings updates."""
+
     settings: dict[str, Any]
 
 
 class ExtensionSettingsResponse(BaseModel):
+    """Response payload for extension settings endpoints."""
+
     settings: dict[str, Any] | None
     updated_at: str | None
 
 
 def _get_extension(name: str) -> ObservatoryExtensionPlugin | None:
+    """Return an Observatory extension plugin by name.
+
+    Args:
+        name: Registered extension name.
+
+    Returns:
+        ObservatoryExtensionPlugin | None: Matched extension, if present.
+    """
     return get_observatory_extension(name)
 
 
 def _get_extension_scope_schema_defaults(
     name: str,
 ) -> tuple[SettingsScope, dict[str, Any] | None, dict[str, Any] | None]:
+    """Resolve settings scope, schema, and defaults for an extension.
+
+    Args:
+        name: Registered extension name.
+
+    Returns:
+        tuple[SettingsScope, dict[str, Any] | None, dict[str, Any] | None]:
+            Storage scope, validation schema, and default settings.
+
+    Raises:
+        HTTPException: If the extension is not found.
+    """
     extension = _get_extension(name)
     if not extension:
         raise HTTPException(status_code=404, detail=f"Observatory extension not found: {name}")
@@ -45,10 +69,26 @@ def _get_extension_scope_schema_defaults(
 
 
 def _extension_namespace(name: str) -> str:
+    """Build the settings namespace key for an extension.
+
+    Args:
+        name: Registered extension name.
+
+    Returns:
+        str: Namespaced storage key.
+    """
     return f"observatory.extension.{name}"
 
 
 def _fetch_settings_sync(name: str) -> ExtensionSettingsResponse:
+    """Fetch extension settings for one extension name.
+
+    Args:
+        name: Registered extension name.
+
+    Returns:
+        ExtensionSettingsResponse: Stored settings or manifest defaults.
+    """
     scope, _schema, defaults = _get_extension_scope_schema_defaults(name)
     service = get_settings_service()
     record = service.get(scope, _extension_namespace(name))
@@ -60,6 +100,18 @@ def _fetch_settings_sync(name: str) -> ExtensionSettingsResponse:
 def _upsert_settings_sync(
     name: str, payload: ExtensionSettingsPayload
 ) -> ExtensionSettingsResponse:
+    """Persist extension settings for one extension name.
+
+    Args:
+        name: Registered extension name.
+        payload: Incoming extension settings.
+
+    Returns:
+        ExtensionSettingsResponse: Saved settings and update timestamp.
+
+    Raises:
+        HTTPException: If validation fails.
+    """
     scope, schema, _defaults = _get_extension_scope_schema_defaults(name)
     service = get_settings_service()
     try:

@@ -17,10 +17,14 @@ router = APIRouter(prefix="/api/observatory", tags=["observatory"])
 
 
 class ObservatorySettingsPayload(BaseModel):
+    """Request payload for updating Observatory settings."""
+
     settings: dict[str, Any]
 
 
 class ObservatorySettingsResponse(BaseModel):
+    """Response payload for Observatory settings endpoints."""
+
     settings: dict[str, Any] | None
     updated_at: str | None
 
@@ -92,6 +96,11 @@ OBSERVATORY_SETTINGS_NAMESPACE = "observatory.core"
 
 
 def _fetch_settings_sync() -> ObservatorySettingsResponse:
+    """Fetch persisted global Observatory settings.
+
+    Returns:
+        ObservatorySettingsResponse: Stored settings and update timestamp.
+    """
     service = get_settings_service()
     record = service.get(SettingsScope.GLOBAL, OBSERVATORY_SETTINGS_NAMESPACE)
     if not record:
@@ -103,6 +112,14 @@ def _fetch_settings_sync() -> ObservatorySettingsResponse:
 
 
 def _upsert_settings_sync(payload: ObservatorySettingsPayload) -> ObservatorySettingsResponse:
+    """Persist global Observatory settings.
+
+    Args:
+        payload: Incoming settings payload.
+
+    Returns:
+        ObservatorySettingsResponse: Saved settings and update timestamp.
+    """
     service = get_settings_service()
     record = service.put(
         SettingsScope.GLOBAL,

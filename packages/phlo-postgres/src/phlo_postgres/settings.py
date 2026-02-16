@@ -23,6 +23,14 @@ class PostgresSettings(BaseConfig):
     )
 
     def get_postgres_connection_string(self, include_db: bool = True) -> str:
+        """Build a PostgreSQL connection URI from current settings.
+
+        Args:
+            include_db: Whether to append the configured database name.
+
+        Returns:
+            URL-encoded PostgreSQL connection string.
+        """
         db_part = f"/{self.postgres_db}" if include_db else ""
         user = quote_plus(self.postgres_user)
         password = quote_plus(self.postgres_password)
@@ -31,4 +39,5 @@ class PostgresSettings(BaseConfig):
 
 @lru_cache(maxsize=1)
 def get_settings() -> PostgresSettings:
+    """Return cached Postgres settings."""
     return PostgresSettings()

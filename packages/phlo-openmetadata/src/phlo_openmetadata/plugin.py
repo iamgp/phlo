@@ -15,6 +15,7 @@ class OpenMetadataServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for OpenMetadata service registration."""
         return PluginMetadata(
             name="openmetadata",
             version="0.1.0",
@@ -25,5 +26,6 @@ class OpenMetadataServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Load and return the OpenMetadata service definition."""
         service_path = resources.files("phlo_openmetadata").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

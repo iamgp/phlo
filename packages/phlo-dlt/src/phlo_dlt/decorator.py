@@ -30,14 +30,29 @@ _INGESTION_ASSETS: list[AssetSpec] = []
 
 
 def get_ingestion_assets() -> list[AssetSpec]:
+    """Return registered ingestion asset specifications.
+
+    Returns:
+        A shallow copy of all ingestion assets created via `phlo_ingestion`.
+    """
     return list(_INGESTION_ASSETS)
 
 
 def clear_ingestion_assets() -> None:
+    """Clear all registered ingestion asset specifications."""
     _INGESTION_ASSETS.clear()
 
 
 def _validate_unique_key_in_schema(unique_key: str, schema: type[Any] | None) -> None:
+    """Validate that the configured unique key exists in the schema annotations.
+
+    Args:
+        unique_key: Column name used to identify unique records.
+        schema: Optional schema class used for validation.
+
+    Raises:
+        PhloConfigError: If `schema` is provided and `unique_key` is missing.
+    """
     if schema is None:
         return
     annotations = getattr(schema, "__annotations__", {})
@@ -56,6 +71,16 @@ def _validate_merge_config(
     unique_key: str,
     merge_config: dict[str, Any] | None,
 ) -> None:
+    """Validate merge strategy and merge configuration semantics.
+
+    Args:
+        merge_strategy: Write strategy for ingestion (`append` or `merge`).
+        unique_key: Column name used for deduplication and merge operations.
+        merge_config: Optional merge behavior overrides.
+
+    Raises:
+        PhloConfigError: If strategy or config values are invalid.
+    """
     if merge_strategy not in ("append", "merge"):
         raise PhloConfigError(
             message=f"Invalid merge_strategy: {merge_strategy}",
@@ -82,6 +107,15 @@ def _default_merge_config(
     merge_strategy: str,
     merge_config: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    """Build merge configuration defaults for the selected strategy.
+
+    Args:
+        merge_strategy: Write strategy for ingestion (`append` or `merge`).
+        merge_config: Optional user-provided merge configuration.
+
+    Returns:
+        Effective merge configuration with strategy defaults applied.
+    """
     config = merge_config.copy() if merge_config else {}
 
     if merge_strategy == "append":
@@ -94,6 +128,17 @@ def _default_merge_config(
 
 
 def _resolve_iceberg_resource(context: RuntimeContext) -> Any:
+    """Resolve the Iceberg resource from runtime resources.
+
+    Args:
+        context: Runtime context passed to the ingestion run function.
+
+    Returns:
+        The resolved Iceberg resource object.
+
+    Raises:
+        PhloConfigError: If no Iceberg resource can be resolved.
+    """
     iceberg = None
     resources = context.resources
     if isinstance(resources, dict):
@@ -131,6 +176,32 @@ def phlo_ingestion(
     merge_config: dict[str, Any] | None = None,
     add_metadata_columns: bool = True,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Register a function as a DLT-backed ingestion asset.
+
+    Args:
+        table_name: Destination Iceberg table name (without `dlt_` prefix).
+        unique_key: Column used for deduplication and merge operations.
+        group: Dagster/asset group name.
+        validation_schema: Optional Pandera schema for data contract checks.
+        iceberg_schema: Optional explicit Iceberg schema.
+        partition_spec: Optional partition specification override.
+        cron: Optional cron schedule for automated runs.
+        freshness_hours: Optional freshness policy window.
+        max_runtime_seconds: Max runtime before the run is considered timed out.
+        max_retries: Max retry attempts for failed runs.
+        retry_delay_seconds: Delay between retries in seconds.
+        validate: Whether to execute Pandera contract checks.
+        strict_validation: Whether failed validation should fail the run.
+        merge_strategy: Ingestion strategy (`append` or `merge`).
+        merge_config: Optional merge behavior overrides.
+        add_metadata_columns: Whether ingestion metadata columns should be added.
+
+    Returns:
+        A decorator that registers ingestion metadata and returns the original function.
+
+    Raises:
+        PhloConfigError: If schema/merge configuration is invalid.
+    """
     _validate_unique_key_in_schema(unique_key, validation_schema)
     _validate_merge_config(merge_strategy, unique_key, merge_config)
 
@@ -159,6 +230,7 @@ def phlo_ingestion(
     )
 
     def decorator(func: Callable[..., Any]) -> Any:
+        """Wrap an ingestion source function as a Phlo asset definition."""
         check_specs: list[AssetCheckSpec] = []
         if validate and table_config.validation_schema is not None:
             check_specs = [
@@ -171,6 +243,7 @@ def phlo_ingestion(
             ]
 
         def run(runtime: RuntimeContext) -> Iterator[RunResult]:
+            """Execute one partitioned ingestion run for the wrapped source function."""
             partition_date = runtime.partition_key
             if not partition_date:
                 raise PhloConfigError(

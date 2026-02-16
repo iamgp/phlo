@@ -148,6 +148,11 @@ class NullCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this null check.
+        """
         return f"null_check_{'+'.join(self.columns)}"
 
 
@@ -248,6 +253,11 @@ class RangeCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this range check.
+        """
         return f"range_check_{self.column}"
 
 
@@ -324,6 +334,11 @@ class FreshnessCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this freshness check.
+        """
         return f"freshness_check_{self.timestamp_column}"
 
 
@@ -390,6 +405,11 @@ class UniqueCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this uniqueness check.
+        """
         return f"unique_check_{'+'.join(self.columns)}"
 
 
@@ -439,4 +459,9 @@ class CountCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this count check.
+        """
         return "count_check"

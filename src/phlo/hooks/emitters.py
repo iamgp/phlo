@@ -34,6 +34,12 @@ class IngestionEventEmitter:
     """Emit ingestion lifecycle events with a shared context."""
 
     def __init__(self, context: IngestionEventContext, hook_bus: HookBus | None = None) -> None:
+        """Initialize the ingestion event emitter.
+
+        Args:
+            context: Shared ingestion context to include in each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
@@ -61,6 +67,14 @@ class IngestionEventEmitter:
         metrics: dict[str, Any] | None,
         error: str | None,
     ) -> None:
+        """Emit an ingestion event.
+
+        Args:
+            event_type: Event type identifier.
+            status: Lifecycle status value.
+            metrics: Optional metric payload.
+            error: Optional error message.
+        """
         self._hook_bus.emit(
             IngestionEvent(
                 event_type=event_type,
@@ -95,6 +109,12 @@ class TransformEventEmitter:
     """Emit transform lifecycle events with a shared context."""
 
     def __init__(self, context: TransformEventContext, hook_bus: HookBus | None = None) -> None:
+        """Initialize the transform event emitter.
+
+        Args:
+            context: Shared transform context to include in each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
@@ -122,6 +142,14 @@ class TransformEventEmitter:
         metrics: dict[str, Any] | None,
         error: str | None,
     ) -> None:
+        """Emit a transform event.
+
+        Args:
+            event_type: Event type identifier.
+            status: Lifecycle status value.
+            metrics: Optional metric payload.
+            error: Optional error message.
+        """
         self._hook_bus.emit(
             TransformEvent(
                 event_type=event_type,
@@ -153,6 +181,12 @@ class PublishEventEmitter:
     """Emit publish lifecycle events with a shared context."""
 
     def __init__(self, context: PublishEventContext, hook_bus: HookBus | None = None) -> None:
+        """Initialize the publish event emitter.
+
+        Args:
+            context: Shared publish context to include in each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
@@ -180,6 +214,14 @@ class PublishEventEmitter:
         metrics: dict[str, Any] | None,
         error: str | None,
     ) -> None:
+        """Emit a publish event.
+
+        Args:
+            event_type: Event type identifier.
+            status: Lifecycle status value.
+            metrics: Optional metric payload.
+            error: Optional error message.
+        """
         self._hook_bus.emit(
             PublishEvent(
                 event_type=event_type,
@@ -211,6 +253,12 @@ class QualityResultEventEmitter:
         context: QualityResultEventContext,
         hook_bus: HookBus | None = None,
     ) -> None:
+        """Initialize the quality result event emitter.
+
+        Args:
+            context: Shared quality-result context to include in each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
@@ -251,6 +299,12 @@ class LineageEventEmitter:
     """Emit lineage events with a shared context."""
 
     def __init__(self, context: LineageEventContext, hook_bus: HookBus | None = None) -> None:
+        """Initialize the lineage event emitter.
+
+        Args:
+            context: Shared lineage context to include in each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
@@ -285,6 +339,12 @@ class TelemetryEventEmitter:
     """Emit telemetry events with a shared context."""
 
     def __init__(self, context: TelemetryEventContext, hook_bus: HookBus | None = None) -> None:
+        """Initialize the telemetry event emitter.
+
+        Args:
+            context: Shared telemetry context to include in each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 
@@ -337,6 +397,16 @@ class TelemetryEventEmitter:
         unit: str | None,
         payload: dict[str, Any] | None,
     ) -> None:
+        """Emit a telemetry event.
+
+        Args:
+            event_type: Event type identifier.
+            name: Metric or log name.
+            value: Optional metric or log value.
+            level: Optional log level for log events.
+            unit: Optional unit for the value.
+            payload: Optional event payload.
+        """
         self._hook_bus.emit(
             TelemetryEvent(
                 event_type=event_type,
@@ -367,6 +437,12 @@ class ServiceLifecycleEventEmitter:
     def __init__(
         self, context: ServiceLifecycleEventContext, hook_bus: HookBus | None = None
     ) -> None:
+        """Initialize the service lifecycle event emitter.
+
+        Args:
+            context: Shared service context to include in each emitted event.
+            hook_bus: Hook bus used to publish events. Defaults to the global bus.
+        """
         self._context = context
         self._hook_bus = hook_bus or get_hook_bus()
 

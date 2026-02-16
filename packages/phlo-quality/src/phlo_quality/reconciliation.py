@@ -175,6 +175,11 @@ class ReconciliationCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this reconciliation check.
+        """
         return f"reconciliation_{self.source_table.replace('.', '_')}"
 
 
@@ -401,6 +406,11 @@ class AggregateConsistencyCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this aggregate consistency check.
+        """
         return f"aggregate_consistency_{self.aggregate_column}"
 
 
@@ -550,6 +560,11 @@ class KeyParityCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this key parity check.
+        """
         return f"key_parity_{self.source_table.replace('.', '_')}"
 
 
@@ -819,6 +834,11 @@ class MultiAggregateConsistencyCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this multi-aggregate consistency check.
+        """
         return "multi_aggregate_consistency_check"
 
 
@@ -1091,6 +1111,11 @@ class ChecksumReconciliationCheck(QualityCheck):
 
     @property
     def name(self) -> str:
+        """Get the check name.
+
+        Returns:
+            Stable metric name for this checksum reconciliation check.
+        """
         return f"checksum_reconciliation_{self.source_table.replace('.', '_')}"
 
 

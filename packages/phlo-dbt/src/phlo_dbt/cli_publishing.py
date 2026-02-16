@@ -18,6 +18,14 @@ from phlo_dbt.settings import get_settings
 
 
 def _normalize_select_patterns(select: Iterable[str]) -> list[str]:
+    """Normalize CLI selection values into glob patterns.
+
+    Args:
+        select: Raw ``--select`` values.
+
+    Returns:
+        Flattened, trimmed pattern list.
+    """
     patterns: list[str] = []
     for raw in select:
         for part in raw.split(","):
@@ -28,6 +36,15 @@ def _normalize_select_patterns(select: Iterable[str]) -> list[str]:
 
 
 def _select_models(model_names: list[str], patterns: list[str]) -> list[str]:
+    """Filter model names using glob patterns.
+
+    Args:
+        model_names: Available model names.
+        patterns: Glob patterns to match.
+
+    Returns:
+        Selected model names preserving input order.
+    """
     if not patterns:
         return model_names
 
@@ -39,6 +56,17 @@ def _select_models(model_names: list[str], patterns: list[str]) -> list[str]:
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
+    """Load a YAML mapping from disk.
+
+    Args:
+        path: YAML file path.
+
+    Returns:
+        Parsed mapping, or an empty mapping if file is missing.
+
+    Raises:
+        ValueError: If root YAML value is not a mapping.
+    """
     if not path.exists():
         return {}
     with open(path) as f:
@@ -49,10 +77,29 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def _dump_yaml(data: dict[str, Any]) -> str:
+    """Serialize configuration mapping to YAML text.
+
+    Args:
+        data: Mapping to serialize.
+
+    Returns:
+        YAML string.
+    """
     return yaml.safe_dump(data, sort_keys=False)
 
 
 def _load_manifest_models(manifest_path: Path) -> dict[str, dict[str, Any]]:
+    """Load dbt models from a manifest file.
+
+    Args:
+        manifest_path: Path to ``manifest.json``.
+
+    Returns:
+        Model metadata keyed by model name.
+
+    Raises:
+        click.ClickException: If file read or JSON parsing fails.
+    """
     try:
         manifest = json.loads(manifest_path.read_text())
     except OSError as e:
@@ -82,6 +129,23 @@ def scaffold_publishing_config(
     asset_name: str,
     description: str,
 ) -> dict[str, Any]:
+    """Merge scaffolded publishing config into an existing mapping.
+
+    Args:
+        existing_config: Existing publishing configuration.
+        model_names: dbt model names to include.
+        source_key: Source key under ``publishing``.
+        iceberg_schema: Iceberg schema for table mapping values.
+        group: Dagster group name for generated entry.
+        asset_name: Asset name for generated entry.
+        description: Human-readable entry description.
+
+    Returns:
+        Updated publishing configuration mapping.
+
+    Raises:
+        ValueError: If existing config shape is invalid.
+    """
     config: dict[str, Any] = dict(existing_config)
     publishing = config.get("publishing", {})
     if publishing is None:

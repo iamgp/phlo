@@ -20,7 +20,16 @@ logger = get_logger(__name__)
 
 
 class MaintenanceConfig(dg.Config):
-    """Configuration for table maintenance operations."""
+    """Configuration for Iceberg table maintenance operations.
+
+    Attributes:
+        namespace: Namespace to run maintenance on, or ``"all"`` for all namespaces.
+        snapshot_retention_days: Snapshot age threshold for expiration in days.
+        snapshot_retain_last: Minimum number of snapshots to retain.
+        orphan_retention_days: Orphan file age threshold for deletion in days.
+        orphan_dry_run: If ``True``, list orphan files without deleting.
+        ref: Nessie reference (branch or tag) used for catalog operations.
+    """
 
     # Namespace to run maintenance on (or 'all' for all namespaces)
     namespace: str = "raw"
@@ -43,6 +52,18 @@ def maintenance_tags(
     dry_run: bool | None = None,
     status: str | None = None,
 ) -> dict[str, str]:
+    """Build telemetry tag values for a maintenance operation.
+
+    Args:
+        config: Maintenance runtime configuration.
+        operation: Maintenance operation name.
+        dry_run: Optional dry-run flag to include in tags.
+        status: Optional operation status label.
+
+    Returns:
+        Tag dictionary suitable for telemetry event context.
+    """
+
     tags = {
         "maintenance": "true",
         "operation": operation,
@@ -63,6 +84,18 @@ def maintenance_payload(
     operation: str,
     **extra: Any,
 ) -> dict[str, Any]:
+    """Build a structured telemetry payload for a maintenance operation.
+
+    Args:
+        context: Dagster operation execution context.
+        config: Maintenance runtime configuration.
+        operation: Maintenance operation name.
+        **extra: Additional payload fields.
+
+    Returns:
+        Base payload merged with any extra fields.
+    """
+
     payload = {
         "operation": operation,
         "namespace": config.namespace,
@@ -81,6 +114,18 @@ def maintenance_log_extra(
     operation: str,
     **extra: Any,
 ) -> dict[str, Any]:
+    """Build structured ``extra`` fields for maintenance log records.
+
+    Args:
+        context: Dagster operation execution context.
+        config: Maintenance runtime configuration.
+        operation: Maintenance operation name.
+        **extra: Additional log fields.
+
+    Returns:
+        Dictionary for the logging ``extra`` parameter.
+    """
+
     return {
         "maintenance_op": operation,
         "namespace": config.namespace,
@@ -102,6 +147,19 @@ def emit_maintenance_metrics(
     total_records: int | None = None,
     total_size_mb: float | None = None,
 ) -> None:
+    """Emit standard maintenance run metrics.
+
+    Args:
+        emitter: Telemetry emitter used to publish metric events.
+        duration_seconds: Total operation duration.
+        tables_processed: Number of tables processed.
+        errors: Number of errors observed.
+        snapshots_deleted: Optional number of deleted snapshots.
+        orphan_files: Optional number of orphan files processed.
+        total_records: Optional total records affected.
+        total_size_mb: Optional total data size affected in MB.
+    """
+
     emitter.emit_metric(name="iceberg.maintenance.run", value=1, unit="run")
     emitter.emit_metric(
         name="iceberg.maintenance.duration_seconds",
@@ -141,7 +199,15 @@ def emit_maintenance_metrics(
 
 
 def resolve_namespaces(config: MaintenanceConfig) -> list[str]:
-    """Resolve namespace config to a list of namespaces."""
+    """Resolve configured namespace scope into a namespace list.
+
+    Args:
+        config: Maintenance runtime configuration.
+
+    Returns:
+        List of namespaces to target for maintenance.
+    """
+
     if config.namespace == "all":
         return list_namespaces(config.ref)
     return [config.namespace]
@@ -153,7 +219,18 @@ def start_maintenance_op(
     operation: str,
     **extra_tags: Any,
 ) -> TelemetryEventEmitter:
-    """Emit start telemetry/logging for a maintenance op. Returns the emitter."""
+    """Emit start telemetry and logs for a maintenance operation.
+
+    Args:
+        context: Dagster operation execution context.
+        config: Maintenance runtime configuration.
+        operation: Maintenance operation name.
+        **extra_tags: Additional tags included in telemetry context.
+
+    Returns:
+        Telemetry emitter initialized with maintenance tags.
+    """
+
     telemetry = TelemetryEventEmitter(
         TelemetryEventContext(tags=maintenance_tags(config, operation=operation, **extra_tags))
     )
@@ -182,7 +259,22 @@ def finish_maintenance_op(
     extra_tags: dict[str, Any] | None = None,
     **metrics_kwargs: Any,
 ) -> dict[str, Any]:
-    """Emit completion telemetry/logging/metrics. Returns the summary payload."""
+    """Emit completion telemetry, logs, and metrics for maintenance.
+
+    Args:
+        context: Dagster operation execution context.
+        config: Maintenance runtime configuration.
+        telemetry: Telemetry emitter returned from operation start.
+        operation: Maintenance operation name.
+        duration_seconds: Total operation duration.
+        errors: Collection of operation error messages.
+        extra_tags: Optional extra tags for status and metrics context.
+        **metrics_kwargs: Additional metric payload values.
+
+    Returns:
+        Summary payload emitted for operation completion.
+    """
+
     tag_extras = extra_tags or {}
     status = "success" if not errors else "failure"
     summary_payload = maintenance_payload(
@@ -234,7 +326,15 @@ def finish_maintenance_op(
 
 
 def list_tables(namespace: str, ref: str) -> list[str]:
-    """List all tables in a namespace."""
+    """List fully qualified table names in a namespace.
+
+    Args:
+        namespace: Catalog namespace.
+        ref: Nessie reference to query.
+
+    Returns:
+        Fully qualified table names, or an empty list on errors.
+    """
     from pyiceberg.exceptions import NoSuchNamespaceError
 
     catalog = get_catalog(ref=ref)
@@ -250,7 +350,15 @@ def list_tables(namespace: str, ref: str) -> list[str]:
 
 
 def list_namespaces(ref: str) -> list[str]:
-    """List all namespaces."""
+    """List catalog namespaces for a Nessie reference.
+
+    Args:
+        ref: Nessie reference to query.
+
+    Returns:
+        Namespace names, or an empty list on errors.
+    """
+
     catalog = get_catalog(ref=ref)
     try:
         namespaces = catalog.list_namespaces()

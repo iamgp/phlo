@@ -143,6 +143,14 @@ class DbtManifestParser:
             return {}
 
         def normalize_columns(columns: Any) -> dict[str, dict[str, Any]]:
+            """Normalize catalog column payloads into a name-keyed mapping.
+
+            Args:
+                columns: Catalog column payload.
+
+            Returns:
+                Mapping of column name to column metadata.
+            """
             if isinstance(columns, dict):
                 return columns
             if isinstance(columns, list):

@@ -15,6 +15,7 @@ class NessieServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for the Nessie service."""
         return PluginMetadata(
             name="nessie",
             version="0.1.0",
@@ -25,5 +26,6 @@ class NessieServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Return the Docker service definition for Nessie."""
         service_path = resources.files("phlo_nessie").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

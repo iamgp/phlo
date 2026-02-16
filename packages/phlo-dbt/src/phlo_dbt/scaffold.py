@@ -6,6 +6,14 @@ from pathlib import Path
 
 
 def build_dbt_project(project_name: str) -> str:
+    """Build dbt_project.yml content for a scaffolded project.
+
+    Args:
+        project_name: User-provided project name.
+
+    Returns:
+        dbt project YAML content.
+    """
     safe_name = project_name.replace("-", "_")
     return f"""name: {safe_name}
 version: 1.0.0
@@ -27,6 +35,11 @@ models:
 
 
 def build_sqlfluff_config() -> str:
+    """Build SQLFluff configuration content for Trino + dbt templating.
+
+    Returns:
+        SQLFluff configuration text.
+    """
     return """[sqlfluff]
 dialect = trino
 templater = jinja

@@ -13,8 +13,15 @@ from phlo_dagster.cli_status import status
 
 
 class DagsterCliPlugin(CliCommandPlugin):
+    """Expose Dagster workflow commands to the Phlo CLI plugin system."""
+
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin identity metadata for discovery.
+
+        Returns:
+            Plugin metadata for Dagster CLI commands.
+        """
         return PluginMetadata(
             name="dagster",
             version="0.1.0",
@@ -22,4 +29,9 @@ class DagsterCliPlugin(CliCommandPlugin):
         )
 
     def get_cli_commands(self) -> list[click.Command]:
+        """Return CLI commands provided by the Dagster plugin.
+
+        Returns:
+            Ordered list of Dagster-related Click commands.
+        """
         return [dev, logs, status, backfill, materialize]

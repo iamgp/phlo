@@ -14,6 +14,11 @@ class DagsterServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return metadata describing the Dagster service plugin.
+
+        Returns:
+            PluginMetadata: Plugin identity and display metadata.
+        """
         return PluginMetadata(
             name="dagster",
             version="0.1.0",
@@ -24,6 +29,11 @@ class DagsterServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Load the Dagster service definition.
+
+        Returns:
+            dict[str, Any]: Parsed service configuration from YAML.
+        """
         service_path = resources.files("phlo_dagster").joinpath("service.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))
 
@@ -33,6 +43,11 @@ class DagsterDaemonServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return metadata describing the Dagster daemon plugin.
+
+        Returns:
+            PluginMetadata: Plugin identity and display metadata.
+        """
         return PluginMetadata(
             name="dagster-daemon",
             version="0.1.0",
@@ -43,5 +58,10 @@ class DagsterDaemonServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict[str, Any]:
+        """Load the Dagster daemon service definition.
+
+        Returns:
+            dict[str, Any]: Parsed service configuration from YAML.
+        """
         service_path = resources.files("phlo_dagster").joinpath("dagster-daemon.yaml")
         return yaml.safe_load(service_path.read_text(encoding="utf-8"))

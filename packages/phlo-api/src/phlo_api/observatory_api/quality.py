@@ -25,7 +25,14 @@ DEFAULT_DAGSTER_URL = "http://dagster:3000/graphql"
 
 
 def resolve_dagster_url(override: str | None = None) -> str:
-    """Resolve Dagster GraphQL URL."""
+    """Resolve the Dagster GraphQL URL.
+
+    Args:
+        override: Optional explicit Dagster GraphQL URL.
+
+    Returns:
+        Dagster GraphQL URL from override, environment, or default.
+    """
     if override and override.strip():
         return override
     return os.environ.get("DAGSTER_GRAPHQL_URL", DEFAULT_DAGSTER_URL)
@@ -86,11 +93,15 @@ Severity = Literal["WARN", "ERROR"]
 
 
 class CheckResult(BaseModel):
+    """Represents the latest outcome for a quality check."""
+
     passed: bool
     metadata: dict[str, Any] = {}
 
 
 class QualityCheck(BaseModel):
+    """Represents current status and metadata for one asset quality check."""
+
     name: str
     asset_key: list[str]
     description: str | None = None
@@ -101,6 +112,8 @@ class QualityCheck(BaseModel):
 
 
 class CategoryStats(BaseModel):
+    """Represents pass-rate statistics for a quality check category."""
+
     category: str
     passing: int
     total: int
@@ -108,6 +121,8 @@ class CategoryStats(BaseModel):
 
 
 class RecentCheckExecution(BaseModel):
+    """Represents one recent quality check execution event."""
+
     asset_key: list[str]
     check_name: str
     timestamp: str
@@ -119,6 +134,8 @@ class RecentCheckExecution(BaseModel):
 
 
 class QualityOverview(BaseModel):
+    """Aggregates top-level quality metrics for the Observatory overview."""
+
     total_checks: int
     passing_checks: int
     failing_checks: int
@@ -130,6 +147,8 @@ class QualityOverview(BaseModel):
 
 
 class CheckExecution(BaseModel):
+    """Represents a normalized historical execution point for a check."""
+
     timestamp: str
     passed: bool
     run_id: str | None = None
@@ -140,7 +159,14 @@ class CheckExecution(BaseModel):
 
 
 def normalize_status(status: str) -> CheckStatus:
-    """Normalize Dagster status to our status enum."""
+    """Normalize a Dagster check execution status.
+
+    Args:
+        status: Raw status string from Dagster.
+
+    Returns:
+        Normalized check status.
+    """
     normalized = status.strip().upper()
     if normalized == "SUCCEEDED":
         return "PASSED"
@@ -152,12 +178,26 @@ def normalize_status(status: str) -> CheckStatus:
 
 
 def normalize_severity(severity: str | None) -> Severity:
-    """Normalize severity."""
+    """Normalize a Dagster severity value.
+
+    Args:
+        severity: Raw severity value.
+
+    Returns:
+        Normalized severity.
+    """
     return "WARN" if severity == "WARN" else "ERROR"
 
 
 def to_epoch_ms(value: str | int | float) -> int:
-    """Convert timestamp to epoch milliseconds."""
+    """Convert a timestamp value to epoch milliseconds.
+
+    Args:
+        value: Timestamp as ISO string, seconds, or milliseconds.
+
+    Returns:
+        Timestamp in epoch milliseconds. Returns 0 when parsing fails.
+    """
     if isinstance(value, (int, float)):
         if value > 1_000_000_000_000:
             return int(value)
@@ -175,12 +215,26 @@ def to_epoch_ms(value: str | int | float) -> int:
 
 
 def to_iso_timestamp(value: str | int | float) -> str:
-    """Convert to ISO timestamp."""
+    """Convert a timestamp value to a UTC ISO 8601 string.
+
+    Args:
+        value: Timestamp as ISO string, seconds, or milliseconds.
+
+    Returns:
+        UTC ISO 8601 timestamp string.
+    """
     return datetime.fromtimestamp(to_epoch_ms(value) / 1000, tz=timezone.utc).isoformat()
 
 
 def metadata_entries_to_dict(entries: list[dict[str, Any]] | None) -> dict[str, Any]:
-    """Convert Dagster metadata entries to a dict."""
+    """Convert Dagster metadata entries into a dictionary.
+
+    Args:
+        entries: Dagster metadata entry payload.
+
+    Returns:
+        Metadata keyed by entry label.
+    """
     record: dict[str, Any] = {}
     if not entries:
         return record
@@ -209,7 +263,17 @@ def metadata_entries_to_dict(entries: list[dict[str, Any]] | None) -> dict[str, 
 async def dagster_query(
     client: httpx.AsyncClient, url: str, query: str, variables: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Execute a GraphQL query against Dagster."""
+    """Execute a GraphQL query against Dagster.
+
+    Args:
+        client: Shared async HTTP client.
+        url: Dagster GraphQL endpoint.
+        query: GraphQL query string.
+        variables: GraphQL variables payload.
+
+    Returns:
+        GraphQL data payload, or `None` when the query fails.
+    """
     try:
         response = await client.post(
             url,
@@ -227,10 +291,14 @@ async def dagster_query(
 
 
 async def fetch_quality_snapshot(dagster_url: str, recent_limit: int = 50) -> dict[str, Any] | None:
-    """Fetch complete quality snapshot from Dagster.
+    """Fetch and aggregate quality data from Dagster.
 
-    This iterates over all assets, fetches their check executions,
-    and aggregates stats similar to the original TypeScript implementation.
+    Args:
+        dagster_url: Dagster GraphQL endpoint URL.
+        recent_limit: Maximum recent executions to return.
+
+    Returns:
+        Aggregated quality snapshot, or `None` when fetch fails.
     """
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Step 1: Get all assets with their checks
@@ -398,7 +466,14 @@ async def fetch_quality_snapshot(dagster_url: str, recent_limit: int = 50) -> di
 async def get_quality_overview(
     dagster_url: str | None = None,
 ) -> QualityOverview | dict[str, str]:
-    """Get overview of all quality metrics."""
+    """Get an overview of quality metrics.
+
+    Args:
+        dagster_url: Optional Dagster GraphQL endpoint override.
+
+    Returns:
+        Quality overview payload or an error dictionary.
+    """
     url = resolve_dagster_url(dagster_url)
 
     try:
@@ -426,7 +501,15 @@ async def get_asset_checks(
     asset_key_path: str,
     dagster_url: str | None = None,
 ) -> list[QualityCheck] | dict[str, str]:
-    """Get quality checks for a specific asset."""
+    """Get latest checks for a specific asset.
+
+    Args:
+        asset_key_path: Slash-delimited Dagster asset key path.
+        dagster_url: Optional Dagster GraphQL endpoint override.
+
+    Returns:
+        Latest checks for the asset or an error dictionary.
+    """
     asset_key = asset_key_path.split("/")
     url = resolve_dagster_url(dagster_url)
 
@@ -492,7 +575,17 @@ async def get_check_history(
     limit: int = Query(default=20, le=100),
     dagster_url: str | None = None,
 ) -> list[CheckExecution] | dict[str, str]:
-    """Get execution history for a specific check."""
+    """Get execution history for an asset check.
+
+    Args:
+        asset_key_path: Slash-delimited Dagster asset key path.
+        check_name: Check name to filter.
+        limit: Maximum number of executions to return.
+        dagster_url: Optional Dagster GraphQL endpoint override.
+
+    Returns:
+        Check execution history or an error dictionary.
+    """
     asset_key = asset_key_path.split("/")
     url = resolve_dagster_url(dagster_url)
 
@@ -539,7 +632,14 @@ async def get_check_history(
 async def get_failing_checks(
     dagster_url: str | None = None,
 ) -> list[QualityCheck] | dict[str, str]:
-    """Get all currently failing checks."""
+    """Get all currently failing checks.
+
+    Args:
+        dagster_url: Optional Dagster GraphQL endpoint override.
+
+    Returns:
+        Failing checks or an error dictionary.
+    """
     url = resolve_dagster_url(dagster_url)
 
     try:

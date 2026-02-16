@@ -22,6 +22,11 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata for Trino observatory integration.
+
+        Returns:
+            PluginMetadata: Plugin identity, version, and description.
+        """
         return PluginMetadata(
             name="trino",
             version=VERSION,
@@ -30,6 +35,11 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def manifest(self) -> ObservatoryExtensionManifest:
+        """Return the observatory extension manifest for Trino.
+
+        Returns:
+            ObservatoryExtensionManifest: Manifest defining UI navigation and compatibility.
+        """
         return ObservatoryExtensionManifest(
             name="trino",
             version=VERSION,
@@ -41,4 +51,9 @@ class TrinoObservatoryExtension(ObservatoryExtensionPlugin):
 
     @property
     def asset_root(self) -> Traversable:
+        """Return the root directory containing extension frontend assets.
+
+        Returns:
+            Traversable: Package resource path for observatory static assets.
+        """
         return resources.files("phlo_trino").joinpath("observatory_assets")

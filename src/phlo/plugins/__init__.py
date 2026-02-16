@@ -167,6 +167,17 @@ if TYPE_CHECKING:
 # Import discovery functions lazily to avoid circular imports
 # These will be imported from phlo.plugins.discovery when accessed
 def __getattr__(name):
+    """Lazily expose discovery symbols to avoid import cycles.
+
+    Args:
+        name: Attribute name requested from this module.
+
+    Returns:
+        Resolved symbol from `phlo.plugins.discovery`.
+
+    Raises:
+        AttributeError: If the attribute is not a supported lazy export.
+    """
     if name in [
         "discover_plugins",
         "get_plugin",

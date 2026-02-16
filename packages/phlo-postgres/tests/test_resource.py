@@ -8,6 +8,11 @@ from phlo_postgres.resource import PostgresResource
 
 
 def _resource() -> PostgresResource:
+    """Build a Postgres resource configured for local unit tests.
+
+    Returns:
+        Configured `PostgresResource` instance.
+    """
     return PostgresResource(
         host="localhost",
         port=5432,
@@ -18,6 +23,7 @@ def _resource() -> PostgresResource:
 
 
 def test_context_manager_rolls_back_and_closes_on_error() -> None:
+    """Verify context manager rolls back and closes connection on exception."""
     connection = MagicMock()
     connection.closed = 0
 
@@ -31,6 +37,7 @@ def test_context_manager_rolls_back_and_closes_on_error() -> None:
 
 
 def test_transactional_cursor_commits_on_success() -> None:
+    """Verify transactional cursor commits and closes cursor on success."""
     connection = MagicMock()
     connection.closed = 0
     cursor = MagicMock()
@@ -48,6 +55,7 @@ def test_transactional_cursor_commits_on_success() -> None:
 
 
 def test_transactional_cursor_rolls_back_on_error() -> None:
+    """Verify transactional cursor rolls back and closes cursor on failure."""
     connection = MagicMock()
     connection.closed = 0
     cursor = MagicMock()

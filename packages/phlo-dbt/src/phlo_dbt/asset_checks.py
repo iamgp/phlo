@@ -17,6 +17,18 @@ def extract_dbt_asset_checks(
     partition_key: str | None,
     max_sql_chars: int = 100_000,
 ) -> list[CheckResult]:
+    """Convert dbt run results into Phlo check results.
+
+    Args:
+        run_results: Parsed dbt run results payload.
+        manifest: Parsed dbt manifest payload.
+        translator: Translator used to resolve target asset keys.
+        partition_key: Optional partition key for emitted checks.
+        max_sql_chars: Maximum SQL length to include in metadata.
+
+    Returns:
+        Check results derived from dbt test nodes.
+    """
     nodes = manifest.get("nodes") or {}
     checks: list[CheckResult] = []
 
@@ -105,6 +117,15 @@ def extract_dbt_asset_checks(
 
 
 def _first_str(values: Iterable[object], prefix: str | None = None) -> str | None:
+    """Return the first string entry, optionally filtered by prefix.
+
+    Args:
+        values: Candidate values to inspect.
+        prefix: Optional required string prefix.
+
+    Returns:
+        First matching string, or ``None``.
+    """
     for value in values:
         if not isinstance(value, str):
             continue
@@ -115,6 +136,15 @@ def _first_str(values: Iterable[object], prefix: str | None = None) -> str | Non
 
 
 def _dbt_test_type(test_props: Mapping[str, Any], *, fallback_unique_id: str) -> str:
+    """Infer the dbt test type label from node properties.
+
+    Args:
+        test_props: dbt test node properties.
+        fallback_unique_id: Unique id used as a fallback source.
+
+    Returns:
+        Normalized dbt test type string.
+    """
     test_metadata = test_props.get("test_metadata")
     if isinstance(test_metadata, Mapping):
         name = test_metadata.get("name")
@@ -127,6 +157,14 @@ def _dbt_test_type(test_props: Mapping[str, Any], *, fallback_unique_id: str) ->
 
 
 def _dbt_tags(test_props: Mapping[str, Any]) -> set[str]:
+    """Extract normalized non-empty dbt tags.
+
+    Args:
+        test_props: dbt test node properties.
+
+    Returns:
+        Unique trimmed tag values.
+    """
     tags = test_props.get("tags")
     if not isinstance(tags, list):
         return set()
@@ -138,6 +176,14 @@ def _dbt_tags(test_props: Mapping[str, Any]) -> set[str]:
 
 
 def _dbt_compiled_sql(test_props: Mapping[str, Any]) -> str | None:
+    """Return compiled SQL text from known dbt node keys.
+
+    Args:
+        test_props: dbt test node properties.
+
+    Returns:
+        Compiled SQL text when available, otherwise ``None``.
+    """
     for key in ("compiled_code", "compiled_sql", "raw_code"):
         value = test_props.get(key)
         if isinstance(value, str) and value.strip():
@@ -146,6 +192,15 @@ def _dbt_compiled_sql(test_props: Mapping[str, Any]) -> str | None:
 
 
 def _sample_for_result(result: Mapping[str, Any], *, passed: bool) -> list[dict[str, Any]]:
+    """Build sample metadata for failed dbt tests.
+
+    Args:
+        result: dbt result entry.
+        passed: Whether the test passed.
+
+    Returns:
+        Sample metadata rows for quality diagnostics.
+    """
     if passed:
         return []
     sample: dict[str, Any] = {}
@@ -159,6 +214,15 @@ def _sample_for_result(result: Mapping[str, Any], *, passed: bool) -> list[dict[
 
 
 def _truncate(value: str | None, *, max_chars: int) -> str | None:
+    """Trim long strings to a bounded size.
+
+    Args:
+        value: Candidate value to truncate.
+        max_chars: Maximum output length.
+
+    Returns:
+        Original value when short enough; truncated value otherwise.
+    """
     if value is None:
         return None
     if len(value) <= max_chars:
@@ -167,6 +231,14 @@ def _truncate(value: str | None, *, max_chars: int) -> str | None:
 
 
 def _repro_sql_from_sql(sql: str | None) -> str | None:
+    """Create a reproducible SQL snippet for debugging failed checks.
+
+    Args:
+        sql: Compiled SQL string.
+
+    Returns:
+        SQL with a row limit appended when missing, or ``None``.
+    """
     if sql is None:
         return None
     trimmed = sql.strip()
@@ -179,6 +251,14 @@ def _repro_sql_from_sql(sql: str | None) -> str | None:
 
 
 def _int_or_none(value: object) -> int | None:
+    """Safely coerce a value to ``int``.
+
+    Args:
+        value: Candidate value.
+
+    Returns:
+        Parsed integer value, or ``None`` when coercion fails.
+    """
     if value is None:
         return None
     if isinstance(value, bool):
