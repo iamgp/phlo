@@ -4,18 +4,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+import importlib
 from typing import Any, Optional, cast
 
 import psycopg2
 import psycopg2.extras
 import requests
 from cachetools import TTLCache
+from psycopg2 import Error as PsycopgError
 
 from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings as get_nessie_settings
 from phlo_postgres.settings import get_settings as get_postgres_settings
 
 logger = get_logger(__name__)
+
+
+class MetricsCollectorError(RuntimeError):
+    """Base class for collector-specific failures."""
+
+
+class MetricsDependencyError(MetricsCollectorError):
+    """Raised when an external dependency is unavailable."""
+
+
+class MetricsMalformedResponseError(MetricsCollectorError):
+    """Raised when a backend returns an unexpected payload shape."""
 
 
 @dataclass
@@ -318,8 +332,6 @@ class MetricsCollector:
 
     def _get_asset_runs_from_postgres(self, asset_name: str, limit: int = 10) -> list[RunMetrics]:
         """Get past runs for an asset from Postgres."""
-        runs = []
-
         try:
             conn = psycopg2.connect(
                 host=self.postgres_settings.postgres_host,
@@ -328,62 +340,248 @@ class MetricsCollector:
                 user=self.postgres_settings.postgres_user,
                 password=self.postgres_settings.postgres_password,
             )
-            cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        except PsycopgError as exc:
+            raise MetricsDependencyError("Postgres unavailable for asset run lookup") from exc
 
-            # Mock implementation - actual query depends on Dagster schema
-            # This is a placeholder for the actual implementation
-            cur.execute(
-                """
-                SELECT run_id, start_time, end_time, status
-                FROM dagster_runs
-                WHERE asset_name = %s
-                ORDER BY start_time DESC
-                LIMIT %s
-            """,
-                (asset_name, limit),
-            )
-
-            for row in cur.fetchall():
-                if row:
-                    start = row.get("start_time")
-                    end = row.get("end_time")
-                    duration = None
-                    if start and end:
-                        duration = (end - start).total_seconds()
-
-                    runs.append(
-                        RunMetrics(
-                            asset_name=asset_name,
-                            run_id=row.get("run_id", ""),
-                            start_time=start,
-                            end_time=end,
-                            duration_seconds=duration,
-                            status=row.get("status", "unknown"),
-                        )
-                    )
-
+        runs: list[RunMetrics] = []
+        try:
+            with conn, conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                # Dagster stores per-run asset selection in run_tags; include direct pipeline match fallback.
+                cur.execute(
+                    """
+                    SELECT
+                        r.run_id,
+                        COALESCE(r.start_time, r.create_timestamp) AS start_time,
+                        COALESCE(r.end_time, r.update_timestamp) AS end_time,
+                        r.status
+                    FROM dagster_runs AS r
+                    LEFT JOIN run_tags AS t ON t.run_id = r.run_id
+                    WHERE r.pipeline_name = %s
+                       OR (
+                           t.key = 'dagster/asset_selection'
+                           AND t.value ILIKE %s
+                       )
+                    GROUP BY r.run_id, start_time, end_time, r.status
+                    ORDER BY start_time DESC
+                    LIMIT %s
+                    """,
+                    (asset_name, f"%{asset_name}%", limit),
+                )
+                rows = cur.fetchall()
+        except PsycopgError as exc:
+            raise MetricsDependencyError("Failed querying Dagster run history") from exc
+        finally:
             conn.close()
 
-        except Exception as e:
-            logger.debug(f"Failed to get asset runs from Postgres: {e}")
+        for row in rows:
+            run_id = row.get("run_id")
+            if not isinstance(run_id, str) or not run_id:
+                raise MetricsMalformedResponseError("Dagster run row missing string run_id")
 
+            start = self._coerce_datetime(row.get("start_time"), "start_time")
+            end = self._coerce_datetime(row.get("end_time"), "end_time", allow_none=True)
+            duration = (end - start).total_seconds() if end is not None else None
+
+            runs.append(
+                RunMetrics(
+                    asset_name=asset_name,
+                    run_id=run_id,
+                    start_time=start,
+                    end_time=end,
+                    duration_seconds=duration,
+                    status=self._normalize_status(row.get("status")),
+                )
+            )
         return runs
 
     def _get_iceberg_table_stats(self, table_name: str) -> dict[str, Any]:
         """Get table statistics from Iceberg."""
-        stats: dict[str, Any] = {}
+        trino_connect = self._load_trino_connect()
+        trino_settings = self._load_trino_settings()
+        if "." in table_name:
+            table_schema, raw_table = table_name.split(".", maxsplit=1)
+        else:
+            table_schema = self._resolve_table_schema(table_name, trino_settings.trino_catalog)
+            raw_table = table_name
 
+        safe_schema = self._validate_identifier(table_schema, "table_schema")
+        safe_table = self._validate_identifier(raw_table, "table_name")
+        escaped_files_table = f"{safe_table}$files"
+        stats_sql = (
+            f"SELECT COALESCE(SUM(file_size_in_bytes), 0), COALESCE(SUM(record_count), 0) "
+            f'FROM {trino_settings.trino_catalog}.{safe_schema}."{escaped_files_table}"'
+        )
+
+        conn = None
         try:
-            # Query Trino for table metadata
-            # This would typically be done via PyIceberg or direct Trino query
-            # Placeholder implementation
-            stats["total_bytes"] = 0
-            stats["row_count"] = 0
+            conn = trino_connect(
+                host=trino_settings.trino_host,
+                port=trino_settings.trino_port,
+                user="phlo_metrics",
+                catalog=trino_settings.trino_catalog,
+                schema=safe_schema,
+            )
+            with conn.cursor() as cur:
+                cur.execute(stats_sql)
+                row = cur.fetchone()
+        except Exception as exc:
+            raise MetricsDependencyError(
+                f"Failed querying Iceberg table stats for {table_name}"
+            ) from exc
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
-        except Exception as e:
-            logger.debug(f"Failed to get Iceberg stats for {table_name}: {e}")
+        if row is None or len(row) != 2:
+            raise MetricsMalformedResponseError(
+                f"Unexpected Iceberg table stats shape for {table_name}: {row!r}"
+            )
 
-        return stats
+        return {
+            "total_bytes": self._coerce_int(row[0], "total_bytes"),
+            "row_count": self._coerce_int(row[1], "row_count"),
+        }
+
+    def _resolve_table_schema(self, table_name: str, catalog: str) -> str:
+        """Resolve table schema through Trino information_schema."""
+        trino_connect = self._load_trino_connect()
+
+        safe_table_name = self._validate_identifier(table_name, "table_name")
+        schema_sql = (
+            f"SELECT table_schema FROM {catalog}.information_schema.tables "
+            f"WHERE table_name = '{safe_table_name}' ORDER BY table_schema LIMIT 1"
+        )
+
+        conn = None
+        try:
+            trino_settings = self._load_trino_settings()
+            conn = trino_connect(
+                host=trino_settings.trino_host,
+                port=trino_settings.trino_port,
+                user="phlo_metrics",
+                catalog=catalog,
+            )
+            with conn.cursor() as cur:
+                cur.execute(schema_sql)
+                row = cur.fetchone()
+        except Exception as exc:
+            raise MetricsDependencyError(f"Failed resolving schema for {table_name}") from exc
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+        if row is None or not row or not isinstance(row[0], str) or not row[0]:
+            raise MetricsMalformedResponseError(
+                f"Could not resolve Iceberg schema for table {table_name}"
+            )
+
+        return self._validate_identifier(row[0], "table_schema")
+
+    def _coerce_datetime(
+        self, value: Any, field_name: str, *, allow_none: bool = False
+    ) -> Optional[datetime]:
+        """Coerce database datetime/timestamp value into UTC datetime."""
+        if value is None:
+            if allow_none:
+                return None
+            raise MetricsMalformedResponseError(f"Missing required timestamp field {field_name}")
+
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value.astimezone(timezone.utc)
+
+        if isinstance(value, (int, float)):
+            return datetime.fromtimestamp(value, tz=timezone.utc)
+
+        if isinstance(value, str):
+            normal = value.replace("Z", "+00:00")
+            try:
+                parsed = datetime.fromisoformat(normal)
+            except ValueError as exc:
+                raise MetricsMalformedResponseError(
+                    f"Invalid datetime string for {field_name}: {value!r}"
+                ) from exc
+            if parsed.tzinfo is None:
+                return parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+
+        raise MetricsMalformedResponseError(
+            f"Unsupported datetime value type for {field_name}: {type(value).__name__}"
+        )
+
+    def _coerce_int(self, value: Any, field_name: str) -> int:
+        """Coerce query value into an integer."""
+        if isinstance(value, bool):
+            raise MetricsMalformedResponseError(
+                f"Invalid numeric value for {field_name}: {value!r}"
+            )
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            if not value.is_integer():
+                raise MetricsMalformedResponseError(
+                    f"Expected integer-compatible value for {field_name}, got {value!r}"
+                )
+            return int(value)
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.isdigit() or (stripped.startswith("-") and stripped[1:].isdigit()):
+                return int(stripped)
+        raise MetricsMalformedResponseError(f"Invalid numeric value for {field_name}: {value!r}")
+
+    def _normalize_status(self, value: Any) -> str:
+        """Normalize Dagster status values into metrics statuses."""
+        if not isinstance(value, str):
+            raise MetricsMalformedResponseError(f"Invalid Dagster status value: {value!r}")
+        normalized = value.lower()
+        if normalized in {"success", "succeeded"}:
+            return "success"
+        if normalized in {"failure", "failed", "canceled", "cancelled"}:
+            return "failure"
+        if normalized in {"running", "started", "starting", "queued", "not_started"}:
+            return "running"
+        return normalized
+
+    def _validate_identifier(self, value: str, field_name: str) -> str:
+        """Allow only Trino-safe identifier characters for dynamic SQL."""
+        if not value:
+            raise MetricsMalformedResponseError(f"Empty identifier for {field_name}")
+        if not all(part and part.replace("_", "").isalnum() for part in value.split(".")):
+            raise MetricsMalformedResponseError(f"Invalid identifier for {field_name}: {value!r}")
+        return value
+
+    def _load_trino_connect(self):
+        """Load Trino DB-API connection function lazily."""
+        try:
+            module = importlib.import_module("trino.dbapi")
+        except ModuleNotFoundError as exc:
+            raise MetricsDependencyError(
+                "Trino dependency unavailable; install phlo-trino and trino client"
+            ) from exc
+
+        connect = getattr(module, "connect", None)
+        if not callable(connect):
+            raise MetricsDependencyError("Trino dependency unavailable: missing connect()")
+        return connect
+
+    def _load_trino_settings(self) -> Any:
+        """Load Trino settings lazily from optional phlo-trino package."""
+        try:
+            module = importlib.import_module("phlo_trino.settings")
+        except ModuleNotFoundError as exc:
+            raise MetricsDependencyError(
+                "phlo-trino package unavailable for Iceberg metrics"
+            ) from exc
+
+        get_settings = getattr(module, "get_settings", None)
+        if not callable(get_settings):
+            raise MetricsDependencyError("phlo-trino settings unavailable: missing get_settings()")
+        return get_settings()
 
 
 # Global metrics collector instance
