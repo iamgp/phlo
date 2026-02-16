@@ -485,6 +485,9 @@ pytest tests/ -m integration -v
 # Run only unit tests (exclude integration)
 pytest tests/ -m "not integration" -v
 
+# Run only explicit unit marker tests
+pytest tests/ -m unit -v
+
 # Run with verbose output
 pytest tests/ -v -s
 ```
@@ -580,6 +583,10 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "integration: mark test as integration test (requires Docker)"
+    )
+    config.addinivalue_line(
+        "markers",
+        "unit: mark test as unit test (no external services)"
     )
 
 

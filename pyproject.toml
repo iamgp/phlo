@@ -165,6 +165,7 @@ norecursedirs = ["src", ".venv"]
 addopts = "--ignore=src --continue-on-collection-errors -m 'not integration'"
 markers = [
     "integration: marks tests as requiring external services or dbt manifest (run with '-m integration')",
+    "unit: marks fast tests that do not require external services (run with '-m unit')",
 ]
 filterwarnings = [
     # pyiceberg emits Pydantic v2.12 deprecations from @model_validator usage.
