@@ -2803,11 +2803,11 @@ def iceberg_io_manager(iceberg: IcebergResource):
 <li>Restart Dagster:</li>
 </ol>
 <p><code>bash
-   docker-compose restart dagster-webserver dagster-daemon</code></p>
+   phlo services restart --service dagster</code></p>
 <ol>
 <li>Check logs:
    <code>bash
-   docker-compose logs dagster-webserver</code></li>
+   phlo services logs dagster</code></li>
 </ol>
 <h3 id="asset-fails-to-materialize">Asset Fails to Materialize</h3>
 <p><strong>Debug steps:</strong></p>

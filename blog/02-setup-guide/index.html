@@ -1023,28 +1023,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-issues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Common Issues
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        See Also
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#whats-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1060,6 +1038,28 @@
     <span class="md-ellipsis">
       
         Quick Health Check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
       
     </span>
   </a>
@@ -1512,6 +1512,27 @@ LIMIT 24
 <li>Re-materialize a subset: <code>phlo materialize --select tag:daily</code>.</li>
 <li>Confirm in Dagster that the run succeeded and assets updated.</li>
 </ol>
+<h2 id="whats-next">What's Next?</h2>
+<p>You now have a working lakehouse! Next steps:</p>
+<ol>
+<li><strong>Explore the Data</strong> (Part 3): Understand Iceberg and Nessie</li>
+<li><strong>Understand Ingestion</strong> (Part 4): How DLT + PyIceberg works</li>
+<li><strong>Learn dbt</strong> (Part 5): SQL transformations</li>
+<li><strong>Master Dagster</strong> (Part 6): Orchestration and dependencies</li>
+</ol>
+<p>But first, let's make sure everything works by running a quick health check.</p>
+<h2 id="quick-health-check">Quick Health Check</h2>
+<pre><code class="language-bash"># Check all services at once
+phlo services status
+
+# Or use the health endpoint
+curl http://localhost:8080/v1/info         # Trino
+curl http://localhost:19120/api/v2/config  # Nessie
+curl http://localhost:3000/graphql         # Dagster
+</code></pre>
+<p>Or run the CLI check:</p>
+<pre><code class="language-bash">phlo services list --json
+</code></pre>
 <h2 id="common-issues">Common Issues</h2>
 <ul>
 <li><strong>Services fail to start</strong></li>
@@ -1551,27 +1572,6 @@ phlo services logs dagster-daemon
 <p>See <a href="../../operations/troubleshooting/">Troubleshooting Guide</a> for deeper diagnostics.</p>
 <h2 id="see-also">See Also</h2>
 <p>See also: <a href="../01-intro-data-lakehouse/">Part 1: What is a Data Lakehouse?</a>, <a href="../05-data-ingestion/">Part 5: Data Ingestion with DLT</a>, <a href="../07-orchestration-dagster/">Part 7: Orchestration with Dagster</a>. Reference: <a href="../../reference/cli-reference/">CLI Reference</a>.</p>
-<h2 id="whats-next">What's Next?</h2>
-<p>You now have a working lakehouse! Next steps:</p>
-<ol>
-<li><strong>Explore the Data</strong> (Part 3): Understand Iceberg and Nessie</li>
-<li><strong>Understand Ingestion</strong> (Part 4): How DLT + PyIceberg works</li>
-<li><strong>Learn dbt</strong> (Part 5): SQL transformations</li>
-<li><strong>Master Dagster</strong> (Part 6): Orchestration and dependencies</li>
-</ol>
-<p>But first, let's make sure everything works by running a quick health check.</p>
-<h2 id="quick-health-check">Quick Health Check</h2>
-<pre><code class="language-bash"># Check all services at once
-phlo services status
-
-# Or use the health endpoint
-curl http://localhost:8080/v1/info         # Trino
-curl http://localhost:19120/api/v2/config  # Nessie
-curl http://localhost:3000/graphql         # Dagster
-</code></pre>
-<p>Or run the CLI check:</p>
-<pre><code class="language-bash">phlo services list --json
-</code></pre>
 <h2 id="summary">Summary</h2>
 <p>You've successfully:</p>
 <ul>

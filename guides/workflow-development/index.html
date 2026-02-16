@@ -2587,7 +2587,7 @@ def build_weather_ingestion_defs() -&gt; dg.Definitions:
 <p>No manual registration is needed. Phlo discovers all Python files under <code>workflows/</code> automatically.</p>
 <h3 id="25-test-the-ingestion">2.5 Test the Ingestion</h3>
 <pre><code class="language-bash"># Reload Dagster
-docker-compose restart dagster-webserver dagster-daemon
+phlo services restart --service dagster
 
 # Open Dagster UI
 # Navigate to Assets → dlt_weather_data
