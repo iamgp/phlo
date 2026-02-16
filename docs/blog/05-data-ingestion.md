@@ -759,13 +759,7 @@ append_parquet(table, data)  # Second run duplicates!
 # Result: 576 rows (corrupted)
 ```
 
-## Next: Transformations
-
-Data is now in the lakehouse. Next: **Transform it with dbt and Trino**.
-
-**Part 6: SQL Transformations with dbt**
-
-See you there!
+Data is now in the lakehouse. Next: **transform it with dbt and Trino**.
 
 ## Common Issues
 

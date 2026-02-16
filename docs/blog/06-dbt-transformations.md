@@ -628,13 +628,7 @@ LEFT JOIN (
 ) dim ...
 ```
 
-## Next: Orchestration
-
-We have ingestion and transformation. Now: **Who runs this, and when?**
-
-**Part 7: Orchestration with Dagster**
-
-See you there!
+We have ingestion and transformation. Now: **who runs this, and when?**
 
 ## Common Issues
 

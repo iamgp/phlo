@@ -732,18 +732,7 @@ Breaking this down:
 - **Warehouse**: Iceberg data files in MinIO S3
 - **S3 access**: Credentials for MinIO
 
-## Next: Data Ingestion
-
-Now we understand:
-
-- Iceberg: Table format with snapshots and time travel
-- Nessie: Git-like branching on top of Iceberg
-
-Next: How does data actually get into this system?
-
-**Part 5: Data Ingestion with DLT and PyIceberg**
-
-See you then!
+Now we understand Iceberg (table format with snapshots and time travel) and Nessie (Git-like branching on top of Iceberg). Next: how does data actually get into this system?
 
 ## Common Issues
 
