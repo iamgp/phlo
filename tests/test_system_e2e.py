@@ -59,7 +59,9 @@ class TestDefinitionsStructure:
                 k = getattr(asset, "key", None)
                 if k:
                     seen.append(str(k))
-        assert len(seen) == len(set(seen)), f"duplicate asset keys: {[k for k in seen if seen.count(k) > 1]}"
+        assert len(seen) == len(set(seen)), (
+            f"duplicate asset keys: {[k for k in seen if seen.count(k) > 1]}"
+        )
 
     def test_publish_assets_have_upstream_dependencies(self):
         """Publish assets are downstream of other assets (not isolated nodes)."""
