@@ -51,7 +51,7 @@ def status(
     group: Optional[str],
     stale: bool,
     output_json: bool,
-):
+) -> None:
     """
     Show current state of assets, jobs, and services.
 

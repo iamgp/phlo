@@ -11,8 +11,7 @@ import { createServerFn } from '@tanstack/react-start'
 const execAsync = promisify(exec)
 const pluginCommand = process.env.PHLO_PLUGIN_COMMAND ?? 'phlo'
 const registryUrl =
-  process.env.PHLO_PLUGIN_REGISTRY_URL ??
-  'https://phlohouse.com/plugins.json'
+  process.env.PHLO_PLUGIN_REGISTRY_URL ?? 'https://phlohouse.com/plugins.json'
 const defaultRegistryTimeoutMs = 5000
 const defaultRegistryCacheTtlMs = 5 * 60 * 1000
 const defaultRegistryStaleOnErrorMs = 24 * 60 * 60 * 1000
