@@ -1854,7 +1854,7 @@ phlo services start --build
 <pre><code class="language-bash">--volumes, -v        # Remove volumes (deletes all data)
 --profile PROFILE    # Stop only services in specified profile
 --service SERVICE    # Stop specific service(s)
---stop-native        # Also stop native subprocess services
+--native             # Also stop native subprocess services
 </code></pre>
 <p><strong>Examples</strong>:</p>
 <pre><code class="language-bash"># Stop all services (preserve data)
@@ -1952,7 +1952,6 @@ dagster-daemon       running
 <p><strong>Options</strong>:</p>
 <pre><code class="language-bash">--follow, -f         # Follow log output
 --tail N             # Show last N lines
---timestamps         # Show timestamps
 </code></pre>
 <p><strong>Examples</strong>:</p>
 <pre><code class="language-bash"># All logs
@@ -1971,7 +1970,8 @@ phlo services logs --tail 100 trino
 <pre><code class="language-bash">phlo plugin list [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
-<pre><code class="language-bash">--type TYPE          # Filter by plugin type (sources, quality, transforms, services, hooks, dagster, cli)
+<pre><code class="language-bash">--type TYPE          # Filter by plugin type (sources, quality, transforms, services, hooks, assets, resources, orchestrators, catalogs, all)
+--all                # Include registry plugins in output
 --json               # Output as JSON
 </code></pre>
 <p><strong>Examples</strong>:</p>
@@ -2030,19 +2030,13 @@ phlo plugin search --tag observability
 <p>Install a plugin from the registry.</p>
 <pre><code class="language-bash">phlo plugin install PLUGIN_NAME [OPTIONS]
 </code></pre>
-<p><strong>Options</strong>:</p>
-<pre><code class="language-bash">--version VERSION    # Specific version to install
---upgrade            # Upgrade if already installed
-</code></pre>
+<p><strong>Options</strong>: none</p>
 <p><strong>Examples</strong>:</p>
 <pre><code class="language-bash"># Install a plugin
 phlo plugin install phlo-superset
 
 # Install specific version
-phlo plugin install phlo-superset --version 0.2.0
-
-# Upgrade existing
-phlo plugin install phlo-superset --upgrade
+phlo plugin install phlo-superset==0.2.0
 </code></pre>
 <h3 id="phlo-plugin-info">phlo plugin info</h3>
 <p>Show detailed information about a plugin.</p>
@@ -2079,31 +2073,29 @@ Service Details:
 </code></pre>
 <h3 id="phlo-plugin-update">phlo plugin update</h3>
 <p>Update plugins to latest versions.</p>
-<pre><code class="language-bash">phlo plugin update [PLUGIN_NAME] [OPTIONS]
+<pre><code class="language-bash">phlo plugin update [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
-<pre><code class="language-bash">--all                # Update all plugins
---check              # Check for updates without installing
+<pre><code class="language-bash">--dry-run            # Show available updates without applying
+--json               # Output available updates as JSON
 </code></pre>
 <p><strong>Examples</strong>:</p>
-<pre><code class="language-bash"># Update specific plugin
-phlo plugin update phlo-superset
+<pre><code class="language-bash"># Update available plugins
+phlo plugin update
 
-# Update all plugins
-phlo plugin update --all
+# Check for updates without installing
+phlo plugin update --dry-run
 
-# Check for updates
-phlo plugin update --check
+# JSON output
+phlo plugin update --json
 </code></pre>
 <h3 id="phlo-plugin-create">phlo plugin create</h3>
 <p>Create a new plugin scaffold (for plugin development).</p>
 <pre><code class="language-bash">phlo plugin create PLUGIN_NAME --type TYPE [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
-<pre><code class="language-bash">--type TYPE          # Plugin type: source, quality, transform, service
+<pre><code class="language-bash">--type TYPE          # Plugin type: sources, quality, transforms, services, hooks, catalogs, assets, resources, orchestrators
 --path PATH          # Custom output path
---author AUTHOR      # Author name
---description DESC   # Plugin description
 </code></pre>
 <p><strong>Examples</strong>:</p>
 <pre><code class="language-bash"># Create source connector plugin
@@ -2150,8 +2142,7 @@ phlo plugin check --json
 </code></pre>
 <p><strong>Options</strong>:</p>
 <pre><code class="language-bash">--template TEMPLATE      # Project template (default: basic)
---directory PATH         # Target directory
---no-git                 # Don't initialize git repository
+--force                  # Initialize in non-empty directory
 </code></pre>
 <p><strong>Templates</strong>:</p>
 <ul>
@@ -2180,7 +2171,7 @@ cd my-lakehouse
 <p><strong>Options</strong>:</p>
 <pre><code class="language-bash">--port PORT          # Port for webserver (default: 3000)
 --host HOST          # Host to bind (default: 127.0.0.1)
---workspace PATH     # Path to workspace.yaml
+--workflows-path PATH # Path to workflows directory
 </code></pre>
 <p><strong>Example</strong>:</p>
 <pre><code class="language-bash">phlo dev --port 3000
@@ -2192,11 +2183,13 @@ cd my-lakehouse
 <pre><code class="language-bash">phlo workflow create [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
-<pre><code class="language-bash">--type TYPE          # Workflow type: ingestion, quality, transform
+<pre><code class="language-bash">--type TYPE          # Workflow type (currently: ingestion)
 --domain DOMAIN      # Domain/namespace (e.g., api, files)
 --table TABLE        # Table name
 --unique-key KEY     # Unique key column
---non-interactive    # Non-interactive mode (requires all options)
+--cron CRON          # Cron schedule expression
+--api-base-url URL   # REST API base URL (optional)
+--field NAME:TYPE    # Additional schema field (repeatable)
 </code></pre>
 <p><strong>Interactive prompts</strong>:</p>
 <ol>
@@ -2204,8 +2197,8 @@ cd my-lakehouse
 <li>Domain name</li>
 <li>Table name</li>
 <li>Unique key column</li>
-<li>Validation schema (optional)</li>
 <li>Schedule (cron expression)</li>
+<li>API base URL (optional)</li>
 </ol>
 <p><strong>Example (interactive)</strong>:</p>
 <pre><code class="language-bash">phlo workflow create
@@ -2228,13 +2221,12 @@ cd my-lakehouse
 <h2 id="asset-commands">Asset Commands</h2>
 <h3 id="phlo-materialize">phlo materialize</h3>
 <p>Materialize Dagster assets.</p>
-<pre><code class="language-bash">phlo materialize [ASSET_KEYS...] [OPTIONS]
+<pre><code class="language-bash">phlo materialize ASSET_NAME [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
 <pre><code class="language-bash">--select SELECTOR        # Asset selection query
 --partition PARTITION    # Specific partition to materialize
---tags TAG=VALUE         # Filter by tags
---all                    # Materialize all assets
+--dry-run                # Show command without executing
 </code></pre>
 <p><strong>Selection Syntax</strong>:</p>
 <pre><code class="language-bash">asset_name               # Single asset
@@ -2257,11 +2249,8 @@ phlo materialize dlt_glucose_entries --partition 2025-01-15
 # By tag
 phlo materialize --select "tag:nightscout"
 
-# Multiple assets
-phlo materialize asset1 asset2 asset3
-
-# All assets
-phlo materialize --all
+# Dry run
+phlo materialize dlt_glucose_entries --dry-run
 </code></pre>
 <h2 id="testing-commands">Testing Commands</h2>
 <h3 id="phlo-test">phlo test</h3>
@@ -2272,7 +2261,6 @@ phlo materialize --all
 <pre><code class="language-bash">--local              # Skip Docker integration tests
 --verbose, -v        # Verbose output
 --marker, -m MARKER  # Run tests with marker
---keyword, -k EXPR   # Run tests matching keyword
 --coverage           # Generate coverage report
 </code></pre>
 <p><strong>Markers</strong>:</p>
@@ -2611,9 +2599,11 @@ phlo env export --include-secrets --output env.full
 <pre><code class="language-bash">phlo status [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
-<pre><code class="language-bash">--stale              # Show only stale assets
---failed             # Show only failed assets
+<pre><code class="language-bash">--assets             # Show assets only
+--services           # Show services only
+--stale              # Show only stale assets
 --group GROUP        # Filter by group
+--json               # JSON output for scripting
 </code></pre>
 <p><strong>Example</strong>:</p>
 <pre><code class="language-bash">phlo status
@@ -2625,11 +2615,12 @@ phlo status --group nightscout
 <pre><code class="language-bash">phlo validate-schema SCHEMA_PATH [OPTIONS]
 </code></pre>
 <p><strong>Options</strong>:</p>
-<pre><code class="language-bash">--data DATA_PATH     # Validate against sample data
+<pre><code class="language-bash">--check-constraints  # Check that constraints are defined
+--check-descriptions # Check that field descriptions are present
 </code></pre>
 <p><strong>Example</strong>:</p>
 <pre><code class="language-bash">phlo validate-schema workflows/schemas/events.py
-phlo validate-schema workflows/schemas/events.py --data sample.parquet
+phlo validate-schema workflows/schemas/events.py --no-check-descriptions
 </code></pre>
 <h3 id="phlo-validate-workflow">phlo validate-workflow</h3>
 <p>Validate workflow configuration.</p>
@@ -2737,7 +2728,7 @@ phlo workflow create
 phlo test
 
 # 6. Materialize
-phlo materialize --all
+phlo materialize dlt_events
 </code></pre>
 <h3 id="development-workflow">Development Workflow</h3>
 <pre><code class="language-bash"># Start Observatory/phlo-api natively (no Docker)
@@ -2750,7 +2741,7 @@ phlo branch create feature-new-workflow
 phlo workflow create
 
 # Test workflow
-phlo test workflows/ingestion/api/events.py
+phlo test events
 
 # Materialize to test
 phlo materialize dlt_events --partition 2025-01-15
@@ -2765,8 +2756,8 @@ phlo services status
 # View logs
 phlo services logs -f dagster-webserver
 
-# Check asset status
-phlo status --failed
+# Check stale assets
+phlo status --stale
 
 # Validate configuration
 phlo config validate

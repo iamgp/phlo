@@ -1813,14 +1813,14 @@ def ingest_users():
     pass
 </code></pre>
 <h3 id="cli-commands">CLI Commands</h3>
-<pre><code class="language-bash"># Run quality checks
-phlo quality run --asset bronze.users
+<pre><code class="language-bash"># List discovered schemas
+phlo schema list
 
-# List available checks
-phlo quality list
+# Validate a schema file
+phlo validate-schema workflows/schemas/users.py
 
-# Run all quality checks
-phlo quality run --all
+# Validate workflow decorators and contracts
+phlo validate-workflow workflows/ingestion/
 </code></pre>
 <h2 id="built-in-checks">Built-in Checks</h2>
 <table>
@@ -1909,8 +1909,8 @@ class MyCustomCheck(QualityCheckPlugin):
 <td><code>quality</code> CLI commands</td>
 </tr>
 <tr>
-<td><code>phlo.plugins.quality</code></td>
-<td>Built-in check plugins</td>
+<td><code>phlo.plugins.observatory</code></td>
+<td>Quality observatory extension</td>
 </tr>
 </tbody>
 </table>
