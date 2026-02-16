@@ -96,6 +96,7 @@ members = [".", "packages/*"]
 # Canonical source of truth: `[dependency-groups].dev` (keep lists in sync).
 dev-dependencies = [
     "pytest>=8.4.2",
+    "pytest-cov>=6.0",
     "sqlfluff>=3.5.0",
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
@@ -136,6 +137,7 @@ phlo-observatory-example = { workspace = true }
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "pytest-cov>=6.0",
     "sqlfluff>=3.5.0",
     "phlo-dlt>=0.1.0",
     "phlo-iceberg>=0.1.0",
