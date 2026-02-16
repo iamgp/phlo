@@ -223,7 +223,7 @@ def weather_observations(partition_date: str):
 4. Restart Dagster:
 
 ```bash
-phlo services restart dagster
+phlo services restart --service dagster
 ```
 
 5. Materialize in UI!
@@ -276,7 +276,7 @@ make up-core up-query
 
 ```bash
 # Restart Dagster
-phlo services restart dagster
+phlo services restart --service dagster
 
 # Ensure asset file lives under workflows/ and imports cleanly
 ```

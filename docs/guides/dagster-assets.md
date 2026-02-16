@@ -842,7 +842,7 @@ def iceberg_io_manager(iceberg: IcebergResource):
 2. Restart Dagster:
 
    ```bash
-   phlo services restart dagster
+   phlo services restart --service dagster
    ```
 
 3. Check logs:
