@@ -30,15 +30,13 @@ Available Checks:
 
 from phlo_quality.checks import (
     CountCheck,
-    CustomSQLCheck,
     FreshnessCheck,
     NullCheck,
-    PatternCheck,
     QualityCheck,
     RangeCheck,
-    SchemaCheck,
     UniqueCheck,
 )
+from phlo_quality.checks_extra import CustomSQLCheck, PatternCheck, SchemaCheck
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract, dbt_check_name
 from phlo_quality.decorator import clear_quality_checks, get_quality_checks, phlo_quality
 from phlo_quality.reconciliation import (

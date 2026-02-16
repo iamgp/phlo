@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 from phlo.logging import get_logger
 from phlo_quality.checks import (
     CountCheck,
-    CustomSQLCheck,
     FreshnessCheck,
     NullCheck,
     QualityCheckResult,
     RangeCheck,
     UniqueCheck,
 )
+from phlo_quality.checks_extra import CustomSQLCheck
 
 if TYPE_CHECKING:
     from phlo_openmetadata.openmetadata import OpenMetadataClient
