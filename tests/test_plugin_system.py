@@ -34,6 +34,11 @@ class DummySourcePlugin(SourceConnectorPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy source plugin.
+        """
         return PluginMetadata(
             name="test_source",
             version="1.0.0",
@@ -51,6 +56,11 @@ class DummyQualityPlugin(QualityCheckPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy quality plugin.
+        """
         return PluginMetadata(
             name="test_quality",
             version="1.0.0",
@@ -67,6 +77,11 @@ class DummyTransformPlugin(TransformationPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy transform plugin.
+        """
         return PluginMetadata(
             name="test_transform",
             version="1.0.0",
@@ -83,6 +98,11 @@ class DummyServicePlugin(ServicePlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata.
+
+        Returns:
+            PluginMetadata: Metadata for the dummy service plugin.
+        """
         return PluginMetadata(
             name="test_service",
             version="1.0.0",
@@ -91,6 +111,11 @@ class DummyServicePlugin(ServicePlugin):
 
     @property
     def service_definition(self) -> dict:
+        """Return a minimal service definition for tests.
+
+        Returns:
+            dict: Service category and compose image config.
+        """
         return {
             "category": "core",
             "compose": {"image": "test-service:latest"},
@@ -210,6 +235,8 @@ class TestPluginValidation:
         """Test validation fails for missing metadata."""
 
         class BadPlugin:
+            """Plugin-like object missing required metadata and methods."""
+
             pass
 
         assert clean_registry.validate_plugin(BadPlugin()) is False
@@ -220,11 +247,26 @@ class TestPluginValidation:
         # so we test with a mock that has the structure but missing callable
 
         class BrokenSource(SourceConnectorPlugin):
+            """Source plugin with fetch method intentionally overridden in test."""
+
             @property
             def metadata(self):
+                """Return placeholder metadata for the broken source.
+
+                Returns:
+                    PluginMetadata: Minimal metadata for validation tests.
+                """
                 return PluginMetadata(name="broken", version="1.0.0")
 
             def fetch_data(self, config):
+                """Return a non-generator payload used in validation tests.
+
+                Args:
+                    config: Source configuration.
+
+                Returns:
+                    list: Placeholder rows.
+                """
                 return []
 
         plugin = BrokenSource()
@@ -246,8 +288,15 @@ class TestPluginListing:
         plugin1 = DummySourcePlugin()
 
         class AnotherSourcePlugin(SourceConnectorPlugin):
+            """Additional source connector used to test listing behavior."""
+
             @property
             def metadata(self) -> PluginMetadata:
+                """Return plugin metadata.
+
+                Returns:
+                    PluginMetadata: Metadata for the second source plugin.
+                """
                 return PluginMetadata(
                     name="test_source2",
                     version="1.0.0",
@@ -255,6 +304,14 @@ class TestPluginListing:
                 )
 
             def fetch_data(self, config):
+                """Yield one row for list tests.
+
+                Args:
+                    config: Source configuration.
+
+                Yields:
+                    dict: Dummy source row.
+                """
                 yield {"id": 2, "value": "test2"}
 
         plugin2 = AnotherSourcePlugin()

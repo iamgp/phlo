@@ -8,13 +8,16 @@ from phlo.plugins.hooks import FailurePolicy, HookFilter, HookRegistration
 
 
 def test_hook_bus_filters_and_ordering() -> None:
+    """Verify hook execution order honors filters and priority."""
     bus = MockHookBus()
     calls: list[str] = []
 
     def handler_a(_event) -> None:
+        """Record invocation of the lower-priority handler."""
         calls.append("a")
 
     def handler_b(_event) -> None:
+        """Record invocation of the higher-priority handler."""
         calls.append("b")
 
     bus.register(
@@ -47,9 +50,11 @@ def test_hook_bus_filters_and_ordering() -> None:
 
 
 def test_hook_bus_failure_policy_raise() -> None:
+    """Verify exceptions propagate when failure policy is set to raise."""
     bus = MockHookBus()
 
     def handler(_event) -> None:
+        """Raise a fixed error to validate failure propagation behavior."""
         raise RuntimeError("boom")
 
     bus.register(

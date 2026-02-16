@@ -23,6 +23,8 @@ def test_fetch_registry_uses_local_cache(monkeypatch):
     }
 
     class DummySettings:
+        """Settings stub for exercising local-registry fallback path."""
+
         plugin_registry_url = ""
         plugin_registry_cache_ttl_seconds = 3600
         plugin_registry_timeout_seconds = 1
@@ -63,6 +65,8 @@ def test_search_plugins_filters(monkeypatch):
     }
 
     class DummySettings:
+        """Settings stub for exercising cached registry search behavior."""
+
         plugin_registry_url = ""
         plugin_registry_cache_ttl_seconds = 3600
         plugin_registry_timeout_seconds = 1
