@@ -3,7 +3,6 @@
 import asyncio
 import signal
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -70,9 +69,9 @@ def start_cmd(
     project_name = get_project_name()
 
     if not compose_file.exists():
-        click.echo("Error: docker-compose.yml not found.", err=True)
-        click.echo("Run 'phlo services init' first.", err=True)
-        sys.exit(1)
+        raise click.ClickException(
+            "docker-compose.yml not found. Run 'phlo services init' first."
+        )
 
     # Parse comma-separated services
     services_list = []
@@ -131,7 +130,10 @@ def start_cmd(
     if native and services_list and discovery:
         all_services = discovery.discover()
         requested_defs = [svc for name, svc in all_services.items() if name in services_list]
-        resolved = discovery.resolve_dependencies(requested_defs)
+        try:
+            resolved = discovery.resolve_dependencies(requested_defs)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
         required_docker_services = [
             svc.name for svc in resolved if svc.name not in native_service_names
         ]
@@ -220,7 +222,12 @@ def start_cmd(
                             if dep and dep.name not in expanded:
                                 expanded[dep.name] = dep
                                 queue.append(dep)
-                    native_to_start = discovery.resolve_dependencies(list(expanded.values()))
+                    try:
+                        native_to_start = discovery.resolve_dependencies(
+                            list(expanded.values())
+                        )
+                    except ValueError as exc:
+                        raise click.ClickException(str(exc)) from exc
                 else:
                     native_to_start = [available[n] for n in sorted(available)]
 
@@ -362,14 +369,14 @@ def start_cmd(
                 status="failure",
                 metadata={"native": False, "returncode": result.returncode},
             )
-            click.echo(f"Error: docker compose failed with code {result.returncode}", err=True)
-            click.echo(f"Command: {' '.join(cmd)}", err=True)
-            sys.exit(result.returncode)
+            raise click.ClickException(
+                f"docker compose failed (exit {result.returncode}): {' '.join(cmd)}"
+            )
     except FileNotFoundError:
-        click.echo("Error: docker command not found.", err=True)
-        click.echo("Please install Docker: https://docs.docker.com/get-docker/", err=True)
-        sys.exit(1)
-    except Exception as exc:
-        click.echo(f"Error: docker compose failed unexpectedly: {exc}", err=True)
-        click.echo(f"Command: {' '.join(cmd)}", err=True)
-        sys.exit(1)
+        raise click.ClickException(
+            "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        raise click.ClickException(
+            f"docker compose failed unexpectedly: {exc}"
+        ) from exc

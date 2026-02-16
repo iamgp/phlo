@@ -19,6 +19,30 @@ from phlo.plugins.discovery.registry import get_global_registry
 logger = get_logger(__name__)
 
 
+def _find_cycles(nodes: set[str], graph: dict[str, set[str]]) -> list[list[str]]:
+    """Extract individual cycles from a dependency graph subset."""
+    cycles: list[list[str]] = []
+    visited: set[str] = set()
+    for start in sorted(nodes):
+        if start in visited:
+            continue
+        path: list[str] = []
+        current = start
+        while current and current not in visited:
+            visited.add(current)
+            path.append(current)
+            neighbors = graph.get(current, set()) & nodes
+            current = next(iter(sorted(neighbors - set(path))), None)
+            if current is None:
+                # Close the cycle back to start if reachable
+                if start in graph.get(path[-1], set()):
+                    path.append(start)
+                break
+        if len(path) > 1:
+            cycles.append(path)
+    return cycles
+
+
 @dataclass(slots=True)
 class ServiceDefinition:
     """Represents a parsed service.yaml definition."""
@@ -314,9 +338,10 @@ class ServiceDiscovery:
                     queue.append(neighbor)
 
         if len(result) != len(services):
-            # Circular dependency detected
             remaining = set(in_degree.keys()) - set(result)
-            raise ValueError(f"Circular dependency detected among: {remaining}")
+            cycles = _find_cycles(remaining, graph)
+            cycle_detail = "; ".join(" → ".join(c) for c in cycles) if cycles else str(remaining)
+            raise ValueError(f"Circular dependency detected: {cycle_detail}")
 
         # Return services in sorted order
         name_to_service = {s.name: s for s in services}
