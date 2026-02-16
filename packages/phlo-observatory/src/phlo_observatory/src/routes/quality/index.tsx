@@ -74,29 +74,24 @@ function QualityDashboard() {
   )
 }
 
-function QualityDashboardContent({
+export type QualityDashboardData =
+  | {
+      overview: QualityOverview
+      failingChecks: Array<QualityCheck>
+      recentExecutions: Array<RecentCheckExecution>
+      checks: Array<QualityCheck>
+    }
+  | { error: string }
+
+export function QualityDashboardContent({
   data,
 }: {
-  data:
-    | {
-        overview: QualityOverview
-        failingChecks: Array<QualityCheck>
-        recentExecutions: Array<RecentCheckExecution>
-        checks: Array<QualityCheck>
-      }
-    | { error: string }
+  data: QualityDashboardData
 }) {
   const router = useRouter()
 
   const hasError = 'error' in data
-  const dashboardData = hasError
-    ? null
-    : (data as {
-        overview: QualityOverview
-        failingChecks: Array<QualityCheck>
-        recentExecutions: Array<RecentCheckExecution>
-        checks: Array<QualityCheck>
-      })
+  const dashboardData = hasError ? null : data
 
   return (
     <div className="h-full overflow-auto">
