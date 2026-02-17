@@ -122,14 +122,14 @@ class NativeProcessManager:
             NativeProcess if started, None if not supported.
         """
         if not self.can_run_dev(service):
-            logger.warning(f"Service {service.name} does not support dev mode subprocess")
+            logger.warning("service_dev_mode_not_supported", service_name=service.name)
             return None
 
         dev_config = service.dev
         command = dev_config.get("command", [])
 
         if not command:
-            logger.error(f"Service {service.name} has no dev command")
+            logger.error("service_missing_dev_command", service_name=service.name)
             return None
 
         # Build environment
@@ -160,7 +160,7 @@ class NativeProcessManager:
                     should_build = False
             build_cmd = dev_config.get("build_command", [])
             if build_cmd and should_build:
-                logger.info(f"Building {service.name}...")
+                logger.info("service_build_started", service_name=service.name)
                 try:
                     build_result = subprocess.run(
                         build_cmd,
@@ -171,14 +171,22 @@ class NativeProcessManager:
                         timeout=300,  # 5 minute timeout for builds
                     )
                     if build_result.returncode != 0:
-                        logger.error(f"Build failed for {service.name}: {build_result.stderr}")
+                        logger.error(
+                            "service_build_failed",
+                            service_name=service.name,
+                            stderr=build_result.stderr,
+                        )
                         return None
                 except subprocess.TimeoutExpired:
-                    logger.error(f"Build timed out for {service.name}")
+                    logger.error("service_build_timed_out", service_name=service.name)
                     return None
 
         # Start the process
-        logger.info(f"Starting {service.name} in dev mode: {' '.join(command)}")
+        logger.info(
+            "service_dev_starting",
+            service_name=service.name,
+            command=" ".join(command),
+        )
         log_file: TextIO | None = None
         try:
             stdout = None
@@ -196,8 +204,8 @@ class NativeProcessManager:
                 text=True,
                 start_new_session=True,
             )
-        except Exception as e:
-            logger.error(f"Failed to start {service.name}: {e}")
+        except Exception:
+            logger.exception("service_start_failed", service_name=service.name)
             if log_file is not None:
                 try:
                     log_file.close()
@@ -220,7 +228,10 @@ class NativeProcessManager:
         if health_check_url:
             healthy = await self._wait_for_health(health_check_url, timeout=30)
             if not healthy:
-                logger.warning(f"Service {service.name} started but health check failed")
+                logger.warning(
+                    "service_health_check_failed_after_start",
+                    service_name=service.name,
+                )
 
         return native_process
 
@@ -245,17 +256,17 @@ class NativeProcessManager:
             return True
 
         # Try graceful shutdown first
-        logger.info(f"Stopping {name} (pid {process.pid})...")
+        logger.info("service_stopping", service_name=name, pid=process.pid)
         try:
             process.send_signal(signal.SIGTERM)
             try:
                 process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
-                logger.warning(f"Service {name} did not stop gracefully, killing...")
+                logger.warning("service_force_kill", service_name=name)
                 process.kill()
                 process.wait(timeout=5)
-        except Exception as e:
-            logger.error(f"Error stopping {name}: {e}")
+        except Exception:
+            logger.exception("service_stop_failed", service_name=name)
             return False
 
         native_process.close_log_file()

@@ -8,12 +8,14 @@ import sys
 import click
 from rich.console import Console
 
+from phlo.logging import get_logger
 from phlo_openmetadata.dbt_sync import DbtManifestParser
 from phlo_openmetadata.nessie_sync import sync_nessie_tables_to_openmetadata
 from phlo_openmetadata.openmetadata import OpenMetadataClient
 from phlo_openmetadata.settings import get_settings
 
 console = Console()
+logger = get_logger(__name__)
 
 
 @click.group()
@@ -35,10 +37,13 @@ def health() -> None:
         service_type=cfg.openmetadata_service_type,
         database_name=cfg.openmetadata_database(),
     )
+    logger.debug("openmetadata_health_check_started")
     ok = client.health_check()
     if ok:
+        logger.info("openmetadata_health_check_succeeded")
         console.print("[green]OpenMetadata is reachable[/green]")
         return
+    logger.warning("openmetadata_health_check_failed")
     console.print("[red]OpenMetadata is not reachable[/red]")
     sys.exit(1)
 
@@ -55,6 +60,13 @@ def sync(
     dbt_schema: str | None,
 ) -> None:
     """Sync Nessie catalog (and optionally dbt docs) into OpenMetadata."""
+    logger.info(
+        "openmetadata_sync_started",
+        include_namespaces=list(include_namespace),
+        exclude_namespaces=list(exclude_namespace),
+        dbt_enabled=dbt,
+        dbt_schema=dbt_schema,
+    )
     cfg = get_settings()
     client = OpenMetadataClient(
         base_url=cfg.openmetadata_uri(),
@@ -68,6 +80,7 @@ def sync(
     )
 
     if not client.health_check():
+        logger.warning("openmetadata_sync_health_check_failed")
         console.print("[red]OpenMetadata is not reachable[/red]")
         sys.exit(1)
 
@@ -80,6 +93,7 @@ def sync(
         include_namespaces=list(include_namespace) or None,
         exclude_namespaces=list(exclude_namespace) or None,
     )
+    logger.info("openmetadata_nessie_sync_completed", stats=nessie_stats)
     console.print(f"[green]Nessie sync[/green]: {nessie_stats}")
 
     if dbt:
@@ -98,8 +112,11 @@ def sync(
                     dbt_stats["created"] += partial.get("created", 0)
                     dbt_stats["failed"] += partial.get("failed", 0)
             console.print(f"[green]dbt sync[/green]: {dbt_stats}")
+            logger.info("openmetadata_dbt_sync_completed", stats=dbt_stats)
         except FileNotFoundError:
+            logger.warning("openmetadata_dbt_manifest_missing")
             console.print("[yellow]dbt manifest not found; skipping dbt sync[/yellow]")
         except json.JSONDecodeError as e:
+            logger.error("openmetadata_dbt_manifest_invalid_json", error=str(e))
             console.print(f"[red]Failed to parse dbt manifest: {e}[/red]")
             sys.exit(1)

@@ -6,6 +6,9 @@ import socket
 from typing import Any
 
 import requests
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _resolve_hasura_url(url: str) -> str:
@@ -46,7 +49,14 @@ def _resolve_hasura_url(url: str) -> str:
         # Can't resolve - we're likely running on the host, not in Docker
         # Use localhost with the exposed port from environment
         exposed_port = os.environ.get("HASURA_PORT", port)
-        return f"{protocol}://localhost:{exposed_port}{path}"
+        resolved_url = f"{protocol}://localhost:{exposed_port}{path}"
+        logger.info(
+            "hasura_url_resolved_to_localhost",
+            original_host=host,
+            original_port=port,
+            resolved_port=str(exposed_port),
+        )
+        return resolved_url
 
 
 class HasuraClient:
@@ -94,12 +104,28 @@ class HasuraClient:
             "Content-Type": "application/json",
         }
 
-        response = requests.request(
-            method, self.metadata_url, json=data, headers=headers, timeout=30
-        )
+        try:
+            response = requests.request(
+                method, self.metadata_url, json=data, headers=headers, timeout=30
+            )
+        except requests.RequestException:
+            logger.exception(
+                "hasura_metadata_request_transport_failed",
+                method=method,
+                query_type=query_type or "unknown",
+                metadata_url=self.metadata_url,
+            )
+            raise
 
         if response.status_code >= 400:
             error_msg = f"Hasura API error ({query_type}): {response.status_code}"
+            logger.error(
+                "hasura_metadata_request_failed",
+                method=method,
+                query_type=query_type or "unknown",
+                metadata_url=self.metadata_url,
+                status_code=response.status_code,
+            )
             try:
                 error_data = response.json()
                 error_msg += f"\n{json.dumps(error_data, indent=2)}"

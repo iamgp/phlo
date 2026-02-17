@@ -5,6 +5,10 @@ from dataclasses import dataclass
 from subprocess import CompletedProcess
 from typing import Mapping, Sequence
 
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass(frozen=True, slots=True)
 class CommandError(RuntimeError):
@@ -56,6 +60,16 @@ def run_command(
         CommandError: When check is True and the command exits non-zero.
         subprocess.TimeoutExpired: When the command exceeds timeout_seconds.
     """
+    command_name = cmd[0] if cmd else "<empty>"
+    logger.debug(
+        "subprocess_command_started",
+        command_name=command_name,
+        arg_count=max(len(cmd) - 1, 0),
+        cwd=cwd,
+        timeout_seconds=timeout_seconds,
+        capture_output=capture_output,
+    )
+
     result = subprocess.run(
         list(cmd),
         capture_output=capture_output,
@@ -68,10 +82,22 @@ def run_command(
     stdout = result.stdout or ""
     stderr = result.stderr or ""
     if check and result.returncode != 0:
+        logger.error(
+            "subprocess_command_failed",
+            command_name=command_name,
+            returncode=result.returncode,
+            stdout_length=len(stdout),
+            stderr_length=len(stderr),
+        )
         raise CommandError(
             cmd=tuple(cmd),
             returncode=result.returncode,
             stdout=stdout,
             stderr=stderr,
         )
+    logger.debug(
+        "subprocess_command_completed",
+        command_name=command_name,
+        returncode=result.returncode,
+    )
     return result

@@ -14,7 +14,10 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
+from phlo.logging import get_logger
+
 console = Console()
+logger = get_logger(__name__)
 
 
 def _tail_logs(
@@ -32,6 +35,15 @@ def _tail_logs(
     """
     from phlo_dagster.cli_logs import _get_logs
 
+    logger.info(
+        "dagster_logs_tail_started",
+        full=full,
+        output_json=output_json,
+        has_asset_filter=filters.get("asset") is not None,
+        has_job_filter=filters.get("job") is not None,
+        level=filters.get("level"),
+        run_id=filters.get("run_id"),
+    )
     console.print("[yellow]Tailing logs (press Ctrl+C to stop)...[/yellow]\n")
 
     last_fetch_time = datetime.now(timezone.utc)
@@ -102,6 +114,7 @@ def _tail_logs(
                 live.update(generate_logs_table())
                 time.sleep(2)  # Poll every 2 seconds
     except KeyboardInterrupt:
+        logger.info("dagster_logs_tail_stopped")
         console.print("\n[yellow]Stopped tailing logs[/yellow]")
 
 
@@ -119,10 +132,12 @@ def _display_logs(
         output_json: JSON output format
     """
     if not logs_data:
+        logger.info("dagster_logs_display_no_results", output_json=output_json)
         console.print("[yellow]No logs found[/yellow]")
         return
 
     if output_json:
+        logger.info("dagster_logs_display_json_output", log_count=len(logs_data))
         click.echo(json.dumps(logs_data, indent=2, default=str))
         return
 
@@ -178,6 +193,7 @@ def _display_logs(
 
     console.print(table)
     console.print(f"\n[dim]Total: {len(logs_data)} logs[/dim]")
+    logger.info("dagster_logs_display_table_output", log_count=len(logs_data), full=full)
 
 
 def _is_json(text: str) -> bool:

@@ -10,7 +10,10 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Iterable
 
+from phlo.logging import get_logger
 from phlo.plugins.base.plugin import Plugin
+
+logger = get_logger(__name__)
 
 
 class DagsterExtensionPlugin(Plugin, ABC):
@@ -26,6 +29,11 @@ class DagsterExtensionPlugin(Plugin, ABC):
         try:
             import dagster as dg
         except Exception as exc:  # noqa: BLE001 - optional dependency
+            logger.error(
+                "dagster_extension_definitions_import_failed",
+                plugin_class=self.__class__.__name__,
+                exc_info=True,
+            )
             raise RuntimeError("Dagster is required for DagsterExtensionPlugin") from exc
         return dg.Definitions()
 

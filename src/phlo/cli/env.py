@@ -13,8 +13,11 @@ import click
 import yaml
 
 from phlo.cli.infrastructure.utils import parse_env_file
+from phlo.logging import get_logger
 from phlo.plugins.compose import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
+
+logger = get_logger(__name__)
 
 
 @click.group()
@@ -50,10 +53,17 @@ def export_env(include_secrets: bool, output: Path | None, _format: str) -> None
     """
     config = _load_project_config()
     env_overrides = _get_env_overrides(config)
+    logger.info(
+        "env_export_started",
+        include_secrets=include_secrets,
+        output_file=output is not None,
+        output_format=_format,
+    )
 
     discovery = ServiceDiscovery()
     all_services = discovery.discover()
     if not all_services:
+        logger.warning("env_export_no_services_found")
         raise click.ClickException(
             "No services found. Install service plugins or run from a Phlo project directory."
         )
@@ -77,8 +87,10 @@ def export_env(include_secrets: bool, output: Path | None, _format: str) -> None
 
     if output:
         output.write_text(content)
+        logger.info("env_export_succeeded", output_file=str(output))
         click.echo(f"Wrote: {output}")
     else:
+        logger.info("env_export_succeeded", output_file=None)
         click.echo(content)
 
 
@@ -90,6 +102,7 @@ def _load_project_config() -> dict[str, Any]:
         with open(config_path) as f:
             return yaml.safe_load(f) or {}
     except (OSError, yaml.YAMLError):
+        logger.warning("env_export_config_load_failed", path=str(config_path), exc_info=True)
         return {}
 
 

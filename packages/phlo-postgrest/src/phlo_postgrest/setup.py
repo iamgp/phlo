@@ -195,7 +195,7 @@ def setup_postgrest(
         logger.info("  2. Start PostgREST: docker-compose up -d postgrest")
         logger.info("  3. Test login: curl -X POST http://localhost:10018/rpc/login \\")
         logger.info("       -H 'Content-Type: application/json' \\")
-        logger.info('       -d \'{"username": "analyst", "password": "analyst123"}\'')
+        logger.info('       -d \'{"username": "analyst", "password": "<redacted>"}\'')
 
 
 if __name__ == "__main__":

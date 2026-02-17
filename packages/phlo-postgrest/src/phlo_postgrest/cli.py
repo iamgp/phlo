@@ -4,8 +4,11 @@ from typing import Optional
 
 import click
 
+from phlo.logging import get_logger
 from phlo_postgrest.setup import setup_postgrest
 from phlo_postgrest.views import generate_views
+
+logger = get_logger(__name__)
 
 
 @click.group()
@@ -48,6 +51,14 @@ def generate_postgrest_views(
     schema: str,
 ):
     """Generate PostgREST API views from dbt models."""
+    logger.info(
+        "postgrest_generate_views_started",
+        output=output,
+        apply=apply,
+        diff=diff,
+        model_filter=models,
+        schema=schema,
+    )
     try:
         result = generate_views(
             output=output,
@@ -60,8 +71,10 @@ def generate_postgrest_views(
 
         if not apply and not output:
             click.echo(result)
+        logger.info("postgrest_generate_views_completed", applied=apply, output_written=bool(output))
 
     except Exception as e:
+        logger.exception("postgrest_generate_views_failed")
         raise click.ClickException(str(e))
 
 
@@ -75,6 +88,15 @@ def generate_postgrest_views(
 @click.option("-q", "--quiet", is_flag=True, help="Suppress output")
 def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
     """Set up PostgREST authentication infrastructure."""
+    logger.info(
+        "postgrest_setup_started",
+        host=host,
+        port=port,
+        database=database,
+        user=user,
+        force=force,
+        quiet=quiet,
+    )
     try:
         setup_postgrest(
             host=host,
@@ -85,5 +107,7 @@ def setup_postgrest_cmd(host, port, database, user, password, force, quiet):
             force=force,
             verbose=not quiet,
         )
+        logger.info("postgrest_setup_completed", force=force)
     except Exception as e:
+        logger.exception("postgrest_setup_failed")
         raise click.ClickException(str(e))

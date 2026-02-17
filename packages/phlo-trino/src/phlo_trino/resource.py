@@ -9,8 +9,11 @@ from typing import Iterable
 
 from trino.dbapi import connect
 
+from phlo.logging import get_logger
 from phlo_iceberg.settings import get_settings as get_iceberg_settings
 from phlo_trino.settings import get_settings as get_trino_settings
+
+logger = get_logger(__name__)
 
 
 class _ConfigFacade:
@@ -155,12 +158,38 @@ class TrinoResource:
         while time.monotonic() < deadline:
             try:
                 self.execute("SELECT 1", schema=schema)
+                logger.info(
+                    "trino_wait_ready_succeeded",
+                    host=self.host or config.trino_host,
+                    port=self.port or config.trino_port,
+                    schema=schema,
+                )
                 return
             except Exception as exc:  # noqa: BLE001 - surface real error after timeout
                 if not _is_transient_trino_error(exc):
+                    logger.exception(
+                        "trino_wait_ready_non_transient_error",
+                        host=self.host or config.trino_host,
+                        port=self.port or config.trino_port,
+                        schema=schema,
+                    )
                     raise
                 last_error = exc
+                logger.debug(
+                    "trino_wait_ready_retry",
+                    host=self.host or config.trino_host,
+                    port=self.port or config.trino_port,
+                    schema=schema,
+                    retry_interval_seconds=interval,
+                )
                 time.sleep(interval)
+        logger.error(
+            "trino_wait_ready_timeout",
+            host=self.host or config.trino_host,
+            port=self.port or config.trino_port,
+            schema=schema,
+            timeout_seconds=timeout,
+        )
         raise TimeoutError(f"Trino not ready after {timeout:.1f}s") from last_error
 
 

@@ -342,10 +342,10 @@ def list_tables(namespace: str, ref: str) -> list[str]:
         tables = catalog.list_tables(namespace)
         return [f"{namespace}.{table[1]}" for table in tables]
     except NoSuchNamespaceError:
-        logger.info(f"Namespace {namespace} does not exist, skipping")
+        logger.info("namespace_not_found_skipping", namespace=namespace)
         return []
     except Exception:
-        logger.exception(f"Failed to list tables in namespace {namespace}")
+        logger.exception("list_tables_failed", namespace=namespace)
         return []
 
 

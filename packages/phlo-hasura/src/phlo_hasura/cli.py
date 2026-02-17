@@ -1,11 +1,14 @@
 """Hasura CLI commands for Phlo."""
 
 import click
+from phlo.logging import get_logger
 
 from phlo_hasura.client import HasuraClient
 from phlo_hasura.permissions import HasuraPermissionManager
 from phlo_hasura.sync import HasuraMetadataSync
 from phlo_hasura.track import HasuraTableTracker, auto_track
+
+logger = get_logger(__name__)
 
 
 @click.group()
@@ -51,6 +54,12 @@ def track(schema: str, exclude: tuple, verbose: bool) -> None:
         click.echo(f"✓ Tracked {tracked}/{total} tables")
 
     except Exception as e:
+        logger.exception(
+            "hasura_track_failed",
+            schema=schema,
+            exclude_count=len(exclude),
+            verbose=verbose,
+        )
         raise click.ClickException(str(e))
 
 
@@ -80,6 +89,7 @@ def relationships(schema: str, verbose: bool) -> None:
         click.echo(f"✓ Created {successful}/{total} relationships")
 
     except Exception as e:
+        logger.exception("hasura_relationships_failed", schema=schema, verbose=verbose)
         raise click.ClickException(str(e))
 
 
@@ -109,6 +119,7 @@ def permissions(schema: str, verbose: bool) -> None:
         click.echo(f"✓ Created {successful}/{total} permissions")
 
     except Exception as e:
+        logger.exception("hasura_permissions_failed", schema=schema, verbose=verbose)
         raise click.ClickException(str(e))
 
 
@@ -129,6 +140,7 @@ def auto_setup(schema: str, verbose: bool) -> None:
     try:
         auto_track(schema, verbose=verbose)
     except Exception as e:
+        logger.exception("hasura_auto_setup_failed", schema=schema, verbose=verbose)
         raise click.ClickException(str(e))
 
 
@@ -146,6 +158,7 @@ def export(output: str) -> None:
         syncer.export_metadata(output)
         click.echo(f"✓ Metadata exported to {output}")
     except Exception as e:
+        logger.exception("hasura_export_failed", output_path=output)
         raise click.ClickException(str(e))
 
 
@@ -163,6 +176,7 @@ def apply_meta(input: str) -> None:
         syncer.import_metadata(input)
         click.echo(f"✓ Metadata applied from {input}")
     except Exception as e:
+        logger.exception("hasura_apply_metadata_failed", input_path=input)
         raise click.ClickException(str(e))
 
 
@@ -183,6 +197,7 @@ def status() -> None:
                 click.echo(f"    • {table}")
 
     except Exception as e:
+        logger.exception("hasura_status_failed")
         raise click.ClickException(str(e))
 
 
@@ -201,4 +216,5 @@ def sync_permissions(config: str) -> None:
         manager.sync_permissions(config_dict, verbose=True)
         click.echo("✓ Permissions synced")
     except Exception as e:
+        logger.exception("hasura_sync_permissions_failed", config_path=config)
         raise click.ClickException(str(e))

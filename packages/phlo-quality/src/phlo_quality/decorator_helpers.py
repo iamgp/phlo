@@ -75,7 +75,7 @@ def _load_data_trino(context: RuntimeContext, query: str, trino: Any) -> Any:
     # Convert to DataFrame
     df = pd.DataFrame(rows, columns=columns)
 
-    context.logger.info(f"Loaded {len(df)} rows from Trino")
+    context.logger.info("loaded_rows_from_trino", row_count=len(df))
 
     return df
 
@@ -132,7 +132,7 @@ def _load_data_duckdb(context: RuntimeContext, query: str, duckdb_conn: Any) -> 
     # Execute query
     df = duckdb_conn.execute(query).fetchdf()
 
-    context.logger.info(f"Loaded {len(df)} rows from DuckDB")
+    context.logger.info("loaded_rows_from_duckdb", row_count=len(df))
 
     return df
 

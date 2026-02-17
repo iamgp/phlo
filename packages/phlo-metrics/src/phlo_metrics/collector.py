@@ -115,24 +115,24 @@ class MetricsCollector:
         # Try to get Prometheus metrics
         try:
             metrics = cast(SummaryMetrics, self._collect_from_prometheus(period_hours))
-        except Exception as e:
-            logger.warning(f"Failed to collect from Prometheus: {e}")
+        except Exception:
+            logger.warning("metrics_collect_prometheus_failed", period_hours=period_hours, exc_info=True)
 
         # Supplement with Postgres metrics
         try:
             postgres_metrics = self._collect_from_postgres(period_hours)
             metrics.total_rows_processed_24h = postgres_metrics.get("rows_processed", 0)
             metrics.total_bytes_written_24h = postgres_metrics.get("bytes_written", 0)
-        except Exception as e:
-            logger.warning(f"Failed to collect from Postgres: {e}")
+        except Exception:
+            logger.warning("metrics_collect_postgres_failed", period_hours=period_hours, exc_info=True)
 
         # Supplement with Iceberg stats
         try:
             iceberg_metrics = self._collect_from_iceberg()
             metrics.active_assets_count = int(iceberg_metrics.get("table_count", 0) or 0)
             metrics.data_growth_bytes = int(iceberg_metrics.get("total_bytes", 0) or 0)
-        except Exception as e:
-            logger.warning(f"Failed to collect from Iceberg: {e}")
+        except Exception:
+            logger.warning("metrics_collect_iceberg_failed", period_hours=period_hours, exc_info=True)
 
         self._cache[cache_key] = metrics
         return metrics
@@ -175,15 +175,20 @@ class MetricsCollector:
                 total_rows = sum(r.rows_processed for r in run_records)
                 metrics.average_rows_per_run = total_rows / len(run_records)
 
-        except Exception as e:
-            logger.warning(f"Failed to collect asset metrics for {asset_name}: {e}")
+        except Exception:
+            logger.warning(
+                "asset_metrics_collect_failed",
+                asset_name=asset_name,
+                runs=runs,
+                exc_info=True,
+            )
 
         # Collect from Iceberg (table stats)
         try:
             iceberg_metrics = self._get_iceberg_table_stats(asset_name)
             metrics.data_growth_bytes = iceberg_metrics.get("total_bytes", 0)
-        except Exception as e:
-            logger.warning(f"Failed to get Iceberg stats for {asset_name}: {e}")
+        except Exception:
+            logger.warning("asset_iceberg_stats_failed", asset_name=asset_name, exc_info=True)
 
         self._cache[cache_key] = metrics
         return metrics
@@ -247,8 +252,8 @@ class MetricsCollector:
                         elif percentile == "0.99":
                             metrics.p99_duration_seconds = duration
 
-        except Exception as e:
-            logger.debug(f"Prometheus collection failed: {e}")
+        except Exception:
+            logger.debug("prometheus_collection_failed", period_hours=period_hours, exc_info=True)
 
         return metrics
 
@@ -286,8 +291,8 @@ class MetricsCollector:
 
             conn.close()
 
-        except Exception as e:
-            logger.debug(f"Postgres metrics collection failed: {e}")
+        except Exception:
+            logger.debug("postgres_metrics_collection_failed", period_hours=period_hours, exc_info=True)
 
         return metrics
 
@@ -325,8 +330,8 @@ class MetricsCollector:
                 metrics["table_count"] = tables_count
                 metrics["total_bytes"] = total_bytes
 
-        except Exception as e:
-            logger.debug(f"Iceberg metrics collection failed: {e}")
+        except Exception:
+            logger.debug("iceberg_metrics_collection_failed", exc_info=True)
 
         return metrics
 

@@ -6,6 +6,10 @@ import sys
 
 import click
 
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 @click.group(name="workflow")
 def workflow_group() -> None:
@@ -57,6 +61,13 @@ def create_workflow_cmd(
     """Create a workflow scaffold."""
     from phlo_dlt.scaffold import create_ingestion_workflow
 
+    logger.info(
+        "workflow_create_started",
+        workflow_type=workflow_type,
+        domain=domain,
+        table=table,
+        field_count=len(fields),
+    )
     click.echo(f"\nCreating {workflow_type} workflow for {domain}.{table}...\n")
 
     try:
@@ -80,6 +91,19 @@ def create_workflow_cmd(
             click.echo("  3. Restart Dagster: phlo services restart dagster")
             click.echo(f"  4. Test: phlo test {domain}")
             click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
+            logger.info(
+                "workflow_create_succeeded",
+                workflow_type=workflow_type,
+                domain=domain,
+                table=table,
+                file_count=len(files),
+            )
     except Exception as exc:
+        logger.exception(
+            "workflow_create_failed",
+            workflow_type=workflow_type,
+            domain=domain,
+            table=table,
+        )
         click.echo(f"Error creating workflow: {exc}", err=True)
         sys.exit(1)

@@ -22,7 +22,10 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition
+
+logger = get_logger(__name__)
 
 
 @click.command("start")
@@ -67,8 +70,22 @@ def start_cmd(
     phlo_dir = ensure_phlo_dir()
     compose_file = phlo_dir / "docker-compose.yml"
     project_name = get_project_name()
+    logger.info(
+        "services_start_requested",
+        project_name=project_name,
+        detach=detach,
+        build=build,
+        native=native,
+        profile_count=len(profile),
+        service_args_count=len(service),
+    )
 
     if not compose_file.exists():
+        logger.error(
+            "services_start_missing_compose_file",
+            project_name=project_name,
+            compose_file=str(compose_file),
+        )
         raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
 
     # Parse comma-separated services
@@ -81,6 +98,12 @@ def start_cmd(
     # This prevents restarting already-running core services
     if profile and not services_list:
         services_list = get_profile_service_names(profile)
+    logger.info(
+        "services_start_targets_resolved",
+        project_name=project_name,
+        service_count=len(services_list),
+        service_names=services_list,
+    )
 
     if services_list:
         click.echo(f"Starting services: {', '.join(services_list)}...")
@@ -106,8 +129,17 @@ def start_cmd(
         for _, svc in discovery.discover().items():
             if dev_manager.can_run_dev(svc):
                 native_service_names.add(svc.name)
+        logger.info(
+            "services_start_native_capabilities_resolved",
+            project_name=project_name,
+            native_capable_count=len(native_service_names),
+        )
 
         if not native_service_names:
+            logger.warning(
+                "services_start_native_unavailable",
+                project_name=project_name,
+            )
             click.echo("Warning: No services support native mode; starting Docker only.", err=True)
             native = False
 
@@ -116,8 +148,20 @@ def start_cmd(
         try:
             compose_config = yaml.safe_load(compose_file.read_text()) or {}
         except OSError as e:
+            logger.error(
+                "services_start_compose_read_failed",
+                project_name=project_name,
+                compose_file=str(compose_file),
+                exc_info=True,
+            )
             raise click.ClickException(f"Failed to read {compose_file}: {e}") from e
         except yaml.YAMLError as e:
+            logger.error(
+                "services_start_compose_parse_failed",
+                project_name=project_name,
+                compose_file=str(compose_file),
+                exc_info=True,
+            )
             raise click.ClickException(f"Failed to parse {compose_file}: {e}") from e
         compose_service_names = list((compose_config.get("services") or {}).keys())
         docker_services_list = [n for n in compose_service_names if n not in native_service_names]
@@ -131,6 +175,12 @@ def start_cmd(
         try:
             resolved = discovery.resolve_dependencies(requested_defs)
         except ValueError as exc:
+            logger.warning(
+                "services_start_dependency_resolution_failed",
+                project_name=project_name,
+                service_names=services_list,
+                error=str(exc),
+            )
             raise click.ClickException(str(exc)) from exc
         required_docker_services = [
             svc.name for svc in resolved if svc.name not in native_service_names
@@ -140,6 +190,14 @@ def start_cmd(
     # If the user explicitly requested services and all of them are native-capable,
     # avoid running `docker compose up` with no service args (which would start the entire stack).
     skip_docker_compose = bool(native and services_list and not docker_services_list)
+    logger.info(
+        "services_start_execution_mode_resolved",
+        project_name=project_name,
+        skip_docker_compose=skip_docker_compose,
+        docker_service_count=len(docker_services_list),
+        docker_service_names=docker_services_list,
+        native=native,
+    )
 
     docker_service_names: list[str] = []
     if not skip_docker_compose:
@@ -162,6 +220,10 @@ def start_cmd(
     if not skip_docker_compose:
         require_docker()
     elif build:
+        logger.warning(
+            "services_start_build_ignored_native_only",
+            project_name=project_name,
+        )
         click.echo("Warning: --build ignored when starting native-only services.", err=True)
 
     def _stop_docker_services(service_names: set[str]) -> None:
@@ -184,6 +246,15 @@ def start_cmd(
     # Add specific services if specified
     if docker_services_list:
         cmd.extend(docker_services_list)
+    if not skip_docker_compose:
+        logger.info(
+            "services_start_docker_started",
+            project_name=project_name,
+            detach=detach,
+            build=build,
+            service_count=len(docker_services_list),
+            service_names=docker_services_list,
+        )
 
     try:
         if skip_docker_compose:
@@ -191,6 +262,21 @@ def start_cmd(
             result = subprocess.CompletedProcess(args=[], returncode=0)
         else:
             result = run_command(cmd, check=False, capture_output=False)
+            if result.returncode != 0:
+                logger.error(
+                    "services_start_docker_failed",
+                    project_name=project_name,
+                    returncode=result.returncode,
+                    service_count=len(docker_service_names),
+                    service_names=docker_service_names,
+                )
+            else:
+                logger.info(
+                    "services_start_docker_completed",
+                    project_name=project_name,
+                    service_count=len(docker_service_names),
+                    service_names=docker_service_names,
+                )
 
         if result.returncode == 0:
             if native:
@@ -223,9 +309,21 @@ def start_cmd(
                     try:
                         native_to_start = discovery.resolve_dependencies(list(expanded.values()))
                     except ValueError as exc:
+                        logger.warning(
+                            "services_start_native_dependency_resolution_failed",
+                            project_name=project_name,
+                            service_names=[svc.name for svc in expanded.values()],
+                            error=str(exc),
+                        )
                         raise click.ClickException(str(exc)) from exc
                 else:
                     native_to_start = [available[n] for n in sorted(available)]
+                logger.info(
+                    "services_start_native_targets_resolved",
+                    project_name=project_name,
+                    service_count=len(native_to_start),
+                    service_names=[svc.name for svc in native_to_start],
+                )
 
                 # Avoid port collisions by ensuring any previously-started Docker containers for the
                 # target native services are stopped before launching subprocesses.
@@ -295,6 +393,14 @@ def start_cmd(
                     return started
 
                 started = asyncio.run(start_native_services())
+                logger.info(
+                    "services_start_native_completed",
+                    project_name=project_name,
+                    requested_count=len(native_to_start),
+                    started_count=len(started),
+                    failed_count=max(len(native_to_start) - len(started), 0),
+                    service_names=[svc.name for svc in native_to_start],
+                )
                 if started:
                     state = _load_native_state(project_root)
                     state.update(started)
@@ -362,6 +468,13 @@ def start_cmd(
             click.echo("Phlo infrastructure started.")
             if started_services:
                 click.echo(f"Services running: {', '.join(sorted(started_services))}")
+            logger.info(
+                "services_start_completed",
+                project_name=project_name,
+                started_count=len(started_services),
+                started_services=sorted(started_services),
+                native=native,
+            )
         else:
             _emit_service_lifecycle_events(
                 "post_start",
@@ -371,12 +484,26 @@ def start_cmd(
                 status="failure",
                 metadata={"native": False, "returncode": result.returncode},
             )
+            logger.error(
+                "services_start_failed",
+                project_name=project_name,
+                returncode=result.returncode,
+                service_count=len(docker_service_names),
+                service_names=docker_service_names,
+            )
             raise click.ClickException(
                 f"docker compose failed (exit {result.returncode}): {' '.join(cmd)}"
             )
     except FileNotFoundError:
+        logger.error("services_start_docker_not_found", project_name=project_name, exc_info=True)
         raise click.ClickException(
             "docker command not found. Install Docker: https://docs.docker.com/get-docker/"
         )
     except (subprocess.SubprocessError, OSError) as exc:
+        logger.error(
+            "services_start_unexpected_error",
+            project_name=project_name,
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
         raise click.ClickException(f"docker compose failed unexpectedly: {exc}") from exc

@@ -8,7 +8,10 @@ from typing import Any
 
 import psycopg2
 
+from phlo.logging import get_logger
 from phlo_postgres.settings import get_settings
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -43,6 +46,7 @@ class PostgresResource:
             try:
                 self.rollback()
             except Exception:  # noqa: BLE001 - best effort rollback on context exit
+                logger.warning("postgres_resource_rollback_failed", exc_info=True)
                 pass
         self.close()
 
@@ -51,6 +55,7 @@ class PostgresResource:
         try:
             self.close()
         except Exception:  # noqa: BLE001 - destructor must never raise
+            logger.debug("postgres_resource_close_on_del_failed", exc_info=True)
             pass
 
     def _ensure_connection(self):
@@ -61,6 +66,12 @@ class PostgresResource:
         """
         if self._connection is None or getattr(self._connection, "closed", 1):
             settings = get_settings()
+            logger.debug(
+                "postgres_resource_connecting",
+                host=self.host or settings.postgres_host,
+                port=self.port or settings.postgres_port,
+                database=self.database or settings.postgres_db,
+            )
             self._connection = psycopg2.connect(
                 host=self.host or settings.postgres_host,
                 port=self.port or settings.postgres_port,
@@ -90,6 +101,7 @@ class PostgresResource:
         try:
             yield cursor
         except Exception:
+            logger.warning("postgres_transaction_rollback", exc_info=True)
             connection.rollback()
             raise
         else:
@@ -109,4 +121,5 @@ class PostgresResource:
         """Close and clear the cached database connection."""
         if self._connection is not None and not getattr(self._connection, "closed", 1):
             self._connection.close()
+            logger.debug("postgres_resource_connection_closed")
         self._connection = None

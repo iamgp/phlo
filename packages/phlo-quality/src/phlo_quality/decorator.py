@@ -109,12 +109,19 @@ def phlo_quality(
                 )
                 final_query = apply_partition_scope(sql_query, scope=scope)
                 if partition_key and not full_table:
-                    runtime.logger.info(f"Validating partition: {partition_key}")
+                    runtime.logger.info("validating_partition", partition_key=partition_key)
 
                 try:
                     df = _load_data(runtime, final_query, backend)
                 except Exception as exc:
-                    runtime.logger.error(f"Failed to load data: {exc}")
+                    runtime.logger.error(
+                        "quality_data_load_failed",
+                        table=table,
+                        partition_key=partition_key_value,
+                        backend=backend,
+                        error=str(exc),
+                        exc_info=True,
+                    )
                     telemetry.emit_log(
                         name="quality.query_failed",
                         level="error",
@@ -276,12 +283,19 @@ def phlo_quality(
                 )
                 final_query = apply_partition_scope(sql_query, scope=scope)
                 if partition_key and not full_table:
-                    runtime.logger.info(f"Validating partition: {partition_key}")
+                    runtime.logger.info("validating_partition", partition_key=partition_key)
 
                 try:
                     df = _load_data(runtime, final_query, backend)
                 except Exception as exc:
-                    runtime.logger.error(f"Failed to load data: {exc}")
+                    runtime.logger.error(
+                        "quality_data_load_failed",
+                        table=table,
+                        partition_key=partition_key_value,
+                        backend=backend,
+                        error=str(exc),
+                        exc_info=True,
+                    )
                     telemetry.emit_log(
                         name="quality.query_failed",
                         level="error",
@@ -340,7 +354,9 @@ def phlo_quality(
                     )
 
                 runtime.logger.info(
-                    f"Executing {len(non_schema_checks)} quality checks on {len(df)} rows..."
+                    "executing_quality_checks",
+                    check_count=len(non_schema_checks),
+                    row_count=len(df),
                 )
 
                 check_results: List[QualityCheckResult] = []
@@ -354,13 +370,17 @@ def phlo_quality(
                         if not result.passed:
                             all_passed = False
                             runtime.logger.warning(
-                                f"Quality check '{check.name}' failed: {result.failure_message}"
+                                "quality_check_failed",
+                                check_name=check.name,
+                                failure_message=result.failure_message,
                             )
                         else:
-                            runtime.logger.info(f"Quality check '{check.name}' passed")
+                            runtime.logger.info("quality_check_passed", check_name=check.name)
                     except Exception as exc:
                         runtime.logger.exception(
-                            f"Error executing quality check '{check.name}': {exc}"
+                            "quality_check_execution_error",
+                            check_name=check.name,
+                            error=str(exc),
                         )
                         check_results.append(
                             QualityCheckResult(
@@ -408,8 +428,9 @@ def phlo_quality(
                 )
                 if severity == "warn":
                     runtime.logger.warning(
-                        f"Quality check warning: {failure_fraction:.1%} of checks failed "
-                        f"(within warn threshold of {warn_threshold:.1%})"
+                        "quality_check_warning_threshold",
+                        failure_fraction=failure_fraction,
+                        warn_threshold=warn_threshold,
                     )
 
                 severity_label = severity if not all_passed else None

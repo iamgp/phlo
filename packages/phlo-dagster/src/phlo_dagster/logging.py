@@ -7,7 +7,7 @@ from typing import Any, Callable, TypeVar
 
 import structlog
 
-from phlo.logging import get_logger
+from phlo.logging import bind_context, clear_context, get_logger
 
 try:
     from dagster import AssetExecutionContext, OpExecutionContext
@@ -85,13 +85,13 @@ def with_asset_logging(
             Wrapped function result.
         """
         correlation = get_correlation_fields(context)
-
-        context.log.info(
-            "Asset execution started",
-            extra=correlation,
-        )
+        bind_context(**correlation)
 
         try:
+            context.log.info(
+                "Asset execution started",
+                extra=correlation,
+            )
             result = func(context, *args, **kwargs)
             context.log.info(
                 "Asset execution completed",
@@ -104,5 +104,7 @@ def with_asset_logging(
                 extra={**correlation, "error": str(exc)},
             )
             raise
+        finally:
+            clear_context()
 
     return wrapper

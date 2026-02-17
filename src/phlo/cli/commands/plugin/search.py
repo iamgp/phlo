@@ -14,7 +14,10 @@ from phlo.cli.commands.plugin.utils import (
     console,
     registry_plugin_to_dict,
 )
+from phlo.logging import get_logger
 from phlo.plugins.registry_client import search_plugins
+
+logger = get_logger(__name__)
 
 
 @click.command(name="search")
@@ -43,6 +46,13 @@ def search_cmd(
 ):
     """Search plugin registry."""
     try:
+        logger.info(
+            "plugin_search_started",
+            has_query=query is not None,
+            plugin_type=plugin_type,
+            tag_count=len(tags),
+            output_json=output_json,
+        )
         if plugin_type:
             plugin_type = INTERNAL_TO_REGISTRY_TYPE.get(plugin_type, plugin_type)
         results = search_plugins(
@@ -55,10 +65,12 @@ def search_cmd(
 
         if output_json:
             console.print(json.dumps(output, indent=2))
+            logger.info("plugin_search_succeeded", result_count=len(output), output_json=True)
             return
 
         if not output:
             console.print("No plugins found.")
+            logger.info("plugin_search_succeeded", result_count=0, output_json=False)
             return
 
         table = Table(show_header=True, header_style="bold magenta")
@@ -78,7 +90,15 @@ def search_cmd(
             )
 
         console.print(table)
+        logger.info("plugin_search_succeeded", result_count=len(output), output_json=False)
 
     except Exception as e:
+        logger.exception(
+            "plugin_search_failed",
+            has_query=query is not None,
+            plugin_type=plugin_type,
+            tag_count=len(tags),
+            output_json=output_json,
+        )
         console.print(f"[red]Error searching registry: {e}[/red]")
         sys.exit(1)

@@ -190,9 +190,14 @@ class OpenMetadataClient:
             response.raise_for_status()
             return response.json() if response.text else {}
 
-        except requests_exceptions.RequestException as e:
+        except requests_exceptions.RequestException as exc:
             if log_errors:
-                logger.error(f"OpenMetadata request failed: {method} {endpoint}: {e}")
+                logger.error(
+                    "openmetadata_request_failed",
+                    method=method,
+                    endpoint=endpoint,
+                    error=str(exc),
+                )
             raise
 
     @staticmethod
@@ -339,8 +344,12 @@ class OpenMetadataClient:
                 )
                 if response.status_code == 200:
                     return True
-            except Exception as e:
-                logger.warning(f"OpenMetadata health check failed: {e}")
+            except Exception as exc:
+                logger.warning(
+                    "openmetadata_health_check_failed",
+                    endpoint=endpoint,
+                    error=str(exc),
+                )
                 continue
         return False
 
@@ -562,7 +571,7 @@ class OpenMetadataClient:
             data = result.get("data", [])
             return data if isinstance(data, list) else []
         except Exception as exc:
-            logger.warning(f"Failed to list databases: {exc}")
+            logger.warning("openmetadata_list_databases_failed", error=str(exc))
             return []
 
     def add_owner(self, table_fqn: str, owner_name: str) -> dict[str, Any]:

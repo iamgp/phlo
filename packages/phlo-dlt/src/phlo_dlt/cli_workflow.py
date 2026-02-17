@@ -6,6 +6,10 @@ import sys
 
 import click
 
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 @click.group(name="workflow")
 def workflow_group() -> None:
@@ -57,6 +61,13 @@ def create_workflow_cmd(
     """Create a workflow scaffold."""
     from phlo_dlt.scaffold import create_ingestion_workflow
 
+    logger.info(
+        "dlt_workflow_create_started",
+        workflow_type=workflow_type,
+        domain=domain,
+        table=table,
+        field_count=len(fields),
+    )
     click.echo(f"\nCreating {workflow_type} workflow for {domain}.{table}...\n")
 
     try:
@@ -80,10 +91,27 @@ def create_workflow_cmd(
             click.echo("  3. Restart Dagster: docker restart dagster-webserver")
             click.echo(f"  4. Test: phlo test {domain}")
             click.echo(f"  5. Materialize: phlo materialize dlt_{table}")
+            logger.info(
+                "dlt_workflow_create_succeeded",
+                workflow_type=workflow_type,
+                domain=domain,
+                table=table,
+                file_count=len(files),
+            )
         else:
+            logger.warning(
+                "dlt_workflow_create_unsupported_type",
+                workflow_type=workflow_type,
+            )
             click.echo(f"Error: Workflow type '{workflow_type}' not yet implemented", err=True)
             click.echo("Currently supported: ingestion", err=True)
             sys.exit(1)
     except Exception as exc:
+        logger.exception(
+            "dlt_workflow_create_failed",
+            workflow_type=workflow_type,
+            domain=domain,
+            table=table,
+        )
         click.echo(f"Error creating workflow: {exc}", err=True)
         sys.exit(1)

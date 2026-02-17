@@ -70,7 +70,7 @@ def failure_alert_sensor(context):
 
             # Send alert
             if alert_manager.send(alert):
-                logger.info(f"Sent failure alert for run {run.run_id}")
+                logger.info("failure_alert_sent", run_id=run.run_id, job_name=run.job_name)
 
                 # Mark as alerted
                 if not hasattr(context, "_alerted_runs"):

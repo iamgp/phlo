@@ -51,13 +51,17 @@ def discover_user_workflows(
     elif not workflows_path.is_dir():
         raise ValueError(f"Workflows path must be a directory, got: {workflows_path}")
     else:
-        logger.info(f"Discovering user workflows in: {workflows_path}")
+        logger.info("discovering_user_workflows", workflows_path=str(workflows_path))
         parent_dir = workflows_path.parent.resolve()
         if str(parent_dir) not in sys.path:
             sys.path.insert(0, str(parent_dir))
-            logger.debug(f"Added to Python path: {parent_dir}")
+            logger.debug("added_parent_dir_to_python_path", parent_dir=str(parent_dir))
         imported_modules = _import_workflow_modules(workflows_path)
-        logger.info(f"Imported {len(imported_modules)} workflow modules from {workflows_path}")
+        logger.info(
+            "imported_workflow_modules",
+            module_count=len(imported_modules),
+            workflows_path=str(workflows_path),
+        )
 
     # Discover provider plugins after modules are imported.
     discover_capabilities()
@@ -138,12 +142,12 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
             relative_path = py_file.relative_to(workflows_path.parent)
             module_name = str(relative_path.with_suffix("")).replace("/", ".")
 
-            logger.debug(f"Importing workflow module: {module_name}")
+            logger.debug("importing_workflow_module", module_name=module_name, path=str(py_file))
 
             # Import the module
             spec = importlib.util.spec_from_file_location(module_name, py_file)
             if spec is None or spec.loader is None:
-                logger.warning(f"Could not load spec for: {py_file}")
+                logger.warning("workflow_module_spec_load_failed", path=str(py_file))
                 continue
 
             module = importlib.util.module_from_spec(spec)
@@ -151,11 +155,14 @@ def _import_workflow_modules(workflows_path: Path) -> list[Any]:
             spec.loader.exec_module(module)
 
             imported_modules.append(module)
-            logger.debug(f"Successfully imported: {module_name}")
+            logger.debug("workflow_module_import_succeeded", module_name=module_name)
 
         except Exception as exc:
             logger.error(
-                f"Failed to import workflow module {py_file}: {exc}",
+                "workflow_module_import_failed",
+                module_name=module_name,
+                path=str(py_file),
+                error=str(exc),
                 exc_info=True,
             )
             # Continue with other modules rather than failing completely
@@ -380,7 +387,7 @@ def get_workflows_path_from_config() -> Path:
         settings = get_settings()
         return Path(settings.workflows_path)
     except Exception as exc:
-        logger.warning(f"Could not get workflows_path from dagster settings: {exc}")
+        logger.warning("workflows_path_resolution_failed", error=str(exc))
 
     # Default fallback
     return Path("workflows")

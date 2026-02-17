@@ -261,7 +261,7 @@ class ServiceDiscovery:
                 continue
             # Skip if already loaded as core service
             if name in self._services:
-                logger.debug(f"Skipping plugin service {name}, already loaded as core")
+                logger.debug("plugin_service_skipped_core_exists", service_name=name)
                 continue
             service_definition = plugin.service_definition
             source_path = _resolve_plugin_source_path(plugin)

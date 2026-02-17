@@ -45,8 +45,12 @@ def log_extraction_errors(source_name: str) -> Callable[[Callable[P, R]], Callab
             """
             try:
                 return fn(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Failed to extract {source_name} lineage: {e}")
+            except Exception as exc:
+                logger.error(
+                    "lineage_extraction_failed",
+                    source=source_name,
+                    error=str(exc),
+                )
                 raise
 
         return wrapper
@@ -96,7 +100,10 @@ class LineageExtractor:
                 asset_name = str(asset_key)
             self.graph.add_asset(asset_name, asset_type="unknown")
 
-        logger.info(f"Extracted {len(self.graph.assets)} assets from Dagster materializations")
+        logger.info(
+            "dagster_lineage_assets_extracted",
+            asset_count=len(self.graph.assets),
+        )
 
     @log_extraction_errors("dbt")
     def extract_from_dbt_manifest(self, manifest: dict[str, Any]) -> None:
@@ -110,7 +117,7 @@ class LineageExtractor:
             if unique_id.startswith("model."):
                 model_name = node.get("name")
                 if not model_name:
-                    logger.warning(f"Missing model name for node: {unique_id}")
+                    logger.warning("dbt_model_name_missing", unique_id=unique_id)
                     continue
                 self.graph.add_asset(
                     model_name,
@@ -123,7 +130,7 @@ class LineageExtractor:
             tbl_name_part = source.get("name") or ""
             source_name = f"{src_name_part}.{tbl_name_part}".strip(".")
             if not source_name:
-                logger.warning(f"Missing source name for entry: {unique_id}")
+                logger.warning("dbt_source_name_missing", unique_id=unique_id)
                 continue
             self.graph.add_asset(
                 source_name,
@@ -138,14 +145,14 @@ class LineageExtractor:
             if unique_id.startswith("model."):
                 model_name = node.get("name")
                 if not model_name:
-                    logger.warning(f"Missing model name for node: {unique_id}")
+                    logger.warning("dbt_model_name_missing", unique_id=unique_id)
                     continue
 
                 for dep_id in node.get("depends_on", {}).get("nodes", []):
                     if dep_id.startswith("model."):
                         dep_node = nodes.get(dep_id)
                         if dep_node is None:
-                            logger.warning(f"Missing dependency node: {dep_id}")
+                            logger.warning("dbt_dependency_node_missing", dependency_id=dep_id)
                             continue
                         dep_name = dep_node.get("name")
                         if dep_name:
@@ -153,7 +160,7 @@ class LineageExtractor:
                     elif dep_id.startswith("source."):
                         source = sources.get(dep_id)
                         if source is None:
-                            logger.warning(f"Missing source node: {dep_id}")
+                            logger.warning("dbt_source_node_missing", source_id=dep_id)
                             continue
                         src_name_part = source.get("source_name") or ""
                         tbl_name_part = source.get("name") or ""
@@ -162,8 +169,9 @@ class LineageExtractor:
                             self.graph.add_edge(source_name, model_name)
 
         logger.info(
-            f"Extracted {len(self.graph.assets)} assets and "
-            f"{sum(len(v) for v in self.graph.edges.values())} edges from dbt"
+            "dbt_lineage_extracted",
+            asset_count=len(self.graph.assets),
+            edge_count=sum(len(v) for v in self.graph.edges.values()),
         )
 
     @log_extraction_errors("Iceberg")
@@ -181,7 +189,10 @@ class LineageExtractor:
             for table in tables:
                 table_name = table.get("name")
                 if not table_name:
-                    logger.debug(f"Skipping table with missing name in namespace: {namespace}")
+                    logger.debug(
+                        "iceberg_table_name_missing",
+                        namespace=namespace,
+                    )
                     continue
                 full_name = f"{namespace}.{table_name}"
 
@@ -191,7 +202,7 @@ class LineageExtractor:
                     status="unknown",
                 )
 
-        logger.info(f"Extracted {len(self.graph.assets)} tables from Iceberg catalog")
+        logger.info("iceberg_tables_extracted", table_count=len(self.graph.assets))
 
     def build_publishing_lineage(
         self,
@@ -249,16 +260,22 @@ class LineageExtractor:
                     try:
                         om_client.create_lineage(from_asset, to_asset)
                         stats["edges_published"] += 1
-                    except Exception as e:
+                    except Exception as exc:
                         logger.error(
-                            f"Failed to publish lineage edge {from_asset}->{to_asset}: {e}"
+                            "lineage_edge_publish_failed",
+                            from_asset=from_asset,
+                            to_asset=to_asset,
+                            error=str(exc),
                         )
                         stats["failed"] += 1
 
-            logger.info(f"Published {stats['edges_published']} lineage edges to OpenMetadata")
+            logger.info(
+                "lineage_publish_completed",
+                edges_published=stats["edges_published"],
+            )
 
-        except Exception as e:
-            logger.error(f"Failed to publish lineage to OpenMetadata: {e}")
+        except Exception as exc:
+            logger.error("lineage_publish_failed", error=str(exc))
             stats["failed"] += 1
 
         return stats

@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from phlo.hooks import TelemetryEvent
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class TelemetryRecorder:
@@ -28,12 +31,15 @@ class TelemetryRecorder:
 
     def record(self, event: TelemetryEvent) -> None:
         """Append a telemetry event to the JSONL file, rotating if needed."""
-
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._rotate_if_needed()
-        payload = _serialize_event(event)
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, default=str) + "\n")
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._rotate_if_needed()
+            payload = _serialize_event(event)
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload, default=str) + "\n")
+        except Exception:
+            logger.warning("telemetry_record_failed", path=str(self.path), exc_info=True)
+            raise
 
     def _rotate_if_needed(self) -> None:
         """Rotate the telemetry file when it exceeds max_bytes."""
@@ -45,6 +51,12 @@ class TelemetryRecorder:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
         rotated = self.path.with_name(f"{self.path.stem}.{timestamp}{self.path.suffix}")
         self.path.rename(rotated)
+        logger.debug(
+            "telemetry_file_rotated",
+            source_path=str(self.path),
+            rotated_path=str(rotated),
+            max_bytes=self.max_bytes,
+        )
 
 
 def _default_path() -> Path:
@@ -78,6 +90,12 @@ def iter_telemetry_events(path: Path | None = None) -> Iterator[dict[str, Any]]:
                 try:
                     payload = json.loads(line)
                 except json.JSONDecodeError:
+                    logger.debug(
+                        "telemetry_event_decode_failed",
+                        path=str(event_path),
+                        line=line,
+                        exc_info=True,
+                    )
                     continue
                 if isinstance(payload, dict):
                     yield payload

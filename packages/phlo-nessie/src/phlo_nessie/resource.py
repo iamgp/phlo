@@ -7,7 +7,10 @@ from datetime import datetime
 
 import requests
 
+from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -40,6 +43,11 @@ class NessieResource:
         else:
             settings = get_settings()
             self.base_url = f"http://{settings.nessie_host}:{settings.nessie_port}"
+        logger.debug(
+            "nessie_resource_initialized",
+            base_url=self.base_url,
+            explicit_base_url=base_url is not None,
+        )
 
     def _url(self, path: str) -> str:
         """Build a full Nessie URL.
@@ -60,9 +68,21 @@ class NessieResource:
             Parsed branch information for each branch reference.
         """
 
-        response = requests.get(self._url("/api/v1/trees"), timeout=10)
-        response.raise_for_status()
-        payload = response.json() or {}
+        logger.info(
+            "nessie_resource_list_branches_requested",
+            base_url=self.base_url,
+        )
+        try:
+            response = requests.get(self._url("/api/v1/trees"), timeout=10)
+            response.raise_for_status()
+            payload = response.json() or {}
+        except Exception:
+            logger.error(
+                "nessie_resource_list_branches_failed",
+                base_url=self.base_url,
+                exc_info=True,
+            )
+            raise
         branches: list[BranchInfo] = []
         for ref in payload.get("references", []):
             if ref.get("type") != "BRANCH":
@@ -75,10 +95,20 @@ class NessieResource:
                     try:
                         created_at = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
                     except ValueError:
+                        logger.warning(
+                            "nessie_resource_branch_created_at_parse_failed",
+                            branch_name=ref.get("name", ""),
+                            created_at_raw=created_raw,
+                        )
                         created_at = None
             branches.append(
                 BranchInfo(name=ref.get("name", ""), hash=ref.get("hash"), created_at=created_at)
             )
+        logger.info(
+            "nessie_resource_list_branches_succeeded",
+            base_url=self.base_url,
+            branch_count=len(branches),
+        )
         return branches
 
     def get_branch_hash(self, name: str) -> str | None:
@@ -91,11 +121,27 @@ class NessieResource:
             Branch hash when found, otherwise ``None``.
         """
 
+        logger.debug(
+            "nessie_resource_get_branch_hash_requested",
+            branch_name=name,
+            base_url=self.base_url,
+        )
         response = requests.get(self._url(f"/api/v1/trees/tree/{name}"), timeout=10)
         if response.status_code >= 400:
+            logger.info(
+                "nessie_resource_get_branch_hash_missing",
+                branch_name=name,
+                status_code=response.status_code,
+            )
             return None
         data = response.json() or {}
-        return data.get("hash")
+        branch_hash = data.get("hash")
+        logger.debug(
+            "nessie_resource_get_branch_hash_succeeded",
+            branch_name=name,
+            hash_found=branch_hash is not None,
+        )
+        return branch_hash
 
     def delete_branch(self, name: str) -> bool:
         """Delete a branch by name.
@@ -107,15 +153,30 @@ class NessieResource:
             ``True`` if deletion succeeded, else ``False``.
         """
 
+        logger.info(
+            "nessie_resource_delete_branch_requested",
+            branch_name=name,
+        )
         branch_hash = self.get_branch_hash(name)
         if not branch_hash:
+            logger.info(
+                "nessie_resource_delete_branch_missing_hash",
+                branch_name=name,
+            )
             return False
         response = requests.delete(
             self._url(f"/api/v1/trees/tree/{name}"),
             params={"expectedHash": branch_hash},
             timeout=10,
         )
-        return response.status_code < 300
+        deleted = response.status_code < 300
+        logger.info(
+            "nessie_resource_delete_branch_completed",
+            branch_name=name,
+            status_code=response.status_code,
+            deleted=deleted,
+        )
+        return deleted
 
 
 class BranchManagerResource:
@@ -138,7 +199,13 @@ class BranchManagerResource:
         """
 
         branches = self._nessie.list_branches()
-        return [branch for branch in branches if branch.name not in {"main", "dev"}]
+        pipeline_branches = [branch for branch in branches if branch.name not in {"main", "dev"}]
+        logger.info(
+            "nessie_branch_manager_pipeline_branches_resolved",
+            total_branch_count=len(branches),
+            pipeline_branch_count=len(pipeline_branches),
+        )
+        return pipeline_branches
 
     def cleanup_branch(self, name: str) -> bool:
         """Delete a pipeline branch.
@@ -150,4 +217,14 @@ class BranchManagerResource:
             ``True`` when cleanup succeeds, else ``False``.
         """
 
-        return self._nessie.delete_branch(name)
+        logger.info(
+            "nessie_branch_manager_cleanup_requested",
+            branch_name=name,
+        )
+        cleaned = self._nessie.delete_branch(name)
+        logger.info(
+            "nessie_branch_manager_cleanup_completed",
+            branch_name=name,
+            cleaned=cleaned,
+        )
+        return cleaned

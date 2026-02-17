@@ -85,7 +85,7 @@ class LineageStore:
             if "already exists" in str(e).lower():
                 LineageStore._schema_initialized = True
             else:
-                logger.warning(f"Lineage schema init failed (non-fatal): {e}")
+                logger.warning("lineage_schema_init_failed", error=str(e))
 
     def setup_schema(self) -> None:
         """Create the lineage schema and tables if they don't exist."""

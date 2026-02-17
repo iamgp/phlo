@@ -9,7 +9,10 @@ import yaml
 
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
+
+logger = get_logger(__name__)
 
 
 def _extract_compose_service(container_info: dict) -> str | None:
@@ -39,14 +42,31 @@ def list_cmd(show_all: bool, output_json: bool):
     # Load phlo.yaml for user overrides
     config_file = Path.cwd() / "phlo.yaml"
     user_overrides = {}
+    logger.info(
+        "services_list_requested",
+        show_all=show_all,
+        output_json=output_json,
+    )
     if config_file.exists():
-        with open(config_file) as f:
-            existing_config = yaml.safe_load(f) or {}
-            user_overrides = existing_config.get("services", {})
+        try:
+            with open(config_file) as f:
+                existing_config = yaml.safe_load(f) or {}
+                user_overrides = existing_config.get("services", {})
+        except (OSError, yaml.YAMLError):
+            logger.error(
+                "services_list_config_read_failed",
+                config_file=str(config_file),
+                exc_info=True,
+            )
+            raise
 
     # Discover available services
-    discovery = ServiceDiscovery()
-    available_services = discovery.discover()
+    try:
+        discovery = ServiceDiscovery()
+        available_services = discovery.discover()
+    except Exception:
+        logger.error("services_list_discovery_failed", exc_info=True)
+        raise
 
     # Check which services are disabled
     disabled_services = {
@@ -86,6 +106,11 @@ def list_cmd(show_all: bool, output_json: bool):
                         "ports": container_info.get("Ports", ""),
                     }
     except (subprocess.CalledProcessError, FileNotFoundError, OSError, ValueError):
+        logger.warning(
+            "services_list_runtime_status_unavailable",
+            project_name=get_project_name(),
+            exc_info=True,
+        )
         running_containers = {}
 
     if output_json:
@@ -107,6 +132,12 @@ def list_cmd(show_all: bool, output_json: bool):
             }
             for svc in all_services
         ]
+        logger.info(
+            "services_list_json_completed",
+            total_services=len(payload),
+            running_count=sum(1 for svc in payload if svc["running"]),
+            disabled_count=sum(1 for svc in payload if svc["disabled"]),
+        )
         click.echo(json.dumps(payload, indent=2))
         return
 
@@ -172,4 +203,11 @@ def list_cmd(show_all: bool, output_json: bool):
         for svc in sorted(inline_services, key=lambda x: x.name):
             click.echo(format_service_line(svc, custom_status="(inline)"))
 
+    logger.info(
+        "services_list_completed",
+        available_count=len(available_services),
+        inline_count=len(inline_services),
+        running_count=len(running_containers),
+        disabled_count=len(disabled_services),
+    )
     click.echo("")

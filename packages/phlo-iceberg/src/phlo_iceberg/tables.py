@@ -113,8 +113,10 @@ def append_to_table(
 
     if new_columns:
         logger.warning(
-            f"Arrow data has {len(new_columns)} columns not in Iceberg schema: {new_columns}. "
-            f"These columns will be dropped. To include them, recreate the table."
+            "arrow_columns_not_in_iceberg_schema",
+            new_column_count=len(new_columns),
+            new_columns=sorted(new_columns),
+            table_name=table_name,
         )
         existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
         arrow_table = arrow_table.select(existing_columns)
@@ -141,7 +143,7 @@ def append_to_table(
     try:
         arrow_table = arrow_table.cast(target_schema)
     except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-        logger.warning(f"Could not cast arrow table to target schema: {e}")
+        logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
 
     table.append(arrow_table)
     rows_inserted = len(arrow_table)
@@ -180,9 +182,10 @@ def merge_to_table(
     if len(unique_values_set) < len(unique_values):
         duplicates_count = len(unique_values) - len(unique_values_set)
         logger.warning(
-            f"{duplicates_count} duplicate values found in unique_key '{unique_key}' "
-            f"after source deduplication. This may indicate a configuration issue. "
-            f"Consider enabling source deduplication in merge_config."
+            "source_duplicates_detected_after_deduplication",
+            duplicates_count=duplicates_count,
+            unique_key=unique_key,
+            table_name=table_name,
         )
 
     rows_deleted = 0
@@ -206,8 +209,10 @@ def merge_to_table(
 
     if new_columns:
         logger.warning(
-            f"Arrow data has {len(new_columns)} columns not in Iceberg schema: {new_columns}. "
-            f"These columns will be dropped. To include them, recreate the table."
+            "arrow_columns_not_in_iceberg_schema",
+            new_column_count=len(new_columns),
+            new_columns=sorted(new_columns),
+            table_name=table_name,
         )
         existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
         arrow_table = arrow_table.select(existing_columns)
@@ -223,7 +228,7 @@ def merge_to_table(
     try:
         arrow_table = arrow_table.cast(target_schema)
     except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-        logger.warning(f"Could not cast arrow table to target schema: {e}")
+        logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
 
     table.append(arrow_table)
     rows_inserted = len(arrow_table)
@@ -292,7 +297,7 @@ def expire_snapshots(
     snapshots_after = len(list(table.snapshots()))
     deleted = snapshots_before - snapshots_after
 
-    logger.info(f"Expired {deleted} snapshots from {table_name}")
+    logger.info("snapshots_expired", table_name=table_name, deleted_snapshots=deleted)
     return {"deleted_snapshots": deleted}
 
 
@@ -360,10 +365,14 @@ def remove_orphan_files(
                 else:
                     orphan_files.append(file_info.path)
     except Exception as e:
-        logger.warning(f"Could not list files in {table_location}: {e}")
+        logger.warning("orphan_file_listing_failed", table_location=table_location, error=str(e))
 
     if dry_run:
-        logger.info(f"Found {len(orphan_files)} orphan files in {table_name} (dry run)")
+        logger.info(
+            "orphan_files_found_dry_run",
+            table_name=table_name,
+            orphan_file_count=len(orphan_files),
+        )
     else:
         deleted_count = 0
         for orphan in orphan_files:
@@ -371,8 +380,12 @@ def remove_orphan_files(
                 io.delete(orphan)
                 deleted_count += 1
             except Exception as e:
-                logger.warning(f"Could not delete orphan file {orphan}: {e}")
-        logger.info(f"Removed {deleted_count} orphan files from {table_name}")
+                logger.warning("orphan_file_delete_failed", orphan_file=orphan, error=str(e))
+        logger.info(
+            "orphan_files_removed",
+            table_name=table_name,
+            deleted_file_count=deleted_count,
+        )
 
     return {
         "orphan_count": len(orphan_files),

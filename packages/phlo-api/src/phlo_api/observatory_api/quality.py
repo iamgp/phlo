@@ -282,11 +282,11 @@ async def dagster_query(
         response.raise_for_status()
         result = response.json()
         if result.get("errors"):
-            logger.error(f"GraphQL error: {result['errors']}")
+            logger.error("dagster_graphql_error", errors=result["errors"])
             return None
         return result.get("data")
-    except Exception as e:
-        logger.error(f"Dagster query failed: {e}")
+    except Exception as exc:
+        logger.error("dagster_query_failed", error=str(exc))
         return None
 
 

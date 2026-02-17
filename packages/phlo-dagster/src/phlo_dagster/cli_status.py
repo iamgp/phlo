@@ -12,7 +12,10 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.logging import get_logger
+
 console = Console()
+logger = get_logger(__name__)
 
 
 @click.command()
@@ -77,18 +80,36 @@ def status(
     # Show both by default if neither is specified
     show_assets = assets or (not assets and not services)
     show_services = services or (not assets and not services)
+    logger.info(
+        "dagster_status_command_started",
+        show_assets=show_assets,
+        show_services=show_services,
+        group=group,
+        stale_only=stale,
+        output_json=output_json,
+    )
 
     result = {}
 
     if show_assets:
         asset_status = _get_asset_status(group=group, stale=stale, quiet=output_json)
         result["assets"] = asset_status
+        logger.info(
+            "dagster_status_assets_collected",
+            asset_count=len(asset_status),
+            group=group,
+            stale_only=stale,
+        )
         if not output_json:
             _display_asset_status(asset_status, group=group, stale=stale)
 
     if show_services:
         service_status = _get_service_status()
         result["services"] = service_status
+        logger.info(
+            "dagster_status_services_collected",
+            service_count=len(service_status),
+        )
         if not output_json:
             _display_service_status(service_status)
 
@@ -100,6 +121,12 @@ def status(
         click.echo(json.dumps(result, indent=2, default=str))
     else:
         console.print(f"[dim]Query time: {elapsed:.2f}s[/dim]\n")
+    logger.info(
+        "dagster_status_command_finished",
+        elapsed_seconds=round(elapsed, 3),
+        show_assets=show_assets,
+        show_services=show_services,
+    )
 
 
 def _get_asset_status(
@@ -114,6 +141,12 @@ def _get_asset_status(
         List of asset status dicts with name, last_run, status, freshness
     """
     assets = []
+    logger.debug(
+        "dagster_status_asset_query_started",
+        group=group,
+        stale_only=stale,
+        quiet=quiet,
+    )
 
     try:
         # Try to get asset info from Dagster
@@ -179,14 +212,28 @@ def _get_asset_status(
                     assets.append(status_info)
         except Exception:
             # If GraphQL fails, silently continue (service might be down)
-            pass
+            logger.warning(
+                "dagster_status_asset_query_failed",
+                group=group,
+                stale_only=stale,
+                exc_info=True,
+            )
 
     except ImportError:
         # Dagster GraphQL client not available
-        pass
+        logger.info(
+            "dagster_status_asset_query_client_unavailable",
+            group=group,
+            stale_only=stale,
+        )
 
     # If no assets found, return mock data for demo
     if not assets:
+        logger.info(
+            "dagster_status_asset_query_fallback_mock",
+            group=group,
+            stale_only=stale,
+        )
         assets = _get_mock_asset_status(group=group, stale=stale, show_warning=not quiet)
 
     return assets
@@ -330,6 +377,7 @@ def _get_service_status() -> Dict[str, Dict[str, Any]]:
         "http://localhost:19120/api/v1/config",
         name="Nessie",
     )
+    logger.info("dagster_status_service_checks_completed", service_count=len(services))
 
     return services
 
@@ -343,6 +391,10 @@ def _check_service_health(
         import requests
         from requests import exceptions as requests_exceptions
     except ImportError:
+        logger.info(
+            "dagster_status_service_health_requests_missing",
+            service_name=name,
+        )
         return {
             "name": name,
             "status": "error",
@@ -357,6 +409,13 @@ def _check_service_health(
 
         is_healthy = 200 <= response.status_code < 300
         status = "healthy" if is_healthy else "unhealthy"
+        if not is_healthy:
+            logger.warning(
+                "dagster_status_service_health_unhealthy",
+                service_name=name,
+                status_code=response.status_code,
+                latency_ms=round(latency, 1),
+            )
 
         return {
             "name": name,
@@ -365,6 +424,11 @@ def _check_service_health(
             "status_code": response.status_code,
         }
     except requests_exceptions.Timeout:
+        logger.warning(
+            "dagster_status_service_health_timeout",
+            service_name=name,
+            timeout_seconds=2,
+        )
         return {
             "name": name,
             "status": "timeout",
@@ -372,6 +436,10 @@ def _check_service_health(
             "error": "Request timeout",
         }
     except requests_exceptions.ConnectionError:
+        logger.warning(
+            "dagster_status_service_health_connection_error",
+            service_name=name,
+        )
         return {
             "name": name,
             "status": "down",
@@ -379,6 +447,12 @@ def _check_service_health(
             "error": "Connection refused",
         }
     except Exception as e:
+        logger.error(
+            "dagster_status_service_health_failed",
+            service_name=name,
+            error=str(e),
+            exc_info=True,
+        )
         return {
             "name": name,
             "status": "error",

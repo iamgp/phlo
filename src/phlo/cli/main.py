@@ -17,7 +17,9 @@ from phlo.cli.commands.services import services_group
 from phlo.cli.commands.workflow import workflow_group
 from phlo.cli.config import config
 from phlo.cli.env import env
-from phlo.logging import setup_logging
+from phlo.logging import get_logger, setup_logging
+
+logger = get_logger(__name__, service="phlo-cli")
 
 
 @click.group()
@@ -43,16 +45,23 @@ cli.add_command(env)
 def _load_cli_plugin_commands() -> None:
     from phlo.plugins.discovery import discover_plugins, get_global_registry
 
+    logger.debug("cli_plugin_discovery_started")
     discover_plugins(plugin_type="cli_commands", auto_register=True)
     registry = get_global_registry()
+    added_count = 0
     for name in registry.list_cli_command_plugins():
         plugin = registry.get_cli_command_plugin(name)
         if plugin is None:
+            logger.warning("cli_plugin_missing_in_registry", plugin_name=name)
             continue
         for command in plugin.get_cli_commands():
             if command.name is None or command.name in cli.commands:
+                logger.debug("cli_command_skipped", plugin_name=name, command_name=command.name)
                 continue
             cli.add_command(command)
+            added_count += 1
+            logger.debug("cli_command_added", plugin_name=name, command_name=command.name)
+    logger.debug("cli_plugin_discovery_completed", command_count=added_count)
 
 
 _load_cli_plugin_commands()
@@ -92,6 +101,7 @@ def test(
         if Path(test_file).exists():
             pytest_args = ["pytest", test_file]
         else:
+            logger.warning("test_file_not_found", test_file=test_file)
             click.echo(f"Error: Test file not found: {test_file}", err=True)
             click.echo("\nAvailable test files:", err=True)
             for f in Path("tests").glob("test_*.py"):
@@ -120,6 +130,7 @@ def test(
         result = subprocess.run(pytest_args, check=False)
         sys.exit(result.returncode)
     except FileNotFoundError:
+        logger.error("pytest_binary_not_found")
         click.echo("Error: pytest not found. Install with: pip install pytest", err=True)
         sys.exit(1)
 
@@ -194,6 +205,7 @@ def init(project_name: Optional[str], template: str, force: bool):
         click.echo("\nDocumentation: https://github.com/iamgp/phlo")
 
     except Exception as e:
+        logger.exception("project_initialization_failed", project_dir=str(project_dir))
         click.echo(f"\nError initializing project: {e}", err=True)
         import traceback
 

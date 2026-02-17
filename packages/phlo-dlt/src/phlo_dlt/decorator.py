@@ -255,9 +255,9 @@ def phlo_ingestion(
             run_id = runtime.run_id or "unknown"
             logger = runtime.logger
 
-            logger.info(f"Starting ingestion for partition {partition_date}")
-            logger.info(f"Ingesting to branch: {branch_name}")
-            logger.info(f"Target table: {table_config.full_table_name}")
+            logger.info("starting_ingestion", partition_date=partition_date)
+            logger.info("ingesting_to_branch", branch_name=branch_name)
+            logger.info("target_table_selected", table_name=table_config.full_table_name)
 
             logger.info("Calling user function to get DLT source...")
             try:
@@ -322,7 +322,14 @@ def phlo_ingestion(
                             schema_class=table_config.validation_schema,
                         )
                     except Exception as exc:
-                        logger.error(f"Pandera contract evaluation failed: {exc}")
+                        logger.error(
+                            "pandera_contract_evaluation_failed",
+                            table_name=table_config.full_table_name,
+                            partition_date=partition_date,
+                            parquet_path=str(parquet_path) if parquet_path is not None else None,
+                            error=str(exc),
+                            exc_info=True,
+                        )
                         evaluation = PanderaContractEvaluation(
                             passed=False,
                             failed_count=1,

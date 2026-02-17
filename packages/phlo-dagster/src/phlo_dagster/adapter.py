@@ -16,7 +16,10 @@ from phlo.capabilities.specs import (
     MaterializeResult,
     ResourceSpec,
 )
+from phlo.logging import get_logger
 from phlo.plugins.base import OrchestratorAdapterPlugin, PluginMetadata
+
+logger = get_logger(__name__)
 
 
 def _asset_key_from_string(key: str) -> dg.AssetKey:
@@ -220,16 +223,33 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
         Returns:
             Dagster definitions bundle for assets, checks, and resources.
         """
+        assets_list = list(assets)
+        checks_list = list(checks)
+        resources_list = list(resources)
+        logger.info(
+            "dagster_adapter_build_definitions_started",
+            asset_spec_count=len(assets_list),
+            check_spec_count=len(checks_list),
+            resource_spec_count=len(resources_list),
+        )
+
         resources_map: dict[str, Any] = {}
-        for resource in resources:
+        for resource in resources_list:
             value = resource.resource
             if isinstance(value, dg.ResourceDefinition):
                 resources_map[resource.name] = value
             else:
                 resources_map[resource.name] = dg.ResourceDefinition.hardcoded_resource(value)
 
-        asset_defs = [self._build_asset(spec) for spec in assets if spec.run is not None]
-        check_defs = [self._build_check(check) for check in checks if check.fn is not None]
+        asset_defs = [self._build_asset(spec) for spec in assets_list if spec.run is not None]
+        check_defs = [self._build_check(check) for check in checks_list if check.fn is not None]
+
+        logger.info(
+            "dagster_adapter_build_definitions_completed",
+            asset_definition_count=len(asset_defs),
+            check_definition_count=len(check_defs),
+            resource_definition_count=len(resources_map),
+        )
 
         return dg.Definitions(
             assets=asset_defs,
@@ -330,6 +350,13 @@ class DagsterOrchestratorAdapter(OrchestratorAdapterPlugin):
                         metadata.setdefault("status", dg.MetadataValue.text(result.status))
                     status = str(result.status or "").lower()
                     if status in {"failure", "failed", "error"}:
+                        logger.warning(
+                            "dagster_adapter_asset_materialization_failed_status",
+                            asset_key=spec.key,
+                            status=result.status,
+                            run_id=runtime.run_id,
+                            partition_key=runtime.partition_key,
+                        )
                         raise dg.Failure(
                             description=f"Asset run reported status '{result.status}'",
                             metadata=metadata,

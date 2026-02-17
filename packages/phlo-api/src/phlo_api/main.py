@@ -10,16 +10,19 @@ This FastAPI service provides endpoints for Observatory to:
 from __future__ import annotations
 
 import importlib
-import logging
 import os
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import yaml
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-logger = logging.getLogger(__name__)
+from phlo.logging import bind_context, clear_context, get_logger
+
+logger = get_logger(__name__, service="phlo-api")
 
 app = FastAPI(
     title="Phlo API",
@@ -78,6 +81,21 @@ def _register_observatory_routers() -> None:
 
 
 _register_observatory_routers()
+
+
+@app.middleware("http")
+async def bind_request_logging_context(request: Request, call_next: Any) -> Any:
+    """Bind per-request correlation fields for structured logging."""
+    request_id = request.headers.get("x-request-id") or str(uuid4())
+    trace_id = request.headers.get("traceparent") or request.headers.get("x-trace-id")
+    bind_context(request_id=request_id, trace_id=trace_id, path=request.url.path, method=request.method)
+    try:
+        response = await call_next(request)
+        response.headers.setdefault("x-request-id", request_id)
+        return response
+    finally:
+        with suppress(Exception):
+            clear_context()
 
 
 def get_project_path() -> Path:

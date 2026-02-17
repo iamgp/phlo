@@ -29,8 +29,14 @@ class PagerDutyAlertDestination(AlertDestination):
             payload = self._build_payload(alert)
             response = requests.post(self.api_url, json=payload, timeout=10)
             return response.status_code == 202  # Accepted
-        except Exception as e:
-            logger.exception(f"Failed to send PagerDuty alert: {e}")
+        except Exception:
+            logger.exception(
+                "pagerduty_alert_send_failed",
+                alert_title=alert.title,
+                severity=alert.severity.value,
+                asset_name=alert.asset_name,
+                run_id=alert.run_id,
+            )
             return False
 
     def _build_payload(self, alert: Alert) -> dict:

@@ -66,10 +66,14 @@ class DbtManifestParser:
         try:
             with open(self.manifest_path) as f:
                 self.manifest = json.load(f)
-            logger.info(f"Loaded dbt manifest from {self.manifest_path}")
+            logger.info("dbt_manifest_loaded", manifest_path=str(self.manifest_path))
             return self.manifest
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in manifest: {e}")
+        except json.JSONDecodeError as exc:
+            logger.error(
+                "dbt_manifest_invalid_json",
+                manifest_path=str(self.manifest_path),
+                error=str(exc),
+            )
             raise
 
     def load_catalog(self) -> dict[str, Any]:
@@ -84,18 +88,23 @@ class DbtManifestParser:
         """
         if not self.catalog_path or not self.catalog_path.exists():
             logger.warning(
-                f"dbt catalog not found at {self.catalog_path}, "
-                "column-level docs will not be available"
+                "dbt_catalog_missing",
+                catalog_path=str(self.catalog_path),
+                impact="column_level_docs_unavailable",
             )
             return {}
 
         try:
             with open(self.catalog_path) as f:
                 self.catalog = json.load(f)
-            logger.info(f"Loaded dbt catalog from {self.catalog_path}")
+            logger.info("dbt_catalog_loaded", catalog_path=str(self.catalog_path))
             return self.catalog
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in catalog: {e}")
+        except json.JSONDecodeError as exc:
+            logger.error(
+                "dbt_catalog_invalid_json",
+                catalog_path=str(self.catalog_path),
+                error=str(exc),
+            )
             raise
 
     def get_models(self, manifest: Optional[dict[str, Any]] = None) -> dict[str, dict[str, Any]]:
@@ -115,7 +124,7 @@ class DbtManifestParser:
         for unique_id, model in manifest.get("nodes", {}).items():
             if unique_id.startswith("model."):
                 models[unique_id] = model
-                logger.debug(f"Found model: {model.get('name')}")
+                logger.debug("dbt_model_found", model_name=model.get("name"), unique_id=unique_id)
 
         return models
 
@@ -302,8 +311,13 @@ class DbtManifestParser:
                 om_table = self.extract_openmetadata_table(model, schema_name, columns_info)
                 om_client.create_or_update_table(schema_name, om_table)
                 stats["created"] += 1
-            except Exception as e:
-                logger.error(f"Failed to sync model {model_name}: {e}")
+            except Exception as exc:
+                logger.error(
+                    "dbt_model_sync_failed",
+                    model_name=model_name,
+                    unique_id=unique_id,
+                    error=str(exc),
+                )
                 stats["failed"] += 1
 
         return stats
