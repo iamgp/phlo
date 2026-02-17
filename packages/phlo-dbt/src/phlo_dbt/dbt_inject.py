@@ -103,7 +103,6 @@ def inject_row_ids_to_table(
         raise
 
 
-
 def inject_row_ids_for_dbt_run(
     *,
     trino_connection: Any,

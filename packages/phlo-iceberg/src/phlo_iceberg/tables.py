@@ -158,7 +158,9 @@ def append_to_table(
         try:
             arrow_table = arrow_table.cast(target_schema)
         except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-            logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
+            logger.warning(
+                "arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e)
+            )
 
         table.append(arrow_table)
         rows_inserted = len(arrow_table)
@@ -283,7 +285,9 @@ def merge_to_table(
         try:
             arrow_table = arrow_table.cast(target_schema)
         except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-            logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
+            logger.warning(
+                "arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e)
+            )
 
         table.append(arrow_table)
         rows_inserted = len(arrow_table)

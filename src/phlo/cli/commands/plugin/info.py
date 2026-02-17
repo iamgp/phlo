@@ -50,7 +50,9 @@ def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool) -> No
                     break
 
             if detected_type is None:
-                logger.warning("plugin_info_not_found", plugin_name=plugin_name, reason="not_detected")
+                logger.warning(
+                    "plugin_info_not_found", plugin_name=plugin_name, reason="not_detected"
+                )
                 console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
                 raise SystemExit(1)
 
@@ -69,7 +71,9 @@ def info_cmd(plugin_name: str, plugin_type: str | None, output_json: bool) -> No
         info = get_plugin_info(internal_type, plugin_name)
 
         if info is None:
-            logger.warning("plugin_info_not_found", plugin_name=plugin_name, reason="missing_metadata")
+            logger.warning(
+                "plugin_info_not_found", plugin_name=plugin_name, reason="missing_metadata"
+            )
             console.print(f"[red]Plugin '{plugin_name}' not found[/red]")
             raise SystemExit(1)
 

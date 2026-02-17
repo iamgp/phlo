@@ -88,7 +88,9 @@ async def bind_request_logging_context(request: Request, call_next: Any) -> Any:
     """Bind per-request correlation fields for structured logging."""
     request_id = request.headers.get("x-request-id") or str(uuid4())
     trace_id = request.headers.get("traceparent") or request.headers.get("x-trace-id")
-    bind_context(request_id=request_id, trace_id=trace_id, path=request.url.path, method=request.method)
+    bind_context(
+        request_id=request_id, trace_id=trace_id, path=request.url.path, method=request.method
+    )
     try:
         response = await call_next(request)
         response.headers.setdefault("x-request-id", request_id)
@@ -186,7 +188,11 @@ def get_plugins_by_type(plugin_type: str) -> list[str]:
 
         all_plugins = list_plugins()
         if plugin_type not in all_plugins:
-            logger.warning("api_plugins_type_list_failed", plugin_type=plugin_type, reason="unknown_plugin_type")
+            logger.warning(
+                "api_plugins_type_list_failed",
+                plugin_type=plugin_type,
+                reason="unknown_plugin_type",
+            )
             raise HTTPException(status_code=404, detail=f"Unknown plugin type: {plugin_type}")
         plugins = all_plugins[plugin_type]
         logger.info(
@@ -229,7 +235,9 @@ def get_plugin_info(plugin_type: str, name: str) -> dict[str, Any]:
         )
         return info
     except ImportError as e:
-        logger.error("api_plugin_get_failed", plugin_type=plugin_type, plugin_name=name, error=str(e))
+        logger.error(
+            "api_plugin_get_failed", plugin_type=plugin_type, plugin_name=name, error=str(e)
+        )
         raise HTTPException(status_code=500, detail="Plugin system not available") from e
 
 
@@ -283,11 +291,13 @@ def get_service_info(name: str) -> dict[str, Any]:
             "env_vars": service.env_vars,
             "core": getattr(service, "core", False),
         }
+        depends_on = service_payload["depends_on"]
+        env_vars = service_payload["env_vars"]
         logger.info(
             "api_service_get_succeeded",
             service_name=name,
-            depends_on_count=len(service_payload["depends_on"]),
-            env_var_count=len(service_payload["env_vars"]),
+            depends_on_count=len(depends_on) if isinstance(depends_on, list) else 0,
+            env_var_count=len(env_vars) if isinstance(env_vars, dict) else 0,
         )
         return service_payload
     except ImportError as e:

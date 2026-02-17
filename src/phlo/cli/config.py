@@ -168,7 +168,9 @@ def upgrade(force: bool):
         project_config = yaml.safe_load(f) or {}
 
     if "infrastructure" in project_config and not force:
-        logger.warning("config_upgrade_skipped", path=str(config_path), reason="infrastructure_exists")
+        logger.warning(
+            "config_upgrade_skipped", path=str(config_path), reason="infrastructure_exists"
+        )
         console.print("[yellow]Infrastructure section already exists in phlo.yaml[/yellow]")
         error_console.print("Use --force to overwrite")
         sys.exit(1)

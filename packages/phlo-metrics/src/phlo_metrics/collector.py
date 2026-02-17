@@ -116,7 +116,9 @@ class MetricsCollector:
         try:
             metrics = cast(SummaryMetrics, self._collect_from_prometheus(period_hours))
         except Exception:
-            logger.warning("metrics_collect_prometheus_failed", period_hours=period_hours, exc_info=True)
+            logger.warning(
+                "metrics_collect_prometheus_failed", period_hours=period_hours, exc_info=True
+            )
 
         # Supplement with Postgres metrics
         try:
@@ -124,7 +126,9 @@ class MetricsCollector:
             metrics.total_rows_processed_24h = postgres_metrics.get("rows_processed", 0)
             metrics.total_bytes_written_24h = postgres_metrics.get("bytes_written", 0)
         except Exception:
-            logger.warning("metrics_collect_postgres_failed", period_hours=period_hours, exc_info=True)
+            logger.warning(
+                "metrics_collect_postgres_failed", period_hours=period_hours, exc_info=True
+            )
 
         # Supplement with Iceberg stats
         try:
@@ -132,7 +136,9 @@ class MetricsCollector:
             metrics.active_assets_count = int(iceberg_metrics.get("table_count", 0) or 0)
             metrics.data_growth_bytes = int(iceberg_metrics.get("total_bytes", 0) or 0)
         except Exception:
-            logger.warning("metrics_collect_iceberg_failed", period_hours=period_hours, exc_info=True)
+            logger.warning(
+                "metrics_collect_iceberg_failed", period_hours=period_hours, exc_info=True
+            )
 
         self._cache[cache_key] = metrics
         return metrics
@@ -292,7 +298,9 @@ class MetricsCollector:
             conn.close()
 
         except Exception:
-            logger.debug("postgres_metrics_collection_failed", period_hours=period_hours, exc_info=True)
+            logger.debug(
+                "postgres_metrics_collection_failed", period_hours=period_hours, exc_info=True
+            )
 
         return metrics
 

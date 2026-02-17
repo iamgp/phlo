@@ -160,7 +160,9 @@ def _register_default_destinations(manager: AlertManager) -> None:
             )
             manager.register_destination("slack", slack)
         except Exception:
-            logger.warning("alert_destination_register_failed", destination_name="slack", exc_info=True)
+            logger.warning(
+                "alert_destination_register_failed", destination_name="slack", exc_info=True
+            )
 
     # Register PagerDuty if configured
     if config.phlo_alert_pagerduty_key:
@@ -186,4 +188,6 @@ def _register_default_destinations(manager: AlertManager) -> None:
             )
             manager.register_destination("email", email)
         except Exception:
-            logger.warning("alert_destination_register_failed", destination_name="email", exc_info=True)
+            logger.warning(
+                "alert_destination_register_failed", destination_name="email", exc_info=True
+            )

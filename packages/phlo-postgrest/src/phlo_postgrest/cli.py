@@ -71,7 +71,9 @@ def generate_postgrest_views(
 
         if not apply and not output:
             click.echo(result)
-        logger.info("postgrest_generate_views_completed", applied=apply, output_written=bool(output))
+        logger.info(
+            "postgrest_generate_views_completed", applied=apply, output_written=bool(output)
+        )
 
     except Exception as e:
         logger.exception("postgrest_generate_views_failed")

@@ -38,7 +38,12 @@ def update_cmd(output_json: bool, dry_run: bool):
 
         if output_json:
             console.print(json.dumps(updates, indent=2))
-            logger.info("plugin_update_succeeded", output_json=True, dry_run=dry_run, update_count=len(updates))
+            logger.info(
+                "plugin_update_succeeded",
+                output_json=True,
+                dry_run=dry_run,
+                update_count=len(updates),
+            )
             return
 
         if dry_run:
@@ -102,12 +107,16 @@ def update_cmd(output_json: bool, dry_run: bool):
                 continue
 
         if failures:
-            logger.error("plugin_update_failed", failure_count=len(failures), update_count=len(updates))
+            logger.error(
+                "plugin_update_failed", failure_count=len(failures), update_count=len(updates)
+            )
             failed_list = ", ".join(f"{item['package']}=={item['version']}" for item in failures)
             console.print(f"[red]Failed updates: {failed_list}[/red]")
             sys.exit(1)
 
-        logger.info("plugin_update_succeeded", output_json=False, dry_run=False, update_count=len(updates))
+        logger.info(
+            "plugin_update_succeeded", output_json=False, dry_run=False, update_count=len(updates)
+        )
         console.print("[green]✓ Plugins updated[/green]")
     except Exception as e:
         logger.exception("plugin_update_failed", output_json=output_json, dry_run=dry_run)

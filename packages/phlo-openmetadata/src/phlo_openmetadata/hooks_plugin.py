@@ -72,7 +72,13 @@ class OpenMetadataHookPlugin(HookPlugin):
         logger.info("openmetadata_lineage_sync_started", edge_count=len(event.edges))
         client = self._get_client()
         if client is None:
-            logger.info("openmetadata_lineage_sync_result", edge_count=len(event.edges), synced_count=0, failed_count=0, skipped=True)
+            logger.info(
+                "openmetadata_lineage_sync_result",
+                edge_count=len(event.edges),
+                synced_count=0,
+                failed_count=0,
+                skipped=True,
+            )
             return
         synced_count = 0
         failed_count = 0

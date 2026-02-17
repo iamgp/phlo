@@ -401,7 +401,11 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     const cliServices = await discoverServicesFromCli()
     if (cliServices.length > 0) {
       servicesLog.info(
-        { source: 'cli', count: cliServices.length, durationMs: Math.round(performance.now() - startedAt) },
+        {
+          source: 'cli',
+          count: cliServices.length,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
         'services_discovery_completed',
       )
       return cliServices
@@ -420,7 +424,10 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
       }
     }
   } catch (error) {
-    servicesLog.error({ err: error, packagesPath }, 'services_discovery_scan_failed')
+    servicesLog.error(
+      { err: error, packagesPath },
+      'services_discovery_scan_failed',
+    )
   }
 
   if (shouldFallbackToCliDiscovery(useCli, services.length)) {
@@ -431,7 +438,11 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     const cliServices = await discoverServicesFromCli()
     if (cliServices.length > 0) {
       servicesLog.info(
-        { source: 'cli_fallback', count: cliServices.length, durationMs: Math.round(performance.now() - startedAt) },
+        {
+          source: 'cli_fallback',
+          count: cliServices.length,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
         'services_discovery_completed',
       )
       return cliServices
@@ -446,7 +457,11 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
     return a.name.localeCompare(b.name)
   })
   servicesLog.info(
-    { source: 'filesystem', count: sorted.length, durationMs: Math.round(performance.now() - startedAt) },
+    {
+      source: 'filesystem',
+      count: sorted.length,
+      durationMs: Math.round(performance.now() - startedAt),
+    },
     'services_discovery_completed',
   )
   return sorted
@@ -877,7 +892,10 @@ export const startService = createServerFn()
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       const startedAt = performance.now()
-      servicesLog.info({ serviceName, action: 'start' }, 'services_control_started')
+      servicesLog.info(
+        { serviceName, action: 'start' },
+        'services_control_started',
+      )
       try {
         const containerId = await findContainerByService(serviceName)
         if (containerId) {
@@ -945,7 +963,10 @@ export const stopService = createServerFn()
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
       const startedAt = performance.now()
-      servicesLog.info({ serviceName, action: 'stop' }, 'services_control_started')
+      servicesLog.info(
+        { serviceName, action: 'stop' },
+        'services_control_started',
+      )
       try {
         const containerId = await findContainerByService(serviceName)
         if (containerId) {

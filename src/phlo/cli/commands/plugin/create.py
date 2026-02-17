@@ -67,7 +67,9 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
 
         plugin_path = Path(path)
         if plugin_path.exists():
-            logger.warning("plugin_create_validation_failed", reason="path_exists", path=str(plugin_path))
+            logger.warning(
+                "plugin_create_validation_failed", reason="path_exists", path=str(plugin_path)
+            )
             console.print(f"[red]Path already exists: {path}[/red]")
             sys.exit(1)
 
