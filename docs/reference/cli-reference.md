@@ -1573,6 +1573,6 @@ phlo materialize failed_asset
 
 ## Next Steps
 
-- [Configuration Reference](configuration.md) - Detailed configuration options
+- [Configuration Reference](configuration-reference.md) - Detailed configuration options
 - [Developer Guide](../guides/developer-guide.md) - Building workflows
 - [Troubleshooting](../operations/troubleshooting.md) - Common issues

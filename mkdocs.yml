@@ -59,7 +59,15 @@ nav:
       - dbt Development: guides/dbt-development.md
       - Data Modeling: guides/data-modeling.md
       - Dagster Assets: guides/dagster-assets.md
+      - Capability Primitives: guides/capability-primitives.md
+      - Orchestrator Adapters: guides/orchestrator-adapters.md
+      - Operations Contracts: guides/operations-contracts.md
+      - Logging: guides/logging.md
+      - Hook Event Bus: guides/hook-event-bus.md
+      - Semantic Layer: guides/semantic-layer.md
       - Plugin Development: guides/plugin-development.md
+      - Plugin Registry: guides/plugin-registry.md
+      - Compose Generation: guides/compose-generation.md
       - Service Packages: guides/service-packages.md
       - Testing Strategy: guides/testing-strategy.md
   - Setup:
@@ -107,8 +115,29 @@ nav:
       - API Reference: reference/phlo-api.md
       - CLI Reference: reference/cli-reference.md
       - Configuration: reference/configuration-reference.md
+      - Plugin API: reference/plugin-api.md
+      - Quality Checks Catalog: reference/quality-checks-catalog.md
       - DuckDB Queries: reference/duckdb-queries.md
       - Common Errors: reference/common-errors.md
+  - Errors:
+      - Error Index: errors/README.md
+      - PHLO-001 Asset Not Discovered: errors/PHLO-001.md
+      - PHLO-002 Schema Mismatch: errors/PHLO-002.md
+      - PHLO-003 Invalid Cron: errors/PHLO-003.md
+      - PHLO-004 Validation Failed: errors/PHLO-004.md
+      - PHLO-005 Missing Schema: errors/PHLO-005.md
+      - PHLO-006 Ingestion Failed: errors/PHLO-006.md
+      - PHLO-007 Table Not Found: errors/PHLO-007.md
+      - PHLO-008 Infrastructure Error: errors/PHLO-008.md
+      - PHLO-200 Schema Conversion: errors/PHLO-200.md
+      - PHLO-201 Type Conversion: errors/PHLO-201.md
+      - PHLO-300 DLT Pipeline Failed: errors/PHLO-300.md
+      - PHLO-301 DLT Source Error: errors/PHLO-301.md
+      - PHLO-400 Iceberg Catalog: errors/PHLO-400.md
+      - PHLO-401 Iceberg Table: errors/PHLO-401.md
+      - PHLO-402 Iceberg Write: errors/PHLO-402.md
+  - Observatory:
+      - Extensions: observatory/extensions.md
   - Operations:
       - Operations Guide: operations/operations-guide.md
       - Best Practices: operations/best-practices.md
