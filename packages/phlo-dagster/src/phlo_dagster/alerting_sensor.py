@@ -63,8 +63,9 @@ def failure_alert_sensor(context):
             events = list(
                 instance.get_event_log_entries(
                     run_id=run.run_id,
-                    event_filter_fn=lambda event: event.event_type
-                    == DagsterEventType.PIPELINE_FAILURE,
+                    event_filter_fn=lambda event: (
+                        event.event_type == DagsterEventType.PIPELINE_FAILURE
+                    ),
                 )
             )
             scanned_event_count += len(events)
