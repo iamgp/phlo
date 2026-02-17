@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from dagster import DagsterEventType, sensor
+from dagster import DagsterEventType, DagsterRunStatus, RunsFilter, sensor
 
 from phlo.logging import get_logger
 from phlo_alerting.manager import Alert, AlertSeverity, get_alert_manager
@@ -42,11 +42,11 @@ def failure_alert_sensor(context):
         # Query for failed runs
         failed_runs = list(
             instance.get_runs(
-                filters={
-                    # Filter for failed runs since cutoff
-                    "status": "FAILURE",
-                    "created_at_after": cutoff_time,
-                }
+                filters=RunsFilter(
+                    # Filter for failed runs since cutoff.
+                    statuses=[DagsterRunStatus.FAILURE],
+                    created_after=cutoff_time,
+                )
             )
         )
 
