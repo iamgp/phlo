@@ -18,6 +18,36 @@ Environment variables are materialized into `.phlo/.env` (generated, non-secret 
 and `.phlo/.env.local` (local secrets). Edit `phlo.yaml` for committed defaults and
 `.phlo/.env.local` for secrets.
 
+### Orchestrator Configuration
+
+```bash
+# Active orchestrator adapter (default: dagster)
+PHLO_ORCHESTRATOR=dagster
+# Alias
+PHLO_ORCHESTRATOR_NAME=dagster
+```
+
+### Logging Configuration
+
+```bash
+# Log level (default: INFO)
+PHLO_LOG_LEVEL=INFO
+
+# Log output format: auto (tty=console, else JSON), json, console
+PHLO_LOG_FORMAT=auto
+
+# Emit structured log events to the hook bus (default: true)
+PHLO_LOG_ROUTER_ENABLED=true
+
+# Default service name attached to log records (default: phlo)
+PHLO_LOG_SERVICE_NAME=phlo
+
+# Log file path template with date placeholders (default: .phlo/logs/{YMD}.log)
+# Available placeholders: {YMD}, {YM}, {Y}, {YYYY}, {M}, {MM}, {D}, {DD}, {H}, {HM}, {HMS}, {DATE}, {TIMESTAMP}
+# Set empty to disable file logging
+PHLO_LOG_FILE_TEMPLATE=.phlo/logs/{YMD}.log
+```
+
 ### Database Configuration
 
 PostgreSQL database settings:
@@ -76,7 +106,7 @@ Nessie Git-like catalog:
 ```bash
 # Version and connectivity
 NESSIE_VERSION=0.106.0
-NESSIE_PORT=19120
+NESSIE_PORT=10003
 NESSIE_HOST=nessie
 NESSIE_API_VERSION=v1
 ```
