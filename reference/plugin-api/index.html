@@ -1,0 +1,2959 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Phlo data lakehouse platform">
+      
+      
+        <meta name="author" content="Phlo Team">
+      
+      
+      
+        <link rel="prev" href="../configuration-reference/">
+      
+      
+        <link rel="next" href="../quality-checks-catalog/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Plugin API - Phlo Lakehouse Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#plugin-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Plugin API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Phlo Lakehouse Platform
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../getting-started/installation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../guides/developer-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../setup/hasura/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../packages/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../phlo-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugin API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugin API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pluginmetadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PluginMetadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serviceplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServicePlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ServicePlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-properties_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clicommandplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CliCommandPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CliCommandPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sourceconnectorplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SourceConnectorPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SourceConnectorPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qualitycheckplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QualityCheckPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="QualityCheckPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transformationplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TransformationPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TransformationPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#catalogplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CatalogPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CatalogPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-properties_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assetproviderplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AssetProviderPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AssetProviderPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resourceproviderplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResourceProviderPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ResourceProviderPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orchestratoradapterplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OrchestratorAdapterPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OrchestratorAdapterPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-point-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry Point Registration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Entry Point Registration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pyprojecttoml-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pyproject.toml example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#discovery-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovery behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quality-checks-catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quality Checks Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../duckdb-queries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DuckDB Queries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../errors/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../observatory/extensions/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observatory
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../operations/operations-guide/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Plugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pluginmetadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PluginMetadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serviceplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServicePlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ServicePlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-properties_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clicommandplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CliCommandPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CliCommandPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sourceconnectorplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SourceConnectorPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SourceConnectorPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#qualitycheckplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QualityCheckPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="QualityCheckPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transformationplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TransformationPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TransformationPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#catalogplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CatalogPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CatalogPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-properties_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assetproviderplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AssetProviderPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AssetProviderPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concrete-methods_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concrete methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resourceproviderplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ResourceProviderPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ResourceProviderPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orchestratoradapterplugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OrchestratorAdapterPlugin
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OrchestratorAdapterPlugin">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-point-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry Point Registration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Entry Point Registration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pyprojecttoml-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pyproject.toml example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#discovery-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discovery behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="plugin-api-reference">Plugin API Reference</h1>
+<p>Comprehensive API reference for all Phlo plugin base classes.</p>
+<h2 id="overview">Overview</h2>
+<p>Phlo's plugin system uses abstract base classes to define contracts for each extension point. All plugin types inherit from <a href="#plugin"><code>Plugin</code></a> and must provide <a href="#pluginmetadata"><code>PluginMetadata</code></a>.</p>
+<pre><code>Plugin (ABC)
+├── ServicePlugin
+├── CliCommandPlugin
+├── SourceConnectorPlugin
+├── QualityCheckPlugin[T]
+├── TransformationPlugin
+├── CatalogPlugin
+├── AssetProviderPlugin
+├── ResourceProviderPlugin
+└── OrchestratorAdapterPlugin
+</code></pre>
+<p><strong>Import path</strong> — all base classes are re-exported from a single module:</p>
+<pre><code class="language-python">from phlo.plugins.base import (
+    Plugin,
+    PluginMetadata,
+    ServicePlugin,
+    CliCommandPlugin,
+    SourceConnectorPlugin,
+    QualityCheckPlugin,
+    TransformationPlugin,
+    CatalogPlugin,
+    AssetProviderPlugin,
+    ResourceProviderPlugin,
+    OrchestratorAdapterPlugin,
+)
+</code></pre>
+<hr />
+<h2 id="plugin">Plugin</h2>
+<p><code>phlo.plugins.base.plugin.Plugin</code></p>
+<p>Abstract base class for all Phlo plugins.</p>
+<h3 id="abstract-properties">Abstract properties</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Return type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>metadata</code></td>
+<td><code>PluginMetadata</code></td>
+<td>Plugin identity and metadata.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concrete-methods">Concrete methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>initialize</code></td>
+<td><code>(config: dict[str, Any]) -&gt; None</code></td>
+<td>Called once when the plugin is loaded. Override to validate config, set up connections, or load resources.</td>
+</tr>
+<tr>
+<td><code>cleanup</code></td>
+<td><code>() -&gt; None</code></td>
+<td>Called when the plugin is unloaded. Override to close connections, release resources, or save state.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="pluginmetadata">PluginMetadata</h2>
+<p><code>phlo.plugins.base.plugin.PluginMetadata</code></p>
+<p>Dataclass describing a plugin's identity.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td><em>(required)</em></td>
+<td>Unique name within plugin type.</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td><code>str</code></td>
+<td><em>(required)</em></td>
+<td>Semver version string.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>str</code></td>
+<td><code>""</code></td>
+<td>Human-readable description.</td>
+</tr>
+<tr>
+<td><code>author</code></td>
+<td><code>str</code></td>
+<td><code>""</code></td>
+<td>Author name or organization.</td>
+</tr>
+<tr>
+<td><code>license</code></td>
+<td><code>str</code></td>
+<td><code>""</code></td>
+<td>License identifier (e.g., <code>MIT</code>, <code>Apache-2.0</code>).</td>
+</tr>
+<tr>
+<td><code>homepage</code></td>
+<td><code>str</code></td>
+<td><code>""</code></td>
+<td>Homepage or repository URL.</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td><code>list[str]</code></td>
+<td><code>[]</code></td>
+<td>Tags for categorization and search.</td>
+</tr>
+<tr>
+<td><code>dependencies</code></td>
+<td><code>list[str]</code></td>
+<td><code>[]</code></td>
+<td>Python package dependencies required by the plugin.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-python">from phlo.plugins.base import PluginMetadata
+
+meta = PluginMetadata(
+    name=&quot;my-plugin&quot;,
+    version=&quot;0.1.0&quot;,
+    description=&quot;Example plugin&quot;,
+    author=&quot;Acme Corp&quot;,
+    tags=[&quot;example&quot;],
+)
+</code></pre>
+<hr />
+<h2 id="serviceplugin">ServicePlugin</h2>
+<p><code>phlo.plugins.base.service.ServicePlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Provides Docker-based infrastructure components that compose into a Phlo stack. The <code>service_definition</code> property returns a dict equivalent to a <code>service.yaml</code> file.</p>
+<h3 id="abstract-properties_1">Abstract properties</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Return type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>service_definition</code></td>
+<td><code>dict[str, Any]</code></td>
+<td>Full service definition (equivalent to <code>service.yaml</code>).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concrete-properties">Concrete properties</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Return type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>category</code></td>
+<td><code>str</code></td>
+<td>Service category (<code>core</code>, <code>api</code>, <code>bi</code>, <code>observability</code>, etc.). Defaults to <code>"custom"</code>.</td>
+</tr>
+<tr>
+<td><code>is_default</code></td>
+<td><code>bool</code></td>
+<td>Whether the service is installed by default.</td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td><code>str \| None</code></td>
+<td>Optional profile this service belongs to.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concrete-methods_1">Concrete methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_compose_fragment</code></td>
+<td><code>() -&gt; dict[str, Any]</code></td>
+<td>Docker Compose service configuration from definition.</td>
+</tr>
+<tr>
+<td><code>get_files</code></td>
+<td><code>() -&gt; list[dict[str, str]]</code></td>
+<td>Files to copy during initialization.</td>
+</tr>
+<tr>
+<td><code>get_dependencies</code></td>
+<td><code>() -&gt; list[str]</code></td>
+<td>Service names this service depends on.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example">Example</h3>
+<pre><code class="language-python">from phlo.plugins.base import ServicePlugin, PluginMetadata
+
+class RedisService(ServicePlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(name=&quot;redis&quot;, version=&quot;1.0.0&quot;, description=&quot;Redis cache&quot;)
+
+    @property
+    def service_definition(self) -&gt; dict:
+        return {
+            &quot;category&quot;: &quot;core&quot;,
+            &quot;default&quot;: False,
+            &quot;compose&quot;: {
+                &quot;image&quot;: &quot;redis:7-alpine&quot;,
+                &quot;ports&quot;: [&quot;6379:6379&quot;],
+            },
+        }
+</code></pre>
+<hr />
+<h2 id="clicommandplugin">CliCommandPlugin</h2>
+<p><code>phlo.plugins.base.cli.CliCommandPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Contributes <a href="https://click.palletsprojects.com/">Click</a> commands or groups to the <code>phlo</code> CLI at runtime. Keeps the core CLI lightweight while capability packages provide their own CLI surface.</p>
+<h3 id="abstract-methods">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_cli_commands</code></td>
+<td><code>() -&gt; list[click.Command]</code></td>
+<td>Return Click commands/groups to register on the root CLI.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example_1">Example</h3>
+<pre><code class="language-python">import click
+from phlo.plugins.base import CliCommandPlugin, PluginMetadata
+
+class MyCliPlugin(CliCommandPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(name=&quot;hello&quot;, version=&quot;1.0.0&quot;)
+
+    def get_cli_commands(self) -&gt; list[click.Command]:
+        @click.command()
+        def hello():
+            &quot;&quot;&quot;Say hello from a plugin.&quot;&quot;&quot;
+            click.echo(&quot;Hello from plugin!&quot;)
+
+        return [hello]
+</code></pre>
+<hr />
+<h2 id="sourceconnectorplugin">SourceConnectorPlugin</h2>
+<p><code>phlo.plugins.base.source.SourceConnectorPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Enables ingesting data from external sources (APIs, databases, file systems, etc.).</p>
+<h3 id="abstract-methods_1">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fetch_data</code></td>
+<td><code>(config: dict[str, Any]) -&gt; Iterator[dict[str, Any]]</code></td>
+<td>Yield dictionaries representing individual records from the source. <code>config</code> contains connection parameters, query/filter settings, pagination, and credentials.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concrete-methods_2">Concrete methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_schema</code></td>
+<td><code>(config: dict[str, Any]) -&gt; dict[str, str] \| None</code></td>
+<td>Return a column-name-to-type mapping (e.g., <code>{"id": "string"}</code>). Returns <code>None</code> if schema is dynamic.</td>
+</tr>
+<tr>
+<td><code>test_connection</code></td>
+<td><code>(config: dict[str, Any]) -&gt; bool</code></td>
+<td>Test reachability of the source. Default implementation calls <code>fetch_data</code> and tries to read one record.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example_2">Example</h3>
+<pre><code class="language-python">from collections.abc import Iterator
+from phlo.plugins.base import SourceConnectorPlugin, PluginMetadata
+
+class GitHubConnector(SourceConnectorPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(
+            name=&quot;github&quot;, version=&quot;1.0.0&quot;, description=&quot;Fetch data from GitHub API&quot;
+        )
+
+    def fetch_data(self, config: dict) -&gt; Iterator[dict]:
+        for event in fetch_github_events(config[&quot;api_token&quot;], config[&quot;repo&quot;]):
+            yield event
+
+    def get_schema(self, config: dict) -&gt; dict:
+        return {&quot;id&quot;: &quot;string&quot;, &quot;type&quot;: &quot;string&quot;, &quot;created_at&quot;: &quot;timestamp&quot;}
+</code></pre>
+<hr />
+<h2 id="qualitycheckplugin">QualityCheckPlugin</h2>
+<p><code>phlo.plugins.base.quality.QualityCheckPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code>, <code>Generic[TQualityCheck]</code></p>
+<p>Factory for custom data quality checks that integrate with the <code>@phlo_quality</code> decorator.</p>
+<h3 id="abstract-methods_2">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create_check</code></td>
+<td><code>(**kwargs) -&gt; TQualityCheck</code></td>
+<td>Create and return a quality check instance configured with the provided parameters.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example_3">Example</h3>
+<pre><code class="language-python">from phlo.plugins.base import QualityCheckPlugin, PluginMetadata
+from phlo_quality.checks import QualityCheck, QualityCheckResult
+
+class BusinessRuleCheck(QualityCheckPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(
+            name=&quot;business_rule&quot;, version=&quot;1.0.0&quot;, description=&quot;Validate business rules&quot;
+        )
+
+    def create_check(self, **kwargs) -&gt; QualityCheck:
+        return BusinessRuleQualityCheck(rule=kwargs[&quot;rule&quot;])
+</code></pre>
+<hr />
+<h2 id="transformationplugin">TransformationPlugin</h2>
+<p><code>phlo.plugins.base.transform.TransformationPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Custom data processing steps that compose into data pipelines.</p>
+<h3 id="abstract-methods_3">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transform</code></td>
+<td><code>(df: pd.DataFrame, config: dict[str, Any]) -&gt; pd.DataFrame</code></td>
+<td>Transform a DataFrame and return the result.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concrete-methods_3">Concrete methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_output_schema</code></td>
+<td><code>(input_schema: dict[str, str], config: dict[str, Any]) -&gt; dict[str, str] \| None</code></td>
+<td>Return the schema of the transformed data. Returns <code>None</code> if unknown.</td>
+</tr>
+<tr>
+<td><code>validate_config</code></td>
+<td><code>(config: dict[str, Any]) -&gt; bool</code></td>
+<td>Validate transformation configuration. Returns <code>True</code> by default.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example_4">Example</h3>
+<pre><code class="language-python">import pandas as pd
+from phlo.plugins.base import TransformationPlugin, PluginMetadata
+
+class PivotTransform(TransformationPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(name=&quot;pivot&quot;, version=&quot;1.0.0&quot;, description=&quot;Pivot table&quot;)
+
+    def transform(self, df: pd.DataFrame, config: dict) -&gt; pd.DataFrame:
+        return df.pivot_table(
+            index=config[&quot;index&quot;],
+            columns=config[&quot;columns&quot;],
+            values=config[&quot;values&quot;],
+            aggfunc=config.get(&quot;aggfunc&quot;, &quot;mean&quot;),
+        )
+</code></pre>
+<hr />
+<h2 id="catalogplugin">CatalogPlugin</h2>
+<p><code>phlo.plugins.base.catalog.CatalogPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Engine-agnostic catalog configuration. Engine adapters serialize catalog properties into their native formats.</p>
+<h3 id="abstract-properties_2">Abstract properties</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Return type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>targets</code></td>
+<td><code>list[str]</code></td>
+<td>Engine identifiers that can consume this catalog (e.g., <code>["trino"]</code>, <code>["trino", "spark"]</code>).</td>
+</tr>
+<tr>
+<td><code>catalog_name</code></td>
+<td><code>str</code></td>
+<td>Catalog identifier used by the engine.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="abstract-methods_4">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_properties</code></td>
+<td><code>() -&gt; dict[str, Any]</code></td>
+<td>Return catalog configuration as key-value pairs.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concrete-methods_4">Concrete methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>supports_target</code></td>
+<td><code>(target: str) -&gt; bool</code></td>
+<td>Returns <code>True</code> if the catalog supports the given engine target.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example_5">Example</h3>
+<pre><code class="language-python">from phlo.plugins.base import CatalogPlugin, PluginMetadata
+
+class IcebergNessieCatalog(CatalogPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(name=&quot;iceberg-nessie&quot;, version=&quot;1.0.0&quot;)
+
+    @property
+    def targets(self) -&gt; list[str]:
+        return [&quot;trino&quot;]
+
+    @property
+    def catalog_name(self) -&gt; str:
+        return &quot;iceberg&quot;
+
+    def get_properties(self) -&gt; dict:
+        return {
+            &quot;connector.name&quot;: &quot;iceberg&quot;,
+            &quot;iceberg.catalog.type&quot;: &quot;nessie&quot;,
+            &quot;iceberg.catalog.uri&quot;: &quot;http://nessie:19120/api/v2&quot;,
+        }
+</code></pre>
+<hr />
+<h2 id="assetproviderplugin">AssetProviderPlugin</h2>
+<p><code>phlo.plugins.base.providers.AssetProviderPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Provides orchestrator-agnostic asset and asset-check specifications.</p>
+<h3 id="abstract-methods_5">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_assets</code></td>
+<td><code>() -&gt; Iterable[AssetSpec]</code></td>
+<td>Return asset specifications exposed by this plugin.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="concrete-methods_5">Concrete methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_checks</code></td>
+<td><code>() -&gt; Iterable[AssetCheckSpec]</code></td>
+<td>Return asset check specifications. Returns <code>[]</code> by default.</td>
+</tr>
+</tbody>
+</table>
+<p><code>AssetSpec</code> and <code>AssetCheckSpec</code> are defined in <code>phlo.capabilities.specs</code>.</p>
+<h3 id="example_6">Example</h3>
+<pre><code class="language-python">from phlo.capabilities.specs import AssetSpec
+from phlo.plugins.base import AssetProviderPlugin, PluginMetadata
+
+class MyAssetProvider(AssetProviderPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(name=&quot;my-assets&quot;, version=&quot;1.0.0&quot;)
+
+    def get_assets(self):
+        yield AssetSpec(key=&quot;my_table&quot;, group=&quot;bronze&quot;, description=&quot;Raw data&quot;)
+</code></pre>
+<hr />
+<h2 id="resourceproviderplugin">ResourceProviderPlugin</h2>
+<p><code>phlo.plugins.base.providers.ResourceProviderPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Provides resource specifications that assets and checks can depend on.</p>
+<h3 id="abstract-methods_6">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_resources</code></td>
+<td><code>() -&gt; Iterable[ResourceSpec]</code></td>
+<td>Return resource specifications exposed by this plugin.</td>
+</tr>
+</tbody>
+</table>
+<p><code>ResourceSpec</code> is defined in <code>phlo.capabilities.specs</code>.</p>
+<h3 id="example_7">Example</h3>
+<pre><code class="language-python">from phlo.capabilities.specs import ResourceSpec
+from phlo.plugins.base import ResourceProviderPlugin, PluginMetadata
+
+class MyResourceProvider(ResourceProviderPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(name=&quot;my-resources&quot;, version=&quot;1.0.0&quot;)
+
+    def get_resources(self):
+        yield ResourceSpec(name=&quot;my_db&quot;, resource=create_db_resource())
+</code></pre>
+<hr />
+<h2 id="orchestratoradapterplugin">OrchestratorAdapterPlugin</h2>
+<p><code>phlo.plugins.base.orchestrator.OrchestratorAdapterPlugin</code></p>
+<p><strong>Inherits:</strong> <code>Plugin</code>, <code>ABC</code></p>
+<p>Translates normalized capability specs into orchestrator-native definitions (e.g., Dagster).</p>
+<h3 id="abstract-methods_7">Abstract methods</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>build_definitions</code></td>
+<td><code>(*, assets: Iterable[AssetSpec], checks: Iterable[AssetCheckSpec], resources: Iterable[ResourceSpec]) -&gt; Any</code></td>
+<td>Build orchestrator-native definitions from capability specs.</td>
+</tr>
+</tbody>
+</table>
+<p>All spec types are from <code>phlo.capabilities.specs</code>.</p>
+<h3 id="example_8">Example</h3>
+<pre><code class="language-python">from phlo.plugins.base import OrchestratorAdapterPlugin, PluginMetadata
+
+class CustomOrchestratorAdapter(OrchestratorAdapterPlugin):
+    @property
+    def metadata(self) -&gt; PluginMetadata:
+        return PluginMetadata(name=&quot;custom-orchestrator&quot;, version=&quot;1.0.0&quot;)
+
+    def build_definitions(self, *, assets, checks, resources):
+        # Convert specs to orchestrator-native definitions
+        return build_native_defs(assets, checks, resources)
+</code></pre>
+<hr />
+<h2 id="entry-point-registration">Entry Point Registration</h2>
+<p>Plugins are discovered at runtime via Python <a href="https://packaging.python.org/en/latest/specifications/entry-points/">entry points</a>. Declare them in your package's <code>pyproject.toml</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Plugin type</th>
+<th>Entry point group</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source connectors</td>
+<td><code>phlo.plugins.sources</code></td>
+</tr>
+<tr>
+<td>Quality checks</td>
+<td><code>phlo.plugins.quality</code></td>
+</tr>
+<tr>
+<td>Transformations</td>
+<td><code>phlo.plugins.transforms</code></td>
+</tr>
+<tr>
+<td>Services</td>
+<td><code>phlo.plugins.services</code></td>
+</tr>
+<tr>
+<td>CLI commands</td>
+<td><code>phlo.plugins.cli</code></td>
+</tr>
+<tr>
+<td>Hooks</td>
+<td><code>phlo.plugins.hooks</code></td>
+</tr>
+<tr>
+<td>Catalogs</td>
+<td><code>phlo.plugins.catalogs</code></td>
+</tr>
+<tr>
+<td>Asset providers</td>
+<td><code>phlo.plugins.assets</code></td>
+</tr>
+<tr>
+<td>Resource providers</td>
+<td><code>phlo.plugins.resources</code></td>
+</tr>
+<tr>
+<td>Orchestrators</td>
+<td><code>phlo.plugins.orchestrators</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="pyprojecttoml-example">pyproject.toml example</h3>
+<pre><code class="language-toml">[project.entry-points.&quot;phlo.plugins.sources&quot;]
+my_source = &quot;my_package.source:MySourceConnector&quot;
+
+[project.entry-points.&quot;phlo.plugins.services&quot;]
+redis = &quot;my_package.services:RedisService&quot;
+
+[project.entry-points.&quot;phlo.plugins.cli&quot;]
+hello = &quot;my_package.cli:MyCliPlugin&quot;
+</code></pre>
+<p>The entry point <strong>name</strong> becomes the plugin identifier. The <strong>value</strong> points to the plugin class (which is instantiated automatically during discovery).</p>
+<h3 id="discovery-behavior">Discovery behavior</h3>
+<ul>
+<li>Plugins are auto-discovered on import unless <code>PHLO_NO_AUTO_DISCOVER=1</code> is set.</li>
+<li>Plugins can be filtered via <code>plugins_whitelist</code> / <code>plugins_blacklist</code> in settings.</li>
+<li>Discovery validates that each plugin is an instance of the expected base class for its entry point group.</li>
+</ul>
+<p>See also: <a href="../configuration-reference/">Configuration Reference</a> for plugin settings.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -13,6 +13,10 @@
       
       
       
+        <link rel="prev" href="../plugin-api/">
+      
+      
+        <link rel="next" href="../duckdb-queries/">
       
       
         
@@ -352,6 +356,22 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -525,10 +545,844 @@
       
   
   
+    
+  
   
   
     
     
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../phlo-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugin API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quality Checks Catalog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quality Checks Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#column-level-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Column-Level Checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Column-Level Checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nullcheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NullCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uniquecheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UniqueCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rangecheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RangeCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterncheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PatternCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#table-level-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table-Level Checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Table-Level Checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#countcheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CountCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freshnesscheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FreshnessCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schemacheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SchemaCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-sql-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced SQL Checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced SQL Checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#customsqlcheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CustomSQLCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reconciliation-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reconciliation Checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reconciliation Checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reconciliationcheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReconciliationCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aggregateconsistencycheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AggregateConsistencyCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keyparitycheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KeyParityCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiaggregateconsistencycheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MultiAggregateConsistencyCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checksumreconciliationcheck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ChecksumReconciliationCheck
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-guide-phlo_quality-vs-dbt-tests-vs-pytest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Guide: @phlo_quality vs dbt tests vs pytest
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Guide: @phlo_quality vs dbt tests vs pytest">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use-phlo_quality-when" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use @phlo_quality when:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-dbt-tests-when" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use dbt tests when:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-pytest-when" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use pytest when:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hybrid-approach-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hybrid Approach (Recommended):
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-simple-add-gradually" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Start Simple, Add Gradually
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-use-thresholds-wisely" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Use Thresholds Wisely
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-organize-checks-by-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Organize Checks by Layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-use-blocking-strategically" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Use blocking Strategically
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-leverage-partition-awareness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Leverage Partition Awareness
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-use-reconciliation-checks-in-gold-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Use Reconciliation Checks in Gold Layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-document-check-purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Document Check Purpose
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-monitor-check-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Monitor Check Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-sample-failures-for-large-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Sample Failures for Large Tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-combine-with-pandera-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Combine with Pandera Schemas
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Resources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Questions?
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../duckdb-queries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DuckDB Queries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
       
         
       
@@ -557,14 +1411,66 @@
   
   
   
-    <a href="../architecture/" class="md-nav__link">
+    <a href="../../errors/" class="md-nav__link">
       
   
   
   <span class="md-ellipsis">
     
   
-    Reference
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../observatory/extensions/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observatory
   
 
     

@@ -16,7 +16,7 @@
         <link rel="prev" href="../cli-reference/">
       
       
-        <link rel="next" href="../duckdb-queries/">
+        <link rel="next" href="../plugin-api/">
       
       
         
@@ -356,6 +356,22 @@
       
         
       
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
     
     
     
@@ -535,6 +551,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -762,6 +782,28 @@
   
     <nav class="md-nav" aria-label="Environment Variables">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orchestrator-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrator Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging Configuration
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#database-configuration" class="md-nav__link">
@@ -1416,6 +1458,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../plugin-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugin API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quality-checks-catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quality Checks Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../duckdb-queries/" class="md-nav__link">
         
   
@@ -1467,6 +1565,142 @@
             
           </ul>
         </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../errors/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../observatory/extensions/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Observatory
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
       
     </li>
   
@@ -1578,6 +1812,28 @@
   
     <nav class="md-nav" aria-label="Environment Variables">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#orchestrator-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrator Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging Configuration
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#database-configuration" class="md-nav__link">
@@ -2248,6 +2504,30 @@
 <p>Environment variables are materialized into <code>.phlo/.env</code> (generated, non-secret defaults)
 and <code>.phlo/.env.local</code> (local secrets). Edit <code>phlo.yaml</code> for committed defaults and
 <code>.phlo/.env.local</code> for secrets.</p>
+<h3 id="orchestrator-configuration">Orchestrator Configuration</h3>
+<pre><code class="language-bash"># Active orchestrator adapter (default: dagster)
+PHLO_ORCHESTRATOR=dagster
+# Alias
+PHLO_ORCHESTRATOR_NAME=dagster
+</code></pre>
+<h3 id="logging-configuration">Logging Configuration</h3>
+<pre><code class="language-bash"># Log level (default: INFO)
+PHLO_LOG_LEVEL=INFO
+
+# Log output format: auto (tty=console, else JSON), json, console
+PHLO_LOG_FORMAT=auto
+
+# Emit structured log events to the hook bus (default: true)
+PHLO_LOG_ROUTER_ENABLED=true
+
+# Default service name attached to log records (default: phlo)
+PHLO_LOG_SERVICE_NAME=phlo
+
+# Log file path template with date placeholders (default: .phlo/logs/{YMD}.log)
+# Available placeholders: {YMD}, {YM}, {Y}, {YYYY}, {M}, {MM}, {D}, {DD}, {H}, {HM}, {HMS}, {DATE}, {TIMESTAMP}
+# Set empty to disable file logging
+PHLO_LOG_FILE_TEMPLATE=.phlo/logs/{YMD}.log
+</code></pre>
 <h3 id="database-configuration">Database Configuration</h3>
 <p>PostgreSQL database settings:</p>
 <pre><code class="language-bash"># Host and port
@@ -2288,7 +2568,7 @@ MINIO_ROOT_PASSWORD=minioadmin
 <p>Nessie Git-like catalog:</p>
 <pre><code class="language-bash"># Version and connectivity
 NESSIE_VERSION=0.106.0
-NESSIE_PORT=19120
+NESSIE_PORT=10003
 NESSIE_HOST=nessie
 NESSIE_API_VERSION=v1
 </code></pre>
