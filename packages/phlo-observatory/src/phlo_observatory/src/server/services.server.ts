@@ -19,6 +19,7 @@ import {
   getComposeLabelValue,
   matchesComposeProject,
 } from '@/server/docker-labels'
+import { fnLogger } from '@/server/logger.server'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
@@ -34,6 +35,7 @@ let servicesCache: {
   data: Array<ServiceWithStatus>
 } | null = null
 let composeProjectCache: string | null | undefined
+const servicesLog = fnLogger('services.server')
 
 const serviceMetadata: Record<
   string,
@@ -391,11 +393,17 @@ async function parseServiceYaml(
  * Discover all services from service.yaml files
  */
 async function discoverServices(): Promise<Array<ServiceDefinition>> {
+  const startedAt = performance.now()
   const useCli = process.env.PHLO_USE_CLI_SERVICE_DISCOVERY === 'true'
+  servicesLog.info({ useCli }, 'services_discovery_started')
 
   if (useCli) {
     const cliServices = await discoverServicesFromCli()
     if (cliServices.length > 0) {
+      servicesLog.info(
+        { source: 'cli', count: cliServices.length, durationMs: Math.round(performance.now() - startedAt) },
+        'services_discovery_completed',
+      )
       return cliServices
     }
   }
@@ -412,23 +420,36 @@ async function discoverServices(): Promise<Array<ServiceDefinition>> {
       }
     }
   } catch (error) {
-    console.error('Error discovering services:', error)
+    servicesLog.error({ err: error, packagesPath }, 'services_discovery_scan_failed')
   }
 
   if (shouldFallbackToCliDiscovery(useCli, services.length)) {
+    servicesLog.warn(
+      { source: 'filesystem', discoveredCount: services.length },
+      'services_discovery_cli_fallback',
+    )
     const cliServices = await discoverServicesFromCli()
     if (cliServices.length > 0) {
+      servicesLog.info(
+        { source: 'cli_fallback', count: cliServices.length, durationMs: Math.round(performance.now() - startedAt) },
+        'services_discovery_completed',
+      )
       return cliServices
     }
   }
 
-  return services.sort((a, b) => {
+  const sorted = services.sort((a, b) => {
     // Sort by category, then by name
     if (a.category !== b.category) {
       return a.category.localeCompare(b.category)
     }
     return a.name.localeCompare(b.name)
   })
+  servicesLog.info(
+    { source: 'filesystem', count: sorted.length, durationMs: Math.round(performance.now() - startedAt) },
+    'services_discovery_completed',
+  )
+  return sorted
 }
 
 export function shouldFallbackToCliDiscovery(
@@ -469,6 +490,7 @@ async function findServiceYamlFiles(root: string): Promise<Array<string>> {
 async function discoverServicesFromContainers(): Promise<
   Array<ServiceDefinition>
 > {
+  const startedAt = performance.now()
   try {
     const composeProject = await getComposeProjectName()
     const { stdout } = await execAsync('docker ps -a --format json')
@@ -510,8 +532,18 @@ async function discoverServicesFromContainers(): Promise<
       })
     }
 
+    servicesLog.info(
+      {
+        source: 'containers',
+        composeProject,
+        count: services.length,
+        durationMs: Math.round(performance.now() - startedAt),
+      },
+      'services_container_discovery_completed',
+    )
     return services
-  } catch {
+  } catch (error) {
+    servicesLog.warn({ err: error }, 'services_container_discovery_failed')
     return []
   }
 }
@@ -620,6 +652,7 @@ export function parseDockerStatusLines(
 }
 
 async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
+  const startedAt = performance.now()
   try {
     const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
     const { stdout } = await execAsync(
@@ -627,21 +660,52 @@ async function discoverServicesFromCli(): Promise<Array<ServiceDefinition>> {
       execOptions,
     )
     const parsed = JSON.parse(stdout.toString()) as Array<CliServiceDefinition>
-    return parsed
+    const services = parsed
       .map((service) => buildServiceDefinition(service))
       .filter((service): service is ServiceDefinition => Boolean(service))
-  } catch {
+    servicesLog.info(
+      {
+        source: 'cli',
+        count: services.length,
+        durationMs: Math.round(performance.now() - startedAt),
+      },
+      'services_cli_discovery_completed',
+    )
+    return services
+  } catch (error) {
+    servicesLog.warn(
+      { err: error, durationMs: Math.round(performance.now() - startedAt) },
+      'services_cli_discovery_failed',
+    )
     return discoverServicesFromContainers()
   }
 }
 
 async function runPhloCommand(args: Array<string>): Promise<void> {
+  const startedAt = performance.now()
+  servicesLog.info({ args }, 'services_native_command_started')
   const execOptions = phloProjectPath ? { cwd: phloProjectPath } : undefined
   const [executable, ...baseArgs] = phloCommand.split(' ')
-  await execFileAsync(executable, [...baseArgs, ...args], {
-    ...execOptions,
-    timeout: 120000,
-  })
+  try {
+    await execFileAsync(executable, [...baseArgs, ...args], {
+      ...execOptions,
+      timeout: 120000,
+    })
+  } catch (error) {
+    servicesLog.error(
+      {
+        args,
+        err: error,
+        durationMs: Math.round(performance.now() - startedAt),
+      },
+      'services_native_command_failed',
+    )
+    throw error
+  }
+  servicesLog.info(
+    { args, durationMs: Math.round(performance.now() - startedAt) },
+    'services_native_command_completed',
+  )
   servicesCache = null
 }
 
@@ -669,13 +733,23 @@ async function loadEnvValues(): Promise<Record<string, string>> {
  */
 export const getDockerStatus = createServerFn().handler(
   async (): Promise<Array<DockerContainerStatus>> => {
+    const startedAt = performance.now()
     try {
       const composeProject = await getComposeProjectName()
       // Use docker ps to get ALL running containers (not compose-specific)
       const { stdout } = await execAsync('docker ps -a --format json')
-      return parseDockerStatusLines(stdout, composeProject)
+      const statuses = parseDockerStatusLines(stdout, composeProject)
+      servicesLog.info(
+        {
+          composeProject,
+          count: statuses.length,
+          durationMs: Math.round(performance.now() - startedAt),
+        },
+        'services_docker_status_completed',
+      )
+      return statuses
     } catch (error) {
-      console.error('Error getting Docker status:', error)
+      servicesLog.error({ err: error }, 'services_docker_status_failed')
       return []
     }
   },
@@ -802,10 +876,16 @@ export const startService = createServerFn()
     async ({
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
+      const startedAt = performance.now()
+      servicesLog.info({ serviceName, action: 'start' }, 'services_control_started')
       try {
         const containerId = await findContainerByService(serviceName)
         if (containerId) {
           await execAsync(`docker start ${containerId}`, { timeout: 60000 })
+          servicesLog.info(
+            { serviceName, action: 'start', mode: 'docker', containerId },
+            'services_control_path_selected',
+          )
         } else if (canControlNatively(serviceName)) {
           await runPhloCommand([
             'services',
@@ -815,7 +895,15 @@ export const startService = createServerFn()
             '--service',
             serviceName,
           ])
+          servicesLog.info(
+            { serviceName, action: 'start', mode: 'native' },
+            'services_control_path_selected',
+          )
         } else {
+          servicesLog.warn(
+            { serviceName, action: 'start' },
+            'services_control_container_not_found',
+          )
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
@@ -823,8 +911,20 @@ export const startService = createServerFn()
         }
 
         servicesCache = null
+        servicesLog.info(
+          {
+            serviceName,
+            action: 'start',
+            durationMs: Math.round(performance.now() - startedAt),
+          },
+          'services_control_completed',
+        )
         return { success: true }
       } catch (error) {
+        servicesLog.error(
+          { serviceName, action: 'start', err: error },
+          'services_control_failed',
+        )
         return {
           success: false,
           error:
@@ -844,10 +944,16 @@ export const stopService = createServerFn()
     async ({
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
+      const startedAt = performance.now()
+      servicesLog.info({ serviceName, action: 'stop' }, 'services_control_started')
       try {
         const containerId = await findContainerByService(serviceName)
         if (containerId) {
           await execAsync(`docker stop ${containerId}`, { timeout: 30000 })
+          servicesLog.info(
+            { serviceName, action: 'stop', mode: 'docker', containerId },
+            'services_control_path_selected',
+          )
         } else if (canControlNatively(serviceName)) {
           await runPhloCommand([
             'services',
@@ -856,7 +962,15 @@ export const stopService = createServerFn()
             '--service',
             serviceName,
           ])
+          servicesLog.info(
+            { serviceName, action: 'stop', mode: 'native' },
+            'services_control_path_selected',
+          )
         } else {
+          servicesLog.warn(
+            { serviceName, action: 'stop' },
+            'services_control_container_not_found',
+          )
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
@@ -864,8 +978,20 @@ export const stopService = createServerFn()
         }
 
         servicesCache = null
+        servicesLog.info(
+          {
+            serviceName,
+            action: 'stop',
+            durationMs: Math.round(performance.now() - startedAt),
+          },
+          'services_control_completed',
+        )
         return { success: true }
       } catch (error) {
+        servicesLog.error(
+          { serviceName, action: 'stop', err: error },
+          'services_control_failed',
+        )
         return {
           success: false,
           error:
@@ -885,10 +1011,19 @@ export const restartService = createServerFn()
     async ({
       data: { serviceName },
     }): Promise<{ success: boolean; error?: string }> => {
+      const startedAt = performance.now()
+      servicesLog.info(
+        { serviceName, action: 'restart' },
+        'services_control_started',
+      )
       try {
         const containerId = await findContainerByService(serviceName)
         if (containerId) {
           await execAsync(`docker restart ${containerId}`, { timeout: 60000 })
+          servicesLog.info(
+            { serviceName, action: 'restart', mode: 'docker', containerId },
+            'services_control_path_selected',
+          )
         } else if (canControlNatively(serviceName)) {
           await runPhloCommand([
             'services',
@@ -905,7 +1040,15 @@ export const restartService = createServerFn()
             '--service',
             serviceName,
           ])
+          servicesLog.info(
+            { serviceName, action: 'restart', mode: 'native' },
+            'services_control_path_selected',
+          )
         } else {
+          servicesLog.warn(
+            { serviceName, action: 'restart' },
+            'services_control_container_not_found',
+          )
           return {
             success: false,
             error: `No container found for service: ${serviceName}`,
@@ -913,8 +1056,20 @@ export const restartService = createServerFn()
         }
 
         servicesCache = null
+        servicesLog.info(
+          {
+            serviceName,
+            action: 'restart',
+            durationMs: Math.round(performance.now() - startedAt),
+          },
+          'services_control_completed',
+        )
         return { success: true }
       } catch (error) {
+        servicesLog.error(
+          { serviceName, action: 'restart', err: error },
+          'services_control_failed',
+        )
         return {
           success: false,
           error:

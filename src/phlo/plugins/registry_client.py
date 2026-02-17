@@ -110,20 +110,40 @@ def fetch_registry(force_refresh: bool = False) -> dict[str, Any]:
     settings = get_settings()
     ttl_seconds = settings.plugin_registry_cache_ttl_seconds
     now = time.time()
+    started = time.perf_counter()
+    registry_url = settings.plugin_registry_url
+
+    logger.debug(
+        "plugin_registry_fetch_started",
+        force_refresh=force_refresh,
+        has_registry_url=bool(registry_url),
+    )
 
     if not force_refresh and _is_cache_valid(now, ttl_seconds):
+        logger.debug(
+            "plugin_registry_fetch_completed",
+            source="cache",
+            force_refresh=force_refresh,
+            plugin_count=len(_REGISTRY_CACHE["data"].get("plugins", {})),
+            elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
+        )
         return _REGISTRY_CACHE["data"]
 
     registry = None
-    registry_url = settings.plugin_registry_url
+    source = "local"
     if registry_url:
         try:
             response = requests.get(registry_url, timeout=settings.plugin_registry_timeout_seconds)
             response.raise_for_status()
             registry = response.json()
             _validate_registry(registry)
+            source = "remote"
         except Exception as exc:
-            logger.warning("Registry fetch failed, using bundled data: %s", exc)
+            logger.warning(
+                "plugin_registry_fetch_fallback",
+                registry_url=registry_url,
+                error=str(exc),
+            )
 
     if registry is None:
         registry = _load_registry_from_local()
@@ -131,6 +151,14 @@ def fetch_registry(force_refresh: bool = False) -> dict[str, Any]:
 
     _REGISTRY_CACHE["loaded_at"] = now
     _REGISTRY_CACHE["data"] = registry
+    logger.debug(
+        "plugin_registry_fetch_completed",
+        source=source,
+        force_refresh=force_refresh,
+        plugin_count=len(registry.get("plugins", {})),
+        elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
+        cache_ttl_seconds=ttl_seconds,
+    )
     return registry
 
 

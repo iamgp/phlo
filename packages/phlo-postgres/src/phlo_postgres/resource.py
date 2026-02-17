@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import Any
 
 import psycopg2
@@ -66,18 +67,40 @@ class PostgresResource:
         """
         if self._connection is None or getattr(self._connection, "closed", 1):
             settings = get_settings()
-            logger.debug(
-                "postgres_resource_connecting",
-                host=self.host or settings.postgres_host,
-                port=self.port or settings.postgres_port,
-                database=self.database or settings.postgres_db,
+            host = self.host or settings.postgres_host
+            port = self.port or settings.postgres_port
+            database = self.database or settings.postgres_db
+            start = perf_counter()
+            logger.info(
+                "postgres_resource_connection_started",
+                host=host,
+                port=port,
+                database=database,
             )
-            self._connection = psycopg2.connect(
-                host=self.host or settings.postgres_host,
-                port=self.port or settings.postgres_port,
-                user=self.user or settings.postgres_user,
-                password=self.password or settings.postgres_password,
-                dbname=self.database or settings.postgres_db,
+            try:
+                self._connection = psycopg2.connect(
+                    host=host,
+                    port=port,
+                    user=self.user or settings.postgres_user,
+                    password=self.password or settings.postgres_password,
+                    dbname=database,
+                )
+            except Exception:
+                logger.error(
+                    "postgres_resource_connection_failed",
+                    host=host,
+                    port=port,
+                    database=database,
+                    elapsed_ms=round((perf_counter() - start) * 1000, 2),
+                    exc_info=True,
+                )
+                raise
+            logger.info(
+                "postgres_resource_connection_completed",
+                host=host,
+                port=port,
+                database=database,
+                elapsed_ms=round((perf_counter() - start) * 1000, 2),
             )
         return self._connection
 
@@ -98,28 +121,57 @@ class PostgresResource:
 
         connection = self._ensure_connection()
         cursor = connection.cursor()
+        start = perf_counter()
+        logger.info("postgres_transaction_started")
         try:
             yield cursor
         except Exception:
-            logger.warning("postgres_transaction_rollback", exc_info=True)
+            logger.warning(
+                "postgres_transaction_rollback",
+                elapsed_ms=round((perf_counter() - start) * 1000, 2),
+                exc_info=True,
+            )
             connection.rollback()
             raise
         else:
             connection.commit()
+            logger.info(
+                "postgres_transaction_committed",
+                elapsed_ms=round((perf_counter() - start) * 1000, 2),
+            )
         finally:
             cursor.close()
 
     def commit(self) -> None:
         """Commit the current transaction."""
+        start = perf_counter()
         self._ensure_connection().commit()
+        logger.info(
+            "postgres_commit_completed",
+            elapsed_ms=round((perf_counter() - start) * 1000, 2),
+        )
 
     def rollback(self) -> None:
         """Roll back the current transaction."""
+        start = perf_counter()
         self._ensure_connection().rollback()
+        logger.info(
+            "postgres_rollback_completed",
+            elapsed_ms=round((perf_counter() - start) * 1000, 2),
+        )
 
     def close(self) -> None:
         """Close and clear the cached database connection."""
         if self._connection is not None and not getattr(self._connection, "closed", 1):
-            self._connection.close()
-            logger.debug("postgres_resource_connection_closed")
+            start = perf_counter()
+            logger.info("postgres_resource_connection_close_started")
+            try:
+                self._connection.close()
+            except Exception:
+                logger.warning("postgres_resource_connection_close_failed", exc_info=True)
+                raise
+            logger.info(
+                "postgres_resource_connection_close_completed",
+                elapsed_ms=round((perf_counter() - start) * 1000, 2),
+            )
         self._connection = None

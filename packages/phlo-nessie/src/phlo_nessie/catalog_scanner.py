@@ -12,6 +12,7 @@ It deliberately does not know about any downstream metadata systems (e.g., OpenM
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 from phlo.logging import get_logger
@@ -33,6 +34,7 @@ class NessieTableScanner:
         """
         self.nessie_uri = nessie_uri.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self._scan_fallback_used = False
 
     @classmethod
     def from_config(cls) -> NessieTableScanner:
@@ -72,6 +74,7 @@ class NessieTableScanner:
         except requests.HTTPError as exc:
             response = getattr(exc, "response", None)
             if response is not None and response.status_code == 404:
+                self._scan_fallback_used = True
                 logger.warning("Nessie Iceberg REST not available, falling back to Trino")
                 return self._list_namespaces_via_trino()
             raise
@@ -96,6 +99,7 @@ class NessieTableScanner:
         except requests.HTTPError as exc:
             response = getattr(exc, "response", None)
             if response is not None and response.status_code == 404:
+                self._scan_fallback_used = True
                 logger.warning(
                     "Nessie Iceberg REST not available for namespace %s, using Trino",
                     namespace_name,
@@ -270,13 +274,71 @@ class NessieTableScanner:
 
         return normalized
 
+    def _get_catalog_ref_for_logs(self) -> str | None:
+        """Infer Nessie catalog ref from URI path when present."""
+        path = urlparse(self.nessie_uri).path.rstrip("/")
+        if not path:
+            return None
+        path_parts = [part for part in path.split("/") if part]
+        if not path_parts:
+            return None
+        if path_parts[-1] == "iceberg":
+            return None
+        return path_parts[-1]
+
     def scan_all_tables(self) -> dict[str, list[dict[str, Any]]]:
         """Return mapping of namespace -> tables list (as returned by Nessie)."""
+        self._scan_fallback_used = False
+        catalog_ref = self._get_catalog_ref_for_logs()
+
+        logger.info(
+            "nessie_catalog_scan_all_tables_started",
+            nessie_uri=self.nessie_uri,
+            ref=catalog_ref,
+        )
+
         catalog: dict[str, list[dict[str, Any]]] = {}
-        for ns_obj in self.list_namespaces():
-            ns_parts = ns_obj.get("namespace")
-            if not isinstance(ns_parts, list) or not all(isinstance(p, str) for p in ns_parts):
-                continue
-            ns_name = ".".join(ns_parts)
-            catalog[ns_name] = self.list_tables_in_namespace(ns_parts)
+        namespace_count = 0
+        table_count = 0
+        try:
+            for ns_obj in self.list_namespaces():
+                ns_parts = ns_obj.get("namespace")
+                if not isinstance(ns_parts, list) or not all(isinstance(p, str) for p in ns_parts):
+                    continue
+                ns_name = ".".join(ns_parts)
+                tables = self.list_tables_in_namespace(ns_parts)
+                catalog[ns_name] = tables
+                namespace_count += 1
+                table_count += len(tables)
+        except Exception as exc:
+            logger.error(
+                "nessie_catalog_scan_all_tables_failed",
+                nessie_uri=self.nessie_uri,
+                ref=catalog_ref,
+                namespace_count=namespace_count,
+                table_count=table_count,
+                fallback_used=self._scan_fallback_used,
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
+            raise
+
+        if self._scan_fallback_used:
+            logger.warning(
+                "nessie_catalog_scan_all_tables_fallback_used",
+                nessie_uri=self.nessie_uri,
+                ref=catalog_ref,
+                namespace_count=namespace_count,
+                table_count=table_count,
+                fallback_used=True,
+            )
+
+        logger.info(
+            "nessie_catalog_scan_all_tables_completed",
+            nessie_uri=self.nessie_uri,
+            ref=catalog_ref,
+            namespace_count=namespace_count,
+            table_count=table_count,
+            fallback_used=self._scan_fallback_used,
+        )
         return catalog

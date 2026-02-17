@@ -97,58 +97,97 @@ def append_to_table(
     ref: str = "main",
 ) -> dict[str, int]:
     """Append parquet data to an Iceberg table."""
-    catalog = get_catalog(ref=ref)
-    table = catalog.load_table(table_name)
+    source_path = str(data_path)
+    source_row_count = 0
+    rows_inserted = 0
 
-    data_path = Path(data_path) if isinstance(data_path, str) else data_path
-
-    if data_path.is_dir():
-        arrow_table = pq.ParquetDataset(str(data_path)).read()
-    else:
-        arrow_table = pq.read_table(str(data_path))
-
-    iceberg_column_names = {field.name for field in table.schema().fields}
-    arrow_column_names = set(arrow_table.schema.names)
-    new_columns = arrow_column_names - iceberg_column_names
-
-    if new_columns:
-        logger.warning(
-            "arrow_columns_not_in_iceberg_schema",
-            new_column_count=len(new_columns),
-            new_columns=sorted(new_columns),
-            table_name=table_name,
-        )
-        existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
-        arrow_table = arrow_table.select(existing_columns)
-
-    import pyarrow as pa
-    from pyiceberg.io.pyarrow import schema_to_pyarrow
-
-    target_schema = schema_to_pyarrow(table.schema())
-
-    arrow_column_names_set = set(arrow_table.schema.names)
-    missing_columns = []
-
-    for field in target_schema:
-        if field.name not in arrow_column_names_set:
-            null_array = pa.nulls(len(arrow_table), type=field.type)
-            missing_columns.append((field.name, null_array))
-
-    for col_name, null_array in missing_columns:
-        arrow_table = arrow_table.append_column(col_name, null_array)
-
-    target_field_names = target_schema.names
-    arrow_table = arrow_table.select(target_field_names)
+    logger.info(
+        "iceberg_table_append_started",
+        table_name=table_name,
+        ref=ref,
+        source=source_path,
+        source_row_count=source_row_count,
+    )
 
     try:
-        arrow_table = arrow_table.cast(target_schema)
-    except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-        logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
+        catalog = get_catalog(ref=ref)
+        table = catalog.load_table(table_name)
 
-    table.append(arrow_table)
-    rows_inserted = len(arrow_table)
+        data_path = Path(data_path) if isinstance(data_path, str) else data_path
 
-    return {"rows_inserted": rows_inserted, "rows_deleted": 0}
+        if data_path.is_dir():
+            arrow_table = pq.ParquetDataset(str(data_path)).read()
+        else:
+            arrow_table = pq.read_table(str(data_path))
+
+        source_row_count = len(arrow_table)
+
+        iceberg_column_names = {field.name for field in table.schema().fields}
+        arrow_column_names = set(arrow_table.schema.names)
+        new_columns = arrow_column_names - iceberg_column_names
+
+        if new_columns:
+            logger.warning(
+                "arrow_columns_not_in_iceberg_schema",
+                new_column_count=len(new_columns),
+                new_columns=sorted(new_columns),
+                table_name=table_name,
+            )
+            existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
+            arrow_table = arrow_table.select(existing_columns)
+
+        import pyarrow as pa
+        from pyiceberg.io.pyarrow import schema_to_pyarrow
+
+        target_schema = schema_to_pyarrow(table.schema())
+
+        arrow_column_names_set = set(arrow_table.schema.names)
+        missing_columns = []
+
+        for field in target_schema:
+            if field.name not in arrow_column_names_set:
+                null_array = pa.nulls(len(arrow_table), type=field.type)
+                missing_columns.append((field.name, null_array))
+
+        for col_name, null_array in missing_columns:
+            arrow_table = arrow_table.append_column(col_name, null_array)
+
+        target_field_names = target_schema.names
+        arrow_table = arrow_table.select(target_field_names)
+
+        try:
+            arrow_table = arrow_table.cast(target_schema)
+        except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
+            logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
+
+        table.append(arrow_table)
+        rows_inserted = len(arrow_table)
+        result = {"rows_inserted": rows_inserted, "rows_deleted": 0}
+    except Exception as exc:
+        logger.error(
+            "iceberg_table_append_failed",
+            table_name=table_name,
+            ref=ref,
+            source=source_path,
+            source_row_count=source_row_count,
+            rows_inserted=rows_inserted,
+            rows_deleted=0,
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        raise
+
+    logger.info(
+        "iceberg_table_append_succeeded",
+        table_name=table_name,
+        ref=ref,
+        source=source_path,
+        source_row_count=source_row_count,
+        rows_inserted=result["rows_inserted"],
+        rows_deleted=result["rows_deleted"],
+    )
+
+    return result
 
 
 def merge_to_table(
@@ -160,80 +199,123 @@ def merge_to_table(
     """
     Merge (upsert) parquet data to an Iceberg table with deduplication.
     """
-    catalog = get_catalog(ref=ref)
-    table = catalog.load_table(table_name)
-
-    data_path = Path(data_path) if isinstance(data_path, str) else data_path
-
-    if data_path.is_dir():
-        arrow_table = pq.ParquetDataset(str(data_path)).read()
-    else:
-        arrow_table = pq.read_table(str(data_path))
-
-    if unique_key not in arrow_table.schema.names:
-        raise ValueError(
-            f"Unique key '{unique_key}' not found in data. "
-            f"Available columns: {arrow_table.schema.names}"
-        )
-
-    unique_values = arrow_table.column(unique_key).to_pylist()
-    unique_values_set = set(unique_values)
-
-    if len(unique_values_set) < len(unique_values):
-        duplicates_count = len(unique_values) - len(unique_values_set)
-        logger.warning(
-            "source_duplicates_detected_after_deduplication",
-            duplicates_count=duplicates_count,
-            unique_key=unique_key,
-            table_name=table_name,
-        )
-
+    source_path = str(data_path)
+    source_row_count = 0
     rows_deleted = 0
-    batch_size = 1000
-    unique_values_list = list(unique_values_set)
+    rows_inserted = 0
 
-    for i in range(0, len(unique_values_list), batch_size):
-        batch = unique_values_list[i : i + batch_size]
-        from pyiceberg.expressions import In
-
-        delete_expr = In(unique_key, batch)
-        try:
-            table.delete(delete_expr)
-            rows_deleted += len(batch)  # Approximation
-        except Exception:
-            pass
-
-    iceberg_column_names = {field.name for field in table.schema().fields}
-    arrow_column_names = set(arrow_table.schema.names)
-    new_columns = arrow_column_names - iceberg_column_names
-
-    if new_columns:
-        logger.warning(
-            "arrow_columns_not_in_iceberg_schema",
-            new_column_count=len(new_columns),
-            new_columns=sorted(new_columns),
-            table_name=table_name,
-        )
-        existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
-        arrow_table = arrow_table.select(existing_columns)
-
-    import pyarrow as pa
-    from pyiceberg.io.pyarrow import schema_to_pyarrow
-
-    target_schema = schema_to_pyarrow(table.schema())
-
-    target_field_names = target_schema.names
-    arrow_table = arrow_table.select(target_field_names)
+    logger.info(
+        "iceberg_table_merge_started",
+        table_name=table_name,
+        ref=ref,
+        source=source_path,
+        source_row_count=source_row_count,
+        unique_key=unique_key,
+    )
 
     try:
-        arrow_table = arrow_table.cast(target_schema)
-    except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
-        logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
+        catalog = get_catalog(ref=ref)
+        table = catalog.load_table(table_name)
 
-    table.append(arrow_table)
-    rows_inserted = len(arrow_table)
+        data_path = Path(data_path) if isinstance(data_path, str) else data_path
 
-    return {"rows_deleted": rows_deleted, "rows_inserted": rows_inserted}
+        if data_path.is_dir():
+            arrow_table = pq.ParquetDataset(str(data_path)).read()
+        else:
+            arrow_table = pq.read_table(str(data_path))
+
+        source_row_count = len(arrow_table)
+
+        if unique_key not in arrow_table.schema.names:
+            raise ValueError(
+                f"Unique key '{unique_key}' not found in data. "
+                f"Available columns: {arrow_table.schema.names}"
+            )
+
+        unique_values = arrow_table.column(unique_key).to_pylist()
+        unique_values_set = set(unique_values)
+
+        if len(unique_values_set) < len(unique_values):
+            duplicates_count = len(unique_values) - len(unique_values_set)
+            logger.warning(
+                "source_duplicates_detected_after_deduplication",
+                duplicates_count=duplicates_count,
+                unique_key=unique_key,
+                table_name=table_name,
+            )
+
+        batch_size = 1000
+        unique_values_list = list(unique_values_set)
+
+        for i in range(0, len(unique_values_list), batch_size):
+            batch = unique_values_list[i : i + batch_size]
+            from pyiceberg.expressions import In
+
+            delete_expr = In(unique_key, batch)
+            try:
+                table.delete(delete_expr)
+                rows_deleted += len(batch)  # Approximation
+            except Exception:
+                pass
+
+        iceberg_column_names = {field.name for field in table.schema().fields}
+        arrow_column_names = set(arrow_table.schema.names)
+        new_columns = arrow_column_names - iceberg_column_names
+
+        if new_columns:
+            logger.warning(
+                "arrow_columns_not_in_iceberg_schema",
+                new_column_count=len(new_columns),
+                new_columns=sorted(new_columns),
+                table_name=table_name,
+            )
+            existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
+            arrow_table = arrow_table.select(existing_columns)
+
+        import pyarrow as pa
+        from pyiceberg.io.pyarrow import schema_to_pyarrow
+
+        target_schema = schema_to_pyarrow(table.schema())
+
+        target_field_names = target_schema.names
+        arrow_table = arrow_table.select(target_field_names)
+
+        try:
+            arrow_table = arrow_table.cast(target_schema)
+        except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
+            logger.warning("arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e))
+
+        table.append(arrow_table)
+        rows_inserted = len(arrow_table)
+
+    except Exception as exc:
+        logger.error(
+            "iceberg_table_merge_failed",
+            table_name=table_name,
+            ref=ref,
+            source=source_path,
+            source_row_count=source_row_count,
+            unique_key=unique_key,
+            rows_deleted=rows_deleted,
+            rows_inserted=rows_inserted,
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        raise
+
+    result = {"rows_deleted": rows_deleted, "rows_inserted": rows_inserted}
+    logger.info(
+        "iceberg_table_merge_succeeded",
+        table_name=table_name,
+        ref=ref,
+        source=source_path,
+        source_row_count=source_row_count,
+        unique_key=unique_key,
+        rows_deleted=result["rows_deleted"],
+        rows_inserted=result["rows_inserted"],
+    )
+
+    return result
 
 
 def get_table_schema(table_name: str, ref: str = "main") -> Schema:

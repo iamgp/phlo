@@ -107,11 +107,31 @@ def get_project_path() -> Path:
 def load_phlo_config() -> dict[str, Any]:
     """Load phlo.yaml configuration."""
     config_path = get_project_path() / "phlo.yaml"
+    logger.info("phlo_config_load_started", config_path=str(config_path))
     if not config_path.exists():
-        return {"name": "unknown", "description": ""}
+        fallback_config = {"name": "unknown", "description": ""}
+        logger.warning(
+            "phlo_config_load_fallback",
+            config_path=str(config_path),
+            reason="missing_file",
+            fallback_name=fallback_config["name"],
+        )
+        return fallback_config
 
-    with open(config_path) as f:
-        return yaml.safe_load(f) or {}
+    try:
+        with open(config_path) as f:
+            config = yaml.safe_load(f) or {}
+    except Exception as exc:
+        logger.error("phlo_config_load_failed", config_path=str(config_path), error=str(exc))
+        raise
+
+    logger.info(
+        "phlo_config_load_succeeded",
+        config_path=str(config_path),
+        key_count=len(config),
+        has_name=bool(config.get("name")),
+    )
+    return config
 
 
 @app.get("/health")
@@ -123,62 +143,106 @@ def health() -> dict[str, str]:
 @app.get("/api/config")
 def get_config() -> dict[str, Any]:
     """Get phlo.yaml configuration."""
+    logger.info("api_config_get_started")
     return load_phlo_config()
 
 
 @app.get("/api/plugins")
 def get_plugins() -> dict[str, list[str]]:
     """List all installed plugins by type."""
+    logger.info("api_plugins_list_started")
     try:
         from phlo.plugins.discovery import list_plugins
 
-        return list_plugins()
-    except ImportError:
-        return {
+        plugins = list_plugins()
+        logger.info(
+            "api_plugins_list_succeeded",
+            plugin_type_count=len(plugins),
+            plugin_count=sum(len(items) for items in plugins.values()),
+        )
+        return plugins
+    except ImportError as exc:
+        logger.warning("api_plugins_list_failed", error=str(exc))
+        fallback_plugins = {
             "source_connectors": [],
             "quality_checks": [],
             "transformations": [],
             "services": [],
         }
+        logger.warning(
+            "api_plugins_list_fallback",
+            plugin_type_count=len(fallback_plugins),
+            plugin_count=0,
+        )
+        return fallback_plugins
 
 
 @app.get("/api/plugins/{plugin_type}")
 def get_plugins_by_type(plugin_type: str) -> list[str]:
     """List plugins of a specific type."""
+    logger.info("api_plugins_type_list_started", plugin_type=plugin_type)
     try:
         from phlo.plugins.discovery import list_plugins
 
         all_plugins = list_plugins()
         if plugin_type not in all_plugins:
+            logger.warning("api_plugins_type_list_failed", plugin_type=plugin_type, reason="unknown_plugin_type")
             raise HTTPException(status_code=404, detail=f"Unknown plugin type: {plugin_type}")
-        return all_plugins[plugin_type]
-    except ImportError:
+        plugins = all_plugins[plugin_type]
+        logger.info(
+            "api_plugins_type_list_succeeded",
+            plugin_type=plugin_type,
+            plugin_count=len(plugins),
+        )
+        return plugins
+    except ImportError as exc:
+        logger.warning("api_plugins_type_list_failed", plugin_type=plugin_type, error=str(exc))
+        logger.warning(
+            "api_plugins_type_list_fallback",
+            plugin_type=plugin_type,
+            plugin_count=0,
+        )
         return []
 
 
 @app.get("/api/plugins/{plugin_type}/{name}")
 def get_plugin_info(plugin_type: str, name: str) -> dict[str, Any]:
     """Get detailed information about a specific plugin."""
+    logger.info("api_plugin_get_started", plugin_type=plugin_type, plugin_name=name)
     try:
         from phlo.plugins.discovery import get_plugin_info as _get_plugin_info
 
         info = _get_plugin_info(plugin_type, name)
         if not info:
+            logger.warning(
+                "api_plugin_get_failed",
+                plugin_type=plugin_type,
+                plugin_name=name,
+                reason="not_found",
+            )
             raise HTTPException(status_code=404, detail=f"Plugin not found: {name}")
+        logger.info(
+            "api_plugin_get_succeeded",
+            plugin_type=plugin_type,
+            plugin_name=name,
+            key_count=len(info),
+        )
         return info
     except ImportError as e:
+        logger.error("api_plugin_get_failed", plugin_type=plugin_type, plugin_name=name, error=str(e))
         raise HTTPException(status_code=500, detail="Plugin system not available") from e
 
 
 @app.get("/api/services")
 def get_services() -> list[dict[str, Any]]:
     """List all discovered services."""
+    logger.info("api_services_list_started")
     try:
         from phlo.plugins.discovery import ServiceDiscovery
 
         discovery = ServiceDiscovery()
         services = discovery.discover()
-        return [
+        service_list = [
             {
                 "name": s.name,
                 "description": s.description,
@@ -189,21 +253,27 @@ def get_services() -> list[dict[str, Any]]:
             }
             for s in services.values()
         ]
-    except ImportError:
+        logger.info("api_services_list_succeeded", service_count=len(service_list))
+        return service_list
+    except ImportError as exc:
+        logger.warning("api_services_list_failed", error=str(exc))
+        logger.warning("api_services_list_fallback", service_count=0)
         return []
 
 
 @app.get("/api/services/{name}")
 def get_service_info(name: str) -> dict[str, Any]:
     """Get detailed information about a specific service."""
+    logger.info("api_service_get_started", service_name=name)
     try:
         from phlo.plugins.discovery import ServiceDiscovery
 
         discovery = ServiceDiscovery()
         service = discovery.get_service(name)
         if not service:
+            logger.warning("api_service_get_failed", service_name=name, reason="not_found")
             raise HTTPException(status_code=404, detail=f"Service not found: {name}")
-        return {
+        service_payload = {
             "name": service.name,
             "description": service.description,
             "category": service.category,
@@ -213,7 +283,15 @@ def get_service_info(name: str) -> dict[str, Any]:
             "env_vars": service.env_vars,
             "core": getattr(service, "core", False),
         }
+        logger.info(
+            "api_service_get_succeeded",
+            service_name=name,
+            depends_on_count=len(service_payload["depends_on"]),
+            env_var_count=len(service_payload["env_vars"]),
+        )
+        return service_payload
     except ImportError as e:
+        logger.error("api_service_get_failed", service_name=name, error=str(e))
         raise HTTPException(status_code=500, detail="Service discovery not available") from e
 
 

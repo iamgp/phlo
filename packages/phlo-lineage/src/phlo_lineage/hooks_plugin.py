@@ -44,21 +44,48 @@ class LineageHookPlugin(HookPlugin):
 
         if not isinstance(event, LineageEvent):
             return
+        edge_count = len(event.edges)
+        asset_key_count = len(event.asset_keys or [])
         graph = get_lineage_graph()
         for source, target in event.edges:
             graph.add_edge(source, target)
 
         connection_string = resolve_lineage_db_url()
         if not connection_string:
+            logger.info(
+                "lineage_sync_skipped_missing_db_url",
+                event_type=event.event_type,
+                edge_count=edge_count,
+                asset_key_count=asset_key_count,
+            )
             return
 
+        logger.info(
+            "lineage_sync_started",
+            event_type=event.event_type,
+            edge_count=edge_count,
+            asset_key_count=asset_key_count,
+        )
         try:
             store = LineageStore(connection_string)
-            store.record_asset_edges(
+            persisted_edges = store.record_asset_edges(
                 event.edges,
                 asset_keys=event.asset_keys,
                 metadata=event.metadata,
                 tags=event.tags,
             )
+            logger.info(
+                "lineage_sync_succeeded",
+                event_type=event.event_type,
+                edge_count=edge_count,
+                asset_key_count=asset_key_count,
+                persisted_edge_count=persisted_edges,
+            )
         except Exception as exc:
-            logger.warning("Failed to persist asset lineage edges: %s", exc)
+            logger.warning(
+                "Failed to persist asset lineage edges: %s",
+                exc,
+                event_type=event.event_type,
+                edge_count=edge_count,
+                asset_key_count=asset_key_count,
+            )

@@ -3,11 +3,46 @@
 from __future__ import annotations
 
 from importlib import resources
+from time import perf_counter
 from typing import Any
 
 import yaml
 
+from phlo.logging import get_logger
 from phlo.plugins import PluginMetadata, ServicePlugin
+
+logger = get_logger(__name__)
+
+
+def _load_service_definition(resource_name: str, service_name: str) -> dict[str, Any]:
+    start = perf_counter()
+    logger.info(
+        "minio_service_definition_load_started",
+        service_name=service_name,
+        resource_name=resource_name,
+    )
+    service_path = resources.files("phlo_minio").joinpath(resource_name)
+    try:
+        data = yaml.safe_load(service_path.read_text(encoding="utf-8"))
+    except Exception:
+        logger.error(
+            "minio_service_definition_load_failed",
+            service_name=service_name,
+            resource_name=resource_name,
+            elapsed_ms=round((perf_counter() - start) * 1000, 2),
+            exc_info=True,
+        )
+        raise
+
+    service_count = len(data.get("services", {})) if isinstance(data, dict) else None
+    logger.info(
+        "minio_service_definition_load_completed",
+        service_name=service_name,
+        resource_name=resource_name,
+        elapsed_ms=round((perf_counter() - start) * 1000, 2),
+        service_count=service_count,
+    )
+    return data
 
 
 class MinioServicePlugin(ServicePlugin):
@@ -35,8 +70,7 @@ class MinioServicePlugin(ServicePlugin):
         Returns:
             dict[str, Any]: Parsed service configuration from YAML.
         """
-        service_path = resources.files("phlo_minio").joinpath("service.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
+        return _load_service_definition("service.yaml", "minio")
 
 
 class MinioSetupServicePlugin(ServicePlugin):
@@ -64,5 +98,4 @@ class MinioSetupServicePlugin(ServicePlugin):
         Returns:
             dict[str, Any]: Parsed service configuration from YAML.
         """
-        service_path = resources.files("phlo_minio").joinpath("minio-setup.yaml")
-        return yaml.safe_load(service_path.read_text(encoding="utf-8"))
+        return _load_service_definition("minio-setup.yaml", "minio-setup")

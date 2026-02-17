@@ -314,6 +314,12 @@ def phlo_ingestion(
                     query_or_sql = (
                         f"parquet://{parquet_path}" if parquet_path else "parquet://<missing>"
                     )
+                    logger.info(
+                        "pandera_contract_evaluation_started",
+                        table_name=table_config.full_table_name,
+                        partition_date=partition_date,
+                        parquet_path=str(parquet_path) if parquet_path is not None else None,
+                    )
                     try:
                         if parquet_path is None:
                             raise FileNotFoundError("Missing parquet_path in ingestion metadata")
@@ -321,6 +327,25 @@ def phlo_ingestion(
                             Path(parquet_path),
                             schema_class=table_config.validation_schema,
                         )
+                        if evaluation.passed:
+                            logger.info(
+                                "pandera_contract_evaluation_passed",
+                                table_name=table_config.full_table_name,
+                                partition_date=partition_date,
+                                parquet_path=str(parquet_path),
+                                total_count=evaluation.total_count,
+                                failed_count=evaluation.failed_count,
+                            )
+                        else:
+                            logger.warning(
+                                "pandera_contract_evaluation_failed",
+                                table_name=table_config.full_table_name,
+                                partition_date=partition_date,
+                                parquet_path=str(parquet_path),
+                                total_count=evaluation.total_count,
+                                failed_count=evaluation.failed_count,
+                                error=evaluation.error,
+                            )
                     except Exception as exc:
                         logger.error(
                             "pandera_contract_evaluation_failed",
