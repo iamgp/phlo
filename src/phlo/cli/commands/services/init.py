@@ -39,12 +39,19 @@ from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
     type=click.Path(exists=True),
     help="Path to phlo repo root or `src/phlo` (default: auto-detect or PHLO_DEV_SOURCE env var)",
 )
+@click.option(
+    "--profile",
+    "profiles",
+    multiple=True,
+    help="Enable optional profile services (e.g., --profile observability --profile api)",
+)
 def init_cmd(
     force: bool,
     project_name: str | None,
     dev: bool,
     no_dev: bool,
     phlo_source: str | None,
+    profiles: tuple[str, ...],
 ):
     """Initialize Phlo infrastructure in .phlo/ directory.
 
@@ -65,6 +72,8 @@ def init_cmd(
         phlo services init
         phlo services init --name my-lakehouse
         phlo services init --force
+        phlo services init --profile observability
+        phlo services init --profile api --profile observability
         phlo services init --dev
         phlo services init --dev --phlo-source ../../src/phlo
         phlo services init --no-dev --force  # Regenerate without dev mode
@@ -177,12 +186,33 @@ def init_cmd(
         if isinstance(cfg, dict) and cfg.get("type") == "inline"
     ]
 
-    # Get default services (excluding disabled) + profile services + inline services
+    # Get default services (excluding disabled) + requested profile services + inline services
     default_services = discovery.get_default_services(disabled_services=disabled_services)
-    profile_services = [
-        s for s in all_services.values() if s.profile and s.name not in disabled_services
-    ]
-    services_to_install = default_services + profile_services + inline_services
+    requested_profiles = {profile.strip() for profile in profiles if profile.strip()}
+    available_profiles = discovery.get_available_profiles()
+    unknown_profiles = sorted(requested_profiles - available_profiles)
+    if unknown_profiles:
+        click.echo(
+            f"Error: Unknown profile(s): {', '.join(unknown_profiles)}. "
+            f"Available profiles: {', '.join(sorted(available_profiles)) or '(none)'}",
+            err=True,
+        )
+        sys.exit(1)
+
+    profile_services = []
+    for profile in sorted(requested_profiles):
+        profile_services.extend(
+            [
+                service
+                for service in discovery.get_services_by_profile(profile)
+                if service.name not in disabled_services
+            ]
+        )
+
+    deduped_services: dict[str, ServiceDefinition] = {}
+    for service in [*default_services, *profile_services, *inline_services]:
+        deduped_services[service.name] = service
+    services_to_install = list(deduped_services.values())
     _warn_secret_env_overrides(env_overrides, services_to_install)
 
     # Generate docker-compose.yml
