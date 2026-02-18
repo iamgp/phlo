@@ -14,13 +14,15 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-postgres>=0.1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
+]
+postgres = [
+    "phlo-postgres>=0.1.0",
 ]
 
 [project.entry-points."phlo.plugins.services"]

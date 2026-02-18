@@ -14,10 +14,7 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-dbt>=0.1.0",
-    "phlo-nessie>=0.1.0",
     "phlo-postgres>=0.1.0",
-    "phlo-trino>=0.1.0",
     "pyyaml>=6.0.1",
 ]
 
@@ -25,6 +22,21 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
+]
+dbt = [
+    "phlo-dbt>=0.1.0",
+]
+quality = [
+    "phlo-quality>=0.1.0",
+]
+lineage = [
+    "phlo-lineage>=0.1.0",
+]
+nessie = [
+    "phlo-nessie>=0.1.0",
+]
+trino = [
+    "phlo-trino>=0.1.0",
 ]
 
 [project.entry-points."phlo.plugins.cli"]

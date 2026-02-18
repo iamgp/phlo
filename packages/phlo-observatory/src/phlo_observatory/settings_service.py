@@ -12,7 +12,6 @@ from jsonschema import ValidationError, validate
 
 from phlo.logging import get_logger
 from phlo_observatory.settings import get_settings as get_observatory_settings
-from phlo_postgres.settings import get_settings as get_postgres_settings
 
 logger = get_logger(__name__)
 
@@ -149,13 +148,52 @@ class SettingsService:
         logger.debug("observatory_settings_table_ensured")
 
 
+class InMemorySettingsService:
+    """In-memory fallback settings service for non-Postgres environments."""
+
+    def __init__(self) -> None:
+        self._store: dict[tuple[SettingsScope, str], SettingsRecord] = {}
+
+    def get(self, scope: SettingsScope, namespace: str) -> SettingsRecord | None:
+        return self._store.get((scope, namespace))
+
+    def put(
+        self,
+        scope: SettingsScope,
+        namespace: str,
+        settings: dict[str, Any],
+        schema: dict[str, Any] | None = None,
+    ) -> SettingsRecord:
+        if schema:
+            try:
+                validate(instance=settings, schema=schema)
+            except ValidationError as exc:
+                raise ValueError(str(exc)) from exc
+        record = SettingsRecord(
+            scope=scope, namespace=namespace, settings=settings, updated_at=None
+        )
+        self._store[(scope, namespace)] = record
+        return record
+
+
 @lru_cache(maxsize=1)
-def get_settings_service() -> SettingsService:
-    """Build and cache the settings service instance."""
+def get_settings_service() -> SettingsService | InMemorySettingsService:
+    """Build and cache the settings service instance.
+
+    Falls back to in-memory storage when Postgres integration is unavailable.
+    """
     observatory_settings = get_observatory_settings()
+    if observatory_settings.observatory_settings_db_url:
+        logger.debug("observatory_settings_service_initialized", backend="postgres_explicit")
+        return SettingsService(observatory_settings.observatory_settings_db_url)
+
+    try:
+        from phlo_postgres.settings import get_settings as get_postgres_settings
+    except Exception:
+        logger.warning("observatory_settings_falling_back_to_memory")
+        return InMemorySettingsService()
+
     postgres_settings = get_postgres_settings()
-    db_url = observatory_settings.observatory_settings_db_url or (
-        postgres_settings.get_postgres_connection_string()
-    )
-    logger.debug("observatory_settings_service_initialized")
+    db_url = postgres_settings.get_postgres_connection_string()
+    logger.debug("observatory_settings_service_initialized", backend="postgres_default")
     return SettingsService(db_url)

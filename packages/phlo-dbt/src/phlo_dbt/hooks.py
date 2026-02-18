@@ -10,9 +10,19 @@ from phlo.cli.infrastructure.command import CommandError, run_command
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
 from phlo_dbt.settings import get_settings
-from phlo_dagster.containers import find_dagster_container
 
 logger = get_logger(__name__)
+
+
+def _find_dagster_container(project_name: str) -> str:
+    """Resolve the Dagster webserver container via optional phlo-dagster integration."""
+    try:
+        from phlo_dagster.containers import find_dagster_container
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(
+            "dbt Dagster hooks require phlo-dagster. Install phlo-dbt[dagster] or phlo-dagster."
+        ) from exc
+    return find_dagster_container(project_name)
 
 
 def compile_dbt() -> int:
@@ -46,7 +56,7 @@ def compile_dbt() -> int:
     time.sleep(5)
 
     project_name = get_project_name()
-    container_name = find_dagster_container(project_name)
+    container_name = _find_dagster_container(project_name)
     logger.info(
         "dbt_hook_compile_container_resolved",
         project_name=project_name,

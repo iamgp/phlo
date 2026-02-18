@@ -25,6 +25,12 @@ dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
 ]
+alerting = [
+    "phlo-alerting>=0.1.0",
+]
+iceberg = [
+    "phlo-iceberg>=0.1.0",
+]
 
 [project.entry-points."phlo.plugins.services"]
 dagster = "phlo_dagster.plugin:DagsterServicePlugin"

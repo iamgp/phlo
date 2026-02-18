@@ -127,35 +127,42 @@ def _default_merge_config(
     return config
 
 
-def _resolve_iceberg_resource(context: RuntimeContext) -> Any:
-    """Resolve the Iceberg resource from runtime resources.
+def _resolve_table_store_resource(context: RuntimeContext) -> Any:
+    """Resolve the table-store resource from runtime resources.
 
     Args:
         context: Runtime context passed to the ingestion run function.
 
     Returns:
-        The resolved Iceberg resource object.
+        The resolved table-store resource object.
 
     Raises:
-        PhloConfigError: If no Iceberg resource can be resolved.
+        PhloConfigError: If no table-store resource can be resolved.
     """
-    iceberg = None
+    table_store = None
     resources = context.resources
     if isinstance(resources, dict):
-        iceberg = resources.get("iceberg")
+        table_store = resources.get("table_store") or resources.get("iceberg")
     elif resources is not None:
-        iceberg = getattr(resources, "iceberg", None)
-    if iceberg is None:
+        table_store = getattr(resources, "table_store", None) or getattr(resources, "iceberg", None)
+    if table_store is None:
         try:
-            iceberg = context.get_resource("iceberg")
+            table_store = context.get_resource("table_store")
         except Exception:
-            iceberg = None
-    if iceberg is None:
+            table_store = None
+    if table_store is None:
+        try:
+            table_store = context.get_resource("iceberg")
+        except Exception:
+            table_store = None
+    if table_store is None:
         raise PhloConfigError(
-            message="Iceberg resource not available in runtime context",
-            suggestions=["Install phlo-iceberg or configure an Iceberg resource provider."],
+            message="Table store resource not available in runtime context",
+            suggestions=[
+                "Configure a `table_store` resource provider (or legacy `iceberg` resource)."
+            ],
         )
-    return iceberg
+    return table_store
 
 
 def phlo_ingestion(
@@ -263,13 +270,13 @@ def phlo_ingestion(
             try:
                 from phlo_dlt.executor import DltIngester
 
-                iceberg = _resolve_iceberg_resource(runtime)
+                table_store = _resolve_table_store_resource(runtime)
 
                 ingester = DltIngester(
                     context=runtime,
                     logger=logger,
                     table_config=table_config,
-                    iceberg_resource=iceberg,
+                    table_store_resource=table_store,
                     dlt_source_func=func,
                     add_metadata_columns=add_metadata_columns,
                     merge_strategy=merge_strategy,

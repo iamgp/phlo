@@ -69,6 +69,60 @@ class ResourceSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class TableStoreSpec:
+    """Table store capability (for example Iceberg, Delta, Hudi)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class CatalogSpec:
+    """Catalog capability (for example Nessie, Hive Metastore, Glue)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class QueryEngineSpec:
+    """Query engine capability (for example Trino, Spark SQL, DuckDB)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class QualityBackendSpec:
+    """Quality backend capability used by quality checks."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class MetadataCatalogSpec:
+    """Metadata catalog capability (for example OpenMetadata)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class LineageSinkSpec:
+    """Lineage sink capability (for example OpenLineage, graph store)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class MaterializeResult:
     """Result for a successful or skipped materialization."""
 

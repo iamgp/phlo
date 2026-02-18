@@ -56,3 +56,13 @@ class ServicePlugin(Plugin, ABC):
     def get_dependencies(self) -> list[str]:
         """Return list of service names this depends on."""
         return self.service_definition.get("depends_on", [])
+
+    @property
+    def requires_capabilities(self) -> list[str]:
+        """Return required capabilities for this service plugin."""
+        return list(self.metadata.requires_capabilities)
+
+    @property
+    def optional_capabilities(self) -> list[str]:
+        """Return optional capabilities for this service plugin."""
+        return list(self.metadata.optional_capabilities)

@@ -285,6 +285,8 @@ class PluginRegistry:
             "homepage": metadata.homepage,
             "tags": metadata.tags,
             "dependencies": metadata.dependencies,
+            "requires_capabilities": metadata.requires_capabilities,
+            "optional_capabilities": metadata.optional_capabilities,
         }
 
     def validate_plugin(self, plugin: Plugin) -> bool:

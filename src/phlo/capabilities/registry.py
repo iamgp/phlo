@@ -5,7 +5,17 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 
-from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
+from phlo.capabilities.specs import (
+    AssetCheckSpec,
+    AssetSpec,
+    CatalogSpec,
+    LineageSinkSpec,
+    MetadataCatalogSpec,
+    QualityBackendSpec,
+    QueryEngineSpec,
+    ResourceSpec,
+    TableStoreSpec,
+)
 
 
 @dataclass
@@ -15,6 +25,12 @@ class CapabilityRegistry:
     assets: dict[str, AssetSpec] = field(default_factory=dict)
     checks: dict[tuple[str, str], AssetCheckSpec] = field(default_factory=dict)
     resources: dict[str, ResourceSpec] = field(default_factory=dict)
+    table_stores: dict[str, TableStoreSpec] = field(default_factory=dict)
+    catalogs: dict[str, CatalogSpec] = field(default_factory=dict)
+    query_engines: dict[str, QueryEngineSpec] = field(default_factory=dict)
+    quality_backends: dict[str, QualityBackendSpec] = field(default_factory=dict)
+    metadata_catalogs: dict[str, MetadataCatalogSpec] = field(default_factory=dict)
+    lineage_sinks: dict[str, LineageSinkSpec] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -77,6 +93,66 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.resources.values())
 
+    def register_table_store(self, spec: TableStoreSpec) -> None:
+        """Register or replace a table store spec by name."""
+        with self._lock:
+            self.table_stores[spec.name] = spec
+
+    def list_table_stores(self) -> list[TableStoreSpec]:
+        """Return a snapshot list of registered table store specs."""
+        with self._lock:
+            return list(self.table_stores.values())
+
+    def register_catalog(self, spec: CatalogSpec) -> None:
+        """Register or replace a catalog spec by name."""
+        with self._lock:
+            self.catalogs[spec.name] = spec
+
+    def list_catalogs(self) -> list[CatalogSpec]:
+        """Return a snapshot list of registered catalog specs."""
+        with self._lock:
+            return list(self.catalogs.values())
+
+    def register_query_engine(self, spec: QueryEngineSpec) -> None:
+        """Register or replace a query engine spec by name."""
+        with self._lock:
+            self.query_engines[spec.name] = spec
+
+    def list_query_engines(self) -> list[QueryEngineSpec]:
+        """Return a snapshot list of registered query engine specs."""
+        with self._lock:
+            return list(self.query_engines.values())
+
+    def register_quality_backend(self, spec: QualityBackendSpec) -> None:
+        """Register or replace a quality backend spec by name."""
+        with self._lock:
+            self.quality_backends[spec.name] = spec
+
+    def list_quality_backends(self) -> list[QualityBackendSpec]:
+        """Return a snapshot list of registered quality backend specs."""
+        with self._lock:
+            return list(self.quality_backends.values())
+
+    def register_metadata_catalog(self, spec: MetadataCatalogSpec) -> None:
+        """Register or replace a metadata catalog spec by name."""
+        with self._lock:
+            self.metadata_catalogs[spec.name] = spec
+
+    def list_metadata_catalogs(self) -> list[MetadataCatalogSpec]:
+        """Return a snapshot list of registered metadata catalog specs."""
+        with self._lock:
+            return list(self.metadata_catalogs.values())
+
+    def register_lineage_sink(self, spec: LineageSinkSpec) -> None:
+        """Register or replace a lineage sink spec by name."""
+        with self._lock:
+            self.lineage_sinks[spec.name] = spec
+
+    def list_lineage_sinks(self) -> list[LineageSinkSpec]:
+        """Return a snapshot list of registered lineage sink specs."""
+        with self._lock:
+            return list(self.lineage_sinks.values())
+
     def clear(self) -> None:
         """Remove all assets, checks, and resources from the registry."""
 
@@ -84,6 +160,12 @@ class CapabilityRegistry:
             self.assets.clear()
             self.checks.clear()
             self.resources.clear()
+            self.table_stores.clear()
+            self.catalogs.clear()
+            self.query_engines.clear()
+            self.quality_backends.clear()
+            self.metadata_catalogs.clear()
+            self.lineage_sinks.clear()
 
     def clear_checks(self) -> None:
         """Remove all registered checks while preserving assets/resources."""
@@ -133,6 +215,36 @@ def register_resource(spec: ResourceSpec) -> None:
     """
 
     _GLOBAL_REGISTRY.register_resource(spec)
+
+
+def register_table_store(spec: TableStoreSpec) -> None:
+    """Register a table store in the process-global registry."""
+    _GLOBAL_REGISTRY.register_table_store(spec)
+
+
+def register_catalog(spec: CatalogSpec) -> None:
+    """Register a catalog in the process-global registry."""
+    _GLOBAL_REGISTRY.register_catalog(spec)
+
+
+def register_query_engine(spec: QueryEngineSpec) -> None:
+    """Register a query engine in the process-global registry."""
+    _GLOBAL_REGISTRY.register_query_engine(spec)
+
+
+def register_quality_backend(spec: QualityBackendSpec) -> None:
+    """Register a quality backend in the process-global registry."""
+    _GLOBAL_REGISTRY.register_quality_backend(spec)
+
+
+def register_metadata_catalog(spec: MetadataCatalogSpec) -> None:
+    """Register a metadata catalog in the process-global registry."""
+    _GLOBAL_REGISTRY.register_metadata_catalog(spec)
+
+
+def register_lineage_sink(spec: LineageSinkSpec) -> None:
+    """Register a lineage sink in the process-global registry."""
+    _GLOBAL_REGISTRY.register_lineage_sink(spec)
 
 
 def clear_capabilities() -> None:

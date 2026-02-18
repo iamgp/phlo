@@ -7,7 +7,6 @@ from functools import lru_cache
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
-from phlo_trino.settings import get_settings as get_trino_settings
 
 
 class OpenMetadataSettings(BaseConfig):
@@ -57,7 +56,12 @@ class OpenMetadataSettings(BaseConfig):
         """
         if self.openmetadata_database_name:
             return self.openmetadata_database_name
-        return get_trino_settings().trino_catalog
+        try:
+            from phlo_trino.settings import get_settings as get_trino_settings
+
+            return get_trino_settings().trino_catalog
+        except Exception:  # noqa: BLE001 - optional dependency fallback
+            return "iceberg"
 
 
 @lru_cache(maxsize=1)

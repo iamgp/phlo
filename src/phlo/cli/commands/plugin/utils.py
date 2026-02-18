@@ -12,9 +12,11 @@ from packaging.version import parse
 from rich.console import Console
 from rich.table import Table
 
+from phlo.capabilities import missing_required_capabilities
 from phlo.cli.commands.plugin.scaffold import create_plugin_package  # noqa: F401
 from phlo.logging import get_logger
 from phlo.plugins import get_plugin_info
+from phlo.plugins.base import PluginMetadata
 from phlo.plugins.discovery import get_global_registry, get_service
 
 console = Console()
@@ -132,6 +134,15 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
         info = get_plugin_info(plugin_key, name)
         if not info:
             return
+        required_capabilities = info.get("requires_capabilities", [])
+        optional_capabilities = info.get("optional_capabilities", [])
+        missing_capabilities = missing_required_capabilities(
+            PluginMetadata(
+                name=info["name"],
+                version=info["version"],
+                requires_capabilities=list(required_capabilities),
+            )
+        )
         installed.append(
             {
                 "name": info["name"],
@@ -142,6 +153,10 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
                 "homepage": info.get("homepage", ""),
                 "tags": info.get("tags", []),
                 "installed": True,
+                "required_capabilities": required_capabilities,
+                "optional_capabilities": optional_capabilities,
+                "missing_capabilities": missing_capabilities,
+                "ready": len(missing_capabilities) == 0,
             }
         )
 
@@ -154,6 +169,7 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
                 if not service:
                     continue
                 metadata = service.metadata
+                missing_capabilities = missing_required_capabilities(metadata)
                 installed.append(
                     {
                         "name": metadata.name,
@@ -167,6 +183,10 @@ def collect_installed_plugins(plugin_type: str) -> list[dict]:
                         "category": service.category,
                         "profile": service.profile,
                         "default": service.is_default,
+                        "required_capabilities": metadata.requires_capabilities,
+                        "optional_capabilities": metadata.optional_capabilities,
+                        "missing_capabilities": missing_capabilities,
+                        "ready": len(missing_capabilities) == 0,
                     }
                 )
             continue
@@ -202,13 +222,20 @@ def render_plugin_table(title: str, plugins: list[dict]) -> None:
     table.add_column("Type", style="green")
     table.add_column("Version", style="yellow")
     table.add_column("Author", style="white")
+    table.add_column("Ready", style="magenta")
 
     for plugin in plugins:
+        ready = plugin.get("ready")
+        ready_label = "yes" if ready is True else ("no" if ready is False else "n/a")
+        missing = plugin.get("missing_capabilities") or []
+        if ready is False and missing:
+            ready_label = f"no ({', '.join(missing)})"
         table.add_row(
             plugin["name"],
             plugin["type"],
             plugin["version"],
             plugin.get("author", "unknown") or "unknown",
+            ready_label,
         )
 
     console.print(table)

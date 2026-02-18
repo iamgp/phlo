@@ -68,6 +68,25 @@ Benefits:
 - Plugins can be distributed independently
 - Failed plugins don't crash the system
 
+### Declare Capability Requirements
+
+Plugins can declare runtime capability requirements in `PluginMetadata`:
+
+```python
+PluginMetadata(
+    name="my-plugin",
+    version="0.1.0",
+    requires_capabilities=["query_engine:trino", "table_store"],
+    optional_capabilities=["metadata_catalog"],
+)
+```
+
+Guidelines:
+- Use `capability_type:name` for strict provider requirements.
+- Use `capability_type` when any provider of that type is acceptable.
+- Keep only true hard requirements in `requires_capabilities`.
+- Put integrations and enhancements in `optional_capabilities`.
+
 ### Quick Start: Create a Plugin Scaffold
 
 ```bash

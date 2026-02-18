@@ -10,7 +10,7 @@ from phlo.hooks import (
     TelemetryEventContext,
     TelemetryEventEmitter,
 )
-from phlo_iceberg.resource import IcebergResource
+from phlo.capabilities.interfaces import TableStore
 
 from phlo_dlt.dlt_helpers import (
     inject_metadata_columns,
@@ -32,7 +32,7 @@ class DltIngester(BaseIngester):
         context: Any,  # Can be generic context or specific object with .log/.run_id
         logger: Any,
         table_config: TableConfig,
-        iceberg_resource: IcebergResource,
+        table_store_resource: TableStore,
         dlt_source_func: Callable[..., Any],
         add_metadata_columns: bool = True,
         merge_strategy: str = "merge",
@@ -44,7 +44,7 @@ class DltIngester(BaseIngester):
             context: Execution context from the orchestrator runtime.
             logger: Logger used for ingestion lifecycle messages.
             table_config: Table-level ingestion configuration.
-            iceberg_resource: Iceberg resource used for merge operations.
+            table_store_resource: Table store resource used for merge operations.
             dlt_source_func: Callable that builds a DLT source for a partition.
             add_metadata_columns: Whether to inject metadata columns into staged parquet.
             merge_strategy: Merge strategy name for Iceberg writes.
@@ -52,7 +52,7 @@ class DltIngester(BaseIngester):
         """
         super().__init__(context, logger)
         self.table_config = table_config
-        self.iceberg = iceberg_resource
+        self.table_store = table_store_resource
         self.dlt_source_func = dlt_source_func
         self.add_metadata_columns = add_metadata_columns
         self.merge_strategy = merge_strategy
@@ -158,7 +158,7 @@ class DltIngester(BaseIngester):
 
             merge_metrics = merge_to_iceberg(
                 context=shim,
-                iceberg=self.iceberg,
+                iceberg=self.table_store,
                 table_config=self.table_config,
                 parquet_path=parquet_path,
                 branch_name=branch_name,

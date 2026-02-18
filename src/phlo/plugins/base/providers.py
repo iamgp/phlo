@@ -9,12 +9,32 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Iterable
 
-from phlo.capabilities.specs import AssetCheckSpec, AssetSpec, ResourceSpec
+from phlo.capabilities.specs import (
+    AssetCheckSpec,
+    AssetSpec,
+    CatalogSpec,
+    LineageSinkSpec,
+    MetadataCatalogSpec,
+    QualityBackendSpec,
+    QueryEngineSpec,
+    ResourceSpec,
+    TableStoreSpec,
+)
 from phlo.plugins.base.plugin import Plugin
 
 
 class AssetProviderPlugin(Plugin, ABC):
     """Base class for capability plugins that provide asset specs."""
+
+    @property
+    def requires_capabilities(self) -> list[str]:
+        """Return required capabilities for this provider."""
+        return list(self.metadata.requires_capabilities)
+
+    @property
+    def optional_capabilities(self) -> list[str]:
+        """Return optional capabilities for this provider."""
+        return list(self.metadata.optional_capabilities)
 
     @abstractmethod
     def get_assets(self) -> Iterable[AssetSpec]:
@@ -39,6 +59,16 @@ class AssetProviderPlugin(Plugin, ABC):
 class ResourceProviderPlugin(Plugin, ABC):
     """Base class for plugins that provide resource specs."""
 
+    @property
+    def requires_capabilities(self) -> list[str]:
+        """Return required capabilities for this provider."""
+        return list(self.metadata.requires_capabilities)
+
+    @property
+    def optional_capabilities(self) -> list[str]:
+        """Return optional capabilities for this provider."""
+        return list(self.metadata.optional_capabilities)
+
     @abstractmethod
     def get_resources(self) -> Iterable[ResourceSpec]:
         """Return resource specifications exposed by this plugin.
@@ -48,3 +78,27 @@ class ResourceProviderPlugin(Plugin, ABC):
         """
 
         raise NotImplementedError
+
+    def get_table_stores(self) -> Iterable[TableStoreSpec]:
+        """Return table store capability specs exposed by this plugin."""
+        return []
+
+    def get_catalogs(self) -> Iterable[CatalogSpec]:
+        """Return catalog capability specs exposed by this plugin."""
+        return []
+
+    def get_query_engines(self) -> Iterable[QueryEngineSpec]:
+        """Return query engine capability specs exposed by this plugin."""
+        return []
+
+    def get_quality_backends(self) -> Iterable[QualityBackendSpec]:
+        """Return quality backend capability specs exposed by this plugin."""
+        return []
+
+    def get_metadata_catalogs(self) -> Iterable[MetadataCatalogSpec]:
+        """Return metadata catalog capability specs exposed by this plugin."""
+        return []
+
+    def get_lineage_sinks(self) -> Iterable[LineageSinkSpec]:
+        """Return lineage sink capability specs exposed by this plugin."""
+        return []

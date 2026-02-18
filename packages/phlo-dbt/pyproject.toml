@@ -14,7 +14,6 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-dagster>=0.1.0",
     "phlo-quality>=0.1.0",
     "dbt-core>=1.10.8",
     "dbt-trino>=1.9.3",
@@ -25,6 +24,9 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
+]
+dagster = [
+    "phlo-dagster>=0.1.0",
 ]
 
 [project.entry-points."phlo.plugins.assets"]
