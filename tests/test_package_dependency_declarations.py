@@ -34,7 +34,9 @@ def _declared_internal_dependencies(pyproject: Path) -> set[str]:
     return declared
 
 
-def _imported_internal_dependencies(src_dir: Path, module_to_distribution: dict[str, str]) -> set[str]:
+def _imported_internal_dependencies(
+    src_dir: Path, module_to_distribution: dict[str, str]
+) -> set[str]:
     imported: set[str] = set()
     for pyfile in src_dir.rglob("*.py"):
         text = pyfile.read_text(encoding="utf-8")
@@ -57,14 +59,10 @@ def test_runtime_internal_imports_are_declared_in_dependencies() -> None:
         declared = _declared_internal_dependencies(pyproject)
         imported = _imported_internal_dependencies(src_dir, module_to_distribution)
 
-        missing = {
-            dep
-            for dep in imported
-            if dep != package_name and dep not in declared
-        }
+        missing = {dep for dep in imported if dep != package_name and dep not in declared}
         if missing:
             missing_by_package[package_name] = missing
 
-    assert not missing_by_package, (
-        "Runtime internal imports missing from dependencies: " + str(missing_by_package)
+    assert not missing_by_package, "Runtime internal imports missing from dependencies: " + str(
+        missing_by_package
     )

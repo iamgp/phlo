@@ -169,7 +169,9 @@ class InMemorySettingsService:
                 validate(instance=settings, schema=schema)
             except ValidationError as exc:
                 raise ValueError(str(exc)) from exc
-        record = SettingsRecord(scope=scope, namespace=namespace, settings=settings, updated_at=None)
+        record = SettingsRecord(
+            scope=scope, namespace=namespace, settings=settings, updated_at=None
+        )
         self._store[(scope, namespace)] = record
         return record
 

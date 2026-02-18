@@ -7,6 +7,7 @@ Docker or running infrastructure.
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -19,13 +20,14 @@ assert _spec and _spec.loader
 _mod = importlib.util.module_from_spec(_spec)
 sys.modules["run_golden_path"] = _mod
 _spec.loader.exec_module(_mod)
+_mod_any = cast(Any, _mod)
 
-force_remove_directory = _mod.force_remove_directory
-find_available_port = _mod.find_available_port
-extract_openmetadata_token = _mod.extract_openmetadata_token
-read_env_file = _mod.read_env_file
-upsert_env_file = _mod.upsert_env_file
-write_file = _mod.write_file
+force_remove_directory = _mod_any.force_remove_directory
+find_available_port = _mod_any.find_available_port
+extract_openmetadata_token = _mod_any.extract_openmetadata_token
+read_env_file = _mod_any.read_env_file
+upsert_env_file = _mod_any.upsert_env_file
+write_file = _mod_any.write_file
 
 
 class TestForceRemoveDirectory:

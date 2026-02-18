@@ -11,23 +11,49 @@ import json
 import re
 from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, TypeAlias, TypeVar
 
 from phlo.logging import get_logger
 
 try:
     from phlo_quality.checks import (
-        CountCheck,
-        FreshnessCheck,
-        NullCheck,
-        QualityCheckResult,
-        RangeCheck,
-        UniqueCheck,
+        CountCheck as _CountCheck,
+        FreshnessCheck as _FreshnessCheck,
+        NullCheck as _NullCheck,
+        QualityCheckResult as _QualityCheckResult,
+        RangeCheck as _RangeCheck,
+        UniqueCheck as _UniqueCheck,
     )
-    from phlo_quality.checks_extra import CustomSQLCheck
+    from phlo_quality.checks_extra import CustomSQLCheck as _CustomSQLCheck
 except Exception:  # noqa: BLE001 - optional dependency for quality sync
-    CountCheck = FreshnessCheck = NullCheck = RangeCheck = UniqueCheck = CustomSQLCheck = object
-    QualityCheckResult = Any
+
+    class _CountCheck:
+        pass
+
+    class _FreshnessCheck:
+        pass
+
+    class _NullCheck:
+        pass
+
+    class _RangeCheck:
+        pass
+
+    class _UniqueCheck:
+        pass
+
+    class _CustomSQLCheck:
+        pass
+
+    _QualityCheckResult: TypeAlias = Any
+
+CountCheck = _CountCheck
+FreshnessCheck = _FreshnessCheck
+NullCheck = _NullCheck
+RangeCheck = _RangeCheck
+UniqueCheck = _UniqueCheck
+CustomSQLCheck = _CustomSQLCheck
+QualityCheckResult = _QualityCheckResult
 
 if TYPE_CHECKING:
     from phlo_openmetadata.openmetadata import OpenMetadataClient

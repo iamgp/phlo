@@ -158,7 +158,7 @@ class DltIngester(BaseIngester):
 
             merge_metrics = merge_to_iceberg(
                 context=shim,
-                table_store=self.table_store,
+                iceberg=self.table_store,
                 table_config=self.table_config,
                 parquet_path=parquet_path,
                 branch_name=branch_name,

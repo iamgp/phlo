@@ -4,7 +4,9 @@ from unittest.mock import patch
 
 import pytest
 from pandera.pandas import DataFrameModel
+from typing import cast
 
+from phlo.capabilities.interfaces import TableStore
 from phlo.logging import get_logger
 from phlo_dlt.converter import pandera_to_iceberg
 from phlo_dlt.registry import TableConfig
@@ -78,7 +80,7 @@ def test_phlo_ingestion_execution_real(tmp_path, iceberg_catalog):
             context=None,  # Ingester handles context=None gracefully or we mock it if needed
             logger=logger,
             table_config=table_config,
-            iceberg_resource=iceberg_resource,
+            table_store_resource=cast(TableStore, iceberg_resource),
             dlt_source_func=my_source,
             add_metadata_columns=True,
             merge_strategy="merge",

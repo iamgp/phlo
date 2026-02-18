@@ -266,9 +266,9 @@ def init_cmd(
     default_names = sorted([s.name for s in default_services])
     click.echo(f"Default services: {', '.join(default_names)}")
 
-    profiles = discovery.get_available_profiles()
-    if profiles:
-        click.echo(f"Optional profiles: {', '.join(sorted(profiles))}")
+    available_profiles = discovery.get_available_profiles()
+    if available_profiles:
+        click.echo(f"Optional profiles: {', '.join(sorted(available_profiles))}")
 
     click.echo("")
     click.echo("Next steps:")
