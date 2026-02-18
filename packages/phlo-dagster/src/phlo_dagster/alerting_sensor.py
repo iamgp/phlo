@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import Any, Optional
 
 from dagster import DagsterEventType, DagsterRunStatus, RunsFilter, sensor
@@ -156,11 +157,7 @@ def send_alert(
         True if alert was sent successfully
     """
     Alert, AlertSeverity, get_alert_manager = _load_alerting()
-    severity_value = (
-        severity
-        if not isinstance(severity, str)
-        else getattr(AlertSeverity, severity, AlertSeverity.ERROR)
-    )
+    severity_value = _coerce_alert_severity(severity, AlertSeverity)
     alert_manager = get_alert_manager()
     alert = Alert(
         title=title,
@@ -172,3 +169,23 @@ def send_alert(
         timestamp=datetime.now(timezone.utc),
     )
     return alert_manager.send(alert)
+
+
+def _coerce_alert_severity(severity: Any, alert_severity_type: type[Any]) -> Any:
+    """Normalize user-provided severity into the alert severity enum."""
+    if isinstance(severity, alert_severity_type):
+        return severity
+    if isinstance(severity, str):
+        normalized = severity.strip()
+        if not normalized:
+            return alert_severity_type.ERROR
+        by_name = getattr(alert_severity_type, normalized.upper(), None)
+        if by_name is not None:
+            return by_name
+        if issubclass(alert_severity_type, Enum):
+            try:
+                return alert_severity_type(normalized.lower())
+            except ValueError:
+                return alert_severity_type.ERROR
+        return alert_severity_type.ERROR
+    return alert_severity_type.ERROR
