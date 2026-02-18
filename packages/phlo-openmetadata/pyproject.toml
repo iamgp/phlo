@@ -15,8 +15,10 @@ license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
     "phlo-dbt>=0.1.0",
+    "phlo-lineage>=0.1.0",
     "phlo-nessie>=0.1.0",
     "phlo-postgres>=0.1.0",
+    "phlo-quality>=0.1.0",
     "phlo-trino>=0.1.0",
     "pyyaml>=6.0.1",
 ]
