@@ -93,7 +93,10 @@ class LineageExtractor:
 
         events = context.get_asset_materialization_events()
         if not isinstance(events, list):
-            logger.warning("Dagster context returned unexpected materialization events type")
+            logger.warning(
+                "dagster_materialization_events_invalid_type",
+                events_type=type(events).__name__,
+            )
             return
 
         for event in events:

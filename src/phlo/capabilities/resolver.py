@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from phlo.capabilities.registry import CapabilityRegistry, get_capability_registry
+from phlo.logging import get_logger
 from phlo.plugins.base import PluginMetadata
+
+logger = get_logger(__name__)
 
 _CAPABILITY_LISTERS = {
     "table_store": "list_table_stores",
@@ -37,8 +40,14 @@ def list_capabilities(
     registry = registry or get_capability_registry()
     list_method = _CAPABILITY_LISTERS.get(capability_type)
     if not list_method:
+        logger.debug("capability_list_unknown_type", capability_type=capability_type)
         return []
     specs = getattr(registry, list_method)()
+    logger.debug(
+        "capability_listed",
+        capability_type=capability_type,
+        capability_count=len(specs),
+    )
     return [spec.name for spec in specs]
 
 
@@ -56,23 +65,50 @@ def resolve_capability(
     registry = registry or get_capability_registry()
     list_method = _CAPABILITY_LISTERS.get(capability_type)
     if not list_method:
+        logger.debug(
+            "capability_resolution_unknown_type",
+            capability_type=capability_type,
+            requested_name=name,
+        )
         return None
 
     specs = getattr(registry, list_method)()
     if name is not None:
         for spec in specs:
             if spec.name == name:
+                logger.debug(
+                    "capability_resolved",
+                    capability_type=capability_type,
+                    capability_name=spec.name,
+                )
                 return ResolutionResult(
                     capability_type=capability_type,
                     name=spec.name,
                     provider=spec.provider,
                     metadata=spec.metadata,
                 )
+        logger.debug(
+            "capability_resolution_name_not_found",
+            capability_type=capability_type,
+            requested_name=name,
+            available_names=[spec.name for spec in specs],
+        )
         return None
 
     if len(specs) != 1:
+        logger.debug(
+            "capability_resolution_ambiguous",
+            capability_type=capability_type,
+            candidate_count=len(specs),
+            candidate_names=[spec.name for spec in specs],
+        )
         return None
     spec = specs[0]
+    logger.debug(
+        "capability_resolved_default",
+        capability_type=capability_type,
+        capability_name=spec.name,
+    )
     return ResolutionResult(
         capability_type=capability_type,
         name=spec.name,
@@ -100,4 +136,10 @@ def missing_required_capabilities(
         if not list_capabilities(capability, registry=registry):
             missing.append(capability)
 
+    if missing:
+        logger.debug(
+            "plugin_required_capabilities_missing",
+            plugin_name=plugin.name,
+            missing_capabilities=missing,
+        )
     return missing

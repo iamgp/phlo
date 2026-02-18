@@ -21,27 +21,37 @@ logger = get_logger(__name__)
 
 def discover_capabilities() -> None:
     """Discover capability providers and register their specs."""
+    logger.info("capability_discovery_started")
     discover_plugins(plugin_type="asset_providers", auto_register=True)
     discover_plugins(plugin_type="resource_providers", auto_register=True)
 
     registry = get_global_registry()
 
+    asset_provider_count = 0
     for name in registry.list_asset_providers():
         plugin = registry.get_asset_provider(name)
         if plugin is None:
             continue
+        asset_provider_count += 1
         try:
             for asset in plugin.get_assets():
                 register_asset(asset)
             for check in plugin.get_checks():
                 register_check(check)
         except Exception as exc:
-            logger.warning("Failed to load asset provider %s: %s", name, exc)
+            logger.warning(
+                "capability_asset_provider_registration_failed",
+                provider_name=name,
+                error=str(exc),
+                exc_info=True,
+            )
 
+    resource_provider_count = 0
     for name in registry.list_resource_providers():
         plugin = registry.get_resource_provider(name)
         if plugin is None:
             continue
+        resource_provider_count += 1
         try:
             for resource in plugin.get_resources():
                 register_resource(resource)
@@ -58,4 +68,15 @@ def discover_capabilities() -> None:
             for lineage_sink in plugin.get_lineage_sinks():
                 register_lineage_sink(lineage_sink)
         except Exception as exc:
-            logger.warning("Failed to load resource provider %s: %s", name, exc)
+            logger.warning(
+                "capability_resource_provider_registration_failed",
+                provider_name=name,
+                error=str(exc),
+                exc_info=True,
+            )
+
+    logger.info(
+        "capability_discovery_completed",
+        asset_provider_count=asset_provider_count,
+        resource_provider_count=resource_provider_count,
+    )

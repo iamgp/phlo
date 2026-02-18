@@ -182,7 +182,12 @@ def _collect_dagster_extension_definitions() -> Any:
         try:
             definitions.append(plugin.get_definitions())
         except Exception as exc:
-            logger.error("Error creating Dagster definitions from plugin %s: %s", plugin, exc)
+            logger.error(
+                "dagster_extension_definitions_failed",
+                plugin_type=type(plugin).__name__,
+                error=str(exc),
+                exc_info=True,
+            )
 
     return dg.Definitions.merge(*definitions) if definitions else dg.Definitions()
 
@@ -307,13 +312,23 @@ def _clear_capability_registries() -> None:
             try:
                 clear_fn()
             except Exception as exc:
-                logger.warning("Failed to clear registries for asset provider %s: %s", name, exc)
+                logger.warning(
+                    "dagster_asset_provider_registry_clear_failed",
+                    provider_name=name,
+                    error=str(exc),
+                    exc_info=True,
+                )
 
     for plugin in _discover_dagster_extensions():
         try:
             plugin.clear_registries()
         except Exception as exc:
-            logger.warning("Failed to clear registries for Dagster plugin %s: %s", plugin, exc)
+            logger.warning(
+                "dagster_extension_registry_clear_failed",
+                plugin_type=type(plugin).__name__,
+                error=str(exc),
+                exc_info=True,
+            )
 
 
 def _discover_dagster_extensions() -> list[Any]:
@@ -324,7 +339,7 @@ def _discover_dagster_extensions() -> list[Any]:
 
     settings = _get_settings()
     if not settings.plugins_enabled:
-        logger.info("Plugin system is disabled")
+        logger.info("dagster_plugin_system_disabled")
         return []
 
     try:
@@ -340,13 +355,18 @@ def _discover_dagster_extensions() -> list[Any]:
             plugin_class = entry_point.load()
             plugin = plugin_class() if isinstance(plugin_class, type) else plugin_class
         except Exception as exc:
-            logger.warning("Failed to load Dagster extension %s: %s", entry_point.name, exc)
+            logger.warning(
+                "dagster_extension_load_failed",
+                entry_point_name=entry_point.name,
+                error=str(exc),
+                exc_info=True,
+            )
             continue
         if not isinstance(plugin, DagsterExtensionPlugin):
             logger.warning(
-                "Dagster extension %s has invalid type %s",
-                entry_point.name,
-                type(plugin).__name__,
+                "dagster_extension_invalid_type",
+                entry_point_name=entry_point.name,
+                plugin_type=type(plugin).__name__,
             )
             continue
         extensions.append(plugin)
@@ -361,10 +381,10 @@ def _get_settings():
 
 def _is_plugin_allowed(plugin_name: str, settings) -> bool:
     if plugin_name in settings.plugins_blacklist:
-        logger.debug("Plugin '%s' is blacklisted, skipping", plugin_name)
+        logger.debug("dagster_plugin_blacklisted", plugin_name=plugin_name)
         return False
     if settings.plugins_whitelist and plugin_name not in settings.plugins_whitelist:
-        logger.debug("Plugin '%s' is not in whitelist, skipping", plugin_name)
+        logger.debug("dagster_plugin_not_whitelisted", plugin_name=plugin_name)
         return False
     return True
 

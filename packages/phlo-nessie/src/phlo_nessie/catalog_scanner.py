@@ -74,7 +74,10 @@ class NessieTableScanner:
             response = getattr(exc, "response", None)
             if response is not None and response.status_code == 404:
                 self._scan_fallback_used = True
-                logger.warning("Nessie Iceberg REST not available, falling back to Trino")
+                logger.warning(
+                    "nessie_rest_namespace_list_fallback_to_trino",
+                    nessie_uri=self.nessie_uri,
+                )
                 return self._list_namespaces_via_trino()
             raise
         namespaces = data.get("namespaces", [])
@@ -100,8 +103,9 @@ class NessieTableScanner:
             if response is not None and response.status_code == 404:
                 self._scan_fallback_used = True
                 logger.warning(
-                    "Nessie Iceberg REST not available for namespace %s, using Trino",
-                    namespace_name,
+                    "nessie_rest_table_list_fallback_to_trino",
+                    namespace=namespace_name,
+                    nessie_uri=self.nessie_uri,
                 )
                 return self._list_tables_via_trino(namespace_name)
             raise
@@ -143,7 +147,11 @@ class NessieTableScanner:
         try:
             rows = trino.execute("SHOW SCHEMAS")
         except Exception as exc:  # noqa: BLE001 - log and return empty
-            logger.warning("Failed to list schemas via Trino: %s", exc)
+            logger.warning(
+                "nessie_trino_schema_list_failed",
+                error=str(exc),
+                exc_info=True,
+            )
             return []
         namespaces = []
         for row in rows:
@@ -166,7 +174,12 @@ class NessieTableScanner:
         try:
             rows = trino.execute(f"SHOW TABLES FROM {namespace}")
         except Exception as exc:  # noqa: BLE001 - log and return empty
-            logger.warning("Failed to list tables via Trino for %s: %s", namespace, exc)
+            logger.warning(
+                "nessie_trino_table_list_failed",
+                namespace=namespace,
+                error=str(exc),
+                exc_info=True,
+            )
             return []
         tables = []
         for row in rows:
@@ -193,7 +206,11 @@ class NessieTableScanner:
             rows = trino.execute(f"DESCRIBE {namespace}.{table_name}")
         except Exception as exc:  # noqa: BLE001 - log and return None
             logger.warning(
-                "Failed to describe table %s.%s via Trino: %s", namespace, table_name, exc
+                "nessie_trino_describe_failed",
+                namespace=namespace,
+                table_name=table_name,
+                error=str(exc),
+                exc_info=True,
             )
             return None
         fields = []
@@ -219,7 +236,10 @@ class NessieTableScanner:
             from phlo_trino import TrinoResource
             from phlo_trino.settings import get_settings as get_trino_settings
         except Exception as exc:  # noqa: BLE001 - optional dependency
-            logger.warning("Trino resource not available for Nessie fallback: %s", exc)
+            logger.warning(
+                "nessie_trino_resource_unavailable",
+                error=str(exc),
+            )
             return None
         settings = get_trino_settings()
         return TrinoResource(
