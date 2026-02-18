@@ -18,13 +18,25 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.logging import get_logger
+
 console = Console()
+logger = get_logger(__name__)
 
 
 def _get_iceberg_catalog(ref: str = "main"):
+    logger.debug(
+        "nessie_catalog_catalog_load_requested",
+        ref=ref,
+    )
     try:
         from phlo_iceberg.catalog import get_catalog
     except ImportError as exc:  # pragma: no cover
+        logger.error(
+            "nessie_catalog_catalog_backend_missing",
+            ref=ref,
+            exc_info=True,
+        )
         raise RuntimeError(
             "Iceberg catalog support is not installed. "
             "Install `phlo-iceberg` (or `phlo[defaults]`)."
@@ -44,6 +56,12 @@ def catalog():
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
 def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
     """List all Iceberg tables in the catalog."""
+    logger.info(
+        "nessie_catalog_tables_requested",
+        namespace=namespace,
+        ref=ref,
+        output_format=output_format,
+    )
     try:
         cat = _get_iceberg_catalog(ref=ref)
 
@@ -64,13 +82,31 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
                         }
                     )
             except Exception as e:
+                logger.warning(
+                    "nessie_catalog_tables_namespace_list_failed",
+                    namespace=ns_name,
+                    ref=ref,
+                    error=str(e),
+                    exc_info=True,
+                )
                 console.print(f"[yellow]Warning: Could not list tables in {ns_name}: {e}[/yellow]")
 
         if not all_tables:
+            logger.info(
+                "nessie_catalog_tables_empty",
+                namespace=namespace,
+                ref=ref,
+            )
             console.print("[yellow]No tables found[/yellow]")
             return
 
         if output_format == "json":
+            logger.info(
+                "nessie_catalog_tables_rendered",
+                output_format=output_format,
+                ref=ref,
+                table_count=len(all_tables),
+            )
             click.echo(json.dumps(all_tables, indent=2))
             return
 
@@ -82,9 +118,23 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
         for row in sorted(all_tables, key=lambda x: x["full_name"]):
             table.add_row(row["namespace"], row["table"], row["full_name"])
 
+        logger.info(
+            "nessie_catalog_tables_rendered",
+            output_format=output_format,
+            ref=ref,
+            table_count=len(all_tables),
+        )
         console.print(table)
         console.print(f"\n[dim]Total: {len(all_tables)} tables[/dim]")
     except Exception as e:
+        logger.error(
+            "nessie_catalog_tables_failed",
+            namespace=namespace,
+            ref=ref,
+            output_format=output_format,
+            error=str(e),
+            exc_info=True,
+        )
         console.print(f"[red]Error listing tables: {e}[/red]")
         sys.exit(1)
 
@@ -94,11 +144,23 @@ def tables(namespace: Optional[str], ref: str, output_format: str) -> None:
 @click.option("--ref", default="main", help="Nessie branch/tag reference")
 def describe(table_name: str, ref: str) -> None:
     """Show detailed table metadata."""
+    logger.info(
+        "nessie_catalog_describe_requested",
+        table_name=table_name,
+        ref=ref,
+    )
     try:
         cat = _get_iceberg_catalog(ref=ref)
         try:
             table = cat.load_table(table_name)
         except Exception as e:
+            logger.warning(
+                "nessie_catalog_describe_table_not_found",
+                table_name=table_name,
+                ref=ref,
+                error=str(e),
+                exc_info=True,
+            )
             console.print(f"[red]Table not found: {table_name}[/red]")
             console.print(f"[yellow]Error: {e}[/yellow]")
             sys.exit(1)
@@ -142,7 +204,21 @@ def describe(table_name: str, ref: str) -> None:
             for key, value in sorted(table.properties().items()):
                 prop_table.add_row(key, value)
             console.print(prop_table)
+        logger.info(
+            "nessie_catalog_describe_succeeded",
+            table_name=table_name,
+            ref=ref,
+            has_snapshot=current_snapshot is not None,
+            schema_field_count=len(schema.fields),
+        )
     except Exception as e:
+        logger.error(
+            "nessie_catalog_describe_failed",
+            table_name=table_name,
+            ref=ref,
+            error=str(e),
+            exc_info=True,
+        )
         console.print(f"[red]Error describing table: {e}[/red]")
         sys.exit(1)
 
@@ -154,11 +230,25 @@ def describe(table_name: str, ref: str) -> None:
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
 def history(table_name: str, limit: int, ref: str, output_format: str) -> None:
     """Show table snapshot history."""
+    logger.info(
+        "nessie_catalog_history_requested",
+        table_name=table_name,
+        limit=limit,
+        ref=ref,
+        output_format=output_format,
+    )
     try:
         cat = _get_iceberg_catalog(ref=ref)
         try:
             table = cat.load_table(table_name)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "nessie_catalog_history_table_not_found",
+                table_name=table_name,
+                ref=ref,
+                error=str(exc),
+                exc_info=True,
+            )
             console.print(f"[red]Table not found: {table_name}[/red]")
             sys.exit(1)
 
@@ -178,6 +268,13 @@ def history(table_name: str, limit: int, ref: str, output_format: str) -> None:
         snapshots = sorted(snapshots, key=lambda x: x["timestamp"], reverse=True)[:limit]
 
         if output_format == "json":
+            logger.info(
+                "nessie_catalog_history_rendered",
+                table_name=table_name,
+                ref=ref,
+                output_format=output_format,
+                snapshot_count=len(snapshots),
+            )
             click.echo(json.dumps(snapshots, indent=2))
             return
 
@@ -197,7 +294,23 @@ def history(table_name: str, limit: int, ref: str, output_format: str) -> None:
                 str(s["removed_files"]),
             )
 
+        logger.info(
+            "nessie_catalog_history_rendered",
+            table_name=table_name,
+            ref=ref,
+            output_format=output_format,
+            snapshot_count=len(snapshots),
+        )
         console.print(table_out)
     except Exception as e:
+        logger.error(
+            "nessie_catalog_history_failed",
+            table_name=table_name,
+            limit=limit,
+            ref=ref,
+            output_format=output_format,
+            error=str(e),
+            exc_info=True,
+        )
         console.print(f"[red]Error showing history: {e}[/red]")
         sys.exit(1)

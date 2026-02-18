@@ -86,12 +86,12 @@ def _is_plugin_allowed(plugin_name: str) -> bool:
 
     # Check blacklist first
     if plugin_name in settings.plugins_blacklist:
-        logger.debug(f"Plugin '{plugin_name}' is blacklisted, skipping")
+        logger.debug("plugin_blacklisted_skipping", plugin_name=plugin_name)
         return False
 
     # Check whitelist (if not empty)
     if settings.plugins_whitelist and plugin_name not in settings.plugins_whitelist:
-        logger.debug(f"Plugin '{plugin_name}' is not in whitelist, skipping")
+        logger.debug("plugin_not_whitelisted_skipping", plugin_name=plugin_name)
         return False
 
     return True
@@ -141,12 +141,16 @@ def discover_plugins(
 
         for ptype in types_to_discover:
             if ptype not in ENTRY_POINT_GROUPS:
-                logger.warning(f"Unknown plugin type: {ptype}")
+                logger.warning("unknown_plugin_type", plugin_type=ptype)
                 continue
 
             entry_point_group = ENTRY_POINT_GROUPS[ptype]
 
-            logger.info(f"Discovering {ptype} plugins from entry point: {entry_point_group}")
+            logger.info(
+                "plugin_discovery_started",
+                plugin_type=ptype,
+                entry_point_group=entry_point_group,
+            )
 
             # Discover entry points
             try:
@@ -163,7 +167,11 @@ def discover_plugins(
                     if not _is_plugin_allowed(entry_point.name):
                         continue
 
-                    logger.info(f"Loading plugin: {entry_point.name} from {entry_point.value}")
+                    logger.info(
+                        "plugin_loading",
+                        plugin_name=entry_point.name,
+                        entry_point=entry_point.value,
+                    )
 
                     # Load the plugin class
                     plugin_class = entry_point.load()
@@ -179,7 +187,8 @@ def discover_plugins(
                     # Validate plugin type
                     if not isinstance(plugin, Plugin):
                         logger.error(
-                            f"Plugin {entry_point.name} does not inherit from Plugin base class"
+                            "plugin_invalid_base_class",
+                            plugin_name=entry_point.name,
                         )
                         continue
 
@@ -199,8 +208,10 @@ def discover_plugins(
 
                     if not isinstance(plugin, expected_type):
                         logger.error(
-                            f"Plugin {entry_point.name} has incorrect type. "
-                            f"Expected {expected_type.__name__}, got {type(plugin).__name__}"
+                            "plugin_incorrect_type",
+                            plugin_name=entry_point.name,
+                            expected_type=expected_type.__name__,
+                            actual_type=type(plugin).__name__,
                         )
                         continue
 
@@ -208,7 +219,10 @@ def discover_plugins(
                     discovered[ptype].append(plugin)
 
                     logger.info(
-                        f"Successfully loaded plugin: {plugin.metadata.name} v{plugin.metadata.version}"
+                        "plugin_loaded",
+                        plugin_name=plugin.metadata.name,
+                        plugin_version=plugin.metadata.version,
+                        plugin_type=ptype,
                     )
 
                     if auto_register:
@@ -217,16 +231,19 @@ def discover_plugins(
                         if register_method:
                             getattr(registry, register_method)(plugin, replace=True)
 
-                except Exception as exc:
+                except Exception:
                     logger.error(
-                        f"Failed to load plugin {entry_point.name}: {exc}",
+                        "plugin_load_failed",
+                        plugin_name=entry_point.name,
+                        entry_point=entry_point.value,
+                        plugin_type=ptype,
                         exc_info=True,
                     )
                     continue
 
         # Log summary
         total = sum(len(plugins) for plugins in discovered.values())
-        logger.info(f"Discovered {total} plugins: {discovered}")
+        logger.info("plugin_discovery_completed", total_plugins=total, discovered=discovered)
 
         return discovered
 
@@ -286,7 +303,7 @@ def get_plugin(plugin_type: str, name: str) -> Plugin | None:
     """
     getter_method = _PLUGIN_GETTER_METHODS.get(plugin_type)
     if not getter_method:
-        logger.warning(f"Unknown plugin type: {plugin_type}")
+        logger.warning("unknown_plugin_type", plugin_type=plugin_type)
         return None
     registry = get_global_registry()
     return getattr(registry, getter_method)(name)
@@ -449,8 +466,8 @@ def auto_discover() -> None:
     """
     try:
         discover_plugins(auto_register=True)
-    except Exception as exc:
-        logger.warning(f"Failed to auto-discover plugins: {exc}")
+    except Exception:
+        logger.warning("plugin_auto_discover_failed", exc_info=True)
 
 
 # Auto-discover plugins when module is imported

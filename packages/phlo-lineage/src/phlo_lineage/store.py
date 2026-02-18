@@ -85,7 +85,7 @@ class LineageStore:
             if "already exists" in str(e).lower():
                 LineageStore._schema_initialized = True
             else:
-                logger.warning(f"Lineage schema init failed (non-fatal): {e}")
+                logger.warning("lineage_schema_init_failed", error=str(e))
 
     def setup_schema(self) -> None:
         """Create the lineage schema and tables if they don't exist."""
@@ -118,29 +118,52 @@ class LineageStore:
             parent_row_ids: List of parent row ULIDs (for transforms/aggregations)
             metadata: Additional metadata (run_id, partition, etc.)
         """
-        self._ensure_schema()
-        with psycopg2.connect(self.connection_string) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO phlo.row_lineage
-                    (row_id, table_name, source_type, parent_row_ids, metadata)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON CONFLICT (row_id) DO UPDATE SET
-                        table_name = EXCLUDED.table_name,
-                        source_type = EXCLUDED.source_type,
-                        parent_row_ids = EXCLUDED.parent_row_ids,
-                        metadata = EXCLUDED.metadata
-                    """,
-                    (
-                        row_id,
-                        table_name,
-                        source_type,
-                        parent_row_ids,
-                        json.dumps(metadata) if metadata else None,
-                    ),
-                )
-            conn.commit()
+        parent_count = len(parent_row_ids or [])
+        logger.info(
+            "lineage_record_row_started",
+            table_name=table_name,
+            source_type=source_type,
+            parent_row_count=parent_count,
+        )
+        try:
+            self._ensure_schema()
+            with psycopg2.connect(self.connection_string) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO phlo.row_lineage
+                        (row_id, table_name, source_type, parent_row_ids, metadata)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (row_id) DO UPDATE SET
+                            table_name = EXCLUDED.table_name,
+                            source_type = EXCLUDED.source_type,
+                            parent_row_ids = EXCLUDED.parent_row_ids,
+                            metadata = EXCLUDED.metadata
+                        """,
+                        (
+                            row_id,
+                            table_name,
+                            source_type,
+                            parent_row_ids,
+                            json.dumps(metadata) if metadata else None,
+                        ),
+                    )
+                conn.commit()
+            logger.info(
+                "lineage_record_row_succeeded",
+                table_name=table_name,
+                source_type=source_type,
+                parent_row_count=parent_count,
+            )
+        except Exception:
+            logger.warning(
+                "lineage_record_row_failed",
+                table_name=table_name,
+                source_type=source_type,
+                parent_row_count=parent_count,
+                exc_info=True,
+            )
+            raise
 
     def record_rows_batch(
         self,
@@ -163,6 +186,7 @@ class LineageStore:
         if not rows:
             return 0
 
+        requested_count = len(rows)
         values = []
         for row in rows:
             row_id = row.get("_phlo_row_id")
@@ -181,23 +205,53 @@ class LineageStore:
         if not values:
             return 0
 
-        self._ensure_schema()
-        with psycopg2.connect(self.connection_string) as conn:
-            with conn.cursor() as cur:
-                # Use execute_values for efficient batch insert
-                from psycopg2.extras import execute_values
+        inserted_count = len(values)
+        skipped_count = requested_count - inserted_count
+        logger.info(
+            "lineage_record_rows_batch_started",
+            table_name=table_name,
+            source_type=source_type,
+            requested_count=requested_count,
+            insert_count=inserted_count,
+            skipped_missing_row_id_count=skipped_count,
+        )
+        try:
+            self._ensure_schema()
+            with psycopg2.connect(self.connection_string) as conn:
+                with conn.cursor() as cur:
+                    # Use execute_values for efficient batch insert
+                    from psycopg2.extras import execute_values
 
-                execute_values(
-                    cur,
-                    """
-                    INSERT INTO phlo.row_lineage
-                    (row_id, table_name, source_type, parent_row_ids, metadata)
-                    VALUES %s
-                    ON CONFLICT (row_id) DO NOTHING
-                    """,
-                    values,
-                )
-            conn.commit()
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO phlo.row_lineage
+                        (row_id, table_name, source_type, parent_row_ids, metadata)
+                        VALUES %s
+                        ON CONFLICT (row_id) DO NOTHING
+                        """,
+                        values,
+                    )
+                conn.commit()
+            logger.info(
+                "lineage_record_rows_batch_succeeded",
+                table_name=table_name,
+                source_type=source_type,
+                requested_count=requested_count,
+                insert_count=inserted_count,
+                skipped_missing_row_id_count=skipped_count,
+            )
+        except Exception:
+            logger.warning(
+                "lineage_record_rows_batch_failed",
+                table_name=table_name,
+                source_type=source_type,
+                requested_count=requested_count,
+                insert_count=inserted_count,
+                skipped_missing_row_id_count=skipped_count,
+                exc_info=True,
+            )
+            raise
 
         return len(values)
 
@@ -228,30 +282,51 @@ class LineageStore:
             for asset_key in unique_keys
         ]
 
-        self._ensure_schema()
-        with psycopg2.connect(self.connection_string) as conn:
-            with conn.cursor() as cur:
-                from psycopg2.extras import execute_values
+        requested_count = len(asset_keys)
+        upsert_count = len(values)
+        logger.info(
+            "lineage_record_asset_nodes_started",
+            requested_count=requested_count,
+            upsert_count=upsert_count,
+        )
+        try:
+            self._ensure_schema()
+            with psycopg2.connect(self.connection_string) as conn:
+                with conn.cursor() as cur:
+                    from psycopg2.extras import execute_values
 
-                execute_values(
-                    cur,
-                    """
-                    INSERT INTO phlo.asset_lineage_nodes
-                    (asset_key, asset_type, status, description, metadata, tags)
-                    VALUES %s
-                    ON CONFLICT (asset_key) DO UPDATE SET
-                        asset_type = COALESCE(EXCLUDED.asset_type, phlo.asset_lineage_nodes.asset_type),
-                        status = COALESCE(EXCLUDED.status, phlo.asset_lineage_nodes.status),
-                        description = COALESCE(
-                            EXCLUDED.description, phlo.asset_lineage_nodes.description
-                        ),
-                        metadata = COALESCE(EXCLUDED.metadata, phlo.asset_lineage_nodes.metadata),
-                        tags = COALESCE(EXCLUDED.tags, phlo.asset_lineage_nodes.tags),
-                        updated_at = NOW()
-                    """,
-                    values,
-                )
-            conn.commit()
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO phlo.asset_lineage_nodes
+                        (asset_key, asset_type, status, description, metadata, tags)
+                        VALUES %s
+                        ON CONFLICT (asset_key) DO UPDATE SET
+                            asset_type = COALESCE(EXCLUDED.asset_type, phlo.asset_lineage_nodes.asset_type),
+                            status = COALESCE(EXCLUDED.status, phlo.asset_lineage_nodes.status),
+                            description = COALESCE(
+                                EXCLUDED.description, phlo.asset_lineage_nodes.description
+                            ),
+                            metadata = COALESCE(EXCLUDED.metadata, phlo.asset_lineage_nodes.metadata),
+                            tags = COALESCE(EXCLUDED.tags, phlo.asset_lineage_nodes.tags),
+                            updated_at = NOW()
+                        """,
+                        values,
+                    )
+                conn.commit()
+            logger.info(
+                "lineage_record_asset_nodes_succeeded",
+                requested_count=requested_count,
+                upsert_count=upsert_count,
+            )
+        except Exception:
+            logger.warning(
+                "lineage_record_asset_nodes_failed",
+                requested_count=requested_count,
+                upsert_count=upsert_count,
+                exc_info=True,
+            )
+            raise
 
         return len(values)
 
@@ -267,52 +342,80 @@ class LineageStore:
         if not edges and not asset_keys:
             return 0
 
+        edge_count = len(edges)
+        explicit_asset_key_count = len(asset_keys or [])
         node_keys: set[str] = set(asset_keys or [])
         for source, target in edges:
             node_keys.add(source)
             node_keys.add(target)
 
-        if node_keys:
-            self.record_asset_nodes(
-                list(node_keys),
-                metadata=metadata,
-                tags=tags,
-            )
-
-        if not edges:
-            return 0
-
-        values = [
-            (
-                source,
-                target,
-                json.dumps(metadata) if metadata else None,
-                json.dumps(tags) if tags else None,
-            )
-            for source, target in edges
-        ]
-
-        self._ensure_schema()
-        with psycopg2.connect(self.connection_string) as conn:
-            with conn.cursor() as cur:
-                from psycopg2.extras import execute_values
-
-                execute_values(
-                    cur,
-                    """
-                    INSERT INTO phlo.asset_lineage_edges
-                    (source_asset, target_asset, metadata, tags)
-                    VALUES %s
-                    ON CONFLICT (source_asset, target_asset) DO UPDATE SET
-                        metadata = COALESCE(EXCLUDED.metadata, phlo.asset_lineage_edges.metadata),
-                        tags = COALESCE(EXCLUDED.tags, phlo.asset_lineage_edges.tags),
-                        updated_at = NOW()
-                    """,
-                    values,
+        logger.info(
+            "lineage_record_asset_edges_started",
+            edge_count=edge_count,
+            explicit_asset_key_count=explicit_asset_key_count,
+            node_key_count=len(node_keys),
+        )
+        persisted_node_count = 0
+        persisted_edge_count = 0
+        try:
+            if node_keys:
+                persisted_node_count = self.record_asset_nodes(
+                    list(node_keys),
+                    metadata=metadata,
+                    tags=tags,
                 )
-            conn.commit()
 
-        return len(values)
+            if edges:
+                values = [
+                    (
+                        source,
+                        target,
+                        json.dumps(metadata) if metadata else None,
+                        json.dumps(tags) if tags else None,
+                    )
+                    for source, target in edges
+                ]
+                persisted_edge_count = len(values)
+                self._ensure_schema()
+                with psycopg2.connect(self.connection_string) as conn:
+                    with conn.cursor() as cur:
+                        from psycopg2.extras import execute_values
+
+                        execute_values(
+                            cur,
+                            """
+                            INSERT INTO phlo.asset_lineage_edges
+                            (source_asset, target_asset, metadata, tags)
+                            VALUES %s
+                            ON CONFLICT (source_asset, target_asset) DO UPDATE SET
+                                metadata = COALESCE(EXCLUDED.metadata, phlo.asset_lineage_edges.metadata),
+                                tags = COALESCE(EXCLUDED.tags, phlo.asset_lineage_edges.tags),
+                                updated_at = NOW()
+                            """,
+                            values,
+                        )
+                    conn.commit()
+            logger.info(
+                "lineage_record_asset_edges_succeeded",
+                edge_count=edge_count,
+                explicit_asset_key_count=explicit_asset_key_count,
+                node_key_count=len(node_keys),
+                persisted_node_count=persisted_node_count,
+                persisted_edge_count=persisted_edge_count,
+            )
+        except Exception:
+            logger.warning(
+                "lineage_record_asset_edges_failed",
+                edge_count=edge_count,
+                explicit_asset_key_count=explicit_asset_key_count,
+                node_key_count=len(node_keys),
+                persisted_node_count=persisted_node_count,
+                persisted_edge_count=persisted_edge_count,
+                exc_info=True,
+            )
+            raise
+
+        return persisted_edge_count
 
     def list_asset_nodes(self) -> list[dict[str, Any]]:
         """List all asset nodes."""

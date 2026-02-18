@@ -31,6 +31,11 @@ class Settings(BaseConfig):
         default=".phlo/logs/{YMD}.log",
         description="Optional log file path template (empty to disable)",
     )
+    phlo_environment: str = Field(
+        default="dev",
+        validation_alias=AliasChoices("PHLO_ENVIRONMENT", "ENVIRONMENT"),
+        description="Runtime environment attached to structured logs",
+    )
 
     plugins_enabled: bool = Field(default=True, description="Enable plugin system")
     plugins_auto_discover: bool = Field(

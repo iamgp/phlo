@@ -12,9 +12,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from phlo.logging import get_logger
 from phlo_metrics import get_metrics_collector
 
 console = Console()
+logger = get_logger(__name__)
 
 
 @click.group(name="metrics")
@@ -165,37 +167,53 @@ def metrics_export(format: str, output: Path, period: str) -> None:
     collector = get_metrics_collector()
     metrics = collector.collect_summary(period_hours)
 
-    if format == "json":
-        _export_json(metrics, output)
-    elif format == "csv":
-        _export_csv(metrics, output)
-    elif format == "prometheus":
-        _export_prometheus(output)
+    try:
+        if format == "json":
+            _export_json(metrics, output)
+        elif format == "csv":
+            _export_csv(metrics, output)
+        elif format == "prometheus":
+            _export_prometheus(output)
+    except Exception:
+        logger.warning(
+            "metrics_export_failed",
+            export_format=format,
+            output_path=str(output),
+            period=period,
+            exc_info=True,
+        )
+        raise
 
     console.print(f"[green]✓[/green] Metrics exported to {output}")
 
 
 def _parse_period(period_str: str) -> int:
     """Parse period string to hours."""
+    raw_period = period_str
     period_str = period_str.strip()
+    fallback_hours = 24
 
     if period_str.endswith("h"):
         try:
             return int(period_str[:-1])
         except ValueError:
-            return 24
-    elif period_str.endswith("d"):
+            logger.debug("metrics_period_parse_invalid_hours", period=raw_period)
+            return fallback_hours
+    if period_str.endswith("d"):
         try:
             return int(period_str[:-1]) * 24
         except ValueError:
-            return 24
-    elif period_str.endswith("w"):
+            logger.debug("metrics_period_parse_invalid_days", period=raw_period)
+            return fallback_hours
+    if period_str.endswith("w"):
         try:
             return int(period_str[:-1]) * 24 * 7
         except ValueError:
-            return 24
-    else:
-        return 24  # default
+            logger.debug("metrics_period_parse_invalid_weeks", period=raw_period)
+            return fallback_hours
+
+    logger.debug("metrics_period_parse_defaulted", period=raw_period)
+    return fallback_hours
 
 
 def _percentage(part: int, total: int) -> float:

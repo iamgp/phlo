@@ -13,6 +13,9 @@ from phlo.cli.commands.plugin.utils import (
     console,
     create_plugin_package,
 )
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @click.command(name="create")
@@ -54,6 +57,7 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
 
         # Validate plugin name
         if not plugin_name or not all(c.isalnum() or c in "-_" for c in plugin_name):
+            logger.warning("plugin_create_validation_failed", reason="invalid_name")
             console.print("[red]Invalid plugin name. Use alphanumeric characters, - and _[/red]")
             sys.exit(1)
 
@@ -63,6 +67,9 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
 
         plugin_path = Path(path)
         if plugin_path.exists():
+            logger.warning(
+                "plugin_create_validation_failed", reason="path_exists", path=str(plugin_path)
+            )
             console.print(f"[red]Path already exists: {path}[/red]")
             sys.exit(1)
 
@@ -71,6 +78,12 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
             plugin_name=plugin_name,
             plugin_type=plugin_type,
             plugin_path=plugin_path,
+        )
+        logger.info(
+            "plugin_create_succeeded",
+            plugin_name=plugin_name,
+            plugin_type=plugin_type,
+            path=str(plugin_path),
         )
 
         console.print("\n[green]✓ Plugin created successfully![/green]")
@@ -83,5 +96,6 @@ def create_cmd(plugin_name: str, plugin_type: str, path: Optional[str]):
     except SystemExit:
         raise
     except Exception as e:
+        logger.exception("plugin_create_failed", plugin_name=plugin_name, plugin_type=plugin_type)
         console.print(f"[red]Error creating plugin: {e}[/red]")
         sys.exit(1)

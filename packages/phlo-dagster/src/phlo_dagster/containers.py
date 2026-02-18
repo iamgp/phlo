@@ -5,6 +5,9 @@ import subprocess
 from dataclasses import dataclass
 
 from phlo.infrastructure import load_infrastructure_config
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,24 +119,52 @@ def find_dagster_container(project_name: str) -> str:
         RuntimeError: If no matching Dagster webserver container is running.
     """
 
-    configured_name = _resolve_container_name("dagster", project_name)
-    candidates = dagster_container_candidates(project_name, configured_name)
-    preferred = [candidates.configured, candidates.new, candidates.legacy]
-
-    existing = _list_running_containers(project_name)
-    chosen = select_first_existing(preferred, existing)
-    if chosen:
-        return chosen
-
-    fallback_matches = [
-        name
-        for name in existing
-        if re.search(rf"{re.escape(project_name)}.*dagster", name) and "daemon" not in name
-    ]
-    if fallback_matches:
-        return fallback_matches[0]
-
-    raise RuntimeError(
-        f"Could not find running Dagster webserver container for project '{project_name}'. "
-        f"Expected container name: {candidates.new} or {candidates.legacy}"
+    logger.info(
+        "dagster_container_lookup_started",
+        project_name=project_name,
     )
+    try:
+        configured_name = _resolve_container_name("dagster", project_name)
+        candidates = dagster_container_candidates(project_name, configured_name)
+        preferred = [candidates.configured, candidates.new, candidates.legacy]
+
+        existing = _list_running_containers(project_name)
+        chosen = select_first_existing(preferred, existing)
+        if chosen:
+            logger.info(
+                "dagster_container_lookup_completed",
+                project_name=project_name,
+                selected_container=chosen,
+                container_source="preferred_candidate",
+                running_container_count=len(existing),
+            )
+            return chosen
+
+        fallback_matches = [
+            name
+            for name in existing
+            if re.search(rf"{re.escape(project_name)}.*dagster", name) and "daemon" not in name
+        ]
+        if fallback_matches:
+            logger.info(
+                "dagster_container_lookup_completed",
+                project_name=project_name,
+                selected_container=fallback_matches[0],
+                container_source="fallback_match",
+                running_container_count=len(existing),
+            )
+            return fallback_matches[0]
+
+        error_message = (
+            f"Could not find running Dagster webserver container for project '{project_name}'. "
+            f"Expected container name: {candidates.new} or {candidates.legacy}"
+        )
+        raise RuntimeError(error_message)
+    except Exception as exc:
+        logger.error(
+            "dagster_container_lookup_failed",
+            project_name=project_name,
+            error=str(exc),
+            exc_info=True,
+        )
+        raise

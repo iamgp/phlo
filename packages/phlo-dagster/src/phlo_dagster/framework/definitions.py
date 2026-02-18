@@ -60,9 +60,9 @@ def _default_executor() -> dg.ExecutorDefinition | None:
     if host_platform is None:
         # Priority 4: Fall back to container/local platform
         host_platform = platform.system()
-        logger.debug(f"PHLO_HOST_PLATFORM not set, detected: {host_platform}")
+        logger.debug("phlo_host_platform_detected", host_platform=host_platform)
     else:
-        logger.info(f"Using PHLO_HOST_PLATFORM: {host_platform}")
+        logger.info("using_phlo_host_platform", host_platform=host_platform)
 
     # Use in-process executor if host is macOS
     if host_platform == "Darwin":
@@ -70,7 +70,7 @@ def _default_executor() -> dg.ExecutorDefinition | None:
         return dg.in_process_executor
 
     # Default: multiprocess executor for Linux
-    logger.info(f"Using multiprocess executor (host platform: {host_platform})")
+    logger.info("using_multiprocess_executor", host_platform=host_platform)
     return dg.multiprocess_executor.configured({"max_concurrent": 4})
 
 
@@ -117,7 +117,7 @@ def build_definitions(
     else:
         workflows_path = Path(workflows_path)
 
-    logger.info(f"Building Phlo definitions with workflows from: {workflows_path}")
+    logger.info("building_phlo_definitions", workflows_path=str(workflows_path))
 
     # Discover user workflows
     try:
@@ -126,7 +126,12 @@ def build_definitions(
         user_checks = list(getattr(user_defs, "asset_checks", []) or [])
         logger.info("Discovered %d user assets, %d checks", len(user_assets), len(user_checks))
     except Exception as exc:
-        logger.error(f"Failed to discover user workflows: {exc}", exc_info=True)
+        logger.error(
+            "failed_to_discover_user_workflows",
+            workflows_path=str(workflows_path),
+            error=str(exc),
+            exc_info=True,
+        )
         user_defs = dg.Definitions()
 
     dagster_defs = _collect_dagster_extension_definitions()

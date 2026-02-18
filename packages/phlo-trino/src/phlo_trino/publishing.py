@@ -22,7 +22,10 @@ from phlo.hooks import (
     TelemetryEventContext,
     TelemetryEventEmitter,
 )
+from phlo.logging import get_logger
 from phlo_postgres.settings import get_settings as get_postgres_settings
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -64,12 +67,27 @@ def publish_marts_to_postgres(
     )
     start_time = time.time()
 
+    logger.info(
+        "trino_publish_started",
+        data_source=data_source,
+        target_schema=schema,
+        table_count=len(tables_to_publish),
+        batch_size=batch_size,
+        asset_key=asset_key,
+    )
     emitter.emit_start()
 
     stats: dict[str, TablePublishStats] = {}
     try:
         _ensure_schema(postgres, schema)
         for target_table, source_table in tables_to_publish.items():
+            logger.info(
+                "trino_publish_table_started",
+                source_table=source_table,
+                target_schema=schema,
+                target_table=target_table,
+                batch_size=batch_size,
+            )
             row_count, column_count = _copy_table(
                 trino=trino,
                 postgres=postgres,
@@ -79,6 +97,14 @@ def publish_marts_to_postgres(
                 batch_size=batch_size,
             )
             stats[target_table] = TablePublishStats(
+                row_count=row_count,
+                column_count=column_count,
+            )
+            logger.info(
+                "trino_publish_table_completed",
+                source_table=source_table,
+                target_schema=schema,
+                target_table=target_table,
                 row_count=row_count,
                 column_count=column_count,
             )
@@ -124,9 +150,25 @@ def publish_marts_to_postgres(
                 asset_keys=[edge[1] for edge in edges],
                 metadata={"source_system": "trino", "target_system": "postgres"},
             )
+        logger.info(
+            "trino_publish_completed",
+            data_source=data_source,
+            target_schema=schema,
+            table_count=len(stats),
+            total_rows=total_rows,
+            total_columns=total_columns,
+            elapsed_seconds=elapsed,
+        )
         return stats
     except Exception as exc:
         elapsed = time.time() - start_time
+        logger.exception(
+            "trino_publish_failed",
+            data_source=data_source,
+            target_schema=schema,
+            table_count=len(tables_to_publish),
+            elapsed_seconds=elapsed,
+        )
         emitter.emit_end(status="failure", error=str(exc))
         telemetry.emit_log(
             name="publish.failure",
@@ -315,18 +357,53 @@ def _describe_trino_table(trino: Any, source_table: str) -> tuple[list[tuple[str
                 except Exception as exc:  # noqa: BLE001 - fallback across valid table refs
                     last_error = exc
                     if _is_retryable_introspection_error(exc):
+                        logger.warning(
+                            "trino_introspection_retryable_error",
+                            source_table=source_table,
+                            source_table_ref=source_table_ref,
+                            query=query,
+                            attempt=attempt + 1,
+                            max_attempts=max_attempts,
+                        )
                         saw_retryable_error = True
                         continue
+                    logger.warning(
+                        "trino_introspection_non_retryable_error",
+                        source_table=source_table,
+                        source_table_ref=source_table_ref,
+                        query=query,
+                        attempt=attempt + 1,
+                        max_attempts=max_attempts,
+                    )
                     non_retryable_candidates.add(source_table_ref)
                     break
         if attempt < max_attempts - 1 and saw_retryable_error:
             delay = retry_delay_seconds * (attempt + 1)
+            logger.info(
+                "trino_introspection_retry_scheduled",
+                source_table=source_table,
+                attempt=attempt + 1,
+                max_attempts=max_attempts,
+                delay_seconds=delay,
+            )
             time.sleep(delay)
             continue
         break
 
     if last_error is not None:
+        logger.error(
+            "trino_introspection_failed",
+            source_table=source_table,
+            attempts=max_attempts,
+            candidate_count=len(table_refs),
+        )
         raise RuntimeError(f"Unable to introspect Trino table '{source_table}'") from last_error
+    logger.error(
+        "trino_introspection_failed_no_error",
+        source_table=source_table,
+        attempts=max_attempts,
+        candidate_count=len(table_refs),
+    )
     raise RuntimeError(f"Unable to introspect Trino table '{source_table}'")
 
 

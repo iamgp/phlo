@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any, get_args, get_origin, get_type_hints
 
 from pandera.pandas import DataFrameModel
+from phlo.logging import get_logger
 from pyiceberg.schema import Schema
 from pyiceberg.types import (
     BinaryType,
@@ -16,6 +17,8 @@ from pyiceberg.types import (
     StringType,
     TimestamptzType,
 )
+
+logger = get_logger(__name__)
 
 
 class SchemaConversionError(Exception):
@@ -55,15 +58,30 @@ def pandera_to_iceberg(
     fields: list[NestedField] = []
     next_field_id = start_field_id
     user_field_count = 0
+    logger.info(
+        "dlt_schema_conversion_started",
+        schema_name=pandera_schema.__name__,
+        start_field_id=start_field_id,
+        add_dlt_metadata=add_dlt_metadata,
+        add_phlo_metadata=add_phlo_metadata,
+    )
 
     try:
         annotations = get_type_hints(pandera_schema)
     except Exception as e:
+        logger.exception(
+            "dlt_schema_conversion_type_hints_failed",
+            schema_name=pandera_schema.__name__,
+        )
         raise SchemaConversionError(
             f"Failed to get type hints from Pandera schema {pandera_schema.__name__}: {e}"
         ) from e
 
     if not annotations:
+        logger.error(
+            "dlt_schema_conversion_no_annotations",
+            schema_name=pandera_schema.__name__,
+        )
         raise SchemaConversionError(
             f"Pandera schema {pandera_schema.__name__} has no field annotations"
         )
@@ -71,6 +89,10 @@ def pandera_to_iceberg(
     try:
         pandera_schema_obj = pandera_schema.to_schema()
     except Exception as e:
+        logger.exception(
+            "dlt_schema_conversion_schema_build_failed",
+            schema_name=pandera_schema.__name__,
+        )
         raise SchemaConversionError(
             f"Failed to instantiate Pandera schema {pandera_schema.__name__}: {e}"
         ) from e
@@ -91,6 +113,11 @@ def pandera_to_iceberg(
         try:
             iceberg_type = _map_type(field_name, field_type)
         except SchemaConversionError as e:
+            logger.warning(
+                "dlt_schema_conversion_field_type_unsupported",
+                schema_name=pandera_schema.__name__,
+                field_name=field_name,
+            )
             raise SchemaConversionError(
                 f"Cannot map Pandera type for field {field_name}: {e}"
             ) from e
@@ -110,6 +137,10 @@ def pandera_to_iceberg(
         )
 
     if user_field_count == 0:
+        logger.error(
+            "dlt_schema_conversion_no_fields",
+            schema_name=pandera_schema.__name__,
+        )
         raise SchemaConversionError(f"No fields found in Pandera schema {pandera_schema.__name__}")
 
     if add_dlt_metadata:
@@ -178,6 +209,12 @@ def pandera_to_iceberg(
                 )
             )
 
+    logger.info(
+        "dlt_schema_conversion_finished",
+        schema_name=pandera_schema.__name__,
+        total_field_count=len(fields),
+        user_field_count=user_field_count,
+    )
     return Schema(*fields)
 
 

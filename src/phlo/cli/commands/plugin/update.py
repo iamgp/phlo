@@ -8,7 +8,10 @@ import sys
 import click
 
 from phlo.cli.commands.plugin.utils import console, find_available_updates, run_pip
+from phlo.logging import get_logger
 from phlo.plugins.registry_client import list_registry_plugins
+
+logger = get_logger(__name__)
 
 
 @click.command(name="update")
@@ -29,16 +32,29 @@ from phlo.plugins.registry_client import list_registry_plugins
 def update_cmd(output_json: bool, dry_run: bool):
     """Update installed plugins based on registry versions."""
     try:
+        logger.info("plugin_update_started", output_json=output_json, dry_run=dry_run)
         registry_plugins = list_registry_plugins()
         updates = find_available_updates(registry_plugins)
 
         if output_json:
             console.print(json.dumps(updates, indent=2))
+            logger.info(
+                "plugin_update_succeeded",
+                output_json=True,
+                dry_run=dry_run,
+                update_count=len(updates),
+            )
             return
 
         if dry_run:
             if not updates:
                 console.print("No plugin updates available.")
+                logger.info(
+                    "plugin_update_succeeded",
+                    output_json=False,
+                    dry_run=True,
+                    update_count=0,
+                )
                 return
 
             console.print("Updates available:")
@@ -46,10 +62,17 @@ def update_cmd(output_json: bool, dry_run: bool):
                 console.print(
                     f"  {update['name']}: {update['installed_version']} → {update['available_version']}"
                 )
+            logger.info(
+                "plugin_update_succeeded",
+                output_json=False,
+                dry_run=True,
+                update_count=len(updates),
+            )
             return
 
         if not updates:
             console.print("No plugin updates available.")
+            logger.info("plugin_update_succeeded", output_json=False, dry_run=False, update_count=0)
             return
 
         console.print("Updates available:")
@@ -65,6 +88,12 @@ def update_cmd(output_json: bool, dry_run: bool):
                     ["install", "--upgrade", f"{update['package']}=={update['available_version']}"]
                 )
             except Exception as exc:
+                logger.warning(
+                    "plugin_update_package_failed",
+                    package=update["package"],
+                    target_version=update["available_version"],
+                    exc_info=True,
+                )
                 console.print(
                     "[red]Failed to update "
                     f"{update['package']}=={update['available_version']}: {exc}[/red]"
@@ -78,11 +107,18 @@ def update_cmd(output_json: bool, dry_run: bool):
                 continue
 
         if failures:
+            logger.error(
+                "plugin_update_failed", failure_count=len(failures), update_count=len(updates)
+            )
             failed_list = ", ".join(f"{item['package']}=={item['version']}" for item in failures)
             console.print(f"[red]Failed updates: {failed_list}[/red]")
             sys.exit(1)
 
+        logger.info(
+            "plugin_update_succeeded", output_json=False, dry_run=False, update_count=len(updates)
+        )
         console.print("[green]✓ Plugins updated[/green]")
     except Exception as e:
+        logger.exception("plugin_update_failed", output_json=output_json, dry_run=dry_run)
         console.print(f"[red]Error updating plugins: {e}[/red]")
         sys.exit(1)

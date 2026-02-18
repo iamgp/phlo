@@ -54,10 +54,19 @@ def _publish_items(
     for item in items:
         try:
             publish_fn(item)
-            logger.info(f"Published {context}: {item_name_fn(item)}")
+            logger.info(
+                "openmetadata_publish_item_succeeded",
+                context=context,
+                item_name=item_name_fn(item),
+            )
             stats["created"] += 1
-        except Exception as e:
-            logger.error(f"Failed to publish {context} {item_name_fn(item)}: {e}")
+        except Exception as exc:
+            logger.error(
+                "openmetadata_publish_item_failed",
+                context=context,
+                item_name=item_name_fn(item),
+                error=str(exc),
+            )
             stats["failed"] += 1
     return stats
 
@@ -527,7 +536,7 @@ class QualityCheckPublisher:
                 timestamp = result.get("timestamp")
 
                 if not test_case_fqn or not check_result:
-                    logger.warning(f"Skipping invalid test result: {result}")
+                    logger.warning("invalid_test_result_skipped", result=result)
                     continue
 
                 om_result = QualityCheckMapper.map_check_result_to_test_result(
@@ -541,11 +550,11 @@ class QualityCheckPublisher:
                     result_value=om_result.get("result_value"),
                 )
 
-                logger.info(f"Published test result: {test_case_fqn}")
+                logger.info("test_result_published", test_case_fqn=test_case_fqn)
                 stats["published"] += 1
 
-            except Exception as e:
-                logger.error(f"Failed to publish test result: {e}")
+            except Exception as exc:
+                logger.error("test_result_publish_failed", error=str(exc))
                 stats["failed"] += 1
 
         return stats

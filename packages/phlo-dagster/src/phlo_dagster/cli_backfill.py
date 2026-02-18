@@ -17,9 +17,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
 from phlo_dagster.containers import find_dagster_container
 
 console = Console()
+logger = get_logger(__name__)
+BACKFILL_STATE_FILE = Path(".phlo/backfill_state.json")
 
 
 @click.command()
@@ -90,12 +93,26 @@ def backfill(
       phlo backfill glucose_entries --start-date 2024-01-01 --end-date 2024-01-31 --dry-run
     """
     console.print("\n[bold blue]📦 Asset Backfill[/bold blue]\n")
+    logger.info(
+        "dagster_backfill_command_started",
+        asset_name=asset_name,
+        start_date=start_date,
+        end_date=end_date,
+        has_partitions=partitions is not None,
+        parallel=parallel,
+        resume=resume,
+        dry_run=dry_run,
+        delay=delay,
+    )
 
     # Validate inputs
     if resume:
         # Resume mode: load from state file
-        state_file = Path(".phlo/backfill_state.json")
-        if not state_file.exists():
+        if not BACKFILL_STATE_FILE.exists():
+            logger.error(
+                "dagster_backfill_resume_state_missing",
+                state_file=str(BACKFILL_STATE_FILE),
+            )
             click.echo(
                 "Error: No backfill state found. Cannot resume.",
                 err=True,
@@ -103,11 +120,17 @@ def backfill(
             sys.exit(1)
 
         try:
-            state = json.loads(state_file.read_text())
+            state = _load_backfill_state()
             asset_name = state.get("asset_name")
             partition_dates = state.get("remaining_partitions", [])
             completed_partitions = state.get("completed_partitions", [])
         except Exception as e:
+            logger.error(
+                "dagster_backfill_resume_state_read_failed",
+                state_file=str(BACKFILL_STATE_FILE),
+                error=str(e),
+                exc_info=True,
+            )
             click.echo(f"Error reading backfill state: {e}", err=True)
             sys.exit(1)
     else:
@@ -120,6 +143,7 @@ def backfill(
             # Generate from date range
             partition_dates = _generate_partition_dates(start_date, end_date)
         else:
+            logger.error("dagster_backfill_partitions_missing")
             click.echo(
                 "Error: Must specify either --start-date/--end-date or --partitions",
                 err=True,
@@ -127,6 +151,7 @@ def backfill(
             sys.exit(1)
 
         if not asset_name:
+            logger.error("dagster_backfill_asset_name_missing")
             click.echo("Error: Asset name is required", err=True)
             sys.exit(1)
 
@@ -134,12 +159,14 @@ def backfill(
 
     # Validate asset name
     if not asset_name:
+        logger.error("dagster_backfill_asset_name_missing")
         click.echo("Error: Asset name is required", err=True)
         sys.exit(1)
     asset_name = str(asset_name)
 
     # Validate parallel value
     if parallel < 1:
+        logger.error("dagster_backfill_parallel_invalid", parallel=parallel)
         click.echo(
             "Error: Parallel must be >= 1",
             err=True,
@@ -156,6 +183,11 @@ def backfill(
         console.print(f"[yellow]Remaining:[/yellow] {len(partition_dates)}")
 
     if dry_run:
+        logger.info(
+            "dagster_backfill_dry_run",
+            asset_name=asset_name,
+            partition_count=len(partition_dates),
+        )
         console.print("\n[yellow]Dry run - showing first 5 commands:[/yellow]\n")
         for date in partition_dates[:5]:
             cmd = _build_materialize_command(asset_name, date)
@@ -165,6 +197,7 @@ def backfill(
         return
 
     if not partition_dates:
+        logger.info("dagster_backfill_no_partitions", asset_name=asset_name)
         console.print("[yellow]No partitions to backfill[/yellow]")
         return
 
@@ -194,6 +227,11 @@ def _generate_partition_dates(start_date: str, end_date: str) -> list[str]:
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(end_date, "%Y-%m-%d")
     except ValueError:
+        logger.error(
+            "dagster_backfill_date_parse_failed",
+            start_date=start_date,
+            end_date=end_date,
+        )
         click.echo(
             "Error: Invalid date format. Use YYYY-MM-DD",
             err=True,
@@ -201,6 +239,11 @@ def _generate_partition_dates(start_date: str, end_date: str) -> list[str]:
         sys.exit(1)
 
     if start > end:
+        logger.error(
+            "dagster_backfill_date_range_invalid",
+            start_date=start_date,
+            end_date=end_date,
+        )
         click.echo(
             "Error: Start date must be before end date",
             err=True,
@@ -230,6 +273,10 @@ def _validate_partition_dates(dates: list[str]) -> None:
         try:
             datetime.strptime(date.strip(), "%Y-%m-%d")
         except ValueError:
+            logger.error(
+                "dagster_backfill_partition_date_invalid",
+                partition_date=date,
+            )
             click.echo(
                 f"Error: Invalid partition date: {date}. Use YYYY-MM-DD",
                 err=True,
@@ -304,6 +351,15 @@ def _run_backfill(
     successful: list[str] = []
     failed: list[dict[str, str]] = []
     start_time = datetime.now(timezone.utc).isoformat()
+    logger.info(
+        "dagster_backfill_execution_started",
+        asset_name=asset_name,
+        total_partitions=total,
+        remaining_partitions=len(remaining),
+        completed_partitions=already_done,
+        parallel=parallel,
+        delay=delay,
+    )
 
     # Use ThreadPoolExecutor for parallel execution
     with Progress(
@@ -340,12 +396,24 @@ def _run_backfill(
                             description=f"[green]✓ Completed {completed_count}/{total}[/green]",
                         )
                     else:
+                        logger.warning(
+                            "dagster_backfill_partition_failed",
+                            asset_name=asset_name,
+                            partition_date=date,
+                        )
                         failed.append({"date": date, "error": output})
                         progress.update(
                             task,
                             description=f"[yellow]⚠ Failed {date}[/yellow]",
                         )
                 except Exception as e:
+                    logger.error(
+                        "dagster_backfill_partition_execution_failed",
+                        asset_name=asset_name,
+                        partition_date=date,
+                        error=str(e),
+                        exc_info=True,
+                    )
                     failed.append({"date": date, "error": str(e)})
                     progress.update(
                         task,
@@ -353,7 +421,7 @@ def _run_backfill(
                     )
 
                 # Update state file periodically
-                _save_backfill_state(asset_name, remaining, successful)
+                _save_backfill_state(asset_name, remaining, successful, emit_log=False)
 
     # Display results
     console.print()
@@ -366,16 +434,47 @@ def _run_backfill(
         "failed": failed,
     }
     _display_backfill_results(results)
+    logger.info(
+        "dagster_backfill_execution_finished",
+        asset_name=asset_name,
+        total_partitions=total,
+        successful=len(successful),
+        failed=len(failed),
+    )
 
     # Clean up state file on success
     if not failed:
-        state_file = Path(".phlo/backfill_state.json")
-        if state_file.exists():
-            state_file.unlink()
+        _remove_backfill_state()
     else:
         # Save final state for resume
         remaining_after = [d for d in partition_dates if d not in successful]
-        _save_backfill_state(asset_name, remaining_after, successful)
+        _save_backfill_state(asset_name, remaining_after, successful, emit_log=True)
+
+
+def _load_backfill_state() -> dict[str, Any]:
+    """Load persisted backfill state from disk."""
+    logger.info(
+        "dagster_backfill_state_load_started",
+        state_file=str(BACKFILL_STATE_FILE),
+    )
+    try:
+        state = json.loads(BACKFILL_STATE_FILE.read_text())
+        logger.info(
+            "dagster_backfill_state_load_completed",
+            state_file=str(BACKFILL_STATE_FILE),
+            asset_name=state.get("asset_name"),
+            remaining_partition_count=len(state.get("remaining_partitions", [])),
+            completed_partition_count=len(state.get("completed_partitions", [])),
+        )
+        return state
+    except Exception as exc:
+        logger.error(
+            "dagster_backfill_state_load_failed",
+            state_file=str(BACKFILL_STATE_FILE),
+            error=str(exc),
+            exc_info=True,
+        )
+        raise
 
 
 def _materialize_partition(
@@ -400,6 +499,11 @@ def _materialize_partition(
         time.sleep(delay)
 
     cmd = _build_materialize_command(asset_name, partition_date)
+    logger.debug(
+        "dagster_backfill_partition_materialize_started",
+        asset_name=asset_name,
+        partition_date=partition_date,
+    )
 
     try:
         result = subprocess.run(
@@ -413,12 +517,36 @@ def _materialize_partition(
             return True, f"Materialized {partition_date}"
         else:
             error_msg = result.stderr if result.stderr else result.stdout
+            logger.warning(
+                "dagster_backfill_partition_materialize_nonzero_exit",
+                asset_name=asset_name,
+                partition_date=partition_date,
+                returncode=result.returncode,
+            )
             return False, error_msg
     except subprocess.TimeoutExpired:
+        logger.warning(
+            "dagster_backfill_partition_materialize_timeout",
+            asset_name=asset_name,
+            partition_date=partition_date,
+            timeout_seconds=3600,
+        )
         return False, f"Timeout after 1 hour for partition {partition_date}"
     except FileNotFoundError:
+        logger.error(
+            "dagster_backfill_partition_materialize_binary_missing",
+            asset_name=asset_name,
+            partition_date=partition_date,
+        )
         return False, "Docker not found or container not running"
     except Exception as e:
+        logger.error(
+            "dagster_backfill_partition_materialize_failed",
+            asset_name=asset_name,
+            partition_date=partition_date,
+            error=str(e),
+            exc_info=True,
+        )
         return False, str(e)
 
 
@@ -426,6 +554,7 @@ def _save_backfill_state(
     asset_name: str,
     remaining_partitions: list[str],
     completed_partitions: list[str],
+    emit_log: bool = False,
 ) -> None:
     """
     Save backfill state for resume capability.
@@ -435,7 +564,7 @@ def _save_backfill_state(
         remaining_partitions: Partitions still to process
         completed_partitions: Completed partitions
     """
-    state_dir = Path(".phlo")
+    state_dir = BACKFILL_STATE_FILE.parent
     state_dir.mkdir(exist_ok=True)
 
     state = {
@@ -445,8 +574,60 @@ def _save_backfill_state(
         "last_updated": datetime.now(timezone.utc).isoformat(),
     }
 
-    state_file = state_dir / "backfill_state.json"
-    state_file.write_text(json.dumps(state, indent=2))
+    if emit_log:
+        logger.info(
+            "dagster_backfill_state_save_started",
+            state_file=str(BACKFILL_STATE_FILE),
+            asset_name=asset_name,
+            remaining_partition_count=len(remaining_partitions),
+            completed_partition_count=len(completed_partitions),
+        )
+
+    try:
+        BACKFILL_STATE_FILE.write_text(json.dumps(state, indent=2))
+        if emit_log:
+            logger.info(
+                "dagster_backfill_state_save_completed",
+                state_file=str(BACKFILL_STATE_FILE),
+                asset_name=asset_name,
+                remaining_partition_count=len(remaining_partitions),
+                completed_partition_count=len(completed_partitions),
+            )
+    except Exception as exc:
+        logger.error(
+            "dagster_backfill_state_save_failed",
+            state_file=str(BACKFILL_STATE_FILE),
+            asset_name=asset_name,
+            remaining_partition_count=len(remaining_partitions),
+            completed_partition_count=len(completed_partitions),
+            error=str(exc),
+            exc_info=True,
+        )
+        raise
+
+
+def _remove_backfill_state() -> None:
+    """Remove persisted backfill state file if present."""
+    if not BACKFILL_STATE_FILE.exists():
+        return
+    logger.info(
+        "dagster_backfill_state_remove_started",
+        state_file=str(BACKFILL_STATE_FILE),
+    )
+    try:
+        BACKFILL_STATE_FILE.unlink()
+        logger.info(
+            "dagster_backfill_state_remove_completed",
+            state_file=str(BACKFILL_STATE_FILE),
+        )
+    except Exception as exc:
+        logger.error(
+            "dagster_backfill_state_remove_failed",
+            state_file=str(BACKFILL_STATE_FILE),
+            error=str(exc),
+            exc_info=True,
+        )
+        raise
 
 
 def _display_backfill_results(results: dict[str, Any]) -> None:

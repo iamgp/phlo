@@ -7,7 +7,10 @@ import sys
 import click
 
 from phlo.cli.commands.plugin.utils import console, run_pip
+from phlo.logging import get_logger
 from phlo.plugins.registry_client import get_plugin as get_registry_plugin
+
+logger = get_logger(__name__)
 
 
 def resolve_install_target(plugin_name: str) -> tuple[str, str]:
@@ -37,9 +40,20 @@ def install_cmd(plugin_name: str):
     """Install a plugin from the registry (wraps pip)."""
     try:
         package_spec, display_name = resolve_install_target(plugin_name)
+        logger.info(
+            "plugin_install_started",
+            plugin_name=plugin_name,
+            package_spec=package_spec,
+        )
         console.print(f"Installing {display_name}...")
         run_pip(["install", package_spec])
+        logger.info(
+            "plugin_install_succeeded",
+            plugin_name=plugin_name,
+            package_spec=package_spec,
+        )
         console.print(f"[green]✓ Installed {display_name}[/green]")
     except Exception as e:
+        logger.exception("plugin_install_failed", plugin_name=plugin_name)
         console.print(f"[red]Error installing plugin: {e}[/red]")
         sys.exit(1)

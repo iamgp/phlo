@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
 try:
     from phlo_quality import (  # noqa: F401
         PANDERA_CONTRACT_CHECK_NAME,
@@ -27,6 +31,7 @@ try:
         phlo_quality,
     )
 except ModuleNotFoundError as exc:  # pragma: no cover - exercised via optional extras
+    logger.warning("phlo_quality_not_installed", exc_info=True)
     raise ModuleNotFoundError(
         "phlo.quality requires phlo-quality. Install phlo[defaults] or phlo-quality."
     ) from exc

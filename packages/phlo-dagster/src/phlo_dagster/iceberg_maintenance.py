@@ -12,6 +12,7 @@ from typing import Any
 
 import dagster as dg
 
+from phlo.logging import get_logger
 from phlo_iceberg.tables import expire_snapshots, get_table_stats, remove_orphan_files
 
 from phlo_dagster.iceberg_maintenance_utils import (
@@ -22,6 +23,8 @@ from phlo_dagster.iceberg_maintenance_utils import (
     resolve_namespaces,
     start_maintenance_op,
 )
+
+logger = get_logger(__name__)
 
 
 @dg.op
@@ -322,6 +325,11 @@ def get_maintenance_definitions() -> dg.Definitions:
         defs = dg.Definitions.merge(your_defs, maintenance_defs)
         ```
     """
+    logger.info(
+        "dagster_iceberg_maintenance_definitions_built",
+        job_count=4,
+        schedule_count=1,
+    )
     return dg.Definitions(
         jobs=[
             iceberg_maintenance_job,

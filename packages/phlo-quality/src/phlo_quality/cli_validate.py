@@ -13,7 +13,10 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from phlo.logging import get_logger
+
 console = Console()
+logger = get_logger(__name__)
 
 
 @click.command()
@@ -97,6 +100,10 @@ def _load_module_from_file(file_path: Path) -> Any:
             spec.loader.exec_module(module)
             return module
     except Exception as e:
+        logger.exception(
+            "validate_schema_module_load_failed",
+            schema_path=str(file_path),
+        )
         console.print(f"[red]Error loading module: {e}[/red]")
         return None
 
@@ -189,6 +196,10 @@ def _validate_single_schema(
         return len(issues) == 0
 
     except Exception as e:
+        logger.exception(
+            "validate_single_schema_failed",
+            schema_name=getattr(schema_class, "__name__", type(schema_class).__name__),
+        )
         console.print(f"  [red]✗ Error validating schema: {e}[/red]\n")
         return False
 
@@ -319,6 +330,7 @@ def _find_phlo_ingestion_functions(module: Any) -> List[Tuple[str, Any, dict]]:
                     except (TypeError, OSError):
                         pass
     except (OSError, TypeError):
+        logger.warning("validate_workflow_source_unavailable")
         # Module might not have source (e.g., built-in), fall back to __wrapped__ check
         for name in dir(module):
             obj = getattr(module, name)
@@ -442,6 +454,12 @@ def _validate_workflow_function(
             warnings.append("No type hints found - add type annotations for clarity")
 
     except Exception as e:
+        logger.warning(
+            "validate_workflow_source_inspection_failed",
+            function_name=func_name,
+            file_path=str(file_path),
+            error=str(e),
+        )
         console.print(f"    [yellow]⚠ Could not fully validate source: {e}[/yellow]")
 
     # Display results

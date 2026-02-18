@@ -5,6 +5,10 @@ from pathlib import Path
 
 import yaml
 
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 def parse_env_file(path: Path) -> dict[str, str]:
     """Parse a .env file into a dict of key=value pairs."""
@@ -19,6 +23,7 @@ def parse_env_file(path: Path) -> dict[str, str]:
             key, value = trimmed.split("=", 1)
             values[key] = value
     except OSError:
+        logger.warning("env_file_read_failed", path=str(path), exc_info=True)
         return {}
     return values
 
@@ -27,12 +32,19 @@ def get_project_config() -> dict:
     """Load phlo.yaml configuration."""
     config_path = Path.cwd() / "phlo.yaml"
     if config_path.exists():
-        with open(config_path) as f:
-            config = yaml.safe_load(f) or {}
-            return config if isinstance(config, Mapping) else {}
+        try:
+            with open(config_path) as f:
+                config = yaml.safe_load(f) or {}
+                if isinstance(config, Mapping):
+                    return dict(config)
+                logger.warning("project_config_invalid_type", path=str(config_path))
+        except (OSError, yaml.YAMLError):
+            logger.warning("project_config_load_failed", path=str(config_path), exc_info=True)
 
+    fallback_name = Path.cwd().name.lower().replace(" ", "-").replace("_", "-")
+    logger.debug("project_config_fallback_used", project_name=fallback_name)
     return {
-        "name": Path.cwd().name.lower().replace(" ", "-").replace("_", "-"),
+        "name": fallback_name,
         "description": "Phlo data lakehouse",
     }
 

@@ -4,7 +4,10 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from phlo.logging import get_logger
 from rich.table import Table
+
+logger = get_logger(__name__)
 
 
 def format_table(title: str, columns: list[str], rows: list[tuple]) -> Table:
@@ -75,6 +78,10 @@ def discover_pandera_schemas(
                 try:
                     module = import_module(module_name)
                 except (ImportError, ModuleNotFoundError):
+                    logger.debug(
+                        "schema_discovery_import_failed",
+                        module_name=module_name,
+                    )
                     continue
 
                 for name, obj in inspect.getmembers(module):
@@ -86,6 +93,11 @@ def discover_pandera_schemas(
                         schemas[name] = obj
 
             except Exception:
+                logger.warning(
+                    "schema_discovery_file_scan_failed",
+                    search_path=str(path),
+                    schema_file=str(py_file),
+                )
                 continue
 
     return schemas

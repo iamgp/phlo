@@ -18,6 +18,9 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @click.command("stop")
@@ -49,6 +52,14 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
         phlo services stop --service postgres,minio
     """
     project_root = Path.cwd()
+    logger.info(
+        "services_stop_requested",
+        project_name=get_project_name(),
+        stop_native=stop_native,
+        volumes=volumes,
+        profile_count=len(profile),
+        service_args_count=len(service),
+    )
     if stop_native:
         # Parse comma-separated services for native stop.
         native_services_list = []
@@ -61,6 +72,12 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
             else list(_load_native_state(project_root).keys())
         )
         if native_targets:
+            logger.info(
+                "services_stop_native_started",
+                project_name=get_project_name(),
+                service_count=len(native_targets),
+                service_names=native_targets,
+            )
             _emit_service_lifecycle_events(
                 "pre_stop",
                 native_targets,
@@ -70,6 +87,12 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
             )
         _stop_native_processes(project_root, native_services_list or None)
         if native_targets:
+            logger.info(
+                "services_stop_native_completed",
+                project_name=get_project_name(),
+                service_count=len(native_targets),
+                service_names=native_targets,
+            )
             _emit_service_lifecycle_events(
                 "post_stop",
                 native_targets,
@@ -81,6 +104,7 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
 
     # If we only needed to stop native services, skip Docker.
     if stop_native and not service and not volumes and not profile:
+        logger.info("services_stop_native_only_completed", project_name=get_project_name())
         click.echo("Stopped native services.")
         return
 
@@ -98,6 +122,12 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
     # This prevents stopping all services when only profile services should be affected
     if profile and not services_list:
         services_list = get_profile_service_names(profile)
+    logger.info(
+        "services_stop_targets_resolved",
+        project_name=project_name,
+        service_count=len(services_list),
+        service_names=services_list,
+    )
 
     if services_list:
         click.echo(f"Stopping services: {', '.join(services_list)}...")
@@ -131,10 +161,24 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
         if volumes:
             cmd.append("-v")
             click.echo("Warning: Removing volumes will delete all data.")
+    logger.info(
+        "services_stop_docker_started",
+        project_name=project_name,
+        service_count=len(services_list),
+        service_names=services_list,
+        volumes=volumes,
+    )
 
     try:
         result = run_command(cmd, check=False, capture_output=False)
         if result.returncode == 0:
+            logger.info(
+                "services_stop_succeeded",
+                project_name=project_name,
+                service_count=len(docker_targets),
+                service_names=docker_targets,
+                volumes=volumes,
+            )
             if docker_targets:
                 _emit_service_lifecycle_events(
                     "post_stop",
@@ -149,6 +193,14 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
             else:
                 click.echo(f"{project_name} infrastructure stopped.")
         else:
+            logger.error(
+                "services_stop_failed",
+                project_name=project_name,
+                returncode=result.returncode,
+                service_count=len(docker_targets),
+                service_names=docker_targets,
+                volumes=volumes,
+            )
             if docker_targets:
                 _emit_service_lifecycle_events(
                     "post_stop",
@@ -162,9 +214,16 @@ def stop_cmd(volumes: bool, stop_native: bool, profile: tuple[str, ...], service
             click.echo(f"Command: {' '.join(cmd)}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
+        logger.error("services_stop_docker_not_found", project_name=project_name, exc_info=True)
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)
     except TimeoutExpired:
+        logger.error(
+            "services_stop_timeout",
+            project_name=project_name,
+            command=" ".join(cmd),
+            exc_info=True,
+        )
         click.echo("Error: docker compose timed out.", err=True)
         click.echo(f"Command: {' '.join(cmd)}", err=True)
         sys.exit(1)

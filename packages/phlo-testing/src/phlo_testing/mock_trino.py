@@ -19,6 +19,9 @@ from typing import Any, Iterator, Literal, Optional
 
 import duckdb
 import pandas as pd
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class MockCursor:
@@ -81,6 +84,7 @@ class MockCursor:
             return self
 
         except Exception as e:
+            logger.warning("mock_trino_query_execution_failed", query=query, exc_info=True)
             raise RuntimeError(f"Query execution failed: {e}") from e
 
     def fetchall(self) -> list[tuple]:

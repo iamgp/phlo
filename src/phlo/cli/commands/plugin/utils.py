@@ -13,10 +13,12 @@ from rich.console import Console
 from rich.table import Table
 
 from phlo.cli.commands.plugin.scaffold import create_plugin_package  # noqa: F401
+from phlo.logging import get_logger
 from phlo.plugins import get_plugin_info
 from phlo.plugins.discovery import get_global_registry, get_service
 
 console = Console()
+logger = get_logger(__name__)
 
 PLUGIN_TYPE_MAP = {
     "sources": "source_connectors",
@@ -69,19 +71,38 @@ SCAFFOLD_TYPE_MAP = {
 
 def run_pip(args: list[str], *, timeout: float = 300) -> None:
     """Install packages using pip, with uv fallback for uv-managed environments."""
+    operation = args[0] if args else "unknown"
     if importlib.util.find_spec("pip") is not None:
         command = [sys.executable, "-m", "pip", *args]
+        installer = "pip"
     else:
         if shutil.which("uv") is None:
             raise RuntimeError(
                 "pip module is unavailable and 'uv' is not installed; cannot install packages."
             )
         command = ["uv", "pip", *args]
+        installer = "uv"
 
     try:
+        logger.info("plugin_pip_command_started", operation=operation, installer=installer)
         subprocess.run(command, check=True, timeout=timeout)
+        logger.info("plugin_pip_command_succeeded", operation=operation, installer=installer)
+    except subprocess.CalledProcessError as exc:
+        logger.error(
+            "plugin_pip_command_failed",
+            operation=operation,
+            installer=installer,
+            return_code=exc.returncode,
+        )
+        raise
     except subprocess.TimeoutExpired as exc:
         message = f"Install command timed out after {timeout}s: {' '.join(command)}"
+        logger.error(
+            "plugin_pip_command_timed_out",
+            operation=operation,
+            installer=installer,
+            timeout_seconds=timeout,
+        )
         raise RuntimeError(message) from exc
 
 

@@ -15,7 +15,10 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
 from phlo.plugins.discovery import ServiceDiscovery
+
+logger = get_logger(__name__)
 
 
 @click.command("remove")
@@ -32,8 +35,14 @@ def remove_cmd(service_name: str, keep_running: bool):
     """
     phlo_dir = get_phlo_dir()
     config_file = Path.cwd() / PHLO_CONFIG_FILE
+    logger.info(
+        "services_remove_requested",
+        service_name=service_name,
+        keep_running=keep_running,
+    )
 
     if not phlo_dir.exists():
+        logger.error("services_remove_missing_phlo_dir", phlo_dir=str(phlo_dir))
         click.echo("Error: .phlo directory not found.", err=True)
         sys.exit(1)
 
@@ -42,6 +51,7 @@ def remove_cmd(service_name: str, keep_running: bool):
         with open(config_file) as f:
             config = yaml.safe_load(f) or {}
     else:
+        logger.error("services_remove_missing_config", config_file=str(config_file))
         click.echo("Error: phlo.yaml not found.", err=True)
         sys.exit(1)
 
@@ -50,6 +60,11 @@ def remove_cmd(service_name: str, keep_running: bool):
     all_services = discovery.discover()
 
     if service_name not in all_services:
+        logger.warning(
+            "services_remove_unknown_service",
+            service_name=service_name,
+            available_count=len(all_services),
+        )
         click.echo(f"Error: Service '{service_name}' not found.", err=True)
         sys.exit(1)
 
@@ -60,6 +75,11 @@ def remove_cmd(service_name: str, keep_running: bool):
         project_name = get_project_name()
 
         click.echo(f"Stopping {service_name}...")
+        logger.info(
+            "services_remove_stop_started",
+            project_name=project_name,
+            service_name=service_name,
+        )
 
         try:
             cmd = compose_base_cmd(
@@ -68,8 +88,28 @@ def remove_cmd(service_name: str, keep_running: bool):
                 profiles=() if not service.profile else (service.profile,),
             )
             cmd.extend(["stop", service_name])
-            run_command(cmd, check=False, capture_output=False)
-        except (FileNotFoundError, TimeoutExpired, OSError):
+            result = run_command(cmd, check=False, capture_output=False)
+            if result.returncode != 0:
+                logger.warning(
+                    "services_remove_stop_failed",
+                    project_name=project_name,
+                    service_name=service_name,
+                    returncode=result.returncode,
+                )
+            else:
+                logger.info(
+                    "services_remove_stop_completed",
+                    project_name=project_name,
+                    service_name=service_name,
+                )
+        except (FileNotFoundError, TimeoutExpired, OSError) as exc:
+            logger.warning(
+                "services_remove_stop_exception",
+                project_name=project_name,
+                service_name=service_name,
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
             click.echo(f"Warning: Could not stop {service_name}.", err=True)
 
     # Update config
@@ -94,10 +134,12 @@ def remove_cmd(service_name: str, keep_running: bool):
     # Write updated config
     with open(config_file, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    logger.info("services_remove_config_updated", service_name=service_name)
 
     click.echo(f"Removed '{service_name}' from phlo.yaml")
 
     # Regenerate docker-compose.yml
     _regenerate_compose(discovery, config, phlo_dir)
+    logger.info("services_remove_completed", service_name=service_name)
 
     click.echo(f"Service '{service_name}' removed.")

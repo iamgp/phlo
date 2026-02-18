@@ -13,6 +13,9 @@ from phlo.cli.commands.services.utils import (
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @click.command("restart")
@@ -50,10 +53,17 @@ def restart_cmd(
     """
     require_docker()
     if dev:
+        logger.warning("services_restart_dev_mode_not_supported")
         raise click.UsageError("dev mode not implemented for restart")
 
     phlo_dir = ensure_phlo_dir()
     project_name = get_project_name()
+    logger.info(
+        "services_restart_requested",
+        project_name=project_name,
+        build=build,
+        profile_count=len(profile),
+    )
 
     # Parse comma-separated services
     services_list = []
@@ -66,7 +76,18 @@ def restart_cmd(
         services_list = get_profile_service_names(profile)
         if not services_list:
             profile_list = ", ".join(profile)
+            logger.warning(
+                "services_restart_profile_resolved_empty",
+                project_name=project_name,
+                profiles=profile_list,
+            )
             raise click.UsageError(f"profile(s) resolve to no services: {profile_list}")
+    logger.info(
+        "services_restart_targets_resolved",
+        project_name=project_name,
+        service_count=len(services_list),
+        service_names=services_list,
+    )
 
     if services_list:
         click.echo(f"Restarting services: {', '.join(services_list)}...")
@@ -79,15 +100,47 @@ def restart_cmd(
         cmd.extend(["stop", *services_list])
     else:
         cmd.append("down")
+    logger.info(
+        "services_restart_stop_started",
+        project_name=project_name,
+        service_count=len(services_list),
+        service_names=services_list,
+    )
 
     try:
         result = run_command(cmd, check=False, capture_output=False)
         if result.returncode != 0:
+            logger.warning(
+                "services_restart_stop_failed",
+                project_name=project_name,
+                returncode=result.returncode,
+                service_count=len(services_list),
+                service_names=services_list,
+            )
             click.echo(f"Warning: stop failed with code {result.returncode}", err=True)
+        else:
+            logger.info(
+                "services_restart_stop_completed",
+                project_name=project_name,
+                service_count=len(services_list),
+                service_names=services_list,
+            )
     except FileNotFoundError:
+        logger.error(
+            "services_restart_stop_docker_not_found",
+            project_name=project_name,
+            exc_info=True,
+        )
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)
     except TimeoutExpired:
+        logger.warning(
+            "services_restart_stop_timeout",
+            project_name=project_name,
+            service_count=len(services_list),
+            service_names=services_list,
+            exc_info=True,
+        )
         click.echo("Warning: stop timed out.", err=True)
 
     # Start services
@@ -100,23 +153,57 @@ def restart_cmd(
 
     if services_list:
         cmd.extend(services_list)
+    logger.info(
+        "services_restart_start_started",
+        project_name=project_name,
+        service_count=len(services_list),
+        service_names=services_list,
+        build=build,
+    )
 
     try:
         result = run_command(cmd, check=False, capture_output=False)
         if result.returncode == 0:
+            logger.info(
+                "services_restart_succeeded",
+                project_name=project_name,
+                service_count=len(services_list),
+                service_names=services_list,
+                build=build,
+            )
             click.echo("")
             if services_list:
                 click.echo(f"Restarted services: {', '.join(services_list)}")
             else:
                 click.echo(f"{project_name} infrastructure restarted.")
         else:
+            logger.error(
+                "services_restart_start_failed",
+                project_name=project_name,
+                returncode=result.returncode,
+                service_count=len(services_list),
+                service_names=services_list,
+            )
             click.echo(f"Error: start failed with code {result.returncode}", err=True)
             click.echo(f"Command: {' '.join(cmd)}", err=True)
             sys.exit(result.returncode)
     except FileNotFoundError:
+        logger.error(
+            "services_restart_start_docker_not_found",
+            project_name=project_name,
+            exc_info=True,
+        )
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)
     except TimeoutExpired:
+        logger.error(
+            "services_restart_start_timeout",
+            project_name=project_name,
+            command=" ".join(cmd),
+            service_count=len(services_list),
+            service_names=services_list,
+            exc_info=True,
+        )
         click.echo("Error: docker compose timed out.", err=True)
         click.echo(f"Command: {' '.join(cmd)}", err=True)
         sys.exit(1)

@@ -10,8 +10,11 @@ from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
 
 from phlo.capabilities.specs import CheckResult
+from phlo.logging import get_logger
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract
 from phlo_quality.severity import severity_for_pandera_contract
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +83,11 @@ def evaluate_pandera_contract(
             error=str(err),
         )
     except Exception as exc:
+        logger.exception(
+            "pandera_contract_evaluation_failed",
+            schema_name=schema_class.__name__,
+            total_count=len(df),
+        )
         return PanderaContractEvaluation(
             passed=False,
             failed_count=1,
@@ -111,7 +119,15 @@ def evaluate_pandera_contract_parquet(
         Evaluation summary for the loaded dataframe.
     """
 
-    df = pd.read_parquet(parquet_path)
+    try:
+        df = pd.read_parquet(parquet_path)
+    except Exception:
+        logger.exception(
+            "pandera_contract_parquet_read_failed",
+            schema_name=schema_class.__name__,
+            parquet_path=str(parquet_path),
+        )
+        raise
     return evaluate_pandera_contract(df, schema_class=schema_class)
 
 

@@ -170,7 +170,7 @@ class ReconciliationCheck(QualityCheck):
 
         except Exception as e:
             if context and context.logger:
-                context.logger.warning(f"Failed to query source: {e}")
+                context.logger.warning("source_query_failed", query=query, error=str(e))
             return None
 
     @property
@@ -401,7 +401,7 @@ class AggregateConsistencyCheck(QualityCheck):
 
         except Exception as e:
             if context and context.logger:
-                context.logger.warning(f"Failed to query source aggregates: {e}")
+                context.logger.warning("source_aggregate_query_failed", query=query, error=str(e))
             return None
 
     @property
@@ -554,7 +554,7 @@ class KeyParityCheck(QualityCheck):
                     return [tuple(row) for row in result]
         except Exception as exc:
             if context and context.logger:
-                context.logger.warning(f"Failed to query source keys: {exc}")
+                context.logger.warning("source_keys_query_failed", query=query, error=str(exc))
             return None
         return None
 
@@ -829,7 +829,11 @@ class MultiAggregateConsistencyCheck(QualityCheck):
             return None
         except Exception as exc:
             if context and context.logger:
-                context.logger.warning(f"Failed to query source aggregates: {exc}")
+                context.logger.warning(
+                    "source_aggregate_query_failed",
+                    query=query,
+                    error=str(exc),
+                )
             return None
 
     @property
@@ -1092,7 +1096,7 @@ class ChecksumReconciliationCheck(QualityCheck):
                     return [tuple(row) for row in result]
         except Exception as exc:
             if context and context.logger:
-                context.logger.warning(f"Failed to query hashes: {exc}")
+                context.logger.warning("hash_query_failed", query=query, error=str(exc))
             return None
         return None
 

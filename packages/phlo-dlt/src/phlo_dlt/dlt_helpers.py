@@ -14,9 +14,12 @@ from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
 from phlo_lineage import generate_row_id
+from phlo.logging import get_logger
 from phlo_iceberg.resource import IcebergResource
 
 from phlo_dlt.registry import TableConfig
+
+logger = get_logger(__name__)
 
 
 def get_branch_from_context(context: Any) -> str:
@@ -60,6 +63,11 @@ def inject_metadata_columns(
 
     arrow_table = pq.read_table(str(parquet_path))
     num_rows = len(arrow_table)
+    logger.info(
+        "dlt_metadata_injection_started",
+        parquet_path=str(parquet_path),
+        row_count=num_rows,
+    )
 
     if context:
         context.log.info(f"Injecting metadata columns into {num_rows} rows")
@@ -84,6 +92,11 @@ def inject_metadata_columns(
         context.log.debug(
             "Added _phlo_row_id, _phlo_ingested_at, _phlo_partition_date, _phlo_run_id columns"
         )
+    logger.info(
+        "dlt_metadata_injection_finished",
+        parquet_path=str(parquet_path),
+        row_count=num_rows,
+    )
 
     return parquet_path
 
@@ -109,6 +122,13 @@ def validate_with_pandera(
     """
 
     try:
+        logger.info(
+            "dlt_pandera_validation_started",
+            schema_name=schema_class.__name__,
+            record_count=len(data),
+            strict=strict,
+            column_mapping_provided=column_mapping is not None,
+        )
         context.log.info(f"Validating {len(data)} records with {schema_class.__name__}")
 
         df = pd.DataFrame(data)
@@ -129,8 +149,19 @@ def validate_with_pandera(
 
         schema_class.validate(df, lazy=True)
         context.log.info("Pandera validation passed")
+        logger.info(
+            "dlt_pandera_validation_passed",
+            schema_name=schema_class.__name__,
+            record_count=len(data),
+        )
         return True
     except pandera.errors.SchemaErrors as e:
+        logger.warning(
+            "dlt_pandera_validation_failed",
+            schema_name=schema_class.__name__,
+            record_count=len(data),
+            strict=strict,
+        )
         context.log.warning(f"Pandera validation failed: {e.failure_cases}")
         if strict:
             raise
@@ -185,14 +216,34 @@ def stage_to_parquet(
     """
 
     start_time = time.time()
+    logger.info(
+        "dlt_stage_to_parquet_started",
+        pipeline_name=getattr(pipeline, "pipeline_name", ""),
+    )
 
     load_info: LoadInfo = pipeline.run(dlt_source, loader_file_format="parquet")
     if load_info is None:
+        logger.error(
+            "dlt_stage_to_parquet_missing_load_info",
+            pipeline_name=getattr(pipeline, "pipeline_name", ""),
+        )
         raise RuntimeError("DLT pipeline returned no load info")
+
+    if not load_info.load_packages:
+        logger.error(
+            "dlt_stage_to_parquet_missing_load_packages",
+            pipeline_name=getattr(pipeline, "pipeline_name", ""),
+        )
+        raise RuntimeError("DLT pipeline completed without load packages")
 
     completed_jobs = load_info.load_packages[0].jobs["completed_jobs"]
     parquet_files = [job for job in completed_jobs if job.file_path.endswith(".parquet")]
     if not parquet_files:
+        logger.error(
+            "dlt_stage_to_parquet_missing_parquet_output",
+            pipeline_name=getattr(pipeline, "pipeline_name", ""),
+            completed_job_count=len(completed_jobs),
+        )
         raise RuntimeError("DLT pipeline completed without producing parquet files")
 
     parquet_path = Path(parquet_files[0].file_path)
@@ -202,6 +253,12 @@ def stage_to_parquet(
     elapsed = time.time() - start_time
     context.log.info(f"DLT staging completed in {elapsed:.2f}s")
     context.log.debug(f"Parquet staged to {parquet_path}")
+    logger.info(
+        "dlt_stage_to_parquet_finished",
+        pipeline_name=getattr(pipeline, "pipeline_name", ""),
+        parquet_path=str(parquet_path),
+        elapsed_seconds=round(elapsed, 3),
+    )
 
     return parquet_path, elapsed
 
@@ -232,6 +289,13 @@ def merge_to_iceberg(
 
     merge_config = merge_config or {}
     table_name = table_config.full_table_name
+    logger.info(
+        "dlt_merge_to_iceberg_started",
+        table_name=table_name,
+        branch_name=branch_name,
+        merge_strategy=merge_strategy,
+        merge_config_keys=sorted(merge_config.keys()),
+    )
 
     context.log.info(f"Ensuring Iceberg table {table_name} exists on branch {branch_name}...")
     iceberg.ensure_table(
@@ -288,6 +352,12 @@ def merge_to_iceberg(
                 try:
                     casted = pc.cast(col, target_type)
                 except Exception:
+                    logger.warning(
+                        "dlt_merge_schema_cast_fallback",
+                        table_name=table_name,
+                        column_name=name,
+                        target_type=str(target_type),
+                    )
                     casted = pc.cast(pc.cast(col, pa.string()), target_type)
                 columns.append(casted)
             else:
@@ -325,6 +395,18 @@ def merge_to_iceberg(
             + f"(deleted {merge_metrics['rows_deleted']} existing duplicates)"
         )
     else:
+        logger.error(
+            "dlt_merge_to_iceberg_unknown_strategy",
+            table_name=table_name,
+            merge_strategy=merge_strategy,
+        )
         raise ValueError(f"Unknown merge strategy: {merge_strategy}")
 
+    logger.info(
+        "dlt_merge_to_iceberg_finished",
+        table_name=table_name,
+        merge_strategy=merge_strategy,
+        rows_inserted=merge_metrics.get("rows_inserted"),
+        rows_deleted=merge_metrics.get("rows_deleted"),
+    )
     return merge_metrics

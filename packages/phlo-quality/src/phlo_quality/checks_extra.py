@@ -13,8 +13,11 @@ import pandas as pd
 import pandera.errors as pa_errors
 
 from phlo.capabilities.runtime import RuntimeContext
+from phlo.logging import get_logger
 
 from phlo_quality.checks import QualityCheck, QualityCheckResult
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -74,6 +77,12 @@ class SchemaCheck(QualityCheck):
             )
 
         except Exception as exc:
+            logger.exception(
+                "schema_check_execution_failed",
+                schema_name=getattr(self.schema, "__name__", type(self.schema).__name__),
+                row_count=len(df),
+                column_count=len(df.columns),
+            )
             return QualityCheckResult(
                 passed=False,
                 metric_name="schema_check",
@@ -171,6 +180,10 @@ class CustomSQLCheck(QualityCheck):
             )
 
         except ImportError:
+            logger.warning(
+                "custom_sql_check_duckdb_missing",
+                check_name=self.name_,
+            )
             return QualityCheckResult(
                 passed=False,
                 metric_name=self.name_,
@@ -178,6 +191,12 @@ class CustomSQLCheck(QualityCheck):
                 failure_message="DuckDB not available for custom SQL check",
             )
         except Exception as exc:
+            logger.exception(
+                "custom_sql_check_execution_failed",
+                check_name=self.name_,
+                expected=self.expected,
+                sql_length=len(self.sql),
+            )
             return QualityCheckResult(
                 passed=False,
                 metric_name=self.name_,

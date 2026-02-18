@@ -14,6 +14,9 @@ from phlo.cli.commands.plugin.utils import (
     console,
     render_plugin_table,
 )
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @click.command(name="list")
@@ -48,6 +51,12 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
         phlo plugin list --all              # Include registry plugins
     """
     try:
+        logger.info(
+            "plugin_list_started",
+            plugin_type=plugin_type,
+            include_registry=include_registry,
+            output_json=output_json,
+        )
         installed = collect_installed_plugins(plugin_type)
         available = collect_registry_plugins(plugin_type) if include_registry else []
 
@@ -56,12 +65,30 @@ def list_cmd(plugin_type: str, include_registry: bool, output_json: bool):
             if include_registry:
                 output["available"] = available
             console.print(json.dumps(output, indent=2))
+            logger.info(
+                "plugin_list_succeeded",
+                installed_count=len(installed),
+                available_count=len(available),
+                output_json=True,
+            )
             return
 
         render_plugin_table("Installed", installed)
         if include_registry:
             render_plugin_table("Available", available)
+        logger.info(
+            "plugin_list_succeeded",
+            installed_count=len(installed),
+            available_count=len(available),
+            output_json=False,
+        )
 
     except Exception as e:
+        logger.exception(
+            "plugin_list_failed",
+            plugin_type=plugin_type,
+            include_registry=include_registry,
+            output_json=output_json,
+        )
         console.print(f"[red]Error listing plugins: {e}[/red]")
         sys.exit(1)
