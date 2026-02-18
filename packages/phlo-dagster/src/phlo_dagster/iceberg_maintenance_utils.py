@@ -14,9 +14,20 @@ from phlo.hooks import TelemetryEventContext, TelemetryEventEmitter
 from pydantic import Field
 
 from phlo.logging import get_logger
-from phlo_iceberg.catalog import get_catalog
 
 logger = get_logger(__name__)
+
+
+def _load_get_catalog():
+    """Load phlo-iceberg catalog helper lazily for optional integration support."""
+    try:
+        from phlo_iceberg.catalog import get_catalog
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(
+            "Iceberg maintenance requires phlo-iceberg. Install phlo-dagster[iceberg] "
+            "or phlo-iceberg."
+        ) from exc
+    return get_catalog
 
 
 class MaintenanceConfig(dg.Config):
@@ -337,7 +348,7 @@ def list_tables(namespace: str, ref: str) -> list[str]:
     """
     from pyiceberg.exceptions import NoSuchNamespaceError
 
-    catalog = get_catalog(ref=ref)
+    catalog = _load_get_catalog()(ref=ref)
     try:
         tables = catalog.list_tables(namespace)
         return [f"{namespace}.{table[1]}" for table in tables]
@@ -359,7 +370,7 @@ def list_namespaces(ref: str) -> list[str]:
         Namespace names, or an empty list on errors.
     """
 
-    catalog = get_catalog(ref=ref)
+    catalog = _load_get_catalog()(ref=ref)
     try:
         namespaces = catalog.list_namespaces()
         return [ns[0] for ns in namespaces]

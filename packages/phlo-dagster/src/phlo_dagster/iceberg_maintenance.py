@@ -13,7 +13,6 @@ from typing import Any
 import dagster as dg
 
 from phlo.logging import get_logger
-from phlo_iceberg.tables import expire_snapshots, get_table_stats, remove_orphan_files
 
 from phlo_dagster.iceberg_maintenance_utils import (
     MaintenanceConfig,
@@ -25,6 +24,18 @@ from phlo_dagster.iceberg_maintenance_utils import (
 )
 
 logger = get_logger(__name__)
+
+
+def _load_iceberg_maintenance_functions() -> tuple[Any, Any, Any]:
+    """Load iceberg maintenance helpers lazily for optional integration support."""
+    try:
+        from phlo_iceberg.tables import expire_snapshots, get_table_stats, remove_orphan_files
+    except Exception as exc:  # noqa: BLE001 - runtime guidance for optional dependency
+        raise RuntimeError(
+            "Iceberg maintenance requires phlo-iceberg. Install phlo-dagster[iceberg] "
+            "or phlo-iceberg."
+        ) from exc
+    return expire_snapshots, get_table_stats, remove_orphan_files
 
 
 @dg.op
@@ -39,6 +50,7 @@ def expire_table_snapshots(
     operation = "expire_snapshots"
     start_time = time.time()
     telemetry = start_maintenance_op(context, config, operation)
+    expire_snapshots, _, _ = _load_iceberg_maintenance_functions()
 
     for namespace in resolve_namespaces(config):
         for table_name in list_tables(namespace, config.ref):
@@ -119,6 +131,7 @@ def cleanup_orphan_files(
     operation = "cleanup_orphan_files"
     start_time = time.time()
     telemetry = start_maintenance_op(context, config, operation, dry_run=config.orphan_dry_run)
+    _, _, remove_orphan_files = _load_iceberg_maintenance_functions()
 
     if not config.orphan_dry_run:
         context.log.warning(
@@ -209,6 +222,7 @@ def collect_table_stats(
     operation = "collect_table_stats"
     start_time = time.time()
     telemetry = start_maintenance_op(context, config, operation)
+    _, get_table_stats, _ = _load_iceberg_maintenance_functions()
 
     for namespace in resolve_namespaces(config):
         for table_name in list_tables(namespace, config.ref):

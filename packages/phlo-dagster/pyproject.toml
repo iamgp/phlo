@@ -14,8 +14,6 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-alerting>=0.1.0",
-    "phlo-iceberg>=0.1.0",
     "phlo-observatory>=0.1.0",
     "dagster-graphql>=1.12.1",
     "pyyaml>=6.0.1",
@@ -26,6 +24,12 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
+]
+alerting = [
+    "phlo-alerting>=0.1.0",
+]
+iceberg = [
+    "phlo-iceberg>=0.1.0",
 ]
 
 [project.entry-points."phlo.plugins.services"]

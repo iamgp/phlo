@@ -282,11 +282,12 @@ def _ensure_core_resources(definitions: Any) -> Any:
 
 
 def _default_trino_resource() -> Any | None:
-    try:
-        from phlo_trino.resource import TrinoResource
-    except Exception:  # noqa: BLE001 - optional dependency
-        return None
-    return TrinoResource()
+    # Only auto-wire a trino resource if a provider has already registered one.
+    registry = get_capability_registry()
+    for resource in registry.list_resources():
+        if resource.name == "trino":
+            return resource.resource
+    return None
 
 
 def _clear_capability_registries() -> None:

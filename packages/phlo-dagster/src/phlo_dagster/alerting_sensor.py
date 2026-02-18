@@ -3,14 +3,25 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from dagster import DagsterEventType, DagsterRunStatus, RunsFilter, sensor
 
 from phlo.logging import get_logger
-from phlo_alerting.manager import Alert, AlertSeverity, get_alert_manager
 
 logger = get_logger(__name__)
+
+
+def _load_alerting() -> tuple[type[Any], type[Any], Any]:
+    """Load alerting classes lazily so base package works without phlo-alerting."""
+    try:
+        from phlo_alerting.manager import Alert, AlertSeverity, get_alert_manager
+    except Exception as exc:  # noqa: BLE001 - provide actionable runtime error
+        raise RuntimeError(
+            "Alerting integration requires phlo-alerting. Install phlo-dagster[alerting] "
+            "or phlo-alerting."
+        ) from exc
+    return Alert, AlertSeverity, get_alert_manager
 
 
 @sensor(
@@ -39,6 +50,7 @@ def failure_alert_sensor(context):
         cutoff_time=cutoff_time.isoformat(),
     )
     try:
+        Alert, AlertSeverity, get_alert_manager = _load_alerting()
         # Query for failed runs
         failed_runs = list(
             instance.get_runs(
@@ -124,7 +136,7 @@ def _extract_error_message(event) -> Optional[str]:
 def send_alert(
     title: str,
     message: str,
-    severity: AlertSeverity = AlertSeverity.ERROR,
+    severity: Any = "ERROR",
     asset_name: Optional[str] = None,
     run_id: Optional[str] = None,
     error_message: Optional[str] = None,
@@ -143,11 +155,17 @@ def send_alert(
     Returns:
         True if alert was sent successfully
     """
+    Alert, AlertSeverity, get_alert_manager = _load_alerting()
+    severity_value = (
+        severity
+        if not isinstance(severity, str)
+        else getattr(AlertSeverity, severity, AlertSeverity.ERROR)
+    )
     alert_manager = get_alert_manager()
     alert = Alert(
         title=title,
         message=message,
-        severity=severity,
+        severity=severity_value,
         asset_name=asset_name,
         run_id=run_id,
         error_message=error_message,
