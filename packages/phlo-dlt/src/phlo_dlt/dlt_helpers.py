@@ -290,7 +290,7 @@ def merge_to_table_store(
     merge_config = merge_config or {}
     table_name = table_config.full_table_name
     logger.info(
-        "dlt_merge_to_iceberg_started",
+        "dlt_merge_to_table_store_started",
         table_name=table_name,
         branch_name=branch_name,
         merge_strategy=merge_strategy,
@@ -396,38 +396,17 @@ def merge_to_table_store(
         )
     else:
         logger.error(
-            "dlt_merge_to_iceberg_unknown_strategy",
+            "dlt_merge_to_table_store_unknown_strategy",
             table_name=table_name,
             merge_strategy=merge_strategy,
         )
         raise ValueError(f"Unknown merge strategy: {merge_strategy}")
 
     logger.info(
-        "dlt_merge_to_iceberg_finished",
+        "dlt_merge_to_table_store_finished",
         table_name=table_name,
         merge_strategy=merge_strategy,
         rows_inserted=merge_metrics.get("rows_inserted"),
         rows_deleted=merge_metrics.get("rows_deleted"),
     )
     return merge_metrics
-
-
-def merge_to_iceberg(
-    context,
-    iceberg: TableStore,
-    table_config: TableConfig,
-    parquet_path: Path,
-    branch_name: str,
-    merge_strategy: str = "merge",
-    merge_config: dict[str, Any] | None = None,
-) -> dict[str, int]:
-    """Backward-compatible alias for merge_to_table_store."""
-    return merge_to_table_store(
-        context=context,
-        table_store=iceberg,
-        table_config=table_config,
-        parquet_path=parquet_path,
-        branch_name=branch_name,
-        merge_strategy=merge_strategy,
-        merge_config=merge_config,
-    )

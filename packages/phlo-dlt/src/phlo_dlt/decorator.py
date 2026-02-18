@@ -142,25 +142,18 @@ def _resolve_table_store_resource(context: RuntimeContext) -> Any:
     table_store = None
     resources = context.resources
     if isinstance(resources, dict):
-        table_store = resources.get("table_store") or resources.get("iceberg")
+        table_store = resources.get("table_store")
     elif resources is not None:
-        table_store = getattr(resources, "table_store", None) or getattr(resources, "iceberg", None)
+        table_store = getattr(resources, "table_store", None)
     if table_store is None:
         try:
             table_store = context.get_resource("table_store")
         except Exception:
             table_store = None
     if table_store is None:
-        try:
-            table_store = context.get_resource("iceberg")
-        except Exception:
-            table_store = None
-    if table_store is None:
         raise PhloConfigError(
             message="Table store resource not available in runtime context",
-            suggestions=[
-                "Configure a `table_store` resource provider (or legacy `iceberg` resource)."
-            ],
+            suggestions=["Configure a `table_store` resource provider."],
         )
     return table_store
 
