@@ -371,7 +371,7 @@ class TestLocalTestMode:
         """Test local mode as context manager."""
 
         with local_test_mode() as mode:
-            assert mode.iceberg is not None
+            assert mode.table_store is not None
             assert mode.trino is not None
 
     def test_fixture_recording(self):
@@ -394,10 +394,10 @@ class TestLocalTestMode:
         """Test getting resources from local mode."""
 
         with local_test_mode() as mode:
-            iceberg = mode.get_resource("iceberg")
+            table_store = mode.get_resource("table_store")
             trino = mode.get_resource("trino")
 
-            assert isinstance(iceberg, MockIcebergCatalog)
+            assert isinstance(table_store, MockIcebergCatalog)
             assert isinstance(trino, MockTrinoResource)
 
     def test_invalid_resource(self):

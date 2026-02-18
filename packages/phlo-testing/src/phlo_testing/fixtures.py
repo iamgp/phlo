@@ -101,11 +101,11 @@ def mock_resources(
 
     Example:
         >>> def test_with_resources(mock_resources):
-        ...     iceberg = mock_resources["iceberg"]
+        ...     table_store = mock_resources["table_store"]
         ...     trino = mock_resources["trino"]
     """
     return {
-        "iceberg": mock_iceberg_catalog,
+        "table_store": mock_iceberg_catalog,
         "trino": mock_trino,
     }
 

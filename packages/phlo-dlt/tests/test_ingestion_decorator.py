@@ -547,6 +547,31 @@ class TestAssetAttributes:
         assert spec.partitions is not None
         assert spec.partitions.kind == "daily"
 
+    def test_asset_requires_table_store_resource(self):
+        """Test asset requires canonical table_store resource key."""
+
+        class TestSchema(DataFrameModel):
+            """Pandera schema used for this test case."""
+
+            id: str
+
+        @phlo_ingestion(
+            table_name="test_table",
+            unique_key="id",
+            validation_schema=TestSchema,
+            group="test",
+        )
+        def test_asset(partition_date: str):
+            """Placeholder asset function used for decorator registration tests.
+
+            Args:
+                partition_date: Partition key passed by the orchestrator.
+            """
+            pass
+
+        spec = get_asset_spec("dlt_test_table")
+        assert spec.resources == {"table_store"}
+
 
 class TestComplexSchemas:
     """Test decorator with complex real-world schemas."""

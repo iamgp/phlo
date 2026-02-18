@@ -402,7 +402,7 @@ def phlo_ingestion(
                 "group": table_config.group_name,
             },
             partitions=PartitionSpec(kind="daily"),
-            resources={"iceberg"},
+            resources={"table_store"},
             run=RunSpec(
                 fn=run,
                 max_runtime_seconds=max_runtime_seconds,
