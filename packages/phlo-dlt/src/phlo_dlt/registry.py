@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from pandera.pandas import DataFrameModel
-from phlo_iceberg.settings import get_settings
+
+from phlo_dlt.settings import get_settings
 
 
 @dataclass(frozen=True)
@@ -34,4 +35,4 @@ class TableConfig:
         Returns:
             Namespace-prefixed table name.
         """
-        return f"{get_settings().iceberg_default_namespace}.{self.table_name}"
+        return f"{get_settings().dlt_default_namespace}.{self.table_name}"

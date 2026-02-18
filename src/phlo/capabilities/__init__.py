@@ -1,5 +1,6 @@
 """Capability primitives and registry."""
 
+from phlo.capabilities.interfaces import TableStore
 from phlo.capabilities.registry import (
     CapabilityRegistry,
     clear_capabilities,
@@ -55,6 +56,7 @@ __all__ = [
     "RunSpec",
     "RuntimeContext",
     "TableStoreSpec",
+    "TableStore",
     "clear_capabilities",
     "get_capability_registry",
     "list_capabilities",

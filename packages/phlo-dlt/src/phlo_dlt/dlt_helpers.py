@@ -13,9 +13,9 @@ import pandera.errors
 from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
+from phlo.capabilities.interfaces import TableStore
 from phlo_lineage import generate_row_id
 from phlo.logging import get_logger
-from phlo_iceberg.resource import IcebergResource
 
 from phlo_dlt.registry import TableConfig
 
@@ -263,20 +263,20 @@ def stage_to_parquet(
     return parquet_path, elapsed
 
 
-def merge_to_iceberg(
+def merge_to_table_store(
     context,
-    iceberg: IcebergResource,
+    table_store: TableStore,
     table_config: TableConfig,
     parquet_path: Path,
     branch_name: str,
     merge_strategy: str = "merge",
     merge_config: dict[str, Any] | None = None,
 ) -> dict[str, int]:
-    """Write staged parquet data into Iceberg via append or merge.
+    """Write staged parquet data into the configured table store via append or merge.
 
     Args:
         context: Dagster context used for progress logging.
-        iceberg: Iceberg resource wrapper used for table operations.
+        table_store: Table store capability used for table operations.
         table_config: Table configuration including schema, partitioning, and keys.
         parquet_path: Path to staged parquet data.
         branch_name: Nessie branch to write into.
@@ -297,8 +297,8 @@ def merge_to_iceberg(
         merge_config_keys=sorted(merge_config.keys()),
     )
 
-    context.log.info(f"Ensuring Iceberg table {table_name} exists on branch {branch_name}...")
-    iceberg.ensure_table(
+    context.log.info(f"Ensuring destination table {table_name} exists on branch {branch_name}...")
+    table_store.ensure_table(
         table_name=table_name,
         schema=table_config.iceberg_schema,
         partition_spec=table_config.partition_spec,
@@ -373,8 +373,8 @@ def merge_to_iceberg(
     parquet_path = _coerce_parquet_to_table_schema(parquet_path)
 
     if merge_strategy == "append":
-        context.log.info(f"Appending data to Iceberg table on branch {branch_name}...")
-        merge_metrics = iceberg.append_parquet(
+        context.log.info(f"Appending data to destination table on branch {branch_name}...")
+        merge_metrics = table_store.append_parquet(
             table_name=table_name,
             data_path=str(parquet_path),
             override_ref=branch_name,
@@ -382,9 +382,9 @@ def merge_to_iceberg(
         context.log.info(f"Appended {merge_metrics['rows_inserted']} rows to {table_name}")
     elif merge_strategy == "merge":
         context.log.info(
-            f"Merging data to Iceberg table on branch {branch_name} (idempotent upsert)..."
+            f"Merging data to destination table on branch {branch_name} (idempotent upsert)..."
         )
-        merge_metrics = iceberg.merge_parquet(
+        merge_metrics = table_store.merge_parquet(
             table_name=table_name,
             data_path=str(parquet_path),
             unique_key=table_config.unique_key,
@@ -410,3 +410,24 @@ def merge_to_iceberg(
         rows_deleted=merge_metrics.get("rows_deleted"),
     )
     return merge_metrics
+
+
+def merge_to_iceberg(
+    context,
+    iceberg: TableStore,
+    table_config: TableConfig,
+    parquet_path: Path,
+    branch_name: str,
+    merge_strategy: str = "merge",
+    merge_config: dict[str, Any] | None = None,
+) -> dict[str, int]:
+    """Backward-compatible alias for merge_to_table_store."""
+    return merge_to_table_store(
+        context=context,
+        table_store=iceberg,
+        table_config=table_config,
+        parquet_path=parquet_path,
+        branch_name=branch_name,
+        merge_strategy=merge_strategy,
+        merge_config=merge_config,
+    )
