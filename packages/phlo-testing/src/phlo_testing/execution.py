@@ -143,7 +143,7 @@ class MockAssetContext:
         Get a mock resource by name.
 
         Args:
-            name: Resource name (iceberg, trino, etc.)
+            name: Resource name (table_store, trino, etc.)
 
         Returns:
             Mock resource instance
@@ -152,7 +152,7 @@ class MockAssetContext:
             ValueError: If resource doesn't exist
         """
         resources = {
-            "iceberg": self.iceberg,
+            "table_store": self.iceberg,
             "trino": self.trino,
         }
 

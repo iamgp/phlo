@@ -32,7 +32,7 @@ class LocalTestMode:
     Example:
         >>> with LocalTestMode() as mode:
         ...     # All resources are mocked
-        ...     iceberg = mode.iceberg
+        ...     table_store = mode.table_store
         ...     trino = mode.trino
     """
 
@@ -56,7 +56,7 @@ class LocalTestMode:
         self._fixtures: dict[str, Any] = {}
 
         # Initialize mock resources
-        self.iceberg = MockIcebergCatalog()
+        self.table_store = MockIcebergCatalog()
         self.trino = MockTrinoResource()
 
     def __enter__(self) -> LocalTestMode:
@@ -81,7 +81,7 @@ class LocalTestMode:
         os.environ.update(self._original_env)
 
         # Clean up resources
-        self.iceberg.close()
+        self.table_store.close()
         self.trino.close()
 
     def record_fixture(self, name: str, data: Any) -> None:
@@ -139,7 +139,7 @@ class LocalTestMode:
         Get a mock resource.
 
         Args:
-            name: Resource name (iceberg, trino)
+            name: Resource name (table_store, trino)
 
         Returns:
             Mock resource
@@ -148,7 +148,7 @@ class LocalTestMode:
             ValueError: If resource doesn't exist
         """
         resources = {
-            "iceberg": self.iceberg,
+            "table_store": self.table_store,
             "trino": self.trino,
         }
 
@@ -174,7 +174,7 @@ def local_test_mode(
     Example:
         >>> with local_test_mode() as mode:
         ...     # Test with mocked resources
-        ...     table = mode.iceberg.create_table(...)
+        ...     table = mode.table_store.create_table(...)
     """
     mode = LocalTestMode(fixture_dir=fixture_dir)
 

@@ -14,7 +14,7 @@ from phlo.capabilities.interfaces import TableStore
 
 from phlo_dlt.dlt_helpers import (
     inject_metadata_columns,
-    merge_to_iceberg,
+    merge_to_table_store,
     setup_dlt_pipeline,
     stage_to_parquet,
 )
@@ -117,11 +117,10 @@ class DltIngester(BaseIngester):
 
             # We pass 'self' as context because dlt_helpers expects an object with .log
             # In a real refactor, dlt_helpers should take logger explicitly.
-            # For now, self has .logger from BaseIngester (renamed to .log for compat if needed,
-            # but helpers use context.log). Let's wrap a context shim.
+            # Helpers consume context.log, so wrap logger behind a tiny shim.
 
             class ContextShim:
-                """Expose a `.log` attribute expected by legacy DLT helpers."""
+                """Expose a `.log` attribute expected by DLT helpers."""
 
                 def __init__(self, logger):
                     """Store logger on `.log` to match helper context contract.
@@ -156,9 +155,9 @@ class DltIngester(BaseIngester):
             # NOTE: Pandera validation requires the checks logic.
             # For this iteration, I will assume validation happens here via standard Exceptions.
 
-            merge_metrics = merge_to_iceberg(
+            merge_metrics = merge_to_table_store(
                 context=shim,
-                iceberg=self.table_store,
+                table_store=self.table_store,
                 table_config=self.table_config,
                 parquet_path=parquet_path,
                 branch_name=branch_name,

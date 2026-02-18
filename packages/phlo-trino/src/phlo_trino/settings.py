@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import AliasChoices, Field
+from pydantic import Field
 
 from phlo.config.base import BaseConfig
 
@@ -32,13 +32,6 @@ class TrinoSettings(BaseConfig):
     trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
     trino_default_ref: str = Field(
         default="main",
-        validation_alias=AliasChoices(
-            "TRINO_DEFAULT_REF",
-            "PHLO_TRINO_DEFAULT_REF",
-            "PHLO_DEFAULT_REF",
-            "ICEBERG_NESSIE_REF",
-            "PHLO_ICEBERG_NESSIE_REF",
-        ),
         description="Default branch/tag suffix",
     )
 

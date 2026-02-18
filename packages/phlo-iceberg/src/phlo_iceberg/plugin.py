@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phlo.capabilities import ResourceSpec
+from phlo.capabilities import ResourceSpec, TableStoreSpec
 from phlo.plugins.base import PluginMetadata, ResourceProviderPlugin
 
 from phlo_iceberg.resource import IcebergResource
@@ -28,4 +28,12 @@ class IcebergResourceProvider(ResourceProviderPlugin):
         Returns:
             list[ResourceSpec]: Iceberg resource specifications.
         """
-        return [ResourceSpec(name="iceberg", resource=IcebergResource())]
+        return [ResourceSpec(name="table_store", resource=IcebergResource())]
+
+    def get_table_stores(self) -> list[TableStoreSpec]:
+        """Get table-store capability specs exposed by this plugin.
+
+        Returns:
+            list[TableStoreSpec]: Iceberg table-store capability specifications.
+        """
+        return [TableStoreSpec(name="iceberg", provider=IcebergResource())]
