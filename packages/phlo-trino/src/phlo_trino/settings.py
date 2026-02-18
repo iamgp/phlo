@@ -30,6 +30,7 @@ class TrinoSettings(BaseConfig):
     trino_port: int = Field(default=10005, description="Trino HTTP port")
     trino_host: str = Field(default="trino", description="Trino service hostname")
     trino_catalog: str = Field(default="iceberg", description="Trino catalog name for Iceberg")
+    trino_default_ref: str = Field(default="main", description="Default branch/tag suffix")
 
     def trino_connection_string(self) -> str:
         """Return the Trino DSN for current settings.

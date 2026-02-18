@@ -10,7 +10,6 @@ from typing import Iterable
 from trino.dbapi import connect
 
 from phlo.logging import get_logger
-from phlo_iceberg.settings import get_settings as get_iceberg_settings
 from phlo_trino.settings import get_settings as get_trino_settings
 
 logger = get_logger(__name__)
@@ -53,7 +52,7 @@ class _ConfigFacade:
         Returns:
             Nessie branch or tag reference.
         """
-        return get_iceberg_settings().iceberg_nessie_ref
+        return get_trino_settings().trino_default_ref
 
 
 config = _ConfigFacade()
