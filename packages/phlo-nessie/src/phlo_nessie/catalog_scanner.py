@@ -17,7 +17,6 @@ from urllib.parse import urlparse
 import requests
 from phlo.logging import get_logger
 from phlo_nessie.settings import get_settings
-from phlo_trino.settings import get_settings as get_trino_settings
 
 logger = get_logger(__name__)
 
@@ -218,6 +217,7 @@ class NessieTableScanner:
         """
         try:
             from phlo_trino import TrinoResource
+            from phlo_trino.settings import get_settings as get_trino_settings
         except Exception as exc:  # noqa: BLE001 - optional dependency
             logger.warning("Trino resource not available for Nessie fallback: %s", exc)
             return None
