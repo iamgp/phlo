@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
     
     
       
@@ -818,6 +818,17 @@
     <span class="md-ellipsis">
       
         How Plugin Discovery Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#declare-capability-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declare Capability Requirements
       
     </span>
   </a>
@@ -1877,6 +1888,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#declare-capability-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Declare Capability Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#quick-start-create-a-plugin-scaffold" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2428,6 +2450,20 @@
 - Install a package, restart Phlo, plugin is available
 - Plugins can be distributed independently
 - Failed plugins don't crash the system</p>
+<h3 id="declare-capability-requirements">Declare Capability Requirements</h3>
+<p>Plugins can declare runtime capability requirements in <code>PluginMetadata</code>:</p>
+<pre><code class="language-python">PluginMetadata(
+    name=&quot;my-plugin&quot;,
+    version=&quot;0.1.0&quot;,
+    requires_capabilities=[&quot;query_engine:trino&quot;, &quot;table_store&quot;],
+    optional_capabilities=[&quot;metadata_catalog&quot;],
+)
+</code></pre>
+<p>Guidelines:
+- Use <code>capability_type:name</code> for strict provider requirements.
+- Use <code>capability_type</code> when any provider of that type is acceptable.
+- Keep only true hard requirements in <code>requires_capabilities</code>.
+- Put integrations and enhancements in <code>optional_capabilities</code>.</p>
 <h3 id="quick-start-create-a-plugin-scaffold">Quick Start: Create a Plugin Scaffold</h3>
 <pre><code class="language-bash"># Create source connector plugin
 phlo plugin create my-api-source --type source

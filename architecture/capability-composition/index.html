@@ -18,19 +18,19 @@
         
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
     
     
       
-        <title>ADR 0037: Advanced Reconciliation Checks - Phlo Lakehouse Platform</title>
+        <title>Capability-Driven Composition - Phlo Lakehouse Platform</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -49,9 +49,9 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0037-advanced-reconciliation-checks" class="md-skip">
+        <a href="#capability-driven-composition" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +92,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-header__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR 0037: Advanced Reconciliation Checks
+              Capability-Driven Composition
             
           </span>
         </div>
@@ -233,7 +233,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
+    <a href="../.." title="Phlo Lakehouse Platform" class="md-nav__button md-logo" aria-label="Phlo Lakehouse Platform" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -251,7 +251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -301,7 +301,7 @@
   
   
   
-    <a href="../../../getting-started/installation/" class="md-nav__link">
+    <a href="../../getting-started/installation/" class="md-nav__link">
       
   
   
@@ -383,7 +383,7 @@
   
   
   
-    <a href="../../../guides/developer-guide/" class="md-nav__link">
+    <a href="../../guides/developer-guide/" class="md-nav__link">
       
   
   
@@ -443,7 +443,7 @@
   
   
   
-    <a href="../../../setup/hasura/" class="md-nav__link">
+    <a href="../../setup/hasura/" class="md-nav__link">
       
   
   
@@ -511,7 +511,7 @@
   
   
   
-    <a href="../../../packages/" class="md-nav__link">
+    <a href="../../packages/" class="md-nav__link">
       
   
   
@@ -577,7 +577,7 @@
   
   
   
-    <a href="../../../reference/architecture/" class="md-nav__link">
+    <a href="../../reference/architecture/" class="md-nav__link">
       
   
   
@@ -661,7 +661,7 @@
   
   
   
-    <a href="../../../errors/" class="md-nav__link">
+    <a href="../../errors/" class="md-nav__link">
       
   
   
@@ -713,7 +713,7 @@
   
   
   
-    <a href="../../../observatory/extensions/" class="md-nav__link">
+    <a href="../../observatory/extensions/" class="md-nav__link">
       
   
   
@@ -771,7 +771,7 @@
   
   
   
-    <a href="../../../operations/operations-guide/" class="md-nav__link">
+    <a href="../../operations/operations-guide/" class="md-nav__link">
       
   
   
@@ -824,10 +824,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#status" class="md-nav__link">
+  <a href="#capability-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Status
+        Capability Model
       
     </span>
   </a>
@@ -835,10 +835,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#context" class="md-nav__link">
+  <a href="#runtime-resolution" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context
+        Runtime Resolution
       
     </span>
   </a>
@@ -846,22 +846,33 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#plugin-requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
+        Plugin Requirements
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Decision">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-stack-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Stack Profiles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Stack Profiles">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#check-definition" class="md-nav__link">
+  <a href="#minimal-stack" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Check definition
+        Minimal stack
       
     </span>
   </a>
@@ -869,65 +880,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#hashing-semantics" class="md-nav__link">
+  <a href="#lakehouse-stack" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Hashing semantics
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#comparison-logic" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Comparison logic
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#result-metadata" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Result metadata
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#key-level-anti-join-parity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key-level anti-join parity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#absolute-difference-tolerances" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Absolute-difference tolerances
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multi-aggregate-parity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multi-aggregate parity
+        Lakehouse stack
       
     </span>
   </a>
@@ -940,60 +896,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation" class="md-nav__link">
+  <a href="#migration-rule" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Implementation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#verification" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Verification
+        Migration Rule
       
     </span>
   </a>
@@ -1017,135 +923,50 @@
 
 
 
-<h1 id="adr-0037-advanced-reconciliation-checks">ADR 0037: Advanced Reconciliation Checks</h1>
-<h2 id="status">Status</h2>
-<p><strong>Proposed</strong></p>
-<h2 id="context">Context</h2>
-<p>Phlo currently ships reconciliation checks that compare row counts and aggregates between source
-and target tables. These catch bulk loss or aggregation drift, but they do not detect silent
-row-level mismatches when counts and aggregates still align (for example, incorrect values for a
-subset of rows). Users can build checksum comparisons with ad-hoc SQL, but this is repetitive and
-hard to standardize across pipelines.</p>
-<p>We want a first-class, warehouse-native reconciliation check that detects row-level drift while
-remaining deterministic, partition-aware, and cost-controlled.</p>
-<h2 id="decision">Decision</h2>
-<p>Add a checksum-based reconciliation check to <code>phlo_quality.reconciliation</code> that compares
-row-level hashes between a source and target table using Trino, and add three complementary
-reconciliation capabilities that were prioritized alongside checksums: key-level anti-join
-parity, absolute-difference tolerances, and multi-aggregate parity.</p>
-<h3 id="check-definition">Check definition</h3>
-<p>Introduce <code>ChecksumReconciliationCheck</code> with the following behavior:</p>
+<h1 id="capability-driven-composition">Capability-Driven Composition</h1>
+<p>Phlo can run as a minimal core plus installed capability providers. This allows swapping components without changing core runtime code.</p>
+<h2 id="capability-model">Capability Model</h2>
+<p>Phlo capability registry now supports:</p>
 <ul>
-<li><strong>Required inputs</strong>:</li>
-<li><code>source_table</code>: fully qualified source table name.</li>
-<li><code>key_columns</code>: primary key or composite key used to align rows across tables.</li>
-<li><strong>Optional inputs</strong>:</li>
-<li><code>columns</code>: columns to hash. If omitted, hash all non-metadata columns from the target table.</li>
-<li><code>partition_column</code>: used to filter both source and target to the same partition.</li>
-<li><code>tolerance</code>: allowed fraction of mismatches (default 0.0).</li>
-<li><code>sample</code>: optional sampling fraction for large tables (default none).</li>
-<li><code>limit</code>: optional cap on rows hashed for cost control.</li>
-<li><code>hash_algorithm</code>: <code>xxhash64</code> by default, with <code>md5</code> supported when configured.</li>
+<li><code>table_store</code>: writes and table lifecycle (examples: Iceberg, Delta)</li>
+<li><code>catalog</code>: table/catalog metadata namespace operations</li>
+<li><code>query_engine</code>: SQL execution provider</li>
+<li><code>quality_backend</code>: quality-check execution backend</li>
+<li><code>metadata_catalog</code>: governance/metadata sync target</li>
+<li><code>lineage_sink</code>: lineage event destination</li>
 </ul>
-<h3 id="hashing-semantics">Hashing semantics</h3>
+<p>Capability providers register at startup through plugin discovery.</p>
+<h2 id="runtime-resolution">Runtime Resolution</h2>
+<p>At runtime, components resolve providers by capability type and optional provider name:</p>
 <ul>
-<li>Hashes are computed over a <strong>stable, ordered</strong> list of columns.</li>
-<li>Each value is normalized before hashing:</li>
-<li><code>NULL</code> becomes a sentinel value (<code>'__NULL__'</code>).</li>
-<li>Timestamps are normalized to UTC ISO8601 strings.</li>
-<li>Floats are rounded to a configurable precision (default 6) before casting.</li>
-<li>The hash input is the concatenation of normalized values with a delimiter.</li>
+<li>explicit resolution: <code>query_engine:trino</code></li>
+<li>implicit resolution: capability with one installed provider</li>
+<li>unresolved or ambiguous: deterministic failure with guidance</li>
 </ul>
-<h3 id="comparison-logic">Comparison logic</h3>
+<p>This is implemented in <code>phlo.capabilities.resolver</code>.</p>
+<h2 id="plugin-requirements">Plugin Requirements</h2>
+<p>Plugins can declare:</p>
 <ul>
-<li>The check computes a <code>(key_columns, row_hash)</code> dataset for both source and target.</li>
-<li>It joins by <code>key_columns</code> and reports:</li>
-<li>missing keys (in target but not in source, and vice versa),</li>
-<li>hash mismatches for shared keys,</li>
-<li>total compared rows.</li>
-<li>The check passes when <code>(mismatches / total_compared) &lt;= tolerance</code>.</li>
+<li><code>requires_capabilities</code>: hard requirements</li>
+<li><code>optional_capabilities</code>: optional integrations</li>
 </ul>
-<h3 id="result-metadata">Result metadata</h3>
-<p>Return a <code>QualityCheckResult</code> with:</p>
+<p>During plugin inspection and install flows, Phlo surfaces unmet capability requirements so users know what to install next.</p>
+<h2 id="example-stack-profiles">Example Stack Profiles</h2>
+<h3 id="minimal-stack">Minimal stack</h3>
 <ul>
-<li><code>metric_name</code>: <code>checksum_reconciliation_check</code></li>
-<li><code>metric_value</code>: counts for <code>missing_in_target</code>, <code>missing_in_source</code>, <code>hash_mismatches</code>,
-  <code>total_compared</code>, and <code>mismatch_pct</code>.</li>
-<li><code>metadata</code>: query strings, key/column list, normalization settings, and up to 10 sample mismatches.</li>
+<li>core <code>phlo</code></li>
+<li>one orchestrator adapter</li>
+<li>one query engine provider (optional depending on workflow)</li>
 </ul>
-<h3 id="key-level-anti-join-parity">Key-level anti-join parity</h3>
-<p>Introduce <code>KeyParityCheck</code> to validate that keys align between source and target tables.</p>
+<h3 id="lakehouse-stack">Lakehouse stack</h3>
 <ul>
-<li><strong>Required inputs</strong>:</li>
-<li><code>source_table</code></li>
-<li><code>key_columns</code></li>
-<li><strong>Optional inputs</strong>:</li>
-<li><code>partition_column</code></li>
-<li><code>where_clause</code> (source filter)</li>
-<li><code>tolerance</code> (fraction of missing keys allowed, default 0.0)</li>
-<li><strong>Behavior</strong>:</li>
-<li>Compare distinct keys between source and target.</li>
-<li>Report missing keys on each side.</li>
+<li><code>table_store</code> provider</li>
+<li><code>catalog</code> provider</li>
+<li><code>query_engine</code> provider</li>
+<li>optional <code>metadata_catalog</code> and <code>lineage_sink</code></li>
 </ul>
-<h3 id="absolute-difference-tolerances">Absolute-difference tolerances</h3>
-<p>Extend reconciliation checks that compare row counts or aggregates to accept an absolute
-tolerance in addition to percentage tolerance.</p>
-<ul>
-<li>New optional field: <code>absolute_tolerance</code> (default <code>None</code>).</li>
-<li>A check passes when <strong>either</strong> percent tolerance or absolute tolerance is satisfied.</li>
-<li>Applies to <code>ReconciliationCheck</code> and <code>AggregateConsistencyCheck</code>, and is reused by
-  <code>ChecksumReconciliationCheck</code> where applicable (e.g., mismatches count).</li>
-</ul>
-<h3 id="multi-aggregate-parity">Multi-aggregate parity</h3>
-<p>Introduce <code>MultiAggregateConsistencyCheck</code> to compare multiple aggregates in a single query.</p>
-<ul>
-<li><strong>Required inputs</strong>:</li>
-<li><code>source_table</code></li>
-<li><code>aggregates</code>: list of <code>{name, expression, target_column}</code> mappings.</li>
-<li><strong>Optional inputs</strong>:</li>
-<li><code>partition_column</code></li>
-<li><code>group_by</code></li>
-<li><code>tolerance</code> / <code>absolute_tolerance</code></li>
-<li><strong>Behavior</strong>:</li>
-<li>Compute all aggregates in one source query.</li>
-<li>Compare each aggregate column in the target with the corresponding source value(s).</li>
-</ul>
-<h2 id="implementation">Implementation</h2>
-<ul>
-<li>Add <code>ChecksumReconciliationCheck</code> to
-  <code>packages/phlo-quality/src/phlo_quality/reconciliation.py</code> and export from
-  <code>packages/phlo-quality/src/phlo_quality/__init__.py</code>.</li>
-<li>Add <code>KeyParityCheck</code> and <code>MultiAggregateConsistencyCheck</code> to the same module and exports.</li>
-<li>Extend <code>ReconciliationCheck</code> and <code>AggregateConsistencyCheck</code> to support <code>absolute_tolerance</code>.</li>
-<li>Build source/target queries using Trino SQL with deterministic normalization.</li>
-<li>Extend tests in <code>packages/phlo-quality/tests/test_quality_reconciliation.py</code> to cover
-  matching hashes, mismatches, missing keys, tolerance, absolute tolerance, and partition filtering.</li>
-<li>Add short documentation to the developer guide alongside other reconciliation checks.</li>
-</ul>
-<h2 id="consequences">Consequences</h2>
-<h3 id="positive">Positive</h3>
-<ul>
-<li>Detects silent row-level drift that count/aggregate checks miss.</li>
-<li>Standardizes checksum reconciliation without user-specific SQL.</li>
-<li>Adds key parity and multi-aggregate primitives for common lakehouse checks.</li>
-<li>Supports absolute tolerances for small tables and low-volume partitions.</li>
-<li>Leverages existing Trino integration and partition-aware patterns.</li>
-</ul>
-<h3 id="negative">Negative</h3>
-<ul>
-<li>More expensive than count/aggregate checks on large tables.</li>
-<li>Requires careful normalization to avoid false positives.</li>
-<li>May be sensitive to nondeterministic columns unless explicitly excluded.</li>
-<li>Additional API surface increases maintenance burden.</li>
-</ul>
-<h2 id="verification">Verification</h2>
-<ul>
-<li>Run checksum reconciliation on a known-good dataset and verify zero mismatches.</li>
-<li>Introduce controlled row-level modifications and confirm mismatches are detected.</li>
-<li>Validate tolerance (percent + absolute), sampling, and partition filters with unit tests and
-  integration tests.</li>
-<li>Validate key parity and multi-aggregate checks against known mismatches.</li>
-</ul>
+<h2 id="migration-rule">Migration Rule</h2>
+<p>New package integrations should depend on capability interfaces and resolver lookups. Avoid direct imports of another package runtime unless that dependency is truly mandatory.</p>
 
 
 
@@ -1197,10 +1018,10 @@ tolerance in addition to percentage tolerance.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
