@@ -33,7 +33,8 @@ Works out-of-the-box when MinIO and Nessie are running:
 
 | Feature                | How It Works                                                                     |
 | ---------------------- | -------------------------------------------------------------------------------- |
-| **Resource Provider**  | `IcebergResource` published via capability specs                                 |
+| **Resource Provider**  | `IcebergResource` published as runtime resource `table_store`                    |
+| **Table Store Capability** | Registers `table_store:iceberg` capability                                   |
 | **Catalogs**           | Registers `iceberg` and `iceberg_dev` catalogs via `phlo.plugins.catalogs`       |
 | **Catalog Generation** | Catalog `.properties` files auto-generated at Trino startup                      |
 

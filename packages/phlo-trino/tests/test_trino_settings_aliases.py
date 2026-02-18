@@ -1,14 +1,11 @@
-"""Tests for Trino settings environment alias resolution."""
+"""Tests for Trino settings environment resolution."""
 
 from phlo_trino.settings import get_settings
 
 
-def test_trino_default_ref_uses_legacy_iceberg_env(monkeypatch) -> None:
-    """Ensure Trino default ref honors legacy Iceberg reference env var."""
-    monkeypatch.delenv("TRINO_DEFAULT_REF", raising=False)
-    monkeypatch.delenv("PHLO_TRINO_DEFAULT_REF", raising=False)
-    monkeypatch.delenv("PHLO_DEFAULT_REF", raising=False)
-    monkeypatch.setenv("ICEBERG_NESSIE_REF", "dev")
+def test_trino_default_ref_uses_trino_env(monkeypatch) -> None:
+    """Ensure Trino default ref reads from TRINO_DEFAULT_REF."""
+    monkeypatch.setenv("TRINO_DEFAULT_REF", "dev")
     get_settings.cache_clear()
     try:
         assert get_settings().trino_default_ref == "dev"
@@ -16,12 +13,12 @@ def test_trino_default_ref_uses_legacy_iceberg_env(monkeypatch) -> None:
         get_settings.cache_clear()
 
 
-def test_trino_default_ref_prefers_trino_specific_env(monkeypatch) -> None:
-    """Ensure Trino-specific env var takes precedence over legacy fallback."""
-    monkeypatch.setenv("TRINO_DEFAULT_REF", "release")
+def test_trino_default_ref_ignores_legacy_iceberg_env(monkeypatch) -> None:
+    """Ensure removed legacy Iceberg ref env is ignored."""
+    monkeypatch.delenv("TRINO_DEFAULT_REF", raising=False)
     monkeypatch.setenv("ICEBERG_NESSIE_REF", "dev")
     get_settings.cache_clear()
     try:
-        assert get_settings().trino_default_ref == "release"
+        assert get_settings().trino_default_ref == "main"
     finally:
         get_settings.cache_clear()
