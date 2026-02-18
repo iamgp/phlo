@@ -8,7 +8,10 @@ import sys
 import click
 
 from phlo.cli.commands.plugin.utils import console
+from phlo.logging import get_logger
 from phlo.plugins import discover_plugins, validate_plugins
+
+logger = get_logger(__name__)
 
 
 @click.command(name="check")
@@ -45,6 +48,12 @@ def check_cmd(output_json: bool):
         # Rich formatted output
         valid = validation_results.get("valid", [])
         invalid = validation_results.get("invalid", [])
+        logger.info(
+            "plugin_check_completed",
+            valid_count=len(valid),
+            invalid_count=len(invalid),
+            output_json=output_json,
+        )
 
         console.print(f"\n[green]✓ Valid Plugins: {len(valid)}[/green]")
         if valid:
@@ -52,6 +61,7 @@ def check_cmd(output_json: bool):
                 console.print(f"  [green]✓[/green] {plugin_id}")
 
         if invalid:
+            logger.warning("plugin_check_validation_failed", invalid_count=len(invalid))
             console.print(f"\n[red]✗ Invalid Plugins: {len(invalid)}[/red]")
             for plugin_id in invalid:
                 console.print(f"  [red]✗[/red] {plugin_id}")
@@ -62,5 +72,6 @@ def check_cmd(output_json: bool):
     except SystemExit:
         raise
     except Exception as e:
+        logger.exception("plugin_check_failed", output_json=output_json)
         console.print(f"[red]Error validating plugins: {e}[/red]")
         sys.exit(1)

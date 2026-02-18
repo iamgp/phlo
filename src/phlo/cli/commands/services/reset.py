@@ -11,6 +11,9 @@ from phlo.cli.commands.services.utils import ensure_phlo_dir, require_docker
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @click.command("reset")
@@ -43,8 +46,19 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     project_name = get_project_name()
     volumes_dir = phlo_dir / "volumes"
     volumes_dir_resolved = volumes_dir.resolve()
+    logger.info(
+        "services_reset_requested",
+        project_name=project_name,
+        service_args_count=len(service),
+        skip_confirmation=yes,
+    )
 
     if not compose_file.exists():
+        logger.error(
+            "services_reset_missing_compose_file",
+            project_name=project_name,
+            compose_file=str(compose_file),
+        )
         click.echo("Error: docker-compose.yml not found.", err=True)
         click.echo("Run 'phlo services init' first.", err=True)
         sys.exit(1)
@@ -68,6 +82,12 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
         try:
             volume_dirs = [_resolve_volume_dir(s) for s in services_list]
         except ValueError as exc:
+            logger.warning(
+                "services_reset_invalid_service_path",
+                project_name=project_name,
+                service_names=services_list,
+                error=str(exc),
+            )
             click.echo(f"Error: {exc}", err=True)
             sys.exit(1)
     else:
@@ -78,6 +98,11 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
     if not yes:
         click.echo(f"This will stop {target} and DELETE their data volumes.")
         if not click.confirm("Are you sure you want to continue?"):
+            logger.info(
+                "services_reset_aborted",
+                project_name=project_name,
+                target=target,
+            )
             click.echo("Aborted.")
             return
 
@@ -105,18 +130,46 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
                 "-v",  # Remove Docker volumes
             ]
         )
+    logger.info(
+        "services_reset_docker_started",
+        project_name=project_name,
+        target=target,
+        service_count=len(services_list),
+    )
 
     try:
         result = run_command(cmd, check=False, capture_output=False)
         if result.returncode != 0:
+            logger.warning(
+                "services_reset_docker_failed",
+                project_name=project_name,
+                returncode=result.returncode,
+                target=target,
+                service_count=len(services_list),
+            )
             click.echo(
                 f"Warning: docker compose command failed with code {result.returncode}", err=True
             )
             click.echo(f"Command: {' '.join(cmd)}", err=True)
+        else:
+            logger.info(
+                "services_reset_docker_completed",
+                project_name=project_name,
+                target=target,
+                service_count=len(services_list),
+            )
     except FileNotFoundError:
+        logger.error("services_reset_docker_not_found", project_name=project_name, exc_info=True)
         click.echo("Error: docker command not found.", err=True)
         sys.exit(1)
     except TimeoutExpired:
+        logger.warning(
+            "services_reset_docker_timeout",
+            project_name=project_name,
+            command=" ".join(cmd),
+            target=target,
+            exc_info=True,
+        )
         click.echo("Warning: docker compose command timed out.", err=True)
         click.echo(f"Command: {' '.join(cmd)}", err=True)
 
@@ -137,11 +190,24 @@ def reset_cmd(service: tuple[str, ...], yes: bool):
                     deleted_count += 1
                     click.echo(f"Deleted: {vol_dir.relative_to(phlo_dir)}")
             except OSError as e:
+                logger.warning(
+                    "services_reset_volume_delete_failed",
+                    project_name=project_name,
+                    volume_path=str(vol_dir),
+                    error=str(e),
+                )
                 click.echo(f"Warning: Could not delete {vol_dir}: {e}", err=True)
 
     # Recreate volumes directory if we deleted it entirely
     if not services_list and not volumes_dir.exists():
         volumes_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(
+        "services_reset_completed",
+        project_name=project_name,
+        target=target,
+        deleted_count=deleted_count,
+        service_count=len(services_list),
+    )
 
     click.echo("")
     if services_list:

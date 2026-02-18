@@ -7,9 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from phlo.logging import get_logger
 from phlo_metrics.telemetry import get_telemetry_path, iter_telemetry_events
 
 MAINTENANCE_COMPLETE_EVENT = "iceberg.maintenance.complete"
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -138,45 +140,53 @@ def load_maintenance_status(path: Path | None = None) -> MaintenanceStatusSnapsh
 
     event_path = get_telemetry_path(path)
     latest: dict[tuple[str, str, str], MaintenanceOperationStatus] = {}
-    for event in _iter_events(event_path):
-        if event.get("event_type") != "telemetry.log":
-            continue
-        if event.get("name") != MAINTENANCE_COMPLETE_EVENT:
-            continue
-        tags = _ensure_dict(event.get("tags"))
-        payload = _ensure_dict(event.get("payload"))
-        completed_at = _parse_timestamp(event.get("timestamp"))
-        operation = _coerce_str(
-            tags.get("operation") or payload.get("operation"),
-            "unknown",
+    try:
+        for event in _iter_events(event_path):
+            if event.get("event_type") != "telemetry.log":
+                continue
+            if event.get("name") != MAINTENANCE_COMPLETE_EVENT:
+                continue
+            tags = _ensure_dict(event.get("tags"))
+            payload = _ensure_dict(event.get("payload"))
+            completed_at = _parse_timestamp(event.get("timestamp"))
+            operation = _coerce_str(
+                tags.get("operation") or payload.get("operation"),
+                "unknown",
+            )
+            namespace = _coerce_str(
+                tags.get("namespace") or payload.get("namespace"),
+                "unknown",
+            )
+            ref = _coerce_str(tags.get("ref") or payload.get("ref"), "main")
+            key = (operation, namespace, ref)
+            status = _coerce_str(payload.get("status"), "unknown")
+            entry = MaintenanceOperationStatus(
+                operation=operation,
+                namespace=namespace,
+                ref=ref,
+                status=status,
+                completed_at=completed_at,
+                duration_seconds=_coerce_float(payload.get("duration_seconds")),
+                tables_processed=_coerce_int(payload.get("tables_processed")),
+                errors=_coerce_int(payload.get("errors")),
+                snapshots_deleted=_coerce_int(payload.get("snapshots_deleted")),
+                orphan_files=_coerce_int(payload.get("orphan_files")),
+                total_records=_coerce_int(payload.get("total_records")),
+                total_size_mb=_coerce_float(payload.get("total_size_mb")) or 0.0,
+                dry_run=_coerce_bool(tags.get("dry_run") or payload.get("dry_run")),
+                run_id=_coerce_optional_str(payload.get("run_id")),
+                job_name=_coerce_optional_str(payload.get("job_name")),
+            )
+            previous = latest.get(key)
+            if not previous or entry.completed_at > previous.completed_at:
+                latest[key] = entry
+    except Exception:
+        logger.warning(
+            "maintenance_status_load_failed",
+            telemetry_path=str(event_path),
+            exc_info=True,
         )
-        namespace = _coerce_str(
-            tags.get("namespace") or payload.get("namespace"),
-            "unknown",
-        )
-        ref = _coerce_str(tags.get("ref") or payload.get("ref"), "main")
-        key = (operation, namespace, ref)
-        status = _coerce_str(payload.get("status"), "unknown")
-        entry = MaintenanceOperationStatus(
-            operation=operation,
-            namespace=namespace,
-            ref=ref,
-            status=status,
-            completed_at=completed_at,
-            duration_seconds=_coerce_float(payload.get("duration_seconds")),
-            tables_processed=_coerce_int(payload.get("tables_processed")),
-            errors=_coerce_int(payload.get("errors")),
-            snapshots_deleted=_coerce_int(payload.get("snapshots_deleted")),
-            orphan_files=_coerce_int(payload.get("orphan_files")),
-            total_records=_coerce_int(payload.get("total_records")),
-            total_size_mb=_coerce_float(payload.get("total_size_mb")) or 0.0,
-            dry_run=_coerce_bool(tags.get("dry_run") or payload.get("dry_run")),
-            run_id=_coerce_optional_str(payload.get("run_id")),
-            job_name=_coerce_optional_str(payload.get("job_name")),
-        )
-        previous = latest.get(key)
-        if not previous or entry.completed_at > previous.completed_at:
-            latest[key] = entry
+        raise
 
     operations = sorted(latest.values(), key=lambda item: item.completed_at, reverse=True)
     last_updated = operations[0].completed_at if operations else datetime.now(timezone.utc)
@@ -189,34 +199,42 @@ def render_maintenance_prometheus(path: Path | None = None) -> str:
     event_path = get_telemetry_path(path)
     counters: dict[tuple[str, tuple[tuple[str, str], ...]], float] = {}
     gauges: dict[tuple[str, tuple[tuple[str, str], ...]], tuple[float, datetime]] = {}
-    for event in _iter_events(event_path):
-        if event.get("event_type") != "telemetry.metric":
-            continue
-        name = event.get("name")
-        if not isinstance(name, str):
-            continue
-        metric = _PROMETHEUS_MAP.get(name)
-        if not metric:
-            continue
-        value = _coerce_float(event.get("value"))
-        if value is None:
-            continue
-        tags = _ensure_dict(event.get("tags"))
-        labels = _metric_labels(tags)
-        label_key = tuple(sorted(labels.items()))
-        if metric.mode == "counter":
-            counters[(metric.prom_name, label_key)] = (
-                counters.get(
-                    (metric.prom_name, label_key),
-                    0.0,
+    try:
+        for event in _iter_events(event_path):
+            if event.get("event_type") != "telemetry.metric":
+                continue
+            name = event.get("name")
+            if not isinstance(name, str):
+                continue
+            metric = _PROMETHEUS_MAP.get(name)
+            if not metric:
+                continue
+            value = _coerce_float(event.get("value"))
+            if value is None:
+                continue
+            tags = _ensure_dict(event.get("tags"))
+            labels = _metric_labels(tags)
+            label_key = tuple(sorted(labels.items()))
+            if metric.mode == "counter":
+                counters[(metric.prom_name, label_key)] = (
+                    counters.get(
+                        (metric.prom_name, label_key),
+                        0.0,
+                    )
+                    + value
                 )
-                + value
-            )
-        else:
-            timestamp = _parse_timestamp(event.get("timestamp"))
-            current = gauges.get((metric.prom_name, label_key))
-            if not current or timestamp > current[1]:
-                gauges[(metric.prom_name, label_key)] = (value, timestamp)
+            else:
+                timestamp = _parse_timestamp(event.get("timestamp"))
+                current = gauges.get((metric.prom_name, label_key))
+                if not current or timestamp > current[1]:
+                    gauges[(metric.prom_name, label_key)] = (value, timestamp)
+    except Exception:
+        logger.warning(
+            "maintenance_prometheus_render_failed",
+            telemetry_path=str(event_path),
+            exc_info=True,
+        )
+        raise
 
     lines: list[str] = []
     by_prom: dict[str, _PrometheusMetric] = {m.prom_name: m for m in _PROMETHEUS_MAP.values()}

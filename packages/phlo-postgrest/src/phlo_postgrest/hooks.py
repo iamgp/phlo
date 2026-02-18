@@ -85,6 +85,12 @@ def _discover_schemas_via_docker(db_uri: str) -> list[str]:
     )
 
     postgres_container = _resolve_container_name("postgres")
+    logger.info(
+        "postgrest_schema_discovery_docker_exec_started",
+        postgres_container=postgres_container,
+        database=db_parts["database"],
+        db_user=db_parts["username"],
+    )
     cmd = [
         "docker",
         "exec",
@@ -106,16 +112,44 @@ def _discover_schemas_via_docker(db_uri: str) -> list[str]:
         ]
     )
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except Exception:
+        logger.exception(
+            "postgrest_schema_discovery_docker_exec_failed",
+            postgres_container=postgres_container,
+            database=db_parts["database"],
+            db_user=db_parts["username"],
+        )
+        raise
+
     if result.returncode != 0:
+        stderr_lines = [line for line in result.stderr.splitlines() if line.strip()]
+        logger.error(
+            "postgrest_schema_discovery_docker_exec_failed",
+            postgres_container=postgres_container,
+            database=db_parts["database"],
+            db_user=db_parts["username"],
+            return_code=result.returncode,
+            stderr_line_count=len(stderr_lines),
+        )
         raise RuntimeError(f"psql failed: {result.stderr.strip()}")
 
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    schemas = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    logger.info(
+        "postgrest_schema_discovery_docker_exec_succeeded",
+        postgres_container=postgres_container,
+        database=db_parts["database"],
+        db_user=db_parts["username"],
+        schema_count=len(schemas),
+        schemas=schemas,
+    )
+    return schemas
 
 
 def discover_schemas() -> list[str]:

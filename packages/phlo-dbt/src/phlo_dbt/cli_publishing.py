@@ -14,7 +14,10 @@ import click
 import yaml
 
 from phlo.cli.infrastructure.utils import get_project_name
+from phlo.logging import get_logger
 from phlo_dbt.settings import get_settings
+
+logger = get_logger(__name__)
 
 
 def _normalize_select_patterns(select: Iterable[str]) -> list[str]:
@@ -103,8 +106,10 @@ def _load_manifest_models(manifest_path: Path) -> dict[str, dict[str, Any]]:
     try:
         manifest = json.loads(manifest_path.read_text())
     except OSError as e:
+        logger.exception("dbt_publishing_manifest_read_failed", manifest_path=str(manifest_path))
         raise click.ClickException(f"Failed to read manifest: {manifest_path} ({e})") from e
     except json.JSONDecodeError as e:
+        logger.exception("dbt_publishing_manifest_invalid_json", manifest_path=str(manifest_path))
         raise click.ClickException(f"Invalid JSON in manifest: {manifest_path} ({e})") from e
 
     models: dict[str, dict[str, Any]] = {}
@@ -254,9 +259,20 @@ def scaffold_cmd(
     Idempotent: re-running preserves existing config and only adds missing tables/dependencies.
     """
     manifest_path = manifest or Path(get_settings().dbt_manifest_path)
+    logger.info(
+        "dbt_publishing_scaffold_started",
+        manifest_path=str(manifest_path),
+        output_path=str(output),
+        dry_run=dry_run,
+        select_patterns=list(select_patterns),
+    )
     if not manifest_path.is_absolute():
         manifest_path = (Path.cwd() / manifest_path).resolve()
     if not manifest_path.exists():
+        logger.warning(
+            "dbt_publishing_manifest_missing",
+            manifest_path=str(manifest_path),
+        )
         raise click.ClickException(f"dbt manifest not found at {manifest_path}")
 
     models = _load_manifest_models(manifest_path)
@@ -265,6 +281,12 @@ def scaffold_cmd(
     patterns = _normalize_select_patterns(select_patterns)
     selected_model_names = _select_models(all_model_names, patterns)
     if not selected_model_names:
+        logger.warning(
+            "dbt_publishing_no_models_selected",
+            manifest_path=str(manifest_path),
+            patterns=patterns,
+            available_model_count=len(all_model_names),
+        )
         raise click.ClickException(f"No models matched selection: {', '.join(patterns)}")
 
     resolved_source_key = source_key or get_project_name()
@@ -286,8 +308,20 @@ def scaffold_cmd(
 
     rendered = _dump_yaml(updated_config)
     if dry_run:
+        logger.info(
+            "dbt_publishing_scaffold_rendered",
+            source_key=resolved_source_key,
+            selected_model_count=len(selected_model_names),
+            output_mode="stdout",
+        )
         click.echo(rendered)
         return
 
     output.write_text(rendered)
+    logger.info(
+        "dbt_publishing_scaffold_written",
+        source_key=resolved_source_key,
+        selected_model_count=len(selected_model_names),
+        output_path=str(output),
+    )
     click.echo(f"Wrote {output}")

@@ -4,9 +4,12 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from phlo.capabilities import CheckResult
+from phlo.logging import get_logger
 from phlo_quality.contract import QualityCheckContract, dbt_check_name
 from phlo_quality.severity import severity_for_dbt_test
 from phlo_dbt.translator import DbtSpecTranslator
+
+logger = get_logger(__name__)
 
 
 def extract_dbt_asset_checks(
@@ -31,8 +34,14 @@ def extract_dbt_asset_checks(
     """
     nodes = manifest.get("nodes") or {}
     checks: list[CheckResult] = []
+    result_entries = run_results.get("results", []) or []
+    logger.info(
+        "dbt_asset_checks_extraction_started",
+        result_count=len(result_entries) if isinstance(result_entries, list) else 0,
+        partition_key=partition_key,
+    )
 
-    for result in run_results.get("results", []) or []:
+    for result in result_entries:
         unique_id = result.get("unique_id")
         if not isinstance(unique_id, str) or not unique_id.startswith("test."):
             continue
@@ -55,6 +64,11 @@ def extract_dbt_asset_checks(
         try:
             asset_key_str = translator.get_asset_key(target_props)
         except Exception:
+            logger.exception(
+                "dbt_asset_checks_target_translate_failed",
+                test_unique_id=unique_id,
+                target_unique_id=target_unique_id,
+            )
             continue
 
         test_props = nodes.get(unique_id, {})
@@ -113,6 +127,11 @@ def extract_dbt_asset_checks(
             )
         )
 
+    logger.info(
+        "dbt_asset_checks_extraction_finished",
+        check_count=len(checks),
+        partition_key=partition_key,
+    )
     return checks
 
 

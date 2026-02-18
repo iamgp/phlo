@@ -10,9 +10,11 @@ from typing import Optional
 import click
 from rich.console import Console
 
+from phlo.logging import get_logger
 from phlo_dagster.cli_logs_display import _display_logs, _tail_logs
 
 console = Console()
+logger = get_logger(__name__)
 
 
 @click.command()
@@ -104,6 +106,18 @@ def logs(
 
     # Parse time filter
     start_time = _parse_since(since) if since else None
+    logger.info(
+        "dagster_logs_command_started",
+        has_asset_filter=asset is not None,
+        has_job_filter=job is not None,
+        level=level,
+        since=since,
+        run_id=run_id,
+        follow=follow,
+        full=full,
+        limit=limit,
+        output_json=output_json,
+    )
 
     # Build filters
     filters = {
@@ -117,9 +131,18 @@ def logs(
 
     if follow:
         _tail_logs(filters, full, output_json)
+        logger.info(
+            "dagster_logs_follow_mode_completed",
+            limit=limit,
+        )
     else:
         logs_data = _get_logs(filters, quiet=output_json)
         _display_logs(logs_data, full=full, output_json=output_json)
+        logger.info(
+            "dagster_logs_query_completed",
+            log_count=len(logs_data),
+            limit=limit,
+        )
 
 
 def _parse_since(since_str: str) -> datetime:
@@ -151,6 +174,11 @@ def _parse_since(since_str: str) -> datetime:
         else:
             raise ValueError(f"Unknown time unit: {unit}")
     except Exception as e:
+        logger.warning(
+            "dagster_logs_since_parse_failed",
+            since=since_str,
+            error=str(e),
+        )
         console.print(f"[yellow]Warning: Invalid time filter '{since_str}': {e}[/yellow]")
         return datetime.now(timezone.utc) - timedelta(hours=24)  # Default to last 24 hours
 
@@ -180,6 +208,12 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
 
         # Build GraphQL query
         query = _build_logs_query(filters)
+        logger.debug(
+            "dagster_logs_graphql_query_started",
+            limit=filters.get("limit", 100),
+            has_level_filter=filters.get("level") is not None,
+            has_run_filter=filters.get("run_id") is not None,
+        )
 
         try:
             result = client._execute(query)
@@ -216,14 +250,23 @@ def _get_logs(filters: dict, quiet: bool = False) -> list[dict]:
 
                         logs_list.append(log_entry)
 
+            logger.debug(
+                "dagster_logs_graphql_query_completed",
+                log_count=len(logs_list),
+            )
             return logs_list
 
         except Exception:
             # GraphQL query might fail, provide mock data
+            logger.warning(
+                "dagster_logs_graphql_query_failed_fallback_mock",
+                exc_info=True,
+            )
             return _get_mock_logs(filters, show_warning=not quiet)
 
     except ImportError:
         # Dagster GraphQL client not available, use mock data
+        logger.info("dagster_logs_graphql_client_unavailable_fallback_mock")
         return _get_mock_logs(filters, show_warning=not quiet)
 
 

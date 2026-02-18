@@ -8,6 +8,7 @@ This module automates the generation of PostgREST API views from dbt models:
 """
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -443,8 +444,32 @@ def generate_views(
     if apply:
         if verbose:
             logger.info("Applying to database...")
+        view_names = sorted(
+            set(re.findall(rf"CREATE OR REPLACE VIEW {re.escape(api_schema)}\.(\w+)", sql))
+        )
+        logger.info(
+            "postgrest_view_apply_started",
+            schema=api_schema,
+            view_count=len(view_names),
+            view_names=view_names,
+        )
         manager = PostgreSTViewManager()
-        manager.execute_sql(sql, verbose=verbose)
+        try:
+            manager.execute_sql(sql, verbose=verbose)
+        except Exception:
+            logger.exception(
+                "postgrest_view_apply_failed",
+                schema=api_schema,
+                view_count=len(view_names),
+                view_names=view_names,
+            )
+            raise
+        logger.info(
+            "postgrest_view_apply_succeeded",
+            schema=api_schema,
+            view_count=len(view_names),
+            view_names=view_names,
+        )
         return "Views applied successfully"
 
     # Handle output file

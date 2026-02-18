@@ -13,7 +13,10 @@ from typing import Any, Callable
 
 import click
 
+from phlo.logging import get_logger
+
 _DEFAULT_SCHEMA_OUT_DIR = Path("workflows/schemas")
+logger = get_logger(__name__)
 
 
 def _import_object(ref: str) -> Any:
@@ -33,6 +36,11 @@ def _import_object(ref: str) -> Any:
     try:
         return getattr(module, attr)
     except AttributeError as exc:
+        logger.warning(
+            "schema_codegen_import_attr_missing",
+            module_name=module_name,
+            attribute=attr,
+        )
         raise click.ClickException(f"Object not found: {ref}") from exc
 
 
@@ -190,6 +198,7 @@ def _ensure_imports_in_module(content: str, import_lines: list[str]) -> str:
     try:
         tree = ast.parse(content)
     except SyntaxError:
+        logger.warning("schema_codegen_existing_module_invalid_syntax")
         # Don't try to be clever if the file is already invalid.
         return "\n".join(import_lines) + "\n" + content
 
@@ -298,6 +307,10 @@ def generate(
         from dlt.extract.resource import DltResource
         from dlt.extract.source import DltSource
     except Exception as exc:  # pragma: no cover
+        logger.exception(
+            "schema_codegen_dlt_import_failed",
+            from_ref=from_ref,
+        )
         raise click.ClickException(f"Failed to import DLT types: {exc}") from exc
 
     if isinstance(dlt_obj, DltSource):

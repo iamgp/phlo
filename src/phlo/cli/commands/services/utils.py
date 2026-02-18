@@ -249,7 +249,14 @@ def _run_service_hooks(
 
     from phlo.plugins.discovery import ServiceDiscovery
 
+    logger.debug(
+        "service_hook_execution_started",
+        hook_name=hook_name,
+        service_count=len(service_names),
+    )
     discovery = ServiceDiscovery()
+    executed_count = 0
+    failed_count = 0
     for name in service_names:
         service = discovery.get_service(name)
         if not service:
@@ -269,6 +276,12 @@ def _run_service_hooks(
                 import importlib.util
 
                 if importlib.util.find_spec(required_module) is None:
+                    logger.debug(
+                        "service_hook_skipped_missing_dependency",
+                        hook_name=hook_name,
+                        service_name=service.name,
+                        required_module=required_module,
+                    )
                     continue
 
             # Respect delay setting
@@ -293,19 +306,61 @@ def _run_service_hooks(
                 timeout = int(timeout)
             elif not isinstance(timeout, int):
                 timeout = None
+            command_name = command[0] if command else ""
+            command_started = time.perf_counter()
+            logger.debug(
+                "service_hook_command_started",
+                hook_name=hook_name,
+                service_name=service.name,
+                command_name=command_name,
+                arg_count=max(len(command) - 1, 0),
+                timeout_seconds=timeout,
+            )
             try:
                 result = run_command(command, timeout_seconds=timeout, check=False)
             except Exception as exc:
+                failed_count += 1
                 click.echo(
                     f"Warning: hook '{hook_name}' for {service.name} failed: {exc}",
                     err=True,
                 )
+                logger.warning(
+                    "service_hook_command_failed",
+                    hook_name=hook_name,
+                    service_name=service.name,
+                    command_name=command_name,
+                    error=str(exc),
+                    elapsed_ms=round((time.perf_counter() - command_started) * 1000, 2),
+                )
                 continue
+            executed_count += 1
+            logger.debug(
+                "service_hook_command_completed",
+                hook_name=hook_name,
+                service_name=service.name,
+                command_name=command_name,
+                returncode=result.returncode,
+                elapsed_ms=round((time.perf_counter() - command_started) * 1000, 2),
+            )
             if result.returncode != 0:
+                failed_count += 1
                 click.echo(
                     f"Warning: hook '{hook_name}' for {service.name} failed: {result.stderr}",
                     err=True,
                 )
+                logger.warning(
+                    "service_hook_command_nonzero_exit",
+                    hook_name=hook_name,
+                    service_name=service.name,
+                    command_name=command_name,
+                    returncode=result.returncode,
+                )
+    logger.debug(
+        "service_hook_execution_completed",
+        hook_name=hook_name,
+        executed_count=executed_count,
+        failed_count=failed_count,
+    )
 
 
 def _emit_service_lifecycle_events(

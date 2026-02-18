@@ -20,10 +20,12 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
+from phlo.logging import get_logger
 from phlo_quality.cli_schema_codegen import generate as codegen_generate
 from phlo_quality.cli_schema_utils import classify_schema_change, discover_pandera_schemas
 
 console = Console()
+logger = get_logger(__name__)
 
 
 @click.group()
@@ -96,6 +98,11 @@ def list(domain: Optional[str], format: str):
             console.print(table)
 
     except Exception as e:
+        logger.exception(
+            "schema_list_failed",
+            domain=domain,
+            output_format=format,
+        )
         console.print(f"[red]Error listing schemas: {e}[/red]")
         sys.exit(1)
 
@@ -165,6 +172,11 @@ def show(schema_name: str, iceberg: bool):
             console.print(syntax)
 
     except Exception as e:
+        logger.exception(
+            "schema_show_failed",
+            schema_name=schema_name,
+            iceberg=iceberg,
+        )
         console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
 
@@ -228,6 +240,12 @@ def diff(schema_name: str, old: str, format: str):
             console.print(table)
 
     except Exception as e:
+        logger.exception(
+            "schema_diff_failed",
+            schema_name=schema_name,
+            old_ref=old,
+            output_format=format,
+        )
         console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)
 
@@ -267,6 +285,12 @@ def validate(schema_path: str):
         try:
             compile(content, path, "exec")
         except SyntaxError as e:
+            logger.warning(
+                "schema_validate_syntax_error",
+                schema_path=str(path),
+                line=e.lineno,
+                offset=e.offset,
+            )
             checks["Valid Python"] = False
             console.print(f"[red]Syntax error: {e}[/red]")
 
@@ -292,6 +316,10 @@ def validate(schema_path: str):
             sys.exit(1)
 
     except Exception as e:
+        logger.exception(
+            "schema_validate_failed",
+            schema_path=schema_path,
+        )
         console.print(f"[red]Error validating schema: {e}[/red]")
         sys.exit(1)
 

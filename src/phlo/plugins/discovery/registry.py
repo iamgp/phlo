@@ -7,6 +7,7 @@ methods for accessing them by name and type.
 
 from __future__ import annotations
 
+from phlo.logging import get_logger
 from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
@@ -20,6 +21,8 @@ from phlo.plugins.base import (
     TransformationPlugin,
 )
 from phlo.plugins.hooks import HookPlugin
+
+logger = get_logger(__name__)
 
 _TYPE_CONFIG = {
     "source_connectors": ("_sources", "source", "Source connector"),
@@ -61,6 +64,7 @@ class PluginRegistry:
         """Register a plugin of any type."""
         config = _TYPE_CONFIG.get(plugin_type)
         if not config:
+            logger.error("plugin_registration_unknown_type", plugin_type=plugin_type)
             raise ValueError(f"Unknown plugin type: {plugin_type}")
 
         dict_name, key_prefix, type_label = config
@@ -68,6 +72,11 @@ class PluginRegistry:
         name = plugin.metadata.name
 
         if name in plugin_dict and not replace:
+            logger.warning(
+                "plugin_registration_conflict",
+                plugin_type=plugin_type,
+                plugin_name=name,
+            )
             raise ValueError(
                 f"{type_label} plugin '{name}' is already registered. "
                 f"Use replace=True to overwrite."
@@ -75,6 +84,12 @@ class PluginRegistry:
 
         plugin_dict[name] = plugin
         self._all_plugins[f"{key_prefix}:{name}"] = plugin
+        logger.debug(
+            "plugin_registered",
+            plugin_type=plugin_type,
+            plugin_name=name,
+            replace=replace,
+        )
 
     def register_source_connector(
         self, plugin: SourceConnectorPlugin, replace: bool = False
@@ -226,9 +241,11 @@ class PluginRegistry:
 
     def clear(self) -> None:
         """Clear all registered plugins."""
+        total = len(self._all_plugins)
         for config in _TYPE_CONFIG.values():
             getattr(self, config[0]).clear()
         self._all_plugins.clear()
+        logger.debug("plugin_registry_cleared", previous_total=total)
 
     def iter_plugins(self) -> list[Plugin]:
         """Return all registered plugin instances."""
@@ -290,6 +307,7 @@ class PluginRegistry:
             if not all(hasattr(metadata, f) for f in ("name", "version")):
                 return False
         except Exception:
+            logger.debug("plugin_validation_metadata_access_failed", exc_info=True)
             return False
 
         # Type-specific validation
@@ -303,6 +321,7 @@ class PluginRegistry:
             try:
                 service_definition = plugin.service_definition
             except Exception:
+                logger.debug("plugin_validation_service_definition_failed", exc_info=True)
                 return False
             return isinstance(service_definition, dict)
         elif isinstance(plugin, HookPlugin):

@@ -71,6 +71,7 @@ def test_setup_logging_writes_to_file(tmp_path: Path) -> None:
         router_enabled=False,
         service_name="phlo-tests",
         log_file_template=template,
+        environment="test",
     )
 
     setup_logging(settings, force=True)
@@ -83,4 +84,34 @@ def test_setup_logging_writes_to_file(tmp_path: Path) -> None:
     path = _render_log_file_path(template)
     assert path is not None
     assert path.exists()
-    assert "hello file logging" in path.read_text()
+    contents = path.read_text()
+    assert "hello file logging" in contents
+    assert '"environment": "test"' in contents
+
+
+def test_setup_logging_redacts_sensitive_fields(tmp_path: Path) -> None:
+    """Redacts sensitive values before rendering structured logs."""
+    template = str(tmp_path / "redacted-{YMD}.log")
+    settings = LoggingSettings(
+        level="INFO",
+        log_format="json",
+        router_enabled=False,
+        service_name="phlo-tests",
+        log_file_template=template,
+        environment="test",
+    )
+
+    setup_logging(settings, force=True)
+    logger = get_logger("phlo.tests.logging")
+    logger.info("sensitive test", api_token="abc123", nested={"password": "p@ss"})
+
+    for handler in logging.root.handlers:
+        handler.flush()
+
+    path = _render_log_file_path(template)
+    assert path is not None
+    assert path.exists()
+    contents = path.read_text()
+    assert "<redacted>" in contents
+    assert "abc123" not in contents
+    assert "p@ss" not in contents

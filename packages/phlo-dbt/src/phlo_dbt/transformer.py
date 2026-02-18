@@ -318,6 +318,43 @@ class DbtTransformer(BaseTransformer):
         self.target = target
         self.dbt_executable = dbt_executable
 
+    @staticmethod
+    def _sanitize_command_args_for_logging(args: List[str]) -> list[str]:
+        """Redact sensitive argument values before logging command invocations."""
+        sensitive_flags = {
+            "--vars",
+            "--password",
+            "--token",
+            "--secret",
+            "--key",
+            "--access-token",
+            "--api-key",
+        }
+        sensitive_prefixes = tuple(f"{flag}=" for flag in sensitive_flags)
+        redacted_args: list[str] = []
+        redact_next = False
+
+        for arg in args:
+            if redact_next:
+                redacted_args.append("<redacted>")
+                redact_next = False
+                continue
+
+            normalized = arg.lower()
+            if normalized in sensitive_flags:
+                redacted_args.append(arg)
+                redact_next = True
+                continue
+
+            if normalized.startswith(sensitive_prefixes):
+                key = arg.split("=", 1)[0]
+                redacted_args.append(f"{key}=<redacted>")
+                continue
+
+            redacted_args.append(arg)
+
+        return redacted_args
+
     def _run_command(
         self, args: List[str], env: Optional[Dict[str, str]] = None
     ) -> subprocess.CompletedProcess:
@@ -337,7 +374,11 @@ class DbtTransformer(BaseTransformer):
         # Ensure DBT_PROFILES_DIR is set if not passed explicitly in args (though we pass it)
         # But for 'subprocess', arguments are better.
 
-        self.logger.info(f"Running command: {self.dbt_executable} {' '.join(args)}")
+        self.logger.info(
+            "dbt_command_running",
+            command_name=self.dbt_executable,
+            command_args=self._sanitize_command_args_for_logging(args),
+        )
 
         return subprocess.run(
             [self.dbt_executable] + args,
@@ -384,7 +425,7 @@ class DbtTransformer(BaseTransformer):
 
         if partition_key:
             build_args.extend(["--vars", f'{{"partition_date_str": "{partition_key}"}}'])
-            self.logger.info(f"Running dbt for partition: {partition_key}")
+            self.logger.info("dbt_partition_execution_started", partition_key=partition_key)
 
         # Setup Emitters
         # We need model names for context. If select args are passed, we use those as proxy

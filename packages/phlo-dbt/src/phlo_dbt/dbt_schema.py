@@ -13,7 +13,10 @@ from typing import Any
 import yaml
 from pandera.pandas import Field
 
+from phlo.logging import get_logger
 from phlo_quality.schemas.base import PhloSchema
+
+logger = get_logger(__name__)
 
 
 def _parse_dbt_tests(data_tests: list[Any]) -> dict[str, Any]:
@@ -115,64 +118,92 @@ def dbt_model_to_pandera(
         validated_df = Schema.validate(df)
     """
     yaml_path = Path(yaml_path)
+    configured_column_count: int | None = None
+    generated_column_count = 0
+    logger.info(
+        "dbt_schema_generation_started",
+        yaml_path=str(yaml_path),
+        model_name=model_name,
+    )
 
-    with open(yaml_path) as f:
-        dbt_config = yaml.safe_load(f)
+    try:
+        with open(yaml_path) as f:
+            dbt_config = yaml.safe_load(f)
 
-    # Find the model in the YAML
-    model_config = None
-    for model in dbt_config.get("models", []):
-        if model.get("name") == model_name:
-            model_config = model
-            break
+        # Find the model in the YAML
+        model_config = None
+        for model in dbt_config.get("models", []):
+            if model.get("name") == model_name:
+                model_config = model
+                break
 
-    if model_config is None:
-        raise ValueError(f"Model '{model_name}' not found in {yaml_path}")
+        if model_config is None:
+            raise ValueError(f"Model '{model_name}' not found in {yaml_path}")
 
-    # Generate class name if not provided
-    if class_name is None:
-        class_name = "".join(word.capitalize() for word in model_name.split("_"))
+        # Generate class name if not provided
+        if class_name is None:
+            class_name = "".join(word.capitalize() for word in model_name.split("_"))
 
-    # Build annotations and namespace
-    annotations: dict[str, Any] = {}
-    namespace: dict[str, Any] = {
-        "__annotations__": annotations,
-        "__module__": __name__,
-    }
+        # Build annotations and namespace
+        annotations: dict[str, Any] = {}
+        namespace: dict[str, Any] = {
+            "__annotations__": annotations,
+            "__module__": __name__,
+        }
 
-    columns = model_config.get("columns", [])
-    if not isinstance(columns, list):
-        raise ValueError(f"Model '{model_name}' columns are not a list")
+        columns = model_config.get("columns", [])
+        if not isinstance(columns, list):
+            raise ValueError(f"Model '{model_name}' columns are not a list")
+        configured_column_count = len(columns)
 
-    for column in columns:
-        if not isinstance(column, dict):
-            continue
-        col_name = column.get("name")
-        if not isinstance(col_name, str):
-            continue
-        data_tests = column.get("data_tests", column.get("tests", []))
+        for column in columns:
+            if not isinstance(column, dict):
+                continue
+            col_name = column.get("name")
+            if not isinstance(col_name, str):
+                continue
+            data_tests = column.get("data_tests", column.get("tests", []))
 
-        # Parse tests into Field kwargs
-        field_kwargs = _parse_dbt_tests(data_tests)
+            # Parse tests into Field kwargs
+            field_kwargs = _parse_dbt_tests(data_tests)
 
-        # Infer type
-        python_type = _infer_type(col_name, data_tests)
+            # Infer type
+            python_type = _infer_type(col_name, data_tests)
 
-        # Handle nullable
-        is_nullable = field_kwargs.pop("nullable", True)
-        if not is_nullable:
-            annotations[col_name] = python_type
-        else:
-            annotations[col_name] = python_type | None
+            # Handle nullable
+            is_nullable = field_kwargs.pop("nullable", True)
+            if not is_nullable:
+                annotations[col_name] = python_type
+            else:
+                annotations[col_name] = python_type | None
 
-        # Create Field if there are constraints
-        if field_kwargs:
-            namespace[col_name] = Field(**field_kwargs)
+            # Create Field if there are constraints
+            if field_kwargs:
+                namespace[col_name] = Field(**field_kwargs)
 
-    # Create the class dynamically
-    from typing import cast
+        generated_column_count = len(annotations)
 
-    schema_class = cast(type[PhloSchema], type(class_name, (PhloSchema,), namespace))
-    schema_class.__doc__ = model_config.get("description", f"Schema for {model_name}")
+        # Create the class dynamically
+        from typing import cast
 
-    return schema_class
+        schema_class = cast(type[PhloSchema], type(class_name, (PhloSchema,), namespace))
+        schema_class.__doc__ = model_config.get("description", f"Schema for {model_name}")
+        logger.info(
+            "dbt_schema_generation_finished",
+            yaml_path=str(yaml_path),
+            model_name=model_name,
+            configured_column_count=configured_column_count,
+            generated_column_count=generated_column_count,
+        )
+        return schema_class
+    except Exception as exc:
+        logger.error(
+            "dbt_schema_generation_failed",
+            yaml_path=str(yaml_path),
+            model_name=model_name,
+            configured_column_count=configured_column_count,
+            generated_column_count=generated_column_count,
+            error=str(exc),
+            exc_info=True,
+        )
+        raise

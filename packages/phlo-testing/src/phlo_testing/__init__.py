@@ -148,6 +148,7 @@ For comprehensive testing patterns and best practices, see:
 """
 
 import importlib
+from phlo.logging import get_logger
 
 # Phase 1: Core Mocks
 from phlo_testing.conftest_template import (
@@ -208,6 +209,8 @@ from phlo_testing.hooks import (
     sample_transform_event,
 )
 
+logger = get_logger(__name__)
+
 # Fixtures are auto-discovered by pytest from fixtures.py.
 # Load lazily so base package import does not require pytest at runtime.
 _FIXTURE_EXPORTS = [
@@ -237,7 +240,13 @@ try:
     _fixtures_module = importlib.import_module("phlo_testing.fixtures")
 except ModuleNotFoundError as exc:
     if exc.name != "pytest":
+        logger.warning(
+            "phlo_testing_fixtures_import_failed",
+            missing_module=exc.name,
+            exc_info=True,
+        )
         raise
+    logger.debug("phlo_testing_fixtures_pytest_unavailable")
 else:
     _FIXTURES_AVAILABLE = True
     _MISSING = object()
@@ -249,6 +258,10 @@ else:
             continue
         globals()[_fixture_name] = fixture
     if missing_exports:
+        logger.warning(
+            "phlo_testing_fixtures_missing_exports",
+            missing_exports=missing_exports,
+        )
         missing = ", ".join(missing_exports)
         raise ImportError(
             f"phlo_testing.fixtures is missing exports declared in _FIXTURE_EXPORTS: {missing}"

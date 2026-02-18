@@ -12,6 +12,10 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
+
 router = APIRouter(tags=["maintenance"])
 
 
@@ -50,8 +54,10 @@ def get_maintenance_status() -> MaintenanceStatusSnapshot | dict[str, str]:
         from phlo_metrics.maintenance import load_maintenance_status
 
         snapshot = load_maintenance_status()
+        logger.debug("maintenance_status_loaded", operation_count=len(snapshot.operations))
         return _serialize_snapshot(snapshot)
     except Exception as exc:
+        logger.exception("maintenance_status_load_failed")
         return {"error": str(exc)}
 
 
@@ -62,8 +68,11 @@ def get_maintenance_metrics() -> PlainTextResponse:
     try:
         from phlo_metrics.maintenance import render_maintenance_prometheus
 
-        return PlainTextResponse(render_maintenance_prometheus())
+        metrics_payload = render_maintenance_prometheus()
+        logger.debug("maintenance_metrics_rendered", payload_length=len(metrics_payload))
+        return PlainTextResponse(metrics_payload)
     except Exception as exc:
+        logger.exception("maintenance_metrics_render_failed")
         return PlainTextResponse(f"# error: {exc}\n", status_code=500)
 
 

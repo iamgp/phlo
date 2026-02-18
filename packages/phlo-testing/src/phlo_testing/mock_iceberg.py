@@ -21,6 +21,9 @@ from typing import Any, Iterator, Optional, Sequence, Union
 
 import duckdb
 import pandas as pd
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _normalize_type(dtype: str) -> str:
@@ -100,7 +103,11 @@ class MockTable:
             self._db.execute(create_stmt)
         except duckdb.CatalogException:
             # Table already exists
-            pass
+            logger.debug(
+                "mock_iceberg_create_table_exists",
+                table_name=self.name,
+                duckdb_table=full_name,
+            )
 
     def append(self, df: pd.DataFrame) -> None:
         """
@@ -263,7 +270,7 @@ class MockIcebergCatalog:
             self._db.execute(f'CREATE SCHEMA "{namespace}"')
         except duckdb.CatalogException:
             # Schema might already exist
-            pass
+            logger.debug("mock_iceberg_namespace_exists", namespace=namespace)
 
     def drop_namespace(self, namespace: str) -> None:
         """
@@ -276,7 +283,7 @@ class MockIcebergCatalog:
         try:
             self._db.execute(f'DROP SCHEMA IF EXISTS "{namespace}"')
         except duckdb.CatalogException:
-            pass
+            logger.debug("mock_iceberg_drop_namespace_ignored", namespace=namespace)
 
     def create_table(
         self,
@@ -346,7 +353,11 @@ class MockIcebergCatalog:
             try:
                 self._db.execute(f"DROP TABLE IF EXISTS {table.full_name}")
             except duckdb.CatalogException:
-                pass
+                logger.debug(
+                    "mock_iceberg_drop_table_ignored",
+                    table_identifier=identifier,
+                    duckdb_table=table.full_name,
+                )
 
     def list_tables(self, namespace: str) -> list[str]:
         """
@@ -394,7 +405,12 @@ class MockIcebergCatalog:
         try:
             self._db.execute(f"ALTER TABLE {old_full} RENAME TO {new_full}")
         except duckdb.CatalogException:
-            pass
+            logger.warning(
+                "mock_iceberg_rename_duckdb_failed",
+                old_identifier=old_identifier,
+                new_identifier=new_identifier,
+                exc_info=True,
+            )
 
     def table_exists(self, identifier: str) -> bool:
         """
@@ -419,6 +435,7 @@ class MockIcebergCatalog:
         try:
             yield
         except Exception:
+            logger.warning("mock_iceberg_transaction_failed", exc_info=True)
             raise
 
     def close(self) -> None:

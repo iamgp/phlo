@@ -69,8 +69,15 @@ class EmailAlertDestination(AlertDestination):
 
             return True
 
-        except Exception as e:
-            logger.exception(f"Failed to send email alert: {e}")
+        except Exception:
+            logger.exception(
+                "email_alert_send_failed",
+                alert_title=alert.title,
+                severity=alert.severity.value,
+                asset_name=alert.asset_name,
+                run_id=alert.run_id,
+                recipient_count=len(self.recipients),
+            )
             return False
 
     def _build_text(self, alert: Alert) -> str:

@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 import pandas as pd
+from phlo.logging import get_logger
+
+logger = get_logger(__name__)
 
 try:
     import duckdb
@@ -39,6 +42,7 @@ try:
     ICEBERG_DEPS_AVAILABLE = True
 except ImportError:
     ICEBERG_DEPS_AVAILABLE = False
+    logger.debug("testing_placeholders_optional_deps_unavailable", exc_info=True)
 
 
 class MockDLTSource:
@@ -652,6 +656,12 @@ def test_asset_execution(
                 df = validation_schema.validate(df)
                 metadata = {"validation": "passed"}
             except Exception as e:
+                logger.debug(
+                    "testing_asset_validation_failed",
+                    asset_name=getattr(asset_fn, "__name__", str(asset_fn)),
+                    partition=partition,
+                    exc_info=True,
+                )
                 return TestAssetResult(
                     success=False,
                     data=df,
@@ -669,6 +679,12 @@ def test_asset_execution(
         )
 
     except Exception as e:
+        logger.debug(
+            "testing_asset_execution_failed",
+            asset_name=getattr(asset_fn, "__name__", str(asset_fn)),
+            partition=partition,
+            exc_info=True,
+        )
         return TestAssetResult(
             success=False,
             data=None,

@@ -5,10 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from phlo.hooks import QualityResultEvent, TelemetryEvent
+from phlo.logging import get_logger
 from phlo.plugins.base import PluginMetadata
 from phlo.plugins.hooks import HookFilter, HookPlugin, HookRegistration
 
 from phlo_alerting.manager import Alert, AlertSeverity, get_alert_manager
+
+logger = get_logger(__name__)
 
 
 class AlertingHookPlugin(HookPlugin):
@@ -55,6 +58,14 @@ class AlertingHookPlugin(HookPlugin):
             severity=severity,
             asset_name=event.asset_key,
         )
+        logger.info(
+            "alerting_quality_alert_send",
+            event_type=event.event_type,
+            asset_key=event.asset_key,
+            check_name=event.check_name,
+            quality_severity=event.severity,
+            alert_severity=severity.value,
+        )
         get_alert_manager().send(alert)
 
     def _handle_telemetry(self, event: Any) -> None:
@@ -69,6 +80,14 @@ class AlertingHookPlugin(HookPlugin):
             message=str(event.payload or event.value or ""),
             severity=_map_telemetry_severity(event.level),
             asset_name=event.tags.get("asset"),
+        )
+        logger.info(
+            "alerting_telemetry_alert_send",
+            event_type=event.event_type,
+            event_name=event.name,
+            level=event.level.lower(),
+            asset_key=event.tags.get("asset"),
+            alert_severity=alert.severity.value,
         )
         get_alert_manager().send(alert)
 

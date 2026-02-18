@@ -10,8 +10,11 @@ from typing import Any
 import psycopg2
 from jsonschema import ValidationError, validate
 
+from phlo.logging import get_logger
 from phlo_observatory.settings import get_settings as get_observatory_settings
 from phlo_postgres.settings import get_settings as get_postgres_settings
+
+logger = get_logger(__name__)
 
 
 class SettingsScope(StrEnum):
@@ -62,6 +65,11 @@ class SettingsService:
                 )
                 row = cursor.fetchone()
                 if not row:
+                    logger.debug(
+                        "observatory_settings_not_found",
+                        scope=scope.value,
+                        namespace=namespace,
+                    )
                     return None
                 settings, updated_at = row
                 return SettingsRecord(
@@ -118,6 +126,7 @@ class SettingsService:
         try:
             validate(instance=settings, schema=schema)
         except ValidationError as exc:
+            logger.warning("observatory_settings_validation_failed", error=str(exc))
             raise ValueError(str(exc)) from exc
 
     def _ensure_table(self, conn) -> None:
@@ -137,6 +146,7 @@ class SettingsService:
             )
             conn.commit()
         self._table_ensured = True
+        logger.debug("observatory_settings_table_ensured")
 
 
 @lru_cache(maxsize=1)
@@ -147,4 +157,5 @@ def get_settings_service() -> SettingsService:
     db_url = observatory_settings.observatory_settings_db_url or (
         postgres_settings.get_postgres_connection_string()
     )
+    logger.debug("observatory_settings_service_initialized")
     return SettingsService(db_url)

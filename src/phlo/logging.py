@@ -27,7 +27,27 @@ _STANDARD_LOG_RECORD_FIELDS = set(
         name="", level=0, pathname="", lineno=0, msg="", args=(), exc_info=None
     ).__dict__.keys()
 )
-_CORRELATION_FIELDS = ("run_id", "asset_key", "job_name", "partition_key", "check_name")
+_CORRELATION_FIELDS = (
+    "request_id",
+    "trace_id",
+    "span_id",
+    "run_id",
+    "asset_key",
+    "job_name",
+    "partition_key",
+    "check_name",
+)
+_SENSITIVE_FIELD_TOKENS = (
+    "password",
+    "token",
+    "secret",
+    "authorization",
+    "api_key",
+    "apikey",
+    "credential",
+    "cookie",
+    "bearer",
+)
 _ROUTER_ACTIVE = contextvars.ContextVar("phlo_log_router_active", default=False)
 _LOGGING_CONFIGURED = False
 
@@ -41,6 +61,7 @@ class LoggingSettings:
     router_enabled: bool = True
     service_name: str = "phlo"
     log_file_template: str | None = None
+    environment: str = "dev"
 
     @classmethod
     def from_settings(cls) -> "LoggingSettings":
@@ -56,6 +77,7 @@ class LoggingSettings:
             router_enabled=settings.phlo_log_router_enabled,
             service_name=settings.phlo_log_service_name,
             log_file_template=settings.phlo_log_file_template,
+            environment=settings.phlo_environment,
         )
 
 
@@ -70,6 +92,7 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
     level = _coerce_log_level(resolved.level)
     log_format = resolved.log_format.lower()
     service_name = resolved.service_name
+    environment_name = resolved.environment
 
     def add_service(
         _: Any, __: str, event_dict: MutableMapping[str, Any]
@@ -78,12 +101,21 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
         event_dict.setdefault("service", service_name)
         return event_dict
 
+    def add_environment(
+        _: Any, __: str, event_dict: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
+        """Attach runtime environment metadata to each structured log event."""
+        event_dict.setdefault("environment", environment_name)
+        return event_dict
+
     processors = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
         add_service,
+        add_environment,
+        _redact_sensitive_processor,
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
@@ -116,6 +148,8 @@ def setup_logging(settings: LoggingSettings | None = None, *, force: bool = Fals
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
         add_service,
+        add_environment,
+        _redact_sensitive_processor,
     ]
 
     stream_formatter = structlog.stdlib.ProcessorFormatter(
@@ -330,7 +364,27 @@ def _build_metadata(record: logging.LogRecord, extra: dict[str, Any]) -> dict[st
     }
     if record.exc_info:
         metadata["exception"] = "".join(traceback.format_exception(*record.exc_info))
+    _redact_sensitive_fields(metadata)
     return metadata
+
+
+def _redact_sensitive_processor(
+    _: Any, __: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
+    """Redact sensitive values from structured event dictionaries."""
+    _redact_sensitive_fields(event_dict)
+    return event_dict
+
+
+def _redact_sensitive_fields(data: MutableMapping[str, Any]) -> None:
+    """Redact sensitive keys in-place within a mapping."""
+    for key, value in list(data.items()):
+        lowered = key.lower()
+        if any(token in lowered for token in _SENSITIVE_FIELD_TOKENS):
+            data[key] = "<redacted>"
+            continue
+        if isinstance(value, MutableMapping):
+            _redact_sensitive_fields(value)
 
 
 def _build_file_handler(

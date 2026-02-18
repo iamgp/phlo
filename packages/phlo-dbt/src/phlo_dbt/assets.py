@@ -8,10 +8,13 @@ from typing import Any
 
 from phlo.capabilities import AssetSpec, MaterializeResult, PartitionSpec, RunSpec
 from phlo.capabilities.runtime import RuntimeContext
+from phlo.logging import get_logger
 from phlo_dbt.settings import get_settings
 
 from phlo_dbt.transformer import DbtTransformer
 from phlo_dbt.translator import DbtSpecTranslator
+
+logger = get_logger(__name__)
 
 
 def _latest_project_mtime(dbt_project_path: Path) -> float:
@@ -63,6 +66,11 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
         ``True`` when a valid manifest is available, else ``False``.
     """
     manifest_path = dbt_project_path / "target" / "manifest.json"
+    logger.debug(
+        "dbt_manifest_check_started",
+        dbt_project_path=str(dbt_project_path),
+        manifest_path=str(manifest_path),
+    )
 
     needs_compile = not manifest_path.exists()
     if not needs_compile:
@@ -75,14 +83,32 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
         try:
             manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
+            logger.warning(
+                "dbt_manifest_existing_invalid",
+                manifest_path=str(manifest_path),
+            )
             needs_compile = True
         else:
             if not isinstance(manifest_payload, Mapping):
+                logger.warning(
+                    "dbt_manifest_existing_not_mapping",
+                    manifest_path=str(manifest_path),
+                )
                 needs_compile = True
 
     if not needs_compile:
+        logger.debug(
+            "dbt_manifest_check_succeeded",
+            manifest_path=str(manifest_path),
+            compiled=False,
+        )
         return True
 
+    logger.info(
+        "dbt_manifest_compile_started",
+        dbt_project_path=str(dbt_project_path),
+        profiles_path=str(profiles_path),
+    )
     try:
         result = subprocess.run(
             ["dbt", "compile", "--profiles-dir", str(profiles_path)],
@@ -92,19 +118,43 @@ def ensure_dbt_manifest(dbt_project_path: Path, profiles_path: Path) -> bool:
             timeout=60,
         )
     except FileNotFoundError:
+        logger.warning(
+            "dbt_manifest_compile_binary_missing",
+            dbt_project_path=str(dbt_project_path),
+        )
         return False
     except subprocess.TimeoutExpired:
+        logger.warning(
+            "dbt_manifest_compile_timeout",
+            dbt_project_path=str(dbt_project_path),
+        )
         return False
 
     if result.returncode != 0 or not manifest_path.exists():
+        logger.warning(
+            "dbt_manifest_compile_failed",
+            dbt_project_path=str(dbt_project_path),
+            returncode=result.returncode,
+            manifest_exists=manifest_path.exists(),
+        )
         return False
 
     try:
         manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
+        logger.warning(
+            "dbt_manifest_compile_output_invalid",
+            manifest_path=str(manifest_path),
+        )
         return False
 
-    return isinstance(manifest_payload, Mapping)
+    valid_mapping = isinstance(manifest_payload, Mapping)
+    logger.info(
+        "dbt_manifest_compile_finished",
+        manifest_path=str(manifest_path),
+        valid_manifest=valid_mapping,
+    )
+    return valid_mapping
 
 
 def _asset_deps(unique_id: str, nodes: Mapping[str, Any], asset_keys: dict[str, str]) -> list[str]:
@@ -193,23 +243,44 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
     manifest_path = dbt_project_path / "target" / "manifest.json"
 
     if not dbt_project_path.exists():
+        logger.info(
+            "dbt_asset_specs_skipped_project_missing",
+            dbt_project_path=str(dbt_project_path),
+        )
         return []
 
     if not ensure_dbt_manifest(dbt_project_path, dbt_profiles_path):
+        logger.warning(
+            "dbt_asset_specs_skipped_manifest_unavailable",
+            dbt_project_path=str(dbt_project_path),
+            profiles_path=str(dbt_profiles_path),
+        )
         return []
 
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
+        logger.warning(
+            "dbt_asset_specs_manifest_read_failed",
+            manifest_path=str(manifest_path),
+        )
         return []
 
     if not isinstance(manifest, Mapping):
+        logger.warning(
+            "dbt_asset_specs_manifest_not_mapping",
+            manifest_path=str(manifest_path),
+        )
         return []
 
     translator = DbtSpecTranslator()
     nodes = manifest.get("nodes") or {}
     sources = manifest.get("sources") or {}
     if not isinstance(nodes, Mapping) or not isinstance(sources, Mapping):
+        logger.warning(
+            "dbt_asset_specs_manifest_shape_invalid",
+            manifest_path=str(manifest_path),
+        )
         return []
 
     asset_keys: dict[str, str] = {}
@@ -219,6 +290,10 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
         try:
             asset_key = translator.get_asset_key(props)
         except Exception:
+            logger.exception(
+                "dbt_asset_specs_asset_key_translate_failed",
+                unique_id=str(unique_id),
+            )
             continue
         asset_keys[str(unique_id)] = str(asset_key)
 
@@ -271,4 +346,9 @@ def build_dbt_asset_specs() -> list[AssetSpec]:
             )
         )
 
+    logger.info(
+        "dbt_asset_specs_built",
+        spec_count=len(specs),
+        dbt_project_path=str(dbt_project_path),
+    )
     return specs

@@ -16,9 +16,11 @@ from rich.table import Table
 
 from phlo.config_schema import InfrastructureConfig
 from phlo.infrastructure import clear_config_cache, load_infrastructure_config
+from phlo.logging import get_logger
 
 console = Console()
 error_console = Console(stderr=True)
+logger = get_logger(__name__)
 
 
 @click.group()
@@ -43,6 +45,7 @@ def show(format: str):
       phlo config show --format json
     """
     infra_config = load_infrastructure_config()
+    logger.info("config_show_succeeded", output_format=format)
 
     if format == "yaml":
         config_dict = infra_config.model_dump(exclude_none=False)
@@ -70,6 +73,7 @@ def validate():
     config_path = Path.cwd() / "phlo.yaml"
 
     if not config_path.exists():
+        logger.warning("config_validate_file_missing", path=str(config_path))
         console.print("[yellow]Warning: No phlo.yaml found in current directory[/yellow]")
         console.print("Run [cyan]phlo services init[/cyan] to create infrastructure configuration")
         sys.exit(1)
@@ -80,10 +84,12 @@ def validate():
         project_config = yaml.safe_load(f)
 
     if not project_config:
+        logger.warning("config_validate_empty_file", path=str(config_path))
         error_console.print("[red]Error: phlo.yaml is empty[/red]")
         sys.exit(1)
 
     if "infrastructure" not in project_config:
+        logger.info("config_validate_infrastructure_missing", path=str(config_path))
         console.print("[yellow]Warning: No infrastructure section in phlo.yaml[/yellow]")
         console.print(
             "Using default configuration. Run [cyan]phlo config upgrade[/cyan] to add infrastructure section."
@@ -94,6 +100,11 @@ def validate():
         infra_data = project_config["infrastructure"]
         infra_config = InfrastructureConfig(**infra_data)
     except ValidationError as e:
+        logger.warning(
+            "config_validate_failed",
+            path=str(config_path),
+            error_count=len(e.errors()),
+        )
         error_console.print("[red]Validation Error:[/red]\n")
         for error in e.errors():
             loc = " -> ".join(str(x) for x in error["loc"])
@@ -102,6 +113,12 @@ def validate():
             "\n[yellow]Fix these errors in phlo.yaml and run validate again.[/yellow]"
         )
         sys.exit(1)
+
+    logger.info(
+        "config_validate_succeeded",
+        path=str(config_path),
+        service_count=len(infra_config.services),
+    )
 
     table = Table(show_header=True, header_style="bold cyan")
     table.add_column("Check", style="cyan")
@@ -142,6 +159,7 @@ def upgrade(force: bool):
     config_path = Path.cwd() / "phlo.yaml"
 
     if not config_path.exists():
+        logger.warning("config_upgrade_file_missing", path=str(config_path))
         error_console.print("[red]Error: No phlo.yaml found in current directory[/red]")
         error_console.print("Run [cyan]phlo services init[/cyan] to create a new project")
         sys.exit(1)
@@ -150,6 +168,9 @@ def upgrade(force: bool):
         project_config = yaml.safe_load(f) or {}
 
     if "infrastructure" in project_config and not force:
+        logger.warning(
+            "config_upgrade_skipped", path=str(config_path), reason="infrastructure_exists"
+        )
         console.print("[yellow]Infrastructure section already exists in phlo.yaml[/yellow]")
         error_console.print("Use --force to overwrite")
         sys.exit(1)
@@ -170,6 +191,7 @@ def upgrade(force: bool):
     console.print("Added infrastructure section\n")
 
     clear_config_cache()
+    logger.info("config_upgrade_succeeded", path=str(config_path), force=force)
 
     console.print("Next steps:")
     console.print("  1. Review the infrastructure section in phlo.yaml")

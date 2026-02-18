@@ -5,7 +5,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 from typing import Any
 
+from phlo.logging import get_logger
 from phlo_dbt.settings import get_settings
+
+logger = get_logger(__name__)
 
 
 def _bool_env(name: str, default: bool = False) -> bool:
@@ -22,6 +25,12 @@ def _int_env(name: str, default: int) -> int:
     try:
         return int(value)
     except ValueError:
+        logger.warning(
+            "dbt_translator_env_int_invalid",
+            env_var=name,
+            env_value=value,
+            fallback_default=default,
+        )
         return default
 
 
@@ -93,7 +102,10 @@ def get_compiled_sql_from_resource_props(
                 compiled_sql = compiled_file.read_text()
                 source = "compiled_file"
         except OSError:
-            pass
+            logger.warning(
+                "dbt_translator_compiled_sql_read_failed",
+                compiled_file=str(compiled_file),
+            )
 
     if not compiled_sql:
         compiled_sql = str(
@@ -110,6 +122,13 @@ def get_compiled_sql_from_resource_props(
 
     truncated_sql, was_truncated, original_bytes = _truncate_utf8_bytes(compiled_sql, max_bytes)
     if was_truncated:
+        logger.info(
+            "dbt_translator_compiled_sql_truncated",
+            model_name=str(dbt_resource_props.get("name") or ""),
+            source=source,
+            original_bytes=original_bytes,
+            max_bytes=max_bytes,
+        )
         marker = f"\n\n-- [phlo] TRUNCATED compiled SQL: {original_bytes} bytes (limit {max_bytes} bytes)"
         truncated_sql = f"{truncated_sql}{marker}"
 

@@ -73,7 +73,7 @@ class AlertManager:
             destination: AlertDestination instance
         """
         self.destinations[name] = destination
-        logger.info(f"Registered alert destination: {name}")
+        logger.info("alert_destination_registered", destination_name=name)
 
     def send(self, alert: Alert, destinations: Optional[list[str]] = None) -> bool:
         """
@@ -89,7 +89,7 @@ class AlertManager:
         # Check for duplicates
         alert_key = self._get_alert_key(alert)
         if self._is_duplicate(alert_key):
-            logger.debug(f"Skipping duplicate alert: {alert_key}")
+            logger.debug("alert_duplicate_skipped", alert_key=alert_key)
             return False
 
         # Determine which destinations to use
@@ -99,16 +99,20 @@ class AlertManager:
         sent = False
         for dest_name in targets:
             if dest_name not in self.destinations:
-                logger.warning(f"Unknown destination: {dest_name}")
+                logger.warning("alert_unknown_destination", destination_name=dest_name)
                 continue
 
             try:
                 dest = self.destinations[dest_name]
                 if dest.send(alert):
                     sent = True
-                    logger.info(f"Sent alert to {dest_name}: {alert.title}")
-            except Exception as e:
-                logger.exception(f"Failed to send alert to {dest_name}: {e}")
+                    logger.info(
+                        "alert_sent",
+                        destination_name=dest_name,
+                        alert_title=alert.title,
+                    )
+            except Exception:
+                logger.exception("alert_send_failed", destination_name=dest_name)
 
         # Mark as sent
         if sent:
@@ -155,16 +159,22 @@ def _register_default_destinations(manager: AlertManager) -> None:
                 channel=config.phlo_alert_slack_channel,
             )
             manager.register_destination("slack", slack)
-        except Exception as e:
-            logger.warning(f"Failed to register Slack destination: {e}")
+        except Exception:
+            logger.warning(
+                "alert_destination_register_failed", destination_name="slack", exc_info=True
+            )
 
     # Register PagerDuty if configured
     if config.phlo_alert_pagerduty_key:
         try:
             pagerduty = PagerDutyAlertDestination(integration_key=config.phlo_alert_pagerduty_key)
             manager.register_destination("pagerduty", pagerduty)
-        except Exception as e:
-            logger.warning(f"Failed to register PagerDuty destination: {e}")
+        except Exception:
+            logger.warning(
+                "alert_destination_register_failed",
+                destination_name="pagerduty",
+                exc_info=True,
+            )
 
     # Register Email if configured
     if config.phlo_alert_email_smtp_host:
@@ -177,5 +187,7 @@ def _register_default_destinations(manager: AlertManager) -> None:
                 recipients=config.phlo_alert_email_recipients,
             )
             manager.register_destination("email", email)
-        except Exception as e:
-            logger.warning(f"Failed to register Email destination: {e}")
+        except Exception:
+            logger.warning(
+                "alert_destination_register_failed", destination_name="email", exc_info=True
+            )
