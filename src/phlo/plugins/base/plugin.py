@@ -40,6 +40,12 @@ class PluginMetadata:
     dependencies: list[str] = field(default_factory=list)
     """Python package dependencies required by this plugin."""
 
+    requires_capabilities: list[str] = field(default_factory=list)
+    """Capabilities this plugin needs to function."""
+
+    optional_capabilities: list[str] = field(default_factory=list)
+    """Capabilities this plugin can use when available."""
+
 
 class Plugin(ABC):
     """

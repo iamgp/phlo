@@ -218,6 +218,7 @@ Plugins are automatically discovered using Python entry points:
 
 For more details, see:
 - [Plugin System Blog Post](../blog/14-plugin-system.md)
+- [Capability-Driven Composition](../architecture/capability-composition.md)
 - [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
 
 ## Branching Strategy

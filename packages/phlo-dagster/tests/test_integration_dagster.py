@@ -1,9 +1,10 @@
 """Integration tests for phlo-dagster."""
 
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
-from dagster import Definitions, asset, materialize
+from dagster import AssetExecutionContext, Definitions, asset, materialize
 
 pytestmark = pytest.mark.integration
 
@@ -104,7 +105,7 @@ def test_dagster_runtime_reads_run_tags_when_context_has_no_tags():
         resources=SimpleNamespace(),
     )
 
-    runtime = DagsterRuntime(context=context)
+    runtime = DagsterRuntime(context=cast(AssetExecutionContext, context))
     assert runtime.tags == {"dbt_target": "ci"}
 
 
