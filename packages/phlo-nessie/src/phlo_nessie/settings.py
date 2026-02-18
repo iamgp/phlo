@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from phlo.config.base import BaseConfig
 
@@ -16,7 +16,17 @@ class NessieSettings(BaseConfig):
     nessie_port: int = Field(default=19120, description="Nessie REST API port")
     nessie_host: str = Field(default="nessie", description="Nessie service hostname")
     nessie_api_version: str = Field(default="v1", description="Nessie API version")
-    nessie_default_ref: str = Field(default="main", description="Default Nessie branch/tag")
+    nessie_default_ref: str = Field(
+        default="main",
+        validation_alias=AliasChoices(
+            "NESSIE_DEFAULT_REF",
+            "PHLO_NESSIE_DEFAULT_REF",
+            "PHLO_DEFAULT_REF",
+            "ICEBERG_NESSIE_REF",
+            "PHLO_ICEBERG_NESSIE_REF",
+        ),
+        description="Default Nessie branch/tag",
+    )
 
     def nessie_uri(self) -> str:
         """Return the base Nessie API URI.
