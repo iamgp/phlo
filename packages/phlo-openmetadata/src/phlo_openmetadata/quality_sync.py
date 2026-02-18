@@ -14,15 +14,20 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 from phlo.logging import get_logger
-from phlo_quality.checks import (
-    CountCheck,
-    FreshnessCheck,
-    NullCheck,
-    QualityCheckResult,
-    RangeCheck,
-    UniqueCheck,
-)
-from phlo_quality.checks_extra import CustomSQLCheck
+
+try:
+    from phlo_quality.checks import (
+        CountCheck,
+        FreshnessCheck,
+        NullCheck,
+        QualityCheckResult,
+        RangeCheck,
+        UniqueCheck,
+    )
+    from phlo_quality.checks_extra import CustomSQLCheck
+except Exception:  # noqa: BLE001 - optional dependency for quality sync
+    CountCheck = FreshnessCheck = NullCheck = RangeCheck = UniqueCheck = CustomSQLCheck = object
+    QualityCheckResult = Any
 
 if TYPE_CHECKING:
     from phlo_openmetadata.openmetadata import OpenMetadataClient
