@@ -150,9 +150,6 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Install shared dependencies
-        run: uv sync --dev
-
       - name: Run package tests
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -161,10 +158,10 @@ jobs:
         run: |
           set +e
           if [ -n "${{ matrix.extra }}" ]; then
-            uv run --package "${{ matrix.package }}" --extra "${{ matrix.extra }}" \
+            uv run --package "${{ matrix.package }}" --with pytest --extra "${{ matrix.extra }}" \
               pytest -m "not integration" --tb=short "packages/${{ matrix.package }}/tests"
           else
-            uv run --package "${{ matrix.package }}" \
+            uv run --package "${{ matrix.package }}" --with pytest \
               pytest -m "not integration" --tb=short "packages/${{ matrix.package }}/tests"
           fi
           exit_code=$?
