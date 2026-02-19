@@ -14,8 +14,6 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-lineage>=0.1.0",
-    "phlo-quality>=0.1.0",
     "dlt>=1.18.2",
     "pandas>=2.3.3",
     "pandera>=0.26.1",

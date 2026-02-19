@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import dlt
 import pandas as pd
@@ -14,12 +15,16 @@ from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
 from phlo.capabilities.interfaces import TableStore
-from phlo_lineage import generate_row_id
 from phlo.logging import get_logger
 
 from phlo_dlt.registry import TableConfig
 
 logger = get_logger(__name__)
+
+
+def generate_row_id() -> str:
+    """Return a globally unique row identifier for ingestion metadata."""
+    return uuid4().hex
 
 
 def get_branch_from_context(context: Any) -> str:
