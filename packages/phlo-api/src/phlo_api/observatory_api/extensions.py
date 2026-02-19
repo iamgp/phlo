@@ -21,9 +21,11 @@ from phlo.logging import get_logger
 try:
     from phlo_observatory.extensions import discover_observatory_extensions
 except Exception:  # noqa: BLE001 - observatory package is optional
+
     def discover_observatory_extensions() -> list[Any]:
         """Return no extensions when Observatory package is unavailable."""
         return []
+
 
 logger = get_logger(__name__)
 

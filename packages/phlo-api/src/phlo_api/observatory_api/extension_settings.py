@@ -15,6 +15,7 @@ try:
     from phlo_observatory import SettingsScope, get_settings_service
     from phlo_observatory.extensions import get_observatory_extension
 except Exception:  # noqa: BLE001 - observatory package is optional
+
     class SettingsScope(str, Enum):
         """Fallback settings scope enum when Observatory package is unavailable."""
 
@@ -28,6 +29,7 @@ except Exception:  # noqa: BLE001 - observatory package is optional
     def get_observatory_extension(_name: str) -> Any | None:
         """Return no extension when Observatory package is unavailable."""
         return None
+
 
 logger = get_logger(__name__)
 

@@ -14,6 +14,7 @@ from phlo.logging import get_logger
 try:
     from phlo_observatory import SettingsScope, get_settings_service
 except Exception:  # noqa: BLE001 - observatory package is optional
+
     class SettingsScope(str, Enum):
         """Fallback settings scope enum when Observatory package is unavailable."""
 
@@ -23,6 +24,7 @@ except Exception:  # noqa: BLE001 - observatory package is optional
     def get_settings_service() -> Any:
         """Raise a runtime error when Observatory settings service is unavailable."""
         raise RuntimeError("phlo-observatory is not installed")
+
 
 logger = get_logger(__name__)
 
