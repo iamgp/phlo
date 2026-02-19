@@ -53,7 +53,7 @@ jobs:
       - name: Type check with ty
         run: make typecheck-python
 
-  test:
+  test-core:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -79,7 +79,93 @@ jobs:
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
           SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
         run: |
-          uv run pytest -m "not integration" --tb=short --cov=phlo --cov-report=term-missing
+          uv run pytest tests -m "not integration" --tb=short --cov=phlo --cov-report=term-missing
+
+  test-packages:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: phlo-alerting
+            extra: ""
+          - package: phlo-alloy
+            extra: ""
+          - package: phlo-api
+            extra: ""
+          - package: phlo-core-plugins
+            extra: quality
+          - package: phlo-dagster
+            extra: ""
+          - package: phlo-dbt
+            extra: ""
+          - package: phlo-dlt
+            extra: ""
+          - package: phlo-grafana
+            extra: ""
+          - package: phlo-hasura
+            extra: ""
+          - package: phlo-iceberg
+            extra: ""
+          - package: phlo-lineage
+            extra: ""
+          - package: phlo-loki
+            extra: ""
+          - package: phlo-metrics
+            extra: ""
+          - package: phlo-minio
+            extra: ""
+          - package: phlo-nessie
+            extra: ""
+          - package: phlo-observatory
+            extra: ""
+          - package: phlo-observatory-example
+            extra: ""
+          - package: phlo-openmetadata
+            extra: ""
+          - package: phlo-pgweb
+            extra: ""
+          - package: phlo-postgres
+            extra: ""
+          - package: phlo-postgrest
+            extra: ""
+          - package: phlo-prometheus
+            extra: ""
+          - package: phlo-quality
+            extra: ""
+          - package: phlo-superset
+            extra: ""
+          - package: phlo-testing
+            extra: ""
+          - package: phlo-trino
+            extra: ""
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install shared dependencies
+        run: uv sync --dev
+
+      - name: Run package tests
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
+        run: |
+          if [ -n "${{ matrix.extra }}" ]; then
+            uv run --package "${{ matrix.package }}" --extra "${{ matrix.extra }}" \
+              pytest -m "not integration" --tb=short "packages/${{ matrix.package }}/tests"
+          else
+            uv run --package "${{ matrix.package }}" \
+              pytest -m "not integration" --tb=short "packages/${{ matrix.package }}/tests"
+          fi
 
   lint-sql:
     runs-on: ubuntu-latest
