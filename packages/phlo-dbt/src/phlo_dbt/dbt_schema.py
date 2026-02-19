@@ -18,7 +18,14 @@ from phlo.logging import get_logger
 try:
     from phlo_quality.schemas.base import PhloSchema
 except Exception:  # noqa: BLE001 - optional dependency
-    PhloSchema = DataFrameModel  # type: ignore[misc,assignment]
+
+    class PhloSchema(DataFrameModel):  # type: ignore[no-redef]
+        """Fallback schema base with PhloSchema defaults when phlo-quality is unavailable."""
+
+        class Config:
+            strict = False
+            coerce = True
+
 
 logger = get_logger(__name__)
 
