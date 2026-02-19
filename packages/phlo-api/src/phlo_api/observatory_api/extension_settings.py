@@ -12,12 +12,9 @@ from pydantic import BaseModel
 from phlo.logging import get_logger
 
 try:
-    from phlo_observatory import ObservatoryExtensionPlugin, SettingsScope, get_settings_service
+    from phlo_observatory import SettingsScope, get_settings_service
     from phlo_observatory.extensions import get_observatory_extension
 except Exception:  # noqa: BLE001 - observatory package is optional
-    class ObservatoryExtensionPlugin:  # type: ignore[no-redef]
-        """Fallback Observatory extension plugin type."""
-
     class SettingsScope(str, Enum):
         """Fallback settings scope enum when Observatory package is unavailable."""
 
@@ -50,7 +47,7 @@ class ExtensionSettingsResponse(BaseModel):
     updated_at: str | None
 
 
-def _get_extension(name: str) -> ObservatoryExtensionPlugin | None:
+def _get_extension(name: str) -> Any | None:
     """Return an Observatory extension plugin by name.
 
     Args:
