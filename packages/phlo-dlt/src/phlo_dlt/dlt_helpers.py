@@ -6,11 +6,11 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 import dlt
 import pandas as pd
 import pandera.errors
+import ulid
 from dlt.common.pipeline import LoadInfo
 from pandera.engines import pandas_engine
 from pandera.pandas import DataFrameModel
@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 
 def generate_row_id() -> str:
     """Return a globally unique row identifier for ingestion metadata."""
-    return uuid4().hex
+    return str(ulid.ULID())
 
 
 def get_branch_from_context(context: Any) -> str:

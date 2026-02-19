@@ -2843,6 +2843,7 @@ dependencies = [
     { name = "pandera" },
     { name = "phlo" },
     { name = "pyarrow" },
+    { name = "python-ulid" },
 ]
 
 [package.optional-dependencies]
@@ -2859,6 +2860,7 @@ requires-dist = [
     { name = "phlo", editable = "." },
     { name = "pyarrow", specifier = ">=21.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "python-ulid", specifier = ">=2.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
 ]
 

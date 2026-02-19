@@ -18,6 +18,7 @@ dependencies = [
     "pandas>=2.3.3",
     "pandera>=0.26.1",
     "pyarrow>=21.0.0",
+    "python-ulid>=2.0.0",
 ]
 
 [project.optional-dependencies]
