@@ -14,12 +14,16 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-minio>=0.1.0",
-    "phlo-nessie>=0.1.0",
     "pyiceberg[s3fs,pyarrow]==0.10.0",
 ]
 
 [project.optional-dependencies]
+minio = [
+    "phlo-minio>=0.1.0",
+]
+nessie = [
+    "phlo-nessie>=0.1.0",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",

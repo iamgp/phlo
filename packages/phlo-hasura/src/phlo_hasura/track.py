@@ -7,11 +7,22 @@ from typing import Any
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
+from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
 from phlo_hasura.client import HasuraClient
-from phlo_postgres.settings import get_settings
+from pydantic import Field
 
 logger = get_logger(__name__)
+
+
+class HasuraPostgresSettings(BaseConfig):
+    """Postgres connection settings used by Hasura table tracking."""
+
+    postgres_host: str = Field(default="postgres", description="PostgreSQL host")
+    postgres_port: int = Field(default=5432, description="PostgreSQL port")
+    postgres_user: str = Field(default="phlo", description="PostgreSQL username")
+    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
+    postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
 
 
 def _resolve_db_host(host: str, port: int) -> tuple[str, int]:
@@ -71,7 +82,7 @@ class HasuraTableTracker:
         """
         self.client = hasura_client or HasuraClient()
 
-        settings = get_settings()
+        settings = HasuraPostgresSettings()
         raw_host = db_host or settings.postgres_host
         raw_port = db_port or settings.postgres_port
 

@@ -11,13 +11,30 @@ import psycopg2
 import psycopg2.extras
 import requests
 from cachetools import TTLCache
+from phlo.config.base import BaseConfig
 from psycopg2 import Error as PsycopgError
+from pydantic import Field
 
 from phlo.logging import get_logger
-from phlo_nessie.settings import get_settings as get_nessie_settings
-from phlo_postgres.settings import get_settings as get_postgres_settings
 
 logger = get_logger(__name__)
+
+
+class MetricsBackendSettings(BaseConfig):
+    """Backend connection settings for metrics collection."""
+
+    postgres_host: str = Field(default="postgres", description="PostgreSQL host")
+    postgres_port: int = Field(default=5432, description="PostgreSQL port")
+    postgres_user: str = Field(default="phlo", description="PostgreSQL username")
+    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
+    postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
+    nessie_host: str = Field(default="nessie", description="Nessie host")
+    nessie_port: int = Field(default=19120, description="Nessie port")
+    nessie_api_version: str = Field(default="v1", description="Nessie API version")
+
+    def nessie_api_uri(self) -> str:
+        """Return the versioned Nessie API URI."""
+        return f"http://{self.nessie_host}:{self.nessie_port}/api/{self.nessie_api_version}"
 
 
 class MetricsCollectorError(RuntimeError):
@@ -83,8 +100,7 @@ class MetricsCollector:
 
     def __init__(self):
         """Initialize metrics collector."""
-        self.postgres_settings = get_postgres_settings()
-        self.nessie_settings = get_nessie_settings()
+        self.settings = MetricsBackendSettings()
         self._cache = TTLCache(maxsize=100, ttl=30)  # 30 second cache
         self._prometheus_url: Optional[str] = None
 
@@ -269,11 +285,11 @@ class MetricsCollector:
 
         try:
             conn = psycopg2.connect(
-                host=self.postgres_settings.postgres_host,
-                port=self.postgres_settings.postgres_port,
-                database=self.postgres_settings.postgres_db,
-                user=self.postgres_settings.postgres_user,
-                password=self.postgres_settings.postgres_password,
+                host=self.settings.postgres_host,
+                port=self.settings.postgres_port,
+                database=self.settings.postgres_db,
+                user=self.settings.postgres_user,
+                password=self.settings.postgres_password,
             )
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -310,7 +326,7 @@ class MetricsCollector:
 
         try:
             # Query Nessie for table listing
-            nessie_url = self.nessie_settings.nessie_api_uri()
+            nessie_url = self.settings.nessie_api_uri()
             response = requests.get(f"{nessie_url}/trees", timeout=5)
 
             if response.status_code == 200:
@@ -347,11 +363,11 @@ class MetricsCollector:
         """Get past runs for an asset from Postgres."""
         try:
             conn = psycopg2.connect(
-                host=self.postgres_settings.postgres_host,
-                port=self.postgres_settings.postgres_port,
-                database=self.postgres_settings.postgres_db,
-                user=self.postgres_settings.postgres_user,
-                password=self.postgres_settings.postgres_password,
+                host=self.settings.postgres_host,
+                port=self.settings.postgres_port,
+                database=self.settings.postgres_db,
+                user=self.settings.postgres_user,
+                password=self.settings.postgres_password,
             )
         except PsycopgError as exc:
             raise MetricsDependencyError("Postgres unavailable for asset run lookup") from exc

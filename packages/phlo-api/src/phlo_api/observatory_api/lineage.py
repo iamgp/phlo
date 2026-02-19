@@ -15,12 +15,21 @@ from anyio.to_thread import run_sync
 from psycopg2.extras import RealDictCursor
 from pydantic import BaseModel
 
+from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
-from phlo_lineage.settings import get_settings
+from pydantic import Field
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["lineage"])
+
+
+class ApiLineageSettings(BaseConfig):
+    """Lineage API connection settings."""
+
+    lineage_db_url: str | None = Field(
+        default=None, description="Lineage database URL for observatory lineage APIs"
+    )
 
 
 def get_connection_string() -> str:
@@ -32,7 +41,7 @@ def get_connection_string() -> str:
     Raises:
         RuntimeError: If no lineage database URL is configured.
     """
-    settings = get_settings()
+    settings = ApiLineageSettings()
     if settings.lineage_db_url:
         return settings.lineage_db_url
     raise RuntimeError(

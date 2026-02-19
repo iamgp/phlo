@@ -1,10 +1,11 @@
 """Null check plugin."""
 
+from typing import Any
+
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo_quality.checks import NullCheck
 
 
-class NullCheckPlugin(QualityCheckPlugin[NullCheck]):
+class NullCheckPlugin(QualityCheckPlugin[Any]):
     """Plugin for NullCheck quality checks."""
 
     @property
@@ -18,7 +19,7 @@ class NullCheckPlugin(QualityCheckPlugin[NullCheck]):
             tags=["quality", "nulls"],
         )
 
-    def create_check(self, columns: list[str], allow_threshold: float = 0.0) -> NullCheck:
+    def create_check(self, columns: list[str], allow_threshold: float = 0.0) -> Any:
         """Create a null check instance.
 
         Args:
@@ -28,4 +29,6 @@ class NullCheckPlugin(QualityCheckPlugin[NullCheck]):
         Returns:
             Configured null-check instance.
         """
+        from phlo_quality.checks import NullCheck
+
         return NullCheck(columns=columns, allow_threshold=allow_threshold)
