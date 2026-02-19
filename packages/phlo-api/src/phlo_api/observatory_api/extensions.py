@@ -17,8 +17,17 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
 from phlo.logging import get_logger
-from phlo_observatory import ObservatoryExtensionPlugin
-from phlo_observatory.extensions import discover_observatory_extensions
+
+try:
+    from phlo_observatory import ObservatoryExtensionPlugin
+    from phlo_observatory.extensions import discover_observatory_extensions
+except Exception:  # noqa: BLE001 - observatory package is optional
+    class ObservatoryExtensionPlugin:  # type: ignore[no-redef]
+        """Fallback Observatory extension plugin type."""
+
+    def discover_observatory_extensions() -> list[Any]:
+        """Return no extensions when Observatory package is unavailable."""
+        return []
 
 logger = get_logger(__name__)
 

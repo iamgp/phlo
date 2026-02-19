@@ -14,7 +14,6 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-observatory>=0.1.0",
     "fastapi>=0.127.0",
     "httpx>=0.28.1",
     "anyio>=4.11.0",
@@ -25,6 +24,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+observatory = [
+    "phlo-observatory>=0.1.0",
+]
 lineage = [
     "phlo-lineage>=0.1.0",
 ]

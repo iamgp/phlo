@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from anyio.to_thread import run_sync
@@ -9,7 +10,19 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from phlo.logging import get_logger
-from phlo_observatory import SettingsScope, get_settings_service
+
+try:
+    from phlo_observatory import SettingsScope, get_settings_service
+except Exception:  # noqa: BLE001 - observatory package is optional
+    class SettingsScope(str, Enum):
+        """Fallback settings scope enum when Observatory package is unavailable."""
+
+        GLOBAL = "global"
+        EXTENSION = "extension"
+
+    def get_settings_service() -> Any:
+        """Raise a runtime error when Observatory settings service is unavailable."""
+        raise RuntimeError("phlo-observatory is not installed")
 
 logger = get_logger(__name__)
 
@@ -138,6 +151,8 @@ async def get_observatory_settings() -> ObservatorySettingsResponse:
     """Fetch server-wide Observatory settings."""
     try:
         return await run_sync(_fetch_settings_sync)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Failed to fetch Observatory settings")
         raise HTTPException(status_code=500, detail="Failed to fetch settings") from exc
@@ -150,6 +165,8 @@ async def put_observatory_settings(
     """Replace server-wide Observatory settings."""
     try:
         return await run_sync(_upsert_settings_sync, payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Failed to update Observatory settings")
         raise HTTPException(status_code=500, detail="Failed to update settings") from exc
