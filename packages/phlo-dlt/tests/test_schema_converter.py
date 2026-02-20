@@ -10,6 +10,9 @@ from decimal import Decimal
 
 import pytest
 from pandera.pandas import DataFrameModel, Field
+
+pytest.importorskip("pyiceberg")
+
 from phlo_dlt.converter import SchemaConversionError, pandera_to_iceberg
 from pyiceberg.types import (
     BinaryType,

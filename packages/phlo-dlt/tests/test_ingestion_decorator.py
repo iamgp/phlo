@@ -11,6 +11,9 @@ from typing import Any
 import pytest
 from pandera.pandas import DataFrameModel, Field
 from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phlo_ingestion
+
+pytest.importorskip("pyiceberg")
+
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 

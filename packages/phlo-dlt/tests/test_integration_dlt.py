@@ -6,6 +6,8 @@ import pytest
 from pandera.pandas import DataFrameModel
 from typing import cast
 
+pytest.importorskip("pyiceberg")
+
 from phlo.capabilities.interfaces import TableStore
 from phlo.logging import get_logger
 from phlo_dlt.converter import pandera_to_iceberg
