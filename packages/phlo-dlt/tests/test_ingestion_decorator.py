@@ -14,6 +14,8 @@ from phlo_dlt.decorator import clear_ingestion_assets, get_ingestion_assets, phl
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(autouse=True)
 def _clear_ingestion_registry() -> None:
