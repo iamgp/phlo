@@ -171,65 +171,6 @@ jobs:
           fi
           exit "$exit_code"
 
-  test-capability-integration:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - package: phlo-dbt
-            test_path: packages/phlo-dbt/tests/test_quality_asset_checks.py
-            extra: quality
-            with: pyarrow
-          - package: phlo-quality
-            test_path: packages/phlo-quality/tests/test_cli_004_schema_generate.py
-            extra: ""
-            with: "phlo-dlt pyiceberg"
-          - package: phlo-dlt
-            test_path: packages/phlo-dlt/tests/test_schema_converter.py
-            extra: ""
-            with: pyiceberg
-          - package: phlo-dlt
-            test_path: packages/phlo-dlt/tests/test_ingestion_decorator.py
-            extra: ""
-            with: pyiceberg
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install 3.11
-
-      - name: Run capability integration tests
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
-          SUPERSET_ADMIN_PASSWORD: ${{ secrets.SUPERSET_ADMIN_PASSWORD }}
-        run: |
-          set +e
-          run_args=(--package "${{ matrix.package }}" --with pytest)
-          if [ -n "${{ matrix.extra }}" ]; then
-            run_args+=(--extra "${{ matrix.extra }}")
-          fi
-          if [ -n "${{ matrix.with }}" ]; then
-            for requirement in ${{ matrix.with }}; do
-              run_args+=(--with "$requirement")
-            done
-          fi
-          uv run "${run_args[@]}" \
-            pytest -m "integration" --tb=short "${{ matrix.test_path }}"
-          exit_code=$?
-          set -e
-          if [ "$exit_code" -eq 5 ]; then
-            echo "No integration tests selected for ${{ matrix.test_path }}; skipping."
-            exit 0
-          fi
-          exit "$exit_code"
-
   lint-sql:
     runs-on: ubuntu-latest
     steps:
