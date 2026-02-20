@@ -11,10 +11,21 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pandera.pandas import Field
+from pandera.pandas import DataFrameModel, Field
 
 from phlo.logging import get_logger
-from phlo_quality.schemas.base import PhloSchema
+
+try:
+    from phlo_quality.schemas.base import PhloSchema
+except Exception:  # noqa: BLE001 - optional dependency
+
+    class PhloSchema(DataFrameModel):  # type: ignore[no-redef]
+        """Fallback schema base with PhloSchema defaults when phlo-quality is unavailable."""
+
+        class Config:
+            strict = False
+            coerce = True
+
 
 logger = get_logger(__name__)
 

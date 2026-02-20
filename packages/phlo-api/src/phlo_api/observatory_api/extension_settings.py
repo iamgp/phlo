@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from anyio.to_thread import run_sync
@@ -9,9 +10,26 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from phlo.logging import get_logger
-from phlo_observatory import ObservatoryExtensionPlugin
-from phlo_observatory.extensions import get_observatory_extension
-from phlo_observatory import SettingsScope, get_settings_service
+
+try:
+    from phlo_observatory import SettingsScope, get_settings_service
+    from phlo_observatory.extensions import get_observatory_extension
+except Exception:  # noqa: BLE001 - observatory package is optional
+
+    class SettingsScope(str, Enum):
+        """Fallback settings scope enum when Observatory package is unavailable."""
+
+        GLOBAL = "global"
+        EXTENSION = "extension"
+
+    def get_settings_service() -> Any:
+        """Raise a runtime error when Observatory settings service is unavailable."""
+        raise RuntimeError("phlo-observatory is not installed")
+
+    def get_observatory_extension(_name: str) -> Any | None:
+        """Return no extension when Observatory package is unavailable."""
+        return None
+
 
 logger = get_logger(__name__)
 
@@ -31,7 +49,7 @@ class ExtensionSettingsResponse(BaseModel):
     updated_at: str | None
 
 
-def _get_extension(name: str) -> ObservatoryExtensionPlugin | None:
+def _get_extension(name: str) -> Any | None:
     """Return an Observatory extension plugin by name.
 
     Args:
@@ -133,6 +151,8 @@ async def get_extension_settings(name: str) -> ExtensionSettingsResponse:
         return await run_sync(_fetch_settings_sync, name)
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Failed to fetch extension settings")
         raise HTTPException(status_code=500, detail="Failed to fetch settings") from exc
@@ -147,6 +167,8 @@ async def put_extension_settings(
         return await run_sync(_upsert_settings_sync, name, payload)
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Failed to update extension settings")
         raise HTTPException(status_code=500, detail="Failed to update settings") from exc

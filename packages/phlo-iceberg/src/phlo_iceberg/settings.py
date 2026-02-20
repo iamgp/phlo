@@ -7,8 +7,6 @@ from functools import lru_cache
 from pydantic import Field
 
 from phlo.config.base import BaseConfig
-from phlo_minio.settings import get_settings as get_minio_settings
-from phlo_nessie.settings import get_settings as get_nessie_settings
 
 
 class IcebergSettings(BaseConfig):
@@ -27,8 +25,24 @@ class IcebergSettings(BaseConfig):
         default="main", description="Default Nessie branch/tag for Iceberg operations"
     )
     iceberg_s3_endpoint: str | None = Field(
-        default=None,
-        description="Optional explicit S3 endpoint URL override for Iceberg I/O",
+        default="http://minio:10001",
+        description="S3 endpoint URL for Iceberg I/O",
+    )
+    iceberg_s3_access_key: str = Field(
+        default="minio",
+        description="S3 access key for Iceberg I/O",
+    )
+    iceberg_s3_secret_key: str = Field(
+        default="minio123",
+        description="S3 secret key for Iceberg I/O",
+    )
+    iceberg_s3_region: str = Field(
+        default="us-east-1",
+        description="S3 region for Iceberg I/O",
+    )
+    iceberg_nessie_uri: str = Field(
+        default="http://nessie:19120/iceberg",
+        description="Nessie Iceberg REST endpoint base URI",
     )
 
     def get_iceberg_warehouse_for_branch(self, branch: str = "main") -> str:
@@ -51,20 +65,15 @@ class IcebergSettings(BaseConfig):
         Returns:
             dict: PyIceberg catalog configuration values.
         """
-        nessie_settings = get_nessie_settings()
-        minio_settings = get_minio_settings()
-        s3_endpoint = self.iceberg_s3_endpoint or (
-            f"http://{minio_settings.minio_host}:{minio_settings.minio_api_port}"
-        )
         return {
             "type": "rest",
-            "uri": f"{nessie_settings.nessie_iceberg_rest_uri()}/{ref}",
+            "uri": f"{self.iceberg_nessie_uri}/{ref}",
             "warehouse": self.get_iceberg_warehouse_for_branch(ref),
-            "s3.endpoint": s3_endpoint,
-            "s3.access-key-id": minio_settings.minio_root_user,
-            "s3.secret-access-key": minio_settings.minio_root_password,
+            "s3.endpoint": self.iceberg_s3_endpoint,
+            "s3.access-key-id": self.iceberg_s3_access_key,
+            "s3.secret-access-key": self.iceberg_s3_secret_key,
             "s3.path-style-access": "true",
-            "s3.region": minio_settings.s3_region,
+            "s3.region": self.iceberg_s3_region,
         }
 
 

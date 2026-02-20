@@ -3,10 +3,9 @@
 from typing import Any
 
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo_quality.checks_extra import SchemaCheck
 
 
-class SchemaCheckPlugin(QualityCheckPlugin[SchemaCheck]):
+class SchemaCheckPlugin(QualityCheckPlugin[Any]):
     """Plugin for schema checks."""
 
     @property
@@ -20,7 +19,7 @@ class SchemaCheckPlugin(QualityCheckPlugin[SchemaCheck]):
             tags=["quality", "schema"],
         )
 
-    def create_check(self, schema: Any, lazy: bool = True) -> SchemaCheck:
+    def create_check(self, schema: Any, lazy: bool = True) -> Any:
         """Create a schema check instance.
 
         Args:
@@ -30,4 +29,6 @@ class SchemaCheckPlugin(QualityCheckPlugin[SchemaCheck]):
         Returns:
             Configured schema-check instance.
         """
+        from phlo_quality.checks_extra import SchemaCheck
+
         return SchemaCheck(schema=schema, lazy=lazy)

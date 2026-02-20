@@ -1,15 +1,73 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from phlo.capabilities import CheckResult
 from phlo.logging import get_logger
-from phlo_quality.contract import QualityCheckContract, dbt_check_name
-from phlo_quality.severity import severity_for_dbt_test
 from phlo_dbt.translator import DbtSpecTranslator
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class _CheckContract:
+    """Minimal check metadata contract used for dbt test outputs."""
+
+    source: str
+    failed_count: int
+    partition_key: str | None = None
+    total_count: int | None = None
+    query_or_sql: str | None = None
+    repro_sql: str | None = None
+    sample: list[Any] | None = None
+
+    def to_metadata(self) -> dict[str, Any]:
+        """Export contract fields as metadata dict."""
+        metadata: dict[str, Any] = {
+            "source": self.source,
+            "failed_count": self.failed_count,
+        }
+        if self.partition_key is not None:
+            metadata["partition_key"] = self.partition_key
+        if self.total_count is not None:
+            metadata["total_count"] = self.total_count
+        if self.query_or_sql is not None:
+            metadata["query_or_sql"] = self.query_or_sql
+        if self.repro_sql is not None:
+            metadata["repro_sql"] = self.repro_sql
+        if self.sample is not None:
+            metadata["sample"] = self.sample[:20]
+        return metadata
+
+
+def _sanitize_name(value: str) -> str:
+    """Normalize a string into a Dagster-safe identifier segment."""
+    cleaned = "".join(char if char.isalnum() else "_" for char in value.strip())
+    cleaned = "_".join(part for part in cleaned.split("_") if part)
+    return cleaned or "unknown"
+
+
+def _dbt_check_name(test_type: str, target: str) -> str:
+    """Build canonical check name for a dbt test."""
+    return f"dbt__{_sanitize_name(test_type)}__{_sanitize_name(target)}"
+
+
+def _severity_for_dbt_test(*, test_type: str | None, tags: Iterable[str] | None) -> str:
+    """Map dbt test metadata to severity."""
+    warn_tags = {"warn", "anomaly"}
+    blocking_tags = {"blocking"}
+    blocking_test_types = {"not_null", "unique", "relationships"}
+    normalized_tags = {tag.strip().lower() for tag in (tags or []) if tag and tag.strip()}
+    normalized_test_type = (test_type or "").strip().lower()
+    if normalized_tags & blocking_tags:
+        return "error"
+    if normalized_tags & warn_tags:
+        return "warn"
+    if normalized_test_type in blocking_test_types:
+        return "error"
+    return "warn"
 
 
 def extract_dbt_asset_checks(
@@ -76,7 +134,7 @@ def extract_dbt_asset_checks(
         target_name = str(
             target_props.get("name") or target_props.get("alias") or target_unique_id.split(".")[-1]
         )
-        check_name = dbt_check_name(test_type, target_name)
+        check_name = _dbt_check_name(test_type, target_name)
 
         tags = _dbt_tags(test_props)
         failures = _int_or_none(result.get("failures"))
@@ -86,7 +144,7 @@ def extract_dbt_asset_checks(
         if passed:
             severity = None
         elif status == "fail":
-            severity_label = severity_for_dbt_test(test_type=test_type, tags=tags)
+            severity_label = _severity_for_dbt_test(test_type=test_type, tags=tags)
             severity = severity_label or "error"
         else:
             severity = "error"
@@ -94,7 +152,7 @@ def extract_dbt_asset_checks(
         compiled_sql = _dbt_compiled_sql(test_props)
         compiled_sql = _truncate(compiled_sql, max_chars=max_sql_chars)
 
-        contract = QualityCheckContract(
+        contract = _CheckContract(
             source="dbt",
             partition_key=partition_key,
             failed_count=failed_count,

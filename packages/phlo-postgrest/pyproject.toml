@@ -14,12 +14,17 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-dbt>=0.1.0",
-    "phlo-postgres>=0.1.0",
+    "psycopg2-binary>=2.9.11",
     "pyyaml>=6.0.1",
 ]
 
 [project.optional-dependencies]
+dbt = [
+    "phlo-dbt>=0.1.0",
+]
+postgres = [
+    "phlo-postgres>=0.1.0",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",

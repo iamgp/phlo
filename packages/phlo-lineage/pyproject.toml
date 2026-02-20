@@ -14,7 +14,6 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-observatory>=0.1.0",
     "psycopg2-binary>=2.9.11",
     "python-ulid>=2.0.0",
     "click>=8.3.0",
@@ -22,6 +21,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+observatory = [
+    "phlo-observatory>=0.1.0",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",
