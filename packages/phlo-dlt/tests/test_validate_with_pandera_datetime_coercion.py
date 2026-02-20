@@ -3,14 +3,14 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pandas as pd
+from pandera.pandas import DataFrameModel
 from pandera.typing import Series  # type: ignore[possibly-missing-import]
 from phlo_dlt.dlt_helpers import validate_with_pandera
 
 from phlo.logging import get_logger
-from phlo_quality.schemas import PhloSchema
 
 
-class ExampleSchema(PhloSchema):
+class ExampleSchema(DataFrameModel):
     """Schema used to verify datetime-only coercion behavior."""
 
     created_at: Series[pd.Timestamp]

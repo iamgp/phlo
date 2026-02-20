@@ -14,13 +14,15 @@ authors = [
 license = {text = "MIT"}
 dependencies = [
     "phlo>=0.1.0",
-    "phlo-observatory>=0.1.0",
     "dagster-graphql>=1.12.1",
     "pyyaml>=6.0.1",
     "requests>=2.32.5",
 ]
 
 [project.optional-dependencies]
+observatory = [
+    "phlo-observatory>=0.1.0",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1.0",

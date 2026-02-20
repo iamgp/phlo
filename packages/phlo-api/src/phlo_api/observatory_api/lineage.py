@@ -10,17 +10,31 @@ from collections import deque
 from typing import Any
 
 import psycopg2
-from fastapi import APIRouter, Query
 from anyio.to_thread import run_sync
+from fastapi import APIRouter, Query
 from psycopg2.extras import RealDictCursor
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field
 
+from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
-from phlo_lineage.settings import get_settings
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["lineage"])
+
+
+class ApiLineageSettings(BaseConfig):
+    """Lineage API connection settings."""
+
+    lineage_db_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "LINEAGE_DB_URL",
+            "PHLO_LINEAGE_DB_URL",
+            "DAGSTER_PG_DB_CONNECTION_STRING",
+        ),
+        description="Lineage database URL for observatory lineage APIs",
+    )
 
 
 def get_connection_string() -> str:
@@ -32,7 +46,7 @@ def get_connection_string() -> str:
     Raises:
         RuntimeError: If no lineage database URL is configured.
     """
-    settings = get_settings()
+    settings = ApiLineageSettings()
     if settings.lineage_db_url:
         return settings.lineage_db_url
     raise RuntimeError(

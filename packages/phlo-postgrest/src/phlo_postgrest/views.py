@@ -16,11 +16,25 @@ from typing import Optional
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
+from phlo.config.base import BaseConfig
 from phlo.logging import get_logger
-from phlo_dbt.settings import get_settings as get_dbt_settings
-from phlo_postgres.settings import get_settings as get_postgres_settings
+from pydantic import Field
 
 logger = get_logger(__name__)
+
+
+class PostgrestViewsSettings(BaseConfig):
+    """Settings for PostgREST view generation."""
+
+    dbt_manifest_path: str = Field(
+        default="workflows/transforms/dbt/target/manifest.json",
+        description="Path to dbt manifest.json",
+    )
+    postgres_host: str = Field(default="postgres", description="PostgreSQL host")
+    postgres_port: int = Field(default=5432, description="PostgreSQL port")
+    postgres_user: str = Field(default="phlo", description="PostgreSQL username")
+    postgres_password: str = Field(default="phlo", description="PostgreSQL password")
+    postgres_db: str = Field(default="phlo", description="PostgreSQL database name")
 
 
 @dataclass
@@ -45,7 +59,7 @@ class DbtManifestParser:
             manifest_path: Path to manifest.json. If None, uses config value.
         """
         if manifest_path is None:
-            manifest_path = get_dbt_settings().dbt_manifest_path
+            manifest_path = PostgrestViewsSettings().dbt_manifest_path
 
         self.manifest_path = Path(manifest_path)
 
@@ -294,9 +308,9 @@ class PostgreSTViewManager:
             user: Database user
             password: Database password
         """
-        settings = get_postgres_settings()
+        settings = PostgrestViewsSettings()
         self.host = host or settings.postgres_host
-        self.port = port or settings.postgres_port
+        self.port = int(port or settings.postgres_port)
         self.database = database or settings.postgres_db
         self.user = user or settings.postgres_user
         self.password = password or settings.postgres_password

@@ -1,12 +1,12 @@
 """Freshness check plugin."""
 
 from datetime import datetime
+from typing import Any
 
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo_quality.checks import FreshnessCheck
 
 
-class FreshnessCheckPlugin(QualityCheckPlugin[FreshnessCheck]):
+class FreshnessCheckPlugin(QualityCheckPlugin[Any]):
     """Plugin for freshness checks."""
 
     @property
@@ -25,7 +25,7 @@ class FreshnessCheckPlugin(QualityCheckPlugin[FreshnessCheck]):
         timestamp_column: str,
         max_age_hours: float,
         reference_time: datetime | None = None,
-    ) -> FreshnessCheck:
+    ) -> Any:
         """Create a freshness check instance.
 
         Args:
@@ -36,6 +36,8 @@ class FreshnessCheckPlugin(QualityCheckPlugin[FreshnessCheck]):
         Returns:
             Configured freshness-check instance.
         """
+        from phlo_quality.checks import FreshnessCheck
+
         return FreshnessCheck(
             timestamp_column=timestamp_column,
             max_age_hours=max_age_hours,

@@ -15,7 +15,7 @@ from phlo.capabilities import (
 )
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.exceptions import PhloConfigError
-from phlo_quality.pandera_asset_checks import (
+from phlo_dlt.pandera_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     PanderaContractEvaluation,
     evaluate_pandera_contract_parquet,

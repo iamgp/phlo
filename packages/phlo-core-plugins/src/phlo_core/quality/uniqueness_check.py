@@ -1,10 +1,11 @@
 """Uniqueness check plugin."""
 
+from typing import Any
+
 from phlo.plugins import PluginMetadata, QualityCheckPlugin
-from phlo_quality.checks import UniqueCheck
 
 
-class UniquenessCheckPlugin(QualityCheckPlugin[UniqueCheck]):
+class UniquenessCheckPlugin(QualityCheckPlugin[Any]):
     """Plugin for uniqueness checks."""
 
     @property
@@ -18,7 +19,7 @@ class UniquenessCheckPlugin(QualityCheckPlugin[UniqueCheck]):
             tags=["quality", "uniqueness"],
         )
 
-    def create_check(self, columns: list[str], allow_threshold: float = 0.0) -> UniqueCheck:
+    def create_check(self, columns: list[str], allow_threshold: float = 0.0) -> Any:
         """Create a uniqueness check instance.
 
         Args:
@@ -28,4 +29,6 @@ class UniquenessCheckPlugin(QualityCheckPlugin[UniqueCheck]):
         Returns:
             Configured uniqueness-check instance.
         """
+        from phlo_quality.checks import UniqueCheck
+
         return UniqueCheck(columns=columns, allow_threshold=allow_threshold)

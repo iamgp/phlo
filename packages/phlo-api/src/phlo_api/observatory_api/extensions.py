@@ -17,8 +17,15 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
 from phlo.logging import get_logger
-from phlo_observatory import ObservatoryExtensionPlugin
-from phlo_observatory.extensions import discover_observatory_extensions
+
+try:
+    from phlo_observatory.extensions import discover_observatory_extensions
+except Exception:  # noqa: BLE001 - observatory package is optional
+
+    def discover_observatory_extensions() -> list[Any]:
+        """Return no extensions when Observatory package is unavailable."""
+        return []
+
 
 logger = get_logger(__name__)
 
@@ -26,11 +33,11 @@ router = APIRouter(prefix="/api/observatory", tags=["observatory"])
 
 _CACHE_TTL_SECONDS = 5.0
 _cache_lock = threading.Lock()
-_cached_extensions: list[ObservatoryExtensionPlugin] | None = None
+_cached_extensions: list[Any] | None = None
 _cache_timestamp: float | None = None
 
 
-def _load_extensions() -> list[ObservatoryExtensionPlugin]:
+def _load_extensions() -> list[Any]:
     global _cached_extensions, _cache_timestamp
     now = time.monotonic()
     with _cache_lock:
@@ -56,7 +63,7 @@ def _load_extensions() -> list[ObservatoryExtensionPlugin]:
     return extensions
 
 
-def _extension_payload(plugin: ObservatoryExtensionPlugin) -> dict[str, Any]:
+def _extension_payload(plugin: Any) -> dict[str, Any]:
     manifest = plugin.get_manifest()
     return {
         "manifest": manifest.model_dump(),
@@ -77,7 +84,7 @@ def _parse_version(value: str) -> tuple[int, ...]:
     return numbers or (0,)
 
 
-def _is_compatible(plugin: ObservatoryExtensionPlugin, observatory_version: str | None) -> bool:
+def _is_compatible(plugin: Any, observatory_version: str | None) -> bool:
     if not observatory_version:
         return True
     manifest = plugin.get_manifest()
