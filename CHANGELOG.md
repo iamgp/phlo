@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0](https://github.com/phlohouse/phlo/compare/v0.4.0...v0.5.0) (2026-02-18)
+## [0.5.0](https://github.com/phlohouse/phlo/compare/v0.4.0...v0.5.0) (2026-02-20)
 
 
 ### ⚠ BREAKING CHANGES
