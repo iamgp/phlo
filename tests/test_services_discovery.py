@@ -13,9 +13,7 @@ def _write_service_yaml(root: Path, folder: str, name: str) -> None:
     service_file = root / folder / "service.yaml"
     service_file.parent.mkdir(parents=True, exist_ok=True)
     service_file.write_text(
-        f"name: {name}\n"
-        f"description: {name} service\n"
-        "category: core\n",
+        f"name: {name}\ndescription: {name} service\ncategory: core\n",
         encoding="utf-8",
     )
 
