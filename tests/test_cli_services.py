@@ -591,9 +591,7 @@ def test_services_list_wraps_config_parse_failures(
     assert "Check YAML syntax and file permissions" in result.output
 
 
-def test_services_list_wraps_discovery_failures(
-    monkeypatch: pytest.MonkeyPatch, tmp_path
-) -> None:
+def test_services_list_wraps_discovery_failures(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     """Verify service discovery errors are reported as ClickException messages."""
     from phlo.cli.commands.services import list as list_module
 
