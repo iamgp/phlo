@@ -52,21 +52,26 @@ def list_cmd(show_all: bool, output_json: bool):
             with open(config_file) as f:
                 existing_config = yaml.safe_load(f) or {}
                 user_overrides = existing_config.get("services", {})
-        except (OSError, yaml.YAMLError):
+        except (OSError, yaml.YAMLError) as exc:
             logger.error(
                 "services_list_config_read_failed",
                 config_file=str(config_file),
                 exc_info=True,
             )
-            raise
+            raise click.ClickException(
+                f"Failed to read {config_file}. Check YAML syntax and file permissions, then retry."
+            ) from exc
 
     # Discover available services
     try:
         discovery = ServiceDiscovery()
         available_services = discovery.discover()
-    except Exception:
+    except Exception as exc:
         logger.error("services_list_discovery_failed", exc_info=True)
-        raise
+        raise click.ClickException(
+            "Failed to discover services. Verify service plugins are installed and run "
+            "`phlo plugins list` for diagnostics."
+        ) from exc
 
     # Check which services are disabled
     disabled_services = {
