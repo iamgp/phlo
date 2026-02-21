@@ -81,19 +81,31 @@ def add_cmd(service_name: str, no_start: bool):
     service = all_services[service_name]
 
     # Update config
-    if "services" not in config:
+    if not isinstance(config.get("services"), dict):
         config["services"] = {}
-    if "enabled" not in config["services"]:
+    if not isinstance(config["services"].get("enabled"), list):
         config["services"]["enabled"] = []
+    if not isinstance(config["services"].get("disabled"), list):
+        config["services"]["disabled"] = []
 
     enabled = config["services"]["enabled"]
-    if service_name in enabled:
+    disabled = config["services"]["disabled"]
+
+    is_enabled = service_name in enabled
+    is_disabled = service_name in disabled
+
+    if is_enabled and not is_disabled:
         logger.info("services_add_already_enabled", service_name=service_name)
         click.echo(f"Service '{service_name}' is already enabled.")
         return
 
-    enabled.append(service_name)
+    if not is_enabled:
+        enabled.append(service_name)
+    if is_disabled:
+        disabled = [name for name in disabled if name != service_name]
+
     config["services"]["enabled"] = sorted(set(enabled))
+    config["services"]["disabled"] = sorted(set(disabled))
 
     # Write updated config
     with open(config_file, "w") as f:
