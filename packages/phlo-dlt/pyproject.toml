@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-dlt"
-version = "0.1.0"
+version = "0.1.1"
 description = "DLT ingestion engine capability plugin for Phlo"
 readme = {text = "DLT ingestion engine capability plugin for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"
@@ -18,6 +18,7 @@ dependencies = [
     "pandas>=2.3.3",
     "pandera>=0.26.1",
     "pyarrow>=21.0.0",
+    "pyiceberg>=0.10.0",
     "python-ulid>=2.0.0",
 ]
 

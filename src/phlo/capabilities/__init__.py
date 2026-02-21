@@ -1,5 +1,7 @@
 """Capability primitives and registry."""
 
+from typing import TYPE_CHECKING
+
 from phlo.capabilities.interfaces import TableStore
 from phlo.capabilities.registry import (
     CapabilityRegistry,
@@ -14,12 +16,6 @@ from phlo.capabilities.registry import (
     register_query_engine,
     register_resource,
     register_table_store,
-)
-from phlo.capabilities.resolver import (
-    ResolutionResult,
-    list_capabilities,
-    missing_required_capabilities,
-    resolve_capability,
 )
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.capabilities.specs import (
@@ -38,6 +34,9 @@ from phlo.capabilities.specs import (
     RunSpec,
     TableStoreSpec,
 )
+
+if TYPE_CHECKING:
+    from phlo.capabilities.resolver import ResolutionResult
 
 __all__ = [
     "AssetCheckSpec",
@@ -73,3 +72,17 @@ __all__ = [
     "ResolutionResult",
     "resolve_capability",
 ]
+
+
+def __getattr__(name: str):
+    """Lazily expose resolver symbols to avoid circular imports."""
+    if name in {
+        "ResolutionResult",
+        "list_capabilities",
+        "missing_required_capabilities",
+        "resolve_capability",
+    }:
+        from phlo.capabilities import resolver
+
+        return getattr(resolver, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -206,6 +206,26 @@ def get_logger(
     return logger
 
 
+def log_event(logger: Any, level: str, event: str, **fields: Any) -> None:
+    """Log structured fields when supported, else fallback to a plain message.
+
+    Args:
+        logger: Logger instance (structlog or stdlib-like).
+        level: Log level method name (for example ``"info"``).
+        event: Event/message string.
+        **fields: Optional structured fields to attach.
+    """
+    log_method = getattr(logger, level)
+    try:
+        log_method(event, **fields)
+    except TypeError:
+        if fields:
+            details = " ".join(f"{key}={value}" for key, value in fields.items())
+            log_method(f"{event} {details}")
+        else:
+            log_method(event)
+
+
 def bind_context(**fields: Any) -> None:
     """Bind fields to the current contextvars scope for structured logging."""
 
