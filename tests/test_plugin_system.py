@@ -8,8 +8,11 @@ Tests the complete plugin lifecycle:
 - Whitelisting/blacklisting
 """
 
+from types import SimpleNamespace
+
 import pytest
 
+import phlo.plugins.discovery.plugins as plugins_discovery
 from phlo.plugins import (
     PluginMetadata,
     QualityCheckPlugin,
@@ -374,6 +377,42 @@ class TestPluginDiscovery:
             for plugin in plugin_list:
                 registry = get_global_registry()
                 assert registry.validate_plugin(plugin)
+
+
+class TestPluginAutoDiscoveryBootstrap:
+    """Test import-time auto-discovery precedence."""
+
+    def test_auto_discovery_enabled_from_settings(self, monkeypatch):
+        """Enable auto-discovery when config is enabled and env override is absent."""
+        monkeypatch.delenv("PHLO_NO_AUTO_DISCOVER", raising=False)
+        monkeypatch.setattr(
+            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=True)
+        )
+        assert plugins_discovery._should_auto_discover() is True
+
+    def test_auto_discovery_disabled_from_settings(self, monkeypatch):
+        """Disable auto-discovery when config is disabled."""
+        monkeypatch.delenv("PHLO_NO_AUTO_DISCOVER", raising=False)
+        monkeypatch.setattr(
+            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=False)
+        )
+        assert plugins_discovery._should_auto_discover() is False
+
+    def test_env_override_disables_auto_discovery(self, monkeypatch):
+        """PHLO_NO_AUTO_DISCOVER overrides enabled settings."""
+        monkeypatch.setenv("PHLO_NO_AUTO_DISCOVER", "1")
+        monkeypatch.setattr(
+            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=True)
+        )
+        assert plugins_discovery._should_auto_discover() is False
+
+    def test_env_falsy_value_keeps_auto_discovery_enabled(self, monkeypatch):
+        """Falsy env values do not disable auto-discovery."""
+        monkeypatch.setenv("PHLO_NO_AUTO_DISCOVER", "0")
+        monkeypatch.setattr(
+            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=True)
+        )
+        assert plugins_discovery._should_auto_discover() is True
 
 
 class TestPluginIntegration:
