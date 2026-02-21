@@ -152,6 +152,7 @@ phlo services start [OPTIONS]
 ```bash
 --native                 # Run native dev services (phlo-api, Observatory) as subprocesses
 --profile PROFILE        # Additional service profiles
+--service SERVICE        # Start only specific service(s)
 --detach, -d             # Run in background
 --build                  # Rebuild containers before starting
 ```
@@ -183,6 +184,16 @@ phlo services start --profile observability --profile api
 
 # Rebuild and start
 phlo services start --build
+```
+
+**Validation behavior**:
+
+- `--profile` values are validated before Docker commands are executed.
+- Unknown profiles fail fast with a `ClickException` that includes valid options.
+
+```bash
+phlo services start --profile not-a-profile
+# Error: Invalid profile: not-a-profile. Valid profile options: api, observability
 ```
 
 **Services started**:
@@ -250,6 +261,22 @@ phlo services list --all
 phlo services list --json
 ```
 
+**Error behavior**:
+
+- Invalid `phlo.yaml` is surfaced with a targeted message:
+
+```bash
+phlo services list --json
+# Error: Failed to read /path/to/phlo.yaml. Check YAML syntax and file permissions, then retry.
+```
+
+- Discovery failures include next-step diagnostics:
+
+```bash
+phlo services list --json
+# Error: Failed to discover services. Verify service plugins are installed and run `phlo plugins list` for diagnostics.
+```
+
 ### phlo services add
 
 Add an optional service to the project.
@@ -271,6 +298,32 @@ phlo services add prometheus
 phlo services add grafana --no-start
 ```
 
+**State semantics**:
+
+- `add` ensures the service is present in `services.enabled`.
+- `add` removes that service from `services.disabled` if present.
+- If already enabled and not disabled, command exits without changing config.
+
+```yaml
+# Before
+services:
+  enabled: []
+  disabled:
+    - prometheus
+```
+
+```bash
+phlo services add prometheus --no-start
+```
+
+```yaml
+# After
+services:
+  enabled:
+    - prometheus
+  disabled: []
+```
+
 ### phlo services remove
 
 Remove a service from the project.
@@ -290,6 +343,32 @@ phlo services remove SERVICE_NAME [OPTIONS]
 ```bash
 phlo services remove prometheus
 phlo services remove grafana --keep-running
+```
+
+**State semantics**:
+
+- `remove` removes the service from `services.enabled`.
+- `remove` adds the service to `services.disabled`.
+- By default it stops the service first; `--keep-running` skips the stop step.
+
+```yaml
+# Before
+services:
+  enabled:
+    - prometheus
+  disabled: []
+```
+
+```bash
+phlo services remove prometheus --keep-running
+```
+
+```yaml
+# After
+services:
+  enabled: []
+  disabled:
+    - prometheus
 ```
 
 ### phlo services reset
