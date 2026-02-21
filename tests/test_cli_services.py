@@ -796,3 +796,76 @@ def test_services_init_includes_requested_profile_services(
     compose = (tmp_path / ".phlo" / "docker-compose.yml").read_text()
     assert "postgres" in compose
     assert "prometheus" in compose
+
+
+def test_services_start_rejects_unknown_profile(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    """Fail fast when --profile includes an unknown value."""
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text("services:\n  postgres: {}\n")
+
+    class FakeDiscovery:
+        def get_available_profiles(self) -> set[str]:
+            return {"api", "observability"}
+
+    def _unexpected_call(*_args, **_kwargs):
+        raise AssertionError("Docker command path should not execute for invalid profiles")
+
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "run_command", _unexpected_call)
+    monkeypatch.setattr(start_module, "require_docker", _unexpected_call)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--profile", "not-a-profile"])
+
+    assert result.exit_code != 0
+    assert "Invalid profile: not-a-profile." in result.output
+    assert "Valid profile options: api, observability" in result.output
+
+
+def test_services_start_uses_profile_targets_without_default_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """Start only profile-matched services when --profile is valid."""
+    from phlo.cli.commands.services import start as start_module
+
+    phlo_dir = tmp_path / ".phlo"
+    phlo_dir.mkdir()
+    (phlo_dir / "docker-compose.yml").write_text(
+        "services:\n  postgres: {}\n  prometheus: {}\n",
+    )
+
+    class FakeDiscovery:
+        def get_available_profiles(self) -> set[str]:
+            return {"observability"}
+
+    profile_calls: list[tuple[str, ...]] = []
+    docker_calls: list[list[str]] = []
+
+    def _fake_get_profile_service_names(profiles: tuple[str, ...]) -> list[str]:
+        profile_calls.append(profiles)
+        return ["prometheus"]
+
+    def _fake_run_command(cmd: list[str], check=False, capture_output=False) -> CompletedProcess:
+        docker_calls.append(cmd)
+        return CompletedProcess(args=cmd, returncode=0)
+
+    monkeypatch.setattr(start_module, "ensure_phlo_dir", lambda: phlo_dir)
+    monkeypatch.setattr(start_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(start_module, "get_project_name", lambda: "demo-project")
+    monkeypatch.setattr(start_module, "get_profile_service_names", _fake_get_profile_service_names)
+    monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
+    monkeypatch.setattr(start_module, "run_command", _fake_run_command)
+    monkeypatch.setattr(start_module, "require_docker", lambda: None)
+    monkeypatch.setattr(start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None)
+    monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
+
+    result = CliRunner().invoke(start_module.start_cmd, ["--profile", "observability"])
+
+    assert result.exit_code == 0
+    assert profile_calls == [("observability",)]
+    assert docker_calls
+    assert "prometheus" in docker_calls[0]
+    assert "postgres" not in docker_calls[0]
