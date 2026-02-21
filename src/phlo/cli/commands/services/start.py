@@ -30,7 +30,9 @@ logger = get_logger(__name__)
 
 def _validate_requested_profiles(profile_names: tuple[str, ...]) -> tuple[str, ...]:
     """Normalize and validate requested profile names."""
-    requested_profiles = tuple(dict.fromkeys(name.strip() for name in profile_names if name.strip()))
+    requested_profiles = tuple(
+        dict.fromkeys(name.strip() for name in profile_names if name.strip())
+    )
     if not requested_profiles:
         return ()
 

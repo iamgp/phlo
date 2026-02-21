@@ -859,7 +859,9 @@ def test_services_start_uses_profile_targets_without_default_fallback(
     monkeypatch.setattr(start_module, "compose_base_cmd", lambda **_kwargs: ["docker", "compose"])
     monkeypatch.setattr(start_module, "run_command", _fake_run_command)
     monkeypatch.setattr(start_module, "require_docker", lambda: None)
-    monkeypatch.setattr(start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        start_module, "_emit_service_lifecycle_events", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(start_module, "_run_service_hooks", lambda *args, **kwargs: None)
 
     result = CliRunner().invoke(start_module.start_cmd, ["--profile", "observability"])
