@@ -576,6 +576,42 @@ def test_extract_compose_service_returns_none_without_label() -> None:
     assert _extract_compose_service({}) is None
 
 
+def test_services_list_wraps_config_parse_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """Verify invalid phlo.yaml config errors are reported as ClickException messages."""
+    from phlo.cli.commands.services import list as list_module
+
+    (tmp_path / "phlo.yaml").write_text("services: [\n")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(list_module.list_cmd, ["--json"])
+    assert result.exit_code == 1
+    assert "Failed to read" in result.output
+    assert "Check YAML syntax and file permissions" in result.output
+
+
+def test_services_list_wraps_discovery_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """Verify service discovery errors are reported as ClickException messages."""
+    from phlo.cli.commands.services import list as list_module
+
+    class FailingDiscovery:
+        """Test double that raises during discovery."""
+
+        def discover(self) -> dict[str, ServiceDefinition]:
+            raise RuntimeError("discovery blew up")
+
+    monkeypatch.setattr(list_module, "ServiceDiscovery", FailingDiscovery)
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(list_module.list_cmd, ["--json"])
+    assert result.exit_code == 1
+    assert "Failed to discover services." in result.output
+    assert "phlo plugins list" in result.output
+
+
 def test_services_list_handles_malformed_docker_json(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
