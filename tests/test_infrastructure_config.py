@@ -5,9 +5,30 @@ from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from phlo.config_schema import InfrastructureConfig, ServiceConfig
-from phlo.infrastructure import clear_config_cache, get_container_name, load_infrastructure_config
+from phlo.infrastructure import (
+    clear_config_cache,
+    get_container_name,
+    get_project_name_from_config,
+    get_service_config,
+    load_infrastructure_config,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_infra_config_cache():
+    """Ensure load_infrastructure_config cache does not leak between tests."""
+    clear_config_cache()
+    yield
+    clear_config_cache()
+
+
+def _write_phlo_yaml(config_path: Path, config: dict) -> None:
+    """Write a phlo.yaml fixture payload."""
+    with open(config_path, "w") as f:
+        yaml.safe_dump(config, f, sort_keys=False)
 
 
 def test_service_config_defaults():
@@ -159,3 +180,142 @@ def test_get_container_name_helper():
         name = get_container_name("dagster_webserver", "myproject", Path(tmpdir))
 
         assert name == "myproject-dagster-webserver-1"
+
+
+def test_load_infrastructure_config_missing_file_returns_defaults(tmp_path: Path):
+    """Missing phlo.yaml should return default infrastructure config."""
+    config = load_infrastructure_config(tmp_path)
+
+    assert config.container_naming_pattern == "{project}-{service}-1"
+    assert config.services == {}
+    assert config.network.driver == "bridge"
+
+
+def test_load_infrastructure_config_empty_file_returns_defaults(tmp_path: Path):
+    """Empty phlo.yaml should return default infrastructure config."""
+    config_path = tmp_path / "phlo.yaml"
+    config_path.write_text("")
+
+    config = load_infrastructure_config(tmp_path)
+
+    assert config.container_naming_pattern == "{project}-{service}-1"
+    assert config.services == {}
+    assert config.network.driver == "bridge"
+
+
+def test_load_infrastructure_config_missing_infrastructure_section_returns_defaults(tmp_path: Path):
+    """Config without infrastructure section should return defaults."""
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"name": "test-project"})
+
+    config = load_infrastructure_config(tmp_path)
+
+    assert config.container_naming_pattern == "{project}-{service}-1"
+    assert config.services == {}
+    assert config.network.driver == "bridge"
+
+
+def test_load_infrastructure_config_invalid_yaml_raises(tmp_path: Path):
+    """Invalid YAML should be surfaced to the caller."""
+    config_path = tmp_path / "phlo.yaml"
+    config_path.write_text("infrastructure:\n  services:\n    dagster: [")
+
+    with pytest.raises(yaml.YAMLError):
+        load_infrastructure_config(tmp_path)
+
+
+def test_load_infrastructure_config_invalid_schema_raises(tmp_path: Path):
+    """Invalid infrastructure schema should raise ValidationError."""
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(
+        config_path,
+        {
+            "infrastructure": {
+                "container_naming_pattern": "invalid-pattern",
+            }
+        },
+    )
+
+    with pytest.raises(ValidationError):
+        load_infrastructure_config(tmp_path)
+
+
+def test_get_project_name_from_config_handles_missing_and_invalid_config(tmp_path: Path):
+    """Project name helper should gracefully handle missing/invalid config."""
+    assert get_project_name_from_config(tmp_path) is None
+
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(config_path, {"name": "test-project"})
+    assert get_project_name_from_config(tmp_path) == "test-project"
+
+    config_path.write_text("name: [")
+    assert get_project_name_from_config(tmp_path) is None
+
+
+def test_service_config_and_container_name_helpers_use_service_override(tmp_path: Path):
+    """Helper functions should honor configured service overrides."""
+    config_path = tmp_path / "phlo.yaml"
+    _write_phlo_yaml(
+        config_path,
+        {
+            "infrastructure": {
+                "services": {
+                    "dagster": {
+                        "service_name": "dagster-webserver",
+                        "container_name": "custom-dagster-web",
+                    }
+                }
+            }
+        },
+    )
+
+    service = get_service_config("dagster", tmp_path)
+
+    assert service is not None
+    assert service.container_name == "custom-dagster-web"
+    assert get_container_name("dagster", "test-project", tmp_path) == "custom-dagster-web"
+    assert get_service_config("missing", tmp_path) is None
+    assert get_container_name("missing", "test-project", tmp_path) is None
+
+
+def test_clear_config_cache_refreshes_updated_file_contents(tmp_path: Path):
+    """clear_config_cache should force a reload after file changes."""
+    config_path = tmp_path / "phlo.yaml"
+
+    _write_phlo_yaml(
+        config_path,
+        {
+            "infrastructure": {
+                "container_naming_pattern": "{project}-{service}-1",
+                "services": {"dagster": {"service_name": "dagster-webserver"}},
+            }
+        },
+    )
+    first_config = load_infrastructure_config(tmp_path)
+    assert first_config.container_naming_pattern == "{project}-{service}-1"
+
+    _write_phlo_yaml(
+        config_path,
+        {
+            "infrastructure": {
+                "container_naming_pattern": "{project}_{service}",
+                "services": {
+                    "dagster": {
+                        "service_name": "dagster-webserver",
+                        "container_name": "updated-container",
+                    }
+                },
+            }
+        },
+    )
+
+    stale_config = load_infrastructure_config(tmp_path)
+    assert stale_config is first_config
+    assert stale_config.container_naming_pattern == "{project}-{service}-1"
+
+    clear_config_cache()
+    refreshed_config = load_infrastructure_config(tmp_path)
+
+    assert refreshed_config is not first_config
+    assert refreshed_config.container_naming_pattern == "{project}_{service}"
+    assert get_container_name("dagster", "test-project", tmp_path) == "updated-container"
