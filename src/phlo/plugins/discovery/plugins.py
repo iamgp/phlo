@@ -75,6 +75,19 @@ _PLUGIN_GETTER_METHODS = {
     "orchestrators": "get_orchestrator",
 }
 
+_PLUGIN_EXPECTED_TYPES = {
+    "source_connectors": SourceConnectorPlugin,
+    "quality_checks": QualityCheckPlugin,
+    "transformations": TransformationPlugin,
+    "services": ServicePlugin,
+    "cli_commands": CliCommandPlugin,
+    "hooks": HookPlugin,
+    "catalogs": CatalogPlugin,
+    "asset_providers": AssetProviderPlugin,
+    "resource_providers": ResourceProviderPlugin,
+    "orchestrators": OrchestratorAdapterPlugin,
+}
+
 
 def _is_plugin_allowed(plugin_name: str) -> bool:
     """
@@ -99,6 +112,67 @@ def _is_plugin_allowed(plugin_name: str) -> bool:
         return False
 
     return True
+
+
+def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: bool = True) -> None:
+    """Register plugin with initialize/cleanup lifecycle hooks and rollback safeguards."""
+    registry = get_global_registry()
+    register_method_name = _PLUGIN_REGISTER_METHODS.get(plugin_type)
+    getter_method_name = _PLUGIN_GETTER_METHODS.get(plugin_type)
+
+    if not register_method_name or not getter_method_name:
+        raise ValueError(f"Unknown plugin type: {plugin_type}")
+
+    register_method = getattr(registry, register_method_name)
+    existing_plugin = getattr(registry, getter_method_name)(plugin.metadata.name)
+
+    # Let registry raise duplicate registration errors without initializing a plugin that
+    # cannot be registered.
+    if existing_plugin and not replace:
+        register_method(plugin, replace=False)
+        return
+
+    try:
+        plugin.initialize({})
+    except Exception:
+        try:
+            plugin.cleanup()
+        except Exception:
+            logger.warning(
+                "plugin_cleanup_after_initialize_failed",
+                plugin_type=plugin_type,
+                plugin_name=plugin.metadata.name,
+                exc_info=True,
+            )
+        raise
+
+    existing_cleaned = False
+    try:
+        if existing_plugin and replace:
+            existing_plugin.cleanup()
+            existing_cleaned = True
+        register_method(plugin, replace=replace)
+    except Exception:
+        if existing_cleaned:
+            try:
+                existing_plugin.initialize({})
+            except Exception:
+                logger.error(
+                    "plugin_recovery_initialize_failed",
+                    plugin_type=plugin_type,
+                    plugin_name=plugin.metadata.name,
+                    exc_info=True,
+                )
+        try:
+            plugin.cleanup()
+        except Exception:
+            logger.warning(
+                "plugin_cleanup_after_registration_failed",
+                plugin_type=plugin_type,
+                plugin_name=plugin.metadata.name,
+                exc_info=True,
+            )
+        raise
 
 
 def discover_plugins(
@@ -197,18 +271,7 @@ def discover_plugins(
                         continue
 
                     # Validate specific plugin type
-                    expected_type = {
-                        "source_connectors": SourceConnectorPlugin,
-                        "quality_checks": QualityCheckPlugin,
-                        "transformations": TransformationPlugin,
-                        "services": ServicePlugin,
-                        "cli_commands": CliCommandPlugin,
-                        "hooks": HookPlugin,
-                        "catalogs": CatalogPlugin,
-                        "asset_providers": AssetProviderPlugin,
-                        "resource_providers": ResourceProviderPlugin,
-                        "orchestrators": OrchestratorAdapterPlugin,
-                    }[ptype]
+                    expected_type = _PLUGIN_EXPECTED_TYPES[ptype]
 
                     if not isinstance(plugin, expected_type):
                         logger.error(
@@ -219,6 +282,9 @@ def discover_plugins(
                         )
                         continue
 
+                    if auto_register:
+                        _register_plugin_with_lifecycle(ptype, plugin, replace=True)
+
                     # Add to discovered plugins
                     discovered[ptype].append(plugin)
 
@@ -228,12 +294,6 @@ def discover_plugins(
                         plugin_version=plugin.metadata.version,
                         plugin_type=ptype,
                     )
-
-                    if auto_register:
-                        registry = get_global_registry()
-                        register_method = _PLUGIN_REGISTER_METHODS.get(ptype)
-                        if register_method:
-                            getattr(registry, register_method)(plugin, replace=True)
 
                 except Exception:
                     logger.error(
