@@ -23,9 +23,29 @@ from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
-from phlo.plugins.discovery import ServiceDefinition
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
 
 logger = get_logger(__name__)
+
+
+def _validate_requested_profiles(profile_names: tuple[str, ...]) -> tuple[str, ...]:
+    """Normalize and validate requested profile names."""
+    requested_profiles = tuple(
+        dict.fromkeys(name.strip() for name in profile_names if name.strip())
+    )
+    if not requested_profiles:
+        return ()
+
+    available_profiles = ServiceDiscovery().get_available_profiles()
+    unknown_profiles = sorted(set(requested_profiles) - available_profiles)
+    if unknown_profiles:
+        invalid_label = "profile" if len(unknown_profiles) == 1 else "profiles"
+        raise click.ClickException(
+            f"Invalid {invalid_label}: {', '.join(unknown_profiles)}. "
+            f"Valid profile options: {', '.join(sorted(available_profiles)) or '(none)'}"
+        )
+
+    return requested_profiles
 
 
 @click.command("start")
@@ -88,6 +108,8 @@ def start_cmd(
         )
         raise click.ClickException("docker-compose.yml not found. Run 'phlo services init' first.")
 
+    profile = _validate_requested_profiles(profile)
+
     # Parse comma-separated services
     services_list = []
     for s in service:
@@ -118,7 +140,6 @@ def start_cmd(
     discovery = None
     if native:
         from phlo.plugins.compose.native import NativeProcessManager
-        from phlo.plugins.discovery import ServiceDiscovery
 
         discovery = ServiceDiscovery()
         project_root = Path.cwd()
@@ -281,7 +302,6 @@ def start_cmd(
         if result.returncode == 0:
             if native:
                 from phlo.plugins.compose.native import NativeProcessManager
-                from phlo.plugins.discovery import ServiceDiscovery
 
                 discovery = ServiceDiscovery()
                 project_root = Path.cwd()
