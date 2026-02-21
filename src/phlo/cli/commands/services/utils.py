@@ -154,6 +154,56 @@ def _get_env_overrides(config: dict) -> dict[str, object]:
     return env_overrides if isinstance(env_overrides, dict) else {}
 
 
+def get_enabled_disabled_service_names(config: dict | None) -> tuple[set[str], set[str]]:
+    """Return enabled/disabled service names from top-level service config.
+
+    Supports both state formats:
+    - list form: ``services.enabled`` / ``services.disabled``
+    - mapping form: ``services.<name>.enabled: true|false``
+    """
+    if not isinstance(config, dict):
+        return set(), set()
+
+    services_config = config.get("services", {})
+    if not isinstance(services_config, dict):
+        return set(), set()
+
+    def _clean_name(value: object) -> str | None:
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    enabled_names: set[str] = set()
+    disabled_names: set[str] = set()
+
+    enabled_list = services_config.get("enabled")
+    if isinstance(enabled_list, list):
+        for name in enabled_list:
+            if normalized := _clean_name(name):
+                enabled_names.add(normalized)
+
+    disabled_list = services_config.get("disabled")
+    if isinstance(disabled_list, list):
+        for name in disabled_list:
+            if normalized := _clean_name(name):
+                disabled_names.add(normalized)
+
+    for name, service_config in services_config.items():
+        if not isinstance(service_config, dict):
+            continue
+        normalized_name = _clean_name(name)
+        if not normalized_name:
+            continue
+        if service_config.get("enabled") is False:
+            disabled_names.add(normalized_name)
+        elif service_config.get("enabled") is True:
+            enabled_names.add(normalized_name)
+
+    disabled_names.difference_update(enabled_names)
+    return enabled_names, disabled_names
+
+
 def _warn_secret_env_overrides(env_overrides: dict[str, object], services: list) -> None:
     """Warn when config env overrides include secret-backed service variables.
 

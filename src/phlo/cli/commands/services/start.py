@@ -16,6 +16,7 @@ from phlo.cli.commands.services.utils import (
     _save_native_state,
     _stop_native_processes,
     ensure_phlo_dir,
+    get_enabled_disabled_service_names,
     get_profile_service_names,
     require_docker,
 )
@@ -46,6 +47,28 @@ def _validate_requested_profiles(profile_names: tuple[str, ...]) -> tuple[str, .
         )
 
     return requested_profiles
+
+
+def _load_disabled_service_names(project_root: Path) -> set[str]:
+    """Load disabled service names from project config, tolerating missing/bad files."""
+    config_file = project_root / "phlo.yaml"
+    if not config_file.exists():
+        return set()
+
+    try:
+        config = yaml.safe_load(config_file.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        logger.warning(
+            "services_start_config_read_failed",
+            config_file=str(config_file),
+            exc_info=True,
+        )
+        return set()
+
+    _, disabled_names = get_enabled_disabled_service_names(
+        config if isinstance(config, dict) else {}
+    )
+    return disabled_names
 
 
 @click.command("start")
@@ -119,7 +142,18 @@ def start_cmd(
     # When --profile is specified without --service, target only profile services
     # This prevents restarting already-running core services
     if profile and not services_list:
-        services_list = get_profile_service_names(profile)
+        disabled_names = _load_disabled_service_names(Path.cwd())
+        services_list = [
+            name for name in get_profile_service_names(profile) if name not in disabled_names
+        ]
+        if not services_list:
+            profile_list = ", ".join(profile)
+            logger.warning(
+                "services_start_profile_resolved_empty",
+                project_name=project_name,
+                profiles=profile_list,
+            )
+            raise click.UsageError(f"profile(s) resolve to no services: {profile_list}")
     logger.info(
         "services_start_targets_resolved",
         project_name=project_name,
