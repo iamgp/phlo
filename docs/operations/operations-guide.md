@@ -658,6 +658,14 @@ phlo materialize --select "tag:critical" --partition $(date -d "yesterday" +%Y-%
 
 Phlo uses Release Please to manage versions and changelogs on `main`.
 
+### Core Release Notes (#205-#215)
+
+Recent core hardening focused on operator reliability and regression coverage.
+
+- Service behavior/UX hardening: [#205](https://github.com/phlohouse/phlo/issues/205), [#209](https://github.com/phlohouse/phlo/issues/209), [#210](https://github.com/phlohouse/phlo/issues/210)
+- Plugin discovery hardening: [#206](https://github.com/phlohouse/phlo/issues/206), [#207](https://github.com/phlohouse/phlo/issues/207), [#208](https://github.com/phlohouse/phlo/issues/208)
+- New core regression suites: [#211](https://github.com/phlohouse/phlo/issues/211), [#212](https://github.com/phlohouse/phlo/issues/212), [#213](https://github.com/phlohouse/phlo/issues/213), [#214](https://github.com/phlohouse/phlo/issues/214), [#215](https://github.com/phlohouse/phlo/issues/215)
+
 ### Release Please Configuration
 
 - Workflow: `.github/workflows/release-please.yml`

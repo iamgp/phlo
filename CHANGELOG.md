@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+### Core improvements (#205-#215)
+
+#### Operator-facing behavior changes
+
+* `phlo services add` clears the disabled flag when re-enabling a service, so the service can start immediately ([#205](https://github.com/phlohouse/phlo/issues/205))
+* Plugin discovery now invokes initialize/cleanup lifecycle hooks during replacement to avoid stale plugin state ([#206](https://github.com/phlohouse/phlo/issues/206))
+* Plugin bootstrap now honors `plugins_auto_discover` configuration precedence, including explicit opt-out ([#207](https://github.com/phlohouse/phlo/issues/207))
+* Service discovery now exposes cache refresh/invalidation APIs for runtime updates without full restart ([#208](https://github.com/phlohouse/phlo/issues/208))
+* `phlo services start --profile` now fails fast when the profile is invalid, before service startup ([#209](https://github.com/phlohouse/phlo/issues/209))
+* `phlo services list` now wraps config/discovery failures with clearer operator-facing error messages ([#210](https://github.com/phlohouse/phlo/issues/210))
+
+#### Regression test coverage
+
+* Added orchestrator selection behavior and error-guidance regression tests ([#211](https://github.com/phlohouse/phlo/issues/211))
+* Added logging regression tests for routing, metadata, and fallback behavior ([#212](https://github.com/phlohouse/phlo/issues/212))
+* Added registry client coverage for TTL caching, remote fallback, and payload validation ([#213](https://github.com/phlohouse/phlo/issues/213))
+* Added infrastructure config helper edge-case and cache invalidation tests ([#214](https://github.com/phlohouse/phlo/issues/214))
+* Added exceptions module tests for formatting and suggestion helpers ([#215](https://github.com/phlohouse/phlo/issues/215))
+
 ## [0.5.0](https://github.com/phlohouse/phlo/compare/v0.4.0...v0.5.0) (2026-02-18)
 
 
