@@ -8,6 +8,16 @@ from phlo.plugins import PluginMetadata, ServicePlugin
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
 
 
+def _write_service_yaml(root: Path, folder: str, name: str) -> None:
+    """Write a minimal service definition file for discovery tests."""
+    service_file = root / folder / "service.yaml"
+    service_file.parent.mkdir(parents=True, exist_ok=True)
+    service_file.write_text(
+        f"name: {name}\ndescription: {name} service\ncategory: core\n",
+        encoding="utf-8",
+    )
+
+
 class DummyServicePlugin(ServicePlugin):
     """Provide a minimal service plugin for discovery tests."""
 
@@ -64,6 +74,58 @@ def test_service_discovery_includes_plugins(
 
     assert "dummy_service" in services
     assert services["dummy_service"].category == "core"
+
+
+def test_service_discovery_refresh_reloads_stale_cache(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Verify cached discovery remains stale until explicit refresh."""
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.services.discover_plugins",
+        lambda plugin_type, auto_register: None,
+    )
+    _write_service_yaml(tmp_path, "alpha", "alpha")
+
+    discovery = ServiceDiscovery(services_dir=tmp_path)
+    first = discovery.discover()
+    assert set(first) == {"alpha"}
+
+    _write_service_yaml(tmp_path, "beta", "beta")
+
+    cached = discovery.discover()
+    assert cached is first
+    assert set(cached) == {"alpha"}
+
+    refreshed = discovery.discover(refresh=True)
+    assert refreshed is not first
+    assert set(refreshed) == {"alpha", "beta"}
+
+
+def test_service_discovery_clear_cache_and_refresh_alias(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Verify cache invalidation API triggers rediscovery."""
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.services.discover_plugins",
+        lambda plugin_type, auto_register: None,
+    )
+    _write_service_yaml(tmp_path, "alpha", "alpha")
+
+    discovery = ServiceDiscovery(services_dir=tmp_path)
+    discovery.discover()
+
+    _write_service_yaml(tmp_path, "beta", "beta")
+    discovery.clear_cache()
+    cleared_reload = discovery.discover()
+    assert set(cleared_reload) == {"alpha", "beta"}
+
+    _write_service_yaml(tmp_path, "gamma", "gamma")
+    refreshed = discovery.refresh()
+    assert set(refreshed) == {"alpha", "beta", "gamma"}
 
 
 def test_inline_service_creation() -> None:
