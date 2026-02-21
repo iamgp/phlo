@@ -83,3 +83,48 @@ def test_services_add_clears_disabled_after_remove_and_reenables_install_selecti
     assert after_add["services"]["enabled"] == ["prometheus"]
     assert after_add["services"]["disabled"] == []
     assert "prometheus" in selected_names
+
+
+def test_services_add_normalizes_enabled_disabled_lists(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    """Verify add command normalizes configured enabled/disabled service lists."""
+    postgres = _service("postgres", default=True)
+    minio = _service("minio", default=True)
+    prometheus = _service("prometheus")
+    services = {svc.name: svc for svc in [postgres, minio, prometheus]}
+
+    class FakeDiscovery:
+        """Minimal service discovery stub for add command normalization tests."""
+
+        def discover(self) -> dict[str, ServiceDefinition]:
+            return services
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".phlo").mkdir()
+    config_file = tmp_path / "phlo.yaml"
+    config_file.write_text(
+        yaml.dump(
+            {
+                "services": {
+                    "enabled": [" prometheus ", "PROMETHEUS", "minio", "", 42],
+                    "disabled": [" prometheus ", " POSTGRES ", None],
+                }
+            },
+            sort_keys=False,
+        )
+    )
+
+    from phlo.cli.commands.services import add as add_module
+
+    monkeypatch.setattr(add_module, "ServiceDiscovery", FakeDiscovery)
+    monkeypatch.setattr(add_module, "_regenerate_compose", lambda *_args, **_kwargs: None)
+
+    runner = CliRunner()
+    add_result = runner.invoke(add_module.add_cmd, ["prometheus", "--no-start"])
+    assert add_result.exit_code == 0
+
+    after_add = yaml.safe_load(config_file.read_text())
+    assert after_add["services"]["enabled"] == ["minio", "prometheus"]
+    assert after_add["services"]["disabled"] == ["postgres"]
