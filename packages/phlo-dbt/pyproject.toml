@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phlo-dbt"
-version = "0.1.0"
+version = "0.1.1"
 description = "dbt integration capability plugin for Phlo"
 readme = {text = "dbt integration capability plugin for Phlo.", content-type = "text/plain"}
 requires-python = ">=3.11"

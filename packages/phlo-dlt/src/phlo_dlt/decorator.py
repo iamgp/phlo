@@ -15,6 +15,7 @@ from phlo.capabilities import (
 )
 from phlo.capabilities.runtime import RuntimeContext
 from phlo.exceptions import PhloConfigError
+from phlo.logging import log_event
 from phlo_dlt.pandera_checks import (
     PANDERA_CONTRACT_CHECK_NAME,
     PanderaContractEvaluation,
@@ -255,9 +256,11 @@ def phlo_ingestion(
             run_id = runtime.run_id or "unknown"
             logger = runtime.logger
 
-            logger.info("starting_ingestion", partition_date=partition_date)
-            logger.info("ingesting_to_branch", branch_name=branch_name)
-            logger.info("target_table_selected", table_name=table_config.full_table_name)
+            log_event(logger, "info", "starting_ingestion", partition_date=partition_date)
+            log_event(logger, "info", "ingesting_to_branch", branch_name=branch_name)
+            log_event(
+                logger, "info", "target_table_selected", table_name=table_config.full_table_name
+            )
 
             logger.info("Calling user function to get DLT source...")
             try:
@@ -314,7 +317,9 @@ def phlo_ingestion(
                     query_or_sql = (
                         f"parquet://{parquet_path}" if parquet_path else "parquet://<missing>"
                     )
-                    logger.info(
+                    log_event(
+                        logger,
+                        "info",
                         "pandera_contract_evaluation_started",
                         table_name=table_config.full_table_name,
                         partition_date=partition_date,
@@ -328,7 +333,9 @@ def phlo_ingestion(
                             schema_class=table_config.validation_schema,
                         )
                         if evaluation.passed:
-                            logger.info(
+                            log_event(
+                                logger,
+                                "info",
                                 "pandera_contract_evaluation_passed",
                                 table_name=table_config.full_table_name,
                                 partition_date=partition_date,
@@ -337,7 +344,9 @@ def phlo_ingestion(
                                 failed_count=evaluation.failed_count,
                             )
                         else:
-                            logger.warning(
+                            log_event(
+                                logger,
+                                "warning",
                                 "pandera_contract_evaluation_failed",
                                 table_name=table_config.full_table_name,
                                 partition_date=partition_date,
@@ -347,14 +356,16 @@ def phlo_ingestion(
                                 error=evaluation.error,
                             )
                     except Exception as exc:
-                        logger.error(
+                        log_event(
+                            logger,
+                            "error",
                             "pandera_contract_evaluation_failed",
                             table_name=table_config.full_table_name,
                             partition_date=partition_date,
                             parquet_path=str(parquet_path) if parquet_path is not None else None,
                             error=str(exc),
-                            exc_info=True,
                         )
+                        logger.exception("pandera_contract_evaluation_exception")
                         evaluation = PanderaContractEvaluation(
                             passed=False,
                             failed_count=1,

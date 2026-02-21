@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Dict
 
+from phlo.logging import log_event
 from phlo.operations.ingestion import BaseIngester, IngestionResult
 from phlo.hooks import (
     IngestionEventContext,
@@ -93,7 +94,7 @@ class DltIngester(BaseIngester):
             )
         )
 
-        self.logger.info("starting_ingestion", partition_key=partition_key)
+        log_event(self.logger, "info", "starting_ingestion", partition_key=partition_key)
         start_time = time.time()
         emitter.emit_start()
 
@@ -101,7 +102,7 @@ class DltIngester(BaseIngester):
             dlt_source = self.dlt_source_func(partition_date=partition_key)
 
             if dlt_source is None:
-                self.logger.info("ingestion_no_data", partition_key=partition_key)
+                log_event(self.logger, "info", "ingestion_no_data", partition_key=partition_key)
                 emitter.emit_end(status="no_data", metrics={"rows_loaded": 0})
                 return IngestionResult(
                     status="no_data",
@@ -166,7 +167,9 @@ class DltIngester(BaseIngester):
             )
 
             total_elapsed = time.time() - start_time
-            self.logger.info(
+            log_event(
+                self.logger,
+                "info",
                 "ingestion_completed",
                 partition_key=partition_key,
                 total_elapsed_seconds=total_elapsed,

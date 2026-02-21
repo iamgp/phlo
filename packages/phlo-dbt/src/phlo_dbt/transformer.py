@@ -9,6 +9,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, List, Optional, Dict
 
+from phlo.logging import log_event
 from phlo.operations.transformation import BaseTransformer, TransformationResult
 from phlo.hooks import (
     LineageEventContext,
@@ -374,7 +375,9 @@ class DbtTransformer(BaseTransformer):
         # Ensure DBT_PROFILES_DIR is set if not passed explicitly in args (though we pass it)
         # But for 'subprocess', arguments are better.
 
-        self.logger.info(
+        log_event(
+            self.logger,
+            "info",
             "dbt_command_running",
             command_name=self.dbt_executable,
             command_args=self._sanitize_command_args_for_logging(args),
@@ -425,7 +428,12 @@ class DbtTransformer(BaseTransformer):
 
         if partition_key:
             build_args.extend(["--vars", f'{{"partition_date_str": "{partition_key}"}}'])
-            self.logger.info("dbt_partition_execution_started", partition_key=partition_key)
+            log_event(
+                self.logger,
+                "info",
+                "dbt_partition_execution_started",
+                partition_key=partition_key,
+            )
 
         # Setup Emitters
         # We need model names for context. If select args are passed, we use those as proxy

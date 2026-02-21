@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from phlo.capabilities.registry import CapabilityRegistry, get_capability_registry
 from phlo.logging import get_logger
-from phlo.plugins.base import PluginMetadata
+
+if TYPE_CHECKING:
+    from phlo.plugins.base.plugin import PluginMetadata
 
 logger = get_logger(__name__)
 
