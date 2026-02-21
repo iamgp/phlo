@@ -29,6 +29,10 @@ from phlo.plugins.hooks import HookPlugin
 
 logger = get_logger(__name__)
 
+_NO_AUTO_DISCOVER_ENV = "PHLO_NO_AUTO_DISCOVER"
+_TRUTHY_ENV_VALUES = frozenset({"1", "true", "yes", "on"})
+_FALSY_ENV_VALUES = frozenset({"0", "false", "no", "off", ""})
+
 # Entry point group names for different plugin types
 ENTRY_POINT_GROUPS = {
     "source_connectors": "phlo.plugins.sources",
@@ -470,15 +474,42 @@ def auto_discover() -> None:
         logger.warning("plugin_auto_discover_failed", exc_info=True)
 
 
+def _is_auto_discover_disabled_by_env() -> bool:
+    """Return True when PHLO_NO_AUTO_DISCOVER explicitly disables discovery."""
+    raw_value = os.environ.get(_NO_AUTO_DISCOVER_ENV)
+    if raw_value is None:
+        return False
+
+    value = raw_value.strip().lower()
+    if value in _FALSY_ENV_VALUES:
+        return False
+    if value not in _TRUTHY_ENV_VALUES:
+        logger.warning(
+            "plugin_auto_discover_env_invalid",
+            env_var=_NO_AUTO_DISCOVER_ENV,
+            value=raw_value,
+            hint=f"Use {_NO_AUTO_DISCOVER_ENV}=1 to disable auto-discovery",
+        )
+    return True
+
+
+def _should_auto_discover() -> bool:
+    """Resolve auto-discovery using settings default plus env override precedence."""
+    settings = get_settings()
+    return settings.plugins_auto_discover and not _is_auto_discover_disabled_by_env()
+
+
 # Auto-discover plugins when module is imported
-# This ensures plugins are available immediately after import
-# Users can disable this by setting PHLO_NO_AUTO_DISCOVER env var
-if not os.environ.get("PHLO_NO_AUTO_DISCOVER"):
+# `plugins_auto_discover` is the default; `PHLO_NO_AUTO_DISCOVER` has override precedence.
+if _should_auto_discover():
     try:
         auto_discover()
     except Exception as exc:
         logger.warning(
             "plugin_auto_discovery_failed",
             error=str(exc),
-            hint="Set PHLO_NO_AUTO_DISCOVER=1 to skip or check installed plugins",
+            hint=(
+                "Set PHLO_NO_AUTO_DISCOVER=1 to skip auto-discovery "
+                "or set plugins_auto_discover=false"
+            ),
         )
