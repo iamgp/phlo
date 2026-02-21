@@ -217,12 +217,18 @@ class ServiceDiscovery:
         self._services: dict[str, ServiceDefinition] = {}
         self._loaded = False
 
-    def discover(self) -> dict[str, ServiceDefinition]:
+    def discover(self, refresh: bool = False) -> dict[str, ServiceDefinition]:
         """Discover all service definitions.
+
+        Args:
+            refresh: If ``True``, clear cached state and re-run discovery.
 
         Returns:
             Dictionary mapping service names to their definitions.
         """
+        if refresh:
+            self.clear_cache()
+
         if self._loaded:
             return self._services
 
@@ -250,6 +256,18 @@ class ServiceDiscovery:
 
         self._loaded = True
         return self._services
+
+    def clear_cache(self) -> None:
+        """Clear cached discovery state.
+
+        The next :meth:`discover` call will perform a full rediscovery.
+        """
+        self._services = {}
+        self._loaded = False
+
+    def refresh(self) -> dict[str, ServiceDefinition]:
+        """Force rediscovery and return refreshed service definitions."""
+        return self.discover(refresh=True)
 
     def _load_service_plugins(self) -> None:
         """Load services from installed plugins."""
