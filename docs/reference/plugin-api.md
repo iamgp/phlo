@@ -495,7 +495,8 @@ The entry point **name** becomes the plugin identifier. The **value** points to 
 
 ### Discovery behavior
 
-- Plugins are auto-discovered on import unless `PHLO_NO_AUTO_DISCOVER=1` is set.
+- Auto-discovery defaults to `plugins_auto_discover=true`.
+- `PHLO_NO_AUTO_DISCOVER` has disable precedence (truthy disables, falsy does not disable).
 - Plugins can be filtered via `plugins_whitelist` / `plugins_blacklist` in settings.
 - Discovery validates that each plugin is an instance of the expected base class for its entry point group.
 
