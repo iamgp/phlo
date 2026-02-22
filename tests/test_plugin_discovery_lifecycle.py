@@ -128,6 +128,104 @@ def _patch_source_entry_points(
     )
 
 
+@pytest.fixture
+def lifecycle_signals(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+    """Capture structured lifecycle observability signals emitted via log_event."""
+    signals: list[dict[str, object]] = []
+
+    def _capture_signal(
+        _logger: object,
+        level: str,
+        event: str,
+        **fields: object,
+    ) -> None:
+        signals.append({"level": level, "event": event, "fields": fields})
+
+    monkeypatch.setattr("phlo.plugins.discovery.plugins.log_event", _capture_signal)
+    return signals
+
+
+def test_discover_plugins_emits_lifecycle_success_signals(
+    clean_registry,
+    monkeypatch: pytest.MonkeyPatch,
+    lifecycle_signals: list[dict[str, object]],
+) -> None:
+    """Lifecycle success signals include initialize and replacement cleanup events."""
+    events: list[str] = []
+    existing = _LifecycleSourcePlugin(marker="old", events=events)
+    clean_registry.register_source_connector(existing)
+
+    incoming = _LifecycleSourcePlugin(marker="new", events=events)
+    _patch_source_entry_points(
+        monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=incoming)]
+    )
+
+    discover_plugins(plugin_type="source_connectors", auto_register=True)
+
+    signal_fields = [signal["fields"] for signal in lifecycle_signals]
+    assert any(
+        fields.get("lifecycle_phase") == "incoming_plugin_initialize"
+        and fields.get("plugin_type") == "source_connectors"
+        for fields in signal_fields
+        if fields and isinstance(fields, dict)
+    )
+    assert any(
+        fields.get("lifecycle_phase") == "existing_plugin_cleanup"
+        and fields.get("reason") == "replacement"
+        and fields.get("target_plugin_name") == "lifecycle_source"
+        for fields in signal_fields
+        if fields and isinstance(fields, dict)
+    )
+    assert any(
+        signal["event"] == "plugin_lifecycle_initialize_succeeded" for signal in lifecycle_signals
+    )
+    assert any(
+        signal["event"] == "plugin_lifecycle_cleanup_succeeded" for signal in lifecycle_signals
+    )
+
+
+def test_discover_plugins_emits_lifecycle_failure_signals(
+    clean_registry,
+    monkeypatch: pytest.MonkeyPatch,
+    lifecycle_signals: list[dict[str, object]],
+) -> None:
+    """Lifecycle failure signals include initialize and cleanup errors."""
+    events: list[str] = []
+    failing = _LifecycleSourcePlugin(
+        marker="new",
+        events=events,
+        fail_initialize=True,
+        fail_cleanup=True,
+    )
+    _patch_source_entry_points(
+        monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=failing)]
+    )
+
+    discover_plugins(plugin_type="source_connectors", auto_register=True)
+
+    initialize_failures = [
+        signal
+        for signal in lifecycle_signals
+        if signal["event"] == "plugin_lifecycle_initialize_failed"
+        and isinstance(signal["fields"], dict)
+        and signal["fields"].get("lifecycle_phase") == "incoming_plugin_initialize"
+    ]
+    cleanup_failures = [
+        signal
+        for signal in lifecycle_signals
+        if signal["event"] == "plugin_lifecycle_cleanup_failed"
+        and isinstance(signal["fields"], dict)
+        and signal["fields"].get("lifecycle_phase") == "incoming_plugin_cleanup"
+    ]
+
+    assert len(initialize_failures) == 1
+    assert initialize_failures[0]["fields"]["plugin_type"] == "source_connectors"
+    assert initialize_failures[0]["fields"]["error_type"] == "RuntimeError"
+    assert len(cleanup_failures) == 1
+    assert cleanup_failures[0]["fields"]["reason"] == "initialize_failed"
+    assert cleanup_failures[0]["fields"]["error_type"] == "RuntimeError"
+
+
 def test_discover_plugins_calls_initialize_before_registration(
     clean_registry, monkeypatch: pytest.MonkeyPatch
 ) -> None:

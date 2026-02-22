@@ -55,6 +55,23 @@ def clean_registry():
     registry.clear()
 
 
+@pytest.fixture
+def service_discovery_signals(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+    """Capture service discovery observability events emitted via log_event."""
+    signals: list[dict[str, object]] = []
+
+    def _capture_signal(
+        _logger: object,
+        level: str,
+        event: str,
+        **fields: object,
+    ) -> None:
+        signals.append({"level": level, "event": event, "fields": fields})
+
+    monkeypatch.setattr("phlo.plugins.discovery.services.log_event", _capture_signal)
+    return signals
+
+
 def test_service_discovery_includes_plugins(
     clean_registry: object,
     monkeypatch: pytest.MonkeyPatch,
@@ -126,6 +143,63 @@ def test_service_discovery_clear_cache_and_refresh_alias(
     _write_service_yaml(tmp_path, "gamma", "gamma")
     refreshed = discovery.refresh()
     assert set(refreshed) == {"alpha", "beta", "gamma"}
+
+
+def test_service_discovery_emits_cache_refresh_observability_signals(
+    clean_registry: object,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    service_discovery_signals: list[dict[str, object]],
+) -> None:
+    """Cache and refresh flows emit structured, queryable discovery signals."""
+    monkeypatch.setattr(
+        "phlo.plugins.discovery.services.discover_plugins",
+        lambda plugin_type, auto_register: None,
+    )
+    _write_service_yaml(tmp_path, "alpha", "alpha")
+
+    discovery = ServiceDiscovery(services_dir=tmp_path)
+    first = discovery.discover()
+    assert set(first) == {"alpha"}
+
+    cached = discovery.discover()
+    assert cached is first
+
+    _write_service_yaml(tmp_path, "beta", "beta")
+    refreshed = discovery.discover(refresh=True)
+    assert set(refreshed) == {"alpha", "beta"}
+
+    events = [signal["event"] for signal in service_discovery_signals]
+    assert "service_discovery_cache_miss" in events
+    assert "service_discovery_cache_hit" in events
+    assert "service_discovery_refresh_requested" in events
+    assert "service_discovery_cache_cleared" in events
+    assert events.count("service_discovery_completed") == 2
+
+    cache_hit = next(
+        signal
+        for signal in service_discovery_signals
+        if signal["event"] == "service_discovery_cache_hit"
+    )
+    assert cache_hit["fields"]["service_count"] == 1
+    assert cache_hit["fields"]["services_dir"] == str(tmp_path)
+
+    refresh_requested = next(
+        signal
+        for signal in service_discovery_signals
+        if signal["event"] == "service_discovery_refresh_requested"
+    )
+    assert refresh_requested["fields"]["cached_service_count"] == 1
+    assert refresh_requested["fields"]["cache_loaded"] is True
+
+    completed = [
+        signal
+        for signal in service_discovery_signals
+        if signal["event"] == "service_discovery_completed"
+    ]
+    assert completed[0]["fields"]["plugin_service_count"] == 0
+    assert completed[0]["fields"]["file_service_count"] == 1
+    assert completed[1]["fields"]["file_service_count"] == 2
 
 
 def test_inline_service_creation() -> None:
