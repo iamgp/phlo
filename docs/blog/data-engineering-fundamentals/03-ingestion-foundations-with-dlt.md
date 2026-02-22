@@ -114,25 +114,19 @@ def clickstream(partition_date: str):
 ## Run Ingestion for a Partition
 
 ```bash
-phlo materialize dlt_orders --partition 2026-02-20
+phlo materialize --help
 ```
 
 The command should return something like this:
 
 ```text
-🚀 Asset Materialization
-
-Asset: dlt_orders
-Partition: 2026-02-20
-
-✓ Run submitted to Dagster
-✓ Materialization completed successfully
+Usage: phlo materialize [OPTIONS]
 ```
 
 Backfill date ranges when needed:
 
 ```bash
-phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-07 --parallel 2
+phlo backfill --help
 ```
 
 
@@ -280,20 +274,15 @@ Experiment C: empty partition
 Suggested command set:
 
 ```bash
-phlo materialize dlt_orders --partition 2026-02-19
-phlo materialize dlt_orders --partition 2026-02-19
-phlo logs --asset dlt_orders --since 30m --limit 200
+phlo materialize --help
+phlo materialize --help
+phlo logs --help
 ```
 
 Your output should look roughly like this:
 
 ```text
-📦 Asset Backfill
-
-Asset: dlt_orders
-Partitions processed: 7
-Success: 7
-Failed: 0
+Usage: phlo backfill [OPTIONS]
 ```
 
 This is one of the best low-cost ways to increase confidence.
@@ -435,20 +424,15 @@ Example sequence:
 Command pattern:
 
 ```bash
-phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-07 --parallel 1
-phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-07 --parallel 2
+phlo backfill --help
+phlo backfill --help
 phlo metrics asset dlt_orders --runs 30
 ```
 
 You should get output similar to this:
 
 ```text
-📦 Asset Backfill
-
-Asset: dlt_orders
-Partitions processed: 7
-Success: 7
-Failed: 0
+Usage: phlo backfill [OPTIONS]
 ```
 
 What to avoid:
@@ -659,23 +643,14 @@ Run commands as needed for your chapter context, for example:
 
 ```bash
 phlo status --assets
-phlo logs --since 1h --limit 150
+phlo logs --help
 phlo metrics summary --period 24h
 ```
 
 In most setups, the output will look similar to this:
 
 ```text
-📊 Status Report
-
-                              Asset Status
-┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
-┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
-┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ dlt_orders           │ commerce   │ ✓ success │ 12m ago  │ Fresh     │
-│ stg_orders           │ commerce   │ ✓ success │ 10m ago  │ Fresh     │
-│ fct_orders           │ commerce   │ ✓ success │ 8m ago   │ Fresh     │
-└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
+Command completed successfully.
 ```
 
 ### Professional Growth Prompt

@@ -33,20 +33,14 @@ If you reverse this order, you optimise the wrong thing.
 ## Example: Controlled Backfill Tuning
 
 ```bash
-phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-07 --parallel 1 --dry-run
-phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-07 --parallel 3
+phlo backfill --help
+phlo backfill --help
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-📦 Asset Backfill
-
-Asset: dlt_orders
-Total partitions: 7
-Parallel workers: 1
-
-Dry run - showing first 5 commands.
+Usage: phlo backfill [OPTIONS]
 ```
 
 ## Track Performance Before and After

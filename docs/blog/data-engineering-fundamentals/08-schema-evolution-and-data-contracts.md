@@ -31,26 +31,21 @@ Breaking changes usually include:
 ## Inspect and Diff Contracts
 
 ```bash
-phlo schema show RawOrders
-phlo schema diff RawOrders --old HEAD~1 --format text
+phlo schema list --format table
+phlo schema show --help
+phlo schema diff --help
 ```
 
 You should get output similar to this:
 
 ```text
-Schema: RawOrders
-
-Fields:
-- order_id: str (required)
-- order_timestamp: datetime (required)
-- total_amount: float (required)
-- currency: str (required)
+Available Schemas table with schema names, field counts, and source modules.
 ```
 
 ## Branch-First Rollout Pattern
 
 ```bash
-phlo branch create schema_rollout_orders --from main
+phlo branch --help
 ```
 
 

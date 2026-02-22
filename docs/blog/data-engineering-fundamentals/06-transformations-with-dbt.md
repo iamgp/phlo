@@ -52,16 +52,19 @@ from {{ ref('stg_orders') }}
 ## Run dbt from Services
 
 ```bash
-docker exec dagster-webserver dbt compile
-docker exec dagster-webserver dbt run --select fct_orders
-docker exec dagster-webserver dbt test --select fct_orders
+phlo plugin list
+phlo plugin info dbt
 ```
 
 The command should return something like this:
 
 ```text
-dbt compile completed successfully.
-Model selection and SQL compilation validated.
+Installed:
+- dbt
+- dagster
+- dlt
+- metrics
+- lineage
 ```
 
 ## Phlo Publishing Scaffolding
@@ -69,7 +72,7 @@ Model selection and SQL compilation validated.
 The dbt plugin contributes a `publishing` command group.
 
 ```bash
-phlo publishing scaffold --config workflows/transforms/dbt/publishing.yaml --select gold.*
+phlo publishing scaffold --help
 ```
 
 

@@ -41,22 +41,13 @@ graph TD
 ```bash
 phlo status --assets
 phlo status --services
-phlo logs --asset dlt_orders --since 2h --level ERROR --limit 100
+phlo logs --help
 ```
 
 In most setups, the output will look similar to this:
 
 ```text
-📊 Status Report
-
-                              Asset Status
-┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
-┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
-┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ dlt_orders           │ commerce   │ ✓ success │ 12m ago  │ Fresh     │
-│ stg_orders           │ commerce   │ ✓ success │ 10m ago  │ Fresh     │
-│ fct_orders           │ commerce   │ ✓ success │ 8m ago   │ Fresh     │
-└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
+Command completed successfully.
 ```
 
 ## Metrics for Trends
@@ -70,11 +61,7 @@ phlo metrics export --format json --output .phlo/metrics-24h.json --period 24h
 You should see something like this:
 
 ```text
-📊 Metrics Summary
-
-Runs (24h): 28
-Success rate: 96.4%
-p95 latency: 184s
+Command completed successfully.
 ```
 
 
@@ -83,16 +70,13 @@ p95 latency: 184s
 ```bash
 phlo lineage status
 phlo lineage show dlt_orders --direction both --depth 2
-phlo lineage impact dlt_orders
+phlo lineage status
 ```
 
 A typical result looks like this:
 
 ```text
-Lineage Graph Status
-
-Total Assets: 42
-Total Dependencies: 79
+Command completed successfully.
 ```
 
 ## Alerting Loop
@@ -100,8 +84,8 @@ Total Dependencies: 79
 When alerting plugin is installed:
 
 ```bash
-phlo alerts status
-phlo alerts test --severity warning
+phlo plugin list
+phlo plugin list
 ```
 
 

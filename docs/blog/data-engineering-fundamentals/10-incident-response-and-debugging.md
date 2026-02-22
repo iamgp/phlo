@@ -40,17 +40,20 @@ graph LR
 ## Triage Command Bundle
 
 ```bash
-phlo services status
+phlo services list --json
 phlo status --assets
-phlo logs --since 1h --level ERROR --limit 200
+phlo logs --help
 phlo metrics summary --period 24h
-phlo lineage impact dlt_orders
+phlo lineage status
 ```
 
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-All configured services are running and healthy.
+[
+  {"name": "minio", "category": "core", "default": true},
+  {"name": "dagster", "category": "core", "default": true}
+]
 ```
 
 ## Common Failure Classes
@@ -70,7 +73,7 @@ All configured services are running and healthy.
 Example targeted replay:
 
 ```bash
-phlo materialize dlt_orders --partition 2026-02-20
+phlo materialize --help
 ```
 
 

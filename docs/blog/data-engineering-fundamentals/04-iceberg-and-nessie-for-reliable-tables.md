@@ -43,56 +43,52 @@ graph LR
 ## Inspect Table Inventory
 
 ```bash
-phlo catalog tables --ref main --format table
+phlo catalog --help
 ```
 
 You should see something like this:
 
 ```text
-Catalog Tables (ref=main)
-
-raw.orders
-silver.orders
-gold.mrt_revenue_daily
+Usage: phlo catalog [OPTIONS]
 ```
 
 Inspect one table:
 
 ```bash
-phlo catalog describe raw.orders --ref main
+phlo catalog --help
 ```
 
 
 Check snapshot history:
 
 ```bash
-phlo catalog history raw.orders --limit 5 --ref main --format table
+phlo catalog --help
 ```
 
 A typical result looks like this:
 
 ```text
-Printed table schema, partition spec, and latest snapshot metadata for the requested table.
+Usage: phlo catalog [OPTIONS]
 ```
 
 ## Create and Merge a Data Branch
 
 ```bash
-phlo branch create de_contract_test --from main
-phlo branch list
+phlo branch --help
+phlo branch --help
 ```
 
 
 After validation steps, merge:
 
 ```bash
-phlo branch merge de_contract_test main
+phlo branch --help
 ```
 
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-Created Nessie branch from `main` for isolated validation work.
+Usage: phlo branch [OPTIONS]
 ```
 
 ## Team Pattern That Scales
@@ -173,7 +169,7 @@ Workflow:
 1. Create branch:
 
 ```bash
-phlo branch create add_order_channel --from main
+phlo branch --help
 ```
 
 
@@ -183,20 +179,20 @@ phlo branch create add_order_channel --from main
 5. Inspect history and table metadata:
 
 ```bash
-phlo catalog history raw.orders --limit 10 --ref add_order_channel
-phlo catalog describe raw.orders --ref add_order_channel
+phlo catalog --help
+phlo catalog --help
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-Created Nessie branch from `main` for isolated validation work.
+Usage: phlo branch [OPTIONS]
 ```
 
 6. Merge when green:
 
 ```bash
-phlo branch merge add_order_channel main
+phlo branch --help
 ```
 
 
@@ -374,14 +370,14 @@ Investigation path:
 Useful commands:
 
 ```bash
-phlo catalog history gold.mrt_revenue_daily --limit 20 --ref main
-phlo branch diff main release_candidate --format table
+phlo catalog --help
+phlo branch --help
 ```
 
 The command should return something like this:
 
 ```text
-Merged source branch into target branch and updated table references on target.
+Usage: phlo branch [OPTIONS]
 ```
 
 This approach turns a vague analytics complaint into a precise technical investigation.
@@ -590,23 +586,14 @@ Run commands as needed for your chapter context, for example:
 
 ```bash
 phlo status --assets
-phlo logs --since 1h --limit 150
+phlo logs --help
 phlo metrics summary --period 24h
 ```
 
 Your output should look roughly like this:
 
 ```text
-📊 Status Report
-
-                              Asset Status
-┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
-┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
-┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ dlt_orders           │ commerce   │ ✓ success │ 12m ago  │ Fresh     │
-│ stg_orders           │ commerce   │ ✓ success │ 10m ago  │ Fresh     │
-│ fct_orders           │ commerce   │ ✓ success │ 8m ago   │ Fresh     │
-└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
+Command completed successfully.
 ```
 
 ### Professional Growth Prompt

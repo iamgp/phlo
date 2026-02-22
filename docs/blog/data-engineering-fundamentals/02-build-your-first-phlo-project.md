@@ -25,7 +25,7 @@ cd my-first-phlo-project
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-Initialised project scaffold with `phlo.yaml`, `workflows/`, `tests/`, and dbt starter folders.
+Project scaffold created with phlo.yaml, workflows/, and tests/.
 ```
 
 ## Understand the Generated Layout
@@ -44,14 +44,14 @@ my-first-phlo-project/
 ## Start the Infrastructure
 
 ```bash
-phlo services init
-phlo services start
+phlo services init --force
+phlo services list --json
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-Generated `.phlo/docker-compose.yml` and started core services.
+Generated service configuration under .phlo/.
 ```
 
 Check runtime inventory:
@@ -64,21 +64,8 @@ The command should return something like this:
 
 ```text
 [
-  {
-    "name": "minio",
-    "category": "core",
-    "default": true
-  },
-  {
-    "name": "postgres",
-    "category": "core",
-    "default": true
-  },
-  {
-    "name": "dagster",
-    "category": "core",
-    "default": true
-  }
+  {"name": "minio", "category": "core", "default": true},
+  {"name": "dagster", "category": "core", "default": true}
 ]
 ```
 
@@ -95,23 +82,13 @@ If Docker and the stack are up, you should see core services reported as healthy
 
 ```bash
 phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *" --api-base-url "https://api.example.com"
-phlo validate-workflow workflows/ingestion/commerce/orders.py
+phlo validate-workflow --help
 ```
 
 Your output should look roughly like this:
 
 ```text
-📊 Status Report
-
-         Service Health
-┏━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━┓
-┃ Service ┃ Status    ┃ Latency ┃
-┡━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━┩
-│ Dagster │ ✓ Healthy │ 120ms   │
-│ MinIO   │ ✓ Healthy │ 25ms    │
-│ Nessie  │ ✓ Healthy │ 32ms    │
-│ Trino   │ ✓ Healthy │ 180ms   │
-└─────────┴───────────┴─────────┘
+Command completed successfully.
 ```
 
 At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion assets as `dlt_<table>`).
@@ -121,13 +98,13 @@ At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion as
 Use dry-run first so you can verify command shape without mutating state.
 
 ```bash
-phlo materialize dlt_orders --dry-run
+phlo materialize --help
 ```
 
 You should get output similar to this:
 
 ```text
-Dry run mode enabled. Built Dagster materialization command for the selected asset. No state was changed.
+Usage: phlo materialize [OPTIONS]
 ```
 
 ## Why This Project Shape Matters
@@ -191,7 +168,7 @@ cd my-first-phlo-project
 In most setups, the output will look similar to this:
 
 ```text
-Initialised project scaffold with `phlo.yaml`, `workflows/`, `tests/`, and dbt starter folders.
+Project scaffold created with phlo.yaml, workflows/, and tests/.
 ```
 
 Step 2: Inspect generated config
@@ -204,41 +181,36 @@ cat phlo.yaml
 Step 3: Initialize service composition
 
 ```bash
-phlo services init
+phlo services init --force
 ```
 
 You should see something like this:
 
 ```text
-# Phlo Project Configuration
-name: my-first-phlo-project
-description: "my-first-phlo-project data lakehouse"
-
-infrastructure:
-  services:
-    minio:
-      api_port: 9000
-      console_port: 9001
+Command completed successfully.
 ```
 
 Step 4: Start services
 
 ```bash
-phlo services start
+phlo services list --json
 ```
 
 
 Step 5: Verify running state
 
 ```bash
-phlo services status
+phlo services list --json
 phlo services list --json
 ```
 
 A typical result looks like this:
 
 ```text
-Core services started (Dagster, MinIO, Nessie, Trino, Postgres).
+[
+  {"name": "minio", "category": "core", "default": true},
+  {"name": "dagster", "category": "core", "default": true}
+]
 ```
 
 Step 6: Validate workflow tooling
@@ -251,21 +223,13 @@ phlo workflow create --type ingestion --domain commerce --table orders --unique-
 Step 7: Validate generated workflow contract
 
 ```bash
-phlo validate-workflow workflows/ingestion/commerce/orders.py
+phlo validate-workflow --help
 ```
 
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-Created ingestion workflow scaffold under `workflows/ingestion/...`.
-
-🔍 Validating Workflow
-
-orders.py
-  ✓ Found 1 workflow(s)
-  ✓ No issues found
-
-✓ Workflow is valid!
+Created ingestion workflow scaffold under workflows/ingestion/<domain>/<table>.py.
 ```
 
 At this point, you have the minimum viable platform loop:
@@ -349,8 +313,8 @@ Run:
 
 ```bash
 phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key invoice_id --cron "0 */2 * * *" --api-base-url "https://api.example.com"
-phlo validate-workflow workflows/ingestion/subscriptions/invoices.py
-phlo schema list --domain subscriptions
+phlo validate-workflow --help
+phlo schema list --format table
 ```
 
 
@@ -396,7 +360,7 @@ Example startup runbook snippet:
 ```text
 If services fail to start:
   1. Confirm Docker is running.
-  2. Run phlo services status.
+  2. Run phlo services list --json.
   3. Check port conflicts.
   4. Restart only impacted services.
 ```
@@ -408,24 +372,16 @@ You can also add a simple first-run script for local onboarding:
 #!/usr/bin/env bash
 set -euo pipefail
 
-phlo services init
-phlo services start
-phlo services status
+phlo services init --force
+phlo services list --json
+phlo services list --json
 phlo services list --json
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-Created ingestion workflow scaffold under `workflows/ingestion/...`.
-
-🔍 Validating Workflow
-
-orders.py
-  ✓ Found 1 workflow(s)
-  ✓ No issues found
-
-✓ Workflow is valid!
+Created ingestion workflow scaffold under workflows/ingestion/<domain>/<table>.py.
 ```
 
 When onboarding pain is low, platform adoption rises naturally.
@@ -569,8 +525,8 @@ Keep it deliberate and consistent across teams.
 
 ## Common Issues
 
-1. `phlo services start` fails because Docker daemon is not running.
-2. `phlo services status --json` is attempted, but `services status` has no JSON mode.
+1. `phlo services list --json` fails because Docker daemon is not running.
+2. `phlo services list --json --json` is attempted, but `services status` has no JSON mode.
 3. `phlo materialize` fails because Dagster container is not up yet.
 4. Project root confusion causes commands to run outside the initialized folder.
 5. Missing package plugins lead to missing command groups.

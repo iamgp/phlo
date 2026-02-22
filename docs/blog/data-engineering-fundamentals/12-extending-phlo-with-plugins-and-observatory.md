@@ -35,11 +35,11 @@ The command should return something like this:
 
 ```text
 Installed:
-- rest_api (source)
-- freshness_check (quality)
-- dagster (service)
-- nessie (service)
-- trino (service)
+- dbt
+- dagster
+- dlt
+- metrics
+- lineage
 ```
 
 ## Observatory Extension Manifest Basics

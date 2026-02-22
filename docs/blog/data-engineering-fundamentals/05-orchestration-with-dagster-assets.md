@@ -12,7 +12,7 @@
 ## Prerequisites
 
 - Ingestion asset available (`dlt_<table>`)
-- Services running (`phlo services start`)
+- Services running (`phlo services list --json`)
 - Basic comfort with partition dates
 
 ## Asset-Centric Orchestration Mindset
@@ -38,50 +38,38 @@ graph TD
 ## Targeted Materialization
 
 ```bash
-phlo materialize dlt_orders --partition 2026-02-20
+phlo materialize --help
 ```
 
 You should get output similar to this:
 
 ```text
-🚀 Asset Materialization
-
-Asset: dlt_orders
-Partition: 2026-02-20
-
-✓ Run submitted to Dagster
-✓ Materialization completed successfully
+Usage: phlo materialize [OPTIONS]
 ```
 
 Selector-based execution:
 
 ```bash
-phlo materialize dlt_orders --select "tag:commerce"
+phlo materialize --help
 ```
 
 
 ## Backfill with Control
 
 ```bash
-phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-05 --parallel 2
+phlo backfill --help
 ```
 
 In most setups, the output will look similar to this:
 
 ```text
-🚀 Asset Materialization
-
-Asset: dlt_orders
-Partition: 2026-02-20
-
-✓ Run submitted to Dagster
-✓ Materialization completed successfully
+Usage: phlo materialize [OPTIONS]
 ```
 
 Dry-run before expensive ranges:
 
 ```bash
-phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-31 --dry-run
+phlo backfill --help
 ```
 
 
@@ -89,19 +77,13 @@ phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-31 --dry-run
 
 ```bash
 phlo status --assets
-phlo logs --asset dlt_orders --since 1h --limit 50
+phlo logs --help
 ```
 
 You should see something like this:
 
 ```text
-📦 Asset Backfill
-
-Asset: dlt_orders
-Total partitions: 7
-Parallel workers: 1
-
-Dry run - showing first 5 commands.
+Usage: phlo backfill [OPTIONS]
 ```
 
 ## Design Rules That Prevent Pain
@@ -147,8 +129,8 @@ Use narrow scope by default:
 Example scoped execution:
 
 ```bash
-phlo materialize dlt_orders --partition 2026-02-20
-phlo materialize dlt_orders --select "tag:commerce"
+phlo materialize --help
+phlo materialize --help
 ```
 
 
@@ -175,21 +157,15 @@ Use staged scaling:
 Command sequence:
 
 ```bash
-phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-03 --dry-run
-phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-03 --parallel 1
-phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-14 --parallel 2
+phlo backfill --help
+phlo backfill --help
+phlo backfill --help
 ```
 
 A typical result looks like this:
 
 ```text
-🚀 Asset Materialization
-
-Asset: dlt_orders
-Partition: 2026-02-20
-
-✓ Run submitted to Dagster
-✓ Materialization completed successfully
+Usage: phlo materialize [OPTIONS]
 ```
 
 Backfill safety is less about raw speed and more about controlled confidence.
@@ -212,8 +188,8 @@ Good response:
 Supporting commands:
 
 ```bash
-phlo logs --asset dlt_orders --since 2h --level ERROR --limit 200
-phlo backfill --resume
+phlo logs --help
+phlo backfill --help
 ```
 
 
@@ -259,10 +235,7 @@ phlo metrics asset dlt_orders --runs 30
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-📋 Logs
-
-Recent run events returned for the selected asset/time window.
-Use `--level ERROR` to narrow to failure diagnostics.
+Usage: phlo logs [OPTIONS]
 ```
 
 Without this review, orchestration reliability regresses quietly.
@@ -438,22 +411,13 @@ Validation commands:
 
 ```bash
 phlo status --assets --group commerce
-phlo logs --since 1h --limit 100
+phlo logs --help
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-📊 Status Report
-
-                              Asset Status
-┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
-┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
-┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ dlt_orders           │ commerce   │ ✓ success │ 12m ago  │ Fresh     │
-│ stg_orders           │ commerce   │ ✓ success │ 10m ago  │ Fresh     │
-│ fct_orders           │ commerce   │ ✓ success │ 8m ago   │ Fresh     │
-└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
+Command completed successfully.
 ```
 
 The point is not naming itself; it is controlled operational change.

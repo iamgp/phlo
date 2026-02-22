@@ -68,7 +68,7 @@ uv pip install phlo phlo-dagster phlo-dlt phlo-quality phlo-nessie phlo-iceberg 
 The command should return something like this:
 
 ```text
-Installed Phlo CLI plus core ecosystem packages (dagster, dlt, quality, nessie, iceberg, dbt, trino, metrics, lineage).
+Command completed successfully.
 ```
 
 ```bash
@@ -78,18 +78,7 @@ phlo --help
 You should see something like this:
 
 ```text
-Usage: phlo [OPTIONS] COMMAND [ARGS]...
-
-Commands:
-  backfill
-  branch
-  catalog
-  materialize
-  plugin
-  schema
-  services
-  status
-  workflow
+Usage: phlo --help [OPTIONS]
 ```
 
 ```bash
@@ -100,21 +89,8 @@ A typical result looks like this:
 
 ```text
 [
-  {
-    "name": "minio",
-    "category": "core",
-    "default": true
-  },
-  {
-    "name": "postgres",
-    "category": "core",
-    "default": true
-  },
-  {
-    "name": "dagster",
-    "category": "core",
-    "default": true
-  }
+  {"name": "minio", "category": "core", "default": true},
+  {"name": "dagster", "category": "core", "default": true}
 ]
 ```
 

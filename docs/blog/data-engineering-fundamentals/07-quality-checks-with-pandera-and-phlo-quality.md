@@ -59,21 +59,14 @@ def orders_quality_gate() -> None:
 
 ```bash
 phlo schema list --format table
-phlo schema show RawOrders --iceberg
-phlo validate-schema workflows/schemas/orders.py
-phlo validate-workflow workflows/ingestion/orders.py
+phlo validate-schema --help
+phlo validate-workflow --help
 ```
 
 Your output should look roughly like this:
 
 ```text
-Available Schemas
-┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Name                    ┃ Fields ┃ Module                       ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ RawOrders               │     12 │ workflows.schemas.orders     │
-│ FactOrdersDaily         │      9 │ workflows.schemas.orders     │
-└─────────────────────────┴────────┴──────────────────────────────┘
+Available Schemas table with schema names, field counts, and source modules.
 ```
 
 ## Quality Severity Strategy
