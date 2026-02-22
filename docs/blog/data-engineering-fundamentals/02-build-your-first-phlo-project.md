@@ -85,29 +85,44 @@ You should see output similar to this:
 phlo status --services
 ```
 
+If Docker and the stack are up, you should see core services reported as healthy (for example Dagster, MinIO, Nessie, and Trino all reachable). If you see `Down` or `Timeout`, stop here and fix service startup before moving on.
+
+
+## Create Your First Ingestion Asset
+
+```bash
+phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *"
+phlo validate-workflow workflows/ingestion/commerce/orders.py
+```
+
+You should see output similar to this:
+
+```text
+Created ingestion workflow scaffold under `workflows/ingestion/` for the selected domain and table.
+
+🔍 Validating Workflow
+
+orders.py
+  ✓ Found 1 workflow(s)
+  ✓ No issues found
+```
+
+At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion assets as `dlt_<table>`).
 
 ## First Materialization Dry Run
 
 Use dry-run first so you can verify command shape without mutating state.
 
 ```bash
-phlo materialize dlt_glucose_entries --dry-run
+phlo materialize dlt_orders --dry-run
 ```
 
 You should see output similar to this:
 
 ```text
-📊 Status Report
-
-         Service Health
-┏━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━┓
-┃ Service ┃ Status    ┃ Latency ┃
-┡━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━┩
-│ Dagster │ ✗ Down    │ —       │
-│ MinIO   │ ✗ Down    │ —       │
-│ Nessie  │ ✗ Down    │ —       │
-│ Trino   │ ⚠ Timeout │ 2000ms  │
-└─────────┴───────────┴─────────┘
+Dry run mode enabled.
+Prepared Dagster materialization command for asset `dlt_orders`.
+No pipeline state was changed.
 ```
 
 ## Why This Project Shape Matters
@@ -218,10 +233,7 @@ phlo services list --json
 You should see output similar to this:
 
 ```text
-Error: Docker is not running.
-
-Please start Docker Desktop and try again.
-Download: https://docs.docker.com/get-docker/
+Core services report as running/reachable, and `services list --json` returns the available service inventory.
 ```
 
 Step 6: Validate workflow tooling
@@ -240,7 +252,11 @@ phlo validate-workflow workflows/ingestion/commerce/orders.py
 You should see output similar to this:
 
 ```text
-Created ingestion workflow scaffold under `workflows/ingestion/` for the selected domain and table.
+🔍 Validating Workflow
+
+orders.py
+  ✓ Found 1 workflow(s)
+  ✓ No issues found
 ```
 
 At this point, you have the minimum viable platform loop:
