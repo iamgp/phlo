@@ -388,7 +388,8 @@ class TestPluginAutoDiscoveryBootstrap:
         """Enable auto-discovery when config is enabled and env override is absent."""
         monkeypatch.delenv("PHLO_NO_AUTO_DISCOVER", raising=False)
         monkeypatch.setattr(
-            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=True)
+            "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
+            lambda: SimpleNamespace(plugins_auto_discover=True),
         )
         assert plugins_discovery._should_auto_discover() is True
 
@@ -396,7 +397,8 @@ class TestPluginAutoDiscoveryBootstrap:
         """Disable auto-discovery when config is disabled."""
         monkeypatch.delenv("PHLO_NO_AUTO_DISCOVER", raising=False)
         monkeypatch.setattr(
-            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=False)
+            "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
+            lambda: SimpleNamespace(plugins_auto_discover=False),
         )
         assert plugins_discovery._should_auto_discover() is False
 
@@ -404,7 +406,8 @@ class TestPluginAutoDiscoveryBootstrap:
         """PHLO_NO_AUTO_DISCOVER overrides enabled settings."""
         monkeypatch.setenv("PHLO_NO_AUTO_DISCOVER", "1")
         monkeypatch.setattr(
-            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=True)
+            "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
+            lambda: SimpleNamespace(plugins_auto_discover=True),
         )
         assert plugins_discovery._should_auto_discover() is False
 
@@ -412,7 +415,8 @@ class TestPluginAutoDiscoveryBootstrap:
         """Falsy env values do not disable auto-discovery."""
         monkeypatch.setenv("PHLO_NO_AUTO_DISCOVER", "0")
         monkeypatch.setattr(
-            plugins_discovery, "get_settings", lambda: SimpleNamespace(plugins_auto_discover=True)
+            "phlo.plugins.discovery._plugin_auto_discovery.get_settings",
+            lambda: SimpleNamespace(plugins_auto_discover=True),
         )
         assert plugins_discovery._should_auto_discover() is True
 

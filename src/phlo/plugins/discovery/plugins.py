@@ -8,7 +8,6 @@ that declare phlo.plugins entry points.
 from __future__ import annotations
 
 import importlib.metadata
-import os
 from typing import Any
 
 from phlo.config import get_settings
@@ -25,14 +24,16 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
+from phlo.plugins.discovery._plugin_auto_discovery import (
+    is_auto_discover_disabled_by_env as _is_auto_discover_disabled_by_env_impl,
+)
+from phlo.plugins.discovery._plugin_auto_discovery import (
+    should_auto_discover as _should_auto_discover_impl,
+)
 from phlo.plugins.discovery.registry import get_global_registry
 from phlo.plugins.hooks import HookPlugin
 
 logger = get_logger(__name__)
-
-_NO_AUTO_DISCOVER_ENV = "PHLO_NO_AUTO_DISCOVER"
-_TRUTHY_ENV_VALUES = frozenset({"1", "true", "yes", "on"})
-_FALSY_ENV_VALUES = frozenset({"0", "false", "no", "off", ""})
 
 # Entry point group names for different plugin types
 ENTRY_POINT_GROUPS = {
@@ -669,27 +670,12 @@ def auto_discover() -> None:
 
 def _is_auto_discover_disabled_by_env() -> bool:
     """Return True when PHLO_NO_AUTO_DISCOVER explicitly disables discovery."""
-    raw_value = os.environ.get(_NO_AUTO_DISCOVER_ENV)
-    if raw_value is None:
-        return False
-
-    value = raw_value.strip().lower()
-    if value in _FALSY_ENV_VALUES:
-        return False
-    if value not in _TRUTHY_ENV_VALUES:
-        logger.warning(
-            "plugin_auto_discover_env_invalid",
-            env_var=_NO_AUTO_DISCOVER_ENV,
-            value=raw_value,
-            hint=f"Use {_NO_AUTO_DISCOVER_ENV}=1 to disable auto-discovery",
-        )
-    return True
+    return _is_auto_discover_disabled_by_env_impl()
 
 
 def _should_auto_discover() -> bool:
     """Resolve auto-discovery using settings default plus env override precedence."""
-    settings = get_settings()
-    return settings.plugins_auto_discover and not _is_auto_discover_disabled_by_env()
+    return _should_auto_discover_impl()
 
 
 # Auto-discover plugins when module is imported
