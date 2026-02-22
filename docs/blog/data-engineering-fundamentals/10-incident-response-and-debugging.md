@@ -36,11 +36,6 @@ graph LR
     E --> F[Postmortem actions]
 ```
 
-Expected output:
-
-```text
-A rendered incident lifecycle diagram from detection to follow-up actions.
-```
 
 ## Triage Command Bundle
 
@@ -78,11 +73,6 @@ Example targeted replay:
 phlo materialize dlt_orders --partition 2026-02-20
 ```
 
-Expected output:
-
-```text
-Single-partition replay for controlled validation.
-```
 
 ## Root Cause Template
 
@@ -98,11 +88,6 @@ Verification evidence:
 Regression test/check added:
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Field Notes: Debriefs That Actually Improve the System
 

@@ -57,11 +57,6 @@ def orders(partition_date: str):
     )
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Why Staging + Merge Is Safer
 
@@ -78,11 +73,6 @@ graph TD
     C --> D[Iceberg target table]
 ```
 
-Expected output:
-
-```text
-A rendered ingestion pipeline diagram from source to Iceberg merge.
-```
 
 ## Merge Strategy Choice
 
@@ -102,11 +92,6 @@ def clickstream(partition_date: str):
     ...
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Run Ingestion for a Partition
 
@@ -126,11 +111,6 @@ Backfill date ranges when needed:
 phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-07 --parallel 2
 ```
 
-Expected output:
-
-```text
-Backfill plan and per-partition execution summary.
-```
 
 ## Deep Dive: Source Reality vs Pipeline Assumptions
 
@@ -232,11 +212,6 @@ def orders(partition_date: str):
     )
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 Even in this simple example, partition boundaries and key semantics are explicit. That makes behaviour predictable.
 
@@ -359,11 +334,6 @@ workflows/ingestion/
     common.py
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 This keeps review scope tight and ownership clear.
 
@@ -410,11 +380,6 @@ Input: no rows
 Expected: no_data status, not hard failure
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 If you automate these cases early, your incident rate drops sharply.
 
@@ -480,11 +445,6 @@ Known failure mode: rate limiting at peak hours
 Recovery: rerun partition with normal concurrency
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 This document should be short enough to read during an incident.
 
@@ -594,11 +554,6 @@ Suggested evidence bundle:
 - merge decision rationale
 ```
 
-Expected output:
-
-```text
-A concise validation artifact set suitable for peer review and future incident context.
-```
 
 ### Engineering Checklist for Chapter-Level Mastery
 
@@ -641,11 +596,6 @@ Rollback path:
 Owner:
 ```
 
-Expected output:
-
-```text
-A change note that lets stakeholders understand scope, confidence, and fallback plan quickly.
-```
 
 This style lowers friction with analytics, product, and operations partners.
 

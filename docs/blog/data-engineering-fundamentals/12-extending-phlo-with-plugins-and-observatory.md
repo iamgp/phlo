@@ -61,11 +61,6 @@ manifest = ObservatoryExtensionManifest(
 )
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Example Extension Class
 
@@ -88,11 +83,6 @@ class ExampleObservatoryExtension(ObservatoryExtensionPlugin):
         return resources.files("phlo_observatory_example").joinpath("observatory_assets")
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Extension Runtime Model
 
@@ -104,11 +94,6 @@ graph LR
     D --> E[Rendered in Observatory]
 ```
 
-Expected output:
-
-```text
-A rendered extension loading diagram from entry point to UI registration.
-```
 
 ## Build Path for Your Team
 

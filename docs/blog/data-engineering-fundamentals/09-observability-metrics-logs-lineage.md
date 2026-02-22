@@ -35,11 +35,6 @@ graph TD
     E --> F
 ```
 
-Expected output:
-
-```text
-A rendered observability signal map from run telemetry to incident response.
-```
 
 ## Status and Logs
 
@@ -63,11 +58,6 @@ phlo metrics asset dlt_orders --runs 20
 phlo metrics export --format json --output .phlo/metrics-24h.json --period 24h
 ```
 
-Expected output:
-
-```text
-Summary panel, per-asset run metrics, and exported metrics file.
-```
 
 ## Lineage for Impact Analysis
 
@@ -92,11 +82,6 @@ phlo alerts status
 phlo alerts test --severity warning
 ```
 
-Expected output:
-
-```text
-Configured destinations plus a test alert send result.
-```
 
 ## Field Notes: Turning Observability into Better Team Decisions
 

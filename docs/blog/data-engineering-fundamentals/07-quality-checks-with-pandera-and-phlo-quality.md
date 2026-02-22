@@ -30,11 +30,6 @@ class RawOrders(pa.DataFrameModel):
     order_timestamp: str
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Add Declarative Quality Checks
 
@@ -59,11 +54,6 @@ def orders_quality_gate() -> None:
     pass
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Validate Before You Deploy
 
@@ -98,11 +88,6 @@ graph TD
     D --> E[Dagster status and logs]
 ```
 
-Expected output:
-
-```text
-A rendered quality signal path from data load to orchestration feedback.
-```
 
 ## Field Notes: The 6 AM Quality Alert Moment
 

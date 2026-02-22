@@ -47,11 +47,6 @@ Schema details followed by classified change details.
 phlo branch create schema_rollout_orders --from main
 ```
 
-Expected output:
-
-```text
-Creates a feature data branch for schema rollout testing.
-```
 
 Then run in branch context:
 
@@ -71,11 +66,6 @@ Then run in branch context:
 5. Verify dashboards/API consumers.
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Contract Lifecycle Diagram
 
@@ -87,11 +77,6 @@ graph LR
     D --> E[Merge to main]
 ```
 
-Expected output:
-
-```text
-A rendered contract-change lifecycle diagram.
-```
 
 ## Field Notes: How to Make Breaking Changes Predictable
 

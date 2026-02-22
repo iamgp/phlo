@@ -40,11 +40,6 @@ my-first-phlo-project/
   tests/
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Start the Infrastructure
 
@@ -86,11 +81,6 @@ Expected output:
 phlo status --services
 ```
 
-Expected output:
-
-```text
-Service status table for Dagster, Trino, MinIO, Nessie, and related components.
-```
 
 ## First Materialization Dry Run
 
@@ -154,11 +144,6 @@ Example first-day checklist:
 5. Confirm schema and workflow validation commands run.
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Guided Walkthrough: From Empty Directory to Ready Platform
 
@@ -181,11 +166,6 @@ Step 2: Inspect generated config
 cat phlo.yaml
 ```
 
-Expected output:
-
-```text
-Phlo configuration with service and environment scaffolding.
-```
 
 Step 3: Initialize service composition
 
@@ -205,11 +185,6 @@ Step 4: Start services
 phlo services start
 ```
 
-Expected output:
-
-```text
-Starts configured services through docker compose and prints startup progress.
-```
 
 Step 5: Verify running state
 
@@ -230,11 +205,6 @@ Step 6: Validate workflow tooling
 phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron \"0 * * * *\"
 ```
 
-Expected output:
-
-```text
-Creates ingestion and schema scaffolds and prints next-step instructions.
-```
 
 Step 7: Validate generated workflow contract
 
@@ -333,11 +303,6 @@ phlo validate-workflow workflows/ingestion/subscriptions/invoices.py
 phlo schema list --domain subscriptions
 ```
 
-Expected output:
-
-```text
-Workflow files created, validation report emitted, and schema inventory shown for the selected domain.
-```
 
 Then answer:
 
@@ -386,11 +351,6 @@ If services fail to start:
   4. Restart only impacted services.
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 You can also add a simple first-run script for local onboarding:
 
@@ -440,11 +400,6 @@ services:
     enabled: true
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 If a setting changes runtime behaviour, write a one-line rationale near the change.
 

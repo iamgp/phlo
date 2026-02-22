@@ -50,11 +50,6 @@ phlo metrics asset dlt_orders --runs 30
 phlo metrics summary --period 7d
 ```
 
-Expected output:
-
-```text
-Run duration, failure rate, and throughput changes visible across the sampled window.
-```
 
 ## Query-Layer Considerations
 
@@ -76,11 +71,6 @@ where order_date >= current_date - interval '30' day
 group by 1
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Cost-Aware Architecture Sketch
 
@@ -92,11 +82,6 @@ graph TD
     D --> E[Targeted marts]
 ```
 
-Expected output:
-
-```text
-A rendered optimisation-oriented flow showing bounded compute at each layer.
-```
 
 ## Field Notes: Avoiding "Fast but Wrong" Optimisation
 

@@ -30,11 +30,6 @@ graph LR
     C --> D[gold.mrt_revenue_daily]
 ```
 
-Expected output:
-
-```text
-A rendered medallion-style model progression diagram.
-```
 
 ## Example dbt Model
 
@@ -53,11 +48,6 @@ select
 from {{ ref('stg_orders') }}
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 ## Run dbt from Services
 
@@ -81,11 +71,6 @@ The dbt plugin contributes a `publishing` command group.
 phlo publishing scaffold --config workflows/transforms/dbt/publishing.yaml --select gold.*
 ```
 
-Expected output:
-
-```text
-Creates or updates publishing config for selected dbt models.
-```
 
 ## Engineering Guidelines
 

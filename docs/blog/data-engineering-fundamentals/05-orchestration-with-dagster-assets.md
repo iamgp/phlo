@@ -34,11 +34,6 @@ graph TD
     C --> D[Status and logs]
 ```
 
-Expected output:
-
-```text
-A rendered run lifecycle diagram from command to observability output.
-```
 
 ## Targeted Materialization
 
@@ -58,11 +53,6 @@ Selector-based execution:
 phlo materialize dlt_orders --select "tag:commerce"
 ```
 
-Expected output:
-
-```text
-Materializes all assets matching selector expression instead of the placeholder name.
-```
 
 ## Backfill with Control
 
@@ -82,11 +72,6 @@ Dry-run before expensive ranges:
 phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-31 --dry-run
 ```
 
-Expected output:
-
-```text
-Shows generated materialize commands without executing partitions.
-```
 
 ## Runtime Visibility Commands
 
@@ -148,11 +133,6 @@ phlo materialize dlt_orders --partition 2026-02-20
 phlo materialize dlt_orders --select \"tag:commerce\"
 ```
 
-Expected output:
-
-```text
-A targeted Dagster run for the specified partition or selected asset set.
-```
 
 This style prevents accidental wide reruns in production windows.
 
@@ -212,11 +192,6 @@ phlo logs --asset dlt_orders --since 2h --level ERROR --limit 200
 phlo backfill --resume
 ```
 
-Expected output:
-
-```text
-Error log evidence for failure cause and resumed backfill using saved state.
-```
 
 This is a clear example of why orchestration metadata and stateful resume support matter.
 
@@ -372,11 +347,6 @@ Escalation:
   #data-incidents
 ```
 
-Expected output:
-
-```text
-Operational procedure card ready for on-call usage.
-```
 
 This is simple and immediately useful during real incidents.
 

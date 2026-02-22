@@ -43,11 +43,6 @@ graph LR
     D --> G
 ```
 
-Expected output:
-
-```text
-A rendered dependency diagram showing end-to-end platform flow.
-```
 
 ## How Phlo Maps to the Stack
 
@@ -156,11 +151,6 @@ quality_policy:
     - non_negative_amount
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 In this series, every post pushes you toward that level of clarity.
 
@@ -278,11 +268,6 @@ Pager rotation: platform-data-oncall
 Escalation: #data-incidents
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 Treat this as part of architecture, not admin overhead.
 
@@ -345,11 +330,6 @@ failure_policy:
   - alert on-call immediately
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 Then ask:
 

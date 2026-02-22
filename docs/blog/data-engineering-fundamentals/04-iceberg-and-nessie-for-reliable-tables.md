@@ -39,11 +39,6 @@ graph LR
     C --> D[merge to main]
 ```
 
-Expected output:
-
-```text
-A rendered branch workflow diagram for isolated data changes.
-```
 
 ## Inspect Table Inventory
 
@@ -63,11 +58,6 @@ Inspect one table:
 phlo catalog describe raw.orders --ref main
 ```
 
-Expected output:
-
-```text
-Schema, partition details, and metadata for raw.orders.
-```
 
 Check snapshot history:
 
@@ -88,11 +78,6 @@ phlo branch create de_contract_test --from main
 phlo branch list
 ```
 
-Expected output:
-
-```text
-Shows branch creation confirmation and branch inventory.
-```
 
 After validation steps, merge:
 
@@ -187,11 +172,6 @@ Workflow:
 phlo branch create add_order_channel --from main
 ```
 
-Expected output:
-
-```text
-Feature branch created from main.
-```
 
 2. Apply ingestion/schema update in your code branch.
 3. Materialize target partitions on feature data branch.
@@ -215,11 +195,6 @@ Snapshot and table metadata showing branch-specific updates.
 phlo branch merge add_order_channel main
 ```
 
-Expected output:
-
-```text
-Merge confirmation and commit summary.
-```
 
 This sequence gives explicit proof of change safety before production exposure.
 
@@ -247,11 +222,6 @@ All non-trivial table or contract changes require:
   3) explicit merge decision
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 Simple policy beats ad hoc behaviour.
 
@@ -383,11 +353,6 @@ Represent policy in concise text:
 Policy: Data branch required for any change that can alter row meaning, schema compatibility, or freshness behaviour.
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 This is enough governance for most early-stage teams.
 
@@ -436,11 +401,6 @@ Merge window: 14:00 UTC
 Rollback: revert merge and replay partition range if needed
 ```
 
-Expected output:
-
-```text
-Template snippet prepared for direct use in your project.
-```
 
 Clear communication reduces merge anxiety and incident confusion.
 
@@ -555,11 +515,6 @@ Suggested evidence bundle:
 - merge decision rationale
 ```
 
-Expected output:
-
-```text
-A concise validation artifact set suitable for peer review and future incident context.
-```
 
 ### Engineering Checklist for Chapter-Level Mastery
 
@@ -602,11 +557,6 @@ Rollback path:
 Owner:
 ```
 
-Expected output:
-
-```text
-A change note that lets stakeholders understand scope, confidence, and fallback plan quickly.
-```
 
 This style lowers friction with analytics, product, and operations partners.
 
