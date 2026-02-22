@@ -90,6 +90,7 @@ Production operations and maintenance:
 Tutorial series and deep dives:
 
 - See [blog/](blog/) for the complete 13-part article series
+- New standalone track: [Data Engineering Fundamentals with Phlo](blog/data-engineering-fundamentals/README.md)
 
 ## Learning Paths
 
