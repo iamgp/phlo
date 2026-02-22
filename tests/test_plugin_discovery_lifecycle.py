@@ -14,6 +14,8 @@ from phlo.plugins import (
 )
 from phlo.plugins.discovery import get_global_registry
 
+pytestmark = pytest.mark.core_regression
+
 
 class _SettingsStub:
     """Test settings stub for plugin discovery."""
