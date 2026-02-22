@@ -10,10 +10,15 @@ import yaml
 
 from phlo.logging import get_logger
 from phlo.plugins.discovery._service_definition import ServiceDefinition
-from phlo.plugins.discovery.plugins import discover_plugins
+from phlo.plugins.discovery.plugins import discover_plugins as _discover_plugins
 from phlo.plugins.discovery.registry import get_global_registry
 
 logger = get_logger(__name__)
+
+
+def discover_plugins(plugin_type: str = "services", auto_register: bool = True):
+    """Compatibility wrapper used by service discovery call sites and tests."""
+    return _discover_plugins(plugin_type=plugin_type, auto_register=auto_register)
 
 
 def is_service_yaml(filename: str) -> bool:
