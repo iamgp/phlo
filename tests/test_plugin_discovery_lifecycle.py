@@ -6,7 +6,12 @@ from collections.abc import Iterator
 
 import pytest
 
-from phlo.plugins import PluginMetadata, SourceConnectorPlugin, discover_plugins
+from phlo.plugins import (
+    PluginMetadata,
+    QualityCheckPlugin,
+    SourceConnectorPlugin,
+    discover_plugins,
+)
 from phlo.plugins.discovery import get_global_registry
 
 
@@ -39,18 +44,20 @@ class _LifecycleSourcePlugin(SourceConnectorPlugin):
         marker: str,
         events: list[str],
         *,
+        name: str = "lifecycle_source",
         fail_initialize: bool = False,
         fail_cleanup: bool = False,
     ) -> None:
         self.marker = marker
         self._events = events
+        self._name = name
         self._fail_initialize = fail_initialize
         self._fail_cleanup = fail_cleanup
 
     @property
     def metadata(self) -> PluginMetadata:
         """Return metadata with a stable plugin name for replacement tests."""
-        return PluginMetadata(name="lifecycle_source", version=f"1.0.0-{self.marker}")
+        return PluginMetadata(name=self._name, version=f"1.0.0-{self.marker}")
 
     def initialize(self, config: dict[str, object]) -> None:
         """Track plugin initialization and optionally fail."""
@@ -67,6 +74,30 @@ class _LifecycleSourcePlugin(SourceConnectorPlugin):
     def fetch_data(self, config: dict[str, object]) -> Iterator[dict[str, int]]:
         """Yield one row to satisfy source plugin interface."""
         yield {"id": 1}
+
+
+class _MultiTypeLifecyclePlugin(SourceConnectorPlugin, QualityCheckPlugin):
+    """Plugin implementing multiple interfaces to test deduplicated cleanup."""
+
+    def __init__(self, events: list[str]) -> None:
+        self._events = events
+
+    @property
+    def metadata(self) -> PluginMetadata:
+        """Return metadata shared across plugin interfaces."""
+        return PluginMetadata(name="multi_type_plugin", version="1.0.0")
+
+    def cleanup(self) -> None:
+        """Track cleanup calls."""
+        self._events.append("cleanup:multi")
+
+    def fetch_data(self, config: dict[str, object]) -> Iterator[dict[str, int]]:
+        """Yield one row to satisfy source plugin interface."""
+        yield {"id": 1}
+
+    def create_check(self, **kwargs):
+        """Return no-op check for quality plugin interface."""
+        return None
 
 
 @pytest.fixture
@@ -157,3 +188,47 @@ def test_discover_plugins_keeps_existing_plugin_when_cleanup_fails(
 
     assert clean_registry.get_source_connector("lifecycle_source") is existing
     assert events == ["initialize:new", "cleanup:old", "cleanup:new"]
+
+
+def test_registry_clear_calls_cleanup_during_shutdown(clean_registry) -> None:
+    """Registry clear triggers plugin cleanup for registered plugins."""
+    events: list[str] = []
+    plugin = _LifecycleSourcePlugin(marker="shutdown", events=events)
+    clean_registry.register_source_connector(plugin)
+
+    clean_registry.clear()
+
+    assert events == ["cleanup:shutdown"]
+    assert len(clean_registry) == 0
+
+
+def test_registry_clear_continues_when_cleanup_fails(clean_registry) -> None:
+    """Registry clear continues teardown after cleanup errors."""
+    events: list[str] = []
+    failing = _LifecycleSourcePlugin(
+        marker="failing",
+        events=events,
+        name="failing_plugin",
+        fail_cleanup=True,
+    )
+    healthy = _LifecycleSourcePlugin(marker="healthy", events=events, name="healthy_plugin")
+    clean_registry.register_source_connector(failing)
+    clean_registry.register_source_connector(healthy)
+
+    clean_registry.clear()
+
+    assert events == ["cleanup:failing", "cleanup:healthy"]
+    assert len(clean_registry) == 0
+
+
+def test_registry_clear_deduplicates_cleanup_for_shared_plugin_instance(clean_registry) -> None:
+    """Shared plugin instances are cleaned only once during clear."""
+    events: list[str] = []
+    plugin = _MultiTypeLifecyclePlugin(events)
+    clean_registry.register_source_connector(plugin)
+    clean_registry.register_quality_check(plugin)
+
+    clean_registry.clear()
+    clean_registry.clear()
+
+    assert events == ["cleanup:multi"]
