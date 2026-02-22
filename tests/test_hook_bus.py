@@ -6,6 +6,8 @@ from phlo_testing.hooks import MockHookBus
 from phlo.hooks import QualityResultEvent
 from phlo.plugins.hooks import FailurePolicy, HookFilter, HookRegistration
 
+pytestmark = pytest.mark.core_regression
+
 
 def test_hook_bus_filters_and_ordering() -> None:
     """Verify hook execution order honors filters and priority."""

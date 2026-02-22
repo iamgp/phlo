@@ -242,10 +242,32 @@ class PluginRegistry:
     def clear(self) -> None:
         """Clear all registered plugins."""
         total = len(self._all_plugins)
+        cleaned = 0
+        cleanup_failures = 0
+        cleaned_plugin_ids: set[int] = set()
+
+        for plugin_key, plugin in list(self._all_plugins.items()):
+            plugin_id = id(plugin)
+            if plugin_id in cleaned_plugin_ids:
+                continue
+            cleaned_plugin_ids.add(plugin_id)
+            try:
+                plugin.cleanup()
+                cleaned += 1
+            except Exception:
+                cleanup_failures += 1
+                logger.warning("plugin_cleanup_failed", plugin_key=plugin_key, exc_info=True)
+
         for config in _TYPE_CONFIG.values():
             getattr(self, config[0]).clear()
         self._all_plugins.clear()
-        logger.debug("plugin_registry_cleared", previous_total=total)
+        logger.debug(
+            "plugin_registry_cleared",
+            previous_total=total,
+            unique_plugins=len(cleaned_plugin_ids),
+            cleaned_plugins=cleaned,
+            cleanup_failures=cleanup_failures,
+        )
 
     def iter_plugins(self) -> list[Plugin]:
         """Return all registered plugin instances."""

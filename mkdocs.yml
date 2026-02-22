@@ -69,6 +69,7 @@ nav:
       - Plugin Registry: guides/plugin-registry.md
       - Compose Generation: guides/compose-generation.md
       - Service Packages: guides/service-packages.md
+      - Discovery And Registry Benchmarks: guides/discovery-registry-benchmarks.md
       - Testing Strategy: guides/testing-strategy.md
   - Setup:
       - Hasura: setup/hasura.md

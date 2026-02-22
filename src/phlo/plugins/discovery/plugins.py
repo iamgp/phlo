@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import importlib.metadata
 import os
+from typing import Any
 
 from phlo.config import get_settings
-from phlo.logging import get_logger, suppress_log_routing
+from phlo.logging import get_logger, log_event, suppress_log_routing
 from phlo.plugins.base import (
     AssetProviderPlugin,
     CatalogPlugin,
@@ -114,6 +115,35 @@ def _is_plugin_allowed(plugin_name: str) -> bool:
     return True
 
 
+def _emit_plugin_lifecycle_signal(
+    *,
+    event_name: str,
+    level: str,
+    plugin_type: str,
+    plugin_name: str,
+    lifecycle_phase: str,
+    replace: bool,
+    reason: str | None = None,
+    error: Exception | None = None,
+    target_plugin_name: str | None = None,
+) -> None:
+    """Emit structured observability signals for plugin lifecycle operations."""
+    fields: dict[str, Any] = {
+        "plugin_type": plugin_type,
+        "plugin_name": plugin_name,
+        "lifecycle_phase": lifecycle_phase,
+        "replace": replace,
+    }
+    if reason is not None:
+        fields["reason"] = reason
+    if target_plugin_name is not None:
+        fields["target_plugin_name"] = target_plugin_name
+    if error is not None:
+        fields["error"] = str(error)
+        fields["error_type"] = type(error).__name__
+    log_event(logger, level, event_name, **fields)
+
+
 def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: bool = True) -> None:
     """Register plugin with initialize/cleanup lifecycle hooks and rollback safeguards."""
     registry = get_global_registry()
@@ -124,7 +154,8 @@ def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: b
         raise ValueError(f"Unknown plugin type: {plugin_type}")
 
     register_method = getattr(registry, register_method_name)
-    existing_plugin = getattr(registry, getter_method_name)(plugin.metadata.name)
+    plugin_name = plugin.metadata.name
+    existing_plugin = getattr(registry, getter_method_name)(plugin_name)
 
     # Let registry raise duplicate registration errors without initializing a plugin that
     # cannot be registered.
@@ -134,42 +165,144 @@ def _register_plugin_with_lifecycle(plugin_type: str, plugin: Plugin, replace: b
 
     try:
         plugin.initialize({})
-    except Exception:
+        _emit_plugin_lifecycle_signal(
+            event_name="plugin_lifecycle_initialize_succeeded",
+            level="info",
+            plugin_type=plugin_type,
+            plugin_name=plugin_name,
+            lifecycle_phase="incoming_plugin_initialize",
+            replace=replace,
+        )
+    except Exception as exc:
+        _emit_plugin_lifecycle_signal(
+            event_name="plugin_lifecycle_initialize_failed",
+            level="error",
+            plugin_type=plugin_type,
+            plugin_name=plugin_name,
+            lifecycle_phase="incoming_plugin_initialize",
+            replace=replace,
+            error=exc,
+        )
         try:
             plugin.cleanup()
-        except Exception:
+            _emit_plugin_lifecycle_signal(
+                event_name="plugin_lifecycle_cleanup_succeeded",
+                level="info",
+                plugin_type=plugin_type,
+                plugin_name=plugin_name,
+                lifecycle_phase="incoming_plugin_cleanup",
+                replace=replace,
+                reason="initialize_failed",
+            )
+        except Exception as cleanup_exc:
+            _emit_plugin_lifecycle_signal(
+                event_name="plugin_lifecycle_cleanup_failed",
+                level="error",
+                plugin_type=plugin_type,
+                plugin_name=plugin_name,
+                lifecycle_phase="incoming_plugin_cleanup",
+                replace=replace,
+                reason="initialize_failed",
+                error=cleanup_exc,
+            )
             logger.warning(
                 "plugin_cleanup_after_initialize_failed",
                 plugin_type=plugin_type,
-                plugin_name=plugin.metadata.name,
+                plugin_name=plugin_name,
                 exc_info=True,
             )
         raise
 
     existing_cleaned = False
+    existing_plugin_name = existing_plugin.metadata.name if existing_plugin else None
     try:
         if existing_plugin and replace:
-            existing_plugin.cleanup()
-            existing_cleaned = True
+            try:
+                existing_plugin.cleanup()
+                _emit_plugin_lifecycle_signal(
+                    event_name="plugin_lifecycle_cleanup_succeeded",
+                    level="info",
+                    plugin_type=plugin_type,
+                    plugin_name=existing_plugin_name or plugin_name,
+                    lifecycle_phase="existing_plugin_cleanup",
+                    replace=replace,
+                    reason="replacement",
+                    target_plugin_name=plugin_name,
+                )
+                existing_cleaned = True
+            except Exception as exc:
+                _emit_plugin_lifecycle_signal(
+                    event_name="plugin_lifecycle_cleanup_failed",
+                    level="error",
+                    plugin_type=plugin_type,
+                    plugin_name=existing_plugin_name or plugin_name,
+                    lifecycle_phase="existing_plugin_cleanup",
+                    replace=replace,
+                    reason="replacement",
+                    target_plugin_name=plugin_name,
+                    error=exc,
+                )
+                raise
         register_method(plugin, replace=replace)
     except Exception:
         if existing_cleaned:
+            assert existing_plugin is not None
             try:
                 existing_plugin.initialize({})
-            except Exception:
+                _emit_plugin_lifecycle_signal(
+                    event_name="plugin_lifecycle_initialize_succeeded",
+                    level="info",
+                    plugin_type=plugin_type,
+                    plugin_name=existing_plugin_name or plugin_name,
+                    lifecycle_phase="existing_plugin_recovery_initialize",
+                    replace=replace,
+                    reason="registration_failed_rollback",
+                    target_plugin_name=plugin_name,
+                )
+            except Exception as recovery_exc:
+                _emit_plugin_lifecycle_signal(
+                    event_name="plugin_lifecycle_initialize_failed",
+                    level="error",
+                    plugin_type=plugin_type,
+                    plugin_name=existing_plugin_name or plugin_name,
+                    lifecycle_phase="existing_plugin_recovery_initialize",
+                    replace=replace,
+                    reason="registration_failed_rollback",
+                    target_plugin_name=plugin_name,
+                    error=recovery_exc,
+                )
                 logger.error(
                     "plugin_recovery_initialize_failed",
                     plugin_type=plugin_type,
-                    plugin_name=plugin.metadata.name,
+                    plugin_name=plugin_name,
                     exc_info=True,
                 )
         try:
             plugin.cleanup()
-        except Exception:
+            _emit_plugin_lifecycle_signal(
+                event_name="plugin_lifecycle_cleanup_succeeded",
+                level="info",
+                plugin_type=plugin_type,
+                plugin_name=plugin_name,
+                lifecycle_phase="incoming_plugin_cleanup",
+                replace=replace,
+                reason="registration_failed",
+            )
+        except Exception as cleanup_exc:
+            _emit_plugin_lifecycle_signal(
+                event_name="plugin_lifecycle_cleanup_failed",
+                level="error",
+                plugin_type=plugin_type,
+                plugin_name=plugin_name,
+                lifecycle_phase="incoming_plugin_cleanup",
+                replace=replace,
+                reason="registration_failed",
+                error=cleanup_exc,
+            )
             logger.warning(
                 "plugin_cleanup_after_registration_failed",
                 plugin_type=plugin_type,
-                plugin_name=plugin.metadata.name,
+                plugin_name=plugin_name,
                 exc_info=True,
             )
         raise

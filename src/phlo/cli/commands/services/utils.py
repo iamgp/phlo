@@ -6,6 +6,7 @@ import signal
 import sys
 import time
 from pathlib import Path
+from typing import cast
 
 import click
 
@@ -201,6 +202,54 @@ def get_enabled_disabled_service_names(config: dict | None) -> tuple[set[str], s
             enabled_names.add(normalized_name)
 
     disabled_names.difference_update(enabled_names)
+
+
+def _normalize_service_name_list(names: object) -> list[str]:
+    """Normalize a service name list to unique lowercase names."""
+    if not isinstance(names, list):
+        return []
+
+    normalized_names: list[str] = []
+    seen_names: set[str] = set()
+    for name in names:
+        if not isinstance(name, str):
+            continue
+        normalized_name = name.strip().lower()
+        if not normalized_name or normalized_name in seen_names:
+            continue
+        normalized_names.append(normalized_name)
+        seen_names.add(normalized_name)
+    return normalized_names
+
+
+def normalize_services_enabled_disabled_config(
+    config: dict[str, object],
+) -> tuple[list[str], list[str]]:
+    """Normalize services enabled/disabled lists and resolve contradictions.
+
+    Rules:
+        - Missing/non-list values become empty lists.
+        - Service names are stripped, lowercased, deduplicated.
+        - Deterministic ordering via sort.
+        - If a name appears in both lists, disabled takes precedence.
+    """
+    services_config_value = config.get("services")
+    if isinstance(services_config_value, dict):
+        services_config = cast(dict[str, object], services_config_value)
+    else:
+        services_config = {}
+        config["services"] = services_config
+
+    enabled_names = _normalize_service_name_list(services_config.get("enabled"))
+    disabled_names = _normalize_service_name_list(services_config.get("disabled"))
+    conflicted_names = set(enabled_names).intersection(disabled_names)
+    if conflicted_names:
+        enabled_names = [name for name in enabled_names if name not in conflicted_names]
+
+    enabled_names = sorted(enabled_names)
+    disabled_names = sorted(disabled_names)
+    services_config["enabled"] = enabled_names
+    services_config["disabled"] = disabled_names
     return enabled_names, disabled_names
 
 
@@ -595,9 +644,8 @@ def _regenerate_compose(discovery, config: dict, phlo_dir: Path):
     # Get default services
     default_services = discovery.get_default_services()
 
-    # Get enabled services from config
-    enabled_names = config.get("services", {}).get("enabled", [])
-    disabled_names = config.get("services", {}).get("disabled", [])
+    # Get enabled/disabled services from normalized config
+    enabled_names, disabled_names = normalize_services_enabled_disabled_config(config)
 
     services_to_install = select_services_to_install(
         all_services=all_services,
