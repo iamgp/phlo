@@ -11,6 +11,7 @@ from phlo.cli.commands.services.utils import (
     PHLO_CONFIG_FILE,
     _regenerate_compose,
     get_phlo_dir,
+    normalize_services_enabled_disabled_config,
 )
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
@@ -113,23 +114,15 @@ def remove_cmd(service_name: str, keep_running: bool):
             click.echo(f"Warning: Could not stop {service_name}.", err=True)
 
     # Update config
-    if not isinstance(config.get("services"), dict):
-        config["services"] = {}
-    if "disabled" not in config["services"]:
-        config["services"]["disabled"] = []
-    if "enabled" not in config["services"]:
-        config["services"]["enabled"] = []
+    enabled, disabled = normalize_services_enabled_disabled_config(config)
+    canonical_service_name = service.name
 
-    # Remove from enabled if present
-    enabled = config["services"]["enabled"]
-    if service_name in enabled:
-        enabled.remove(service_name)
-
-    # Add to disabled
-    disabled = config["services"]["disabled"]
-    if service_name not in disabled:
-        disabled.append(service_name)
-        config["services"]["disabled"] = sorted(set(disabled))
+    # Remove from enabled if present; add to disabled.
+    enabled = [name for name in enabled if name != canonical_service_name]
+    disabled.append(canonical_service_name)
+    config["services"]["enabled"] = enabled
+    config["services"]["disabled"] = disabled
+    normalize_services_enabled_disabled_config(config)
 
     # Write updated config
     with open(config_file, "w") as f:

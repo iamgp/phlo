@@ -9,7 +9,11 @@ import yaml
 from click.testing import CliRunner
 from phlo_dagster.containers import find_dagster_container
 
-from phlo.cli.commands.services.utils import detect_phlo_source_path, get_profile_service_names
+from phlo.cli.commands.services.utils import (
+    detect_phlo_source_path,
+    get_profile_service_names,
+    normalize_services_enabled_disabled_config,
+)
 from phlo.cli.infrastructure.selection import select_services_to_install
 from phlo.plugins.compose.generator import ComposeGenerator
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
@@ -60,6 +64,37 @@ def test_select_services_to_install_respects_enabled_disabled_and_profiles() -> 
     )
 
     assert [s.name for s in services_to_install] == ["postgres", "prometheus", "grafana"]
+
+
+def test_normalize_services_enabled_disabled_config_dedupes_and_resolves_conflicts() -> None:
+    """Normalize enabled/disabled lists with disabled taking precedence on conflicts."""
+    config: dict[str, object] = {
+        "services": {
+            "enabled": [" Prometheus ", "postgres", "PROMETHEUS", "", 3],
+            "disabled": ["postgres", " Postgres ", "MINIO", None],
+        }
+    }
+
+    enabled, disabled = normalize_services_enabled_disabled_config(config)
+
+    assert enabled == ["prometheus"]
+    assert disabled == ["minio", "postgres"]
+    assert config["services"] == {"enabled": ["prometheus"], "disabled": ["minio", "postgres"]}
+
+
+def test_normalize_services_enabled_disabled_config_handles_missing_or_invalid_sections() -> None:
+    """Coerce invalid/missing sections into normalized enabled/disabled lists."""
+    invalid_services_config: dict[str, object] = {"services": "not-a-mapping"}
+    enabled, disabled = normalize_services_enabled_disabled_config(invalid_services_config)
+    assert enabled == []
+    assert disabled == []
+    assert invalid_services_config["services"] == {"enabled": [], "disabled": []}
+
+    empty_config: dict[str, object] = {}
+    enabled, disabled = normalize_services_enabled_disabled_config(empty_config)
+    assert enabled == []
+    assert disabled == []
+    assert empty_config["services"] == {"enabled": [], "disabled": []}
 
 
 def test_find_dagster_container_prefers_configured_name(monkeypatch: pytest.MonkeyPatch) -> None:

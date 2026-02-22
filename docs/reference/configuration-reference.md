@@ -465,6 +465,27 @@ PLUGIN_REGISTRY_CACHE_TTL_SECONDS=3600
 PLUGIN_REGISTRY_TIMEOUT_SECONDS=10
 ```
 
+`PLUGINS_AUTO_DISCOVER` is the default switch. `PHLO_NO_AUTO_DISCOVER` has disable
+override precedence at runtime:
+
+- Truthy values disable auto-discovery (`1`, `true`, `yes`, `on`).
+- Falsy values do not disable (`0`, `false`, `no`, `off`).
+- Any other non-empty value is treated as disable and logged as invalid.
+
+```bash
+# Disabled (env override wins)
+PLUGINS_AUTO_DISCOVER=true
+PHLO_NO_AUTO_DISCOVER=1
+
+# Enabled (falsy env does not disable)
+PLUGINS_AUTO_DISCOVER=true
+PHLO_NO_AUTO_DISCOVER=0
+
+# Disabled (settings already false; env cannot force enable)
+PLUGINS_AUTO_DISCOVER=false
+PHLO_NO_AUTO_DISCOVER=0
+```
+
 ## Infrastructure Configuration (phlo.yaml)
 
 Project-level configuration in `phlo.yaml`:
