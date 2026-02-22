@@ -123,11 +123,11 @@ Most ingestion bugs come from optimistic assumptions about source systems.
 
 Common assumptions that fail in production:
 
-- \"IDs are always unique\"
-- \"Timestamps are always UTC\"
-- \"Nulls only appear in optional fields\"
-- \"Pagination is stable\"
-- \"API response order is deterministic\"
+- "IDs are always unique"
+- "Timestamps are always UTC"
+- "Nulls only appear in optional fields"
+- "Pagination is stable"
+- "API response order is deterministic"
 
 Production sources are noisy and evolving. Your ingestion contract should assume drift, not perfection.
 
@@ -187,29 +187,29 @@ from phlo_dlt.decorator import phlo_ingestion
 from workflows.schemas.orders import RawOrders
 
 @phlo_ingestion(
-    table_name=\"orders\",
-    unique_key=\"order_id\",
-    group=\"commerce\",
+    table_name="orders",
+    unique_key="order_id",
+    group="commerce",
     validation_schema=RawOrders,
-    merge_strategy=\"merge\",
-    merge_config={\"deduplication_method\": \"last\"},
-    cron=\"0 * * * *\",
+    merge_strategy="merge",
+    merge_config={"deduplication_method": "last"},
+    cron="0 * * * *",
 )
 def orders(partition_date: str):
-    start = f\"{partition_date}T00:00:00Z\"
-    end = f\"{partition_date}T23:59:59Z\"
+    start = f"{partition_date}T00:00:00Z"
+    end = f"{partition_date}T23:59:59Z"
 
     return rest_api(
-        client={\"base_url\": \"https://api.example.com\"},
+        client={"base_url": "https://api.example.com"},
         resources=[
             {
-                \"name\": \"orders\",
-                \"endpoint\": {
-                    \"path\": \"/orders\",
-                    \"params\": {
-                        \"start_time\": start,
-                        \"end_time\": end,
-                        \"limit\": 1000,
+                "name": "orders",
+                "endpoint": {
+                    "path": "/orders",
+                    "params": {
+                        "start_time": start,
+                        "end_time": end,
+                        "limit": 1000,
                     },
                 },
             }
@@ -256,7 +256,7 @@ Experiment B: schema drift
 Experiment C: empty partition
 
 - Run a date range with known empty data.
-- Confirm pipeline returns \"no data\" cleanly without false failure.
+- Confirm pipeline returns "no data" cleanly without false failure.
 
 Suggested command set:
 
@@ -475,7 +475,7 @@ This document should be short enough to read during an incident.
 
 ## Extended Guide: Ingestion Readiness Review
 
-Before marking an ingestion asset \"production ready,\" confirm:
+Before marking an ingestion asset "production ready," confirm:
 
 1. Asset runs successfully for a normal partition.
 2. Duplicate case tested and observed.

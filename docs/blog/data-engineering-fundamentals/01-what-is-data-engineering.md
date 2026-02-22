@@ -141,7 +141,7 @@ When you treat those as product decisions, your data system becomes much easier 
 
 ## Deep Dive: Data Products, Not Data Dumps
 
-A healthy data platform does not produce \"tables.\" It produces data products.
+A healthy data platform does not produce "tables." It produces data products.
 
 A useful data product has:
 
@@ -156,7 +156,7 @@ You can represent that in a tiny spec:
 ```yaml
 product: orders_daily
 owner: data-platform@company.com
-refresh_slo: \"hourly within 10 minutes\"
+refresh_slo: "hourly within 10 minutes"
 source_systems:
   - commerce_api
 contract:
@@ -176,7 +176,7 @@ In this series, every post pushes you toward that level of clarity.
 
 ## Worked Example: Turning a Vague Request into an Engineering Spec
 
-A stakeholder asks: \"Can you give me daily revenue by region?\"
+A stakeholder asks: "Can you give me daily revenue by region?"
 
 A weak implementation is:
 
@@ -192,7 +192,7 @@ A strong implementation is:
 4. Define SLO and alert path.
 5. Define ownership and incident path.
 
-Even in an early-stage team, this structure prevents \"hero mode\" debugging later.
+Even in an early-stage team, this structure prevents "hero mode" debugging later.
 
 ## Mental Model: Reliability Triangle
 
@@ -361,34 +361,34 @@ If you do this once per critical table, your platform quality will improve quick
 
 ## Common Anti-Patterns to Avoid Early
 
-Anti-pattern 1: \"We will add quality later\"
+Anti-pattern 1: "We will add quality later"
 
 - Reality: later means after user-facing incidents.
 - Fix: minimal blocking checks from first production run.
 
-Anti-pattern 2: \"Everything is high priority\"
+Anti-pattern 2: "Everything is high priority"
 
 - Reality: pager fatigue, unclear action.
 - Fix: classify assets by business criticality.
 
-Anti-pattern 3: \"Any schema change is okay\"
+Anti-pattern 3: "Any schema change is okay"
 
 - Reality: downstream breakage and hidden drift.
 - Fix: branch-based schema rollout and explicit compatibility labels.
 
-Anti-pattern 4: \"Performance first\"
+Anti-pattern 4: "Performance first"
 
 - Reality: fast wrong data is worse than slow correct data.
 - Fix: correctness baseline, then optimise.
 
-Anti-pattern 5: \"No one owns incidents\"
+Anti-pattern 5: "No one owns incidents"
 
 - Reality: long outages and repeated failures.
 - Fix: dataset ownership and escalation policy in writing.
 
 ## Reading Map for the Rest of the Series
 
-To make this long track easier to navigate, here is a \"why this matters\" map:
+To make this long track easier to navigate, here is a "why this matters" map:
 
 - Part 2:
   create reliable project boundaries.
@@ -415,7 +415,7 @@ To make this long track easier to navigate, here is a \"why this matters\" map:
 
 If you follow the sequence, each concept has a practical command-level counterpart.
 
-## Mini Case Study: When a \"Small\" Drift Becomes a Business Incident
+## Mini Case Study: When a "Small" Drift Becomes a Business Incident
 
 A product team adds a new checkout flow. In the old flow, `order_timestamp` is always UTC ISO format. In the new flow, one service emits local time without timezone.
 

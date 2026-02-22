@@ -121,7 +121,7 @@ That layout gives you predictable boundaries as the project grows.
 
 ## Deep Dive: Why Bootstrapping Quality Matters More Than Speed
 
-At project start, teams usually optimise for \"first success\". That is valid, but many teams accidentally encode weak defaults:
+At project start, teams usually optimise for "first success". That is valid, but many teams accidentally encode weak defaults:
 
 - No naming convention for assets
 - No schema ownership
@@ -227,7 +227,7 @@ Download: https://docs.docker.com/get-docker/
 Step 6: Validate workflow tooling
 
 ```bash
-phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron \"0 * * * *\"
+phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *"
 ```
 
 
@@ -284,22 +284,22 @@ Simple rule:
 
 ## Setup Anti-Patterns
 
-Anti-pattern 1: \"One global project for everything\"
+Anti-pattern 1: "One global project for everything"
 
 - Result: domain coupling, noisy ownership, conflicting changes.
 - Better: one project per bounded business area when possible.
 
-Anti-pattern 2: \"Skip validations until real data arrives\"
+Anti-pattern 2: "Skip validations until real data arrives"
 
 - Result: schema and workflow mistakes discovered too late.
 - Better: run `phlo validate-workflow` at scaffold time.
 
-Anti-pattern 3: \"Ad hoc service starts\"
+Anti-pattern 3: "Ad hoc service starts"
 
 - Result: inconsistent local states and confusing bug reports.
 - Better: use standard `phlo services ...` commands and capture versions.
 
-Anti-pattern 4: \"No startup health checklist\"
+Anti-pattern 4: "No startup health checklist"
 
 - Result: silent partial startup interpreted as success.
 - Better: status + list checks every time.
@@ -318,12 +318,12 @@ If they can do this unaided, they can usually ship meaningful features quickly.
 
 ## Mini Lab: Build and Validate a Realistic Domain Skeleton
 
-Use a domain you care about, for example \"subscriptions\".
+Use a domain you care about, for example "subscriptions".
 
 Run:
 
 ```bash
-phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key invoice_id --cron \"0 */2 * * *\"
+phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key invoice_id --cron "0 */2 * * *"
 phlo validate-workflow workflows/ingestion/subscriptions/invoices.py
 phlo schema list --domain subscriptions
 ```
@@ -344,7 +344,7 @@ Before you call setup complete, verify:
 - Commands reproducible from clean checkout
 - Service list output understandable to new team members
 - One scaffolded workflow passes validation
-- One documented \"golden path\" run exists
+- One documented "golden path" run exists
 - Troubleshooting links are present in internal docs
 
 This checklist is small and saves days of confusion over the life of the project.
@@ -363,7 +363,7 @@ Practical tactics:
 
 1. Document startup order explicitly.
 2. Keep command examples copy-paste ready.
-3. Prefer deterministic paths over \"magic\" defaults.
+3. Prefer deterministic paths over "magic" defaults.
 4. Capture known gotchas close to setup docs.
 
 Example startup runbook snippet:
@@ -462,7 +462,7 @@ This pace is realistic for small teams and creates strong foundations.
 
 ## Extended Guide: How to Explain the Project to Stakeholders
 
-Non-data stakeholders often ask, \"When can we trust the numbers?\"
+Non-data stakeholders often ask, "When can we trust the numbers?"
 
 A helpful answer:
 
@@ -470,7 +470,7 @@ A helpful answer:
 - We can prove this with status, logs, metrics, and lineage traces.
 - We can safely replay data when source issues are fixed.
 
-This framing shifts conversation from \"is pipeline done\" to \"is data product reliable.\"
+This framing shifts conversation from "is pipeline done" to "is data product reliable."
 
 ## Extended Guide: Preparing for Scale Early
 
@@ -512,7 +512,7 @@ Team A treats setup as temporary and undocumented. Team B treats setup as an eng
 
 After six weeks:
 
-- Team A spends significant time on \"works on my machine\" failures.
+- Team A spends significant time on "works on my machine" failures.
 - Team B onboards new engineers quickly and spends time on product features.
 
 The codebases may look similar, but operational behaviour diverges heavily.

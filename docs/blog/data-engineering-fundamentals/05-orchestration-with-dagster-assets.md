@@ -115,7 +115,7 @@ services.minio.service_name
 
 ## Deep Dive: Orchestration Is a Reliability Product
 
-It is tempting to think orchestration is just \"running jobs on time.\" In practice, orchestration is your reliability control plane.
+It is tempting to think orchestration is just "running jobs on time." In practice, orchestration is your reliability control plane.
 
 Good orchestration provides:
 
@@ -136,7 +136,7 @@ In Phlo, asset-centric orchestration gives you an explicit unit of execution and
 
 Operationally, the most important question is often:
 
-\"What exactly am I running right now?\"
+"What exactly am I running right now?"
 
 Asset keys and selectors answer this.
 
@@ -150,7 +150,7 @@ Example scoped execution:
 
 ```bash
 phlo materialize dlt_orders --partition 2026-02-20
-phlo materialize dlt_orders --select \"tag:commerce\"
+phlo materialize dlt_orders --select "tag:commerce"
 ```
 
 
@@ -510,7 +510,7 @@ Regular review keeps your system intentional as complexity grows.
 Intentional orchestration is one of the clearest signs of a healthy data platform.
 It reduces surprises, shortens incident duration, and helps teams deliver dependable data at a sustainable pace.
 Keep refining it as your asset graph and team responsibilities expand.
-That steady refinement is how orchestration evolves from \"job runner\" to true reliability platform.
+That steady refinement is how orchestration evolves from "job runner" to true reliability platform.
 Done well, it becomes a major advantage for delivery speed and user trust.
 Use it deliberately, and your platform will stay manageable under growth.
 That is the long game.

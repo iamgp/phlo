@@ -110,9 +110,9 @@ In teams without data versioning, engineers usually avoid change because rollbac
 
 That creates slow decision cycles:
 
-- \"Let us wait until next sprint.\"
-- \"Let us not touch this table.\"
-- \"Let us patch in BI instead.\"
+- "Let us wait until next sprint."
+- "Let us not touch this table."
+- "Let us patch in BI instead."
 
 With table + branch semantics, change gets safer:
 
@@ -215,7 +215,7 @@ Lifecycle rules:
 - Open branch with clear owner.
 - Document validation scope.
 - Merge or archive quickly.
-- Avoid long-lived \"misc\" branches.
+- Avoid long-lived "misc" branches.
 
 A branch policy can be simple:
 
@@ -248,7 +248,7 @@ Anti-pattern 1: Treating `main` as test environment
 
 Anti-pattern 2: Merging without evidence
 
-- Result: \"green by assumption\" failures.
+- Result: "green by assumption" failures.
 
 Anti-pattern 3: Ignoring table history except during incidents
 
@@ -317,7 +317,7 @@ A: Yes. It is often the fastest path to understanding what changed and when.
 
 Data versioning is not a niche feature. It is foundational for safe iteration.
 
-If ingestion is your \"write\" boundary and transformations are your \"compute\" boundary, table + branch semantics are your \"trust\" boundary.
+If ingestion is your "write" boundary and transformations are your "compute" boundary, table + branch semantics are your "trust" boundary.
 
 That trust boundary is what allows teams to move quickly without breaking confidence.
 
