@@ -39,6 +39,8 @@ CHECK_CMD := scripts/run-parallel \
 	"ts lint" "$(NPM_OBSERVATORY) run lint" \
 	"ts format" "$(NPM_OBSERVATORY) run format -- --check ." \
 	"ts typecheck" "$(NPM_OBSERVATORY) exec tsc -- -p $(OBSERVATORY_DIR)/tsconfig.json --noEmit"
+CORE_REGRESSION_TEST_PATHS ?= tests
+CORE_REGRESSION_PYTEST_ARGS ?= --tb=short
 
 # Docker Compose profiles
 PROFILE_CORE ?= postgres minio minio-setup dagster-webserver dagster-daemon hub
@@ -57,7 +59,7 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
-	lint-ts format-ts typecheck-ts fix-sql
+	lint-ts format-ts typecheck-ts test-core-regression fix-sql
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -115,6 +117,9 @@ install-dagster:
 
 test:
 	uv run pytest
+
+test-core-regression:
+	uv run pytest $(CORE_REGRESSION_TEST_PATHS) -m core_regression $(CORE_REGRESSION_PYTEST_ARGS)
 
 dagster:
 	@open http://localhost:$${DAGSTER_PORT:-10006}

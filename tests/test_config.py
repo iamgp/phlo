@@ -3,7 +3,11 @@
 import os
 from unittest.mock import patch
 
+import pytest
+
 from phlo.config import Settings, _get_config
+
+pytestmark = pytest.mark.core_regression
 
 
 class TestConfigUnitTests:
