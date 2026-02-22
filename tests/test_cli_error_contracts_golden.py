@@ -12,7 +12,9 @@ GOLDEN_DIR = Path(__file__).parent / "goldens" / "cli_error_contracts"
 def _normalize_output(output: str, replacements: Mapping[str, str] | None = None) -> str:
     normalized = output.replace("\r\n", "\n")
     if replacements:
-        for source, replacement in sorted(replacements.items(), key=lambda item: len(item[0])):
+        for source, replacement in sorted(
+            replacements.items(), key=lambda item: len(item[0]), reverse=True
+        ):
             normalized = normalized.replace(source, replacement)
     return normalized
 
@@ -93,3 +95,16 @@ def test_services_list_discovery_failure_error_contract(
     result = CliRunner().invoke(list_module.list_cmd, ["--json"])
 
     _assert_matches_golden("services_list_discovery_failure", result)
+
+
+def test_normalize_output_prefers_longest_replacements_first() -> None:
+    """Apply overlapping replacements longest-first to avoid prefix clobbering."""
+    normalized = _normalize_output(
+        "/tmp/foo/bar/baz is at /tmp/foo/bar",
+        replacements={
+            "/tmp/foo/bar/baz": "<LONG>",
+            "/tmp/foo/bar": "<SHORT>",
+        },
+    )
+
+    assert normalized == "<LONG> is at <SHORT>"
