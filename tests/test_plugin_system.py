@@ -30,6 +30,8 @@ from phlo.plugins import (
 )
 from phlo.plugins.discovery import get_global_registry
 
+pytestmark = pytest.mark.core_regression
+
 
 # Test plugins
 class DummySourcePlugin(SourceConnectorPlugin):
