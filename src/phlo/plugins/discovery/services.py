@@ -13,7 +13,7 @@ from typing import Any
 import yaml
 
 from phlo.logging import get_logger, log_event
-from phlo.plugins.discovery.plugins import discover_plugins
+from phlo.plugins.discovery import _service_loading
 from phlo.plugins.discovery.registry import get_global_registry
 
 logger = get_logger(__name__)
@@ -39,6 +39,11 @@ def _emit_service_discovery_signal(
         services_dir=_services_dir_label(services_dir),
         **fields,
     )
+
+
+def discover_plugins(plugin_type: str = "services", auto_register: bool = True):
+    """Compatibility wrapper for tests and service discovery call sites."""
+    return _service_loading.discover_plugins(plugin_type=plugin_type, auto_register=auto_register)
 
 
 def _find_cycles(nodes: set[str], graph: dict[str, set[str]]) -> list[list[str]]:
@@ -320,6 +325,11 @@ class ServiceDiscovery:
 
         The next :meth:`discover` call will perform a full rediscovery.
         """
+        registry = get_global_registry()
+        for service_name in list(registry.list_services()):
+            registry._services.pop(service_name, None)  # noqa: SLF001
+            registry._all_plugins.pop(f"service:{service_name}", None)  # noqa: SLF001
+
         cached_service_count = len(self._services)
         was_loaded = self._loaded
         self._services = {}
@@ -339,8 +349,8 @@ class ServiceDiscovery:
     def _load_service_plugins(self) -> int:
         """Load services from installed plugins."""
         loaded_count = 0
-        discover_plugins(plugin_type="services", auto_register=True)
         registry = get_global_registry()
+        discover_plugins(plugin_type="services", auto_register=True)
         for name in registry.list_services():
             plugin = registry.get_service(name)
             if not plugin:
