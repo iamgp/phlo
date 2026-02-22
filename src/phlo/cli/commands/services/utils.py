@@ -202,6 +202,7 @@ def get_enabled_disabled_service_names(config: dict | None) -> tuple[set[str], s
             enabled_names.add(normalized_name)
 
     disabled_names.difference_update(enabled_names)
+    return enabled_names, disabled_names
 
 
 def _normalize_service_name_list(names: object) -> list[str]:
