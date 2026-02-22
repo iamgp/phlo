@@ -358,7 +358,7 @@ def discover_plugins(
 
             entry_point_group = ENTRY_POINT_GROUPS[ptype]
 
-            logger.info(
+            logger.debug(
                 "plugin_discovery_started",
                 plugin_type=ptype,
                 entry_point_group=entry_point_group,
@@ -379,7 +379,7 @@ def discover_plugins(
                     if not _is_plugin_allowed(entry_point.name):
                         continue
 
-                    logger.info(
+                    logger.debug(
                         "plugin_loading",
                         plugin_name=entry_point.name,
                         entry_point=entry_point.value,
@@ -422,7 +422,7 @@ def discover_plugins(
                     # Add to discovered plugins
                     discovered[ptype].append(plugin)
 
-                    logger.info(
+                    logger.debug(
                         "plugin_loaded",
                         plugin_name=plugin.metadata.name,
                         plugin_version=plugin.metadata.version,

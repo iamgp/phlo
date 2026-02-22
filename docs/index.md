@@ -51,7 +51,7 @@ In-depth tutorials and how-tos:
 - [Plugin Development](guides/plugin-development.md) - Build custom plugins to extend Phlo
 - [Capability Primitives](guides/capability-primitives.md) - Orchestrator-agnostic specs
 - [Workflow Development](guides/workflow-development.md) - Build complete data pipelines
-- [Data Modeling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
+- [Data Modelling](guides/data-modeling.md) - Bronze/Silver/Gold architecture
 - [dbt Development](guides/dbt-development.md) - SQL transformations
 - [Dagster Assets](guides/dagster-assets.md) - Orchestration patterns
 - [GitHub Workflow](guides/github-workflow.md) - Git branching and CI/CD
@@ -90,6 +90,7 @@ Production operations and maintenance:
 Tutorial series and deep dives:
 
 - See [blog/](blog/) for the complete 13-part article series
+- New standalone track: [Data Engineering Fundamentals with Phlo](blog/data-engineering-fundamentals/README.md)
 
 ## Learning Paths
 

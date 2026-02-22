@@ -83,7 +83,7 @@ def list(all: bool, format: str):
         refs = []
 
         # Get branches
-        for branch_ref in client.list_references(name_filter=""):
+        for branch_ref in client.list_references():
             refs.append(
                 {
                     "name": branch_ref.name,
@@ -171,7 +171,7 @@ def create(branch_name: str, from_ref: str):
 
         # Get reference to branch from
         source_ref = None
-        for ref in client.list_references(name_filter=""):
+        for ref in client.list_references():
             if ref.name == from_ref:
                 source_ref = ref
                 break
@@ -264,7 +264,7 @@ def delete(branch_name: str, force: bool):
 
         # Find branch
         branch_ref = None
-        for ref in client.list_references(name_filter=""):
+        for ref in client.list_references():
             if ref.name == branch_name:
                 branch_ref = ref
                 break
@@ -343,7 +343,7 @@ def merge(source_branch: str, target_branch: str, dry_run: bool, no_delete_sourc
         source_ref = None
         target_ref = None
 
-        for ref in client.list_references(name_filter=""):
+        for ref in client.list_references():
             if ref.name == source_branch:
                 source_ref = ref
             if ref.name == target_branch:
@@ -479,7 +479,7 @@ def diff(source_branch: str, target_branch: str, format: str):
         source_ref = None
         target_ref = None
 
-        for ref in client.list_references(name_filter=""):
+        for ref in client.list_references():
             if ref.name == source_branch:
                 source_ref = ref
             if ref.name == target_branch:

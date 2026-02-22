@@ -2,6 +2,9 @@
 
 Hands-on guide to building a data lakehouse with Phlo.
 
+Looking for the new standalone fundamentals track? See
+[Data Engineering Fundamentals with Phlo](data-engineering-fundamentals/README.md).
+
 This 16-part series walks through:
 
 - Fundamental concepts of data lakehouses
