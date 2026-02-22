@@ -1,0 +1,556 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
+<meta content="Phlo Team" name="author"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<title>Part 11: Performance and Cost Optimisation - Phlo Lakehouse Platform</title>
+<link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#part-11-performance-and-cost-optimisation">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Phlo Lakehouse Platform" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Part 11: Performance and Cost Optimisation
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"></path></svg>
+</label>
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_2" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to system preference" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_2" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to system preference">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Phlo Lakehouse Platform" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Phlo Lakehouse Platform
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../..">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../getting-started/installation/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../guides/developer-guide/">
+<span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../setup/hasura/">
+<span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../packages/">
+<span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../reference/architecture/">
+<span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../errors/">
+<span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../observatory/extensions/">
+<span class="md-ellipsis">
+    
+  
+    Observatory
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../operations/operations-guide/">
+<span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-youll-learn">
+<span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#prerequisites">
+<span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#optimisation-priority-order">
+<span class="md-ellipsis">
+      
+        Optimisation Priority Order
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#high-leverage-levers">
+<span class="md-ellipsis">
+      
+        High-Leverage Levers
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#example-controlled-backfill-tuning">
+<span class="md-ellipsis">
+      
+        Example: Controlled Backfill Tuning
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#track-performance-before-and-after">
+<span class="md-ellipsis">
+      
+        Track Performance Before and After
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#query-layer-considerations">
+<span class="md-ellipsis">
+      
+        Query-Layer Considerations
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#deep-dive-partition-pruning-and-scan-reduction">
+<span class="md-ellipsis">
+      
+        Deep Dive: Partition Pruning and Scan Reduction
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#cost-aware-architecture-sketch">
+<span class="md-ellipsis">
+      
+        Cost-Aware Architecture Sketch
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#field-notes-avoiding-fast-but-wrong-optimisation">
+<span class="md-ellipsis">
+      
+        Field Notes: Avoiding "Fast but Wrong" Optimisation
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#hands-on-exercise">
+<span class="md-ellipsis">
+      
+        Hands-On Exercise
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#common-issues">
+<span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#summary">
+<span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#next-steps">
+<span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#see-also">
+<span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="part-11-performance-and-cost-optimisation">Part 11: Performance and Cost Optimisation</h1>
+<blockquote>
+<p>Prerequisite: Complete <a href="../10-incident-response-and-debugging/">Part 10</a>.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>Where performance bottlenecks usually appear in data platforms</li>
+<li>How partitioning and run strategy affect cost</li>
+<li>How to tune execution safely in Phlo workflows</li>
+<li>How to track optimisation impact with metrics</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Running ingestion + transform pipeline</li>
+<li>Baseline metrics from Part 9</li>
+</ul>
+<h2 id="optimisation-priority-order">Optimisation Priority Order</h2>
+<ol>
+<li>Correctness first</li>
+<li>Reliability second</li>
+<li>Performance third</li>
+<li>Cost fourth</li>
+</ol>
+<p>If you reverse this order, you optimise the wrong thing.</p>
+<h2 id="high-leverage-levers">High-Leverage Levers</h2>
+<ul>
+<li>Partition strategy: avoid over-wide daily scans where hourly partitioning is needed</li>
+<li>Backfill concurrency: match source and infra limits</li>
+<li>Model design: prevent repeated expensive joins</li>
+<li>Data movement: publish only what consumers need</li>
+</ul>
+<h2 id="example-controlled-backfill-tuning">Example: Controlled Backfill Tuning</h2>
+<pre><code class="language-bash">phlo status --services
+</code></pre>
+<p>On a healthy setup, you will see something similar:</p>
+<pre><code class="language-text">Service health table with Dagster, MinIO, Nessie, and Trino states.
+</code></pre>
+<h2 id="track-performance-before-and-after">Track Performance Before and After</h2>
+<pre><code class="language-bash">phlo metrics asset dlt_orders --runs 30
+phlo metrics summary --period 7d
+</code></pre>
+<h2 id="query-layer-considerations">Query-Layer Considerations</h2>
+<p>Keep transformation SQL intentional:</p>
+<ul>
+<li>Select only required columns</li>
+<li>Filter early in bronze/silver layers</li>
+<li>Push heavy joins to well-scoped models</li>
+<li>Reuse tested intermediate models</li>
+</ul>
+<p>Example model snippet:</p>
+<pre><code class="language-sql">select
+  order_date,
+  sum(total_amount) as revenue
+from {{ ref('fct_orders') }}
+where order_date &gt;= current_date - interval '30' day
+group by 1
+</code></pre>
+<h2 id="deep-dive-partition-pruning-and-scan-reduction">Deep Dive: Partition Pruning and Scan Reduction</h2>
+<p>The largest performance gains usually come from reducing data scanned, not faster compute.</p>
+<p>Iceberg partition pruning eliminates irrelevant files before query execution. To benefit:</p>
+<ol>
+<li>Align partition keys with common query filters (usually date).</li>
+<li>Keep partition granularity matched to query patterns.</li>
+<li>Use <code>WHERE</code> clauses that reference partition columns directly.</li>
+</ol>
+<p>Example — a query that benefits from pruning:</p>
+<pre><code class="language-sql">select sum(total_amount) as revenue
+from silver.fct_orders
+where order_date between date '2025-01-01' and date '2025-01-31'
+</code></pre>
+<p>If <code>fct_orders</code> is partitioned by <code>order_date</code>, Iceberg skips all files outside that range.</p>
+<p>Measure scan reduction with:</p>
+<pre><code class="language-bash">phlo metrics asset fct_orders --runs 10
+</code></pre>
+<p>Compare row counts and durations before and after adding partition-aligned filters. A 10x scan reduction is common for well-partitioned tables with date filters.</p>
+<h2 id="cost-aware-architecture-sketch">Cost-Aware Architecture Sketch</h2>
+<div class="mermaid">graph TD
+    A[Source APIs] --&gt; B[Ingestion partitions]
+    B --&gt; C[Iceberg snapshots]
+    C --&gt; D[dbt incremental models]
+    D --&gt; E[Targeted marts]
+</div>
+<h2 id="field-notes-avoiding-fast-but-wrong-optimisation">Field Notes: Avoiding "Fast but Wrong" Optimisation</h2>
+<p>Performance work can feel addictive. You change one thing, runtime drops, and it feels like progress.</p>
+<p>But in data systems, speed wins are only real if correctness stays intact.</p>
+<p>A disciplined tuning loop:</p>
+<ol>
+<li>Capture baseline metrics.</li>
+<li>Change one variable.</li>
+<li>Re-run the same workload.</li>
+<li>Compare runtime, failure rate, and data quality outcomes.</li>
+<li>Keep or revert.</li>
+</ol>
+<p>The "change one variable" step is where most teams slip. They adjust partitioning, concurrency, and SQL in one batch, then cannot explain which change actually helped.</p>
+<p>Cost tuning has the same trap. Lower compute cost is good, unless it increases late data or incident frequency. The invoice might improve while user trust gets worse.</p>
+<p>A practical compromise:</p>
+<ul>
+<li>pick one monthly cost target and one reliability guardrail.</li>
+</ul>
+<p>Example:</p>
+<ul>
+<li>cost target: reduce p95 compute minutes by 10%</li>
+<li>guardrail: no increase in failed critical runs</li>
+</ul>
+<p>That keeps optimisation honest.</p>
+<p>One more tip: share before/after metrics in pull requests. It forces clarity and builds a knowledge base for future tuning decisions.</p>
+<h2 id="hands-on-exercise">Hands-On Exercise</h2>
+<ol>
+<li>Pick one slow pipeline path.</li>
+<li>Capture baseline metrics (duration, row counts, failure rate).</li>
+<li>Apply one change only (for example: backfill parallelism or model filter pushdown).</li>
+<li>Re-measure and document impact.</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ol>
+<li>Teams tune parallelism without measuring source/API limits.</li>
+<li>Full-refresh behaviour is triggered accidentally in daily operations.</li>
+<li>Cost spikes are discovered from bills, not metrics.</li>
+<li>Teams optimise gold models while bronze quality remains unstable.</li>
+<li>Performance changes are made with no rollback plan.</li>
+</ol>
+<p>Reference for failures during tuning: <a href="../../../operations/troubleshooting/">Troubleshooting</a></p>
+<h2 id="summary">Summary</h2>
+<p>Performance work should be measured, incremental, and reversible. Good optimisation keeps correctness and reliability intact.</p>
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li>Move to <a href="../12-extending-phlo-with-plugins-and-observatory/">Part 12</a> for platform extension patterns.</li>
+<li>Add a monthly performance review cadence using exported metrics.</li>
+</ol>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../09-observability-metrics-logs-lineage/">Part 9: Observability: Metrics, Logs, and Lineage</a></li>
+<li><a href="../12-extending-phlo-with-plugins-and-observatory/">Part 12: Extending Phlo with Plugins and Observatory</a></li>
+<li><a href="../../../operations/best-practices/">Operations Best Practices</a></li>
+</ul>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+mermaid.initialize({});</script></body>
+</html>

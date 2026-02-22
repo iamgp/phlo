@@ -1,0 +1,561 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
+<meta content="Phlo Team" name="author"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<title>Part 7: Quality Checks with Pandera and Phlo Quality - Phlo Lakehouse Platform</title>
+<link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#part-7-quality-checks-with-pandera-and-phlo-quality">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Phlo Lakehouse Platform" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Part 7: Quality Checks with Pandera and Phlo Quality
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"></path></svg>
+</label>
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_2" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to system preference" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_2" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to system preference">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Phlo Lakehouse Platform" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Phlo Lakehouse Platform
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../..">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../getting-started/installation/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../guides/developer-guide/">
+<span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../setup/hasura/">
+<span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../packages/">
+<span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../reference/architecture/">
+<span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../errors/">
+<span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../observatory/extensions/">
+<span class="md-ellipsis">
+    
+  
+    Observatory
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../operations/operations-guide/">
+<span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-youll-learn">
+<span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#prerequisites">
+<span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#contract-first-mindset">
+<span class="md-ellipsis">
+      
+        Contract-First Mindset
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#add-declarative-quality-checks">
+<span class="md-ellipsis">
+      
+        Add Declarative Quality Checks
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#validate-before-you-deploy">
+<span class="md-ellipsis">
+      
+        Validate Before You Deploy
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#quality-severity-strategy">
+<span class="md-ellipsis">
+      
+        Quality Severity Strategy
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#threshold-tuning-and-freshness">
+<span class="md-ellipsis">
+      
+        Threshold Tuning and Freshness
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#signal-flow">
+<span class="md-ellipsis">
+      
+        Signal Flow
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#field-notes-the-6-am-quality-alert-moment">
+<span class="md-ellipsis">
+      
+        Field Notes: The 6 AM Quality Alert Moment
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#hands-on-exercise">
+<span class="md-ellipsis">
+      
+        Hands-On Exercise
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#common-issues">
+<span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#summary">
+<span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#next-steps">
+<span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#see-also">
+<span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="part-7-quality-checks-with-pandera-and-phlo-quality">Part 7: Quality Checks with Pandera and Phlo Quality</h1>
+<blockquote>
+<p>Prerequisite: Complete <a href="../06-transformations-with-dbt/">Part 6</a>.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>How Pandera schemas define enforceable contracts</li>
+<li>How <code>@phlo_quality</code> generates asset checks</li>
+<li>When to block downstream runs vs warn</li>
+<li>How to validate schemas and workflow files from CLI</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>One ingestion asset and one dbt model from prior posts</li>
+<li>Familiarity with basic Pandera schema patterns</li>
+</ul>
+<h2 id="contract-first-mindset">Contract-First Mindset</h2>
+<p>A schema is not documentation only. It is executable policy.</p>
+<p>Example Pandera model:</p>
+<pre><code class="language-python">import pandera as pa
+from pandera.typing import Series
+from phlo_quality.schemas import PhloSchema
+
+class RawOrders(PhloSchema):
+    order_id: Series[str] = pa.Field(nullable=False)
+    customer_id: Series[str] = pa.Field(nullable=False)
+    total_amount: Series[float] = pa.Field(ge=0, nullable=False)
+    order_timestamp: Series[str] = pa.Field(nullable=False)
+</code></pre>
+<h2 id="add-declarative-quality-checks">Add Declarative Quality Checks</h2>
+<pre><code class="language-python">from phlo_quality import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
+
+@phlo_quality(
+    table="silver.fct_orders",
+    checks=[
+        NullCheck(columns=["order_id", "customer_id", "total_amount"]),
+        RangeCheck(column="total_amount", min_value=0, max_value=1_000_000),
+        FreshnessCheck(timestamp_column="order_timestamp", max_age_hours=2),
+        CustomSQLCheck(
+            name_="positive_revenue",
+            sql="SELECT (total_amount &gt;= 0) AS is_valid FROM data",
+        ),
+    ],
+    group="commerce",
+    blocking=True,
+)
+def orders_quality_gate() -&gt; None:
+    pass
+</code></pre>
+<h2 id="validate-before-you-deploy">Validate Before You Deploy</h2>
+<pre><code class="language-bash">phlo schema list --format table
+phlo logs --limit 20
+</code></pre>
+<p>Your output should look roughly like this:</p>
+<pre><code class="language-text">Available Schemas table with schema names, field counts, and source modules.
+</code></pre>
+<h2 id="quality-severity-strategy">Quality Severity Strategy</h2>
+<p>Use this policy in early production:</p>
+<ul>
+<li><code>blocking=True</code> for identity, key integrity, and contract checks</li>
+<li>warning-only for soft quality metrics during stabilisation</li>
+<li>explicit threshold tuning per domain</li>
+</ul>
+<h2 id="threshold-tuning-and-freshness">Threshold Tuning and Freshness</h2>
+<p>Not every check needs zero tolerance. Use <code>allow_threshold</code> for soft quality gates:</p>
+<pre><code class="language-python">from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck, FreshnessCheck
+
+@phlo_quality(
+    table="bronze.customer_data",
+    checks=[
+        NullCheck(columns=["phone", "address"], allow_threshold=0.05),
+        RangeCheck(column="age", min_value=0, max_value=150, allow_threshold=0.01),
+        UniqueCheck(columns=["customer_id"], allow_threshold=0.005),
+        FreshnessCheck(timestamp_column="updated_at", max_age_hours=24),
+    ],
+    group="crm",
+    blocking=True,
+)
+def customer_quality() -&gt; None:
+    pass
+</code></pre>
+<p>Key parameters:</p>
+<ul>
+<li><code>allow_threshold</code>: fraction of rows allowed to violate (0.05 = 5%)</li>
+<li><code>timestamp_column</code>: column used by <code>FreshnessCheck</code> to measure data age</li>
+<li><code>max_age_hours</code>: maximum acceptable age before check fails</li>
+</ul>
+<p>Start strict on critical fields. Loosen thresholds only with evidence from production metrics.</p>
+<h2 id="signal-flow">Signal Flow</h2>
+<div class="mermaid">graph TD
+    A[Data loaded] --&gt; B[Pandera contract check]
+    B --&gt; C[Phlo quality checks]
+    C --&gt; D[Pass or fail metadata]
+    D --&gt; E[Dagster status and logs]
+</div>
+<h2 id="field-notes-the-6-am-quality-alert-moment">Field Notes: The 6 AM Quality Alert Moment</h2>
+<p>Quality strategy sounds abstract until the first early-morning failure.</p>
+<p>Picture this:</p>
+<ul>
+<li>ingestion succeeded</li>
+<li>transformation succeeded</li>
+<li>then one contract check failed on a field your dashboard depends on</li>
+</ul>
+<p>At that point, your policy matters more than your code style.</p>
+<p>If the check was blocking, downstream consumers see delayed data but not wrong data.
+If it was warning-only, consumers may see numbers that look normal but are now untrustworthy.</p>
+<p>There is no universal correct answer. It depends on business risk.</p>
+<p>What works in practice is assigning check tiers:</p>
+<ul>
+<li>Tier 1 (always blocking): keys, timestamp parseability, core measure validity</li>
+<li>Tier 2 (warning first, then promote): soft null thresholds, optional enrichments</li>
+<li>Tier 3 (monitoring only): exploratory signals</li>
+</ul>
+<p>This gives teams room to improve quality without freezing delivery.</p>
+<p>One mistake I see a lot is setting every check to blocking on day one. It looks strict, but it often leads teams to disable checks under pressure. A tiered rollout is more durable.</p>
+<p>If you want one strong habit from this chapter, use this:</p>
+<ul>
+<li>every time a quality failure surprises the team, decide whether a new check, a stricter threshold, or better ownership would have caught it earlier.</li>
+</ul>
+<p>That feedback loop turns quality from gatekeeping into learning.</p>
+<h2 id="hands-on-exercise">Hands-On Exercise</h2>
+<ol>
+<li>Add one Pandera schema for your ingestion table.</li>
+<li>Add one <code>NullCheck</code>, one <code>FreshnessCheck</code>, and one <code>CustomSQLCheck</code>.</li>
+<li>Force a failure with bad test data.</li>
+<li>Confirm run is blocked and diagnostics are visible.</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ol>
+<li>Schema fields and ingestion output diverge after source API changes.</li>
+<li>Quality checks query wrong table namespace.</li>
+<li>Teams define checks but ignore severity strategy.</li>
+<li>Warnings accumulate and become hidden production debt.</li>
+<li>Contract checks are run manually, not in normal orchestration flow.</li>
+</ol>
+<p>Recovery patterns: <a href="../../../operations/troubleshooting/">Troubleshooting</a></p>
+<h2 id="summary">Summary</h2>
+<p>Quality is strongest when contracts and checks are first-class runtime behaviour, not post-hoc reporting.</p>
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li>Continue to <a href="../08-schema-evolution-and-data-contracts/">Part 8</a> for safe schema change workflows.</li>
+<li>Add quality ownership to each domain table.</li>
+</ol>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../08-schema-evolution-and-data-contracts/">Part 8: Schema Evolution and Data Contracts</a></li>
+<li><a href="../09-observability-metrics-logs-lineage/">Part 9: Observability: Metrics, Logs, and Lineage</a></li>
+<li><a href="../../../reference/quality-checks-catalog/">Quality Checks Catalog</a></li>
+</ul>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+mermaid.initialize({});</script></body>
+</html>

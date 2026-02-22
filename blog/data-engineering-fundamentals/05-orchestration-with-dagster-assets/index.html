@@ -1,0 +1,946 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
+<meta content="Phlo Team" name="author"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<title>Part 5: Orchestration with Dagster Assets - Phlo Lakehouse Platform</title>
+<link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#part-5-orchestration-with-dagster-assets">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Phlo Lakehouse Platform" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Phlo Lakehouse Platform
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Part 5: Orchestration with Dagster Assets
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"></path></svg>
+</label>
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_2" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to system preference" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_2" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to system preference">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Phlo Lakehouse Platform" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Phlo Lakehouse Platform">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Phlo Lakehouse Platform
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../..">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../getting-started/installation/">
+<span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../guides/developer-guide/">
+<span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../setup/hasura/">
+<span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../packages/">
+<span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../reference/architecture/">
+<span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../errors/">
+<span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../observatory/extensions/">
+<span class="md-ellipsis">
+    
+  
+    Observatory
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+<a class="md-nav__link" href="../../../operations/operations-guide/">
+<span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#what-youll-learn">
+<span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#prerequisites">
+<span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#asset-centric-orchestration-mindset">
+<span class="md-ellipsis">
+      
+        Asset-Centric Orchestration Mindset
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#targeted-materialization">
+<span class="md-ellipsis">
+      
+        Targeted Materialization
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#backfill-with-control">
+<span class="md-ellipsis">
+      
+        Backfill with Control
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#runtime-visibility-commands">
+<span class="md-ellipsis">
+      
+        Runtime Visibility Commands
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#design-rules-that-prevent-pain">
+<span class="md-ellipsis">
+      
+        Design Rules That Prevent Pain
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#deep-dive-orchestration-is-a-reliability-product">
+<span class="md-ellipsis">
+      
+        Deep Dive: Orchestration Is a Reliability Product
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#deep-dive-asset-keys-selectors-and-operational-scope">
+<span class="md-ellipsis">
+      
+        Deep Dive: Asset Keys, Selectors, and Operational Scope
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#deep-dive-backfill-strategy-that-balances-risk-and-throughput">
+<span class="md-ellipsis">
+      
+        Deep Dive: Backfill Strategy that Balances Risk and Throughput
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#worked-scenario-recovering-from-partial-backfill-failure">
+<span class="md-ellipsis">
+      
+        Worked Scenario: Recovering from Partial Backfill Failure
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-guide-choosing-between-freshness-and-batch-efficiency">
+<span class="md-ellipsis">
+      
+        Extended Guide: Choosing Between Freshness and Batch Efficiency
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-guide-observability-hooks-for-orchestration-owners">
+<span class="md-ellipsis">
+      
+        Extended Guide: Observability Hooks for Orchestration Owners
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#anti-patterns-in-orchestration">
+<span class="md-ellipsis">
+      
+        Anti-Patterns in Orchestration
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-design-review-questions">
+<span class="md-ellipsis">
+      
+        Extended Design Review Questions
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#engineering-playbook-first-production-rollout">
+<span class="md-ellipsis">
+      
+        Engineering Playbook: First Production Rollout
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#teaching-notes-how-to-learn-orchestration-faster">
+<span class="md-ellipsis">
+      
+        Teaching Notes: How to Learn Orchestration Faster
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#quick-qa">
+<span class="md-ellipsis">
+      
+        Quick Q&amp;A
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#reflection">
+<span class="md-ellipsis">
+      
+        Reflection
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-guide-building-an-orchestration-runbook">
+<span class="md-ellipsis">
+      
+        Extended Guide: Building an Orchestration Runbook
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-guide-scheduling-and-human-factors">
+<span class="md-ellipsis">
+      
+        Extended Guide: Scheduling and Human Factors
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-guide-measuring-orchestration-maturity">
+<span class="md-ellipsis">
+      
+        Extended Guide: Measuring Orchestration Maturity
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#final-chapter-reminder">
+<span class="md-ellipsis">
+      
+        Final Chapter Reminder
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-scenario-lab-asset-group-migration">
+<span class="md-ellipsis">
+      
+        Extended Scenario Lab: Asset Group Migration
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extended-team-exercise-on-call-drill">
+<span class="md-ellipsis">
+      
+        Extended Team Exercise: On-Call Drill
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extra-qa">
+<span class="md-ellipsis">
+      
+        Extra Q&amp;A
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#hands-on-exercise">
+<span class="md-ellipsis">
+      
+        Hands-On Exercise
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#common-issues">
+<span class="md-ellipsis">
+      
+        Common Issues
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#summary">
+<span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#next-steps">
+<span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#see-also">
+<span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="part-5-orchestration-with-dagster-assets">Part 5: Orchestration with Dagster Assets</h1>
+<blockquote>
+<p>Prerequisite: Complete <a href="../04-iceberg-and-nessie-for-reliable-tables/">Part 4</a>.</p>
+</blockquote>
+<h2 id="what-youll-learn">What You'll Learn</h2>
+<ul>
+<li>How Phlo turns workflows into Dagster-managed assets</li>
+<li>How to run targeted materializations and backfills</li>
+<li>How to use status and logs for operational feedback</li>
+<li>How to design deterministic orchestration boundaries</li>
+</ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Ingestion asset available (<code>dlt_&lt;table&gt;</code>)</li>
+<li>Services running (<code>phlo services list --json</code>)</li>
+<li>Basic comfort with partition dates</li>
+</ul>
+<h2 id="asset-centric-orchestration-mindset">Asset-Centric Orchestration Mindset</h2>
+<p>In Phlo, you run data products as assets, not ad-hoc scripts.</p>
+<p>That gives:</p>
+<ul>
+<li>Explicit dependencies</li>
+<li>Partition-aware execution</li>
+<li>Reproducible operational commands</li>
+</ul>
+<p>Short orchestration flow:</p>
+<div class="mermaid">graph TD
+    A[Materialize command] --&gt; B[Dagster run]
+    B --&gt; C[Asset events]
+    C --&gt; D[Status and logs]
+</div>
+<h2 id="targeted-materialization">Targeted Materialization</h2>
+<pre><code class="language-bash">phlo materialize dlt_orders --partition 2025-01-15
+</code></pre>
+<p>Run one partition materialization before any backfill. This confirms source reachability and schema compatibility on a small blast radius.</p>
+<p>You should get output similar to this:</p>
+<pre><code class="language-text">Materializing dlt_orders...
+
+Successfully materialized dlt_orders
+</code></pre>
+<p>Selector-based execution:</p>
+<pre><code class="language-bash">phlo materialize --select "tag:commerce"
+</code></pre>
+<h2 id="backfill-with-control">Backfill with Control</h2>
+<pre><code class="language-bash">phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-07 --parallel 2
+</code></pre>
+<p>In most setups, the output will look similar to this:</p>
+<pre><code class="language-text">📦 Asset Backfill
+
+Asset: dlt_orders
+Total partitions: 7
+Parallel workers: 2
+
+✓ Backfill complete!
+</code></pre>
+<p>Dry-run before expensive ranges:</p>
+<pre><code class="language-bash">phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-31 --dry-run
+</code></pre>
+<h2 id="runtime-visibility-commands">Runtime Visibility Commands</h2>
+<pre><code class="language-bash">phlo materialize dlt_orders --partition 2025-01-15
+phlo logs --limit 20
+</code></pre>
+<p>You should see something like this:</p>
+<pre><code class="language-text">Service health table with Dagster, MinIO, Nessie, and Trino states.
+</code></pre>
+<h2 id="design-rules-that-prevent-pain">Design Rules That Prevent Pain</h2>
+<ol>
+<li>Partition everything that can be replayed.</li>
+<li>Keep asset names stable and domain-specific.</li>
+<li>Use dry-runs before large backfills.</li>
+<li>Treat logs and status as part of the feature, not afterthought.</li>
+</ol>
+<h2 id="deep-dive-orchestration-is-a-reliability-product">Deep Dive: Orchestration Is a Reliability Product</h2>
+<p>It is tempting to think orchestration is just "running jobs on time." In practice, orchestration is your reliability control plane.</p>
+<p>Good orchestration provides:</p>
+<ul>
+<li>deterministic execution boundaries</li>
+<li>clear dependency management</li>
+<li>replay controls</li>
+<li>failure visibility</li>
+</ul>
+<p>Weak orchestration produces:</p>
+<ul>
+<li>hidden ordering bugs</li>
+<li>one-off manual reruns</li>
+<li>unknown failure impact</li>
+</ul>
+<p>In Phlo, asset-centric orchestration gives you an explicit unit of execution and ownership. That alone removes a large class of ambiguity.</p>
+<h2 id="deep-dive-asset-keys-selectors-and-operational-scope">Deep Dive: Asset Keys, Selectors, and Operational Scope</h2>
+<p>Operationally, the most important question is often:</p>
+<p>"What exactly am I running right now?"</p>
+<p>Asset keys and selectors answer this.</p>
+<p>Use narrow scope by default:</p>
+<ul>
+<li>target a single asset or small selector set</li>
+<li>verify outcomes</li>
+<li>expand only when safe</li>
+</ul>
+<p>Example scoped execution:</p>
+<pre><code class="language-bash">phlo materialize dlt_orders --partition 2025-01-15
+</code></pre>
+<p>This style prevents accidental wide reruns in production windows.</p>
+<h2 id="deep-dive-backfill-strategy-that-balances-risk-and-throughput">Deep Dive: Backfill Strategy that Balances Risk and Throughput</h2>
+<p>Backfills are where orchestration quality is tested.</p>
+<p>A safe backfill process:</p>
+<ol>
+<li>Dry-run first.</li>
+<li>Start with low parallelism.</li>
+<li>Watch source/API behaviour.</li>
+<li>Track failures by partition.</li>
+<li>Resume where needed.</li>
+</ol>
+<p>Use staged scaling:</p>
+<ul>
+<li>wave 1: 3-day range</li>
+<li>wave 2: 14-day range</li>
+<li>wave 3: full range once stable</li>
+</ul>
+<p>Command sequence:</p>
+<pre><code class="language-bash">phlo backfill dlt_orders --start-date 2025-01-10 --end-date 2025-01-12 --parallel 1
+</code></pre>
+<p>A typical result looks like this:</p>
+<pre><code class="language-text">📦 Asset Backfill
+
+Asset: dlt_orders
+Total partitions: 3
+Parallel workers: 1
+
+✓ Backfill complete!
+</code></pre>
+<p>Backfill safety is less about raw speed and more about controlled confidence.</p>
+<h2 id="worked-scenario-recovering-from-partial-backfill-failure">Worked Scenario: Recovering from Partial Backfill Failure</h2>
+<p>Scenario:</p>
+<ul>
+<li>30-day backfill in progress</li>
+<li>source API rate limits after day 12</li>
+<li>remaining partitions fail</li>
+</ul>
+<p>Good response:</p>
+<ol>
+<li>Stop escalating parallelism.</li>
+<li>Inspect logs for failure type.</li>
+<li>Reduce concurrency or add delay.</li>
+<li>Resume remaining partitions.</li>
+</ol>
+<p>Supporting commands:</p>
+<pre><code class="language-bash">phlo logs --limit 20
+phlo backfill dlt_orders --start-date 2025-01-13 --end-date 2025-01-18 --parallel 3
+</code></pre>
+<p>This is a clear example of why orchestration metadata and stateful resume support matter.</p>
+<h2 id="extended-guide-choosing-between-freshness-and-batch-efficiency">Extended Guide: Choosing Between Freshness and Batch Efficiency</h2>
+<p>There is always tension between:</p>
+<ul>
+<li>smaller frequent runs for freshness</li>
+<li>larger less frequent runs for compute efficiency</li>
+</ul>
+<p>Use business need to guide tradeoff:</p>
+<ul>
+<li>operational monitoring use cases often require tighter freshness</li>
+<li>monthly reporting may tolerate wider windows</li>
+</ul>
+<p>Ask product stakeholders:</p>
+<ol>
+<li>What is the maximum acceptable data lag?</li>
+<li>What decisions break if data is late?</li>
+<li>Is partial freshness acceptable?</li>
+</ol>
+<p>Then encode that in schedule and backfill policy.</p>
+<h2 id="extended-guide-observability-hooks-for-orchestration-owners">Extended Guide: Observability Hooks for Orchestration Owners</h2>
+<p>At minimum, orchestration owners should monitor:</p>
+<ul>
+<li>run success rate</li>
+<li>median and p95 run duration</li>
+<li>stale assets count</li>
+<li>repeated partition failures</li>
+</ul>
+<p>Suggested weekly review:</p>
+<pre><code class="language-bash">phlo status --services
+phlo metrics summary --period 7d
+phlo metrics asset dlt_orders --runs 30
+</code></pre>
+<p>If everything is wired correctly, you should see output along these lines:</p>
+<pre><code class="language-text">Service health and metrics summary output.
+</code></pre>
+<p>Without this review, orchestration reliability regresses quietly.</p>
+<h2 id="anti-patterns-in-orchestration">Anti-Patterns in Orchestration</h2>
+<p>Anti-pattern 1: giant selector runs without dry-run</p>
+<ul>
+<li>Result: accidental broad execution</li>
+</ul>
+<p>Anti-pattern 2: no partition discipline</p>
+<ul>
+<li>Result: costly reruns and unclear recovery</li>
+</ul>
+<p>Anti-pattern 3: manual reruns with no audit trail</p>
+<ul>
+<li>Result: hard-to-explain state divergence</li>
+</ul>
+<p>Anti-pattern 4: treating logs as optional</p>
+<ul>
+<li>Result: long MTTR during incidents</li>
+</ul>
+<p>Anti-pattern 5: no ownership per asset group</p>
+<ul>
+<li>Result: failures bounce between teams</li>
+</ul>
+<p>Avoiding these five patterns eliminates many recurring operational issues.</p>
+<h2 id="extended-design-review-questions">Extended Design Review Questions</h2>
+<p>When reviewing orchestration PRs, ask:</p>
+<ol>
+<li>What is the execution boundary?</li>
+<li>Is failure scope clear?</li>
+<li>How is replay performed?</li>
+<li>Is backfill strategy documented?</li>
+<li>Are observability signals complete?</li>
+<li>Is there a defined owner for the asset group?</li>
+</ol>
+<p>This keeps orchestration changes from becoming hidden risk multipliers.</p>
+<h2 id="engineering-playbook-first-production-rollout">Engineering Playbook: First Production Rollout</h2>
+<p>For your first production-grade asset group:</p>
+<ol>
+<li>Run three consecutive successful scheduled runs.</li>
+<li>Run a controlled replay of one partition.</li>
+<li>Run a 3-day backfill at low concurrency.</li>
+<li>Capture logs/status/metrics baseline.</li>
+<li>Review with another engineer.</li>
+</ol>
+<p>This practice creates shared confidence before higher-volume rollout.</p>
+<h2 id="teaching-notes-how-to-learn-orchestration-faster">Teaching Notes: How to Learn Orchestration Faster</h2>
+<p>Many engineers learn orchestration by reading docs only.
+A better method:</p>
+<ul>
+<li>run commands</li>
+<li>force controlled failures</li>
+<li>practice recovery</li>
+<li>document what happened</li>
+</ul>
+<p>Orchestration expertise grows from operational reps, not just conceptual knowledge.</p>
+<h2 id="quick-qa">Quick Q&amp;A</h2>
+<p>Q: Should I always use high parallel backfills for speed?</p>
+<p>A: No. Use the highest safe parallelism your source and platform can support without destabilizing runs.</p>
+<p>Q: Why not just rerun everything when one partition fails?</p>
+<p>A: Because bounded replay is safer, cheaper, and easier to reason about.</p>
+<p>Q: What is the best first orchestration metric?</p>
+<p>A: Failure rate by asset group, then p95 run duration.</p>
+<h2 id="reflection">Reflection</h2>
+<p>Orchestration is where architecture meets operations.
+If ingestion and transformation define what should happen, orchestration defines whether it happens reliably under real-world conditions.</p>
+<p>Treat it as a core product surface.</p>
+<h2 id="extended-guide-building-an-orchestration-runbook">Extended Guide: Building an Orchestration Runbook</h2>
+<p>A strong runbook should answer:</p>
+<ul>
+<li>How to detect failure</li>
+<li>How to scope impact</li>
+<li>How to rerun safely</li>
+<li>How to verify recovery</li>
+</ul>
+<p>Suggested runbook skeleton:</p>
+<pre><code class="language-text">Runbook: dlt_orders
+Detection:
+  phlo status --services
+Diagnosis:
+  phlo logs --asset dlt_orders --since 1h --limit 200
+Recovery:
+  phlo materialize dlt_orders --partition &lt;date&gt;
+Validation:
+  phlo status --services
+Escalation:
+  #data-incidents
+</code></pre>
+<p>This is simple and immediately useful during real incidents.</p>
+<h2 id="extended-guide-scheduling-and-human-factors">Extended Guide: Scheduling and Human Factors</h2>
+<p>Technical quality is necessary but not sufficient. Human response dynamics matter.</p>
+<p>Good practice:</p>
+<ul>
+<li>schedule high-risk backfills during staffed windows</li>
+<li>avoid major changes near handoff times</li>
+<li>define escalation path before rollout</li>
+</ul>
+<p>If nobody is clearly responsible for a failure window, response quality degrades fast.</p>
+<h2 id="extended-guide-measuring-orchestration-maturity">Extended Guide: Measuring Orchestration Maturity</h2>
+<p>Use a practical scorecard:</p>
+<ul>
+<li>Replay confidence (can rerun single partition safely?)</li>
+<li>Backfill confidence (can run and resume range jobs?)</li>
+<li>Observability confidence (can identify failure cause in &lt;15 minutes?)</li>
+<li>Ownership confidence (is response ownership clear?)</li>
+</ul>
+<p>Score each 0-2:</p>
+<ul>
+<li>0: fragile</li>
+<li>1: inconsistent</li>
+<li>2: reliable</li>
+</ul>
+<p>Total score:</p>
+<ul>
+<li>0-3 needs immediate hardening</li>
+<li>4-6 usable with risk</li>
+<li>7-8 strong baseline</li>
+</ul>
+<p>This helps teams discuss reliability in concrete terms.</p>
+<h2 id="final-chapter-reminder">Final Chapter Reminder</h2>
+<p>Most data incidents are orchestration incidents with downstream symptoms.
+If runs are deterministic, replayable, and observable, incident complexity drops dramatically.</p>
+<h2 id="extended-scenario-lab-asset-group-migration">Extended Scenario Lab: Asset Group Migration</h2>
+<p>Suppose you need to migrate from one ingestion group naming convention to another.</p>
+<p>Risks:</p>
+<ul>
+<li>Selector behaviour may change.</li>
+<li>Alerts and dashboards may break.</li>
+<li>Operators may run old commands by habit.</li>
+</ul>
+<p>Migration approach:</p>
+<ol>
+<li>Introduce new group names in code.</li>
+<li>Run parallel status checks for old and new selectors.</li>
+<li>Update runbooks and alert filters.</li>
+<li>Freeze old naming after validation window.</li>
+</ol>
+<p>Validation commands:</p>
+<pre><code class="language-bash">phlo status --services
+phlo logs --limit 20
+</code></pre>
+<p>On a healthy setup, you will see something similar:</p>
+<pre><code class="language-text">Service health table with status for old and new asset selectors.
+</code></pre>
+<p>The point is not naming itself; it is controlled operational change.</p>
+<h2 id="extended-team-exercise-on-call-drill">Extended Team Exercise: On-Call Drill</h2>
+<p>Run a monthly drill:</p>
+<ol>
+<li>Inject a synthetic failure.</li>
+<li>Assign one engineer as responder.</li>
+<li>Require command evidence for diagnosis.</li>
+<li>Measure time to detection, diagnosis, and recovery.</li>
+<li>Record improvement actions.</li>
+</ol>
+<p>This keeps your orchestration layer practiced and resilient.</p>
+<h2 id="extra-qa">Extra Q&amp;A</h2>
+<p>Q: Is orchestration overkill for small pipelines?</p>
+<p>A: Not if the data is important. Even one critical pipeline benefits from deterministic replay and run visibility.</p>
+<p>Q: What is the easiest first orchestration improvement?</p>
+<p>A: Add a short runbook plus a weekly status/metrics review.</p>
+<p>Q: How often should I revisit backfill settings?</p>
+<p>A: After major source/API changes, infrastructure changes, or observed run instability.</p>
+<p>Orchestration maturity is built through repetition.
+Every dry-run, replay, and drill improves team reflexes.
+That muscle memory is what protects users when unexpected failures happen under pressure.</p>
+<p>If you only take one action this week, run one controlled replay and document it clearly.
+That simple practice often reveals hidden assumptions in partitioning, ownership, and observability.
+Fixing those assumptions early has outsized impact on reliability.
+Then run the same drill with another teammate so knowledge is shared and not person-dependent.
+Shared operational confidence is a major indicator that your orchestration layer is maturing well.</p>
+<h2 id="hands-on-exercise">Hands-On Exercise</h2>
+<ol>
+<li>Run one successful materialization.</li>
+<li>Run one small backfill range (3-5 days).</li>
+<li>Use <code>phlo status --services</code> to inspect freshness.</li>
+<li>Capture the exact command set in your project runbook.</li>
+</ol>
+<h2 id="common-issues">Common Issues</h2>
+<ol>
+<li>Wrong asset key passed to <code>phlo materialize</code>.</li>
+<li>Backfill ranges too large without dry-run validation.</li>
+<li>Parallel backfills overwhelm source APIs.</li>
+<li>Teams treat failures as one-off instead of codifying retries.</li>
+<li>Logs are checked only after downstream dashboards fail.</li>
+</ol>
+<p>For run failures and service health checks, use <a href="../../../operations/troubleshooting/">Troubleshooting</a>.</p>
+<h2 id="summary">Summary</h2>
+<p>Dagster orchestration in Phlo gives repeatable execution primitives that are easy to automate and audit.</p>
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li>Continue to <a href="../06-transformations-with-dbt/">Part 6</a> for model-layer transformation patterns.</li>
+<li>Keep your backfill command history; it becomes part of incident response.</li>
+</ol>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../06-transformations-with-dbt/">Part 6: Transformations with dbt</a></li>
+<li><a href="../10-incident-response-and-debugging/">Part 10: Incident Response and Debugging</a></li>
+<li><a href="../../../guides/dagster-assets/">Dagster Assets Guide</a></li>
+</ul>
+</article>
+</div>
+<script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.expand", "navigation.prune", "navigation.indexes", "content.tabs.link", "content.code.annotation", "content.code.copy", "content.code.select", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+mermaid.initialize({});</script></body>
+</html>
