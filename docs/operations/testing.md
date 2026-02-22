@@ -488,6 +488,12 @@ pytest tests/ -m "not integration" -v
 # Run only explicit unit marker tests
 pytest tests/ -m unit -v
 
+# Run focused core runtime regression suite
+make test-core-regression
+
+# Equivalent direct pytest invocation
+pytest tests/ -m core_regression -v
+
 # Run with verbose output
 pytest tests/ -v -s
 ```
@@ -855,6 +861,20 @@ name: Tests
 on: [push, pull_request]
 
 jobs:
+  core-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+      - name: Run focused core runtime regression checks
+        run: |
+          make test-core-regression CORE_REGRESSION_PYTEST_ARGS="--tb=short --cov=phlo --cov-report=term-missing"
+
   unit-tests:
     runs-on: ubuntu-latest
     steps:

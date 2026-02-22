@@ -19,6 +19,8 @@ from phlo.logging import (
     suppress_log_routing,
 )
 
+pytestmark = pytest.mark.core_regression
+
 
 def _make_record(
     *,

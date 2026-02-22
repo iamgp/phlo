@@ -7,6 +7,8 @@ import pytest
 from phlo.plugins import PluginMetadata, ServicePlugin
 from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery, get_global_registry
 
+pytestmark = pytest.mark.core_regression
+
 
 def _write_service_yaml(root: Path, folder: str, name: str) -> None:
     """Write a minimal service definition file for discovery tests."""

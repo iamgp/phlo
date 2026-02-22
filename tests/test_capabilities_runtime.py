@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from phlo.capabilities import (
     CatalogSpec,
     QueryEngineSpec,
@@ -14,6 +16,8 @@ from phlo.capabilities import (
     resolve_capability,
 )
 from phlo.plugins.base import PluginMetadata
+
+pytestmark = pytest.mark.core_regression
 
 
 def teardown_function() -> None:
