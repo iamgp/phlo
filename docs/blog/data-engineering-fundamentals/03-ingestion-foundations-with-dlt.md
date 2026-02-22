@@ -24,6 +24,24 @@ Phlo ingestion wraps your source function with runtime guarantees:
 - Table store resource resolution
 - Optional contract checks with Pandera
 
+Before the ingestion function, define the schema class you are validating against.
+In this post, `RawOrders` is the raw-zone contract for one order record:
+
+```python
+import pandera as pa
+from pandera.typing import Series
+from phlo_quality.schemas.base import PhloSchema
+
+class RawOrders(PhloSchema):
+    order_id: Series[str] = pa.Field(nullable=False)
+    order_timestamp: Series[str] = pa.Field(nullable=False)
+    customer_id: Series[str] = pa.Field(nullable=False)
+    currency: Series[str] = pa.Field(nullable=False)
+    total_amount: Series[float] = pa.Field(ge=0, nullable=False)
+```
+
+Put that in `workflows/schemas/orders.py`, then import it into your ingestion module.
+
 A simplified workflow example:
 
 ```python
