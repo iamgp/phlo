@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+import pytest
+
+from phlo.plugins.discovery import ServiceDefinition, ServiceDiscovery
+
+
+def _service(
+    name: str,
+    *,
+    default: bool = False,
+    profile: str | None = None,
+    category: str = "core",
+) -> ServiceDefinition:
+    return ServiceDefinition(
+        name=name,
+        description=f"{name} service",
+        category=category,
+        default=default,
+        profile=profile,
+    )
+
+
+def test_resolve_dependencies_reports_cycle_path() -> None:
+    discovery = ServiceDiscovery.__new__(ServiceDiscovery)
+    discovery.services_dir = None
+    discovery._services = {}
+    discovery._loaded = True
+
+    a = _service("a")
+    a.depends_on = ["b"]
+    b = _service("b")
+    b.depends_on = ["c"]
+    c = _service("c")
+    c.depends_on = ["a"]
+
+    with pytest.raises(ValueError, match="Circular dependency detected:.*→"):
+        discovery.resolve_dependencies([a, b, c])
+
+
+def test_resolve_dependencies_cycle_path_is_closed() -> None:
+    discovery = ServiceDiscovery.__new__(ServiceDiscovery)
+    discovery.services_dir = None
+    discovery._services = {}
+    discovery._loaded = True
+
+    a = _service("a")
+    a.depends_on = ["b"]
+    b = _service("b")
+    b.depends_on = ["a", "c"]
+    c = _service("c")
+    c.depends_on = ["b"]
+
+    with pytest.raises(ValueError) as exc_info:
+        discovery.resolve_dependencies([a, b, c])
+
+    message = str(exc_info.value)
+    assert "Circular dependency detected:" in message
+    assert "→" in message
+    assert "a → b → c" not in message
+
+
+def test_find_cycles_returns_closed_paths() -> None:
+    from phlo.plugins.discovery.services import _find_cycles
+
+    graph = {
+        "a": {"b"},
+        "b": {"a", "c"},
+        "c": {"b"},
+    }
+    cycles = _find_cycles({"a", "b", "c"}, graph)
+
+    assert cycles
+    assert all(len(cycle) > 2 and cycle[0] == cycle[-1] for cycle in cycles)
+
+
+def test_resolve_dependencies_no_cycle() -> None:
+    discovery = ServiceDiscovery.__new__(ServiceDiscovery)
+    discovery.services_dir = None
+    discovery._services = {}
+    discovery._loaded = True
+
+    a = _service("a")
+    b = _service("b")
+    b.depends_on = ["a"]
+    c = _service("c")
+    c.depends_on = ["b"]
+
+    result = discovery.resolve_dependencies([a, b, c])
+    names = [s.name for s in result]
+    assert names.index("a") < names.index("b") < names.index("c")
