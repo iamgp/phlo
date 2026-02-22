@@ -22,7 +22,7 @@ phlo init my-first-phlo-project
 cd my-first-phlo-project
 ```
 
-You should see output similar to this:
+If everything is wired correctly, you should see output along these lines:
 
 ```text
 Initialised project scaffold with `phlo.yaml`, `workflows/`, `tests/`, and dbt starter folders.
@@ -48,7 +48,7 @@ phlo services init
 phlo services start
 ```
 
-You should see output similar to this:
+On a healthy setup, you will see something similar:
 
 ```text
 Generated `.phlo/docker-compose.yml` and started core services.
@@ -60,7 +60,7 @@ Check runtime inventory:
 phlo services list --json
 ```
 
-You should see output similar to this:
+The command should return something like this:
 
 ```text
 [
@@ -98,7 +98,7 @@ phlo workflow create --type ingestion --domain commerce --table orders --unique-
 phlo validate-workflow workflows/ingestion/commerce/orders.py
 ```
 
-You should see output similar to this:
+Your output should look roughly like this:
 
 ```text
 📊 Status Report
@@ -124,7 +124,7 @@ Use dry-run first so you can verify command shape without mutating state.
 phlo materialize dlt_orders --dry-run
 ```
 
-You should see output similar to this:
+You should get output similar to this:
 
 ```text
 Dry run mode enabled. Built Dagster materialization command for the selected asset. No state was changed.
@@ -188,7 +188,7 @@ phlo init my-first-phlo-project
 cd my-first-phlo-project
 ```
 
-You should see output similar to this:
+In most setups, the output will look similar to this:
 
 ```text
 Initialised project scaffold with `phlo.yaml`, `workflows/`, `tests/`, and dbt starter folders.
@@ -207,7 +207,7 @@ Step 3: Initialize service composition
 phlo services init
 ```
 
-You should see output similar to this:
+You should see something like this:
 
 ```text
 # Phlo Project Configuration
@@ -235,7 +235,7 @@ phlo services status
 phlo services list --json
 ```
 
-You should see output similar to this:
+A typical result looks like this:
 
 ```text
 Core services started (Dagster, MinIO, Nessie, Trino, Postgres).
@@ -254,7 +254,7 @@ Step 7: Validate generated workflow contract
 phlo validate-workflow workflows/ingestion/commerce/orders.py
 ```
 
-You should see output similar to this:
+If everything is wired correctly, you should see output along these lines:
 
 ```text
 Created ingestion workflow scaffold under `workflows/ingestion/...`.
@@ -414,7 +414,7 @@ phlo services status
 phlo services list --json
 ```
 
-You should see output similar to this:
+On a healthy setup, you will see something similar:
 
 ```text
 Created ingestion workflow scaffold under `workflows/ingestion/...`.

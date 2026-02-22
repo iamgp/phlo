@@ -35,7 +35,7 @@ phlo schema show RawOrders
 phlo schema diff RawOrders --old HEAD~1 --format text
 ```
 
-You should see output similar to this:
+You should get output similar to this:
 
 ```text
 Schema: RawOrders

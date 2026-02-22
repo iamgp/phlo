@@ -31,7 +31,7 @@ phlo plugin list
 phlo plugin info dagster
 ```
 
-You should see output similar to this:
+The command should return something like this:
 
 ```text
 Installed:

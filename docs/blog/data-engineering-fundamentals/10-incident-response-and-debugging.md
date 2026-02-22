@@ -47,7 +47,7 @@ phlo metrics summary --period 24h
 phlo lineage impact dlt_orders
 ```
 
-You should see output similar to this:
+If everything is wired correctly, you should see output along these lines:
 
 ```text
 All configured services are running and healthy.

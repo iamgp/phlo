@@ -61,7 +61,7 @@ graph LR
 phlo --help
 ```
 
-You should see output similar to this:
+You should see something like this:
 
 ```text
 Usage: phlo [OPTIONS] COMMAND [ARGS]...
@@ -82,7 +82,7 @@ Commands:
 phlo services list --json
 ```
 
-You should see output similar to this:
+A typical result looks like this:
 
 ```text
 [

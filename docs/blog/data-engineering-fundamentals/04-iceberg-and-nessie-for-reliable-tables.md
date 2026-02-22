@@ -46,7 +46,7 @@ graph LR
 phlo catalog tables --ref main --format table
 ```
 
-You should see output similar to this:
+You should see something like this:
 
 ```text
 Catalog Tables (ref=main)
@@ -69,7 +69,7 @@ Check snapshot history:
 phlo catalog history raw.orders --limit 5 --ref main --format table
 ```
 
-You should see output similar to this:
+A typical result looks like this:
 
 ```text
 Printed table schema, partition spec, and latest snapshot metadata for the requested table.
@@ -89,7 +89,7 @@ After validation steps, merge:
 phlo branch merge de_contract_test main
 ```
 
-You should see output similar to this:
+If everything is wired correctly, you should see output along these lines:
 
 ```text
 Created Nessie branch from `main` for isolated validation work.
@@ -187,7 +187,7 @@ phlo catalog history raw.orders --limit 10 --ref add_order_channel
 phlo catalog describe raw.orders --ref add_order_channel
 ```
 
-You should see output similar to this:
+On a healthy setup, you will see something similar:
 
 ```text
 Created Nessie branch from `main` for isolated validation work.
@@ -378,7 +378,7 @@ phlo catalog history gold.mrt_revenue_daily --limit 20 --ref main
 phlo branch diff main release_candidate --format table
 ```
 
-You should see output similar to this:
+The command should return something like this:
 
 ```text
 Merged source branch into target branch and updated table references on target.
@@ -594,7 +594,7 @@ phlo logs --since 1h --limit 150
 phlo metrics summary --period 24h
 ```
 
-You should see output similar to this:
+Your output should look roughly like this:
 
 ```text
 📊 Status Report

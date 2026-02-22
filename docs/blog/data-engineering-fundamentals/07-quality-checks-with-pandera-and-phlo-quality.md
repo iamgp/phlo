@@ -64,7 +64,7 @@ phlo validate-schema workflows/schemas/orders.py
 phlo validate-workflow workflows/ingestion/orders.py
 ```
 
-You should see output similar to this:
+Your output should look roughly like this:
 
 ```text
 Available Schemas

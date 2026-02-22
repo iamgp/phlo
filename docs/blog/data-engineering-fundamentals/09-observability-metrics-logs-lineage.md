@@ -44,7 +44,7 @@ phlo status --services
 phlo logs --asset dlt_orders --since 2h --level ERROR --limit 100
 ```
 
-You should see output similar to this:
+In most setups, the output will look similar to this:
 
 ```text
 📊 Status Report
@@ -67,7 +67,7 @@ phlo metrics asset dlt_orders --runs 20
 phlo metrics export --format json --output .phlo/metrics-24h.json --period 24h
 ```
 
-You should see output similar to this:
+You should see something like this:
 
 ```text
 📊 Metrics Summary
@@ -86,7 +86,7 @@ phlo lineage show dlt_orders --direction both --depth 2
 phlo lineage impact dlt_orders
 ```
 
-You should see output similar to this:
+A typical result looks like this:
 
 ```text
 Lineage Graph Status

@@ -37,7 +37,7 @@ phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-07 --paralle
 phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-07 --parallel 3
 ```
 
-You should see output similar to this:
+On a healthy setup, you will see something similar:
 
 ```text
 📦 Asset Backfill

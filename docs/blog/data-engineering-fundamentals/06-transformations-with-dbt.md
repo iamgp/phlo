@@ -57,7 +57,7 @@ docker exec dagster-webserver dbt run --select fct_orders
 docker exec dagster-webserver dbt test --select fct_orders
 ```
 
-You should see output similar to this:
+The command should return something like this:
 
 ```text
 dbt compile completed successfully.

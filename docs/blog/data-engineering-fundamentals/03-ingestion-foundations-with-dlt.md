@@ -99,7 +99,7 @@ def clickstream(partition_date: str):
 phlo materialize dlt_orders --partition 2026-02-20
 ```
 
-You should see output similar to this:
+The command should return something like this:
 
 ```text
 🚀 Asset Materialization
@@ -267,7 +267,7 @@ phlo materialize dlt_orders --partition 2026-02-19
 phlo logs --asset dlt_orders --since 30m --limit 200
 ```
 
-You should see output similar to this:
+Your output should look roughly like this:
 
 ```text
 📦 Asset Backfill
@@ -422,7 +422,7 @@ phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-07 --paralle
 phlo metrics asset dlt_orders --runs 30
 ```
 
-You should see output similar to this:
+You should get output similar to this:
 
 ```text
 📦 Asset Backfill
@@ -645,7 +645,7 @@ phlo logs --since 1h --limit 150
 phlo metrics summary --period 24h
 ```
 
-You should see output similar to this:
+In most setups, the output will look similar to this:
 
 ```text
 📊 Status Report

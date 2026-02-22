@@ -41,7 +41,7 @@ graph TD
 phlo materialize dlt_orders --partition 2026-02-20
 ```
 
-You should see output similar to this:
+You should get output similar to this:
 
 ```text
 🚀 Asset Materialization
@@ -66,7 +66,7 @@ phlo materialize dlt_orders --select "tag:commerce"
 phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-05 --parallel 2
 ```
 
-You should see output similar to this:
+In most setups, the output will look similar to this:
 
 ```text
 🚀 Asset Materialization
@@ -92,7 +92,7 @@ phlo status --assets
 phlo logs --asset dlt_orders --since 1h --limit 50
 ```
 
-You should see output similar to this:
+You should see something like this:
 
 ```text
 📦 Asset Backfill
@@ -180,7 +180,7 @@ phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-03 --paralle
 phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-14 --parallel 2
 ```
 
-You should see output similar to this:
+A typical result looks like this:
 
 ```text
 🚀 Asset Materialization
@@ -256,7 +256,7 @@ phlo metrics summary --period 7d
 phlo metrics asset dlt_orders --runs 30
 ```
 
-You should see output similar to this:
+If everything is wired correctly, you should see output along these lines:
 
 ```text
 📋 Logs
@@ -441,7 +441,7 @@ phlo status --assets --group commerce
 phlo logs --since 1h --limit 100
 ```
 
-You should see output similar to this:
+On a healthy setup, you will see something similar:
 
 ```text
 📊 Status Report
