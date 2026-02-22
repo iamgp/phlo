@@ -71,8 +71,8 @@ Available Schemas
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Name                    ┃ Fields ┃ Module                       ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ FactDailyGlucoseMetrics │     15 │ workflows.schemas.nightscout │
-│ RawGlucoseEntries       │     12 │ workflows.schemas.nightscout │
+│ RawOrders               │     12 │ workflows.schemas.orders     │
+│ FactOrdersDaily         │      9 │ workflows.schemas.orders     │
 └─────────────────────────┴────────┴──────────────────────────────┘
 ```
 

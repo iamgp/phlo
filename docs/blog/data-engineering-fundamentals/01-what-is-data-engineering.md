@@ -70,13 +70,12 @@ Commands:
   backfill
   branch
   catalog
-  init
   materialize
   plugin
   schema
   services
   status
-  validate-workflow
+  workflow
 ```
 
 ```bash
@@ -89,13 +88,16 @@ You should see output similar to this:
 [
   {
     "name": "minio",
-    "description": "S3-compatible object storage for data lake",
     "category": "core",
     "default": true
   },
   {
     "name": "postgres",
-    "description": "Metadata and analytics database",
+    "category": "core",
+    "default": true
+  },
+  {
+    "name": "dagster",
     "category": "core",
     "default": true
   }

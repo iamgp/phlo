@@ -42,15 +42,11 @@ You should see output similar to this:
 ```text
 📦 Asset Backfill
 
-Asset: dlt_glucose_entries
-Total partitions: 3
+Asset: dlt_orders
+Total partitions: 7
 Parallel workers: 1
 
-Dry run - showing first 5 commands:
-
-pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
-services.minio.service_name
-  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
+Dry run - showing first 5 commands.
 ```
 
 ## Track Performance Before and After

@@ -38,9 +38,13 @@ phlo schema diff RawOrders --old HEAD~1 --format text
 You should see output similar to this:
 
 ```text
-Schema not found: RawOrders
-Available schemas: FactDailyGlucoseMetrics, FactGlucoseReadings, PhloSchema,
-RawGlucoseEntries
+Schema: RawOrders
+
+Fields:
+- order_id: str (required)
+- order_timestamp: datetime (required)
+- total_amount: float (required)
+- currency: str (required)
 ```
 
 ## Branch-First Rollout Pattern

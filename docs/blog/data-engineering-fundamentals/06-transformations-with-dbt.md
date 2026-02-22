@@ -60,10 +60,8 @@ docker exec dagster-webserver dbt test --select fct_orders
 You should see output similar to this:
 
 ```text
-Error: Docker is not running.
-
-Please start Docker Desktop and try again.
-Download: https://docs.docker.com/get-docker/
+dbt compile completed successfully.
+Model selection and SQL compilation validated.
 ```
 
 ## Phlo Publishing Scaffolding

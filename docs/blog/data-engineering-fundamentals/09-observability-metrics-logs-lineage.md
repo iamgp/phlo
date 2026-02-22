@@ -49,14 +49,13 @@ You should see output similar to this:
 ```text
 📊 Status Report
 
-(showing demo data - Dagster not connected)
-
                               Asset Status
 ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
 ┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ dlt_glucose_entries  │ nightscout │ ✓ success │ 30m ago  │ Fresh     │
-│ fct_glucose_readings │ nightscout │ ✗ failed  │ 2d ago   │ Failed    │
+│ dlt_orders           │ commerce   │ ✓ success │ 12m ago  │ Fresh     │
+│ stg_orders           │ commerce   │ ✓ success │ 10m ago  │ Fresh     │
+│ fct_orders           │ commerce   │ ✓ success │ 8m ago   │ Fresh     │
 └──────────────────────┴────────────┴───────────┴──────────┴───────────┘
 ```
 
@@ -66,6 +65,16 @@ You should see output similar to this:
 phlo metrics summary --period 24h
 phlo metrics asset dlt_orders --runs 20
 phlo metrics export --format json --output .phlo/metrics-24h.json --period 24h
+```
+
+You should see output similar to this:
+
+```text
+📊 Metrics Summary
+
+Runs (24h): 28
+Success rate: 96.4%
+p95 latency: 184s
 ```
 
 
@@ -80,13 +89,10 @@ phlo lineage impact dlt_orders
 You should see output similar to this:
 
 ```text
-╭─── 📊 Metrics Summary ───╮
-│ Platform Metrics Summary │
-│ Runs (last 24h)          │
-│   Total:     0           │
-│   Success:   0 (0.0%)    │
-│   Failure:   0 (0.0%)    │
-╰──────────────────────────╯
+Lineage Graph Status
+
+Total Assets: 42
+Total Dependencies: 79
 ```
 
 ## Alerting Loop

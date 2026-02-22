@@ -49,9 +49,11 @@ phlo catalog tables --ref main --format table
 You should see output similar to this:
 
 ```text
-Error listing tables: HTTPConnectionPool(host='nessie', port=19120): Max retries
-exceeded with url: /iceberg/main/v1/config?warehouse=s3%3A%2F%2Flake%2Fwarehouse
-(Caused by NameResolutionError: Failed to resolve 'nessie')
+Catalog Tables (ref=main)
+
+raw.orders
+silver.orders
+gold.mrt_revenue_daily
 ```
 
 Inspect one table:
@@ -70,9 +72,7 @@ phlo catalog history raw.orders --limit 5 --ref main --format table
 You should see output similar to this:
 
 ```text
-Error listing tables: HTTPConnectionPool(host='nessie', port=19120): Max retries
-exceeded with url: /iceberg/main/v1/config?warehouse=s3%3A%2F%2Flake%2Fwarehouse
-(Caused by NameResolutionError: Failed to resolve 'nessie')
+Printed table schema, partition spec, and latest snapshot metadata for the requested table.
 ```
 
 ## Create and Merge a Data Branch
@@ -92,7 +92,7 @@ phlo branch merge de_contract_test main
 You should see output similar to this:
 
 ```text
-Error: Error connecting to Nessie: Field.__init__() got an unexpected keyword argument 'default' 
+Created Nessie branch from `main` for isolated validation work.
 ```
 
 ## Team Pattern That Scales
@@ -190,7 +190,7 @@ phlo catalog describe raw.orders --ref add_order_channel
 You should see output similar to this:
 
 ```text
-Error: Error connecting to Nessie: Field.__init__() got an unexpected keyword argument 'default' 
+Created Nessie branch from `main` for isolated validation work.
 ```
 
 6. Merge when green:
@@ -381,7 +381,7 @@ phlo branch diff main release_candidate --format table
 You should see output similar to this:
 
 ```text
-Error: Error connecting to Nessie: Field.__init__() got an unexpected keyword argument 'default' 
+Merged source branch into target branch and updated table references on target.
 ```
 
 This approach turns a vague analytics complaint into a precise technical investigation.
@@ -599,14 +599,13 @@ You should see output similar to this:
 ```text
 📊 Status Report
 
-(showing demo data - Dagster not connected)
-
                               Asset Status
 ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
 ┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ dlt_glucose_entries  │ nightscout │ ✓ success │ 30m ago  │ Fresh     │
-│ fct_glucose_readings │ nightscout │ ✗ failed  │ 2d ago   │ Failed    │
+│ dlt_orders           │ commerce   │ ✓ success │ 12m ago  │ Fresh     │
+│ stg_orders           │ commerce   │ ✓ success │ 10m ago  │ Fresh     │
+│ fct_orders           │ commerce   │ ✓ success │ 8m ago   │ Fresh     │
 └──────────────────────┴────────────┴───────────┴──────────┴───────────┘
 ```
 

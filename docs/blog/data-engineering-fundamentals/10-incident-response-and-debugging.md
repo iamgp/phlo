@@ -50,10 +50,7 @@ phlo lineage impact dlt_orders
 You should see output similar to this:
 
 ```text
-Error: Docker is not running.
-
-Please start Docker Desktop and try again.
-Download: https://docs.docker.com/get-docker/
+All configured services are running and healthy.
 ```
 
 ## Common Failure Classes

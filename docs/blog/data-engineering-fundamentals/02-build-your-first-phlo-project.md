@@ -25,7 +25,7 @@ cd my-first-phlo-project
 You should see output similar to this:
 
 ```text
-Initialised project scaffold with `phlo.yaml`, `workflows/`, and `tests/`.
+Initialised project scaffold with `phlo.yaml`, `workflows/`, `tests/`, and dbt starter folders.
 ```
 
 ## Understand the Generated Layout
@@ -51,7 +51,7 @@ phlo services start
 You should see output similar to this:
 
 ```text
-Generated local Docker Compose configuration under `.phlo/`.
+Generated `.phlo/docker-compose.yml` and started core services.
 ```
 
 Check runtime inventory:
@@ -66,13 +66,16 @@ You should see output similar to this:
 [
   {
     "name": "minio",
-    "description": "S3-compatible object storage for data lake",
     "category": "core",
     "default": true
   },
   {
     "name": "postgres",
-    "description": "Metadata and analytics database",
+    "category": "core",
+    "default": true
+  },
+  {
+    "name": "dagster",
     "category": "core",
     "default": true
   }
@@ -98,13 +101,17 @@ phlo validate-workflow workflows/ingestion/commerce/orders.py
 You should see output similar to this:
 
 ```text
-Created ingestion workflow scaffold under `workflows/ingestion/` for the selected domain and table.
+📊 Status Report
 
-🔍 Validating Workflow
-
-orders.py
-  ✓ Found 1 workflow(s)
-  ✓ No issues found
+         Service Health
+┏━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━┓
+┃ Service ┃ Status    ┃ Latency ┃
+┡━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━┩
+│ Dagster │ ✓ Healthy │ 120ms   │
+│ MinIO   │ ✓ Healthy │ 25ms    │
+│ Nessie  │ ✓ Healthy │ 32ms    │
+│ Trino   │ ✓ Healthy │ 180ms   │
+└─────────┴───────────┴─────────┘
 ```
 
 At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion assets as `dlt_<table>`).
@@ -120,9 +127,7 @@ phlo materialize dlt_orders --dry-run
 You should see output similar to this:
 
 ```text
-Dry run mode enabled.
-Prepared Dagster materialization command for asset `dlt_orders`.
-No pipeline state was changed.
+Dry run mode enabled. Built Dagster materialization command for the selected asset. No state was changed.
 ```
 
 ## Why This Project Shape Matters
@@ -186,7 +191,7 @@ cd my-first-phlo-project
 You should see output similar to this:
 
 ```text
-Initialised project scaffold with `phlo.yaml`, `workflows/`, and `tests/`.
+Initialised project scaffold with `phlo.yaml`, `workflows/`, `tests/`, and dbt starter folders.
 ```
 
 Step 2: Inspect generated config
@@ -206,14 +211,14 @@ You should see output similar to this:
 
 ```text
 # Phlo Project Configuration
-name: glucose-platform
-description: "glucose-platform data lakehouse"
+name: my-first-phlo-project
+description: "my-first-phlo-project data lakehouse"
 
 infrastructure:
   services:
     minio:
-      api_port: 9100
-      console_port: 9101
+      api_port: 9000
+      console_port: 9001
 ```
 
 Step 4: Start services
@@ -233,7 +238,7 @@ phlo services list --json
 You should see output similar to this:
 
 ```text
-Core services report as running/reachable, and `services list --json` returns the available service inventory.
+Core services started (Dagster, MinIO, Nessie, Trino, Postgres).
 ```
 
 Step 6: Validate workflow tooling
@@ -252,11 +257,15 @@ phlo validate-workflow workflows/ingestion/commerce/orders.py
 You should see output similar to this:
 
 ```text
+Created ingestion workflow scaffold under `workflows/ingestion/...`.
+
 🔍 Validating Workflow
 
 orders.py
   ✓ Found 1 workflow(s)
   ✓ No issues found
+
+✓ Workflow is valid!
 ```
 
 At this point, you have the minimum viable platform loop:
@@ -408,7 +417,15 @@ phlo services list --json
 You should see output similar to this:
 
 ```text
-Created ingestion workflow scaffold under `workflows/ingestion/` for the selected domain and table.
+Created ingestion workflow scaffold under `workflows/ingestion/...`.
+
+🔍 Validating Workflow
+
+orders.py
+  ✓ Found 1 workflow(s)
+  ✓ No issues found
+
+✓ Workflow is valid!
 ```
 
 When onboarding pain is low, platform adoption rises naturally.

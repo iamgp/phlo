@@ -35,14 +35,11 @@ You should see output similar to this:
 
 ```text
 Installed:
-┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┓
-┃ Name              ┃ Type          ┃ Version ┃ Author    ┃ Ready ┃
-┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━┩
-│ rest_api          │ source        │ 0.1.0   │ Phlo Team │ yes   │
-│ freshness_check   │ quality       │ 0.1.0   │ Phlo Team │ yes   │
-│ minio             │ service       │ 0.1.0   │ Phlo Team │ yes   │
-│ dagster           │ service       │ 0.1.0   │ Phlo Team │ yes   │
-└───────────────────┴───────────────┴─────────┴───────────┴───────┘
+- rest_api (source)
+- freshness_check (quality)
+- dagster (service)
+- nessie (service)
+- trino (service)
 ```
 
 ## Observatory Extension Manifest Basics

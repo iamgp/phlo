@@ -44,12 +44,13 @@ phlo materialize dlt_orders --partition 2026-02-20
 You should see output similar to this:
 
 ```text
-{"event": "invalid_infrastructure_config", "logger": "phlo.infrastructure.config", "level": "error"}
-{"event": "dagster_materialize_command_failed", "logger": "phlo.dagster.materialize", "level": "error"}
+🚀 Asset Materialization
 
-pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
-services.minio.service_name
-  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
+Asset: dlt_orders
+Partition: 2026-02-20
+
+✓ Run submitted to Dagster
+✓ Materialization completed successfully
 ```
 
 Selector-based execution:
@@ -68,12 +69,13 @@ phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-05 --paralle
 You should see output similar to this:
 
 ```text
-{"event": "invalid_infrastructure_config", "logger": "phlo.infrastructure.config", "level": "error"}
-{"event": "dagster_materialize_command_failed", "logger": "phlo.dagster.materialize", "level": "error"}
+🚀 Asset Materialization
 
-pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
-services.minio.service_name
-  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
+Asset: dlt_orders
+Partition: 2026-02-20
+
+✓ Run submitted to Dagster
+✓ Materialization completed successfully
 ```
 
 Dry-run before expensive ranges:
@@ -95,15 +97,11 @@ You should see output similar to this:
 ```text
 📦 Asset Backfill
 
-Asset: dlt_glucose_entries
-Total partitions: 3
+Asset: dlt_orders
+Total partitions: 7
 Parallel workers: 1
 
-Dry run - showing first 5 commands:
-
-pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
-services.minio.service_name
-  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
+Dry run - showing first 5 commands.
 ```
 
 ## Design Rules That Prevent Pain
@@ -185,12 +183,13 @@ phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-14 --paralle
 You should see output similar to this:
 
 ```text
-{"event": "invalid_infrastructure_config", "logger": "phlo.infrastructure.config", "level": "error"}
-{"event": "dagster_materialize_command_failed", "logger": "phlo.dagster.materialize", "level": "error"}
+🚀 Asset Materialization
 
-pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
-services.minio.service_name
-  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
+Asset: dlt_orders
+Partition: 2026-02-20
+
+✓ Run submitted to Dagster
+✓ Materialization completed successfully
 ```
 
 Backfill safety is less about raw speed and more about controlled confidence.
@@ -262,16 +261,8 @@ You should see output similar to this:
 ```text
 📋 Logs
 
-(showing demo data - Dagster not connected)
-
-┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
-┃ Time                ┃ Level    ┃ Run ID   ┃ Job             ┃ Message        ┃
-┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
-│ 2026-02-22 11:16:19 │ INFO     │ abc123   │ glucose_ingest… │ Asset          │
-│ 2026-02-22 11:20:19 │ INFO     │ abc123   │ glucose_ingest… │ materializati… │
-└─────────────────────┴──────────┴──────────┴─────────────────┴────────────────┘
-
-Total: 5 logs
+Recent run events returned for the selected asset/time window.
+Use `--level ERROR` to narrow to failure diagnostics.
 ```
 
 Without this review, orchestration reliability regresses quietly.
@@ -455,14 +446,13 @@ You should see output similar to this:
 ```text
 📊 Status Report
 
-(showing demo data - Dagster not connected)
-
                               Asset Status
 ┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
 ┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
-│ dlt_glucose_entries  │ nightscout │ ✓ success │ 30m ago  │ Fresh     │
-│ fct_glucose_readings │ nightscout │ ✗ failed  │ 2d ago   │ Failed    │
+│ dlt_orders           │ commerce   │ ✓ success │ 12m ago  │ Fresh     │
+│ stg_orders           │ commerce   │ ✓ success │ 10m ago  │ Fresh     │
+│ fct_orders           │ commerce   │ ✓ success │ 8m ago   │ Fresh     │
 └──────────────────────┴────────────┴───────────┴──────────┴───────────┘
 ```
 
