@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 import yaml
 
+from phlo.cli.commands.services.utils import get_enabled_disabled_service_names
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.utils import get_project_name
 from phlo.logging import get_logger
@@ -41,6 +42,7 @@ def list_cmd(show_all: bool, output_json: bool):
     """
     # Load phlo.yaml for user overrides
     config_file = Path.cwd() / "phlo.yaml"
+    existing_config: dict = {}
     user_overrides = {}
     logger.info(
         "services_list_requested",
@@ -51,7 +53,11 @@ def list_cmd(show_all: bool, output_json: bool):
         try:
             with open(config_file) as f:
                 existing_config = yaml.safe_load(f) or {}
+                if not isinstance(existing_config, dict):
+                    raise click.ClickException(f"{config_file} must contain a top-level mapping.")
                 user_overrides = existing_config.get("services", {})
+                if not isinstance(user_overrides, dict):
+                    user_overrides = {}
         except (OSError, yaml.YAMLError) as exc:
             logger.error(
                 "services_list_config_read_failed",
@@ -73,12 +79,8 @@ def list_cmd(show_all: bool, output_json: bool):
             "`phlo plugins list` for diagnostics."
         ) from exc
 
-    # Check which services are disabled
-    disabled_services = {
-        name
-        for name, cfg in user_overrides.items()
-        if isinstance(cfg, dict) and cfg.get("enabled") is False
-    }
+    # Check which services are disabled.
+    _, disabled_services = get_enabled_disabled_service_names(existing_config)
 
     # Collect inline custom services
     inline_services = []
