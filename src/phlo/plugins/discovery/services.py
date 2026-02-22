@@ -1,22 +1,514 @@
-"""Service discovery public compatibility layer."""
+"""
+Service Discovery Module
 
-from __future__ import annotations
+Discovers and loads service definitions from installed plugins and optional directories.
+"""
 
-from phlo.plugins.discovery._service_cycles import find_cycles as _find_cycles_impl
-from phlo.plugins.discovery._service_definition import ServiceDefinition
-from phlo.plugins.discovery._service_discovery import ServiceDiscovery
-from phlo.plugins.discovery._service_loading import (
-    is_service_yaml as _is_service_yaml_impl,
-)
-from phlo.plugins.discovery._service_loading import (
-    resolve_plugin_source_path as _resolve_plugin_source_path_impl,
-)
+from collections import deque
+from dataclasses import dataclass, field
+from importlib.util import find_spec
+from pathlib import Path
+from typing import Any
 
-_find_cycles = _find_cycles_impl
-_is_service_yaml = _is_service_yaml_impl
-_resolve_plugin_source_path = _resolve_plugin_source_path_impl
+import yaml
 
-__all__ = [
-    "ServiceDefinition",
-    "ServiceDiscovery",
-]
+from phlo.logging import get_logger, log_event
+from phlo.plugins.discovery.plugins import discover_plugins
+from phlo.plugins.discovery.registry import get_global_registry
+
+logger = get_logger(__name__)
+
+
+def _services_dir_label(services_dir: Path | None) -> str:
+    """Normalize the services directory path for structured observability fields."""
+    return str(services_dir) if services_dir else "<plugins-only>"
+
+
+def _emit_service_discovery_signal(
+    *,
+    event_name: str,
+    level: str,
+    services_dir: Path | None,
+    **fields: Any,
+) -> None:
+    """Emit a structured observability event for service discovery flows."""
+    log_event(
+        logger,
+        level,
+        event_name,
+        services_dir=_services_dir_label(services_dir),
+        **fields,
+    )
+
+
+def _find_cycles(nodes: set[str], graph: dict[str, set[str]]) -> list[list[str]]:
+    """Extract closed dependency cycles from a graph subset.
+
+    ``graph`` is built as ``dependency -> dependents``. Convert that into
+    ``service -> dependencies`` first so cycle paths read in "depends-on"
+    order for user-facing diagnostics.
+    """
+    dependencies: dict[str, set[str]] = {name: set() for name in nodes}
+    for dependency, dependents in graph.items():
+        for dependent in dependents & nodes:
+            dependencies[dependent].add(dependency)
+
+    cycles: list[list[str]] = []
+    seen_signatures: set[tuple[str, ...]] = set()
+
+    for start in sorted(nodes):
+        cycle = _find_cycle_from_start(start, dependencies, nodes)
+        if not cycle:
+            continue
+        signature = _canonical_cycle(cycle[:-1])
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        cycles.append(cycle)
+
+    return cycles
+
+
+def _find_cycle_from_start(
+    start: str, dependencies: dict[str, set[str]], allowed: set[str]
+) -> list[str] | None:
+    stack: list[tuple[str, list[str], set[str]]] = [(start, [start], {start})]
+
+    while stack:
+        current, path, seen = stack.pop()
+        for dep in sorted(dependencies.get(current, set())):
+            if dep not in allowed:
+                continue
+            if dep == start and len(path) > 1:
+                return path + [start]
+            if dep in seen:
+                continue
+            stack.append((dep, path + [dep], seen | {dep}))
+
+    return None
+
+
+def _canonical_cycle(cycle_nodes: list[str]) -> tuple[str, ...]:
+    if not cycle_nodes:
+        return tuple()
+
+    rotations = [tuple(cycle_nodes[i:] + cycle_nodes[:i]) for i in range(len(cycle_nodes))]
+    reverse = list(reversed(cycle_nodes))
+    rotations_reverse = [tuple(reverse[i:] + reverse[:i]) for i in range(len(reverse))]
+    return min(rotations + rotations_reverse)
+
+
+@dataclass(slots=True)
+class ServiceDefinition:
+    """Represents a parsed service.yaml definition."""
+
+    name: str
+    description: str
+    category: str = "core"
+    version: str = "latest"
+    default: bool = False
+    profile: str | None = None
+    depends_on: list[str] = field(default_factory=list)
+    image: str | None = None
+    build: dict[str, Any] | None = None
+    compose: dict[str, Any] = field(default_factory=dict)
+    env_vars: dict[str, dict[str, Any]] = field(default_factory=dict)
+    files: list[dict[str, str]] = field(default_factory=list)
+    gitignore: list[str] = field(default_factory=list)
+    hooks: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    dev: dict[str, Any] = field(default_factory=dict)  # Dev mode config (subprocess or Docker)
+    source_path: Path | None = None
+    phlo_dev: bool = False  # Services that receive phlo source mount in dev mode
+    core: bool = False  # Core services bundled with phlo (not plugins)
+
+    @classmethod
+    def from_yaml(cls, path: Path) -> "ServiceDefinition":
+        """Load a service definition from a YAML file."""
+        with open(path) as f:
+            data = yaml.safe_load(f)
+
+        # Determine source_path: explicit value or default to yaml directory
+        if data.get("source_path"):
+            # Explicit source_path is relative to phlo package root
+            phlo_root = Path(__file__).parent.parent.parent.parent  # phlo repo root
+            source_path = phlo_root / data["source_path"]
+        else:
+            source_path = path.parent
+
+        return cls(
+            name=data["name"],
+            description=data["description"],
+            category=data.get("category", "core"),
+            version=data.get("version", "latest"),
+            default=data.get("default", False),
+            profile=data.get("profile"),
+            depends_on=data.get("depends_on", []),
+            image=data.get("image"),
+            build=data.get("build"),
+            compose=data.get("compose", {}),
+            env_vars=data.get("env_vars", {}),
+            files=data.get("files", []),
+            gitignore=data.get("gitignore", []),
+            hooks=data.get("hooks", {}),
+            dev=data.get("dev", {}),
+            source_path=source_path,
+            phlo_dev=data.get("phlo_dev", False),
+            core=data.get("core", False),
+        )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any], source_path: Path | None) -> "ServiceDefinition":
+        """Load a service definition from a dictionary."""
+        return cls(
+            name=data["name"],
+            description=data.get("description", ""),
+            category=data.get("category", "core"),
+            version=data.get("version", "latest"),
+            default=data.get("default", False),
+            profile=data.get("profile"),
+            depends_on=data.get("depends_on", []),
+            image=data.get("image"),
+            build=data.get("build"),
+            compose=data.get("compose", {}),
+            env_vars=data.get("env_vars", {}),
+            files=data.get("files", []),
+            gitignore=data.get("gitignore", []),
+            hooks=data.get("hooks", {}),
+            dev=data.get("dev", {}),
+            source_path=source_path,
+            phlo_dev=data.get("phlo_dev", False),
+            core=data.get("core", False),
+        )
+
+    @classmethod
+    def from_inline(cls, name: str, config: dict[str, Any]) -> "ServiceDefinition":
+        """Create a ServiceDefinition from inline config in phlo.yaml.
+
+        Example phlo.yaml:
+            services:
+              custom-api:
+                type: inline
+                image: my-registry/api:latest
+                ports:
+                  - "4000:4000"
+                depends_on:
+                  - trino
+        """
+        # Build compose section from inline config
+        compose_keys = (
+            "user",
+            "container_name",
+            "labels",
+            "environment",
+            "ports",
+            "volumes",
+            "command",
+            "entrypoint",
+            "healthcheck",
+            "restart",
+            "mem_limit",
+            "mem_reservation",
+            "cpus",
+            "shm_size",
+        )
+        compose = {k: config[k] for k in compose_keys if k in config}
+
+        return cls(
+            name=name,
+            description=config.get("description", f"Custom service: {name}"),
+            category="custom",
+            default=True,  # Inline services are always included
+            depends_on=config.get("depends_on", []),
+            image=config.get("image"),
+            build=config.get("build"),
+            compose=compose,
+        )
+
+
+class ServiceDiscovery:
+    """Discovers and manages service definitions."""
+
+    def __init__(self, services_dir: Path | None = None):
+        """Initialize with an optional services directory.
+
+        Args:
+            services_dir: Optional path to additional service.yaml files. If None,
+                services are discovered exclusively from installed service plugins.
+        """
+        self.services_dir = services_dir
+        self._services: dict[str, ServiceDefinition] = {}
+        self._loaded = False
+
+    def discover(self, refresh: bool = False) -> dict[str, ServiceDefinition]:
+        """Discover all service definitions.
+
+        Args:
+            refresh: If ``True``, clear cached state and re-run discovery.
+
+        Returns:
+            Dictionary mapping service names to their definitions.
+        """
+        if refresh:
+            _emit_service_discovery_signal(
+                event_name="service_discovery_refresh_requested",
+                level="info",
+                services_dir=self.services_dir,
+                cached_service_count=len(self._services),
+                cache_loaded=self._loaded,
+            )
+            self.clear_cache()
+
+        if self._loaded:
+            _emit_service_discovery_signal(
+                event_name="service_discovery_cache_hit",
+                level="debug",
+                services_dir=self.services_dir,
+                service_count=len(self._services),
+            )
+            return self._services
+
+        _emit_service_discovery_signal(
+            event_name="service_discovery_cache_miss",
+            level="debug",
+            services_dir=self.services_dir,
+            refresh=refresh,
+        )
+
+        self._services = {}
+        plugin_service_count = self._load_service_plugins()
+        file_service_count = 0
+
+        # Then load filesystem services
+        if self.services_dir and self.services_dir.exists():
+            # Search for service.yaml files in all subdirectories
+            for yaml_path in self.services_dir.rglob("*.yaml"):
+                # Skip schema files and non-service files
+                if ".schema" in str(yaml_path):
+                    continue
+                if not self._is_service_yaml(yaml_path.name):
+                    continue
+
+                try:
+                    service = ServiceDefinition.from_yaml(yaml_path)
+                    if service.name in self._services:
+                        continue
+                    self._services[service.name] = service
+                    file_service_count += 1
+                except (yaml.YAMLError, KeyError) as e:
+                    _emit_service_discovery_signal(
+                        event_name="service_discovery_file_load_failed",
+                        level="warning",
+                        services_dir=self.services_dir,
+                        yaml_path=str(yaml_path),
+                        error=str(e),
+                        error_type=type(e).__name__,
+                    )
+
+        self._loaded = True
+        _emit_service_discovery_signal(
+            event_name="service_discovery_completed",
+            level="info",
+            services_dir=self.services_dir,
+            service_count=len(self._services),
+            plugin_service_count=plugin_service_count,
+            file_service_count=file_service_count,
+        )
+        return self._services
+
+    def clear_cache(self) -> None:
+        """Clear cached discovery state.
+
+        The next :meth:`discover` call will perform a full rediscovery.
+        """
+        cached_service_count = len(self._services)
+        was_loaded = self._loaded
+        self._services = {}
+        self._loaded = False
+        _emit_service_discovery_signal(
+            event_name="service_discovery_cache_cleared",
+            level="info",
+            services_dir=self.services_dir,
+            cached_service_count=cached_service_count,
+            cache_was_loaded=was_loaded,
+        )
+
+    def refresh(self) -> dict[str, ServiceDefinition]:
+        """Force rediscovery and return refreshed service definitions."""
+        return self.discover(refresh=True)
+
+    def _load_service_plugins(self) -> int:
+        """Load services from installed plugins."""
+        loaded_count = 0
+        discover_plugins(plugin_type="services", auto_register=True)
+        registry = get_global_registry()
+        for name in registry.list_services():
+            plugin = registry.get_service(name)
+            if not plugin:
+                continue
+            # Skip if already loaded as core service
+            if name in self._services:
+                logger.debug("plugin_service_skipped_core_exists", service_name=name)
+                continue
+            service_definition = plugin.service_definition
+            source_path = _resolve_plugin_source_path(plugin)
+            try:
+                service = ServiceDefinition.from_dict(service_definition, source_path)
+                self._services[service.name] = service
+                loaded_count += 1
+                loaded_count += self._load_companion_service_files(source_path)
+            except KeyError as exc:
+                _emit_service_discovery_signal(
+                    event_name="service_discovery_plugin_load_failed",
+                    level="warning",
+                    services_dir=self.services_dir,
+                    plugin_name=name,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+        return loaded_count
+
+    @staticmethod
+    def _is_service_yaml(filename: str) -> bool:
+        """Check if filename is a recognized service YAML pattern."""
+        return filename == "service.yaml" or filename.endswith(("-setup.yaml", "-daemon.yaml"))
+
+    def _load_companion_service_files(self, source_path: Path | None) -> int:
+        """Load companion service YAMLs (e.g., *-setup.yaml, *-daemon.yaml) from a package."""
+        if not source_path or not source_path.exists():
+            return 0
+
+        loaded_count = 0
+        for yaml_path in source_path.rglob("*.yaml"):
+            filename = yaml_path.name
+            if filename == "service.yaml":
+                continue
+            if not filename.endswith(("-setup.yaml", "-daemon.yaml")):
+                continue
+            try:
+                service = ServiceDefinition.from_yaml(yaml_path)
+                if service.name in self._services:
+                    continue
+                self._services[service.name] = service
+                loaded_count += 1
+            except (yaml.YAMLError, KeyError) as exc:
+                _emit_service_discovery_signal(
+                    event_name="service_discovery_companion_file_load_failed",
+                    level="warning",
+                    services_dir=self.services_dir,
+                    yaml_path=str(yaml_path),
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+        return loaded_count
+
+    def get_service(self, name: str) -> ServiceDefinition | None:
+        """Get a service definition by name."""
+        self.discover()
+        return self._services.get(name)
+
+    def get_default_services(
+        self, disabled_services: set[str] | None = None
+    ) -> list[ServiceDefinition]:
+        """Get all services marked as default, excluding disabled ones.
+
+        Args:
+            disabled_services: Set of service names to exclude.
+        """
+        self.discover()
+        disabled = disabled_services or set()
+        return [s for s in self._services.values() if s.default and s.name not in disabled]
+
+    def get_services_by_profile(self, profile: str) -> list[ServiceDefinition]:
+        """Get all services in a specific profile."""
+        self.discover()
+        return [s for s in self._services.values() if s.profile == profile]
+
+    def get_services_by_category(self, category: str) -> list[ServiceDefinition]:
+        """Get all services in a specific category."""
+        self.discover()
+        return [s for s in self._services.values() if s.category == category]
+
+    def get_available_profiles(self) -> set[str]:
+        """Get all available profile names."""
+        self.discover()
+        return {s.profile for s in self._services.values() if s.profile}
+
+    def resolve_dependencies(self, services: list[ServiceDefinition]) -> list[ServiceDefinition]:
+        """Resolve and sort services by dependencies (topological sort).
+
+        Args:
+            services: List of services to sort.
+
+        Returns:
+            List of services in dependency order (dependencies first).
+
+        Raises:
+            ValueError: If circular dependencies are detected.
+        """
+        self.discover()
+
+        # Build dependency graph
+        service_names = {s.name for s in services}
+        graph: dict[str, set[str]] = {}
+        in_degree: dict[str, int] = {}
+
+        for service in services:
+            graph[service.name] = set()
+            in_degree[service.name] = 0
+
+        for service in services:
+            for dep in service.depends_on:
+                if dep in service_names:
+                    graph[dep].add(service.name)
+                    in_degree[service.name] += 1
+
+        # Kahn's algorithm for topological sort
+        queue = deque(name for name, degree in in_degree.items() if degree == 0)
+        result: list[str] = []
+
+        while queue:
+            node = queue.popleft()
+            result.append(node)
+
+            for neighbor in graph[node]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        if len(result) != len(services):
+            remaining = set(in_degree.keys()) - set(result)
+            cycles = _find_cycles(remaining, graph)
+            cycle_detail = "; ".join(" → ".join(c) for c in cycles) if cycles else str(remaining)
+            raise ValueError(f"Circular dependency detected: {cycle_detail}")
+
+        # Return services in sorted order
+        name_to_service = {s.name: s for s in services}
+        return [name_to_service[name] for name in result]
+
+    def list_all(self) -> list[dict[str, Any]]:
+        """List all services with their metadata.
+
+        Returns:
+            List of service info dictionaries.
+        """
+        self.discover()
+        return [
+            {
+                "name": s.name,
+                "description": s.description,
+                "category": s.category,
+                "default": s.default,
+                "profile": s.profile,
+                "depends_on": s.depends_on,
+            }
+            for s in sorted(self._services.values(), key=lambda x: (x.category, x.name))
+        ]
+
+
+def _resolve_plugin_source_path(plugin: Any) -> Path | None:
+    module_name = plugin.__class__.__module__
+    package_name = module_name.split(".", 1)[0]
+    spec = find_spec(package_name)
+    if not spec or not spec.origin:
+        return None
+    return Path(spec.origin).parent

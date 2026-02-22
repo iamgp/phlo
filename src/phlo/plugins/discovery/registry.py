@@ -1,4 +1,9 @@
-"""Plugin registry for managing loaded plugins."""
+"""
+Plugin registry for managing loaded plugins.
+
+The registry maintains a catalog of discovered plugins and provides
+methods for accessing them by name and type.
+"""
 
 from __future__ import annotations
 
@@ -15,16 +20,31 @@ from phlo.plugins.base import (
     SourceConnectorPlugin,
     TransformationPlugin,
 )
-from phlo.plugins.discovery._registry_constants import TYPE_CONFIG
-from phlo.plugins.discovery._registry_metadata import plugin_metadata_to_dict
-from phlo.plugins.discovery._registry_validation import validate_plugin_interface
 from phlo.plugins.hooks import HookPlugin
 
 logger = get_logger(__name__)
 
+_TYPE_CONFIG = {
+    "source_connectors": ("_sources", "source", "Source connector"),
+    "quality_checks": ("_quality_checks", "quality", "Quality check"),
+    "transformations": ("_transformations", "transformation", "Transformation"),
+    "services": ("_services", "service", "Service"),
+    "cli_commands": ("_cli_commands", "cli", "CLI command"),
+    "hooks": ("_hooks", "hooks", "Hook"),
+    "asset_providers": ("_assets", "assets", "Asset provider"),
+    "resource_providers": ("_resources", "resources", "Resource provider"),
+    "orchestrators": ("_orchestrators", "orchestrators", "Orchestrator"),
+    "catalogs": ("_catalogs", "catalogs", "Catalog"),
+}
+
 
 class PluginRegistry:
-    """Central registry for Phlo plugins."""
+    """
+    Central registry for Phlo plugins.
+
+    The registry maintains separate catalogs for each plugin type
+    and provides methods for registering and retrieving plugins.
+    """
 
     def __init__(self):
         """Initialize empty plugin registry."""
@@ -42,7 +62,7 @@ class PluginRegistry:
 
     def _register_plugin(self, plugin_type: str, plugin: Plugin, replace: bool = False) -> None:
         """Register a plugin of any type."""
-        config = TYPE_CONFIG.get(plugin_type)
+        config = _TYPE_CONFIG.get(plugin_type)
         if not config:
             logger.error("plugin_registration_unknown_type", plugin_type=plugin_type)
             raise ValueError(f"Unknown plugin type: {plugin_type}")
@@ -59,7 +79,7 @@ class PluginRegistry:
             )
             raise ValueError(
                 f"{type_label} plugin '{name}' is already registered. "
-                "Use replace=True to overwrite."
+                f"Use replace=True to overwrite."
             )
 
         plugin_dict[name] = plugin
@@ -119,14 +139,14 @@ class PluginRegistry:
 
     def get(self, plugin_type: str, name: str) -> Plugin | None:
         """Get a plugin by type and name."""
-        config = TYPE_CONFIG.get(plugin_type)
+        config = _TYPE_CONFIG.get(plugin_type)
         if not config:
             return None
         return getattr(self, config[0]).get(name)
 
     def list(self, plugin_type: str) -> list[str]:
         """List all plugins of a given type."""
-        config = TYPE_CONFIG.get(plugin_type)
+        config = _TYPE_CONFIG.get(plugin_type)
         if not config:
             return []
         return list(getattr(self, config[0]).keys())
@@ -217,15 +237,37 @@ class PluginRegistry:
 
     def list_all_plugins(self) -> dict[str, list[str]]:
         """List all registered plugins by type."""
-        return {plugin_type: self.list(plugin_type) for plugin_type in TYPE_CONFIG}
+        return {ptype: self.list(ptype) for ptype in _TYPE_CONFIG}
 
     def clear(self) -> None:
         """Clear all registered plugins."""
         total = len(self._all_plugins)
-        for config in TYPE_CONFIG.values():
+        cleaned = 0
+        cleanup_failures = 0
+        cleaned_plugin_ids: set[int] = set()
+
+        for plugin_key, plugin in list(self._all_plugins.items()):
+            plugin_id = id(plugin)
+            if plugin_id in cleaned_plugin_ids:
+                continue
+            cleaned_plugin_ids.add(plugin_id)
+            try:
+                plugin.cleanup()
+                cleaned += 1
+            except Exception:
+                cleanup_failures += 1
+                logger.warning("plugin_cleanup_failed", plugin_key=plugin_key, exc_info=True)
+
+        for config in _TYPE_CONFIG.values():
             getattr(self, config[0]).clear()
         self._all_plugins.clear()
-        logger.debug("plugin_registry_cleared", previous_total=total)
+        logger.debug(
+            "plugin_registry_cleared",
+            previous_total=total,
+            unique_plugins=len(cleaned_plugin_ids),
+            cleaned_plugins=cleaned,
+            cleanup_failures=cleanup_failures,
+        )
 
     def iter_plugins(self) -> list[Plugin]:
         """Return all registered plugin instances."""
@@ -240,20 +282,97 @@ class PluginRegistry:
         return key in self._all_plugins
 
     def get_plugin_metadata(self, plugin_type: str, name: str) -> dict | None:
-        """Get metadata for a plugin by type and name."""
+        """
+        Get metadata for a plugin by type and name.
+
+        Args:
+            plugin_type: Plugin type ("source_connectors", "quality_checks", "transformations",
+                "services", "catalogs")
+            name: Plugin name
+
+        Returns:
+            Dictionary with plugin metadata or None if not found
+        """
         plugin = self.get(plugin_type, name)
         if not plugin:
             return None
-        return plugin_metadata_to_dict(plugin)
+
+        metadata = plugin.metadata
+        return {
+            "name": metadata.name,
+            "version": metadata.version,
+            "description": metadata.description,
+            "author": metadata.author,
+            "license": metadata.license,
+            "homepage": metadata.homepage,
+            "tags": metadata.tags,
+            "dependencies": metadata.dependencies,
+            "requires_capabilities": metadata.requires_capabilities,
+            "optional_capabilities": metadata.optional_capabilities,
+        }
 
     def validate_plugin(self, plugin: Plugin) -> bool:
-        """Validate plugin interface compliance."""
-        return validate_plugin_interface(plugin, logger)
+        """
+        Validate plugin interface compliance.
+
+        Args:
+            plugin: Plugin instance to validate
+
+        Returns:
+            True if plugin is valid, False otherwise
+        """
+        # Check required attributes
+        if not hasattr(plugin, "metadata"):
+            return False
+
+        try:
+            metadata = plugin.metadata
+            # Check required metadata fields
+            if not all(hasattr(metadata, f) for f in ("name", "version")):
+                return False
+        except Exception:
+            logger.debug("plugin_validation_metadata_access_failed", exc_info=True)
+            return False
+
+        # Type-specific validation
+        if isinstance(plugin, SourceConnectorPlugin):
+            return hasattr(plugin, "fetch_data") and callable(plugin.fetch_data)
+        elif isinstance(plugin, QualityCheckPlugin):
+            return hasattr(plugin, "create_check") and callable(plugin.create_check)
+        elif isinstance(plugin, TransformationPlugin):
+            return hasattr(plugin, "transform") and callable(plugin.transform)
+        elif isinstance(plugin, ServicePlugin):
+            try:
+                service_definition = plugin.service_definition
+            except Exception:
+                logger.debug("plugin_validation_service_definition_failed", exc_info=True)
+                return False
+            return isinstance(service_definition, dict)
+        elif isinstance(plugin, HookPlugin):
+            return hasattr(plugin, "get_hooks") and callable(plugin.get_hooks)
+        elif isinstance(plugin, AssetProviderPlugin):
+            return hasattr(plugin, "get_assets") and callable(plugin.get_assets)
+        elif isinstance(plugin, ResourceProviderPlugin):
+            return hasattr(plugin, "get_resources") and callable(plugin.get_resources)
+        elif isinstance(plugin, OrchestratorAdapterPlugin):
+            return hasattr(plugin, "build_definitions") and callable(plugin.build_definitions)
+        elif isinstance(plugin, CatalogPlugin):
+            has_catalog = hasattr(plugin, "catalog_name")
+            has_targets = hasattr(plugin, "targets")
+            has_properties = hasattr(plugin, "get_properties") and callable(plugin.get_properties)
+            return has_catalog and has_targets and has_properties
+        return True
 
 
+# Global registry instance
 _global_registry = PluginRegistry()
 
 
 def get_global_registry() -> PluginRegistry:
-    """Get the global plugin registry instance."""
+    """
+    Get the global plugin registry instance.
+
+    Returns:
+        Global PluginRegistry instance
+    """
     return _global_registry

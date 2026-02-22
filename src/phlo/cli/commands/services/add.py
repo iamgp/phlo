@@ -11,6 +11,7 @@ from phlo.cli.commands.services.utils import (
     PHLO_CONFIG_FILE,
     _regenerate_compose,
     get_phlo_dir,
+    normalize_services_enabled_disabled_config,
 )
 from phlo.cli.infrastructure.command import run_command
 from phlo.cli.infrastructure.compose import compose_base_cmd
@@ -81,31 +82,25 @@ def add_cmd(service_name: str, no_start: bool):
     service = all_services[service_name]
 
     # Update config
-    if not isinstance(config.get("services"), dict):
-        config["services"] = {}
-    if not isinstance(config["services"].get("enabled"), list):
-        config["services"]["enabled"] = []
-    if not isinstance(config["services"].get("disabled"), list):
-        config["services"]["disabled"] = []
+    enabled, disabled = normalize_services_enabled_disabled_config(config)
+    canonical_service_name = service.name
 
-    enabled = config["services"]["enabled"]
-    disabled = config["services"]["disabled"]
-
-    is_enabled = service_name in enabled
-    is_disabled = service_name in disabled
+    is_enabled = canonical_service_name in enabled
+    is_disabled = canonical_service_name in disabled
 
     if is_enabled and not is_disabled:
-        logger.info("services_add_already_enabled", service_name=service_name)
-        click.echo(f"Service '{service_name}' is already enabled.")
+        logger.info("services_add_already_enabled", service_name=canonical_service_name)
+        click.echo(f"Service '{canonical_service_name}' is already enabled.")
         return
 
     if not is_enabled:
-        enabled.append(service_name)
+        enabled.append(canonical_service_name)
     if is_disabled:
-        disabled = [name for name in disabled if name != service_name]
+        disabled = [name for name in disabled if name != canonical_service_name]
 
-    config["services"]["enabled"] = sorted(set(enabled))
-    config["services"]["disabled"] = sorted(set(disabled))
+    config["services"]["enabled"] = enabled
+    config["services"]["disabled"] = disabled
+    normalize_services_enabled_disabled_config(config)
 
     # Write updated config
     with open(config_file, "w") as f:

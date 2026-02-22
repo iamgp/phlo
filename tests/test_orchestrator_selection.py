@@ -12,6 +12,8 @@ from phlo.config import _get_config
 from phlo.exceptions import PhloConfigError
 from phlo.orchestrators.selection import get_active_orchestrator
 
+pytestmark = pytest.mark.core_regression
+
 
 @pytest.fixture(autouse=True)
 def clear_settings_cache() -> None:

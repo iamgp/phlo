@@ -102,6 +102,38 @@ Each service package includes a `service.yaml` that declares:
 The `ServiceDiscovery` system collects these into `ServiceDefinition` objects that
 `ComposeGenerator` and `NativeProcessManager` consume.
 
+## ServiceDiscovery cache APIs
+
+`ServiceDiscovery` caches discovered service definitions per instance.
+
+| API | Behavior |
+| --- | --- |
+| `discover()` | Return cached definitions if already loaded. |
+| `discover(refresh=True)` | Clear cache, then rediscover and return new definitions. |
+| `clear_cache()` | Invalidate cached definitions; next `discover()` reloads. |
+| `refresh()` | Alias for `discover(refresh=True)`. |
+
+```python
+from phlo.plugins.discovery import ServiceDiscovery
+
+discovery = ServiceDiscovery()
+
+first = discovery.discover()   # loads and caches
+cached = discovery.discover()  # same in-memory map
+assert cached is first
+
+# Option 1: force reload inline
+reloaded = discovery.discover(refresh=True)
+assert reloaded is not first
+
+# Option 2: explicit cache invalidation
+discovery.clear_cache()
+reloaded_again = discovery.discover()
+
+# Option 3: refresh alias
+latest = discovery.refresh()
+```
+
 ## Environment file generation
 
 Generated files in `.phlo/`:
