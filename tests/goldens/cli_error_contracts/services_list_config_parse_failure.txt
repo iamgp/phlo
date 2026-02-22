@@ -1,0 +1,4 @@
+exit_code=1
+output<<EOF
+Error: Failed to read <PROJECT_ROOT>/phlo.yaml. Check YAML syntax and file permissions, then retry.
+EOF
