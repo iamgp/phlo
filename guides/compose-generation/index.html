@@ -908,6 +908,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servicediscovery-cache-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceDiscovery cache APIs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environment-file-generation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1499,6 +1510,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servicediscovery-cache-apis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ServiceDiscovery cache APIs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#environment-file-generation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1664,6 +1686,53 @@ on regeneration.</p>
 </ul>
 <p>The <code>ServiceDiscovery</code> system collects these into <code>ServiceDefinition</code> objects that
 <code>ComposeGenerator</code> and <code>NativeProcessManager</code> consume.</p>
+<h2 id="servicediscovery-cache-apis">ServiceDiscovery cache APIs</h2>
+<p><code>ServiceDiscovery</code> caches discovered service definitions per instance.</p>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>discover()</code></td>
+<td>Return cached definitions if already loaded.</td>
+</tr>
+<tr>
+<td><code>discover(refresh=True)</code></td>
+<td>Clear cache, then rediscover and return new definitions.</td>
+</tr>
+<tr>
+<td><code>clear_cache()</code></td>
+<td>Invalidate cached definitions; next <code>discover()</code> reloads.</td>
+</tr>
+<tr>
+<td><code>refresh()</code></td>
+<td>Alias for <code>discover(refresh=True)</code>.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-python">from phlo.plugins.discovery import ServiceDiscovery
+
+discovery = ServiceDiscovery()
+
+first = discovery.discover()   # loads and caches
+cached = discovery.discover()  # same in-memory map
+assert cached is first
+
+# Option 1: force reload inline
+reloaded = discovery.discover(refresh=True)
+assert reloaded is not first
+
+# Option 2: explicit cache invalidation
+discovery.clear_cache()
+reloaded_again = discovery.discover()
+
+# Option 3: refresh alias
+latest = discovery.refresh()
+</code></pre>
 <h2 id="environment-file-generation">Environment file generation</h2>
 <p>Generated files in <code>.phlo/</code>:</p>
 <table>

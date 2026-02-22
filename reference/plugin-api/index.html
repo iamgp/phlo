@@ -2893,7 +2893,8 @@ hello = &quot;my_package.cli:MyCliPlugin&quot;
 <p>The entry point <strong>name</strong> becomes the plugin identifier. The <strong>value</strong> points to the plugin class (which is instantiated automatically during discovery).</p>
 <h3 id="discovery-behavior">Discovery behavior</h3>
 <ul>
-<li>Plugins are auto-discovered on import unless <code>PHLO_NO_AUTO_DISCOVER=1</code> is set.</li>
+<li>Auto-discovery defaults to <code>plugins_auto_discover=true</code>.</li>
+<li><code>PHLO_NO_AUTO_DISCOVER</code> has disable precedence (truthy disables, falsy does not disable).</li>
 <li>Plugins can be filtered via <code>plugins_whitelist</code> / <code>plugins_blacklist</code> in settings.</li>
 <li>Discovery validates that each plugin is an instance of the expected base class for its entry point group.</li>
 </ul>

@@ -1858,6 +1858,7 @@ phlo services init --dev --phlo-source /path/to/phlo
 <p><strong>Options</strong>:</p>
 <pre><code class="language-bash">--native                 # Run native dev services (phlo-api, Observatory) as subprocesses
 --profile PROFILE        # Additional service profiles
+--service SERVICE        # Start only specific service(s)
 --detach, -d             # Run in background
 --build                  # Rebuild containers before starting
 </code></pre>
@@ -1886,6 +1887,14 @@ phlo services start --profile observability --profile api
 
 # Rebuild and start
 phlo services start --build
+</code></pre>
+<p><strong>Validation behavior</strong>:</p>
+<ul>
+<li><code>--profile</code> values are validated before Docker commands are executed.</li>
+<li>Unknown profiles fail fast with a <code>ClickException</code> that includes valid options.</li>
+</ul>
+<pre><code class="language-bash">phlo services start --profile not-a-profile
+# Error: Invalid profile: not-a-profile. Valid profile options: api, observability
 </code></pre>
 <p><strong>Services started</strong>:</p>
 <ul>
@@ -1932,6 +1941,19 @@ phlo services stop --service postgres,minio
 phlo services list --all
 phlo services list --json
 </code></pre>
+<p><strong>Error behavior</strong>:</p>
+<ul>
+<li>Invalid <code>phlo.yaml</code> is surfaced with a targeted message:</li>
+</ul>
+<pre><code class="language-bash">phlo services list --json
+# Error: Failed to read /path/to/phlo.yaml. Check YAML syntax and file permissions, then retry.
+</code></pre>
+<ul>
+<li>Discovery failures include next-step diagnostics:</li>
+</ul>
+<pre><code class="language-bash">phlo services list --json
+# Error: Failed to discover services. Verify service plugins are installed and run `phlo plugins list` for diagnostics.
+</code></pre>
 <h3 id="phlo-services-add">phlo services add</h3>
 <p>Add an optional service to the project.</p>
 <pre><code class="language-bash">phlo services add SERVICE_NAME [OPTIONS]
@@ -1943,6 +1965,26 @@ phlo services list --json
 <pre><code class="language-bash">phlo services add prometheus
 phlo services add grafana --no-start
 </code></pre>
+<p><strong>State semantics</strong>:</p>
+<ul>
+<li><code>add</code> ensures the service is present in <code>services.enabled</code>.</li>
+<li><code>add</code> removes that service from <code>services.disabled</code> if present.</li>
+<li>If already enabled and not disabled, command exits without changing config.</li>
+</ul>
+<pre><code class="language-yaml"># Before
+services:
+  enabled: []
+  disabled:
+    - prometheus
+</code></pre>
+<pre><code class="language-bash">phlo services add prometheus --no-start
+</code></pre>
+<pre><code class="language-yaml"># After
+services:
+  enabled:
+    - prometheus
+  disabled: []
+</code></pre>
 <h3 id="phlo-services-remove">phlo services remove</h3>
 <p>Remove a service from the project.</p>
 <pre><code class="language-bash">phlo services remove SERVICE_NAME [OPTIONS]
@@ -1953,6 +1995,26 @@ phlo services add grafana --no-start
 <p><strong>Examples</strong>:</p>
 <pre><code class="language-bash">phlo services remove prometheus
 phlo services remove grafana --keep-running
+</code></pre>
+<p><strong>State semantics</strong>:</p>
+<ul>
+<li><code>remove</code> removes the service from <code>services.enabled</code>.</li>
+<li><code>remove</code> adds the service to <code>services.disabled</code>.</li>
+<li>By default it stops the service first; <code>--keep-running</code> skips the stop step.</li>
+</ul>
+<pre><code class="language-yaml"># Before
+services:
+  enabled:
+    - prometheus
+  disabled: []
+</code></pre>
+<pre><code class="language-bash">phlo services remove prometheus --keep-running
+</code></pre>
+<pre><code class="language-yaml"># After
+services:
+  enabled: []
+  disabled:
+    - prometheus
 </code></pre>
 <h3 id="phlo-services-reset">phlo services reset</h3>
 <p>Reset infrastructure by stopping services and deleting volumes.</p>

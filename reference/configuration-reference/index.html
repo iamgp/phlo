@@ -2826,6 +2826,25 @@ PLUGIN_REGISTRY_URL=https://registry.phlohouse.com/plugins.json
 PLUGIN_REGISTRY_CACHE_TTL_SECONDS=3600
 PLUGIN_REGISTRY_TIMEOUT_SECONDS=10
 </code></pre>
+<p><code>PLUGINS_AUTO_DISCOVER</code> is the default switch. <code>PHLO_NO_AUTO_DISCOVER</code> has disable
+override precedence at runtime:</p>
+<ul>
+<li>Truthy values disable auto-discovery (<code>1</code>, <code>true</code>, <code>yes</code>, <code>on</code>).</li>
+<li>Falsy values do not disable (<code>0</code>, <code>false</code>, <code>no</code>, <code>off</code>).</li>
+<li>Any other non-empty value is treated as disable and logged as invalid.</li>
+</ul>
+<pre><code class="language-bash"># Disabled (env override wins)
+PLUGINS_AUTO_DISCOVER=true
+PHLO_NO_AUTO_DISCOVER=1
+
+# Enabled (falsy env does not disable)
+PLUGINS_AUTO_DISCOVER=true
+PHLO_NO_AUTO_DISCOVER=0
+
+# Disabled (settings already false; env cannot force enable)
+PLUGINS_AUTO_DISCOVER=false
+PHLO_NO_AUTO_DISCOVER=0
+</code></pre>
 <h2 id="infrastructure-configuration-phloyaml">Infrastructure Configuration (phlo.yaml)</h2>
 <p>Project-level configuration in <code>phlo.yaml</code>:</p>
 <pre><code class="language-yaml">name: my-project
