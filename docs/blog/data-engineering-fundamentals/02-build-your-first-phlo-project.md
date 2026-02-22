@@ -15,6 +15,12 @@
 - Python 3.11+
 - `phlo` installed in your environment
 
+For this series, use a real public demo source so orchestration commands are runnable end-to-end:
+
+- API: `https://fakestoreapi.com`
+- Resource path: `products`
+- Primary key in raw schema: `id`
+
 ## Initialize the Project
 
 ```bash
@@ -45,6 +51,7 @@ my-first-phlo-project/
 
 ```bash
 phlo services init --force
+phlo services start
 phlo services list --json
 ```
 
@@ -52,6 +59,7 @@ On a healthy setup, you will see something similar:
 
 ```text
 Generated service configuration under .phlo/.
+Starting services...
 ```
 
 Check runtime inventory:
@@ -81,7 +89,7 @@ If Docker and the stack are up, you should see core services reported as healthy
 ## Create Your First Ingestion Asset
 
 ```bash
-phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *" --api-base-url "https://api.example.com"
+phlo workflow create --type ingestion --domain commerce --table orders --unique-key id --cron "0 * * * *" --api-base-url "https://fakestoreapi.com"
 phlo logs --limit 20
 ```
 
@@ -155,91 +163,6 @@ Example first-day checklist:
 5. Confirm schema and workflow validation commands run.
 ```
 
-
-## Guided Walkthrough: From Empty Directory to Ready Platform
-
-Step 1: Initialize
-
-```bash
-phlo init my-first-phlo-project
-cd my-first-phlo-project
-```
-
-In most setups, the output will look similar to this:
-
-```text
-Project scaffold created with phlo.yaml, workflows/, and tests/.
-```
-
-Step 2: Inspect generated config
-
-```bash
-cat phlo.yaml
-```
-
-
-Step 3: Initialize service composition
-
-```bash
-phlo services init --force
-```
-
-You should see something like this:
-
-```text
-Command completed successfully.
-```
-
-Step 4: Start services
-
-```bash
-phlo services list --json
-```
-
-
-Step 5: Verify running state
-
-```bash
-phlo services list --json
-```
-
-A typical result looks like this:
-
-```text
-[
-  {"name": "minio", "category": "core", "default": true},
-  {"name": "dagster", "category": "core", "default": true}
-]
-```
-
-Step 6: Validate workflow tooling
-
-```bash
-phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *" --api-base-url "https://api.example.com"
-```
-
-
-Step 7: Validate generated workflow contract
-
-```bash
-phlo logs --limit 20
-```
-
-If everything is wired correctly, you should see output along these lines:
-
-```text
-Created ingestion workflow scaffold under workflows/ingestion/<domain>/<table>.py.
-```
-
-At this point, you have the minimum viable platform loop:
-
-- project setup
-- services
-- workflow scaffold
-- validation
-
-That loop is your baseline for all future work.
-
 ## Naming Conventions That Save Time Later
 
 Recommended choices from day one:
@@ -311,7 +234,7 @@ Use a domain you care about, for example "subscriptions".
 Run:
 
 ```bash
-phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key invoice_id --cron "0 */2 * * *" --api-base-url "https://api.example.com"
+phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key id --cron "0 */2 * * *" --api-base-url "https://fakestoreapi.com"
 phlo logs --limit 20
 phlo schema list --format table
 ```
@@ -382,136 +305,6 @@ Created ingestion workflow scaffold under workflows/ingestion/<domain>/<table>.p
 ```
 
 When onboarding pain is low, platform adoption rises naturally.
-
-## Extended Guide: Configuration Hygiene from Day One
-
-Most long-term instability comes from drifting configuration, not missing features.
-
-Use these guardrails:
-
-- Keep project config in `phlo.yaml` and treat it as reviewed code.
-- Avoid hidden one-off local tweaks that are never documented.
-- Keep secret material out of tracked files.
-- Prefer environment variable naming that is explicit and discoverable.
-
-A clear config review question set:
-
-1. Is this environment-specific or globally expected?
-2. Is this value safe to commit?
-3. What fails if this key is missing?
-4. Should this change require a runbook update?
-
-Configuration examples should include expected output in docs:
-
-```yaml
-services:
-  dagster:
-    enabled: true
-  trino:
-    enabled: true
-```
-
-
-If a setting changes runtime behaviour, write a one-line rationale near the change.
-
-## Extended Guide: First-Week Project Milestones
-
-Week-one milestones for a new Phlo project:
-
-Day 1:
-
-- Setup complete
-- Services healthy
-- One scaffolded workflow exists
-
-Day 2:
-
-- One ingestion asset materialized successfully
-- One schema validated
-
-Day 3:
-
-- One dbt model runs and tests pass
-- One quality check integrated
-
-Day 4:
-
-- Status/logs/metrics baseline captured
-- One backfill dry-run validated
-
-Day 5:
-
-- Team runbook updated with known issues
-- Ownership map documented
-
-This pace is realistic for small teams and creates strong foundations.
-
-## Extended Guide: How to Explain the Project to Stakeholders
-
-Non-data stakeholders often ask, "When can we trust the numbers?"
-
-A helpful answer:
-
-- We trust numbers when ingestion, transformation, and quality checks all pass.
-- We can prove this with status, logs, metrics, and lineage traces.
-- We can safely replay data when source issues are fixed.
-
-This framing shifts conversation from "is pipeline done" to "is data product reliable."
-
-## Extended Guide: Preparing for Scale Early
-
-You do not need enterprise complexity on day one. But you do need choices that do not block growth.
-
-Scale-friendly choices now:
-
-- Stable naming conventions
-- Partition-aware ingestion contracts
-- Explicit quality checks
-- Branch-based table change process
-- Basic incident response template
-
-These are small commitments with large long-term payoffs.
-
-## Quick Self-Assessment
-
-Score each item from 0 (not started) to 2 (solid):
-
-- Setup reproducibility
-- Service startup reliability
-- Workflow scaffold quality
-- Contract validation usage
-- Team onboarding speed
-
-Total score guide:
-
-- 0-3: setup still fragile
-- 4-7: functional but risky
-- 8-10: strong baseline for feature development
-
-Use this as a checkpoint before scaling the number of workflows.
-
-## Mini Case Study: Setup Debt vs Setup Discipline
-
-Two teams start the same quarter.
-
-Team A treats setup as temporary and undocumented. Team B treats setup as an engineering artifact and writes clear startup checks.
-
-After six weeks:
-
-- Team A spends significant time on "works on my machine" failures.
-- Team B onboards new engineers quickly and spends time on product features.
-
-The codebases may look similar, but operational behaviour diverges heavily.
-
-This is why setup quality is not optional polish. It is foundational throughput.
-
-If you remember one principle from this post, use this:
-
-make startup paths boring, deterministic, and documented. Boring setup is what lets the interesting platform work move fast.
-
-That single discipline compounds across every new workflow, every onboarding session, and every incident you will handle later.
-It is one of the few early habits that scales without rework.
-Keep it deliberate and consistent across teams.
 
 ## Hands-On Exercise
 

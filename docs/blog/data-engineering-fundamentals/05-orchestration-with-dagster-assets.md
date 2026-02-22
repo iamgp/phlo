@@ -38,45 +38,55 @@ graph TD
 ## Targeted Materialization
 
 ```bash
-phlo services list --json
+phlo materialize dlt_orders --partition 2025-01-15
 ```
+
+Run one partition materialization before any backfill. This confirms source reachability and schema compatibility on a small blast radius.
 
 You should get output similar to this:
 
 ```text
-[{"name": "minio", "category": "core", "default": true}, ...]
+Materializing dlt_orders...
+
+Successfully materialized dlt_orders
 ```
 
 Selector-based execution:
 
 ```bash
-phlo services list --json
+phlo materialize --select "tag:commerce"
 ```
 
 
 ## Backfill with Control
 
 ```bash
-phlo status --services
+phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-07 --parallel 2
 ```
 
 In most setups, the output will look similar to this:
 
 ```text
-[{"name": "minio", "category": "core", "default": true}, ...]
+📦 Asset Backfill
+
+Asset: dlt_orders
+Total partitions: 7
+Parallel workers: 2
+
+✓ Backfill complete!
 ```
 
 Dry-run before expensive ranges:
 
 ```bash
-phlo status --services
+phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-31 --dry-run
 ```
 
 
 ## Runtime Visibility Commands
 
 ```bash
-phlo status --services
+phlo materialize dlt_orders --partition 2025-01-15
 phlo logs --limit 20
 ```
 
@@ -129,7 +139,7 @@ Use narrow scope by default:
 Example scoped execution:
 
 ```bash
-phlo services list --json
+phlo materialize dlt_orders --partition 2025-01-15
 ```
 
 
@@ -156,13 +166,19 @@ Use staged scaling:
 Command sequence:
 
 ```bash
-phlo status --services
+phlo backfill dlt_orders --start-date 2025-01-10 --end-date 2025-01-12 --parallel 1
 ```
 
 A typical result looks like this:
 
 ```text
-[{"name": "minio", "category": "core", "default": true}, ...]
+📦 Asset Backfill
+
+Asset: dlt_orders
+Total partitions: 3
+Parallel workers: 1
+
+✓ Backfill complete!
 ```
 
 Backfill safety is less about raw speed and more about controlled confidence.
@@ -186,7 +202,7 @@ Supporting commands:
 
 ```bash
 phlo logs --limit 20
-phlo status --services
+phlo backfill dlt_orders --start-date 2025-01-13 --end-date 2025-01-18 --parallel 3
 ```
 
 
@@ -232,7 +248,7 @@ phlo metrics asset dlt_orders --runs 30
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-Usage: phlo logs [OPTIONS]
+Service health and metrics summary output.
 ```
 
 Without this review, orchestration reliability regresses quietly.
@@ -414,7 +430,7 @@ phlo logs --limit 20
 On a healthy setup, you will see something similar:
 
 ```text
-Command completed successfully.
+Service health table with status for old and new asset selectors.
 ```
 
 The point is not naming itself; it is controlled operational change.
@@ -454,21 +470,6 @@ That simple practice often reveals hidden assumptions in partitioning, ownership
 Fixing those assumptions early has outsized impact on reliability.
 Then run the same drill with another teammate so knowledge is shared and not person-dependent.
 Shared operational confidence is a major indicator that your orchestration layer is maturing well.
-
-As you continue this series, keep revisiting your orchestration choices.
-The right settings for five assets may not be right for fifty.
-Regular review keeps your system intentional as complexity grows.
-Intentional orchestration is one of the clearest signs of a healthy data platform.
-It reduces surprises, shortens incident duration, and helps teams deliver dependable data at a sustainable pace.
-Keep refining it as your asset graph and team responsibilities expand.
-That steady refinement is how orchestration evolves from "job runner" to true reliability platform.
-Done well, it becomes a major advantage for delivery speed and user trust.
-Use it deliberately, and your platform will stay manageable under growth.
-That is the long game.
-Build the habit now and it will compound.
-Your future self will thank you.
-So will your on-call teammates.
-Seriously.
 
 ## Hands-On Exercise
 

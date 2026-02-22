@@ -71,6 +71,34 @@ group by 1
 ```
 
 
+## Deep Dive: Partition Pruning and Scan Reduction
+
+The largest performance gains usually come from reducing data scanned, not faster compute.
+
+Iceberg partition pruning eliminates irrelevant files before query execution. To benefit:
+
+1. Align partition keys with common query filters (usually date).
+2. Keep partition granularity matched to query patterns.
+3. Use `WHERE` clauses that reference partition columns directly.
+
+Example — a query that benefits from pruning:
+
+```sql
+select sum(total_amount) as revenue
+from silver.fct_orders
+where order_date between date '2025-01-01' and date '2025-01-31'
+```
+
+If `fct_orders` is partitioned by `order_date`, Iceberg skips all files outside that range.
+
+Measure scan reduction with:
+
+```bash
+phlo metrics asset fct_orders --runs 10
+```
+
+Compare row counts and durations before and after adding partition-aligned filters. A 10x scan reduction is common for well-partitioned tables with date filters.
+
 ## Cost-Aware Architecture Sketch
 
 ```mermaid

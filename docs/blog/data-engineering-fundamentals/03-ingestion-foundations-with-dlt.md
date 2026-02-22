@@ -4,7 +4,7 @@
 
 ## What You'll Learn
 
-- How `@phlo.ingestion` turns a source function into a managed asset
+- How `@phlo_ingestion` turns a source function into a managed asset
 - Why two-step ingestion (stage then merge) improves reliability
 - How to choose `merge` vs `append`
 - How partition keys affect replay and idempotency
@@ -30,14 +30,13 @@ In this post, `RawOrders` is the raw-zone contract for one order record:
 ```python
 import pandera as pa
 from pandera.typing import Series
-from phlo_quality.schemas.base import PhloSchema
+from phlo_quality.schemas import PhloSchema
 
 class RawOrders(PhloSchema):
-    order_id: Series[str] = pa.Field(nullable=False)
-    order_timestamp: Series[str] = pa.Field(nullable=False)
-    customer_id: Series[str] = pa.Field(nullable=False)
-    currency: Series[str] = pa.Field(nullable=False)
-    total_amount: Series[float] = pa.Field(ge=0, nullable=False)
+    id: Series[int] = pa.Field(nullable=False)
+    title: Series[str] = pa.Field(nullable=False)
+    price: Series[float] = pa.Field(ge=0, nullable=False)
+    category: Series[str] = pa.Field(nullable=False)
 ```
 
 Put that in `workflows/schemas/orders.py`, then import it into your ingestion module.
@@ -46,12 +45,12 @@ A simplified workflow example:
 
 ```python
 from dlt.sources.rest_api import rest_api
-import phlo
+from phlo_dlt import phlo_ingestion
 from workflows.schemas.orders import RawOrders
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="orders",
-    unique_key="order_id",
+    unique_key="id",
     group="commerce",
     validation_schema=RawOrders,
     cron="0 * * * *",
@@ -60,15 +59,12 @@ from workflows.schemas.orders import RawOrders
 )
 def orders(partition_date: str):
     return rest_api(
-        client={"base_url": "https://api.example.com"},
+        client={"base_url": "https://fakestoreapi.com"},
         resources=[
             {
                 "name": "orders",
                 "endpoint": {
-                    "path": "/orders",
-                    "params": {
-                        "date": partition_date,
-                    },
+                    "path": "/products",
                 },
             }
         ],
@@ -99,7 +95,7 @@ Use `merge` when source rows can be resent or corrected.
 Use `append` when source rows are immutable events and duplicates are acceptable only if replayed intentionally.
 
 ```python
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="raw_clickstream",
     unique_key="event_id",
     group="events",
@@ -196,12 +192,12 @@ Illustrative pattern:
 
 ```python
 from dlt.sources.rest_api import rest_api
-import phlo
+from phlo_dlt import phlo_ingestion
 from workflows.schemas.orders import RawOrders
 
-@phlo.ingestion(
+@phlo_ingestion(
     table_name="orders",
-    unique_key="order_id",
+    unique_key="id",
     group="commerce",
     validation_schema=RawOrders,
     merge_strategy="merge",
@@ -213,17 +209,12 @@ def orders(partition_date: str):
     end = f"{partition_date}T23:59:59Z"
 
     return rest_api(
-        client={"base_url": "https://api.example.com"},
+        client={"base_url": "https://fakestoreapi.com"},
         resources=[
             {
                 "name": "orders",
                 "endpoint": {
-                    "path": "/orders",
-                    "params": {
-                        "start_time": start,
-                        "end_time": end,
-                        "limit": 1000,
-                    },
+                    "path": "/products",
                 },
             }
         ],
@@ -258,7 +249,7 @@ Run controlled experiments in development:
 
 Experiment A: duplicate payload rows
 
-- Send source rows with duplicate `order_id`.
+- Send source rows with duplicate `id`.
 - Confirm dedup behaviour matches chosen strategy.
 
 Experiment B: schema drift
@@ -456,7 +447,7 @@ Example:
 Asset: dlt_orders
 Source: commerce_api /orders
 Partition: daily (UTC)
-Key: order_id
+Key: id
 Known failure mode: rate limiting at peak hours
 Recovery: rerun partition with normal concurrency
 ```
@@ -498,180 +489,6 @@ if you cannot confidently replay a partition, you do not yet own ingestion relia
 Make replayability and contract clarity your default standard.
 This single discipline will prevent many expensive downstream failures.
 
-## Extended Workshop: From Concepts to Engineering Judgment
-
-This section is intentionally long and practical. Read it as a guided coaching session, not as reference prose.
-
-When teams move from small data scripts to a real platform, they usually hit the same transition point:
-
-- tooling exists
-- pipelines run
-- confidence is still fragile
-
-The gap is engineering judgment.
-
-Engineering judgment means answering "what should we do" under constraints:
-
-- source reliability is imperfect
-- deadlines are real
-- consumers need stable outputs
-- incidents will happen
-
-A useful way to build judgment is to run the same loop repeatedly:
-
-1. Make assumptions explicit.
-2. Encode assumptions in contracts/checks.
-3. Run with observability.
-4. Learn from failures.
-5. Adjust process and code.
-
-That loop is the core of professional data engineering.
-
-### Practical Decision Ladder
-
-For any change, ask these in order:
-
-1. What user decision depends on this data?
-2. What correctness rules cannot be violated?
-3. What freshness target is required?
-4. What failure behaviour is acceptable?
-5. How will we prove recovery?
-
-If you cannot answer these, the change is probably not ready.
-
-### Worked Example: Converting a "Quick Fix" into a Sustainable Change
-
-A common request:
-
-"Can you quickly patch this model so the dashboard is green?"
-
-A weak response:
-
-- patch SQL directly
-- rerun everything
-- close ticket
-
-A strong response:
-
-1. identify root-cause field/path
-2. update contract/check if needed
-3. apply bounded change
-4. rerun only impacted assets/partitions
-5. capture evidence of correctness and freshness
-6. document follow-up hardening action
-
-Suggested evidence bundle:
-
-```text
-- command set executed
-- before/after metric snapshot
-- impacted assets list
-- quality check outcomes
-- merge decision rationale
-```
-
-
-### Engineering Checklist for Chapter-Level Mastery
-
-Use this checklist after finishing each chapter:
-
-- I can explain the core concept in plain language.
-- I can run at least two real commands tied to the concept.
-- I can describe one likely failure mode.
-- I can show the first command I would run to diagnose that failure.
-- I can state one tradeoff I would make differently for low-criticality vs high-criticality data.
-
-If you can do all five, you have practical understanding, not just memory.
-
-### Habit Stack That Improves Reliability Quickly
-
-These habits compound well:
-
-- dry-run before wide-scope operations
-- small-scope replay before large backfills
-- explicit contract updates with schema changes
-- weekly metrics/status review cadence
-- short runbooks for high-value assets
-
-None of these are complicated.
-Together, they prevent a large class of recurring incidents.
-
-### Communication Patterns for Cross-Functional Trust
-
-Data engineering work is often judged through downstream experience.
-So communication quality matters.
-
-Good update format:
-
-```text
-Change:
-Risk level:
-Impacted datasets/assets:
-Validation done:
-Rollback path:
-Owner:
-```
-
-
-This style lowers friction with analytics, product, and operations partners.
-
-### Anti-Patterns That Seem Fast but Usually Cost More
-
-- broad reruns when only one partition is suspect
-- mixing multiple risky changes in one release
-- skipping baseline metrics before tuning
-- calling incidents "flaky infra" without evidence
-- closing issues without regression guard
-
-A simple rule:
-
-if a fix cannot be explained and repeated, it is probably not complete.
-
-### Capstone Micro-Exercise
-
-Pick one asset or model from this chapter and do a full reliability pass:
-
-1. Write explicit assumptions.
-2. Verify checks/validation coverage.
-3. Run one scoped execution.
-4. Review logs/metrics/lineage context.
-5. Document one improvement action.
-
-Run commands as needed for your chapter context, for example:
-
-```bash
-phlo status --services
-phlo logs --limit 20
-phlo metrics summary --period 24h
-```
-
-In most setups, the output will look similar to this:
-
-```text
-Command completed successfully.
-```
-
-### Professional Growth Prompt
-
-After completing the exercise, answer these reflection prompts:
-
-- What assumption failed first in your workflow?
-- Which signal helped you diagnose fastest?
-- Which command should become standard in your runbook?
-- What can be automated to reduce repeated manual work?
-- What would you teach a new teammate from this chapter?
-
-Writing these answers once per chapter builds strong intuition over time.
-
-### Closing Notes for This Workshop
-
-Friendly reminder: nobody gets this perfect on the first pass.
-High-quality data engineering comes from steady iteration with explicit feedback loops.
-
-The goal is not "never fail."
-The goal is "fail visibly, recover quickly, and learn systematically."
-
-If you apply that mindset chapter by chapter, your platform quality improves in a way that is both measurable and sustainable.
 ## Hands-On Exercise
 
 1. Create one ingestion asset in your own domain.
@@ -691,7 +508,7 @@ Debug patterns: [Troubleshooting](../../operations/troubleshooting.md)
 
 ## Summary
 
-`@phlo.ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
+`@phlo_ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
 
 ## Next Steps
 

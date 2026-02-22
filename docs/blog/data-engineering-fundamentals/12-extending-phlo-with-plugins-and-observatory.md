@@ -107,6 +107,52 @@ graph LR
 3. Add compatibility bounds (`observatory_min`).
 4. Ship with integration tests.
 
+## Deep Dive: Anatomy of a CLI Plugin
+
+A CLI plugin adds commands to `phlo`. The minimum structure:
+
+```python
+# packages/phlo-mytools/src/phlo_mytools/cli_plugin.py
+import click
+from phlo.plugins import CLIPlugin, PluginMetadata
+
+class MyToolsCLI(CLIPlugin):
+    @property
+    def metadata(self) -> PluginMetadata:
+        return PluginMetadata(
+            name="mytools",
+            version="0.1.0",
+            description="Custom diagnostics commands",
+        )
+
+    def register_commands(self, cli: click.Group) -> None:
+        @cli.command()
+        def diagnose():
+            """Run standard diagnostic checks."""
+            click.echo("Running diagnostics...")
+```
+
+Register via entry point in `pyproject.toml`:
+
+```toml
+[project.entry-points."phlo.cli"]
+mytools = "phlo_mytools.cli_plugin:MyToolsCLI"
+```
+
+After installing, verify:
+
+```bash
+phlo plugin list
+```
+
+Expected output:
+
+```text
+Installed plugins: mytools, dbt, dagster, dlt, metrics, lineage
+```
+
+Keep first plugins small. One command that solves a real daily pain point is more valuable than a comprehensive toolkit nobody uses.
+
 ## Field Notes: First Plugin, Small Scope, Real Value
 
 The first plugin a team builds often tries to solve too much at once.

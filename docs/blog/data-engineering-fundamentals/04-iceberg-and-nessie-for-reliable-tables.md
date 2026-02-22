@@ -43,51 +43,54 @@ graph LR
 ## Inspect Table Inventory
 
 ```bash
-phlo plugin list
+phlo catalog tables
 ```
 
 You should see something like this:
 
 ```text
-Installed plugins:
+Namespace   Table          Full Name
+raw         orders         raw.orders
+bronze      stg_orders     bronze.stg_orders
 ```
 
 Inspect one table:
 
 ```bash
-phlo plugin list
+phlo catalog describe raw.orders
 ```
 
 
 Check snapshot history:
 
 ```bash
-phlo plugin list
+phlo catalog history raw.orders
 ```
 
 A typical result looks like this:
 
 ```text
-Installed plugins:
+Snapshot ID          Timestamp                Operation   Records
+5765…a3f1            2025-01-15T02:00:12Z     append      1284
 ```
 
 ## Create and Merge a Data Branch
 
 ```bash
-phlo plugin list
+phlo branch create feature/add-order-channel
 ```
 
 
 After validation steps, merge:
 
 ```bash
-phlo plugin list
+phlo branch merge feature/add-order-channel main
 ```
 
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-Installed plugins:
+Merged feature/add-order-channel into main successfully.
 ```
 
 ## Team Pattern That Scales
@@ -168,7 +171,7 @@ Workflow:
 1. Create branch:
 
 ```bash
-phlo plugin list
+phlo branch create schema/orders-add-channel
 ```
 
 
@@ -178,19 +181,20 @@ phlo plugin list
 5. Inspect history and table metadata:
 
 ```bash
-phlo plugin list
+phlo catalog history raw.orders --ref schema/orders-add-channel
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-Installed plugins:
+Snapshot ID          Timestamp                Operation   Records
+8a2b…c4d5            2025-01-16T10:15:00Z     append      1320
 ```
 
 6. Merge when green:
 
 ```bash
-phlo plugin list
+phlo branch merge schema/orders-add-channel main
 ```
 
 
@@ -368,13 +372,14 @@ Investigation path:
 Useful commands:
 
 ```bash
-phlo plugin list
+phlo catalog history raw.orders
 ```
 
 The command should return something like this:
 
 ```text
-Installed plugins:
+Snapshot ID          Timestamp                Operation   Records
+5765…a3f1            2025-01-15T02:00:12Z     append      1284
 ```
 
 This approach turns a vague analytics complaint into a precise technical investigation.
@@ -440,180 +445,6 @@ Together, they let teams iterate with less fear.
 Fear reduction is a real engineering outcome: fewer risky shortcuts, clearer reviews, and faster recovery when something unexpected happens.
 That is why this chapter is central to operational maturity, not an optional advanced topic.
 
-## Extended Workshop: From Concepts to Engineering Judgment
-
-This section is intentionally long and practical. Read it as a guided coaching session, not as reference prose.
-
-When teams move from small data scripts to a real platform, they usually hit the same transition point:
-
-- tooling exists
-- pipelines run
-- confidence is still fragile
-
-The gap is engineering judgment.
-
-Engineering judgment means answering "what should we do" under constraints:
-
-- source reliability is imperfect
-- deadlines are real
-- consumers need stable outputs
-- incidents will happen
-
-A useful way to build judgment is to run the same loop repeatedly:
-
-1. Make assumptions explicit.
-2. Encode assumptions in contracts/checks.
-3. Run with observability.
-4. Learn from failures.
-5. Adjust process and code.
-
-That loop is the core of professional data engineering.
-
-### Practical Decision Ladder
-
-For any change, ask these in order:
-
-1. What user decision depends on this data?
-2. What correctness rules cannot be violated?
-3. What freshness target is required?
-4. What failure behaviour is acceptable?
-5. How will we prove recovery?
-
-If you cannot answer these, the change is probably not ready.
-
-### Worked Example: Converting a "Quick Fix" into a Sustainable Change
-
-A common request:
-
-"Can you quickly patch this model so the dashboard is green?"
-
-A weak response:
-
-- patch SQL directly
-- rerun everything
-- close ticket
-
-A strong response:
-
-1. identify root-cause field/path
-2. update contract/check if needed
-3. apply bounded change
-4. rerun only impacted assets/partitions
-5. capture evidence of correctness and freshness
-6. document follow-up hardening action
-
-Suggested evidence bundle:
-
-```text
-- command set executed
-- before/after metric snapshot
-- impacted assets list
-- quality check outcomes
-- merge decision rationale
-```
-
-
-### Engineering Checklist for Chapter-Level Mastery
-
-Use this checklist after finishing each chapter:
-
-- I can explain the core concept in plain language.
-- I can run at least two real commands tied to the concept.
-- I can describe one likely failure mode.
-- I can show the first command I would run to diagnose that failure.
-- I can state one tradeoff I would make differently for low-criticality vs high-criticality data.
-
-If you can do all five, you have practical understanding, not just memory.
-
-### Habit Stack That Improves Reliability Quickly
-
-These habits compound well:
-
-- dry-run before wide-scope operations
-- small-scope replay before large backfills
-- explicit contract updates with schema changes
-- weekly metrics/status review cadence
-- short runbooks for high-value assets
-
-None of these are complicated.
-Together, they prevent a large class of recurring incidents.
-
-### Communication Patterns for Cross-Functional Trust
-
-Data engineering work is often judged through downstream experience.
-So communication quality matters.
-
-Good update format:
-
-```text
-Change:
-Risk level:
-Impacted datasets/assets:
-Validation done:
-Rollback path:
-Owner:
-```
-
-
-This style lowers friction with analytics, product, and operations partners.
-
-### Anti-Patterns That Seem Fast but Usually Cost More
-
-- broad reruns when only one partition is suspect
-- mixing multiple risky changes in one release
-- skipping baseline metrics before tuning
-- calling incidents "flaky infra" without evidence
-- closing issues without regression guard
-
-A simple rule:
-
-if a fix cannot be explained and repeated, it is probably not complete.
-
-### Capstone Micro-Exercise
-
-Pick one asset or model from this chapter and do a full reliability pass:
-
-1. Write explicit assumptions.
-2. Verify checks/validation coverage.
-3. Run one scoped execution.
-4. Review logs/metrics/lineage context.
-5. Document one improvement action.
-
-Run commands as needed for your chapter context, for example:
-
-```bash
-phlo status --services
-phlo logs --limit 20
-phlo metrics summary --period 24h
-```
-
-Your output should look roughly like this:
-
-```text
-Command completed successfully.
-```
-
-### Professional Growth Prompt
-
-After completing the exercise, answer these reflection prompts:
-
-- What assumption failed first in your workflow?
-- Which signal helped you diagnose fastest?
-- Which command should become standard in your runbook?
-- What can be automated to reduce repeated manual work?
-- What would you teach a new teammate from this chapter?
-
-Writing these answers once per chapter builds strong intuition over time.
-
-### Closing Notes for This Workshop
-
-Friendly reminder: nobody gets this perfect on the first pass.
-High-quality data engineering comes from steady iteration with explicit feedback loops.
-
-The goal is not "never fail."
-The goal is "fail visibly, recover quickly, and learn systematically."
-
-If you apply that mindset chapter by chapter, your platform quality improves in a way that is both measurable and sustainable.
 ## Hands-On Exercise
 
 1. Create a new Nessie branch.

@@ -33,6 +33,22 @@ graph LR
 
 ## Example dbt Model
 
+Bronze model (type cleanup and source normalisation):
+
+```sql
+-- workflows/transforms/dbt/models/bronze/stg_orders.sql
+select
+  cast(order_id as varchar) as order_id,
+  cast(customer_id as varchar) as customer_id,
+  cast(order_timestamp as timestamp) as order_timestamp,
+  cast(total_amount as double) as total_amount,
+  cast(currency as varchar) as currency
+from {{ source('raw', 'orders') }}
+where order_id is not null
+```
+
+Silver model (business rules and entity logic):
+
 ```sql
 -- workflows/transforms/dbt/models/silver/fct_orders.sql
 select
@@ -48,23 +64,34 @@ select
 from {{ ref('stg_orders') }}
 ```
 
+Gold model (reporting-ready mart):
+
+```sql
+-- workflows/transforms/dbt/models/gold/mrt_revenue_daily.sql
+select
+  date_trunc('day', order_timestamp) as order_date,
+  segment,
+  count(*) as order_count,
+  sum(total_amount) as total_revenue,
+  avg(total_amount) as avg_order_value
+from {{ ref('fct_orders') }}
+group by 1, 2
+```
+
 
 ## Run dbt from Services
 
 ```bash
-phlo plugin list
-phlo plugin info dbt
+docker exec my-first-phlo-project-dagster-1 dbt compile --project-dir /app/workflows/transforms/dbt
+docker exec my-first-phlo-project-dagster-1 dbt run --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
+docker exec my-first-phlo-project-dagster-1 dbt test --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
 ```
 
-The command should return something like this:
+Expected output:
 
 ```text
-Installed:
-- dbt
-- dagster
-- dlt
-- metrics
-- lineage
+Found 3 models, 4 tests, 0 sources
+Compiled successfully.
 ```
 
 ## Phlo Publishing Scaffolding
@@ -72,7 +99,7 @@ Installed:
 The dbt plugin contributes a `publishing` command group.
 
 ```bash
-phlo plugin list
+docker exec my-first-phlo-project-dagster-1 dbt run --select tag:publish --project-dir /app/workflows/transforms/dbt
 ```
 
 
@@ -82,6 +109,80 @@ phlo plugin list
 2. Push type and null handling into bronze models.
 3. Keep business logic centralized in silver.
 4. Use explicit tests for keys, nullability, and relationships.
+
+## Deep Dive: Incremental Models for Production Scale
+
+Full-refresh models work early but become expensive. Incremental models process only new or changed data.
+
+Example incremental pattern:
+
+```sql
+-- workflows/transforms/dbt/models/silver/fct_orders.sql
+{{
+  config(
+    materialized='incremental',
+    unique_key='order_id',
+    incremental_strategy='merge'
+  )
+}}
+
+select
+  order_id,
+  customer_id,
+  order_timestamp,
+  total_amount,
+  case
+    when total_amount >= 1000 then 'enterprise'
+    when total_amount >= 200 then 'mid_market'
+    else 'self_serve'
+  end as segment
+from {{ ref('stg_orders') }}
+{% if is_incremental() %}
+where order_timestamp > (select max(order_timestamp) from {{ this }})
+{% endif %}
+```
+
+When to use incremental:
+
+- Source volume grows daily and full scans are slow
+- Upstream data is append-only or has a reliable timestamp
+- Reprocessing cost exceeds SLA margin
+
+When to stay full-refresh:
+
+- Small dimension tables
+- Logic that requires full dataset context
+- Early development when schema is still changing
+
+## Deep Dive: dbt Testing Strategy
+
+dbt tests are your transformation contract layer. Use them deliberately:
+
+```yaml
+# workflows/transforms/dbt/models/silver/schema.yml
+models:
+  - name: fct_orders
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - unique
+      - name: total_amount
+        tests:
+          - not_null
+      - name: segment
+        tests:
+          - accepted_values:
+              values: ['enterprise', 'mid_market', 'self_serve']
+```
+
+Test tiers:
+
+- **Always run**: primary key uniqueness, not-null on critical fields
+- **Run on merge**: accepted values, referential integrity
+- **Run weekly**: row count trends, freshness assertions
+
+A practical pattern: run `dbt test` as part of every materialization. If tests fail, downstream assets should not proceed.
 
 ## Field Notes: Model Review Conversations That Save You Later
 

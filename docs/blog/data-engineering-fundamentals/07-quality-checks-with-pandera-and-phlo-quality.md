@@ -21,34 +21,36 @@ A schema is not documentation only. It is executable policy.
 Example Pandera model:
 
 ```python
-import pandera.pandas as pa
+import pandera as pa
+from pandera.typing import Series
+from phlo_quality.schemas import PhloSchema
 
-class RawOrders(pa.DataFrameModel):
-    order_id: str
-    customer_id: str
-    total_amount: float
-    order_timestamp: str
+class RawOrders(PhloSchema):
+    order_id: Series[str] = pa.Field(nullable=False)
+    customer_id: Series[str] = pa.Field(nullable=False)
+    total_amount: Series[float] = pa.Field(ge=0, nullable=False)
+    order_timestamp: Series[str] = pa.Field(nullable=False)
 ```
 
 
 ## Add Declarative Quality Checks
 
 ```python
-from phlo_quality.decorator import phlo_quality
-from phlo_quality.checks import CustomSQLCheck, NullCheck
+from phlo_quality import phlo_quality, NullCheck, RangeCheck, FreshnessCheck, CustomSQLCheck
 
 @phlo_quality(
     table="silver.fct_orders",
     checks=[
-        NullCheck(column="order_id", threshold=0.0),
+        NullCheck(columns=["order_id", "customer_id", "total_amount"]),
+        RangeCheck(column="total_amount", min_value=0, max_value=1_000_000),
+        FreshnessCheck(timestamp_column="order_timestamp", max_age_hours=2),
         CustomSQLCheck(
             name_="positive_revenue",
-            expected=0,
-            sql="SELECT COUNT(*) FROM data WHERE total_amount < 0",
+            sql="SELECT (total_amount >= 0) AS is_valid FROM data",
         ),
     ],
+    group="commerce",
     blocking=True,
-    partition_aware=True,
 )
 def orders_quality_gate() -> None:
     pass
@@ -75,6 +77,36 @@ Use this policy in early production:
 - `blocking=True` for identity, key integrity, and contract checks
 - warning-only for soft quality metrics during stabilisation
 - explicit threshold tuning per domain
+
+## Threshold Tuning and Freshness
+
+Not every check needs zero tolerance. Use `allow_threshold` for soft quality gates:
+
+```python
+from phlo_quality import phlo_quality, NullCheck, RangeCheck, UniqueCheck, FreshnessCheck
+
+@phlo_quality(
+    table="bronze.customer_data",
+    checks=[
+        NullCheck(columns=["phone", "address"], allow_threshold=0.05),
+        RangeCheck(column="age", min_value=0, max_value=150, allow_threshold=0.01),
+        UniqueCheck(columns=["customer_id"], allow_threshold=0.005),
+        FreshnessCheck(timestamp_column="updated_at", max_age_hours=24),
+    ],
+    group="crm",
+    blocking=True,
+)
+def customer_quality() -> None:
+    pass
+```
+
+Key parameters:
+
+- `allow_threshold`: fraction of rows allowed to violate (0.05 = 5%)
+- `timestamp_column`: column used by `FreshnessCheck` to measure data age
+- `max_age_hours`: maximum acceptable age before check fails
+
+Start strict on critical fields. Loosen thresholds only with evidence from production metrics.
 
 ## Signal Flow
 
@@ -123,7 +155,7 @@ That feedback loop turns quality from gatekeeping into learning.
 ## Hands-On Exercise
 
 1. Add one Pandera schema for your ingestion table.
-2. Add one `NullCheck` and one `CustomSQLCheck`.
+2. Add one `NullCheck`, one `FreshnessCheck`, and one `CustomSQLCheck`.
 3. Force a failure with bad test data.
 4. Confirm run is blocked and diagnostics are visible.
 

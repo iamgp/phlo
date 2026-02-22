@@ -254,71 +254,6 @@ With contracts:
 
 This is why data engineering is an operations discipline, not just a coding task.
 
-## Extended Walkthrough: Separating Platform Responsibilities
-
-New teams often ask who should do what.
-
-A practical split:
-
-- Analytics engineer:
-  owns business definitions in dbt models and tests.
-- Data platform engineer:
-  owns ingestion reliability, orchestration, storage semantics, and observability.
-- Domain engineering team:
-  owns source API stability and change communication.
-
-When these boundaries are unclear, every failure becomes a meeting problem.
-
-You can prevent that by writing a simple ownership table:
-
-```text
-Dataset: orders
-Ingestion owner: platform-data
-Model owner: analytics-commerce
-Source owner: commerce-backend
-Pager rotation: platform-data-oncall
-Escalation: #data-incidents
-```
-
-
-Treat this as part of architecture, not admin overhead.
-
-## Extended Walkthrough: Measuring Maturity
-
-Use this maturity ladder to self-assess your current setup.
-
-Level 0: Script-driven
-
-- Manual jobs
-- No schema contracts
-- Failures detected by end users
-
-Level 1: Scheduled
-
-- Regular runs
-- Basic status checks
-- Some observability
-
-Level 2: Contracted
-
-- Schema validation in pipeline
-- Repeatable backfills
-- Defined SLOs
-
-Level 3: Operable
-
-- Incident playbooks
-- Alert routing
-- Run-level metrics and lineage
-
-Level 4: Productized
-
-- Clear ownership per dataset
-- Safe schema evolution process
-- Cost/performance governance
-
-You do not need Level 4 to ship value. But you should know your current level and desired next level.
-
 ## Worked Exercise: Draft Your First Dataset Contract
 
 Choose one dataset you already maintain. Fill this template completely:
@@ -351,33 +286,6 @@ Then ask:
 
 If you do this once per critical table, your platform quality will improve quickly.
 
-## Common Anti-Patterns to Avoid Early
-
-Anti-pattern 1: "We will add quality later"
-
-- Reality: later means after user-facing incidents.
-- Fix: minimal blocking checks from first production run.
-
-Anti-pattern 2: "Everything is high priority"
-
-- Reality: pager fatigue, unclear action.
-- Fix: classify assets by business criticality.
-
-Anti-pattern 3: "Any schema change is okay"
-
-- Reality: downstream breakage and hidden drift.
-- Fix: branch-based schema rollout and explicit compatibility labels.
-
-Anti-pattern 4: "Performance first"
-
-- Reality: fast wrong data is worse than slow correct data.
-- Fix: correctness baseline, then optimise.
-
-Anti-pattern 5: "No one owns incidents"
-
-- Reality: long outages and repeated failures.
-- Fix: dataset ownership and escalation policy in writing.
-
 ## Reading Map for the Rest of the Series
 
 To make this long track easier to navigate, here is a "why this matters" map:
@@ -406,34 +314,6 @@ To make this long track easier to navigate, here is a "why this matters" map:
   extend platform capabilities safely.
 
 If you follow the sequence, each concept has a practical command-level counterpart.
-
-## Mini Case Study: When a "Small" Drift Becomes a Business Incident
-
-A product team adds a new checkout flow. In the old flow, `order_timestamp` is always UTC ISO format. In the new flow, one service emits local time without timezone.
-
-The change looks harmless. Revenue numbers still populate. Nobody notices for two days.
-
-Then finance compares dashboard totals to payment processor exports and sees a mismatch near day boundaries.
-
-What actually happened:
-
-- Some orders were bucketed into the wrong day due to timezone parsing.
-- Daily revenue KPI was inaccurate.
-- Downstream forecast model trained on wrong daily totals.
-
-What a mature data engineering workflow would have done:
-
-- Contract check asserts timestamp parse to UTC.
-- Quality check catches malformed or ambiguous timestamps.
-- Incident response runbook identifies the exact broken field quickly.
-- Branch workflow allows source fix validation before merge to main.
-
-This is the heart of the discipline:
-
-You are not just moving bytes. You are protecting decision quality.
-
-When people ask what data engineering does, this is the concrete answer:
-it protects the trust boundary between source chaos and business decisions.
 
 ## Hands-On Exercise
 

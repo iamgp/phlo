@@ -77,6 +77,35 @@ phlo services list --json
 ```
 
 
+## Deep Dive: The First Five Minutes
+
+Most incident time is wasted in the first five minutes on wrong assumptions. Use this strict sequence:
+
+Minute 0-1: Confirm scope
+```bash
+phlo status --services
+phlo lineage show dlt_orders --direction downstream --depth 3
+```
+
+Minute 1-3: Read recent logs
+```bash
+phlo logs --limit 50
+```
+
+Minute 3-5: Check metrics context
+```bash
+phlo metrics asset dlt_orders --runs 10
+```
+
+Common first-five-minute mistakes:
+
+- Rerunning before understanding what failed
+- Checking dashboards instead of pipeline status
+- Assuming infrastructure when the cause is data
+- Escalating before scoping impact
+
+If you can answer "what failed, when, and what is affected" in five minutes, recovery usually follows quickly.
+
 ## Root Cause Template
 
 ```text

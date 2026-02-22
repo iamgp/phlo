@@ -87,6 +87,36 @@ phlo plugin list
 ```
 
 
+## Deep Dive: Building a Weekly SLO Review
+
+A weekly review cadence turns metrics into decisions. Use this template:
+
+```bash
+phlo metrics summary --period 7d
+phlo metrics asset dlt_orders --runs 30
+phlo lineage status
+```
+
+Review checklist:
+
+1. Are any critical assets stale beyond SLO?
+2. Did failure rate increase week-over-week?
+3. Are p95 run durations drifting upward?
+4. Did any new assets appear without quality checks?
+5. Are lineage gaps blocking incident scoping?
+
+Record findings in a short log:
+
+```text
+Week: 2025-01-20
+Critical stale assets: 0
+Failure rate: 2.1% (down from 3.4%)
+Action: add FreshnessCheck to dlt_invoices
+Owner: platform-data
+```
+
+Teams that run this review consistently detect problems days before users report them.
+
 ## Field Notes: Turning Observability into Better Team Decisions
 
 A lot of teams collect logs and metrics but still feel blind during incidents.

@@ -77,6 +77,27 @@ graph LR
 ```
 
 
+## Deep Dive: Compatibility Classification in Practice
+
+When reviewing a schema change, classify it explicitly:
+
+| Change type | Example | Classification |
+| --- | --- | --- |
+| Add nullable column | `order_channel VARCHAR NULL` | Safe |
+| Add required column | `region VARCHAR NOT NULL` | Breaking |
+| Widen type | `INTEGER → BIGINT` | Usually safe |
+| Narrow type | `DOUBLE → INTEGER` | Breaking |
+| Rename column | `order_ts → order_timestamp` | Breaking |
+| Drop column | Remove `legacy_status` | Breaking |
+
+For breaking changes, use a staged rollout:
+
+1. Add new column alongside old (both populated).
+2. Migrate consumers to new column with a documented deadline.
+3. Remove old column after all consumers confirm.
+
+Use `phlo schema diff RawOrders` to compare current vs previous schema versions and flag breaking fields automatically.
+
 ## Field Notes: How to Make Breaking Changes Predictable
 
 Most teams do not fear schema changes because they are hard.
