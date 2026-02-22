@@ -117,7 +117,7 @@ That layout gives you predictable boundaries as the project grows.
 
 ## Deep Dive: Why Bootstrapping Quality Matters More Than Speed
 
-At project start, teams usually optimize for \"first success\". That is valid, but many teams accidentally encode weak defaults:
+At project start, teams usually optimise for \"first success\". That is valid, but many teams accidentally encode weak defaults:
 
 - No naming convention for assets
 - No schema ownership
@@ -274,7 +274,7 @@ Why this matters:
 
 ## Environment Discipline: Local, Branch, and CI
 
-Even in early stage projects, define environment behavior clearly:
+Even in early stage projects, define environment behaviour clearly:
 
 - Local:
   quick iteration, sample data, dry-runs encouraged.
@@ -446,7 +446,7 @@ Expected output:
 Template snippet prepared for direct use in your project.
 ```
 
-If a setting changes runtime behavior, write a one-line rationale near the change.
+If a setting changes runtime behaviour, write a one-line rationale near the change.
 
 ## Extended Guide: First-Week Project Milestones
 
@@ -535,7 +535,7 @@ After six weeks:
 - Team A spends significant time on \"works on my machine\" failures.
 - Team B onboards new engineers quickly and spends time on product features.
 
-The codebases may look similar, but operational behavior diverges heavily.
+The codebases may look similar, but operational behaviour diverges heavily.
 
 This is why setup quality is not optional polish. It is foundational throughput.
 

@@ -164,7 +164,7 @@ A safe backfill process:
 
 1. Dry-run first.
 2. Start with low parallelism.
-3. Watch source/API behavior.
+3. Watch source/API behaviour.
 4. Track failures by partition.
 5. Resume where needed.
 
@@ -426,7 +426,7 @@ Suppose you need to migrate from one ingestion group naming convention to anothe
 
 Risks:
 
-- Selector behavior may change.
+- Selector behaviour may change.
 - Alerts and dashboards may break.
 - Operators may run old commands by habit.
 

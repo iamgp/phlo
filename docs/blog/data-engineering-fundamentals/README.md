@@ -44,7 +44,7 @@ By the end, you will be able to:
 | 8 | [Schema Evolution and Data Contracts](08-schema-evolution-and-data-contracts.md) | Safe changes, rollout flow, compatibility | 20 min |
 | 9 | [Observability: Metrics, Logs, and Lineage](09-observability-metrics-logs-lineage.md) | Operational visibility and feedback loops | 22 min |
 | 10 | [Incident Response and Debugging](10-incident-response-and-debugging.md) | Triage playbooks, root cause, recovery | 24 min |
-| 11 | [Performance and Cost Optimization](11-performance-and-cost-optimization.md) | Runtime tuning, partition design, spend control | 20 min |
+| 11 | [Performance and Cost Optimisation](11-performance-and-cost-optimization.md) | Runtime tuning, partition design, spend control | 20 min |
 | 12 | [Extending Phlo with Plugins and Observatory](12-extending-phlo-with-plugins-and-observatory.md) | Plugin architecture, custom UI extension | 22 min |
 
 ## Learning Paths

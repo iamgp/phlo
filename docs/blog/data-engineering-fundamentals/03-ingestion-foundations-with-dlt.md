@@ -168,7 +168,7 @@ Good partition design gives you:
 Bad partition design gives you:
 
 - All-or-nothing reruns
-- Expensive retry behavior
+- Expensive retry behaviour
 - Slow incident recovery
 
 Rule of thumb:
@@ -192,7 +192,7 @@ A practical ingestion function should include:
 - explicit endpoint params
 - deterministic pagination strategy
 - explicit partition-date usage
-- clear return behavior for empty data
+- clear return behaviour for empty data
 
 Illustrative pattern:
 
@@ -238,7 +238,7 @@ Expected output:
 Template snippet prepared for direct use in your project.
 ```
 
-Even in this simple example, partition boundaries and key semantics are explicit. That makes behavior predictable.
+Even in this simple example, partition boundaries and key semantics are explicit. That makes behaviour predictable.
 
 ## Deep Dive: Merge Strategy Tradeoff Matrix
 
@@ -257,7 +257,7 @@ Decision logic:
 - Choose `append` only for immutable event streams with low replay risk.
 - Choose `merge` for most business entities where updates and reruns happen.
 
-If uncertain, choose `merge` first and optimize after measuring.
+If uncertain, choose `merge` first and optimise after measuring.
 
 ## Failure Injection Exercise: Learn Before Production Learns For You
 
@@ -266,7 +266,7 @@ Run controlled experiments in development:
 Experiment A: duplicate payload rows
 
 - Send source rows with duplicate `order_id`.
-- Confirm dedup behavior matches chosen strategy.
+- Confirm dedup behaviour matches chosen strategy.
 
 Experiment B: schema drift
 
@@ -289,7 +289,7 @@ phlo logs --asset dlt_orders --since 30m --limit 200
 Expected output:
 
 ```text
-Two runs for the same partition plus log evidence of dedup/noise handling behavior.
+Two runs for the same partition plus log evidence of dedup/noise handling behaviour.
 ```
 
 This is one of the best low-cost ways to increase confidence.
@@ -317,7 +317,7 @@ For each ingestion asset, confirm:
 
 - Clear table ownership
 - Clear unique key definition
-- Explicit partition key behavior
+- Explicit partition key behaviour
 - Schema class maintained with source changes
 - Merge strategy rationale documented
 - Replay process documented
@@ -399,7 +399,7 @@ Expected: success + rows_loaded > 0
 
 Case: duplicates
 Input: repeated unique_key values
-Expected: dedup behavior aligns with merge config
+Expected: dedup behaviour aligns with merge config
 
 Case: schema_drift
 Input: unexpected field type
@@ -449,7 +449,7 @@ phlo metrics asset dlt_orders --runs 30
 Expected output:
 
 ```text
-Backfill execution summaries and metrics comparisons for run durations and failure behavior.
+Backfill execution summaries and metrics comparisons for run durations and failure behaviour.
 ```
 
 What to avoid:
@@ -465,7 +465,7 @@ For each ingestion asset, keep a short operational card:
 - Source endpoint
 - Key fields
 - Partition logic
-- Retry behavior
+- Retry behaviour
 - Known failure modes
 - Recovery commands
 
@@ -558,7 +558,7 @@ For any change, ask these in order:
 1. What user decision depends on this data?
 2. What correctness rules cannot be violated?
 3. What freshness target is required?
-4. What failure behavior is acceptable?
+4. What failure behaviour is acceptable?
 5. How will we prove recovery?
 
 If you cannot answer these, the change is probably not ready.
@@ -682,7 +682,7 @@ phlo metrics summary --period 24h
 Expected output:
 
 ```text
-Freshness and health status, recent execution logs, and trend context for current platform behavior.
+Freshness and health status, recent execution logs, and trend context for current platform behaviour.
 ```
 
 ### Professional Growth Prompt
@@ -725,7 +725,7 @@ Debug patterns: [Troubleshooting](../../operations/troubleshooting.md)
 
 ## Summary
 
-`@phlo_ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behavior built in.
+`@phlo_ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
 
 ## Next Steps
 
@@ -736,4 +736,4 @@ Debug patterns: [Troubleshooting](../../operations/troubleshooting.md)
 
 - [Part 4: Iceberg and Nessie for Reliable Tables](04-iceberg-and-nessie-for-reliable-tables.md)
 - [Part 7: Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-quality.md)
-- [Data Modeling Guide](../../guides/data-modeling.md)
+- [Data Modelling Guide](../../guides/data-modeling.md)

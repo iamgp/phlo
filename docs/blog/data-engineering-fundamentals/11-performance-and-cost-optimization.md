@@ -1,4 +1,4 @@
-# Part 11: Performance and Cost Optimization
+# Part 11: Performance and Cost Optimisation
 
 > Prerequisite: Complete [Part 10](10-incident-response-and-debugging.md).
 
@@ -7,21 +7,21 @@
 - Where performance bottlenecks usually appear in data platforms
 - How partitioning and run strategy affect cost
 - How to tune execution safely in Phlo workflows
-- How to track optimization impact with metrics
+- How to track optimisation impact with metrics
 
 ## Prerequisites
 
 - Running ingestion + transform pipeline
 - Baseline metrics from Part 9
 
-## Optimization Priority Order
+## Optimisation Priority Order
 
 1. Correctness first
 2. Reliability second
 3. Performance third
 4. Cost fourth
 
-If you reverse this order, you optimize the wrong thing.
+If you reverse this order, you optimise the wrong thing.
 
 ## High-Leverage Levers
 
@@ -95,10 +95,10 @@ graph TD
 Expected output:
 
 ```text
-A rendered optimization-oriented flow showing bounded compute at each layer.
+A rendered optimisation-oriented flow showing bounded compute at each layer.
 ```
 
-## Field Notes: Avoiding "Fast but Wrong" Optimization
+## Field Notes: Avoiding "Fast but Wrong" Optimisation
 
 Performance work can feel addictive. You change one thing, runtime drops, and it feels like progress.
 
@@ -125,7 +125,7 @@ Example:
 - cost target: reduce p95 compute minutes by 10%
 - guardrail: no increase in failed critical runs
 
-That keeps optimization honest.
+That keeps optimisation honest.
 
 One more tip: share before/after metrics in pull requests. It forces clarity and builds a knowledge base for future tuning decisions.
 
@@ -139,16 +139,16 @@ One more tip: share before/after metrics in pull requests. It forces clarity and
 ## Common Issues
 
 1. Teams tune parallelism without measuring source/API limits.
-2. Full-refresh behavior is triggered accidentally in daily operations.
+2. Full-refresh behaviour is triggered accidentally in daily operations.
 3. Cost spikes are discovered from bills, not metrics.
-4. Teams optimize gold models while bronze quality remains unstable.
+4. Teams optimise gold models while bronze quality remains unstable.
 5. Performance changes are made with no rollback plan.
 
 Reference for failures during tuning: [Troubleshooting](../../operations/troubleshooting.md)
 
 ## Summary
 
-Performance work should be measured, incremental, and reversible. Good optimization keeps correctness and reliability intact.
+Performance work should be measured, incremental, and reversible. Good optimisation keeps correctness and reliability intact.
 
 ## Next Steps
 

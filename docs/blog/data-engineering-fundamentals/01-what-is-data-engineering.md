@@ -379,7 +379,7 @@ Anti-pattern 3: \"Any schema change is okay\"
 Anti-pattern 4: \"Performance first\"
 
 - Reality: fast wrong data is worse than slow correct data.
-- Fix: correctness baseline, then optimize.
+- Fix: correctness baseline, then optimise.
 
 Anti-pattern 5: \"No one owns incidents\"
 
@@ -453,7 +453,7 @@ it protects the trust boundary between source chaos and business decisions.
 ## Common Issues
 
 1. Teams conflate ETL scripts with a platform and miss reliability boundaries.
-2. Ownership is unclear between ingestion, modeling, and analytics.
+2. Ownership is unclear between ingestion, modelling, and analytics.
 3. No definition of "done" for freshness or quality.
 4. People skip contracts and debug type drift in production.
 5. There is no runbook for failed data loads.

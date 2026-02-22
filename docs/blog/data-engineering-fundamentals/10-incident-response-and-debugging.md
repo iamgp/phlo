@@ -65,7 +65,7 @@ Service health, asset status, recent errors, metrics context, and impact footpri
 - Transform failures: model SQL errors, upstream missing columns
 - Infrastructure failures: containers down, resource exhaustion
 
-## Stabilization Tactics
+## Stabilisation Tactics
 
 - Pause noisy backfills
 - Reduce parallelism
@@ -135,7 +135,7 @@ Prevention is great, but failures still happen. Faster detection often gives the
 I also recommend tagging incident notes by failure class (contract, source, transform, infra). After a few months, this gives you a clear map of where to invest engineering effort.
 
 The goal of incident work is not writing perfect reports.
-It is changing future system behavior in measurable ways.
+It is changing future system behaviour in measurable ways.
 
 ## Hands-On Exercise
 
@@ -160,11 +160,11 @@ Good incident response is repeatable and evidence-driven. Fast recovery matters,
 
 ## Next Steps
 
-1. Move to [Part 11](11-performance-and-cost-optimization.md) and optimize for steady-state operations.
+1. Move to [Part 11](11-performance-and-cost-optimization.md) and optimise for steady-state operations.
 2. Add this incident template to your team docs.
 
 ## See Also
 
 - [Part 9: Observability: Metrics, Logs, and Lineage](09-observability-metrics-logs-lineage.md)
-- [Part 11: Performance and Cost Optimization](11-performance-and-cost-optimization.md)
+- [Part 11: Performance and Cost Optimisation](11-performance-and-cost-optimization.md)
 - [Operations Troubleshooting](../../operations/troubleshooting.md)

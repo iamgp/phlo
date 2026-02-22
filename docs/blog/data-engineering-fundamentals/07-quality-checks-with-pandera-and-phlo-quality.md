@@ -85,7 +85,7 @@ Schema inventory, schema details, and validation reports with pass/fail diagnost
 Use this policy in early production:
 
 - `blocking=True` for identity, key integrity, and contract checks
-- warning-only for soft quality metrics during stabilization
+- warning-only for soft quality metrics during stabilisation
 - explicit threshold tuning per domain
 
 ## Signal Flow
@@ -156,7 +156,7 @@ Recovery patterns: [Troubleshooting](../../operations/troubleshooting.md)
 
 ## Summary
 
-Quality is strongest when contracts and checks are first-class runtime behavior, not post-hoc reporting.
+Quality is strongest when contracts and checks are first-class runtime behaviour, not post-hoc reporting.
 
 ## Next Steps
 

@@ -115,7 +115,7 @@ Merge summary with applied commits and optional source-branch cleanup.
 
 This pattern prevents silent production drift.
 
-## Deep Dive: Why Data Versioning Changes Team Behavior
+## Deep Dive: Why Data Versioning Changes Team Behaviour
 
 In teams without data versioning, engineers usually avoid change because rollback is unclear.
 
@@ -253,7 +253,7 @@ Expected output:
 Template snippet prepared for direct use in your project.
 ```
 
-Simple policy beats ad hoc behavior.
+Simple policy beats ad hoc behaviour.
 
 ## Extended Guide: Reading Table History as an Engineer
 
@@ -264,7 +264,7 @@ History review questions:
 3. Did schema evolve as intended?
 4. Is there evidence of repeated replay loops?
 
-When history appears noisy or irregular, investigate pipeline behavior before performance tuning or model rewrites.
+When history appears noisy or irregular, investigate pipeline behaviour before performance tuning or model rewrites.
 
 ## Anti-Patterns to Avoid
 
@@ -380,7 +380,7 @@ Example policy:
 Represent policy in concise text:
 
 ```text
-Policy: Data branch required for any change that can alter row meaning, schema compatibility, or freshness behavior.
+Policy: Data branch required for any change that can alter row meaning, schema compatibility, or freshness behaviour.
 ```
 
 Expected output:
@@ -400,7 +400,7 @@ Investigation path:
 1. Check recent table history around that date.
 2. Inspect branch merges near the discrepancy window.
 3. Compare snapshot metadata before and after suspected change.
-4. Validate upstream ingestion partition behavior.
+4. Validate upstream ingestion partition behaviour.
 
 Useful commands:
 
@@ -519,7 +519,7 @@ For any change, ask these in order:
 1. What user decision depends on this data?
 2. What correctness rules cannot be violated?
 3. What freshness target is required?
-4. What failure behavior is acceptable?
+4. What failure behaviour is acceptable?
 5. How will we prove recovery?
 
 If you cannot answer these, the change is probably not ready.
@@ -643,7 +643,7 @@ phlo metrics summary --period 24h
 Expected output:
 
 ```text
-Freshness and health status, recent execution logs, and trend context for current platform behavior.
+Freshness and health status, recent execution logs, and trend context for current platform behaviour.
 ```
 
 ### Professional Growth Prompt

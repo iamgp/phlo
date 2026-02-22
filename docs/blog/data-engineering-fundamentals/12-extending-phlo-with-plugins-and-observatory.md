@@ -5,7 +5,7 @@
 ## What You'll Learn
 
 - How Phlo plugin discovery works conceptually
-- How CLI, service, and observatory plugins extend platform behavior
+- How CLI, service, and observatory plugins extend platform behaviour
 - How Observatory extension manifests are structured
 - A practical path to your first extension package
 

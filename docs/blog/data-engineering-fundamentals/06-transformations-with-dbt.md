@@ -17,7 +17,7 @@
 
 ## Where dbt Fits
 
-- Bronze: type cleanup and source normalization
+- Bronze: type cleanup and source normalisation
 - Silver: business rules and entity logic
 - Gold: reporting-ready metrics and dimensions
 
@@ -126,7 +126,7 @@ One more pattern that works well:
 
 - every gold model PR includes one sentence on "what business question this model answers."
 
-That sentence keeps modeling grounded in user value instead of internal style preferences.
+That sentence keeps modelling grounded in user value instead of internal style preferences.
 
 ## Hands-On Exercise
 
@@ -157,5 +157,5 @@ dbt gives a clean SQL boundary for transformation logic, while Phlo keeps discov
 ## See Also
 
 - [Part 7: Quality Checks with Pandera and Phlo Quality](07-quality-checks-with-pandera-and-phlo-quality.md)
-- [Part 11: Performance and Cost Optimization](11-performance-and-cost-optimization.md)
+- [Part 11: Performance and Cost Optimisation](11-performance-and-cost-optimization.md)
 - [dbt Development Guide](../../guides/dbt-development.md)
