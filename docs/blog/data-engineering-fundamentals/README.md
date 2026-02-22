@@ -30,6 +30,16 @@ By the end, you will be able to:
 - Basic SQL and Python familiarity
 - Optional but helpful: read [Phlo Architecture Reference](../../reference/architecture.md)
 
+## Series Setup
+
+Run this once before following any command snippets:
+
+```bash
+uv tool install phlo
+```
+
+Then run the blog commands from your working project directory (for example `/Users/garethprice/Developer/phlo-examples/blog`).
+
 ## Posts
 
 | # | Title | Focus | Time |

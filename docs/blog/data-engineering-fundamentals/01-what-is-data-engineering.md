@@ -57,6 +57,18 @@ graph LR
 
 ## First Contact with the CLI
 
+First, make sure the CLI is installed in your environment:
+
+```bash
+uv tool install phlo
+```
+
+The command should return something like this:
+
+```text
+Installed executable: phlo
+```
+
 ```bash
 phlo --help
 ```
