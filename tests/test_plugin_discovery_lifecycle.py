@@ -97,6 +97,29 @@ def _patch_source_entry_points(
     )
 
 
+def _capture_plugin_load_errors(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
+    """Capture plugin load errors to assert failure paths are not silent."""
+    errors: list[dict[str, object]] = []
+
+    def _capture(event: str, **kwargs: object) -> None:
+        if event == "plugin_load_failed":
+            errors.append(kwargs)
+
+    monkeypatch.setattr("phlo.plugins.discovery.plugins.logger.error", _capture)
+    return errors
+
+
+def _assert_plugin_load_failed_error(errors: list[dict[str, object]]) -> None:
+    """Assert one plugin_load_failed error was emitted for lifecycle regressions."""
+    assert len(errors) == 1
+    assert errors[0] == {
+        "plugin_name": "lifecycle_source",
+        "entry_point": "tests:lifecycle_source",
+        "plugin_type": "source_connectors",
+        "exc_info": True,
+    }
+
+
 def test_discover_plugins_calls_initialize_before_registration(
     clean_registry, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -152,8 +175,64 @@ def test_discover_plugins_keeps_existing_plugin_when_cleanup_fails(
     _patch_source_entry_points(
         monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=incoming)]
     )
+    plugin_load_errors = _capture_plugin_load_errors(monkeypatch)
 
-    discover_plugins(plugin_type="source_connectors", auto_register=True)
+    discovered = discover_plugins(plugin_type="source_connectors", auto_register=True)
 
     assert clean_registry.get_source_connector("lifecycle_source") is existing
+    assert discovered["source_connectors"] == []
     assert events == ["initialize:new", "cleanup:old", "cleanup:new"]
+    _assert_plugin_load_failed_error(plugin_load_errors)
+
+
+def test_discover_plugins_keeps_existing_plugin_when_initialize_fails(
+    clean_registry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Initialize failure does not touch existing plugin registration."""
+    events: list[str] = []
+    existing = _LifecycleSourcePlugin(marker="old", events=events)
+    clean_registry.register_source_connector(existing)
+
+    incoming = _LifecycleSourcePlugin(marker="new", events=events, fail_initialize=True)
+    _patch_source_entry_points(
+        monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=incoming)]
+    )
+    plugin_load_errors = _capture_plugin_load_errors(monkeypatch)
+
+    discovered = discover_plugins(plugin_type="source_connectors", auto_register=True)
+
+    assert clean_registry.get_source_connector("lifecycle_source") is existing
+    assert discovered["source_connectors"] == []
+    assert events == ["initialize:new", "cleanup:new"]
+    _assert_plugin_load_failed_error(plugin_load_errors)
+
+
+def test_discover_plugins_recovers_existing_plugin_on_registration_failure(
+    clean_registry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Registration failure after cleanup re-initializes existing plugin."""
+    events: list[str] = []
+    existing = _LifecycleSourcePlugin(marker="old", events=events)
+    clean_registry.register_source_connector(existing)
+
+    incoming = _LifecycleSourcePlugin(marker="new", events=events)
+    _patch_source_entry_points(
+        monkeypatch, [_EntryPointStub(name="lifecycle_source", plugin=incoming)]
+    )
+
+    register_source_connector = clean_registry.register_source_connector
+
+    def _failing_register(plugin: SourceConnectorPlugin, replace: bool = False) -> None:
+        if plugin is incoming:
+            raise RuntimeError("simulated registration failure")
+        register_source_connector(plugin, replace=replace)
+
+    monkeypatch.setattr(clean_registry, "register_source_connector", _failing_register)
+    plugin_load_errors = _capture_plugin_load_errors(monkeypatch)
+
+    discovered = discover_plugins(plugin_type="source_connectors", auto_register=True)
+
+    assert clean_registry.get_source_connector("lifecycle_source") is existing
+    assert discovered["source_connectors"] == []
+    assert events == ["initialize:new", "cleanup:old", "initialize:old", "cleanup:new"]
+    _assert_plugin_load_failed_error(plugin_load_errors)
