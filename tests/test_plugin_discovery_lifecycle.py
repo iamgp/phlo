@@ -83,7 +83,9 @@ def _patch_source_entry_points(
 ) -> None:
     """Patch settings and entry point discovery for source connector tests."""
 
-    monkeypatch.setattr("phlo.plugins.discovery.plugins.get_settings", lambda: _SettingsStub())
+    monkeypatch.setattr(
+        "phlo.plugins.discovery._plugin_loading.get_settings", lambda: _SettingsStub()
+    )
 
     def _fake_entry_points(*_args, **kwargs):
         group = kwargs.get("group")
@@ -92,7 +94,7 @@ def _patch_source_entry_points(
         return []
 
     monkeypatch.setattr(
-        "phlo.plugins.discovery.plugins.importlib.metadata.entry_points",
+        "phlo.plugins.discovery._plugin_loading.importlib.metadata.entry_points",
         _fake_entry_points,
     )
 

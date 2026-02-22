@@ -65,7 +65,7 @@ def test_service_discovery_includes_plugins(
     registry.register_service(DummyServicePlugin(), replace=True)
 
     monkeypatch.setattr(
-        "phlo.plugins.discovery.services.discover_plugins",
+        "phlo.plugins.discovery._service_loading.discover_plugins",
         lambda plugin_type, auto_register: None,
     )
 
@@ -83,7 +83,7 @@ def test_service_discovery_refresh_reloads_stale_cache(
 ) -> None:
     """Verify cached discovery remains stale until explicit refresh."""
     monkeypatch.setattr(
-        "phlo.plugins.discovery.services.discover_plugins",
+        "phlo.plugins.discovery._service_loading.discover_plugins",
         lambda plugin_type, auto_register: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
@@ -110,7 +110,7 @@ def test_service_discovery_clear_cache_and_refresh_alias(
 ) -> None:
     """Verify cache invalidation API triggers rediscovery."""
     monkeypatch.setattr(
-        "phlo.plugins.discovery.services.discover_plugins",
+        "phlo.plugins.discovery._service_loading.discover_plugins",
         lambda plugin_type, auto_register: None,
     )
     _write_service_yaml(tmp_path, "alpha", "alpha")
