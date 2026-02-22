@@ -44,10 +44,20 @@ phlo status --services
 phlo logs --asset dlt_orders --since 2h --level ERROR --limit 100
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Asset and service status views plus filtered run logs for recent errors.
+📊 Status Report
+
+(showing demo data - Dagster not connected)
+
+                              Asset Status
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ dlt_glucose_entries  │ nightscout │ ✓ success │ 30m ago  │ Fresh     │
+│ fct_glucose_readings │ nightscout │ ✗ failed  │ 2d ago   │ Failed    │
+└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
 ```
 
 ## Metrics for Trends
@@ -67,10 +77,16 @@ phlo lineage show dlt_orders --direction both --depth 2
 phlo lineage impact dlt_orders
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Lineage graph stats, local dependency tree, and downstream impact summary.
+╭─── 📊 Metrics Summary ───╮
+│ Platform Metrics Summary │
+│ Runs (last 24h)          │
+│   Total:     0           │
+│   Success:   0 (0.0%)    │
+│   Failure:   0 (0.0%)    │
+╰──────────────────────────╯
 ```
 
 ## Alerting Loop

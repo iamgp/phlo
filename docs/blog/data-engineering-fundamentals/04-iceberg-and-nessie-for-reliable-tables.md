@@ -46,10 +46,12 @@ graph LR
 phlo catalog tables --ref main --format table
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-A table view of namespaces and Iceberg tables tracked on main.
+Error listing tables: HTTPConnectionPool(host='nessie', port=19120): Max retries
+exceeded with url: /iceberg/main/v1/config?warehouse=s3%3A%2F%2Flake%2Fwarehouse
+(Caused by NameResolutionError: Failed to resolve 'nessie')
 ```
 
 Inspect one table:
@@ -65,10 +67,12 @@ Check snapshot history:
 phlo catalog history raw.orders --limit 5 --ref main --format table
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Recent snapshot IDs, timestamps, and operations for raw.orders.
+Error listing tables: HTTPConnectionPool(host='nessie', port=19120): Max retries
+exceeded with url: /iceberg/main/v1/config?warehouse=s3%3A%2F%2Flake%2Fwarehouse
+(Caused by NameResolutionError: Failed to resolve 'nessie')
 ```
 
 ## Create and Merge a Data Branch
@@ -85,10 +89,10 @@ After validation steps, merge:
 phlo branch merge de_contract_test main
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Merge summary with applied commits and optional source-branch cleanup.
+Error: Error connecting to Nessie: Field.__init__() got an unexpected keyword argument 'default' 
 ```
 
 ## Team Pattern That Scales
@@ -183,10 +187,10 @@ phlo catalog history raw.orders --limit 10 --ref add_order_channel
 phlo catalog describe raw.orders --ref add_order_channel
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Snapshot and table metadata showing branch-specific updates.
+Error: Error connecting to Nessie: Field.__init__() got an unexpected keyword argument 'default' 
 ```
 
 6. Merge when green:
@@ -374,10 +378,10 @@ phlo catalog history gold.mrt_revenue_daily --limit 20 --ref main
 phlo branch diff main release_candidate --format table
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Snapshot timeline and branch-level table differences to narrow root-cause window.
+Error: Error connecting to Nessie: Field.__init__() got an unexpected keyword argument 'default' 
 ```
 
 This approach turns a vague analytics complaint into a precise technical investigation.
@@ -590,10 +594,20 @@ phlo logs --since 1h --limit 150
 phlo metrics summary --period 24h
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Freshness and health status, recent execution logs, and trend context for current platform behaviour.
+📊 Status Report
+
+(showing demo data - Dagster not connected)
+
+                              Asset Status
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ dlt_glucose_entries  │ nightscout │ ✓ success │ 30m ago  │ Fresh     │
+│ fct_glucose_readings │ nightscout │ ✗ failed  │ 2d ago   │ Failed    │
+└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
 ```
 
 ### Professional Growth Prompt

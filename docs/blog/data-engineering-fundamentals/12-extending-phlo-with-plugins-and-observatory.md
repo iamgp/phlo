@@ -31,10 +31,18 @@ phlo plugin list
 phlo plugin info dagster
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Plugin inventory and metadata including name, version, and capabilities.
+Installed:
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┓
+┃ Name              ┃ Type          ┃ Version ┃ Author    ┃ Ready ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━┩
+│ rest_api          │ source        │ 0.1.0   │ Phlo Team │ yes   │
+│ freshness_check   │ quality       │ 0.1.0   │ Phlo Team │ yes   │
+│ minio             │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ dagster           │ service       │ 0.1.0   │ Phlo Team │ yes   │
+└───────────────────┴───────────────┴─────────┴───────────┴───────┘
 ```
 
 ## Observatory Extension Manifest Basics

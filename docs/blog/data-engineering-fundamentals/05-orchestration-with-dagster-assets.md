@@ -41,10 +41,15 @@ graph TD
 phlo materialize dlt_orders --partition 2026-02-20
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Dagster execution stream for one partition of dlt_orders.
+{"event": "invalid_infrastructure_config", "logger": "phlo.infrastructure.config", "level": "error"}
+{"event": "dagster_materialize_command_failed", "logger": "phlo.dagster.materialize", "level": "error"}
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 Selector-based execution:
@@ -60,10 +65,15 @@ phlo materialize dlt_orders --select "tag:commerce"
 phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-05 --parallel 2
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Displays partition plan, concurrent execution progress, and final success/failure counts.
+{"event": "invalid_infrastructure_config", "logger": "phlo.infrastructure.config", "level": "error"}
+{"event": "dagster_materialize_command_failed", "logger": "phlo.dagster.materialize", "level": "error"}
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 Dry-run before expensive ranges:
@@ -80,10 +90,20 @@ phlo status --assets
 phlo logs --asset dlt_orders --since 1h --limit 50
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Status report for assets, then filtered Dagster log stream.
+📦 Asset Backfill
+
+Asset: dlt_glucose_entries
+Total partitions: 3
+Parallel workers: 1
+
+Dry run - showing first 5 commands:
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 ## Design Rules That Prevent Pain
@@ -162,10 +182,15 @@ phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-03 --paralle
 phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-14 --parallel 2
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Backfill plans, execution progress, and partition-level success/failure reporting.
+{"event": "invalid_infrastructure_config", "logger": "phlo.infrastructure.config", "level": "error"}
+{"event": "dagster_materialize_command_failed", "logger": "phlo.dagster.materialize", "level": "error"}
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 Backfill safety is less about raw speed and more about controlled confidence.
@@ -232,10 +257,21 @@ phlo metrics summary --period 7d
 phlo metrics asset dlt_orders --runs 30
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Asset freshness view plus recent run-quality and performance trends.
+📋 Logs
+
+(showing demo data - Dagster not connected)
+
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+┃ Time                ┃ Level    ┃ Run ID   ┃ Job             ┃ Message        ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+│ 2026-02-22 11:16:19 │ INFO     │ abc123   │ glucose_ingest… │ Asset          │
+│ 2026-02-22 11:20:19 │ INFO     │ abc123   │ glucose_ingest… │ materializati… │
+└─────────────────────┴──────────┴──────────┴─────────────────┴────────────────┘
+
+Total: 5 logs
 ```
 
 Without this review, orchestration reliability regresses quietly.
@@ -414,10 +450,20 @@ phlo status --assets --group commerce
 phlo logs --since 1h --limit 100
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Asset-group status view and supporting logs confirming expected execution paths.
+📊 Status Report
+
+(showing demo data - Dagster not connected)
+
+                              Asset Status
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ dlt_glucose_entries  │ nightscout │ ✓ success │ 30m ago  │ Fresh     │
+│ fct_glucose_readings │ nightscout │ ✗ failed  │ 2d ago   │ Failed    │
+└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
 ```
 
 The point is not naming itself; it is controlled operational change.

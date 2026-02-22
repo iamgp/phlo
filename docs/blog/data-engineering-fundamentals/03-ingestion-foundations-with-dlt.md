@@ -99,10 +99,15 @@ def clickstream(partition_date: str):
 phlo materialize dlt_orders --partition 2026-02-20
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Dagster materialization logs for the selected partition and asset.
+{"event": "invalid_infrastructure_config", "logger": "phlo.infrastructure.config", "level": "error"}
+{"event": "dagster_materialize_command_failed", "logger": "phlo.dagster.materialize", "level": "error"}
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 Backfill date ranges when needed:
@@ -261,10 +266,20 @@ phlo materialize dlt_orders --partition 2026-02-19
 phlo logs --asset dlt_orders --since 30m --limit 200
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Two runs for the same partition plus log evidence of dedup/noise handling behaviour.
+📦 Asset Backfill
+
+Asset: dlt_glucose_entries
+Total partitions: 3
+Parallel workers: 1
+
+Dry run - showing first 5 commands:
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 This is one of the best low-cost ways to increase confidence.
@@ -411,10 +426,20 @@ phlo backfill dlt_orders --start-date 2026-02-01 --end-date 2026-02-07 --paralle
 phlo metrics asset dlt_orders --runs 30
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Backfill execution summaries and metrics comparisons for run durations and failure behaviour.
+📦 Asset Backfill
+
+Asset: dlt_glucose_entries
+Total partitions: 3
+Parallel workers: 1
+
+Dry run - showing first 5 commands:
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 What to avoid:
@@ -629,10 +654,20 @@ phlo logs --since 1h --limit 150
 phlo metrics summary --period 24h
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Freshness and health status, recent execution logs, and trend context for current platform behaviour.
+📊 Status Report
+
+(showing demo data - Dagster not connected)
+
+                              Asset Status
+┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ Asset Name           ┃ Group      ┃ Status    ┃ Last Run ┃ Freshness ┃
+┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━┩
+│ dlt_glucose_entries  │ nightscout │ ✓ success │ 30m ago  │ Fresh     │
+│ fct_glucose_readings │ nightscout │ ✗ failed  │ 2d ago   │ Failed    │
+└──────────────────────┴────────────┴───────────┴──────────┴───────────┘
 ```
 
 ### Professional Growth Prompt

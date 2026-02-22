@@ -47,10 +47,13 @@ phlo metrics summary --period 24h
 phlo lineage impact dlt_orders
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Service health, asset status, recent errors, metrics context, and impact footprint.
+Error: Docker is not running.
+
+Please start Docker Desktop and try again.
+Download: https://docs.docker.com/get-docker/
 ```
 
 ## Common Failure Classes

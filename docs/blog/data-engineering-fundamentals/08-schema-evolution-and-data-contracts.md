@@ -35,10 +35,12 @@ phlo schema show RawOrders
 phlo schema diff RawOrders --old HEAD~1 --format text
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Schema details followed by classified change details.
+Schema not found: RawOrders
+Available schemas: FactDailyGlucoseMetrics, FactGlucoseReadings, PhloSchema,
+RawGlucoseEntries
 ```
 
 ## Branch-First Rollout Pattern

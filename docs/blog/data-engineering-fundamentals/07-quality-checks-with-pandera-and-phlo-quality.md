@@ -64,10 +64,16 @@ phlo validate-schema workflows/schemas/orders.py
 phlo validate-workflow workflows/ingestion/orders.py
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Schema inventory, schema details, and validation reports with pass/fail diagnostics.
+Available Schemas
+┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Name                    ┃ Fields ┃ Module                       ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ FactDailyGlucoseMetrics │     15 │ workflows.schemas.nightscout │
+│ RawGlucoseEntries       │     12 │ workflows.schemas.nightscout │
+└─────────────────────────┴────────┴──────────────────────────────┘
 ```
 
 ## Quality Severity Strategy

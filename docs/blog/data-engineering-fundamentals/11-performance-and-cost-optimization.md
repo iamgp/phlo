@@ -37,10 +37,20 @@ phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-07 --paralle
 phlo backfill dlt_orders --start-date 2026-01-01 --end-date 2026-01-07 --parallel 3
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-First command previews workload; second command executes with controlled parallelism.
+📦 Asset Backfill
+
+Asset: dlt_glucose_entries
+Total partitions: 3
+Parallel workers: 1
+
+Dry run - showing first 5 commands:
+
+pydantic_core._pydantic_core.ValidationError: 1 validation error for InfrastructureConfig
+services.minio.service_name
+  Field required [type=missing, input_value={'api_port': 9100, 'console_port': 9101}, input_type=dict]
 ```
 
 ## Track Performance Before and After

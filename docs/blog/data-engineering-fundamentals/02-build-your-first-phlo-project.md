@@ -22,10 +22,10 @@ phlo init my-first-phlo-project
 cd my-first-phlo-project
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Creates phlo.yaml, workflows/, tests/, and dbt scaffold under workflows/transforms/dbt.
+Initialised project scaffold with `phlo.yaml`, `workflows/`, and `tests/`.
 ```
 
 ## Understand the Generated Layout
@@ -48,10 +48,10 @@ phlo services init
 phlo services start
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Compose files generated in .phlo/ and core services start in Docker.
+Generated local Docker Compose configuration under `.phlo/`.
 ```
 
 Check runtime inventory:
@@ -60,17 +60,21 @@ Check runtime inventory:
 phlo services list --json
 ```
 
-Expected output:
+You should see output similar to this:
 
-```json
+```text
 [
   {
     "name": "minio",
-    "running": true
+    "description": "S3-compatible object storage for data lake",
+    "category": "core",
+    "default": true
   },
   {
-    "name": "dagster",
-    "running": true
+    "name": "postgres",
+    "description": "Metadata and analytics database",
+    "category": "core",
+    "default": true
   }
 ]
 ```
@@ -90,10 +94,20 @@ Use dry-run first so you can verify command shape without mutating state.
 phlo materialize dlt_glucose_entries --dry-run
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Prints docker exec dagster asset materialize command with selected asset.
+📊 Status Report
+
+         Service Health
+┏━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━┓
+┃ Service ┃ Status    ┃ Latency ┃
+┡━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━┩
+│ Dagster │ ✗ Down    │ —       │
+│ MinIO   │ ✗ Down    │ —       │
+│ Nessie  │ ✗ Down    │ —       │
+│ Trino   │ ⚠ Timeout │ 2000ms  │
+└─────────┴───────────┴─────────┘
 ```
 
 ## Why This Project Shape Matters
@@ -154,10 +168,10 @@ phlo init my-first-phlo-project
 cd my-first-phlo-project
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Project scaffold created with workflows, tests, and baseline config files.
+Initialised project scaffold with `phlo.yaml`, `workflows/`, and `tests/`.
 ```
 
 Step 2: Inspect generated config
@@ -173,10 +187,18 @@ Step 3: Initialize service composition
 phlo services init
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Creates .phlo/docker-compose.yml and related runtime config files.
+# Phlo Project Configuration
+name: glucose-platform
+description: "glucose-platform data lakehouse"
+
+infrastructure:
+  services:
+    minio:
+      api_port: 9100
+      console_port: 9101
 ```
 
 Step 4: Start services
@@ -193,10 +215,13 @@ phlo services status
 phlo services list --json
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Service status table and JSON list including running/stopped flags.
+Error: Docker is not running.
+
+Please start Docker Desktop and try again.
+Download: https://docs.docker.com/get-docker/
 ```
 
 Step 6: Validate workflow tooling
@@ -212,10 +237,10 @@ Step 7: Validate generated workflow contract
 phlo validate-workflow workflows/ingestion/commerce/orders.py
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Validation summary with contract and decorator diagnostics.
+Created ingestion workflow scaffold under `workflows/ingestion/` for the selected domain and table.
 ```
 
 At this point, you have the minimum viable platform loop:
@@ -364,10 +389,10 @@ phlo services status
 phlo services list --json
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Service stack initializes, starts, then reports current status and inventory.
+Created ingestion workflow scaffold under `workflows/ingestion/` for the selected domain and table.
 ```
 
 When onboarding pain is low, platform adoption rises naturally.

@@ -61,23 +61,43 @@ graph LR
 phlo --help
 ```
 
-Expected output:
+You should see output similar to this:
 
 ```text
-Shows top-level command groups such as services, workflow, plugin, and plugin-provided commands.
+Usage: phlo [OPTIONS] COMMAND [ARGS]...
+
+Commands:
+  backfill
+  branch
+  catalog
+  init
+  materialize
+  plugin
+  schema
+  services
+  status
+  validate-workflow
 ```
 
 ```bash
 phlo services list --json
 ```
 
-Expected output:
+You should see output similar to this:
 
-```json
+```text
 [
   {
-    "name": "dagster",
-    "running": false
+    "name": "minio",
+    "description": "S3-compatible object storage for data lake",
+    "category": "core",
+    "default": true
+  },
+  {
+    "name": "postgres",
+    "description": "Metadata and analytics database",
+    "category": "core",
+    "default": true
   }
 ]
 ```
