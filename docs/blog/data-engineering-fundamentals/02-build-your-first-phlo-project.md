@@ -82,7 +82,7 @@ If Docker and the stack are up, you should see core services reported as healthy
 
 ```bash
 phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *" --api-base-url "https://api.example.com"
-phlo validate-workflow --help
+phlo logs --limit 20
 ```
 
 Your output should look roughly like this:
@@ -98,13 +98,13 @@ At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion as
 Use dry-run first so you can verify command shape without mutating state.
 
 ```bash
-phlo materialize --help
+phlo services list --json
 ```
 
 You should get output similar to this:
 
 ```text
-Usage: phlo materialize [OPTIONS]
+[{"name": "minio", "category": "core", "default": true}, ...]
 ```
 
 ## Why This Project Shape Matters
@@ -201,7 +201,6 @@ Step 5: Verify running state
 
 ```bash
 phlo services list --json
-phlo services list --json
 ```
 
 A typical result looks like this:
@@ -223,7 +222,7 @@ phlo workflow create --type ingestion --domain commerce --table orders --unique-
 Step 7: Validate generated workflow contract
 
 ```bash
-phlo validate-workflow --help
+phlo logs --limit 20
 ```
 
 If everything is wired correctly, you should see output along these lines:
@@ -313,7 +312,7 @@ Run:
 
 ```bash
 phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key invoice_id --cron "0 */2 * * *" --api-base-url "https://api.example.com"
-phlo validate-workflow --help
+phlo logs --limit 20
 phlo schema list --format table
 ```
 
@@ -373,8 +372,6 @@ You can also add a simple first-run script for local onboarding:
 set -euo pipefail
 
 phlo services init --force
-phlo services list --json
-phlo services list --json
 phlo services list --json
 ```
 
@@ -526,7 +523,7 @@ Keep it deliberate and consistent across teams.
 ## Common Issues
 
 1. `phlo services list --json` fails because Docker daemon is not running.
-2. `phlo services list --json --json` is attempted, but `services status` has no JSON mode.
+2. `phlo services list --json` is attempted, but `services status` has no JSON mode.
 3. `phlo materialize` fails because Dagster container is not up yet.
 4. Project root confusion causes commands to run outside the initialized folder.
 5. Missing package plugins lead to missing command groups.

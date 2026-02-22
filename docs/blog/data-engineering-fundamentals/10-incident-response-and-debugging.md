@@ -41,8 +41,8 @@ graph LR
 
 ```bash
 phlo services list --json
-phlo status --assets
-phlo logs --help
+phlo status --services
+phlo logs --limit 20
 phlo metrics summary --period 24h
 phlo lineage status
 ```
@@ -73,7 +73,7 @@ If everything is wired correctly, you should see output along these lines:
 Example targeted replay:
 
 ```bash
-phlo materialize --help
+phlo services list --json
 ```
 
 

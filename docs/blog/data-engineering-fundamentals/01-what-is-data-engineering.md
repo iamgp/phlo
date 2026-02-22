@@ -72,13 +72,13 @@ Command completed successfully.
 ```
 
 ```bash
-phlo --help
+phlo --version
 ```
 
 You should see something like this:
 
 ```text
-Usage: phlo --help [OPTIONS]
+Usage: phlo --version [OPTIONS]
 ```
 
 ```bash
@@ -231,7 +231,7 @@ At 2:10 AM:
 
 At 2:15 AM:
 
-- `phlo status --assets` indicates all critical assets are fresh.
+- `phlo status --services` indicates all critical assets are fresh.
 - Alerting stays quiet.
 
 Now the failure case:

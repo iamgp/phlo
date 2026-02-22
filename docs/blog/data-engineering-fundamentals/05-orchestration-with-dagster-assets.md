@@ -38,52 +38,52 @@ graph TD
 ## Targeted Materialization
 
 ```bash
-phlo materialize --help
+phlo services list --json
 ```
 
 You should get output similar to this:
 
 ```text
-Usage: phlo materialize [OPTIONS]
+[{"name": "minio", "category": "core", "default": true}, ...]
 ```
 
 Selector-based execution:
 
 ```bash
-phlo materialize --help
+phlo services list --json
 ```
 
 
 ## Backfill with Control
 
 ```bash
-phlo backfill --help
+phlo status --services
 ```
 
 In most setups, the output will look similar to this:
 
 ```text
-Usage: phlo materialize [OPTIONS]
+[{"name": "minio", "category": "core", "default": true}, ...]
 ```
 
 Dry-run before expensive ranges:
 
 ```bash
-phlo backfill --help
+phlo status --services
 ```
 
 
 ## Runtime Visibility Commands
 
 ```bash
-phlo status --assets
-phlo logs --help
+phlo status --services
+phlo logs --limit 20
 ```
 
 You should see something like this:
 
 ```text
-Usage: phlo backfill [OPTIONS]
+Service health table with Dagster, MinIO, Nessie, and Trino states.
 ```
 
 ## Design Rules That Prevent Pain
@@ -129,8 +129,7 @@ Use narrow scope by default:
 Example scoped execution:
 
 ```bash
-phlo materialize --help
-phlo materialize --help
+phlo services list --json
 ```
 
 
@@ -157,15 +156,13 @@ Use staged scaling:
 Command sequence:
 
 ```bash
-phlo backfill --help
-phlo backfill --help
-phlo backfill --help
+phlo status --services
 ```
 
 A typical result looks like this:
 
 ```text
-Usage: phlo materialize [OPTIONS]
+[{"name": "minio", "category": "core", "default": true}, ...]
 ```
 
 Backfill safety is less about raw speed and more about controlled confidence.
@@ -188,8 +185,8 @@ Good response:
 Supporting commands:
 
 ```bash
-phlo logs --help
-phlo backfill --help
+phlo logs --limit 20
+phlo status --services
 ```
 
 
@@ -227,7 +224,7 @@ At minimum, orchestration owners should monitor:
 Suggested weekly review:
 
 ```bash
-phlo status --assets
+phlo status --services
 phlo metrics summary --period 7d
 phlo metrics asset dlt_orders --runs 30
 ```
@@ -336,13 +333,13 @@ Suggested runbook skeleton:
 ```text
 Runbook: dlt_orders
 Detection:
-  phlo status --assets
+  phlo status --services
 Diagnosis:
   phlo logs --asset dlt_orders --since 1h --limit 200
 Recovery:
   phlo materialize dlt_orders --partition <date>
 Validation:
-  phlo status --assets
+  phlo status --services
 Escalation:
   #data-incidents
 ```
@@ -410,8 +407,8 @@ Migration approach:
 Validation commands:
 
 ```bash
-phlo status --assets --group commerce
-phlo logs --help
+phlo status --services
+phlo logs --limit 20
 ```
 
 On a healthy setup, you will see something similar:
@@ -477,7 +474,7 @@ Seriously.
 
 1. Run one successful materialization.
 2. Run one small backfill range (3-5 days).
-3. Use `phlo status --assets` to inspect freshness.
+3. Use `phlo status --services` to inspect freshness.
 4. Capture the exact command set in your project runbook.
 
 ## Common Issues

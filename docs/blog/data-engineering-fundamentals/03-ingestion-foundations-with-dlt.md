@@ -114,19 +114,19 @@ def clickstream(partition_date: str):
 ## Run Ingestion for a Partition
 
 ```bash
-phlo materialize --help
+phlo services list --json
 ```
 
 The command should return something like this:
 
 ```text
-Usage: phlo materialize [OPTIONS]
+[{"name": "minio", "category": "core", "default": true}, ...]
 ```
 
 Backfill date ranges when needed:
 
 ```bash
-phlo backfill --help
+phlo status --services
 ```
 
 
@@ -274,15 +274,14 @@ Experiment C: empty partition
 Suggested command set:
 
 ```bash
-phlo materialize --help
-phlo materialize --help
-phlo logs --help
+phlo services list --json
+phlo logs --limit 20
 ```
 
 Your output should look roughly like this:
 
 ```text
-Usage: phlo backfill [OPTIONS]
+Service health table with Dagster, MinIO, Nessie, and Trino states.
 ```
 
 This is one of the best low-cost ways to increase confidence.
@@ -424,15 +423,14 @@ Example sequence:
 Command pattern:
 
 ```bash
-phlo backfill --help
-phlo backfill --help
+phlo status --services
 phlo metrics asset dlt_orders --runs 30
 ```
 
 You should get output similar to this:
 
 ```text
-Usage: phlo backfill [OPTIONS]
+Service health table with Dagster, MinIO, Nessie, and Trino states.
 ```
 
 What to avoid:
@@ -642,8 +640,8 @@ Pick one asset or model from this chapter and do a full reliability pass:
 Run commands as needed for your chapter context, for example:
 
 ```bash
-phlo status --assets
-phlo logs --help
+phlo status --services
+phlo logs --limit 20
 phlo metrics summary --period 24h
 ```
 

@@ -33,14 +33,13 @@ If you reverse this order, you optimise the wrong thing.
 ## Example: Controlled Backfill Tuning
 
 ```bash
-phlo backfill --help
-phlo backfill --help
+phlo status --services
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-Usage: phlo backfill [OPTIONS]
+Service health table with Dagster, MinIO, Nessie, and Trino states.
 ```
 
 ## Track Performance Before and After

@@ -39,9 +39,8 @@ graph TD
 ## Status and Logs
 
 ```bash
-phlo status --assets
 phlo status --services
-phlo logs --help
+phlo logs --limit 20
 ```
 
 In most setups, the output will look similar to this:
@@ -84,7 +83,6 @@ Command completed successfully.
 When alerting plugin is installed:
 
 ```bash
-phlo plugin list
 phlo plugin list
 ```
 

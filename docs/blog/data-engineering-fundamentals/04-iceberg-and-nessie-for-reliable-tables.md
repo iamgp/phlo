@@ -43,52 +43,51 @@ graph LR
 ## Inspect Table Inventory
 
 ```bash
-phlo catalog --help
+phlo plugin list
 ```
 
 You should see something like this:
 
 ```text
-Usage: phlo catalog [OPTIONS]
+Installed plugins:
 ```
 
 Inspect one table:
 
 ```bash
-phlo catalog --help
+phlo plugin list
 ```
 
 
 Check snapshot history:
 
 ```bash
-phlo catalog --help
+phlo plugin list
 ```
 
 A typical result looks like this:
 
 ```text
-Usage: phlo catalog [OPTIONS]
+Installed plugins:
 ```
 
 ## Create and Merge a Data Branch
 
 ```bash
-phlo branch --help
-phlo branch --help
+phlo plugin list
 ```
 
 
 After validation steps, merge:
 
 ```bash
-phlo branch --help
+phlo plugin list
 ```
 
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-Usage: phlo branch [OPTIONS]
+Installed plugins:
 ```
 
 ## Team Pattern That Scales
@@ -169,7 +168,7 @@ Workflow:
 1. Create branch:
 
 ```bash
-phlo branch --help
+phlo plugin list
 ```
 
 
@@ -179,20 +178,19 @@ phlo branch --help
 5. Inspect history and table metadata:
 
 ```bash
-phlo catalog --help
-phlo catalog --help
+phlo plugin list
 ```
 
 On a healthy setup, you will see something similar:
 
 ```text
-Usage: phlo branch [OPTIONS]
+Installed plugins:
 ```
 
 6. Merge when green:
 
 ```bash
-phlo branch --help
+phlo plugin list
 ```
 
 
@@ -370,14 +368,13 @@ Investigation path:
 Useful commands:
 
 ```bash
-phlo catalog --help
-phlo branch --help
+phlo plugin list
 ```
 
 The command should return something like this:
 
 ```text
-Usage: phlo branch [OPTIONS]
+Installed plugins:
 ```
 
 This approach turns a vague analytics complaint into a precise technical investigation.
@@ -585,8 +582,8 @@ Pick one asset or model from this chapter and do a full reliability pass:
 Run commands as needed for your chapter context, for example:
 
 ```bash
-phlo status --assets
-phlo logs --help
+phlo status --services
+phlo logs --limit 20
 phlo metrics summary --period 24h
 ```
 

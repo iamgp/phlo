@@ -32,8 +32,6 @@ Breaking changes usually include:
 
 ```bash
 phlo schema list --format table
-phlo schema show --help
-phlo schema diff --help
 ```
 
 You should get output similar to this:
@@ -45,7 +43,7 @@ Available Schemas table with schema names, field counts, and source modules.
 ## Branch-First Rollout Pattern
 
 ```bash
-phlo branch --help
+phlo plugin list
 ```
 
 

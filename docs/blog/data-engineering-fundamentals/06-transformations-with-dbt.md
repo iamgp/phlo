@@ -72,7 +72,7 @@ Installed:
 The dbt plugin contributes a `publishing` command group.
 
 ```bash
-phlo publishing scaffold --help
+phlo plugin list
 ```
 
 

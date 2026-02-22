@@ -59,8 +59,7 @@ def orders_quality_gate() -> None:
 
 ```bash
 phlo schema list --format table
-phlo validate-schema --help
-phlo validate-workflow --help
+phlo logs --limit 20
 ```
 
 Your output should look roughly like this:
