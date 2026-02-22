@@ -35,7 +35,9 @@ By the end, you will be able to:
 Run this once before following any command snippets:
 
 ```bash
-uv tool install phlo
+uv venv
+source .venv/bin/activate
+uv pip install phlo phlo-dagster phlo-dlt phlo-quality phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-metrics phlo-lineage
 ```
 
 Then run the blog commands from your working project directory (for example `/Users/garethprice/Developer/phlo-examples/blog`).

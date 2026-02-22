@@ -94,7 +94,7 @@ If Docker and the stack are up, you should see core services reported as healthy
 ## Create Your First Ingestion Asset
 
 ```bash
-phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *"
+phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *" --api-base-url "https://api.example.com"
 phlo validate-workflow workflows/ingestion/commerce/orders.py
 ```
 
@@ -244,7 +244,7 @@ Core services started (Dagster, MinIO, Nessie, Trino, Postgres).
 Step 6: Validate workflow tooling
 
 ```bash
-phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *"
+phlo workflow create --type ingestion --domain commerce --table orders --unique-key order_id --cron "0 * * * *" --api-base-url "https://api.example.com"
 ```
 
 
@@ -348,7 +348,7 @@ Use a domain you care about, for example "subscriptions".
 Run:
 
 ```bash
-phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key invoice_id --cron "0 */2 * * *"
+phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key invoice_id --cron "0 */2 * * *" --api-base-url "https://api.example.com"
 phlo validate-workflow workflows/ingestion/subscriptions/invoices.py
 phlo schema list --domain subscriptions
 ```

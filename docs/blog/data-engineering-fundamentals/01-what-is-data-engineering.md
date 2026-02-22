@@ -60,13 +60,15 @@ graph LR
 First, make sure the CLI is installed in your environment:
 
 ```bash
-uv tool install phlo
+uv venv
+source .venv/bin/activate
+uv pip install phlo phlo-dagster phlo-dlt phlo-quality phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-metrics phlo-lineage
 ```
 
 The command should return something like this:
 
 ```text
-Installed executable: phlo
+Installed Phlo CLI plus core ecosystem packages (dagster, dlt, quality, nessie, iceberg, dbt, trino, metrics, lineage).
 ```
 
 ```bash
