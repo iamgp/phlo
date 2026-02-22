@@ -4,7 +4,7 @@
 
 ## What You'll Learn
 
-- How `@phlo_ingestion` turns a source function into a managed asset
+- How `@phlo.ingestion` turns a source function into a managed asset
 - Why two-step ingestion (stage then merge) improves reliability
 - How to choose `merge` vs `append`
 - How partition keys affect replay and idempotency
@@ -28,10 +28,10 @@ A simplified workflow example:
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo_dlt.decorator import phlo_ingestion
+import phlo
 from workflows.schemas.orders import RawOrders
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="orders",
     unique_key="order_id",
     group="commerce",
@@ -81,7 +81,7 @@ Use `merge` when source rows can be resent or corrected.
 Use `append` when source rows are immutable events and duplicates are acceptable only if replayed intentionally.
 
 ```python
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="raw_clickstream",
     unique_key="event_id",
     group="events",
@@ -184,10 +184,10 @@ Illustrative pattern:
 
 ```python
 from dlt.sources.rest_api import rest_api
-from phlo_dlt.decorator import phlo_ingestion
+import phlo
 from workflows.schemas.orders import RawOrders
 
-@phlo_ingestion(
+@phlo.ingestion(
     table_name="orders",
     unique_key="order_id",
     group="commerce",
@@ -700,7 +700,7 @@ Debug patterns: [Troubleshooting](../../operations/troubleshooting.md)
 
 ## Summary
 
-`@phlo_ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
+`@phlo.ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
 
 ## Next Steps
 
