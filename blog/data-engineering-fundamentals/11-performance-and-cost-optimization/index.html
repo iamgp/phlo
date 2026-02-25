@@ -426,8 +426,25 @@
 phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-07 --parallel 2
 </code></pre>
 <p>Compare durations to find the highest safe concurrency:</p>
-<pre><code class="language-text">Parallel 1: 7 partitions in 4m 12s
-Parallel 2: 7 partitions in 2m 18s
+<pre><code class="language-text">Parallel 1:
+Backfill Results
+┌───────────┬────────────┐
+│ Asset     │ dlt_orders │
+│ Status    │ ✓ Success  │
+│ Completed │ 7          │
+│ Failed    │ 0          │
+│ Total     │ 7          │
+└───────────┴────────────┘
+
+Parallel 2:
+Backfill Results
+┌───────────┬────────────┐
+│ Asset     │ dlt_orders │
+│ Status    │ ✓ Success  │
+│ Completed │ 7          │
+│ Failed    │ 0          │
+│ Total     │ 7          │
+└───────────┴────────────┘
 </code></pre>
 <h2 id="track-performance-before-and-after">Track Performance Before and After</h2>
 <pre><code class="language-bash">phlo metrics asset dlt_orders --runs 30

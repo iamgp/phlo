@@ -583,7 +583,7 @@ def clickstream(partition_date: str):
 <pre><code class="language-bash">phlo materialize dlt_orders --partition 2025-01-15
 </code></pre>
 <p>The command should return something like this:</p>
-<pre><code class="language-text">Materializing dlt_orders for partition 2025-01-15...
+<pre><code class="language-text">Materializing dlt_orders...
 
 Successfully materialized dlt_orders
 </code></pre>
@@ -855,11 +855,17 @@ Expected: no_data status, not hard failure
 <pre><code class="language-bash">phlo metrics asset dlt_orders --runs 30
 </code></pre>
 <p>You should get output similar to this:</p>
-<pre><code class="language-text">Asset: dlt_orders
-Runs: 30
-Median duration: 42s
-p95 duration: 68s
-Failure rate: 3.3%
+<pre><code class="language-text">    Metrics for dlt_orders
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ Metric            ┃ Value  ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ Last Run Status   │ -      │
+│ Last Run Duration │ -      │
+│ Average Duration  │ 0.00s  │
+│ Failure Rate      │ 0.0%   │
+│ Avg Rows/Run      │ 0      │
+│ Data Size         │ 0.00 B │
+└───────────────────┴────────┘
 </code></pre>
 <p>What to avoid:</p>
 <ul>

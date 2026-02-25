@@ -432,8 +432,33 @@ phlo metrics asset dlt_orders --runs 20
 phlo metrics export --format json --output .phlo/metrics-24h.json --period 24h
 </code></pre>
 <p>You should see something like this:</p>
-<pre><code class="language-text">Period: 24h | Total runs: 8 | Success rate: 100.0%
-Exported metrics to .phlo/metrics-24h.json
+<pre><code class="language-text">╭─── 📊 Metrics Summary ───╮
+│                          │
+│ Platform Metrics Summary │
+│                          │
+│ Runs (last 24h)          │
+│   Total:     0           │
+│   Success:   0 (0.0%)    │
+│   Failure:   0 (0.0%)    │
+│                          │
+│ Data Volume              │
+│   Rows:      0           │
+│   Bytes:     0.00 B      │
+│                          │
+│ Latency (seconds)        │
+│   p50:       0.00s       │
+│   p95:       0.00s       │
+│   p99:       0.00s       │
+│                          │
+│ Assets                   │
+│   Active:    0           │
+│   Success:   0           │
+│   Warning:   0           │
+│   Failure:   0           │
+│                          │
+╰──────────────────────────╯
+
+✓ Metrics exported to .phlo/metrics-24h.json
 </code></pre>
 <h2 id="lineage-for-impact-analysis">Lineage for Impact Analysis</h2>
 <pre><code class="language-bash">phlo lineage status

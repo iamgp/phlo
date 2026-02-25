@@ -412,11 +412,28 @@ phlo plugin info dagster
 </code></pre>
 <p>The command should return something like this:</p>
 <pre><code class="language-text">Installed:
-- dbt
-- dagster
-- dlt
-- metrics
-- lineage
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┓
+┃ Name              ┃ Type          ┃ Version ┃ Author    ┃ Ready ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━┩
+│ minio             │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ trino             │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ postgres          │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ dagster           │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ nessie            │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ dbt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ lineage           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ quality           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dagster           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ metrics           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ nessie            │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dlt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+└───────────────────┴───────────────┴─────────┴───────────┴───────┘
+
+dagster
+Type: services
+Version: 0.1.0
+Author: Phlo Team
+Description: Data orchestration platform for workflows and pipelines
 </code></pre>
 <h2 id="observatory-extension-manifest-basics">Observatory Extension Manifest Basics</h2>
 <p>Phlo Observatory defines extension manifest models for compatibility, navigation, slots, and settings.</p>
@@ -498,7 +515,17 @@ mytools = "phlo_mytools.cli_plugin:MyToolsCLI"
 <pre><code class="language-bash">phlo plugin list
 </code></pre>
 <p>Expected output:</p>
-<pre><code class="language-text">Installed plugins: mytools, dbt, dagster, dlt, metrics, lineage
+<pre><code class="language-text">Installed:
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┓
+┃ Name              ┃ Type          ┃ Version ┃ Author    ┃ Ready ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━┩
+│ mytools           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dbt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dagster           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dlt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ metrics           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ lineage           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+└───────────────────┴───────────────┴─────────┴───────────┴───────┘
 </code></pre>
 <p>Keep first plugins small. One command that solves a real daily pain point is more valuable than a comprehensive toolkit nobody uses.</p>
 <h2 id="field-notes-first-plugin-small-scope-real-value">Field Notes: First Plugin, Small Scope, Real Value</h2>
