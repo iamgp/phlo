@@ -47,13 +47,14 @@ phlo metrics summary --period 24h
 phlo lineage status
 ```
 
-If everything is wired correctly, you should see output along these lines:
+Run these in order. Together they give you service health, asset freshness, recent errors, metric trends, and downstream blast radius within minutes.
 
 ```text
-[
-  {"name": "minio", "category": "core", "default": true},
-  {"name": "dagster", "category": "core", "default": true}
-]
+Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 ```
 
 ## Common Failure Classes
@@ -73,7 +74,7 @@ If everything is wired correctly, you should see output along these lines:
 Example targeted replay:
 
 ```bash
-phlo services list --json
+phlo materialize dlt_orders --partition 2025-01-15
 ```
 
 

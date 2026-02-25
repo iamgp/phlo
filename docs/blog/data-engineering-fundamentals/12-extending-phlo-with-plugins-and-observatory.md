@@ -35,11 +35,28 @@ The command should return something like this:
 
 ```text
 Installed:
-- dbt
-- dagster
-- dlt
-- metrics
-- lineage
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┓
+┃ Name              ┃ Type          ┃ Version ┃ Author    ┃ Ready ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━┩
+│ minio             │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ trino             │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ postgres          │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ dagster           │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ nessie            │ service       │ 0.1.0   │ Phlo Team │ yes   │
+│ dbt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ lineage           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ quality           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dagster           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ metrics           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ nessie            │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dlt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+└───────────────────┴───────────────┴─────────┴───────────┴───────┘
+
+dagster
+Type: services
+Version: 0.1.0
+Author: Phlo Team
+Description: Data orchestration platform for workflows and pipelines
 ```
 
 ## Observatory Extension Manifest Basics
@@ -148,7 +165,17 @@ phlo plugin list
 Expected output:
 
 ```text
-Installed plugins: mytools, dbt, dagster, dlt, metrics, lineage
+Installed:
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┓
+┃ Name              ┃ Type          ┃ Version ┃ Author    ┃ Ready ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━┩
+│ mytools           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dbt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dagster           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ dlt               │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ metrics           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+│ lineage           │ cli_commands  │ 0.1.0   │ unknown   │ yes   │
+└───────────────────┴───────────────┴─────────┴───────────┴───────┘
 ```
 
 Keep first plugins small. One command that solves a real daily pain point is more valuable than a comprehensive toolkit nobody uses.

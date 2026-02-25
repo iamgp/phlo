@@ -18,7 +18,7 @@ By the end, you will be able to:
 - Design a clean ingestion-to-serving data flow
 - Use `@phlo.ingestion` for repeatable loads
 - Run SQL transformations with dbt in `workflows/transforms/dbt`
-- Validate quality with Pandera and `@phlo_quality`
+- Validate quality with Pandera and `@phlo.quality`
 - Track pipeline health with status, logs, metrics, and lineage
 - Debug incidents using a repeatable response checklist
 - Extend the platform with plugins and Observatory extensions

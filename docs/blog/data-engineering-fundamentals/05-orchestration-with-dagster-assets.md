@@ -73,6 +73,15 @@ Asset: dlt_orders
 Total partitions: 7
 Parallel workers: 2
 
+Backfill Results
+┌───────────┬────────────┐
+│ Asset     │ dlt_orders │
+│ Status    │ ✓ Success  │
+│ Completed │ 7          │
+│ Failed    │ 0          │
+│ Total     │ 7          │
+└───────────┴────────────┘
+
 ✓ Backfill complete!
 ```
 
@@ -85,15 +94,21 @@ phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-31 --dry-run
 
 ## Runtime Visibility Commands
 
+After a materialization, use status and logs to confirm outcomes:
+
 ```bash
-phlo materialize dlt_orders --partition 2025-01-15
+phlo status --services
 phlo logs --limit 20
 ```
 
 You should see something like this:
 
 ```text
-Service health table with Dagster, MinIO, Nessie, and Trino states.
+Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 ```
 
 ## Design Rules That Prevent Pain
@@ -178,6 +193,15 @@ Asset: dlt_orders
 Total partitions: 3
 Parallel workers: 1
 
+Backfill Results
+┌───────────┬────────────┐
+│ Asset     │ dlt_orders │
+│ Status    │ ✓ Success  │
+│ Completed │ 3          │
+│ Failed    │ 0          │
+│ Total     │ 3          │
+└───────────┴────────────┘
+
 ✓ Backfill complete!
 ```
 
@@ -202,7 +226,7 @@ Supporting commands:
 
 ```bash
 phlo logs --limit 20
-phlo backfill dlt_orders --start-date 2025-01-13 --end-date 2025-01-18 --parallel 3
+phlo backfill dlt_orders --start-date 2025-01-13 --end-date 2025-01-18 --parallel 1
 ```
 
 
@@ -248,7 +272,11 @@ phlo metrics asset dlt_orders --runs 30
 If everything is wired correctly, you should see output along these lines:
 
 ```text
-Service health and metrics summary output.
+Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+
+Period: 7d | Total runs: 48 | Success rate: 97.9%
 ```
 
 Without this review, orchestration reliability regresses quietly.
@@ -430,7 +458,11 @@ phlo logs --limit 20
 On a healthy setup, you will see something similar:
 
 ```text
-Service health table with status for old and new asset selectors.
+Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 ```
 
 The point is not naming itself; it is controlled operational change.

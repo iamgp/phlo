@@ -37,13 +37,14 @@ phlo schema list --format table
 You should get output similar to this:
 
 ```text
-Available Schemas table with schema names, field counts, and source modules.
+Schema         Fields    Module
+RawOrders      4         workflows.schemas.orders
 ```
 
 ## Branch-First Rollout Pattern
 
 ```bash
-phlo plugin list
+phlo branch create schema/contract-update
 ```
 
 

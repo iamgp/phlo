@@ -46,7 +46,11 @@ phlo logs --limit 20
 In most setups, the output will look similar to this:
 
 ```text
-Command completed successfully.
+Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 ```
 
 ## Metrics for Trends
@@ -60,7 +64,33 @@ phlo metrics export --format json --output .phlo/metrics-24h.json --period 24h
 You should see something like this:
 
 ```text
-Command completed successfully.
+╭─── 📊 Metrics Summary ───╮
+│                          │
+│ Platform Metrics Summary │
+│                          │
+│ Runs (last 24h)          │
+│   Total:     0           │
+│   Success:   0 (0.0%)    │
+│   Failure:   0 (0.0%)    │
+│                          │
+│ Data Volume              │
+│   Rows:      0           │
+│   Bytes:     0.00 B      │
+│                          │
+│ Latency (seconds)        │
+│   p50:       0.00s       │
+│   p95:       0.00s       │
+│   p99:       0.00s       │
+│                          │
+│ Assets                   │
+│   Active:    0           │
+│   Success:   0           │
+│   Warning:   0           │
+│   Failure:   0           │
+│                          │
+╰──────────────────────────╯
+
+✓ Metrics exported to .phlo/metrics-24h.json
 ```
 
 
@@ -69,18 +99,17 @@ Command completed successfully.
 ```bash
 phlo lineage status
 phlo lineage show dlt_orders --direction both --depth 2
-phlo lineage status
 ```
 
 A typical result looks like this:
 
 ```text
-Command completed successfully.
+dlt_orders → stg_orders → fct_orders → mrt_revenue_daily
 ```
 
 ## Alerting Loop
 
-When alerting plugin is installed:
+Confirm the alerting plugin is available, then configure alert rules:
 
 ```bash
 phlo plugin list
