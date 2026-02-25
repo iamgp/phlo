@@ -33,13 +33,32 @@ If you reverse this order, you optimise the wrong thing.
 ## Example: Controlled Backfill Tuning
 
 ```bash
-phlo status --services
+phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-07 --parallel 1
+phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-07 --parallel 2
 ```
 
-On a healthy setup, you will see something similar:
+Compare durations to find the highest safe concurrency:
 
 ```text
-Service health table with Dagster, MinIO, Nessie, and Trino states.
+Parallel 1:
+Backfill Results
+┌───────────┬────────────┐
+│ Asset     │ dlt_orders │
+│ Status    │ ✓ Success  │
+│ Completed │ 7          │
+│ Failed    │ 0          │
+│ Total     │ 7          │
+└───────────┴────────────┘
+
+Parallel 2:
+Backfill Results
+┌───────────┬────────────┐
+│ Asset     │ dlt_orders │
+│ Status    │ ✓ Success  │
+│ Completed │ 7          │
+│ Failed    │ 0          │
+│ Total     │ 7          │
+└───────────┴────────────┘
 ```
 
 ## Track Performance Before and After

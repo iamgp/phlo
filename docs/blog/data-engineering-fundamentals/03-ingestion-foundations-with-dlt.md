@@ -4,7 +4,7 @@
 
 ## What You'll Learn
 
-- How `@phlo_ingestion` turns a source function into a managed asset
+- How `@phlo.ingestion` turns a source function into a managed asset
 - Why two-step ingestion (stage then merge) improves reliability
 - How to choose `merge` vs `append`
 - How partition keys affect replay and idempotency
@@ -62,7 +62,7 @@ def orders(partition_date: str):
         client={"base_url": "https://fakestoreapi.com"},
         resources=[
             {
-                "name": "orders",
+                "name": "products",
                 "endpoint": {
                     "path": "/products",
                 },
@@ -110,19 +110,21 @@ def clickstream(partition_date: str):
 ## Run Ingestion for a Partition
 
 ```bash
-phlo services list --json
+phlo materialize dlt_orders --partition 2025-01-15
 ```
 
 The command should return something like this:
 
 ```text
-[{"name": "minio", "category": "core", "default": true}, ...]
+Materializing dlt_orders...
+
+Successfully materialized dlt_orders
 ```
 
 Backfill date ranges when needed:
 
 ```bash
-phlo status --services
+phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-07 --parallel 2
 ```
 
 
@@ -212,7 +214,7 @@ def orders(partition_date: str):
         client={"base_url": "https://fakestoreapi.com"},
         resources=[
             {
-                "name": "orders",
+                "name": "products",
                 "endpoint": {
                     "path": "/products",
                 },
@@ -262,18 +264,14 @@ Experiment C: empty partition
 - Run a date range with known empty data.
 - Confirm pipeline returns "no data" cleanly without false failure.
 
-Suggested command set:
+After each experiment, verify results with:
 
 ```bash
-phlo services list --json
+phlo status --services
 phlo logs --limit 20
 ```
 
-Your output should look roughly like this:
-
-```text
-Service health table with Dagster, MinIO, Nessie, and Trino states.
-```
+Status confirms services are healthy; logs show whether the pipeline handled the injected fault as expected.
 
 This is one of the best low-cost ways to increase confidence.
 
@@ -414,14 +412,23 @@ Example sequence:
 Command pattern:
 
 ```bash
-phlo status --services
 phlo metrics asset dlt_orders --runs 30
 ```
 
 You should get output similar to this:
 
 ```text
-Service health table with Dagster, MinIO, Nessie, and Trino states.
+    Metrics for dlt_orders
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ Metric            ┃ Value  ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ Last Run Status   │ -      │
+│ Last Run Duration │ -      │
+│ Average Duration  │ 0.00s  │
+│ Failure Rate      │ 0.0%   │
+│ Avg Rows/Run      │ 0      │
+│ Data Size         │ 0.00 B │
+└───────────────────┴────────┘
 ```
 
 What to avoid:
@@ -508,7 +515,7 @@ Debug patterns: [Troubleshooting](../../operations/troubleshooting.md)
 
 ## Summary
 
-`@phlo_ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
+`@phlo.ingestion` is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.
 
 ## Next Steps
 

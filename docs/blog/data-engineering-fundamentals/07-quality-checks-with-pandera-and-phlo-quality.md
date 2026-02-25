@@ -5,7 +5,7 @@
 ## What You'll Learn
 
 - How Pandera schemas define enforceable contracts
-- How `@phlo_quality` generates asset checks
+- How `@phlo.quality` generates asset checks
 - When to block downstream runs vs warn
 - How to validate schemas and workflow files from CLI
 
@@ -17,6 +17,8 @@
 ## Contract-First Mindset
 
 A schema is not documentation only. It is executable policy.
+
+The examples here use the orders domain schema from Part 6. If you are following along with the demo products API, substitute your own field names.
 
 Example Pandera model:
 
@@ -61,13 +63,13 @@ def orders_quality_gate() -> None:
 
 ```bash
 phlo schema list --format table
-phlo logs --limit 20
 ```
 
 Your output should look roughly like this:
 
 ```text
-Available Schemas table with schema names, field counts, and source modules.
+Schema         Fields    Module
+RawOrders      4         workflows.schemas.orders
 ```
 
 ## Quality Severity Strategy

@@ -49,9 +49,13 @@ phlo catalog tables
 You should see something like this:
 
 ```text
-Namespace   Table          Full Name
-raw         orders         raw.orders
-bronze      stg_orders     bronze.stg_orders
+      Iceberg Tables (ref: main)
+┏━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Namespace ┃ Table Name ┃ Full Name  ┃
+┡━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ raw       │ orders     │ raw.orders │
+└───────────┴────────────┴────────────┘
+Total: 1 tables
 ```
 
 Inspect one table:
@@ -70,8 +74,12 @@ phlo catalog history raw.orders
 A typical result looks like this:
 
 ```text
-Snapshot ID          Timestamp                Operation   Records
-5765…a3f1            2025-01-15T02:00:12Z     append      1284
+                    Snapshot History: raw.orders (ref: main)
+┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Snapshot ID   ┃ Timestamp (ms) ┃ Operation     ┃ Added Files ┃ Removed Files ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ 725942914903… │ 1771971249812  │ Operation.AP… │ 1           │ None          │
+└───────────────┴────────────────┴───────────────┴─────────────┴───────────────┘
 ```
 
 ## Create and Merge a Data Branch
@@ -378,8 +386,12 @@ phlo catalog history raw.orders
 The command should return something like this:
 
 ```text
-Snapshot ID          Timestamp                Operation   Records
-5765…a3f1            2025-01-15T02:00:12Z     append      1284
+                    Snapshot History: raw.orders (ref: main)
+┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Snapshot ID   ┃ Timestamp (ms) ┃ Operation     ┃ Added Files ┃ Removed Files ┃
+┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ 725942914903… │ 1771971249812  │ Operation.AP… │ 1           │ None          │
+└───────────────┴────────────────┴───────────────┴─────────────┴───────────────┘
 ```
 
 This approach turns a vague analytics complaint into a precise technical investigation.

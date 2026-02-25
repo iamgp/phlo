@@ -90,13 +90,12 @@ If Docker and the stack are up, you should see core services reported as healthy
 
 ```bash
 phlo workflow create --type ingestion --domain commerce --table orders --unique-key id --cron "0 * * * *" --api-base-url "https://fakestoreapi.com"
-phlo logs --limit 20
 ```
 
 Your output should look roughly like this:
 
 ```text
-Command completed successfully.
+Created ingestion workflow scaffold under workflows/ingestion/commerce/orders.py.
 ```
 
 At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion assets as `dlt_<table>`).
@@ -106,13 +105,13 @@ At this point, your first asset name is `dlt_orders` (Phlo prefixes ingestion as
 Use dry-run first so you can verify command shape without mutating state.
 
 ```bash
-phlo services list --json
+phlo materialize dlt_orders --dry-run
 ```
 
 You should get output similar to this:
 
 ```text
-[{"name": "minio", "category": "core", "default": true}, ...]
+Dry-run: would materialize dlt_orders (no state changes applied).
 ```
 
 ## Why This Project Shape Matters
@@ -235,7 +234,6 @@ Run:
 
 ```bash
 phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key id --cron "0 */2 * * *" --api-base-url "https://fakestoreapi.com"
-phlo logs --limit 20
 phlo schema list --format table
 ```
 
@@ -301,7 +299,8 @@ phlo services list --json
 On a healthy setup, you will see something similar:
 
 ```text
-Created ingestion workflow scaffold under workflows/ingestion/<domain>/<table>.py.
+Generated service configuration under .phlo/.
+[{"name": "minio", "category": "core", "default": true}, ...]
 ```
 
 When onboarding pain is low, platform adoption rises naturally.

@@ -15,6 +15,8 @@
 - dbt project scaffold under `workflows/transforms/dbt`
 - Trino service running
 
+The models below use an orders domain schema (`order_id`, `customer_id`, `total_amount`, `order_timestamp`) that is richer than the demo products data from Part 2. Adapt column names to match your own ingested data, or follow these examples as a standalone reference.
+
 ## Where dbt Fits
 
 - Bronze: type cleanup and source normalisation
@@ -87,10 +89,10 @@ docker exec my-first-phlo-project-dagster-1 dbt run --select stg_orders fct_orde
 docker exec my-first-phlo-project-dagster-1 dbt test --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
 ```
 
-Expected output:
+Expected output from `dbt compile`:
 
 ```text
-Found 3 models, 4 tests, 0 sources
+Found 3 models, 4 tests, 1 source
 Compiled successfully.
 ```
 

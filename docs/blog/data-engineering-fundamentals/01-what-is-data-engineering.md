@@ -53,7 +53,7 @@ graph LR
 | Versioning | Isolated change flow | Nessie branches/tags |
 | Orchestration | Deterministic execution | Dagster assets via `phlo materialize` |
 | Transformation | Business logic in SQL | dbt project in `workflows/transforms/dbt` |
-| Quality + Ops | Confidence and response | Pandera, `@phlo_quality`, logs, metrics, lineage |
+| Quality + Ops | Confidence and response | Pandera, `@phlo.quality`, logs, metrics, lineage |
 
 ## First Contact with the CLI
 
@@ -68,7 +68,7 @@ uv pip install phlo phlo-dagster phlo-dlt phlo-quality phlo-nessie phlo-iceberg 
 The command should return something like this:
 
 ```text
-Command completed successfully.
+Installed 10 packages in 3.2s
 ```
 
 ```bash
@@ -78,7 +78,7 @@ phlo --version
 You should see something like this:
 
 ```text
-Usage: phlo --version [OPTIONS]
+phlo, version 0.1.0
 ```
 
 ```bash
@@ -126,7 +126,7 @@ For example, this is not just syntax:
 
 - `unique_key` in `@phlo.ingestion` is a deduplication decision.
 - `merge_strategy` is a correctness-vs-throughput decision.
-- `blocking` checks in `@phlo_quality` are a risk decision.
+- `blocking` checks in `@phlo.quality` are a risk decision.
 - `phlo backfill --parallel N` is a source-pressure decision.
 
 When you treat those as product decisions, your data system becomes much easier to operate.
