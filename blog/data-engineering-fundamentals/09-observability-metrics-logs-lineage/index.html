@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 9: Observability: Metrics, Logs, and Lineage - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -420,7 +420,11 @@
 phlo logs --limit 20
 </code></pre>
 <p>In most setups, the output will look similar to this:</p>
-<pre><code class="language-text">Command completed successfully.
+<pre><code class="language-text">Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 </code></pre>
 <h2 id="metrics-for-trends">Metrics for Trends</h2>
 <pre><code class="language-bash">phlo metrics summary --period 24h
@@ -428,18 +432,18 @@ phlo metrics asset dlt_orders --runs 20
 phlo metrics export --format json --output .phlo/metrics-24h.json --period 24h
 </code></pre>
 <p>You should see something like this:</p>
-<pre><code class="language-text">Command completed successfully.
+<pre><code class="language-text">Period: 24h | Total runs: 8 | Success rate: 100.0%
+Exported metrics to .phlo/metrics-24h.json
 </code></pre>
 <h2 id="lineage-for-impact-analysis">Lineage for Impact Analysis</h2>
 <pre><code class="language-bash">phlo lineage status
 phlo lineage show dlt_orders --direction both --depth 2
-phlo lineage status
 </code></pre>
 <p>A typical result looks like this:</p>
-<pre><code class="language-text">Command completed successfully.
+<pre><code class="language-text">dlt_orders → stg_orders → fct_orders → mrt_revenue_daily
 </code></pre>
 <h2 id="alerting-loop">Alerting Loop</h2>
-<p>When alerting plugin is installed:</p>
+<p>Confirm the alerting plugin is available, then configure alert rules:</p>
 <pre><code class="language-bash">phlo plugin list
 </code></pre>
 <h2 id="deep-dive-building-a-weekly-slo-review">Deep Dive: Building a Weekly SLO Review</h2>

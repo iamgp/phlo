@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 6: Transformations with dbt - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -407,6 +407,7 @@
 <li>dbt project scaffold under <code>workflows/transforms/dbt</code></li>
 <li>Trino service running</li>
 </ul>
+<p>The models below use an orders domain schema (<code>order_id</code>, <code>customer_id</code>, <code>total_amount</code>, <code>order_timestamp</code>) that is richer than the demo products data from Part 2. Adapt column names to match your own ingested data, or follow these examples as a standalone reference.</p>
 <h2 id="where-dbt-fits">Where dbt Fits</h2>
 <ul>
 <li>Bronze: type cleanup and source normalisation</li>
@@ -461,8 +462,8 @@ group by 1, 2
 docker exec my-first-phlo-project-dagster-1 dbt run --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
 docker exec my-first-phlo-project-dagster-1 dbt test --select stg_orders fct_orders --project-dir /app/workflows/transforms/dbt
 </code></pre>
-<p>Expected output:</p>
-<pre><code class="language-text">Found 3 models, 4 tests, 0 sources
+<p>Expected output from <code>dbt compile</code>:</p>
+<pre><code class="language-text">Found 3 models, 4 tests, 1 source
 Compiled successfully.
 </code></pre>
 <h2 id="phlo-publishing-scaffolding">Phlo Publishing Scaffolding</h2>

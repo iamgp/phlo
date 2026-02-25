@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 3: Ingestion Foundations with DLT - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -495,7 +495,7 @@
 </blockquote>
 <h2 id="what-youll-learn">What You'll Learn</h2>
 <ul>
-<li>How <code>@phlo_ingestion</code> turns a source function into a managed asset</li>
+<li>How <code>@phlo.ingestion</code> turns a source function into a managed asset</li>
 <li>Why two-step ingestion (stage then merge) improves reliability</li>
 <li>How to choose <code>merge</code> vs <code>append</code></li>
 <li>How partition keys affect replay and idempotency</li>
@@ -546,7 +546,7 @@ def orders(partition_date: str):
         client={"base_url": "https://fakestoreapi.com"},
         resources=[
             {
-                "name": "orders",
+                "name": "products",
                 "endpoint": {
                     "path": "/products",
                 },
@@ -580,13 +580,15 @@ def clickstream(partition_date: str):
     ...
 </code></pre>
 <h2 id="run-ingestion-for-a-partition">Run Ingestion for a Partition</h2>
-<pre><code class="language-bash">phlo services list --json
+<pre><code class="language-bash">phlo materialize dlt_orders --partition 2025-01-15
 </code></pre>
 <p>The command should return something like this:</p>
-<pre><code class="language-text">[{"name": "minio", "category": "core", "default": true}, ...]
+<pre><code class="language-text">Materializing dlt_orders for partition 2025-01-15...
+
+Successfully materialized dlt_orders
 </code></pre>
 <p>Backfill date ranges when needed:</p>
-<pre><code class="language-bash">phlo status --services
+<pre><code class="language-bash">phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-07 --parallel 2
 </code></pre>
 <h2 id="deep-dive-source-reality-vs-pipeline-assumptions">Deep Dive: Source Reality vs Pipeline Assumptions</h2>
 <p>Most ingestion bugs come from optimistic assumptions about source systems.</p>
@@ -664,7 +666,7 @@ def orders(partition_date: str):
         client={"base_url": "https://fakestoreapi.com"},
         resources=[
             {
-                "name": "orders",
+                "name": "products",
                 "endpoint": {
                     "path": "/products",
                 },
@@ -734,13 +736,11 @@ def orders(partition_date: str):
 <li>Run a date range with known empty data.</li>
 <li>Confirm pipeline returns "no data" cleanly without false failure.</li>
 </ul>
-<p>Suggested command set:</p>
-<pre><code class="language-bash">phlo services list --json
+<p>After each experiment, verify results with:</p>
+<pre><code class="language-bash">phlo status --services
 phlo logs --limit 20
 </code></pre>
-<p>Your output should look roughly like this:</p>
-<pre><code class="language-text">Service health table with Dagster, MinIO, Nessie, and Trino states.
-</code></pre>
+<p>Status confirms services are healthy; logs show whether the pipeline handled the injected fault as expected.</p>
 <p>This is one of the best low-cost ways to increase confidence.</p>
 <h2 id="extended-playbook-operational-alerts-for-ingestion-health">Extended Playbook: Operational Alerts for Ingestion Health</h2>
 <p>Minimum ingestion SLO set:</p>
@@ -852,11 +852,14 @@ Expected: no_data status, not hard failure
 <li>Keep the highest safe concurrency, not the highest possible.</li>
 </ol>
 <p>Command pattern:</p>
-<pre><code class="language-bash">phlo status --services
-phlo metrics asset dlt_orders --runs 30
+<pre><code class="language-bash">phlo metrics asset dlt_orders --runs 30
 </code></pre>
 <p>You should get output similar to this:</p>
-<pre><code class="language-text">Service health table with Dagster, MinIO, Nessie, and Trino states.
+<pre><code class="language-text">Asset: dlt_orders
+Runs: 30
+Median duration: 42s
+p95 duration: 68s
+Failure rate: 3.3%
 </code></pre>
 <p>What to avoid:</p>
 <ul>
@@ -922,7 +925,7 @@ This single discipline will prevent many expensive downstream failures.</p>
 </ol>
 <p>Debug patterns: <a href="../../../operations/troubleshooting/">Troubleshooting</a></p>
 <h2 id="summary">Summary</h2>
-<p><code>@phlo_ingestion</code> is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.</p>
+<p><code>@phlo.ingestion</code> is not just syntactic sugar. It encodes a repeatable ingestion contract with partitioning, schema, and merge behaviour built in.</p>
 <h2 id="next-steps">Next Steps</h2>
 <ol>
 <li>Move to <a href="../04-iceberg-and-nessie-for-reliable-tables/">Part 4</a> to understand where ingestion lands.</li>

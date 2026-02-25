@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 7: Quality Checks with Pandera and Phlo Quality - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -388,7 +388,7 @@
 <h2 id="what-youll-learn">What You'll Learn</h2>
 <ul>
 <li>How Pandera schemas define enforceable contracts</li>
-<li>How <code>@phlo_quality</code> generates asset checks</li>
+<li>How <code>@phlo.quality</code> generates asset checks</li>
 <li>When to block downstream runs vs warn</li>
 <li>How to validate schemas and workflow files from CLI</li>
 </ul>
@@ -399,6 +399,7 @@
 </ul>
 <h2 id="contract-first-mindset">Contract-First Mindset</h2>
 <p>A schema is not documentation only. It is executable policy.</p>
+<p>The examples here use the orders domain schema from Part 6. If you are following along with the demo products API, substitute your own field names.</p>
 <p>Example Pandera model:</p>
 <pre><code class="language-python">import pandera as pa
 from pandera.typing import Series
@@ -432,10 +433,10 @@ def orders_quality_gate() -&gt; None:
 </code></pre>
 <h2 id="validate-before-you-deploy">Validate Before You Deploy</h2>
 <pre><code class="language-bash">phlo schema list --format table
-phlo logs --limit 20
 </code></pre>
 <p>Your output should look roughly like this:</p>
-<pre><code class="language-text">Available Schemas table with schema names, field counts, and source modules.
+<pre><code class="language-text">Schema         Fields    Module
+RawOrders      4         workflows.schemas.orders
 </code></pre>
 <h2 id="quality-severity-strategy">Quality Severity Strategy</h2>
 <p>Use this policy in early production:</p>

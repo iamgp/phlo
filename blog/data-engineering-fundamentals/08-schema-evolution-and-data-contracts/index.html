@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 8: Schema Evolution and Data Contracts - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -414,10 +414,11 @@
 <pre><code class="language-bash">phlo schema list --format table
 </code></pre>
 <p>You should get output similar to this:</p>
-<pre><code class="language-text">Available Schemas table with schema names, field counts, and source modules.
+<pre><code class="language-text">Schema         Fields    Module
+RawOrders      4         workflows.schemas.orders
 </code></pre>
 <h2 id="branch-first-rollout-pattern">Branch-First Rollout Pattern</h2>
-<pre><code class="language-bash">phlo plugin list
+<pre><code class="language-bash">phlo branch create schema/contract-update
 </code></pre>
 <p>Then run in branch context:</p>
 <ol>

@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 5: Orchestration with Dagster Assets - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -593,11 +593,16 @@ Parallel workers: 2
 <pre><code class="language-bash">phlo backfill dlt_orders --start-date 2025-01-01 --end-date 2025-01-31 --dry-run
 </code></pre>
 <h2 id="runtime-visibility-commands">Runtime Visibility Commands</h2>
-<pre><code class="language-bash">phlo materialize dlt_orders --partition 2025-01-15
+<p>After a materialization, use status and logs to confirm outcomes:</p>
+<pre><code class="language-bash">phlo status --services
 phlo logs --limit 20
 </code></pre>
 <p>You should see something like this:</p>
-<pre><code class="language-text">Service health table with Dagster, MinIO, Nessie, and Trino states.
+<pre><code class="language-text">Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 </code></pre>
 <h2 id="design-rules-that-prevent-pain">Design Rules That Prevent Pain</h2>
 <ol>
@@ -681,7 +686,7 @@ Parallel workers: 1
 </ol>
 <p>Supporting commands:</p>
 <pre><code class="language-bash">phlo logs --limit 20
-phlo backfill dlt_orders --start-date 2025-01-13 --end-date 2025-01-18 --parallel 3
+phlo backfill dlt_orders --start-date 2025-01-13 --end-date 2025-01-18 --parallel 1
 </code></pre>
 <p>This is a clear example of why orchestration metadata and stateful resume support matter.</p>
 <h2 id="extended-guide-choosing-between-freshness-and-batch-efficiency">Extended Guide: Choosing Between Freshness and Batch Efficiency</h2>
@@ -716,7 +721,11 @@ phlo metrics summary --period 7d
 phlo metrics asset dlt_orders --runs 30
 </code></pre>
 <p>If everything is wired correctly, you should see output along these lines:</p>
-<pre><code class="language-text">Service health and metrics summary output.
+<pre><code class="language-text">Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+
+Period: 7d | Total runs: 48 | Success rate: 97.9%
 </code></pre>
 <p>Without this review, orchestration reliability regresses quietly.</p>
 <h2 id="anti-patterns-in-orchestration">Anti-Patterns in Orchestration</h2>
@@ -858,7 +867,11 @@ If runs are deterministic, replayable, and observable, incident complexity drops
 phlo logs --limit 20
 </code></pre>
 <p>On a healthy setup, you will see something similar:</p>
-<pre><code class="language-text">Service health table with status for old and new asset selectors.
+<pre><code class="language-text">Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 </code></pre>
 <p>The point is not naming itself; it is controlled operational change.</p>
 <h2 id="extended-team-exercise-on-call-drill">Extended Team Exercise: On-Call Drill</h2>

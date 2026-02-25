@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 10: Incident Response and Debugging - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -422,11 +422,12 @@ phlo logs --limit 20
 phlo metrics summary --period 24h
 phlo lineage status
 </code></pre>
-<p>If everything is wired correctly, you should see output along these lines:</p>
-<pre><code class="language-text">[
-  {"name": "minio", "category": "core", "default": true},
-  {"name": "dagster", "category": "core", "default": true}
-]
+<p>Run these in order. Together they give you service health, asset freshness, recent errors, metric trends, and downstream blast radius within minutes.</p>
+<pre><code class="language-text">Service    Status    Port
+dagster    Up        3000
+minio      Up        9000
+nessie     Up        19120
+trino      Up        8080
 </code></pre>
 <h2 id="common-failure-classes">Common Failure Classes</h2>
 <ul>
@@ -443,7 +444,7 @@ phlo lineage status
 <li>Route consumers to last known good snapshot if necessary</li>
 </ul>
 <p>Example targeted replay:</p>
-<pre><code class="language-bash">phlo services list --json
+<pre><code class="language-bash">phlo materialize dlt_orders --partition 2025-01-15
 </code></pre>
 <h2 id="deep-dive-the-first-five-minutes">Deep Dive: The First Five Minutes</h2>
 <p>Most incident time is wasted in the first five minutes on wrong assumptions. Use this strict sequence:</p>

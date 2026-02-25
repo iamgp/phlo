@@ -8,7 +8,7 @@
 <meta content="Documentation for the Phlo data lakehouse platform" name="description"/>
 <meta content="Phlo Team" name="author"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.3" name="generator"/>
 <title>Part 1: What Data Engineering Really Is - Phlo Lakehouse Platform</title>
 <link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
@@ -511,7 +511,7 @@
 <tr>
 <td>Quality + Ops</td>
 <td>Confidence and response</td>
-<td>Pandera, <code>@phlo_quality</code>, logs, metrics, lineage</td>
+<td>Pandera, <code>@phlo.quality</code>, logs, metrics, lineage</td>
 </tr>
 </tbody>
 </table>
@@ -522,12 +522,12 @@ source .venv/bin/activate
 uv pip install phlo phlo-dagster phlo-dlt phlo-quality phlo-nessie phlo-iceberg phlo-dbt phlo-trino phlo-metrics phlo-lineage
 </code></pre>
 <p>The command should return something like this:</p>
-<pre><code class="language-text">Command completed successfully.
+<pre><code class="language-text">Installed 10 packages in 3.2s
 </code></pre>
 <pre><code class="language-bash">phlo --version
 </code></pre>
 <p>You should see something like this:</p>
-<pre><code class="language-text">Usage: phlo --version [OPTIONS]
+<pre><code class="language-text">phlo, version 0.1.0
 </code></pre>
 <pre><code class="language-bash">phlo services list --json
 </code></pre>
@@ -563,7 +563,7 @@ Phlo helps by making those decisions explicit in code and commands.</p>
 <ul>
 <li><code>unique_key</code> in <code>@phlo.ingestion</code> is a deduplication decision.</li>
 <li><code>merge_strategy</code> is a correctness-vs-throughput decision.</li>
-<li><code>blocking</code> checks in <code>@phlo_quality</code> are a risk decision.</li>
+<li><code>blocking</code> checks in <code>@phlo.quality</code> are a risk decision.</li>
 <li><code>phlo backfill --parallel N</code> is a source-pressure decision.</li>
 </ul>
 <p>When you treat those as product decisions, your data system becomes much easier to operate.</p>

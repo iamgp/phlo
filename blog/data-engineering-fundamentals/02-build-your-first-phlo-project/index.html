@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
     
     
       
@@ -1158,18 +1158,17 @@ Starting services...
 <p>If Docker and the stack are up, you should see core services reported as healthy (for example Dagster, MinIO, Nessie, and Trino all reachable). If you see <code>Down</code> or <code>Timeout</code>, stop here and fix service startup before moving on.</p>
 <h2 id="create-your-first-ingestion-asset">Create Your First Ingestion Asset</h2>
 <pre><code class="language-bash">phlo workflow create --type ingestion --domain commerce --table orders --unique-key id --cron &quot;0 * * * *&quot; --api-base-url &quot;https://fakestoreapi.com&quot;
-phlo logs --limit 20
 </code></pre>
 <p>Your output should look roughly like this:</p>
-<pre><code class="language-text">Command completed successfully.
+<pre><code class="language-text">Created ingestion workflow scaffold under workflows/ingestion/commerce/orders.py.
 </code></pre>
 <p>At this point, your first asset name is <code>dlt_orders</code> (Phlo prefixes ingestion assets as <code>dlt_&lt;table&gt;</code>).</p>
 <h2 id="first-materialization-dry-run">First Materialization Dry Run</h2>
 <p>Use dry-run first so you can verify command shape without mutating state.</p>
-<pre><code class="language-bash">phlo services list --json
+<pre><code class="language-bash">phlo materialize dlt_orders --dry-run
 </code></pre>
 <p>You should get output similar to this:</p>
-<pre><code class="language-text">[{&quot;name&quot;: &quot;minio&quot;, &quot;category&quot;: &quot;core&quot;, &quot;default&quot;: true}, ...]
+<pre><code class="language-text">Dry-run: would materialize dlt_orders (no state changes applied).
 </code></pre>
 <h2 id="why-this-project-shape-matters">Why This Project Shape Matters</h2>
 <ul>
@@ -1273,7 +1272,6 @@ phlo logs --limit 20
 <p>Use a domain you care about, for example "subscriptions".</p>
 <p>Run:</p>
 <pre><code class="language-bash">phlo workflow create --type ingestion --domain subscriptions --table invoices --unique-key id --cron &quot;0 */2 * * *&quot; --api-base-url &quot;https://fakestoreapi.com&quot;
-phlo logs --limit 20
 phlo schema list --format table
 </code></pre>
 <p>Then answer:</p>
@@ -1323,7 +1321,8 @@ phlo services init --force
 phlo services list --json
 </code></pre>
 <p>On a healthy setup, you will see something similar:</p>
-<pre><code class="language-text">Created ingestion workflow scaffold under workflows/ingestion/&lt;domain&gt;/&lt;table&gt;.py.
+<pre><code class="language-text">Generated service configuration under .phlo/.
+[{&quot;name&quot;: &quot;minio&quot;, &quot;category&quot;: &quot;core&quot;, &quot;default&quot;: true}, ...]
 </code></pre>
 <p>When onboarding pain is low, platform adoption rises naturally.</p>
 <h2 id="hands-on-exercise">Hands-On Exercise</h2>
