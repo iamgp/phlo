@@ -322,6 +322,226 @@ def merge_to_table(
     return result
 
 
+def overwrite_table(
+    table_name: str,
+    data_path: str | Path,
+    ref: str = "main",
+) -> dict[str, int]:
+    """Overwrite an Iceberg table with parquet data."""
+    source_path = str(data_path)
+    source_row_count = 0
+    rows_inserted = 0
+
+    logger.info(
+        "iceberg_table_overwrite_started",
+        table_name=table_name,
+        ref=ref,
+        source=source_path,
+    )
+
+    try:
+        catalog = get_catalog(ref=ref)
+        table = catalog.load_table(table_name)
+
+        data_path = Path(data_path) if isinstance(data_path, str) else data_path
+
+        if data_path.is_dir():
+            arrow_table = pq.ParquetDataset(str(data_path)).read()
+        else:
+            arrow_table = pq.read_table(str(data_path))
+
+        source_row_count = len(arrow_table)
+
+        iceberg_column_names = {field.name for field in table.schema().fields}
+        arrow_column_names = set(arrow_table.schema.names)
+        new_columns = arrow_column_names - iceberg_column_names
+
+        if new_columns:
+            logger.warning(
+                "arrow_columns_not_in_iceberg_schema",
+                new_column_count=len(new_columns),
+                new_columns=sorted(new_columns),
+                table_name=table_name,
+            )
+            existing_columns = [c for c in arrow_table.schema.names if c in iceberg_column_names]
+            arrow_table = arrow_table.select(existing_columns)
+
+        import pyarrow as pa
+        from pyiceberg.io.pyarrow import schema_to_pyarrow
+
+        target_schema = schema_to_pyarrow(table.schema())
+
+        arrow_column_names_set = set(arrow_table.schema.names)
+        missing_columns = []
+
+        for field in target_schema:
+            if field.name not in arrow_column_names_set:
+                null_array = pa.nulls(len(arrow_table), type=field.type)
+                missing_columns.append((field.name, null_array))
+
+        for col_name, null_array in missing_columns:
+            arrow_table = arrow_table.append_column(col_name, null_array)
+
+        target_field_names = target_schema.names
+        arrow_table = arrow_table.select(target_field_names)
+
+        try:
+            arrow_table = arrow_table.cast(target_schema)
+        except (pa.ArrowInvalid, pa.ArrowTypeError, ValueError) as e:
+            logger.warning(
+                "arrow_cast_to_target_schema_failed", table_name=table_name, error=str(e)
+            )
+
+        table.overwrite(arrow_table)
+        rows_inserted = len(arrow_table)
+        result = {"rows_inserted": rows_inserted, "rows_deleted": 0}
+    except Exception as exc:
+        logger.error(
+            "iceberg_table_overwrite_failed",
+            table_name=table_name,
+            ref=ref,
+            source=source_path,
+            source_row_count=source_row_count,
+            rows_inserted=rows_inserted,
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        raise
+
+    logger.info(
+        "iceberg_table_overwrite_succeeded",
+        table_name=table_name,
+        ref=ref,
+        source=source_path,
+        source_row_count=source_row_count,
+        rows_inserted=result["rows_inserted"],
+        rows_deleted=result["rows_deleted"],
+    )
+
+    return result
+
+
+def delete_rows_from_table(
+    table_name: str,
+    predicate: str,
+    ref: str = "main",
+) -> dict[str, int]:
+    """Delete rows matching a predicate expression from an Iceberg table."""
+    logger.info(
+        "iceberg_table_delete_started",
+        table_name=table_name,
+        ref=ref,
+        predicate=predicate,
+    )
+
+    try:
+        catalog = get_catalog(ref=ref)
+        table = catalog.load_table(table_name)
+        table.delete(delete_filter=predicate)
+    except Exception as exc:
+        logger.error(
+            "iceberg_table_delete_failed",
+            table_name=table_name,
+            ref=ref,
+            predicate=predicate,
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        raise
+
+    result = {"rows_deleted": -1}
+    logger.info(
+        "iceberg_table_delete_succeeded",
+        table_name=table_name,
+        ref=ref,
+        predicate=predicate,
+    )
+
+    return result
+
+
+def list_table_snapshots(
+    table_name: str,
+    limit: int = 10,
+    ref: str = "main",
+) -> list[dict]:
+    """List recent snapshots of an Iceberg table.
+
+    Args:
+        table_name: Fully qualified table name (namespace.table).
+        limit: Maximum number of snapshots to return.
+        ref: Nessie branch reference.
+
+    Returns:
+        List of snapshot dicts (most recent first), each with snapshot_id,
+        timestamp_ms, operation, and summary.
+    """
+    catalog = get_catalog(ref=ref)
+    table = catalog.load_table(table_name)
+
+    snapshots = sorted(table.snapshots(), key=lambda s: s.timestamp_ms, reverse=True)
+
+    results: list[dict] = []
+    for snap in snapshots[:limit]:
+        results.append(
+            {
+                "snapshot_id": snap.snapshot_id,
+                "timestamp_ms": snap.timestamp_ms,
+                "operation": snap.summary.operation.value if snap.summary else None,
+                "summary": dict(snap.summary.additional_properties) if snap.summary else {},
+            }
+        )
+
+    return results
+
+
+def rollback_table_to_snapshot(
+    table_name: str,
+    snapshot_id: int,
+    ref: str = "main",
+) -> dict:
+    """Roll back an Iceberg table to a previous snapshot.
+
+    Args:
+        table_name: Fully qualified table name (namespace.table).
+        snapshot_id: Target snapshot ID.
+        ref: Nessie branch reference.
+
+    Returns:
+        Dict with rolled_back_to snapshot ID.
+    """
+    logger.info(
+        "iceberg_table_rollback_started",
+        table_name=table_name,
+        ref=ref,
+        snapshot_id=snapshot_id,
+    )
+
+    try:
+        catalog = get_catalog(ref=ref)
+        table = catalog.load_table(table_name)
+        table.manage_snapshots().rollback_to(snapshot_id).commit()
+    except Exception as exc:
+        logger.error(
+            "iceberg_table_rollback_failed",
+            table_name=table_name,
+            ref=ref,
+            snapshot_id=snapshot_id,
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
+        raise
+
+    logger.info(
+        "iceberg_table_rollback_succeeded",
+        table_name=table_name,
+        ref=ref,
+        snapshot_id=snapshot_id,
+    )
+
+    return {"rolled_back_to": snapshot_id}
+
+
 def get_table_schema(table_name: str, ref: str = "main") -> Schema:
     """Get the schema of an existing table."""
     catalog = get_catalog(ref=ref)
@@ -337,29 +557,43 @@ def delete_table(table_name: str, ref: str = "main") -> None:
 
 def expire_snapshots(
     table_name: str,
-    older_than_days: int = 7,
+    older_than_days: int | None = None,
     retain_last: int = 5,
     ref: str = "main",
+    *,
+    older_than_hours: int | None = None,
 ) -> dict[str, int]:
     """
     Expire old snapshots from an Iceberg table.
 
     Args:
         table_name: Fully qualified table name (namespace.table)
-        older_than_days: Expire snapshots older than this many days (must be positive)
+        older_than_days: Expire snapshots older than this many days (must be positive).
+            Mutually exclusive with ``older_than_hours``; defaults to 7 when neither is set.
         retain_last: Always retain at least this many snapshots (must be non-negative)
         ref: Nessie branch reference
+        older_than_hours: Expire snapshots older than this many hours (must be positive).
 
     Returns:
         Dict with deleted_snapshots count
 
     Raises:
-        ValueError: If older_than_days <= 0, retain_last < 0, or table_name format invalid
+        ValueError: If both ``older_than_days`` and ``older_than_hours`` are set,
+            retention <= 0, retain_last < 0, or table_name format invalid.
     """
     from datetime import datetime, timedelta, timezone
 
-    if older_than_days <= 0:
-        raise ValueError(f"older_than_days must be positive, got {older_than_days}")
+    if older_than_days is not None and older_than_hours is not None:
+        raise ValueError("Specify older_than_days or older_than_hours, not both")
+    if older_than_hours is not None:
+        if older_than_hours <= 0:
+            raise ValueError(f"older_than_hours must be positive, got {older_than_hours}")
+        retention = timedelta(hours=older_than_hours)
+    else:
+        effective_days = older_than_days if older_than_days is not None else 7
+        if effective_days <= 0:
+            raise ValueError(f"older_than_days must be positive, got {effective_days}")
+        retention = timedelta(days=effective_days)
     if retain_last < 0:
         raise ValueError(f"retain_last must be non-negative, got {retain_last}")
     if "." not in table_name:
@@ -368,9 +602,7 @@ def expire_snapshots(
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
 
-    older_than_ms = int(
-        (datetime.now(timezone.utc) - timedelta(days=older_than_days)).timestamp() * 1000
-    )
+    older_than_ms = int((datetime.now(timezone.utc) - retention).timestamp() * 1000)
 
     snapshots_before = len(list(table.snapshots()))
 
@@ -389,9 +621,11 @@ def expire_snapshots(
 
 def remove_orphan_files(
     table_name: str,
-    older_than_days: int = 3,
+    older_than_days: int | None = None,
     dry_run: bool = True,
     ref: str = "main",
+    *,
+    older_than_hours: int | None = None,
 ) -> dict[str, int | list[str] | bool]:
     """
     Remove orphan files not referenced by any snapshot.
@@ -402,27 +636,39 @@ def remove_orphan_files(
 
     Args:
         table_name: Fully qualified table name (namespace.table)
-        older_than_days: Only remove files older than this many days (must be positive)
+        older_than_days: Only remove files older than this many days (must be positive).
+            Mutually exclusive with ``older_than_hours``; defaults to 3 when neither is set.
         dry_run: If True, only list files without deleting
         ref: Nessie branch reference
+        older_than_hours: Only remove files older than this many hours (must be positive).
 
     Returns:
         Dict with orphan_count, orphan_files list, and dry_run flag
 
     Raises:
-        ValueError: If older_than_days <= 0 or table_name format invalid
+        ValueError: If both ``older_than_days`` and ``older_than_hours`` are set,
+            retention <= 0, or table_name format invalid.
     """
     from datetime import datetime, timedelta, timezone
 
-    if older_than_days <= 0:
-        raise ValueError(f"older_than_days must be positive, got {older_than_days}")
+    if older_than_days is not None and older_than_hours is not None:
+        raise ValueError("Specify older_than_days or older_than_hours, not both")
+    if older_than_hours is not None:
+        if older_than_hours <= 0:
+            raise ValueError(f"older_than_hours must be positive, got {older_than_hours}")
+        retention = timedelta(hours=older_than_hours)
+    else:
+        effective_days = older_than_days if older_than_days is not None else 3
+        if effective_days <= 0:
+            raise ValueError(f"older_than_days must be positive, got {effective_days}")
+        retention = timedelta(days=effective_days)
     if "." not in table_name:
         raise ValueError(f"table_name must be namespace.table format, got {table_name}")
 
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
 
-    older_than_ts = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).timestamp()
+    older_than_ts = (datetime.now(timezone.utc) - retention).timestamp()
 
     # Collect all referenced files from all snapshots
     referenced_files: set[str] = set()

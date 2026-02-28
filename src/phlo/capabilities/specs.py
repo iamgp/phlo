@@ -123,6 +123,24 @@ class LineageSinkSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class GovernanceBackendSpec:
+    """Governance backend capability (for example Trino RBAC, Ranger, OPA)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class SecretBackendSpec:
+    """Secret backend capability (for example Vault, AWS Secrets Manager, env)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class MaterializeResult:
     """Result for a successful or skipped materialization."""
 

@@ -6,11 +6,13 @@ from phlo.capabilities.registry import (
     register_asset,
     register_catalog,
     register_check,
+    register_governance_backend,
     register_lineage_sink,
     register_metadata_catalog,
     register_quality_backend,
     register_query_engine,
     register_resource,
+    register_secret_backend,
     register_table_store,
 )
 from phlo.logging import get_logger
@@ -67,6 +69,10 @@ def discover_capabilities() -> None:
                 register_metadata_catalog(metadata_catalog)
             for lineage_sink in plugin.get_lineage_sinks():
                 register_lineage_sink(lineage_sink)
+            for governance_backend in plugin.get_governance_backends():
+                register_governance_backend(governance_backend)
+            for secret_backend in plugin.get_secret_backends():
+                register_secret_backend(secret_backend)
         except Exception as exc:
             logger.warning(
                 "capability_resource_provider_registration_failed",
