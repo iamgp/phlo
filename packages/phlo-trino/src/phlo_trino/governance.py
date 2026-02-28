@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from phlo.capabilities.interfaces import AccessPolicy
@@ -9,6 +10,29 @@ from phlo.logging import get_logger
 from phlo_trino.resource import TrinoResource
 
 logger = get_logger(__name__)
+
+_ALLOWED_ACTIONS = frozenset({
+    "SELECT", "INSERT", "DELETE", "UPDATE", "ALL PRIVILEGES", "GRANT",
+})
+_IDENTIFIER_RE = re.compile(r"^[\w][\w.]*$")
+
+
+def _validate_identifier(value: str, label: str) -> str:
+    """Validate a SQL identifier to prevent injection.
+
+    Args:
+        value: Identifier string to validate.
+        label: Human-readable label for error messages.
+
+    Returns:
+        The validated identifier.
+
+    Raises:
+        ValueError: If the identifier contains invalid characters.
+    """
+    if not _IDENTIFIER_RE.match(value):
+        raise ValueError(f"Invalid {label}: {value!r}")
+    return value
 
 
 class TrinoGovernanceBackend:
@@ -19,6 +43,8 @@ class TrinoGovernanceBackend:
 
     def list_policies(self, *, table_name: str | None = None) -> list[dict[str, Any]]:
         """List grants, optionally filtered by table."""
+        if table_name is not None:
+            _validate_identifier(table_name, "table_name")
         sql = f"SHOW GRANTS ON TABLE {table_name}" if table_name else "SHOW GRANTS"
         try:
             rows = self._trino.execute(sql)
@@ -51,6 +77,10 @@ class TrinoGovernanceBackend:
     def apply_policy(self, *, policy: AccessPolicy) -> None:
         """Apply a GRANT or DENY via Trino SQL."""
         action = policy.action.upper()
+        if action not in _ALLOWED_ACTIONS:
+            raise ValueError(f"Unsupported action: {action!r}")
+        _validate_identifier(policy.table_pattern, "table_pattern")
+        _validate_identifier(policy.principal, "principal")
         if policy.columns:
             logger.warning(
                 "trino_governance_column_grants_unsupported", columns=policy.columns
@@ -77,6 +107,10 @@ class TrinoGovernanceBackend:
             msg = f"policy_id must be 'ACTION:TABLE:PRINCIPAL', got: {policy_id}"
             raise ValueError(msg)
         action, table, principal = parts
+        if action.upper() not in _ALLOWED_ACTIONS:
+            raise ValueError(f"Unsupported action: {action!r}")
+        _validate_identifier(table, "table")
+        _validate_identifier(principal, "principal")
         sql = f"REVOKE {action.upper()} ON TABLE {table} FROM {principal}"
         logger.info("trino_governance_revoke_policy", sql=sql, policy_id=policy_id)
         self._trino.execute(sql)
