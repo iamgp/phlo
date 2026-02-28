@@ -13,6 +13,7 @@ from typing import Optional
 import click
 
 from phlo.cli.commands.plugin import plugin_group
+from phlo.cli.commands.schema_migrate import schema_migrate_group
 from phlo.cli.commands.services import services_group
 from phlo.cli.commands.workflow import workflow_group
 from phlo.cli.config import config
@@ -38,6 +39,7 @@ def cli() -> None:
 cli.add_command(services_group)
 cli.add_command(workflow_group)
 cli.add_command(plugin_group)
+cli.add_command(schema_migrate_group)
 cli.add_command(config)
 cli.add_command(env)
 

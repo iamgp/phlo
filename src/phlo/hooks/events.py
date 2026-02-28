@@ -114,6 +114,17 @@ class TelemetryEvent(HookEvent):
 
 
 @dataclass(kw_only=True)
+class SchemaMigrationEvent(HookEvent):
+    """Event emitted for schema migration lifecycle stages."""
+
+    table_name: str
+    classification: str
+    change_count: int
+    status: str
+    changes: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(kw_only=True)
 class LogEvent(HookEvent):
     """Event emitted for structured log records."""
 

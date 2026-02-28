@@ -39,6 +39,7 @@ from phlo_quality.checks import (
 from phlo_quality.checks_extra import CustomSQLCheck, PatternCheck, SchemaCheck
 from phlo_quality.contract import PANDERA_CONTRACT_CHECK_NAME, QualityCheckContract, dbt_check_name
 from phlo_quality.decorator import clear_quality_checks, get_quality_checks, phlo_quality
+from phlo_quality.schema_extractor import PanderaSchemaExtractor
 from phlo_quality.reconciliation import (
     AggregateConsistencyCheck,
     AggregateSpec,
@@ -71,6 +72,8 @@ __all__ = [
     "KeyParityCheck",
     "MultiAggregateConsistencyCheck",
     "ChecksumReconciliationCheck",
+    # Schema extraction
+    "PanderaSchemaExtractor",
     # Contract helpers
     "PANDERA_CONTRACT_CHECK_NAME",
     "QualityCheckContract",

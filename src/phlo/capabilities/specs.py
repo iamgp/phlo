@@ -141,6 +141,60 @@ class SecretBackendSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class FieldSpec:
+    """Single field in a normalized, provider-agnostic schema."""
+
+    name: str
+    dtype: str
+    nullable: bool = True
+    default: Any = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedSchema:
+    """Provider-agnostic schema representation.
+
+    Quality providers (Pandera, Great Expectations, etc.) convert their native
+    schemas into this form; storage providers consume it for diff/migration.
+    """
+
+    fields: list[FieldSpec]
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class SchemaChange:
+    """Single field-level change detected between two schemas."""
+
+    field_name: str
+    change_type: str
+    old_value: str | None = None
+    new_value: str | None = None
+    classification: str = "breaking"
+
+
+@dataclass(frozen=True, slots=True)
+class SchemaMigrationPlan:
+    """Plan describing changes to apply to a table schema."""
+
+    table_name: str
+    changes: list[SchemaChange]
+    classification: str
+    recommendations: list[str] = field(default_factory=list)
+    requires_approval: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SchemaMigrationSpec:
+    """Schema migration capability (registered provider)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class MaterializeResult:
     """Result for a successful or skipped materialization."""
 
