@@ -229,9 +229,7 @@ class IcebergResource:
             predicate=predicate,
         )
         try:
-            result = delete_rows_from_table(
-                table_name=table_name, predicate=predicate, ref=branch
-            )
+            result = delete_rows_from_table(table_name=table_name, predicate=predicate, ref=branch)
         except Exception as exc:
             logger.error(
                 "iceberg_resource_delete_rows_failed",
@@ -250,16 +248,12 @@ class IcebergResource:
         )
         return result
 
-    def compact(
-        self, *, table_name: str, override_ref: str | None = None
-    ) -> dict[str, object]:
+    def compact(self, *, table_name: str, override_ref: str | None = None) -> dict[str, object]:
         """Compact small files in a table.
 
         Not supported by PyIceberg — use Trino ``OPTIMIZE`` instead.
         """
-        raise NotImplementedError(
-            "Compaction requires Spark or Trino; use Trino OPTIMIZE instead"
-        )
+        raise NotImplementedError("Compaction requires Spark or Trino; use Trino OPTIMIZE instead")
 
     def list_snapshots(self, *, table_name: str, limit: int = 10) -> list[dict]:
         """List recent table snapshots.
@@ -273,9 +267,7 @@ class IcebergResource:
         """
         return list_table_snapshots(table_name=table_name, limit=limit, ref=self.ref)
 
-    def rollback_to_snapshot(
-        self, *, table_name: str, snapshot_id: int | str
-    ) -> dict:
+    def rollback_to_snapshot(self, *, table_name: str, snapshot_id: int | str) -> dict:
         """Roll back a table to a previous snapshot.
 
         Args:

@@ -118,9 +118,7 @@ class GovernanceBackend(Protocol):
         """Revoke an access policy by identifier."""
         ...
 
-    def check_access(
-        self, *, principal: str, table_name: str, action: str
-    ) -> bool:
+    def check_access(self, *, principal: str, table_name: str, action: str) -> bool:
         """Check whether a principal has access for an action on a table."""
         ...
 

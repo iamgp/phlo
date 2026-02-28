@@ -46,9 +46,7 @@ class GovernancePlugin(Plugin, ABC):
     """
 
     @abstractmethod
-    def list_policies(
-        self, *, table_name: str | None = None
-    ) -> list[dict[str, Any]]:
+    def list_policies(self, *, table_name: str | None = None) -> list[dict[str, Any]]:
         """List access policies, optionally filtered by table."""
         raise NotImplementedError
 
@@ -62,9 +60,7 @@ class GovernancePlugin(Plugin, ABC):
         """Revoke an access policy by identifier."""
         raise NotImplementedError
 
-    def check_access(
-        self, *, principal: str, table_name: str, action: str
-    ) -> bool:
+    def check_access(self, *, principal: str, table_name: str, action: str) -> bool:
         """Check whether a principal has access. Returns True by default."""
         return True
 

@@ -11,9 +11,16 @@ from phlo_trino.resource import TrinoResource
 
 logger = get_logger(__name__)
 
-_ALLOWED_ACTIONS = frozenset({
-    "SELECT", "INSERT", "DELETE", "UPDATE", "ALL PRIVILEGES", "GRANT",
-})
+_ALLOWED_ACTIONS = frozenset(
+    {
+        "SELECT",
+        "INSERT",
+        "DELETE",
+        "UPDATE",
+        "ALL PRIVILEGES",
+        "GRANT",
+    }
+)
 _IDENTIFIER_RE = re.compile(r"^[\w][\w.]*$")
 
 
@@ -60,18 +67,20 @@ class TrinoGovernanceBackend:
         # 4=catalog 5=schema 6=table 7=privilege 8=is_grantable 9=with_hierarchy
         policies: list[dict[str, Any]] = []
         for row in rows:
-            policies.append({
-                "grantor": row[0] if len(row) > 0 else None,
-                "grantor_type": row[1] if len(row) > 1 else None,
-                "grantee": row[2] if len(row) > 2 else None,
-                "grantee_type": row[3] if len(row) > 3 else None,
-                "catalog": row[4] if len(row) > 4 else None,
-                "schema": row[5] if len(row) > 5 else None,
-                "table": row[6] if len(row) > 6 else None,
-                "privilege": row[7] if len(row) > 7 else None,
-                "grantable": row[8] if len(row) > 8 else None,
-                "with_hierarchy": row[9] if len(row) > 9 else None,
-            })
+            policies.append(
+                {
+                    "grantor": row[0] if len(row) > 0 else None,
+                    "grantor_type": row[1] if len(row) > 1 else None,
+                    "grantee": row[2] if len(row) > 2 else None,
+                    "grantee_type": row[3] if len(row) > 3 else None,
+                    "catalog": row[4] if len(row) > 4 else None,
+                    "schema": row[5] if len(row) > 5 else None,
+                    "table": row[6] if len(row) > 6 else None,
+                    "privilege": row[7] if len(row) > 7 else None,
+                    "grantable": row[8] if len(row) > 8 else None,
+                    "with_hierarchy": row[9] if len(row) > 9 else None,
+                }
+            )
         return policies
 
     def apply_policy(self, *, policy: AccessPolicy) -> None:
@@ -82,9 +91,7 @@ class TrinoGovernanceBackend:
         _validate_identifier(policy.table_pattern, "table_pattern")
         _validate_identifier(policy.principal, "principal")
         if policy.columns:
-            logger.warning(
-                "trino_governance_column_grants_unsupported", columns=policy.columns
-            )
+            logger.warning("trino_governance_column_grants_unsupported", columns=policy.columns)
 
         if policy.effect == "DENY":
             sql = f"DENY {action} ON TABLE {policy.table_pattern} TO {policy.principal}"
@@ -120,9 +127,6 @@ class TrinoGovernanceBackend:
         policies = self.list_policies(table_name=table_name)
         action_upper = action.upper()
         for policy in policies:
-            if (
-                policy.get("grantee") == principal
-                and policy.get("privilege") == action_upper
-            ):
+            if policy.get("grantee") == principal and policy.get("privilege") == action_upper:
                 return True
         return False

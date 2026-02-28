@@ -483,12 +483,14 @@ def list_table_snapshots(
 
     results: list[dict] = []
     for snap in snapshots[:limit]:
-        results.append({
-            "snapshot_id": snap.snapshot_id,
-            "timestamp_ms": snap.timestamp_ms,
-            "operation": snap.summary.operation.value if snap.summary else None,
-            "summary": dict(snap.summary.additional_properties) if snap.summary else {},
-        })
+        results.append(
+            {
+                "snapshot_id": snap.snapshot_id,
+                "timestamp_ms": snap.timestamp_ms,
+                "operation": snap.summary.operation.value if snap.summary else None,
+                "summary": dict(snap.summary.additional_properties) if snap.summary else {},
+            }
+        )
 
     return results
 
@@ -600,9 +602,7 @@ def expire_snapshots(
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
 
-    older_than_ms = int(
-        (datetime.now(timezone.utc) - retention).timestamp() * 1000
-    )
+    older_than_ms = int((datetime.now(timezone.utc) - retention).timestamp() * 1000)
 
     snapshots_before = len(list(table.snapshots()))
 
