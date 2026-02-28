@@ -29,16 +29,22 @@ class TrinoGovernanceBackend:
                 exc_info=True,
             )
             return []
+        # Trino SHOW GRANTS columns:
+        # 0=grantor 1=grantor_type 2=grantee 3=grantee_type
+        # 4=catalog 5=schema 6=table 7=privilege 8=is_grantable 9=with_hierarchy
         policies: list[dict[str, Any]] = []
         for row in rows:
             policies.append({
                 "grantor": row[0] if len(row) > 0 else None,
-                "grantee": row[1] if len(row) > 1 else None,
-                "catalog": row[2] if len(row) > 2 else None,
-                "schema": row[3] if len(row) > 3 else None,
-                "table": row[4] if len(row) > 4 else None,
-                "privilege": row[5] if len(row) > 5 else None,
-                "grantable": row[6] if len(row) > 6 else None,
+                "grantor_type": row[1] if len(row) > 1 else None,
+                "grantee": row[2] if len(row) > 2 else None,
+                "grantee_type": row[3] if len(row) > 3 else None,
+                "catalog": row[4] if len(row) > 4 else None,
+                "schema": row[5] if len(row) > 5 else None,
+                "table": row[6] if len(row) > 6 else None,
+                "privilege": row[7] if len(row) > 7 else None,
+                "grantable": row[8] if len(row) > 8 else None,
+                "with_hierarchy": row[9] if len(row) > 9 else None,
             })
         return policies
 
