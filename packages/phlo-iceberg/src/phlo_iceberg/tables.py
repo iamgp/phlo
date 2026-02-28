@@ -555,29 +555,43 @@ def delete_table(table_name: str, ref: str = "main") -> None:
 
 def expire_snapshots(
     table_name: str,
-    older_than_days: int = 7,
+    older_than_days: int | None = None,
     retain_last: int = 5,
     ref: str = "main",
+    *,
+    older_than_hours: int | None = None,
 ) -> dict[str, int]:
     """
     Expire old snapshots from an Iceberg table.
 
     Args:
         table_name: Fully qualified table name (namespace.table)
-        older_than_days: Expire snapshots older than this many days (must be positive)
+        older_than_days: Expire snapshots older than this many days (must be positive).
+            Mutually exclusive with ``older_than_hours``; defaults to 7 when neither is set.
         retain_last: Always retain at least this many snapshots (must be non-negative)
         ref: Nessie branch reference
+        older_than_hours: Expire snapshots older than this many hours (must be positive).
 
     Returns:
         Dict with deleted_snapshots count
 
     Raises:
-        ValueError: If older_than_days <= 0, retain_last < 0, or table_name format invalid
+        ValueError: If both ``older_than_days`` and ``older_than_hours`` are set,
+            retention <= 0, retain_last < 0, or table_name format invalid.
     """
     from datetime import datetime, timedelta, timezone
 
-    if older_than_days <= 0:
-        raise ValueError(f"older_than_days must be positive, got {older_than_days}")
+    if older_than_days is not None and older_than_hours is not None:
+        raise ValueError("Specify older_than_days or older_than_hours, not both")
+    if older_than_hours is not None:
+        if older_than_hours <= 0:
+            raise ValueError(f"older_than_hours must be positive, got {older_than_hours}")
+        retention = timedelta(hours=older_than_hours)
+    else:
+        effective_days = older_than_days if older_than_days is not None else 7
+        if effective_days <= 0:
+            raise ValueError(f"older_than_days must be positive, got {effective_days}")
+        retention = timedelta(days=effective_days)
     if retain_last < 0:
         raise ValueError(f"retain_last must be non-negative, got {retain_last}")
     if "." not in table_name:
@@ -587,7 +601,7 @@ def expire_snapshots(
     table = catalog.load_table(table_name)
 
     older_than_ms = int(
-        (datetime.now(timezone.utc) - timedelta(days=older_than_days)).timestamp() * 1000
+        (datetime.now(timezone.utc) - retention).timestamp() * 1000
     )
 
     snapshots_before = len(list(table.snapshots()))
@@ -607,9 +621,11 @@ def expire_snapshots(
 
 def remove_orphan_files(
     table_name: str,
-    older_than_days: int = 3,
+    older_than_days: int | None = None,
     dry_run: bool = True,
     ref: str = "main",
+    *,
+    older_than_hours: int | None = None,
 ) -> dict[str, int | list[str] | bool]:
     """
     Remove orphan files not referenced by any snapshot.
@@ -620,27 +636,39 @@ def remove_orphan_files(
 
     Args:
         table_name: Fully qualified table name (namespace.table)
-        older_than_days: Only remove files older than this many days (must be positive)
+        older_than_days: Only remove files older than this many days (must be positive).
+            Mutually exclusive with ``older_than_hours``; defaults to 3 when neither is set.
         dry_run: If True, only list files without deleting
         ref: Nessie branch reference
+        older_than_hours: Only remove files older than this many hours (must be positive).
 
     Returns:
         Dict with orphan_count, orphan_files list, and dry_run flag
 
     Raises:
-        ValueError: If older_than_days <= 0 or table_name format invalid
+        ValueError: If both ``older_than_days`` and ``older_than_hours`` are set,
+            retention <= 0, or table_name format invalid.
     """
     from datetime import datetime, timedelta, timezone
 
-    if older_than_days <= 0:
-        raise ValueError(f"older_than_days must be positive, got {older_than_days}")
+    if older_than_days is not None and older_than_hours is not None:
+        raise ValueError("Specify older_than_days or older_than_hours, not both")
+    if older_than_hours is not None:
+        if older_than_hours <= 0:
+            raise ValueError(f"older_than_hours must be positive, got {older_than_hours}")
+        retention = timedelta(hours=older_than_hours)
+    else:
+        effective_days = older_than_days if older_than_days is not None else 3
+        if effective_days <= 0:
+            raise ValueError(f"older_than_days must be positive, got {effective_days}")
+        retention = timedelta(days=effective_days)
     if "." not in table_name:
         raise ValueError(f"table_name must be namespace.table format, got {table_name}")
 
     catalog = get_catalog(ref=ref)
     table = catalog.load_table(table_name)
 
-    older_than_ts = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).timestamp()
+    older_than_ts = (datetime.now(timezone.utc) - retention).timestamp()
 
     # Collect all referenced files from all snapshots
     referenced_files: set[str] = set()

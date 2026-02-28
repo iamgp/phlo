@@ -320,18 +320,16 @@ class IcebergResource:
         Returns:
             dict: Combined results from snapshot expiration and orphan removal.
         """
-        retain_days = max(retain_hours // 24, 1)
         logger.info(
             "iceberg_resource_vacuum_requested",
             table_name=table_name,
             retain_hours=retain_hours,
-            retain_days=retain_days,
         )
         snap_result = expire_snapshots(
-            table_name=table_name, older_than_days=retain_days, ref=self.ref
+            table_name=table_name, older_than_hours=retain_hours, ref=self.ref
         )
         orphan_result = remove_orphan_files(
-            table_name=table_name, older_than_days=retain_days, dry_run=False, ref=self.ref
+            table_name=table_name, older_than_hours=retain_hours, dry_run=False, ref=self.ref
         )
         result = {
             "deleted_snapshots": snap_result["deleted_snapshots"],
