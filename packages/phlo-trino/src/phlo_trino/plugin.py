@@ -8,7 +8,9 @@ from typing import Any
 import yaml
 
 from phlo.capabilities import ResourceSpec
+from phlo.capabilities.specs import GovernanceBackendSpec
 from phlo.plugins import PluginMetadata, ResourceProviderPlugin, ServicePlugin
+from phlo_trino.governance import TrinoGovernanceBackend
 from phlo_trino.resource import TrinoResource
 
 
@@ -64,3 +66,11 @@ class TrinoResourceProvider(ResourceProviderPlugin):
             Resource specifications for Trino integrations.
         """
         return [ResourceSpec(name="trino", resource=TrinoResource())]
+
+    def get_governance_backends(self) -> list[GovernanceBackendSpec]:
+        """Return Trino governance backend specs.
+
+        Returns:
+            Governance backend specifications for Trino SQL grants.
+        """
+        return [GovernanceBackendSpec(name="trino", provider=TrinoGovernanceBackend())]

@@ -9,11 +9,13 @@ from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
     CatalogSpec,
+    GovernanceBackendSpec,
     LineageSinkSpec,
     MetadataCatalogSpec,
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
+    SecretBackendSpec,
     TableStoreSpec,
 )
 
@@ -31,6 +33,8 @@ class CapabilityRegistry:
     quality_backends: dict[str, QualityBackendSpec] = field(default_factory=dict)
     metadata_catalogs: dict[str, MetadataCatalogSpec] = field(default_factory=dict)
     lineage_sinks: dict[str, LineageSinkSpec] = field(default_factory=dict)
+    governance_backends: dict[str, GovernanceBackendSpec] = field(default_factory=dict)
+    secret_backends: dict[str, SecretBackendSpec] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -153,6 +157,26 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.lineage_sinks.values())
 
+    def register_governance_backend(self, spec: GovernanceBackendSpec) -> None:
+        """Register or replace a governance backend spec by name."""
+        with self._lock:
+            self.governance_backends[spec.name] = spec
+
+    def list_governance_backends(self) -> list[GovernanceBackendSpec]:
+        """Return a snapshot list of registered governance backend specs."""
+        with self._lock:
+            return list(self.governance_backends.values())
+
+    def register_secret_backend(self, spec: SecretBackendSpec) -> None:
+        """Register or replace a secret backend spec by name."""
+        with self._lock:
+            self.secret_backends[spec.name] = spec
+
+    def list_secret_backends(self) -> list[SecretBackendSpec]:
+        """Return a snapshot list of registered secret backend specs."""
+        with self._lock:
+            return list(self.secret_backends.values())
+
     def clear(self) -> None:
         """Remove all assets, checks, and resources from the registry."""
 
@@ -166,6 +190,8 @@ class CapabilityRegistry:
             self.quality_backends.clear()
             self.metadata_catalogs.clear()
             self.lineage_sinks.clear()
+            self.governance_backends.clear()
+            self.secret_backends.clear()
 
     def clear_checks(self) -> None:
         """Remove all registered checks while preserving assets/resources."""
@@ -245,6 +271,16 @@ def register_metadata_catalog(spec: MetadataCatalogSpec) -> None:
 def register_lineage_sink(spec: LineageSinkSpec) -> None:
     """Register a lineage sink in the process-global registry."""
     _GLOBAL_REGISTRY.register_lineage_sink(spec)
+
+
+def register_governance_backend(spec: GovernanceBackendSpec) -> None:
+    """Register a governance backend in the process-global registry."""
+    _GLOBAL_REGISTRY.register_governance_backend(spec)
+
+
+def register_secret_backend(spec: SecretBackendSpec) -> None:
+    """Register a secret backend in the process-global registry."""
+    _GLOBAL_REGISTRY.register_secret_backend(spec)
 
 
 def clear_capabilities() -> None:

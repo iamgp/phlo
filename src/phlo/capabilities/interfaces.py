@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 
+@runtime_checkable
 class TableStore(Protocol):
-    """Protocol for table-store providers used by ingestion components."""
+    """Protocol for table-store providers used by ingestion components.
+
+    Required methods: ``ensure_table``, ``append_parquet``, ``merge_parquet``.
+    Extended operations (``overwrite_parquet``, ``delete_rows``, ``compact``,
+    ``list_snapshots``, ``rollback_to_snapshot``, ``vacuum``) raise
+    ``NotImplementedError`` by default so providers opt in incrementally.
+    """
 
     def ensure_table(
         self,
@@ -37,3 +44,131 @@ class TableStore(Protocol):
         override_ref: str | None = None,
     ) -> dict[str, int]:
         """Merge staged parquet data into a destination table."""
+
+    def overwrite_parquet(
+        self,
+        *,
+        table_name: str,
+        data_path: str | Path,
+        override_ref: str | None = None,
+    ) -> dict[str, int]:
+        """Overwrite a table with staged parquet data."""
+        raise NotImplementedError
+
+    def delete_rows(
+        self,
+        *,
+        table_name: str,
+        predicate: str,
+        override_ref: str | None = None,
+    ) -> dict[str, int]:
+        """Delete rows matching a predicate expression."""
+        raise NotImplementedError
+
+    def compact(
+        self,
+        *,
+        table_name: str,
+        override_ref: str | None = None,
+    ) -> dict[str, Any]:
+        """Compact small files in a table."""
+        raise NotImplementedError
+
+    def list_snapshots(
+        self,
+        *,
+        table_name: str,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """List recent table snapshots for time-travel queries."""
+        raise NotImplementedError
+
+    def rollback_to_snapshot(
+        self,
+        *,
+        table_name: str,
+        snapshot_id: int | str,
+    ) -> dict[str, Any]:
+        """Roll back a table to a previous snapshot."""
+        raise NotImplementedError
+
+    def vacuum(
+        self,
+        *,
+        table_name: str,
+        retain_hours: int = 168,
+    ) -> dict[str, Any]:
+        """Remove orphan files older than the retention period."""
+        raise NotImplementedError
+
+
+@runtime_checkable
+class GovernanceBackend(Protocol):
+    """Protocol for governance providers (access control, masking, policies)."""
+
+    def list_policies(self, *, table_name: str | None = None) -> list[dict[str, Any]]:
+        """List access policies, optionally filtered by table."""
+        ...
+
+    def apply_policy(self, *, policy: "AccessPolicy") -> None:
+        """Apply an access policy to the backend."""
+        ...
+
+    def revoke_policy(self, *, policy_id: str) -> None:
+        """Revoke an access policy by identifier."""
+        ...
+
+    def check_access(
+        self, *, principal: str, table_name: str, action: str
+    ) -> bool:
+        """Check whether a principal has access for an action on a table."""
+        ...
+
+
+@runtime_checkable
+class SecretBackend(Protocol):
+    """Protocol for pluggable secret storage providers."""
+
+    def get_secret(self, key: str) -> str | None:
+        """Retrieve a secret value by key."""
+        ...
+
+    def list_secrets(self) -> list[str]:
+        """List available secret keys."""
+        ...
+
+
+class AccessPolicy:
+    """Value object describing an access control policy."""
+
+    __slots__ = (
+        "policy_id",
+        "principal",
+        "table_pattern",
+        "action",
+        "effect",
+        "columns",
+        "row_filter",
+        "data_masking",
+    )
+
+    def __init__(
+        self,
+        *,
+        policy_id: str | None = None,
+        principal: str,
+        table_pattern: str,
+        action: str = "SELECT",
+        effect: str = "ALLOW",
+        columns: list[str] | None = None,
+        row_filter: str | None = None,
+        data_masking: dict[str, str] | None = None,
+    ) -> None:
+        self.policy_id = policy_id
+        self.principal = principal
+        self.table_pattern = table_pattern
+        self.action = action
+        self.effect = effect
+        self.columns = columns
+        self.row_filter = row_filter
+        self.data_masking = data_masking
