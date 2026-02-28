@@ -20,6 +20,8 @@ _CAPABILITY_LISTERS = {
     "quality_backend": "list_quality_backends",
     "metadata_catalog": "list_metadata_catalogs",
     "lineage_sink": "list_lineage_sinks",
+    "governance_backend": "list_governance_backends",
+    "secret_backend": "list_secret_backends",
 }
 
 

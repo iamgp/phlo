@@ -13,11 +13,13 @@ from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
     CatalogSpec,
+    GovernanceBackendSpec,
     LineageSinkSpec,
     MetadataCatalogSpec,
     QualityBackendSpec,
     QueryEngineSpec,
     ResourceSpec,
+    SecretBackendSpec,
     TableStoreSpec,
 )
 from phlo.plugins.base.plugin import Plugin
@@ -101,4 +103,12 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_lineage_sinks(self) -> Iterable[LineageSinkSpec]:
         """Return lineage sink capability specs exposed by this plugin."""
+        return []
+
+    def get_governance_backends(self) -> Iterable[GovernanceBackendSpec]:
+        """Return governance backend capability specs exposed by this plugin."""
+        return []
+
+    def get_secret_backends(self) -> Iterable[SecretBackendSpec]:
+        """Return secret backend capability specs exposed by this plugin."""
         return []
