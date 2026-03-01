@@ -59,7 +59,8 @@ PROFILE_ALL ?= $(PROFILE_CORE) $(PROFILE_QUERY) $(PROFILE_BI) $(PROFILE_DOCS) $(
 	dagster-shell superset-shell postgres-shell minio-shell hub-shell trino-shell nessie-shell \
 	health-observability health-api health-catalog \
 	check lint lint-sql lint-python format-python typecheck-python \
-	lint-ts format-ts typecheck-ts test-core-regression fix-sql
+	lint-ts format-ts typecheck-ts test-core-regression fix-sql \
+	prek-install prek-run prek-validate zizmor
 
 up:
 	$(COMPOSE) up -d $(SERVICE)
@@ -332,3 +333,16 @@ lint-sql:
 
 fix-sql:
 	uv run sqlfluff fix workflows/transforms/dbt
+
+prek-install:
+	uvx prek install
+	uvx prek install-hooks
+
+prek-run:
+	uvx prek run --all-files
+
+prek-validate:
+	uvx prek validate-config
+
+zizmor:
+	uvx zizmor --no-online-audits --no-progress --min-severity low .github/workflows

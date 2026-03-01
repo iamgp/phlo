@@ -297,7 +297,7 @@ class MetricsCollector:
             since = datetime.now(timezone.utc) - timedelta(hours=period_hours)
             cur.execute(
                 """
-                SELECT 
+                SELECT
                     COUNT(*) as run_count,
                     SUM(CASE WHEN event_type = 'PIPELINE_SUCCESS' THEN 1 ELSE 0 END) as success_count
                 FROM dagster_event_logs

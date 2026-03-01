@@ -24,7 +24,6 @@ on:
 
 permissions:
   contents: read # Required to checkout private repo
-  id-token: write # Required for trusted publishing path
 
 jobs:
   plan:
@@ -34,8 +33,9 @@ jobs:
       has_packages: ${{ steps.plan.outputs.has_packages }}
       dry_run: ${{ steps.plan.outputs.dry_run }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Determine packages to publish
@@ -48,21 +48,25 @@ jobs:
         run: python .github/scripts/publish_plan.py
 
       - name: Log publish plan
+        env:
+          DRY_RUN_OUTPUT: ${{ steps.plan.outputs.dry_run }}
+          PACKAGES_JSON: ${{ steps.plan.outputs.packages }}
         run: |
-          echo "Dry run: ${{ steps.plan.outputs.dry_run }}"
-          echo "Packages: ${{ steps.plan.outputs.packages }}"
+          echo "Dry run: $DRY_RUN_OUTPUT"
+          echo "Packages: $PACKAGES_JSON"
 
   build:
     needs: plan
     if: needs.plan.outputs.has_packages == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
         with:
           version: "latest"
 
@@ -70,10 +74,12 @@ jobs:
         run: uv python install 3.11
 
       - name: Build packages
+        env:
+          PACKAGES_JSON: ${{ needs.plan.outputs.packages }}
         run: |
           rm -rf dist
           mkdir -p dist
-          echo '${{ needs.plan.outputs.packages }}' > /tmp/packages.json
+          printf '%s\n' "$PACKAGES_JSON" > /tmp/packages.json
           python - <<'PY'
           import json
           import pathlib
@@ -87,7 +93,7 @@ jobs:
           PY
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: dist
           path: dist/
@@ -97,18 +103,21 @@ jobs:
     if: needs.plan.outputs.has_packages == 'true' && needs.plan.outputs.dry_run != 'true'
     runs-on: ubuntu-latest
     environment: pypi # Configure this in GitHub repo settings
+    permissions:
+      contents: read
+      id-token: write
     env:
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           name: dist
           path: dist/
 
       - name: Publish to PyPI (API token)
         if: ${{ env.PYPI_API_TOKEN != '' }}
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e
         with:
           packages-dir: dist
           password: ${{ env.PYPI_API_TOKEN }}
@@ -118,7 +127,7 @@ jobs:
 
       - name: Publish to PyPI (trusted publisher)
         if: ${{ env.PYPI_API_TOKEN == '' }}
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e
         with:
           packages-dir: dist
           skip-existing: true
