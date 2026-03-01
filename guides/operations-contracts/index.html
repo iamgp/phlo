@@ -781,6 +781,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#async-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async Contracts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatibility-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility Adapters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#transformationresult" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1635,6 +1657,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#async-contracts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async Contracts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatibility-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility Adapters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#transformationresult" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1727,10 +1771,13 @@
 <p>Phlo defines abstract contracts for ingestion and transformation engines. Orchestrator
 adapters consume these contracts, allowing different backends (DLT, Airbyte, dbt, custom)
 to plug in without coupling to a specific orchestrator.</p>
+<p>Both synchronous and asynchronous variants are available. Existing packages can stay on
+sync contracts while new implementations opt into async contracts incrementally.</p>
 <h2 id="architecture">Architecture</h2>
 <pre><code class="language-text">┌─────────────────────┐     ┌──────────────────────┐
-│ BaseIngester (ABC)  │     │ BaseTransformer (ABC) │
-└─────────┬───────────┘     └──────────┬───────────┘
+│ BaseIngester /       │    │ BaseTransformer /     │
+│ AsyncIngester        │    │ AsyncTransformer      │
+└─────────┬────────────┘    └──────────┬────────────┘
           │ implements                  │ implements
           ▼                            ▼
 ┌─────────────────────┐     ┌──────────────────────┐
@@ -1829,6 +1876,40 @@ def run_transform(
 </code></pre>
 <p>Run transformations for an optional partition. Both arguments default to <code>None</code> for
 full, unparameterized runs.</p>
+<h2 id="async-contracts">Async Contracts</h2>
+<p><strong>Modules:</strong> <code>phlo.operations.ingestion</code>, <code>phlo.operations.transformation</code></p>
+<p>Async operation contracts mirror the sync interfaces:</p>
+<pre><code class="language-python">class AsyncIngester(ABC):
+    @abstractmethod
+    async def run_ingestion(
+        self,
+        partition_key: str | None,
+        parameters: dict[str, Any],
+    ) -&gt; IngestionResult:
+        ...
+
+class AsyncTransformer(Generic[ContextT], ABC):
+    @abstractmethod
+    async def run_transform(
+        self,
+        partition_key: str | None = None,
+        parameters: dict[str, Any] | None = None,
+    ) -&gt; TransformationResult:
+        ...
+</code></pre>
+<p>Use these contracts for network-bound ingestion/transform operations where concurrent I/O
+improves runtime.</p>
+<h2 id="compatibility-adapters">Compatibility Adapters</h2>
+<p><strong>Module:</strong> <code>phlo.operations.adapters</code></p>
+<p>Phlo provides adapters for gradual migration between sync and async engines:</p>
+<ul>
+<li><code>SyncToAsyncIngesterAdapter</code></li>
+<li><code>AsyncToSyncIngesterAdapter</code></li>
+<li><code>SyncToAsyncTransformerAdapter</code></li>
+<li><code>AsyncToSyncTransformerAdapter</code></li>
+</ul>
+<p>These adapters allow orchestrator code to adopt async execution paths without forcing
+all existing engine implementations to migrate at once.</p>
 <h2 id="transformationresult">TransformationResult</h2>
 <p>Dataclass returned by <code>run_transform</code>.</p>
 <pre><code class="language-python">@dataclass
