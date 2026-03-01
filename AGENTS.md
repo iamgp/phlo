@@ -1,29 +1,29 @@
 # Agents Configuration for Phlo
 
-Guidelines for AI agents and developers working on the Phlo monorepo.
+Guidance for AI agents and developers in the Phlo monorepo.
 
-**Work style:** Telegraph. Noun-phrases ok; drop grammar; minimize tokens globally.
+**Work style:** Telegraph. Noun phrases ok. Minimal tokens.
 
-## Development Principles
+## Principles
 
-- Early stage: no backward compatibility guarantees.
-- Keep code clean and organized; aim for zero technical debt.
-- Implement features properly to scale beyond 1,000 users.
-- Avoid compatibility shims, workarounds, and placeholders.
-- Prefer explicit, testable behavior; update docs for user-visible changes.
-- Keep files <~500 LOC; split/refactor as needed.
-- Bugs: add regression test when it fits.
+- Early stage: no backward-compat guarantees.
+- Zero-debt bias: clean structure, explicit behavior, testability.
+- No shims/placeholders/workarounds unless explicitly requested.
+- Build for >1,000 users.
+- User-visible changes: update docs.
+- Keep files near <500 LOC; split when needed.
+- Bug fixes: add regression test when practical.
 
-## Repository Layout (Monorepo)
+## Monorepo Map
 
-- `src/phlo/` - Core CLI/runtime (config, discovery, hooks, services, logging).
-- `packages/` - Workspace packages (phlo-dlt, phlo-dbt, phlo-dagster, phlo-quality, phlo-observatory, etc.).
-- `tests/` - Repo-level tests; package tests live in `packages/*/tests`.
-- `registry/` - Plugin registry schema + published metadata.
-- `docs/` - Documentation site content.
-- `scripts/` - Developer automation helpers.
+- `src/phlo/`: core CLI/runtime (config, discovery, hooks, services, logging).
+- `packages/`: workspace packages (`phlo-dlt`, `phlo-dbt`, `phlo-dagster`, `phlo-quality`, `phlo-observatory`, ...).
+- `tests/`: repo-level tests; package tests in `packages/*/tests`.
+- `registry/`: plugin registry schema + metadata.
+- `docs/`: docs site content.
+- `scripts/`: developer automation.
 
-## Tooling & Commands
+## Commands
 
 ### Setup
 
@@ -31,13 +31,13 @@ Guidelines for AI agents and developers working on the Phlo monorepo.
 uv pip install -e .
 ```
 
-### All Checks
+### Full Gate
 
 ```bash
 make check
 ```
 
-### Python Quality
+### Lint / Format / Types
 
 ```bash
 uv run ruff check .
@@ -51,10 +51,6 @@ uv run ty check
 uv run pytest
 ```
 
-### Dependencies
-
-- New deps: quick health check (recent releases/commits, adoption).
-
 ### Services
 
 ```bash
@@ -63,7 +59,7 @@ phlo services stop
 phlo services logs -f dagster-webserver
 ```
 
-### dbt (when services are running)
+### dbt (services running)
 
 ```bash
 docker exec dagster-webserver dbt run --select model_name
@@ -74,107 +70,104 @@ docker exec dagster-webserver dbt compile
 ## Architecture Snapshot
 
 - Orchestration: Dagster assets + sensors.
-- Ingestion: DLT + `@phlo_ingestion` decorator (phlo-dlt).
-- Quality: `@phlo_quality` + Pandera schemas (phlo-quality).
-- Transformations: dbt for SQL models and medallion layers.
-- Storage: Iceberg tables on S3-compatible storage (MinIO) with Nessie catalog.
+- Ingestion: DLT + `@phlo_ingestion` (`phlo-dlt`).
+- Quality: `@phlo_quality` + Pandera schemas (`phlo-quality`).
+- Transforms: dbt models/medallion layers.
+- Storage: Iceberg on S3-compatible MinIO + Nessie catalog.
 - Query: Trino.
-- Metadata: Postgres (operational metadata and marts).
-- UI/Observability: phlo-observatory plus metrics/alerting packages.
+- Metadata: Postgres.
+- UI/Observability: `phlo-observatory` + metrics/alerts packages.
 
-## Conventions
+## Coding Conventions
 
-- Python 3.11+, line length 100.
-- Type checking: ty.
-- Lint/format: ruff.
+- Python 3.11+; line length 100.
+- `ruff` for lint/format; `ty` for typecheck.
 - Absolute imports only.
-- Commits follow Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
-- Core configuration via `phlo.config.settings` (reads `.phlo/.env` and `.phlo/.env.local`); service configs live in package settings modules.
-- Project templates use:
-    - `workflows/` for ingestion/quality assets and `workflows/transforms/dbt/` for dbt projects.
-    - Pandera schemas in `workflows/schemas/{domain}.py`.
-    - Asset names in snake*case; ingestion assets use `dlt*<table_name>`.
-    - Database objects in lowercase.
+- Conventional Commits:
+  `feat|fix|refactor|build|ci|chore|docs|style|perf|test`.
+- Core config: `phlo.config.settings` (`.phlo/.env`, `.phlo/.env.local`).
+- Service config: package-local settings modules.
+- Template structure:
+  - `workflows/` for ingestion/quality assets.
+  - `workflows/transforms/dbt/` for dbt project.
+  - `workflows/schemas/{domain}.py` for Pandera.
+  - Asset names snake_case; ingestion assets `dlt_<table_name>`.
+  - Database objects lowercase.
 
-## Git
+## Git and GitHub
 
-- Safe by default: `git status/diff/log`. Push only when user asks.
-- `git checkout` ok for PR review / explicit request.
-- Branch changes require user consent.
-- Destructive ops forbidden unless explicit (`reset --hard`, `clean`, `restore`, `rm`, …).
-- Don't delete/rename unexpected stuff; stop + ask.
-- Avoid manual `git stash`; if Git auto-stashes during pull/rebase, that's fine.
-- If user types a command ("pull and push"), that's consent for that command.
-- No amend unless asked.
-- Big review: `git --no-pager diff --color=never`.
-- Never mention yourself in commit messages or pull requests.
+- Safe defaults: `git status`, `git diff`, `git log`.
+- Push only when user asks.
+- Branch changes need user consent.
+- No destructive commands unless explicit user request (`reset --hard`, `clean`, `restore`, `rm`, ...).
+- If unexpected file deletions/renames appear: stop and ask.
+- Avoid manual `git stash`; auto-stash during Git workflows is fine.
+- No amend unless user asks.
+- Large review command: `git --no-pager diff --color=never`.
+- Never mention yourself in commit messages/PRs.
 
-### gh
+### `gh` CLI
 
-- GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.
-- Examples: `gh issue view <url> --comments -R owner/repo`, `gh pr view <url> --comments --files -R owner/repo`.
+- Use `gh` for issues/PRs/CI/releases; avoid web-search fallback for GitHub data.
+- Issue example: `gh issue view <url> --comments -R owner/repo`.
+- PR example: `gh pr view <url> --comments --files -R owner/repo`.
 
-# Docs Blog
+## Docs Standards
 
-## Patterns
-- Service port defaults in docs should match `packages/*/src/*/service.yaml` (and generated `.phlo/.env`).
-- Ingestion docs should import `phlo_ingestion` from `phlo_dlt.decorator`.
-- dbt profiles live at `workflows/transforms/dbt/profiles/profiles.yml` (profiles dir, not root).
-- `phlo_quality` docs: use `allow_threshold`, `timestamp_column`, and `CustomSQLCheck(name_, expected, sql FROM data)`.
-- Plugin docs: entry point groups live in `src/phlo/discovery/plugins.py` (sources, quality, transforms, services, catalogs, assets, resources, orchestrators, hooks, observatory, cli, dagster).
-- Observatory extension docs: reference manifest models in `src/phlo/plugins/observatory.py` and example plugin in `packages/phlo-observatory-example/src/phlo_observatory_example/observatory_plugin.py`.
-- Blog posts should include a Common Issues section before Summary/Next Steps with 3-5 diagnostics and a link to `docs/operations/troubleshooting.md`.
-- Blog post code fences should include an Expected output block; use a short text output for commands or "No output" for definitions/configuration.
-- Mermaid diagrams in blog posts should include an Expected output block and a short diagram lead-in.
-- Blog posts should include a See Also section linking 2-3 related posts plus a relevant reference doc, and a short prerequisite callout near the top.
-- Blog README index should list all 16 posts with read times, status, persona learning paths, and search guidance.
-- Blog posts should include sections for What You'll Learn, Prerequisites, Hands-On Exercise, Summary, and Next Steps (in that order around Common Issues/See Also).
+- Put docs in the right lane:
+  `docs/getting-started/`, `docs/guides/`, `docs/reference/`, `docs/setup/`,
+  `docs/operations/`, `docs/packages/`, `docs/architecture/decisions/`, `docs/errors/`.
+- If adding/moving pages, update `docs/index.md` links in same change.
+- CLI behavior/flags/output changes:
+  update `docs/reference/cli-reference.md` plus related guides.
+- Config/env/default changes:
+  update `docs/reference/configuration-reference.md` and package docs under `docs/packages/`.
+- Service ports/profiles/startup behavior:
+  keep docs aligned with package `service.yaml` files and actual CLI behavior.
+- Plugin entry-point docs source of truth:
+  `src/phlo/plugins/discovery/_plugin_constants.py` (`ENTRY_POINT_GROUPS`).
+- Ingestion/quality docs prefer `import phlo` then `phlo.ingestion` /
+  `phlo.quality` usage.
+- dbt profiles path remains `workflows/transforms/dbt/profiles/profiles.yml`.
+- Observatory extension docs source of truth:
+  `packages/phlo-observatory/src/phlo_observatory/manifest.py`,
+  `packages/phlo-observatory/src/phlo_observatory/observatory_ext.py`,
+  example at `packages/phlo-observatory-example/src/phlo_observatory_example/observatory_plugin.py`.
+- New/changed error codes:
+  add or update `docs/errors/PHLO-*.md` and `docs/reference/common-errors.md`.
 
-## Gotchas
-- `phlo services` has no `open` command; use direct service URLs.
-- `phlo services status` has no `--json`; use `phlo services list --json`.
+## Runtime and Validation
 
-## Flow & Runtime
+- Long jobs: Codex background mode.
+- tmux only for persistent interactive sessions (debugger/server).
+- Before handoff: run full gate (lint, typecheck, tests, docs checks as relevant).
+- CI red loop: inspect (`gh run list/view`), rerun, fix, push, repeat until green.
+- Keep execution observable (logs/panes/tails).
 
-- Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).
+## PR Feedback Workflow
 
-## Build / Test
+- Active PR summary:
+  `gh pr view --json number,title,url --jq '"PR #\\(.number): \\(.title)\\n\\(.url)"'`
+- Comment retrieval:
+  `gh pr view ...` plus `gh api .../comments --paginate`
+- Reply policy: cite fix + file/line; resolve threads only after fix lands.
 
-- Before handoff: run full gate (lint/typecheck/tests/docs).
-- CI red: `gh run list/view`, rerun, fix, push, repeat til green.
-- Keep it observable (logs, panes, tails).
+## Decision Standard
 
-## PR Feedback
+- Fix root cause; avoid band-aids.
+- If unsure: read code deeper first.
+- If still blocked: ask user with short concrete options.
+- Call out conflicting constraints; choose safer path.
+- Prefer end-to-end verification; if blocked, state exact gap.
+- Leave short breadcrumb notes in thread.
 
-- Active PR: `gh pr view --json number,title,url --jq '"PR #\\(.number): \\(.title)\\n\\(.url)"'`.
-- PR comments: `gh pr view …` + `gh api …/comments --paginate`.
-- Replies: cite fix + file/line; resolve threads only after fix lands.
-
-## Critical Thinking
-
-- Fix root cause (not band-aid).
-- Unsure: read more code; if still stuck, ask w/ short options.
-- Conflicts: call out; pick safer path.
-- Prefer end-to-end verify; if blocked, say what's missing.
-- Leave breadcrumb notes in thread.
-
-## Tools
+## Tool Notes
 
 ### tmux
 
-- Use only when you need persistence/interaction (debugger/server).
-- Quick refs: `tmux new -d -s codex-shell`, `tmux attach -t codex-shell`, `tmux list-sessions`, `tmux kill-session -t codex-shell`.
-
-### Slash Commands
-
-- Global: `~/.codex/prompts/`. Repo-local: `docs/slash-commands/`.
-- Common: `/handoff`, `/pickup`.
-
-### mcporter / MCP
-
-- MCP launcher: `npx mcporter <server>` (see `npx mcporter --help`). Common: `iterm`, `firecrawl`, `XcodeBuildMCP`.
-
-### gh
-
-- GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.
-- Examples: `gh issue view <url> --comments -R owner/repo`, `gh pr view <url> --comments --files -R owner/repo`.
+- Use only for persistent/interactive sessions.
+- Quick refs:
+  `tmux new -d -s codex-shell`
+  `tmux attach -t codex-shell`
+  `tmux list-sessions`
+  `tmux kill-session -t codex-shell`
