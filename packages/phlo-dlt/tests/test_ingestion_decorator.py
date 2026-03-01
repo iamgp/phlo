@@ -40,10 +40,10 @@ def get_asset_spec(asset_key: str) -> Any:
 
 
 class TestSchemaAutoGeneration:
-    """Test automatic PyIceberg schema generation from Pandera."""
+    """Test schema parameter handling."""
 
-    def test_schema_auto_generated_from_pandera(self):
-        """Test PyIceberg schema is auto-generated when only validation_schema provided."""
+    def test_validation_schema_only_registers_asset(self):
+        """Test asset registration succeeds with validation_schema and no explicit table_schema."""
 
         class TestPanderaSchema(DataFrameModel):
             """Pandera schema used for this test case."""
@@ -70,8 +70,8 @@ class TestSchemaAutoGeneration:
         spec = get_asset_spec("dlt_test_table")
         assert spec.key == "dlt_test_table"
 
-    def test_explicit_iceberg_schema_used(self):
-        """Test explicit PyIceberg schema is used when provided."""
+    def test_explicit_table_schema_used(self):
+        """Test explicit table-store schema is used when provided."""
 
         class TestPanderaSchema(DataFrameModel):
             """Pandera schema used for this test case."""
@@ -86,7 +86,7 @@ class TestSchemaAutoGeneration:
             table_name="test_table",
             unique_key="id",
             validation_schema=TestPanderaSchema,
-            iceberg_schema=explicit_schema,
+            table_schema=explicit_schema,
             group="test",
         )
         def test_asset(partition_date: str):
@@ -103,7 +103,7 @@ class TestSchemaAutoGeneration:
         assert spec.key == "dlt_test_table"
 
     def test_error_when_no_schema_provided(self):
-        """Test error raised when neither validation_schema nor iceberg_schema provided."""
+        """Test error raised when neither validation_schema nor table_schema provided."""
         from phlo.exceptions import PhloConfigError
 
         with pytest.raises(PhloConfigError, match="Missing required schema parameter"):
@@ -523,7 +523,7 @@ class TestAssetAttributes:
 
         spec = get_asset_spec("dlt_test_table")
         assert "dlt" in spec.kinds
-        assert "iceberg" in spec.kinds
+        assert "table_store" in spec.kinds
 
     def test_asset_has_partitions_def(self):
         """Test asset has partitions_def configured."""

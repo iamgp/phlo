@@ -256,7 +256,7 @@ FactGlucoseReadings = dbt_model_to_pandera(
 **Schema Conversion** (Pandera → Iceberg):
 
 ```python
-# packages/phlo-dlt/src/phlo_dlt/converter.py
+# packages/phlo-iceberg/src/phlo_iceberg/schema_conversion.py
 str → StringType()
 int → LongType()
 float → DoubleType()

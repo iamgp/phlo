@@ -2926,6 +2926,7 @@ name = "phlo-iceberg"
 version = "0.1.0"
 source = { editable = "packages/phlo-iceberg" }
 dependencies = [
+    { name = "pandera" },
     { name = "phlo" },
     { name = "pyiceberg", extra = ["pyarrow", "s3fs"] },
 ]
@@ -2944,6 +2945,7 @@ nessie = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pandera", specifier = ">=0.26.1" },
     { name = "phlo", editable = "." },
     { name = "phlo-minio", marker = "extra == 'minio'", editable = "packages/phlo-minio" },
     { name = "phlo-nessie", marker = "extra == 'nessie'", editable = "packages/phlo-nessie" },

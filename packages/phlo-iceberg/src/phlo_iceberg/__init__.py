@@ -1,6 +1,7 @@
 from phlo_iceberg.catalog import get_catalog
 from phlo_iceberg.plugin import IcebergResourceProvider
 from phlo_iceberg.resource import IcebergResource
+from phlo_iceberg.schema_conversion import SchemaConversionError, pandera_to_iceberg
 from phlo_iceberg.schema_migrator import IcebergSchemaMigrator
 from phlo_iceberg.settings import IcebergSettings, get_settings
 from phlo_iceberg.tables import (
@@ -22,7 +23,9 @@ __all__ = [
     "IcebergResourceProvider",
     "IcebergSchemaMigrator",
     "IcebergSettings",
+    "SchemaConversionError",
     "get_settings",
     "merge_to_table",
+    "pandera_to_iceberg",
     "remove_orphan_files",
 ]
