@@ -220,6 +220,7 @@ For more details, see:
 - [Plugin System Blog Post](../blog/14-plugin-system.md)
 - [Capability-Driven Composition](../architecture/capability-composition.md)
 - [ADR 0030: Unified Plugin System](../architecture/decisions/0030-unified-plugin-system-with-registry.md)
+- [ADR 0046: Phlo Contracts for Migration Scaffolding](../architecture/decisions/0046-phlo-contracts-for-schema-migration-scaffolding.md)
 
 ## Branching Strategy
 

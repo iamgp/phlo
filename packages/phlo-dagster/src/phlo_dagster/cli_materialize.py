@@ -19,11 +19,17 @@ from phlo.logging import get_logger
 @click.argument("asset_name")
 @click.option("-p", "--partition", help="Partition date (YYYY-MM-DD)")
 @click.option("--select", help="Asset selector expression")
+@click.option(
+    "--no-contract-refresh",
+    is_flag=True,
+    help="Skip automatic schema contract refresh before materialization",
+)
 @click.option("--dry-run", is_flag=True, help="Show command without executing")
 def materialize(
     asset_name: str,
     partition: Optional[str],
     select: Optional[str],
+    no_contract_refresh: bool,
     dry_run: bool,
 ) -> None:
     """
@@ -44,6 +50,7 @@ def materialize(
         asset_name=asset_name,
         partition=partition,
         select=select,
+        no_contract_refresh=no_contract_refresh,
         dry_run=dry_run,
         project_name=project_name,
     )
@@ -59,6 +66,10 @@ def materialize(
             f"PHLO_HOST_PLATFORM={host_platform}",
             "-e",
             "PHLO_PROJECT_PATH=/app",
+            "-e",
+            f"PHLO_AUTO_REFRESH_CONTRACTS={'0' if no_contract_refresh else '1'}",
+            "-e",
+            f"PHLO_CONTRACT_REFRESH_SELECTION={select or asset_name}",
             "-w",
             "/app",
             container_name,
@@ -85,6 +96,7 @@ def materialize(
                 asset_name=asset_name,
                 partition=partition,
                 select=select,
+                no_contract_refresh=no_contract_refresh,
                 dry_run=True,
                 project_name=project_name,
                 container_name=container_name,
@@ -116,6 +128,7 @@ def materialize(
                 asset_name=asset_name,
                 partition=partition,
                 select=select,
+                no_contract_refresh=no_contract_refresh,
                 dry_run=False,
                 project_name=project_name,
                 container_name=container_name,
@@ -132,6 +145,7 @@ def materialize(
                 asset_name=asset_name,
                 partition=partition,
                 select=select,
+                no_contract_refresh=no_contract_refresh,
                 dry_run=False,
                 project_name=project_name,
                 container_name=container_name,
@@ -145,6 +159,7 @@ def materialize(
             asset_name=asset_name,
             partition=partition,
             select=select,
+            no_contract_refresh=no_contract_refresh,
             dry_run=dry_run,
             project_name=project_name,
             duration_seconds=round(time.perf_counter() - started_at, 3),
@@ -163,6 +178,7 @@ def materialize(
             asset_name=asset_name,
             partition=partition,
             select=select,
+            no_contract_refresh=no_contract_refresh,
             dry_run=dry_run,
             project_name=project_name,
             duration_seconds=round(time.perf_counter() - started_at, 3),
