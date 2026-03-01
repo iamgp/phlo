@@ -13,6 +13,7 @@ from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
     CatalogSpec,
+    DataMigrationSourceSpec,
     GovernanceBackendSpec,
     LineageSinkSpec,
     MetadataCatalogSpec,
@@ -116,4 +117,8 @@ class ResourceProviderPlugin(Plugin, ABC):
 
     def get_schema_migrators(self) -> Iterable[SchemaMigrationSpec]:
         """Return schema migrator capability specs exposed by this plugin."""
+        return []
+
+    def get_data_migration_sources(self) -> Iterable[DataMigrationSourceSpec]:
+        """Return data migration source adapter specs exposed by this plugin."""
         return []

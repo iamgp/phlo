@@ -195,6 +195,15 @@ class SchemaMigrationSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class DataMigrationSourceSpec:
+    """Data migration source adapter capability (registered provider)."""
+
+    name: str
+    provider: Any
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class MaterializeResult:
     """Result for a successful or skipped materialization."""
 

@@ -9,6 +9,7 @@ from phlo.capabilities.specs import (
     AssetCheckSpec,
     AssetSpec,
     CatalogSpec,
+    DataMigrationSourceSpec,
     GovernanceBackendSpec,
     LineageSinkSpec,
     MetadataCatalogSpec,
@@ -37,6 +38,7 @@ class CapabilityRegistry:
     governance_backends: dict[str, GovernanceBackendSpec] = field(default_factory=dict)
     secret_backends: dict[str, SecretBackendSpec] = field(default_factory=dict)
     schema_migrators: dict[str, SchemaMigrationSpec] = field(default_factory=dict)
+    data_migration_sources: dict[str, DataMigrationSourceSpec] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def register_asset(self, spec: AssetSpec) -> None:
@@ -189,6 +191,16 @@ class CapabilityRegistry:
         with self._lock:
             return list(self.schema_migrators.values())
 
+    def register_data_migration_source(self, spec: DataMigrationSourceSpec) -> None:
+        """Register or replace a data migration source adapter spec by name."""
+        with self._lock:
+            self.data_migration_sources[spec.name] = spec
+
+    def list_data_migration_sources(self) -> list[DataMigrationSourceSpec]:
+        """Return a snapshot list of registered migration source adapter specs."""
+        with self._lock:
+            return list(self.data_migration_sources.values())
+
     def clear(self) -> None:
         """Remove all assets, checks, and resources from the registry."""
 
@@ -205,6 +217,7 @@ class CapabilityRegistry:
             self.governance_backends.clear()
             self.secret_backends.clear()
             self.schema_migrators.clear()
+            self.data_migration_sources.clear()
 
     def clear_checks(self) -> None:
         """Remove all registered checks while preserving assets/resources."""
@@ -299,6 +312,11 @@ def register_secret_backend(spec: SecretBackendSpec) -> None:
 def register_schema_migrator(spec: SchemaMigrationSpec) -> None:
     """Register a schema migrator in the process-global registry."""
     _GLOBAL_REGISTRY.register_schema_migrator(spec)
+
+
+def register_data_migration_source(spec: DataMigrationSourceSpec) -> None:
+    """Register a data migration source adapter in the process-global registry."""
+    _GLOBAL_REGISTRY.register_data_migration_source(spec)
 
 
 def clear_capabilities() -> None:

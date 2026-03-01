@@ -7,6 +7,7 @@ from typing import Any
 
 from phlo.hooks.bus import HookBus, get_hook_bus
 from phlo.hooks.events import (
+    DataMigrationEvent,
     IngestionEvent,
     LineageEvent,
     PublishEvent,
@@ -524,5 +525,56 @@ class SchemaMigrationEventEmitter:
                 status=status,
                 changes=changes or [],
                 tags=self._context.tags.copy(),
+            )
+        )
+
+
+@dataclass(frozen=True)
+class DataMigrationEventContext:
+    """Shared context for data migration event emissions."""
+
+    migration_name: str
+    source_type: str
+    destination_table: str
+    tags: dict[str, str] = field(default_factory=dict)
+
+
+class DataMigrationEventEmitter:
+    """Emit data migration lifecycle events with a shared context."""
+
+    def __init__(
+        self,
+        context: DataMigrationEventContext,
+        hook_bus: HookBus | None = None,
+    ) -> None:
+        """Initialize the data migration event emitter."""
+        self._context = context
+        self._hook_bus = hook_bus or get_hook_bus()
+
+    def emit(
+        self,
+        *,
+        status: str,
+        rows_read: int,
+        rows_written: int,
+        chunk_index: int | None,
+        metrics: dict[str, Any] | None = None,
+    ) -> None:
+        """Emit a data migration event."""
+        tags = self._context.tags.copy()
+        tags["source_type"] = self._context.source_type
+        tags["destination_table"] = self._context.destination_table
+        self._hook_bus.emit(
+            DataMigrationEvent(
+                event_type=f"data_migration.{status}",
+                migration_name=self._context.migration_name,
+                source_type=self._context.source_type,
+                destination_table=self._context.destination_table,
+                status=status,
+                rows_read=rows_read,
+                rows_written=rows_written,
+                chunk_index=chunk_index,
+                metrics=metrics or {},
+                tags=tags,
             )
         )

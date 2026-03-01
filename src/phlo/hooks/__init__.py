@@ -14,6 +14,8 @@ __all__ = [
     "HookEvent",
     "IngestionEventContext",
     "IngestionEventEmitter",
+    "DataMigrationEventContext",
+    "DataMigrationEventEmitter",
     "LineageEventContext",
     "LineageEventEmitter",
     "PublishEventContext",
@@ -29,6 +31,7 @@ __all__ = [
     "TransformEventContext",
     "TransformEventEmitter",
     "IngestionEvent",
+    "DataMigrationEvent",
     "LineageEvent",
     "PublishEvent",
     "QualityResultEvent",
@@ -44,6 +47,8 @@ _BUS_EXPORTS = {"HookBus", "get_hook_bus"}
 _EMITTER_EXPORTS = {
     "IngestionEventContext",
     "IngestionEventEmitter",
+    "DataMigrationEventContext",
+    "DataMigrationEventEmitter",
     "LineageEventContext",
     "LineageEventEmitter",
     "PublishEventContext",
@@ -63,6 +68,7 @@ _EVENT_EXPORTS = {
     "EVENT_VERSION",
     "HookEvent",
     "IngestionEvent",
+    "DataMigrationEvent",
     "LineageEvent",
     "PublishEvent",
     "QualityResultEvent",
@@ -77,6 +83,8 @@ _EVENT_EXPORTS = {
 if TYPE_CHECKING:
     from phlo.hooks.bus import HookBus, get_hook_bus
     from phlo.hooks.emitters import (
+        DataMigrationEventContext,
+        DataMigrationEventEmitter,
         IngestionEventContext,
         IngestionEventEmitter,
         LineageEventContext,
@@ -96,6 +104,7 @@ if TYPE_CHECKING:
     )
     from phlo.hooks.events import (
         EVENT_VERSION,
+        DataMigrationEvent,
         HookEvent,
         IngestionEvent,
         LineageEvent,
