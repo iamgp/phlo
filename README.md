@@ -22,6 +22,11 @@
 - **Production-ready patterns** - Auto-publishing to Postgres, configurable merge strategies, freshness policies
 - **Modern tooling** - Built on Dagster, DLT, Iceberg, Nessie, dbt, and Trino
 
+## Prerequisites
+
+- [uv](https://github.com/astral-sh/uv) - Python package manager
+- [Docker](https://www.docker.com/) - Container runtime
+
 ## Quick Start
 
 ```bash
@@ -49,7 +54,7 @@ Full documentation at [docs/index.md](docs/index.md):
 - [CLI Reference](docs/reference/cli-reference.md)
 - [Configuration Reference](docs/reference/configuration-reference.md)
 - [Operations Guide](docs/operations/operations-guide.md)
-- [Blog Series](docs/blog/README.md) - 13-part deep dive
+- [Blog Series](docs/blog/README.md) - Data Engineering Fundamentals with Phlo
 
 ## Development
 
@@ -60,9 +65,12 @@ phlo services stop     # Stop services
 phlo services logs -f  # View logs
 
 # Development
+phlo services start    # Start all services
+phlo services stop     # Stop services
+phlo services logs -f  # View logs
+
+# Development
 uv pip install -e .    # Install Phlo
-ruff check src/        # Lint
-ruff format src/       # Format
-basedpyright src/      # Type check
-phlo test              # Run tests
+make check             # Lint, format, typecheck, and test
+phlo test              # Run tests only
 ```
