@@ -166,3 +166,7 @@ context/
 
 .claude
 .ralph/
+
+# Local-only docs
+docs/architecture/decisions/
+agents.md
